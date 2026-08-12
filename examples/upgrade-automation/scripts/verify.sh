@@ -15,14 +15,14 @@ require_value github_token "${GH_TOKEN:-}"
 
 pinned_mapped=$(read_bump_value)
 pinned_public=$(public_version "$pinned_mapped" "${TAG_SUFFIX:-}")
-if ! default_branch=$(gh api "repos/$GITHUB_REPOSITORY" --jq '.default_branch')
-if ! VERIFY_COMMENT_AUTHOR=$(gh api user --jq '.login' 2>/dev/null); then
-    VERIFY_COMMENT_AUTHOR='github-actions[bot]'
-fi
-export VERIFY_COMMENT_AUTHOR; then
+if ! default_branch=$(gh api "repos/$GITHUB_REPOSITORY" --jq '.default_branch'); then
     echo "Unable to determine the default branch for upgrade verification." >&2
     exit 1
 fi
+if ! VERIFY_COMMENT_AUTHOR=$(gh api user --jq '.login' 2>/dev/null); then
+    VERIFY_COMMENT_AUTHOR='github-actions[bot]'
+fi
+export VERIFY_COMMENT_AUTHOR
 if ! merged_upgrade_prs=$(gh api \
     --paginate \
     "repos/$GITHUB_REPOSITORY/pulls?state=closed&base=$default_branch&per_page=100" \
