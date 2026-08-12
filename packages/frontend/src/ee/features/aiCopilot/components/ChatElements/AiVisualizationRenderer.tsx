@@ -48,6 +48,7 @@ import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
 import { AgentVisualizationChartTypeSwitcher } from './AgentVisualizationChartTypeSwitcher';
 import AgentVisualizationFilters from './AgentVisualizationFilters';
 import AgentVisualizationMetricsAndDimensions from './AgentVisualizationMetricsAndDimensions';
+import AgentVisualizationParameters from './AgentVisualizationParameters';
 import {
     getVisualizationFieldsCount,
     getVisualizationFiltersCount,
@@ -188,7 +189,23 @@ export const AiVisualizationRenderer: FC<Props> = ({
     const filtersCount = displayFilters
         ? getVisualizationFiltersCount(metricQuery.filters)
         : 0;
-    const displayDetails = fieldsCount > 0 || filtersCount > 0;
+    // Only parameters the query actually references — usedParametersValues
+    // also carries unrelated project-wide defaults.
+    const usedParameters = useMemo(() => {
+        const references = vizQueryData.query.parameterReferences ?? [];
+        if (references.length === 0) return {};
+        return Object.fromEntries(
+            Object.entries(
+                vizQueryData.query.usedParametersValues ?? {},
+            ).filter(([name]) => references.includes(name)),
+        );
+    }, [
+        vizQueryData.query.parameterReferences,
+        vizQueryData.query.usedParametersValues,
+    ]);
+    const parametersCount = Object.keys(usedParameters).length;
+    const displayDetails =
+        fieldsCount > 0 || filtersCount > 0 || parametersCount > 0;
 
     const defaultChartType: AiAgentChartTypeOption =
         webAiChartConfig.type === AiResultType.QUERY_RESULT
@@ -357,6 +374,9 @@ export const AiVisualizationRenderer: FC<Props> = ({
                                         filtersCount > 0
                                             ? `Filters ${filtersCount}`
                                             : null,
+                                        parametersCount > 0
+                                            ? `Parameters ${parametersCount}`
+                                            : null,
                                     ]
                                         .filter(Boolean)
                                         .join(' · ')}
@@ -376,6 +396,12 @@ export const AiVisualizationRenderer: FC<Props> = ({
                                             <AgentVisualizationFilters
                                                 filters={metricQuery.filters}
                                                 fieldsMap={fields}
+                                            />
+                                        ) : null}
+
+                                        {parametersCount > 0 ? (
+                                            <AgentVisualizationParameters
+                                                parameterValues={usedParameters}
                                             />
                                         ) : null}
                                     </ErrorBoundary>
