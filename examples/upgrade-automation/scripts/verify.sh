@@ -15,45 +15,77 @@ require_value github_token "${GH_TOKEN:-}"
 
 pinned_mapped=$(read_bump_value)
 pinned_public=$(public_version "$pinned_mapped" "${TAG_SUFFIX:-}")
-default_branch=$(gh api "repos/$GITHUB_REPOSITORY" --jq '.default_branch')
-mapfile -t merged_upgrade_prs < <(
-    gh api \
-        --paginate \
-        --slurp \
-        "repos/$GITHUB_REPOSITORY/pulls?state=closed&base=$default_branch&per_page=100" \
-        --jq '.[] | .[] | select(.merged_at != null and ((.head.ref // "") | startswith("lightdash-upgrade-"))) | [.number, (.merge_commit_sha // "")] | @tsv'
-)
+if ! default_branch=$(gh api "repos/$GITHUB_REPOSITORY" --jq '.default_branch'); then
+    echo "Unable to determine the default branch for upgrade verification." >&2
+    exit 1
+fi
+if ! VERIFY_COMMENT_AUTHOR=$(gh api user --jq '.login' 2>/dev/null); then
+    VERIFY_COMMENT_AUTHOR='github-actions[bot]'
+fi
+export VERIFY_COMMENT_AUTHOR
+if ! merged_upgrade_prs=$(gh api \
+    --paginate \
+    "repos/$GITHUB_REPOSITORY/pulls?state=closed&base=$default_branch&per_page=100" \
+    --jq '.[] | select(.merged_at != null and ((.head.ref // "") | startswith("lightdash-upgrade-"))) | [.number, (.merge_commit_sha // "")] | @tsv'); then
+    echo "Unable to list merged upgrade pull requests; refusing to skip verification." >&2
+    exit 1
+fi
 
 pr_number=
 pr_url=
 verdict_json=
-for merged_upgrade_pr in "${merged_upgrade_prs[@]}"; do
-    IFS=$'\t' read -r candidate_number candidate_merge_sha <<<"$merged_upgrade_pr"
-    if [[ -z "$candidate_merge_sha" ]] || ! git merge-base --is-ancestor "$candidate_merge_sha" "$DEPLOYED_SHA"; then
-        continue
-    fi
-    candidate_body=$(gh pr view "$candidate_number" --repo "$GITHUB_REPOSITORY" --json body --jq '.body')
-    candidate_verdict=$(awk '/^```json$/ { capture=1; next } /^```$/ && capture { exit } capture' <<<"$candidate_body")
-    if ! printf '%s' "$candidate_verdict" | validate_verdict_json; then
-        continue
-    fi
-    if [[ "$(jq -r '.toVersion' <<<"$candidate_verdict")" != "$pinned_public" ]]; then
-        continue
-    fi
-    if gh pr view "$candidate_number" --repo "$GITHUB_REPOSITORY" --json comments --jq '[.comments[] | select(.author.login == "github-actions[bot]") | .body | select(startswith("## Upgrade verification summary") and contains("Outcome: **success**"))] | any' | grep -qx true; then
-        exit 0
-    fi
-    pr_number=$candidate_number
-    pr_url=$(gh pr view "$pr_number" --repo "$GITHUB_REPOSITORY" --json url --jq '.url')
-    verdict_json=$candidate_verdict
-    break
-done
+if [[ -n "$merged_upgrade_prs" ]]; then
+    while IFS=$'\t' read -r candidate_number candidate_merge_sha; do
+        if [[ -z "$candidate_merge_sha" ]]; then
+            continue
+        fi
+        ancestry_rc=0
+        git merge-base --is-ancestor "$candidate_merge_sha" "$DEPLOYED_SHA" 2>/dev/null || ancestry_rc=$?
+        if [[ "$ancestry_rc" -eq 1 ]]; then
+            continue
+        fi
+        if [[ "$ancestry_rc" -gt 1 ]]; then
+            echo "Unable to check ancestry for $candidate_merge_sha; the checkout may be too shallow. Use fetch-depth: 0 for verification." >&2
+            exit 1
+        fi
+        if ! candidate_body=$(gh pr view "$candidate_number" --repo "$GITHUB_REPOSITORY" --json body --jq '.body'); then
+            echo "Unable to read merged upgrade pull request #$candidate_number." >&2
+            exit 1
+        fi
+        candidate_verdict=$(awk '/^```json$/ { capture=1; next } /^```$/ && capture { exit } capture' <<<"$candidate_body")
+        if ! printf '%s' "$candidate_verdict" | validate_verdict_json; then
+            continue
+        fi
+        if [[ "$(jq -r '.toVersion' <<<"$candidate_verdict")" != "$pinned_public" ]]; then
+            continue
+        fi
+        if ! existing_successful_verification=$(gh pr view "$candidate_number" --repo "$GITHUB_REPOSITORY" --json comments --jq '[.comments[] | select(.author.login == $ENV.VERIFY_COMMENT_AUTHOR) | .body | select(startswith("## Upgrade verification summary") and contains("Outcome: **success**") and contains($ENV.DEPLOY_RUN_URL))] | any'); then
+            echo "Unable to inspect verification comments on merged upgrade pull request #$candidate_number." >&2
+            exit 1
+        fi
+        if [[ "$existing_successful_verification" == "true" && "$DEPLOY_CONCLUSION" == "success" ]]; then
+            exit 0
+        fi
+        pr_number=$candidate_number
+        if ! pr_url=$(gh pr view "$pr_number" --repo "$GITHUB_REPOSITORY" --json url --jq '.url'); then
+            echo "Unable to read the URL for merged upgrade pull request #$pr_number." >&2
+            exit 1
+        fi
+        verdict_json=$candidate_verdict
+        break
+    done <<<"$merged_upgrade_prs"
+fi
 
 if [[ -z "$pr_number" ]]; then
+    echo "No merged upgrade pull request matches this deployment; skipping verification."
     exit 0
 fi
 
 from_version=$(jq -r '.fromVersion' <<<"$verdict_json")
+if ! [[ "$from_version" =~ ^[A-Za-z0-9][A-Za-z0-9._+-]*$ ]]; then
+    echo "The merged upgrade pull request carries an invalid fromVersion." >&2
+    exit 1
+fi
 window_seconds=$(parse_duration "$VERIFY_WINDOW")
 started_at=$(date +%s)
 deadline=$((started_at + window_seconds))
@@ -127,9 +159,8 @@ cat >"$summary_file" <<EOF
 $(jq . <<<"$verdict_json")
 \`\`\`
 EOF
-gh pr comment "$pr_number" --repo "$GITHUB_REPOSITORY" --body-file "$summary_file"
-
 if [[ "$verified" == "true" ]]; then
+    gh pr comment "$pr_number" --repo "$GITHUB_REPOSITORY" --body-file "$summary_file"
     exit 0
 fi
 
@@ -146,10 +177,16 @@ The automated verification for \`$from_version\` → \`$pinned_public\` failed a
 Close this issue only after the deployment is healthy and the running version matches the pin.
 EOF
 
-existing_issue=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label "$FREEZE_LABEL" --search "\"$issue_title\" in:title" --json url --jq '.[0].url // empty')
+if ! existing_issue=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label "$FREEZE_LABEL" --search "\"$issue_title\" in:title" --json url --jq '.[0].url // empty'); then
+    echo "Unable to inspect existing upgrade freeze issues." >&2
+    exit 1
+fi
 if [[ -z "$existing_issue" ]]; then
     existing_issue=$(gh issue create --repo "$GITHUB_REPOSITORY" --title "$issue_title" --label "$FREEZE_LABEL" --body-file "$issue_body")
 fi
 
-post_slack "[upgrade-verify-failed] $from_version -> $pinned_public | reason: $last_reason | deploy: $DEPLOY_RUN_URL | freeze: $existing_issue"
+gh pr comment "$pr_number" --repo "$GITHUB_REPOSITORY" --body-file "$summary_file" \
+    || echo "warning: failed to post the verification summary comment" >&2
+post_slack "[upgrade-verify-failed] $from_version -> $pinned_public | reason: $last_reason | deploy: $DEPLOY_RUN_URL | freeze: $existing_issue" \
+    || echo "warning: failed to post the Slack escalation" >&2
 exit 1

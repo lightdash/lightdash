@@ -55,6 +55,8 @@ The schedule, manual dispatch, and release dispatch run the planning half. A fre
 
 The deployment workflow runs when the pin pull request merges into the default branch. Its completed `workflow_run` event starts verification and supplies the actual deploy-run URL and deployed SHA. Verification identifies the matching merged pin pull request in the deployed commit history, so batched pushes are covered; a pin pull request with an existing verification summary and unrelated deployments exit silently. A failed deployment workflow is itself a verification failure and creates the freeze issue without waiting for readiness polling.
 
+Verification has three outcomes: a matching merged upgrade pull request runs the full readiness and version check, no matching pull request logs a successful no-op, and any pull-request lookup failure fails the job without skipping verification.
+
 `/api/v1/readyz` certifies the schema gate and clean migration run ledger without the per-request database work performed by `/api/v1/health`. The probe does not expose a version, so the action separately reads the public `Lightdash-Version` header from the instance root. A missing or ingress-stripped header fails closed. Old pods can return 404 for `readyz`; polling continues until the new pods answer or the verification budget expires.
 
 The current CLI includes a required stop equal to the target in `requiredStops`, making that hop exit non-zero even when its underlying verdict is true. The plan action accepts only that narrow stop-target case: the verdict must be true, coverage complete, the minimum previous version satisfied, and the target must be the sole required stop. False and unknown verdicts are never treated as green.
