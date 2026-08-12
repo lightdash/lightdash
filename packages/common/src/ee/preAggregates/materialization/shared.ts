@@ -1,12 +1,12 @@
+import type { Explore } from '../../../types/explore';
 import {
     MetricType,
-    preAggregateUtils,
     type CompiledDimension,
     type CompiledMetric,
-    type Explore,
     type FieldId,
-    type PreAggregateDef,
-} from '@lightdash/common';
+} from '../../../types/field';
+import type { PreAggregateDef } from '../../../types/preAggregate';
+import * as preAggregateUtils from '../utils';
 import { assertMetricEligibleForPreAggregation } from './eligibility';
 
 export const getDimensionsByReference = (sourceExplore: Explore) =>

@@ -1,13 +1,12 @@
+import { ParameterError } from '../../../types/errors';
+import type { Explore } from '../../../types/explore';
+import type { CompiledDimension, CompiledMetric } from '../../../types/field';
+import type { PreAggregateDef } from '../../../types/preAggregate';
+import { analyzePreAggregateDerivedDimensionEligibility } from '../dimensionEligibility';
 import {
-    analyzePreAggregateDerivedDimensionEligibility,
     analyzePreAggregateDerivedMetricEligibility,
-    ParameterError,
     PreAggregateDerivedMetricIneligibilityReason,
-    type CompiledDimension,
-    type CompiledMetric,
-    type Explore,
-    type PreAggregateDef,
-} from '@lightdash/common';
+} from '../metricEligibility';
 
 export const assertDimensionEligibleForDirectMaterialization = ({
     sourceExplore,

@@ -1,29 +1,33 @@
+import type { Explore } from '../../../types/explore';
 import {
-    assertUnreachable,
     convertFieldRefToFieldId,
-    getItemId,
-    getPreAggregateMetricComponentColumnName,
     MetricType,
-    PreAggregateMetricRepresentationKind,
-    preAggregateUtils,
-    type AdditionalMetric,
     type CompiledDimension,
     type CompiledMetric,
-    type Explore,
     type FieldId,
-    type FilterRule,
-    type MaterializationMetricComponent,
-    type MaterializationMetricQueryPayload,
-    type MetricQuery,
-    type PreAggregateDef,
-    type SortField,
-} from '@lightdash/common';
-import { assertDimensionEligibleForDirectMaterialization } from '../../preAggregates/eligibility';
+} from '../../../types/field';
+import type { FilterRule } from '../../../types/filter';
+import type {
+    AdditionalMetric,
+    MetricQuery,
+    SortField,
+} from '../../../types/metricQuery';
+import type {
+    MaterializationMetricComponent,
+    MaterializationMetricQueryPayload,
+    PreAggregateDef,
+} from '../../../types/preAggregate';
+import assertUnreachable from '../../../utils/assertUnreachable';
+import { getItemId } from '../../../utils/item';
+import { PreAggregateMetricRepresentationKind } from '../metricRepresentation';
+import { getPreAggregateMetricComponentColumnName } from '../naming';
+import * as preAggregateUtils from '../utils';
+import { assertDimensionEligibleForDirectMaterialization } from './eligibility';
 import {
     getDimensionsByReference,
     getSelectedDimension,
     selectPreAggregateMetrics,
-} from '../../preAggregates/shared';
+} from './shared';
 
 const getAverageMetricComponents = (
     metric: CompiledMetric,
@@ -133,6 +137,7 @@ const getPreAggregateDimensionFilters = ({
             },
             operator: filter.operator,
             values: filter.values,
+            // oxlint-disable-next-line typescript/no-unsafe-assignment -- FilterRule settings are untyped
             ...(filter.settings ? { settings: filter.settings } : {}),
             ...(filter.required !== undefined
                 ? { required: filter.required }

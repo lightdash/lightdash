@@ -164,6 +164,7 @@ import {
     PlaygroundProjectTrigger,
     PreAggregateCheckResult,
     PreAggregateMatchMiss,
+    preAggregateMaterialization,
     PreAggregateMissReason,
     preAggregateUtils,
     PreviewExpiresAt,
@@ -276,7 +277,6 @@ import { enhanceExploresForPreAggregates } from '../../ee/preAggregates/enhanceE
 import { preAggregatePostProcessor } from '../../ee/preAggregates/postProcessor';
 import type { AiAgentService } from '../../ee/services/AiAgentService/AiAgentService';
 import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
-import { buildMaterializationMetricQuery } from '../../ee/services/PreAggregateMaterializationService/buildMaterializationMetricQuery';
 import { errorHandler } from '../../errors';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
@@ -2164,16 +2164,19 @@ export class ProjectService extends BaseService {
                         if (!isExternal) {
                             try {
                                 materializationMetricQuery =
-                                    buildMaterializationMetricQuery({
-                                        sourceExplore,
-                                        preAggregateDef: preAggregateDefinition,
-                                        materializationConfig: {
-                                            maxRows:
-                                                this.lightdashConfig
-                                                    .preAggregates
-                                                    .materializationMaxRows,
+                                    preAggregateMaterialization.buildMaterializationMetricQuery(
+                                        {
+                                            sourceExplore,
+                                            preAggregateDef:
+                                                preAggregateDefinition,
+                                            materializationConfig: {
+                                                maxRows:
+                                                    this.lightdashConfig
+                                                        .preAggregates
+                                                        .materializationMaxRows,
+                                            },
                                         },
-                                    });
+                                    );
                             } catch (error) {
                                 materializationQueryError =
                                     getErrorMessage(error);

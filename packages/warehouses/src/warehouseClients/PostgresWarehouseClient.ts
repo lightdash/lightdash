@@ -471,6 +471,22 @@ export class PostgresClient<
                                 performance.now() - queryStart,
                             );
                             reportPhase?.('fetch', 0);
+                            // Zero rows — still surface field metadata from the
+                            // cursor's row description (e.g. LIMIT 0 probes)
+                            const resultFields =
+                                // eslint-disable-next-line no-underscore-dangle
+                                activeStream?._result?.fields;
+                            if (resultFields && resultFields.length > 0) {
+                                Promise.resolve(
+                                    streamCallback({
+                                        fields: PostgresClient.convertQueryResultFields(
+                                            resultFields,
+                                        ),
+                                        rows: [],
+                                    }),
+                                ).then(resolve, reject);
+                                return;
+                            }
                         } else {
                             reportPhase?.(
                                 'fetch',

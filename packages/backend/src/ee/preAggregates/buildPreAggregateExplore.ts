@@ -9,6 +9,7 @@ import {
     lightdashVariablePattern,
     MetricType,
     PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER,
+    preAggregateMaterialization,
     PreAggregateMetricRepresentationKind,
     preAggregateUtils,
     SupportedDbtAdapter,
@@ -24,13 +25,14 @@ import {
     type WeekDay,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
-import { assertDimensionEligibleForDirectMaterialization } from './eligibility';
-import {
+
+const {
+    assertDimensionEligibleForDirectMaterialization,
     getDimensionsByReference,
     getMetricReferenceForDef,
     getSelectedDimension,
     selectPreAggregateMetrics,
-} from './shared';
+} = preAggregateMaterialization;
 
 const isFinerGranularity = (
     candidateGranularity: TimeFrames,
