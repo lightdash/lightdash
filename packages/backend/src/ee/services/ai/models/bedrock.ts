@@ -74,6 +74,8 @@ export const getBedrockModel = (
     const reasoningEnabled =
         options?.enableReasoning && preset.supportsReasoning;
 
+    const reasoningStyle = preset.reasoningStyle ?? 'budget';
+
     return {
         model,
         callOptions: {
@@ -83,12 +85,25 @@ export const getBedrockModel = (
         providerOptions: {
             [PROVIDER]: {
                 ...(preset.providerOptions || {}),
-                ...(reasoningEnabled && {
-                    reasoningConfig: {
-                        type: 'enabled',
-                        budgetTokens: 2048,
-                    },
-                }),
+                ...(reasoningEnabled &&
+                    (reasoningStyle === 'adaptive'
+                        ? {
+                              // Claude 4.7+ models reject `budget_tokens` and
+                              // require adaptive thinking with an effort level.
+                              // @ai-sdk/amazon-bedrock maps this to
+                              // `thinking.type: 'adaptive'` + `output_config.effort`
+                              // for Anthropic models from 4.0.148+.
+                              reasoningConfig: {
+                                  type: 'adaptive' as const,
+                                  maxReasoningEffort: 'medium' as const,
+                              },
+                          }
+                        : {
+                              reasoningConfig: {
+                                  type: 'enabled' as const,
+                                  budgetTokens: 2048,
+                              },
+                          })),
             },
         },
     };

@@ -127,8 +127,8 @@ importers:
   packages/backend:
     dependencies:
       '@ai-sdk/amazon-bedrock':
-        specifier: 4.0.48
-        version: 4.0.48(zod@3.25.55)
+        specifier: 4.0.148
+        version: 4.0.148(zod@3.25.55)
       '@ai-sdk/anthropic':
         specifier: 3.0.104
         version: 3.0.104(zod@3.25.55)
@@ -1867,8 +1867,8 @@ packages:
   '@adobe/css-tools@4.4.2':
     resolution: {integrity: sha512-baYZExFpsdkBNuvGKTKWCwKH57HRZLVtycZS05WTQNVOiXVSeAki3nU35zlRbToeMW8aHlJfyS+1C4BOv27q0A==}
 
-  '@ai-sdk/amazon-bedrock@4.0.48':
-    resolution: {integrity: sha512-eo4f+RGWnj4LAJRtqOl3nkEz27e6L5LYCesa7cTyzmuC0fKbGgcveK8/6u8Cbl6GYahpRzEdV+YsaCGRjBADcg==}
+  '@ai-sdk/amazon-bedrock@4.0.148':
+    resolution: {integrity: sha512-BMPgT4X/8u0Z1wO1X6d0HxjYS7F7tl9m1jgkE3rO+KBMXtPWpHU0agxQgAsS8HAH3zJQv0gF0bvkpi/01UV79g==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -1879,8 +1879,8 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/anthropic@3.0.36':
-    resolution: {integrity: sha512-GHQccfwC0j1JltN9M47RSlBpOyHoUam0mvbYMf8zpE0UD1tzIX5sDw2m/8nRlrTz6wGuKfaDxmoC3XH7uhTrXg==}
+  '@ai-sdk/anthropic@3.0.107':
+    resolution: {integrity: sha512-aXwAv1v9ezU3lkAvcz4dfuzJb30ioLk0WRhwpuDgCGKN0dEZiNLeDuyVcRqxWRlYc4Zg4Z4rJcZBKmzJTdzrtw==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -1915,6 +1915,12 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
+  '@ai-sdk/openai@3.0.91':
+    resolution: {integrity: sha512-NJQ1ukJ/c2uKVHCJiVToMlSKEhtWnGHBO/klxQwyV3JY/zOlsgrTilGj/t3KX48B1a6dYYnRxu0Pnand12vrsA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
   '@ai-sdk/provider-utils@4.0.13':
     resolution: {integrity: sha512-HHG72BN4d+OWTcq2NwTxOm/2qvk1duYsnhCDtsbYwn/h/4zeqURu1S0+Cn0nY2Ysq9a9HGKvrYuMn9bgFhR2Og==}
     engines: {node: '>=18'}
@@ -1935,6 +1941,12 @@ packages:
 
   '@ai-sdk/provider-utils@4.0.41':
     resolution: {integrity: sha512-I7hhjfw01yEI8NkuAsT8Mv6xbWFr/lqLXMdaJQ2zWfXEpxog1eT7skDcv1+RY29/+5btzH8wD+vVvy48bk9oNQ==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/provider-utils@4.0.42':
+    resolution: {integrity: sha512-Q07lZsq4ir+xwAGVfSbY2WNGLrbfWINFaL2I/vTBFrkuXeP7VZh+UtQgLOKZS6Z/6flNFW22jDYdbINvwTV/PA==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -12344,11 +12356,6 @@ packages:
       react: '*'
       react-dom: '*'
 
-  nanoid@3.3.16:
-    resolution: {integrity: sha512-bzlKTyNJ7+LdGIIwy8ijFpIqEQIvafahV7eYykJ8Cvh42EdJeODoJ6gUJXpQJvej1BddH8OqTXZNE/KfbWAu8Q==}
-    engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
-    hasBin: true
-
   nanoid@3.3.17:
     resolution: {integrity: sha512-xQLf0A3HOMlgHq0n247/LRuAOYmB7dXJ/DvAxGvsSBij45XtBSmQycu+F8ODbHwns/XyFZagyL1+J0Offw1E0g==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
@@ -16272,11 +16279,12 @@ snapshots:
 
   '@adobe/css-tools@4.4.2': {}
 
-  '@ai-sdk/amazon-bedrock@4.0.48(zod@3.25.55)':
+  '@ai-sdk/amazon-bedrock@4.0.148(zod@3.25.55)':
     dependencies:
-      '@ai-sdk/anthropic': 3.0.36(zod@3.25.55)
-      '@ai-sdk/provider': 3.0.7
-      '@ai-sdk/provider-utils': 4.0.13(zod@3.25.55)
+      '@ai-sdk/anthropic': 3.0.107(zod@3.25.55)
+      '@ai-sdk/openai': 3.0.91(zod@3.25.55)
+      '@ai-sdk/provider': 3.0.14
+      '@ai-sdk/provider-utils': 4.0.42(zod@3.25.55)
       '@smithy/eventstream-codec': 4.2.8
       '@smithy/util-utf8': 4.2.1
       aws4fetch: 1.0.20
@@ -16288,10 +16296,10 @@ snapshots:
       '@ai-sdk/provider-utils': 4.0.41(zod@3.25.55)
       zod: 3.25.55
 
-  '@ai-sdk/anthropic@3.0.36(zod@3.25.55)':
+  '@ai-sdk/anthropic@3.0.107(zod@3.25.55)':
     dependencies:
-      '@ai-sdk/provider': 3.0.7
-      '@ai-sdk/provider-utils': 4.0.13(zod@3.25.55)
+      '@ai-sdk/provider': 3.0.14
+      '@ai-sdk/provider-utils': 4.0.42(zod@3.25.55)
       zod: 3.25.55
 
   '@ai-sdk/azure@3.0.26(zod@3.25.55)':
@@ -16327,6 +16335,12 @@ snapshots:
       '@ai-sdk/provider-utils': 4.0.27(zod@3.25.55)
       zod: 3.25.55
 
+  '@ai-sdk/openai@3.0.91(zod@3.25.55)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.14
+      '@ai-sdk/provider-utils': 4.0.42(zod@3.25.55)
+      zod: 3.25.55
+
   '@ai-sdk/provider-utils@4.0.13(zod@3.25.55)':
     dependencies:
       '@ai-sdk/provider': 3.0.7
@@ -16349,6 +16363,14 @@ snapshots:
       zod: 3.25.55
 
   '@ai-sdk/provider-utils@4.0.41(zod@3.25.55)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.14
+      '@standard-schema/spec': 1.1.0
+      eventsource-parser: 3.0.8
+      undici: 6.27.0
+      zod: 3.25.55
+
+  '@ai-sdk/provider-utils@4.0.42(zod@3.25.55)':
     dependencies:
       '@ai-sdk/provider': 3.0.14
       '@standard-schema/spec': 1.1.0
@@ -29486,8 +29508,6 @@ snapshots:
       stacktrace-js: 2.0.2
       stylis: 4.4.0
 
-  nanoid@3.3.16: {}
-
   nanoid@3.3.17: {}
 
   napi-build-utils@2.0.0: {}
@@ -30587,7 +30607,7 @@ snapshots:
 
   postcss@8.5.10:
     dependencies:
-      nanoid: 3.3.16
+      nanoid: 3.3.17
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
