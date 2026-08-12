@@ -10,12 +10,15 @@ import BigNumberContextMenu from './BigNumberContextMenu';
 
 interface SimpleStatisticsProps extends HTMLAttributes<HTMLDivElement> {
     minimal?: boolean;
+    /** Shown as a tooltip on the big number when the tile title is hidden. */
+    description?: string;
     onScreenshotReady?: () => void;
     onScreenshotError?: () => void;
 }
 
 const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     minimal = false,
+    description,
     onScreenshotReady,
     onScreenshotError,
     ...wrapperProps
@@ -72,6 +75,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             value={bigNumber}
             label={resolvedBigNumberLabel || defaultLabel || ''}
             showLabel={!!showBigNumberLabel}
+            description={description}
             valueColor={bigNumberTextColor}
             flipColors={!!flipColors}
             comparison={

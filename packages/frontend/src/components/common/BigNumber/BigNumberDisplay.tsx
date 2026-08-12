@@ -70,6 +70,11 @@ export type BigNumberDisplayProps = {
     flipColors: boolean;
     /** Raw CSS colour from conditional formatting, if any. */
     valueColor?: string;
+    /**
+     * Chart description, shown as a tooltip on the value. Only provided when
+     * the tile title (which normally carries the description tooltip) is hidden.
+     */
+    description?: string;
     /** Wraps the value so callers can attach a context menu. */
     renderValue?: (value: ReactNode) => ReactNode;
 } & HTMLAttributes<HTMLDivElement>;
@@ -86,6 +91,7 @@ export const BigNumberDisplay: FC<BigNumberDisplayProps> = ({
     comparison,
     flipColors,
     valueColor,
+    description,
     renderValue,
     ...wrapperProps
 }) => {
@@ -123,6 +129,24 @@ export const BigNumberDisplay: FC<BigNumberDisplayProps> = ({
         </BigNumberText>
     );
 
+    const valueNodeWithDescription = description ? (
+        <Tooltip
+            withinPortal
+            multiline
+            maw={400}
+            position="top"
+            label={
+                <Text className={styles.descriptionTooltipLabel} fz="sm">
+                    {description}
+                </Text>
+            }
+        >
+            {valueNode}
+        </Tooltip>
+    ) : (
+        valueNode
+    );
+
     return (
         <Center
             w="100%"
@@ -136,7 +160,9 @@ export const BigNumberDisplay: FC<BigNumberDisplayProps> = ({
             {...wrapperProps}
         >
             <Flex style={{ flexShrink: 1 }} justify="center" align="center">
-                {renderValue ? renderValue(valueNode) : valueNode}
+                {renderValue
+                    ? renderValue(valueNodeWithDescription)
+                    : valueNodeWithDescription}
             </Flex>
 
             {showLabel && (

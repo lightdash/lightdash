@@ -1,5 +1,6 @@
 import { ComparisonDiffTypes } from '@lightdash/common';
 import { cleanup, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { BigNumberDisplay } from './BigNumberDisplay';
@@ -78,6 +79,29 @@ describe('BigNumberDisplay', () => {
         expect(screen.getByTestId('context-menu')).toContainElement(
             screen.getByTestId('big-number-value'),
         );
+    });
+
+    it('shows the description on hover over the value', async () => {
+        renderWithProviders(
+            <BigNumberDisplay
+                {...baseProps}
+                description="Total revenue for the period"
+            />,
+        );
+
+        await userEvent.hover(screen.getByTestId('big-number-value'));
+
+        expect(
+            await screen.findByText('Total revenue for the period'),
+        ).toBeInTheDocument();
+    });
+
+    it('does not render a description tooltip when there is no description', async () => {
+        renderWithProviders(<BigNumberDisplay {...baseProps} />);
+
+        await userEvent.hover(screen.getByTestId('big-number-value'));
+
+        expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
     });
 
     it('colours an increase green and a decrease red', () => {
