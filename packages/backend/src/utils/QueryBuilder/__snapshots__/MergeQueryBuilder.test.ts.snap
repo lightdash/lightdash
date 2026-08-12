@@ -1,0 +1,775 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`per-dialect compile snapshots > compiles a FULL join on a nullable timestamp key on bigquery 1`] = `
+"WITH merge_0_a AS (
+SELECT created_at, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT created_at, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+)
+SELECT COALESCE(merge_0_a.\`created_at\`, merge_1_b.\`created_at\`) AS \`created_at\`,
+       merge_0_a.\`new_organic\` AS \`c0_0\`,
+       merge_1_b.\`total_followers\` AS \`c1_0\`
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON (merge_0_a.\`created_at\` IS NULL) = (merge_1_b.\`created_at\` IS NULL) AND COALESCE(merge_0_a.\`created_at\`, TIMESTAMP('1970-01-01T00:00:00.000Z')) = COALESCE(merge_1_b.\`created_at\`, TIMESTAMP('1970-01-01T00:00:00.000Z'))
+ORDER BY \`created_at\`"
+`;
+
+exports[`per-dialect compile snapshots > compiles a FULL join on a nullable timestamp key on databricks 1`] = `
+"WITH merge_0_a AS (
+SELECT created_at, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT created_at, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+)
+SELECT COALESCE(merge_0_a.\`created_at\`, merge_1_b.\`created_at\`) AS \`created_at\`,
+       merge_0_a.\`new_organic\` AS \`c0_0\`,
+       merge_1_b.\`total_followers\` AS \`c1_0\`
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON (merge_0_a.\`created_at\` IS NULL) = (merge_1_b.\`created_at\` IS NULL) AND COALESCE(merge_0_a.\`created_at\`, CAST('1970-01-01T00:00:00.000Z' AS TIMESTAMP)) = COALESCE(merge_1_b.\`created_at\`, CAST('1970-01-01T00:00:00.000Z' AS TIMESTAMP))
+ORDER BY \`created_at\`"
+`;
+
+exports[`per-dialect compile snapshots > compiles a FULL join on a nullable timestamp key on postgres 1`] = `
+"WITH merge_0_a AS (
+SELECT created_at, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT created_at, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+)
+SELECT COALESCE(merge_0_a."created_at", merge_1_b."created_at") AS "created_at",
+       merge_0_a."new_organic" AS "c0_0",
+       merge_1_b."total_followers" AS "c1_0"
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON (merge_0_a."created_at" IS NULL) = (merge_1_b."created_at" IS NULL) AND COALESCE(merge_0_a."created_at", CAST('1970-01-01T00:00:00.000Z' AS TIMESTAMP)) = COALESCE(merge_1_b."created_at", CAST('1970-01-01T00:00:00.000Z' AS TIMESTAMP))
+ORDER BY "created_at""
+`;
+
+exports[`per-dialect compile snapshots > compiles a FULL join on a nullable timestamp key on redshift 1`] = `
+"WITH merge_0_a AS (
+SELECT created_at, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT created_at, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+)
+SELECT COALESCE(merge_0_a."created_at", merge_1_b."created_at") AS "created_at",
+       merge_0_a."new_organic" AS "c0_0",
+       merge_1_b."total_followers" AS "c1_0"
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON (merge_0_a."created_at" IS NULL) = (merge_1_b."created_at" IS NULL) AND COALESCE(merge_0_a."created_at", CAST('1970-01-01T00:00:00.000Z' AS TIMESTAMP)) = COALESCE(merge_1_b."created_at", CAST('1970-01-01T00:00:00.000Z' AS TIMESTAMP))
+ORDER BY "created_at""
+`;
+
+exports[`per-dialect compile snapshots > compiles a FULL join on a nullable timestamp key on snowflake 1`] = `
+"WITH merge_0_a AS (
+SELECT created_at, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT created_at, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+)
+SELECT COALESCE(merge_0_a."created_at", merge_1_b."created_at") AS "created_at",
+       merge_0_a."new_organic" AS "c0_0",
+       merge_1_b."total_followers" AS "c1_0"
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON (merge_0_a."created_at" IS NULL) = (merge_1_b."created_at" IS NULL) AND COALESCE(merge_0_a."created_at", CAST('1970-01-01T00:00:00.000Z' AS TIMESTAMP)) = COALESCE(merge_1_b."created_at", CAST('1970-01-01T00:00:00.000Z' AS TIMESTAMP))
+ORDER BY "created_at""
+`;
+
+exports[`per-dialect compile snapshots > compiles a FULL join on a nullable timestamp key on trino 1`] = `
+"WITH merge_0_a AS (
+SELECT created_at, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT created_at, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+)
+SELECT COALESCE(merge_0_a."created_at", merge_1_b."created_at") AS "created_at",
+       merge_0_a."new_organic" AS "c0_0",
+       merge_1_b."total_followers" AS "c1_0"
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON (merge_0_a."created_at" IS NULL) = (merge_1_b."created_at" IS NULL) AND COALESCE(merge_0_a."created_at", TIMESTAMP '1970-01-01 00:00:00.000') = COALESCE(merge_1_b."created_at", TIMESTAMP '1970-01-01 00:00:00.000')
+ORDER BY "created_at""
+`;
+
+exports[`per-dialect compile snapshots > compiles a date-keyed merge on bigquery 1`] = `
+"WITH merge_0_a AS (
+SELECT order_date, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT order_date, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+)
+SELECT COALESCE(merge_0_a.\`order_date\`, merge_1_b.\`order_date\`) AS \`order_date\`,
+       merge_0_a.\`new_organic\` AS \`c0_0\`,
+       merge_1_b.\`total_followers\` AS \`c1_0\`
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON (merge_0_a.\`order_date\` IS NULL) = (merge_1_b.\`order_date\` IS NULL) AND COALESCE(merge_0_a.\`order_date\`, DATE '1970-01-01') = COALESCE(merge_1_b.\`order_date\`, DATE '1970-01-01')
+ORDER BY \`order_date\`"
+`;
+
+exports[`per-dialect compile snapshots > compiles a date-keyed merge on databricks 1`] = `
+"WITH merge_0_a AS (
+SELECT order_date, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT order_date, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+)
+SELECT COALESCE(merge_0_a.\`order_date\`, merge_1_b.\`order_date\`) AS \`order_date\`,
+       merge_0_a.\`new_organic\` AS \`c0_0\`,
+       merge_1_b.\`total_followers\` AS \`c1_0\`
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON (merge_0_a.\`order_date\` IS NULL) = (merge_1_b.\`order_date\` IS NULL) AND COALESCE(merge_0_a.\`order_date\`, CAST('1970-01-01' AS DATE)) = COALESCE(merge_1_b.\`order_date\`, CAST('1970-01-01' AS DATE))
+ORDER BY \`order_date\`"
+`;
+
+exports[`per-dialect compile snapshots > compiles a date-keyed merge on postgres 1`] = `
+"WITH merge_0_a AS (
+SELECT order_date, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT order_date, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+)
+SELECT COALESCE(merge_0_a."order_date", merge_1_b."order_date") AS "order_date",
+       merge_0_a."new_organic" AS "c0_0",
+       merge_1_b."total_followers" AS "c1_0"
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON (merge_0_a."order_date" IS NULL) = (merge_1_b."order_date" IS NULL) AND COALESCE(merge_0_a."order_date", CAST('1970-01-01' AS DATE)) = COALESCE(merge_1_b."order_date", CAST('1970-01-01' AS DATE))
+ORDER BY "order_date""
+`;
+
+exports[`per-dialect compile snapshots > compiles a date-keyed merge on redshift 1`] = `
+"WITH merge_0_a AS (
+SELECT order_date, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT order_date, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+)
+SELECT COALESCE(merge_0_a."order_date", merge_1_b."order_date") AS "order_date",
+       merge_0_a."new_organic" AS "c0_0",
+       merge_1_b."total_followers" AS "c1_0"
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON (merge_0_a."order_date" IS NULL) = (merge_1_b."order_date" IS NULL) AND COALESCE(merge_0_a."order_date", CAST('1970-01-01' AS DATE)) = COALESCE(merge_1_b."order_date", CAST('1970-01-01' AS DATE))
+ORDER BY "order_date""
+`;
+
+exports[`per-dialect compile snapshots > compiles a date-keyed merge on snowflake 1`] = `
+"WITH merge_0_a AS (
+SELECT order_date, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT order_date, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+)
+SELECT COALESCE(merge_0_a."order_date", merge_1_b."order_date") AS "order_date",
+       merge_0_a."new_organic" AS "c0_0",
+       merge_1_b."total_followers" AS "c1_0"
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON (merge_0_a."order_date" IS NULL) = (merge_1_b."order_date" IS NULL) AND COALESCE(merge_0_a."order_date", CAST('1970-01-01' AS DATE)) = COALESCE(merge_1_b."order_date", CAST('1970-01-01' AS DATE))
+ORDER BY "order_date""
+`;
+
+exports[`per-dialect compile snapshots > compiles a date-keyed merge on trino 1`] = `
+"WITH merge_0_a AS (
+SELECT order_date, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT order_date, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+)
+SELECT COALESCE(merge_0_a."order_date", merge_1_b."order_date") AS "order_date",
+       merge_0_a."new_organic" AS "c0_0",
+       merge_1_b."total_followers" AS "c1_0"
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON (merge_0_a."order_date" IS NULL) = (merge_1_b."order_date" IS NULL) AND COALESCE(merge_0_a."order_date", DATE '1970-01-01') = COALESCE(merge_1_b."order_date", DATE '1970-01-01')
+ORDER BY "order_date""
+`;
+
+exports[`per-dialect compile snapshots > compiles a string-keyed merge on bigquery 1`] = `
+"WITH merge_0_a AS (
+SELECT status, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT status, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+)
+SELECT COALESCE(merge_0_a.\`status\`, merge_1_b.\`status\`) AS \`status\`,
+       merge_0_a.\`new_organic\` AS \`c0_0\`,
+       merge_1_b.\`total_followers\` AS \`c1_0\`
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON (merge_0_a.\`status\` IS NULL) = (merge_1_b.\`status\` IS NULL) AND COALESCE(merge_0_a.\`status\`, '') = COALESCE(merge_1_b.\`status\`, '')
+ORDER BY \`status\`"
+`;
+
+exports[`per-dialect compile snapshots > compiles a string-keyed merge on databricks 1`] = `
+"WITH merge_0_a AS (
+SELECT status, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT status, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+)
+SELECT COALESCE(merge_0_a.\`status\`, merge_1_b.\`status\`) AS \`status\`,
+       merge_0_a.\`new_organic\` AS \`c0_0\`,
+       merge_1_b.\`total_followers\` AS \`c1_0\`
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON (merge_0_a.\`status\` IS NULL) = (merge_1_b.\`status\` IS NULL) AND COALESCE(merge_0_a.\`status\`, '') = COALESCE(merge_1_b.\`status\`, '')
+ORDER BY \`status\`"
+`;
+
+exports[`per-dialect compile snapshots > compiles a string-keyed merge on postgres 1`] = `
+"WITH merge_0_a AS (
+SELECT status, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT status, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+)
+SELECT COALESCE(merge_0_a."status", merge_1_b."status") AS "status",
+       merge_0_a."new_organic" AS "c0_0",
+       merge_1_b."total_followers" AS "c1_0"
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON (merge_0_a."status" IS NULL) = (merge_1_b."status" IS NULL) AND COALESCE(merge_0_a."status", '') = COALESCE(merge_1_b."status", '')
+ORDER BY "status""
+`;
+
+exports[`per-dialect compile snapshots > compiles a string-keyed merge on redshift 1`] = `
+"WITH merge_0_a AS (
+SELECT status, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT status, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+)
+SELECT COALESCE(merge_0_a."status", merge_1_b."status") AS "status",
+       merge_0_a."new_organic" AS "c0_0",
+       merge_1_b."total_followers" AS "c1_0"
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON (merge_0_a."status" IS NULL) = (merge_1_b."status" IS NULL) AND COALESCE(merge_0_a."status", '') = COALESCE(merge_1_b."status", '')
+ORDER BY "status""
+`;
+
+exports[`per-dialect compile snapshots > compiles a string-keyed merge on snowflake 1`] = `
+"WITH merge_0_a AS (
+SELECT status, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT status, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+)
+SELECT COALESCE(merge_0_a."status", merge_1_b."status") AS "status",
+       merge_0_a."new_organic" AS "c0_0",
+       merge_1_b."total_followers" AS "c1_0"
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON (merge_0_a."status" IS NULL) = (merge_1_b."status" IS NULL) AND COALESCE(merge_0_a."status", '') = COALESCE(merge_1_b."status", '')
+ORDER BY "status""
+`;
+
+exports[`per-dialect compile snapshots > compiles a string-keyed merge on trino 1`] = `
+"WITH merge_0_a AS (
+SELECT status, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT status, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+)
+SELECT COALESCE(merge_0_a."status", merge_1_b."status") AS "status",
+       merge_0_a."new_organic" AS "c0_0",
+       merge_1_b."total_followers" AS "c1_0"
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON (merge_0_a."status" IS NULL) = (merge_1_b."status" IS NULL) AND COALESCE(merge_0_a."status", '') = COALESCE(merge_1_b."status", '')
+ORDER BY "status""
+`;
+
+exports[`per-dialect compile snapshots > date-spine fill > fills a date key at DAY grain on bigquery 1`] = `
+"WITH merge_0_a AS (
+SELECT order_date, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT order_date, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+),
+merge_rows AS (
+SELECT COALESCE(merge_0_a.\`order_date\`, merge_1_b.\`order_date\`) AS \`order_date\`,
+       merge_0_a.\`new_organic\` AS \`c0_0\`,
+       merge_1_b.\`total_followers\` AS \`c1_0\`
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON merge_0_a.\`order_date\` = merge_1_b.\`order_date\`
+),
+merge_spine AS (
+SELECT d AS \`order_date\`
+FROM UNNEST(GENERATE_DATE_ARRAY(
+    (SELECT MIN(\`order_date\`) FROM merge_rows),
+    (SELECT MAX(\`order_date\`) FROM merge_rows),
+    INTERVAL 1 DAY
+)) AS d
+)
+SELECT COALESCE(merge_spine.\`order_date\`, merge_rows.\`order_date\`) AS \`order_date\`,
+       merge_rows.\`c0_0\`,
+       merge_rows.\`c1_0\`
+FROM merge_spine
+FULL OUTER JOIN merge_rows ON merge_spine.\`order_date\` = merge_rows.\`order_date\`"
+`;
+
+exports[`per-dialect compile snapshots > date-spine fill > fills a date key at DAY grain on databricks 1`] = `
+"WITH merge_0_a AS (
+SELECT order_date, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT order_date, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+),
+merge_rows AS (
+SELECT COALESCE(merge_0_a.\`order_date\`, merge_1_b.\`order_date\`) AS \`order_date\`,
+       merge_0_a.\`new_organic\` AS \`c0_0\`,
+       merge_1_b.\`total_followers\` AS \`c1_0\`
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON merge_0_a.\`order_date\` = merge_1_b.\`order_date\`
+),
+merge_spine AS (
+SELECT explode(sequence(
+    (SELECT MIN(\`order_date\`) FROM merge_rows),
+    (SELECT MAX(\`order_date\`) FROM merge_rows),
+    INTERVAL '1' DAY
+)) AS \`order_date\`
+)
+SELECT COALESCE(merge_spine.\`order_date\`, merge_rows.\`order_date\`) AS \`order_date\`,
+       merge_rows.\`c0_0\`,
+       merge_rows.\`c1_0\`
+FROM merge_spine
+FULL OUTER JOIN merge_rows ON merge_spine.\`order_date\` = merge_rows.\`order_date\`"
+`;
+
+exports[`per-dialect compile snapshots > date-spine fill > fills a date key at DAY grain on duckdb 1`] = `
+"WITH merge_0_a AS (
+SELECT order_date, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT order_date, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+),
+merge_rows AS (
+SELECT COALESCE(merge_0_a."order_date", merge_1_b."order_date") AS "order_date",
+       merge_0_a."new_organic" AS "c0_0",
+       merge_1_b."total_followers" AS "c1_0"
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON merge_0_a."order_date" = merge_1_b."order_date"
+),
+merge_spine AS (
+SELECT unnest(generate_series(
+    (SELECT MIN("order_date") FROM merge_rows),
+    (SELECT MAX("order_date") FROM merge_rows),
+    INTERVAL '1 day'
+)) AS "order_date"
+)
+SELECT COALESCE(merge_spine."order_date", merge_rows."order_date") AS "order_date",
+       merge_rows."c0_0",
+       merge_rows."c1_0"
+FROM merge_spine
+FULL OUTER JOIN merge_rows ON merge_spine."order_date" = merge_rows."order_date""
+`;
+
+exports[`per-dialect compile snapshots > date-spine fill > fills a date key at DAY grain on postgres 1`] = `
+"WITH merge_0_a AS (
+SELECT order_date, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT order_date, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+),
+merge_rows AS (
+SELECT COALESCE(merge_0_a."order_date", merge_1_b."order_date") AS "order_date",
+       merge_0_a."new_organic" AS "c0_0",
+       merge_1_b."total_followers" AS "c1_0"
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON merge_0_a."order_date" = merge_1_b."order_date"
+),
+merge_spine AS (
+SELECT generate_series(
+    (SELECT MIN("order_date") FROM merge_rows),
+    (SELECT MAX("order_date") FROM merge_rows),
+    INTERVAL '1 day'
+)::date AS "order_date"
+)
+SELECT COALESCE(merge_spine."order_date", merge_rows."order_date") AS "order_date",
+       merge_rows."c0_0",
+       merge_rows."c1_0"
+FROM merge_spine
+FULL OUTER JOIN merge_rows ON merge_spine."order_date" = merge_rows."order_date""
+`;
+
+exports[`per-dialect compile snapshots > date-spine fill > fills a date key at DAY grain on snowflake 1`] = `
+"WITH merge_0_a AS (
+SELECT order_date, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT order_date, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+),
+merge_rows AS (
+SELECT COALESCE(merge_0_a."order_date", merge_1_b."order_date") AS "order_date",
+       merge_0_a."new_organic" AS "c0_0",
+       merge_1_b."total_followers" AS "c1_0"
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON merge_0_a."order_date" = merge_1_b."order_date"
+),
+merge_spine AS (
+SELECT DATEADD(day, ROW_NUMBER() OVER (ORDER BY SEQ4()) - 1, (SELECT MIN("order_date") FROM merge_rows)) AS "order_date"
+FROM TABLE(GENERATOR(ROWCOUNT => 50000))
+QUALIFY "order_date" <= (SELECT MAX("order_date") FROM merge_rows)
+)
+SELECT COALESCE(merge_spine."order_date", merge_rows."order_date") AS "order_date",
+       merge_rows."c0_0",
+       merge_rows."c1_0"
+FROM merge_spine
+FULL OUTER JOIN merge_rows ON merge_spine."order_date" = merge_rows."order_date""
+`;
+
+exports[`per-dialect compile snapshots > date-spine fill > fills a date key at DAY grain on trino 1`] = `
+"WITH merge_0_a AS (
+SELECT order_date, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT order_date, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+),
+merge_rows AS (
+SELECT COALESCE(merge_0_a."order_date", merge_1_b."order_date") AS "order_date",
+       merge_0_a."new_organic" AS "c0_0",
+       merge_1_b."total_followers" AS "c1_0"
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON merge_0_a."order_date" = merge_1_b."order_date"
+),
+merge_spine AS (
+SELECT s AS "order_date"
+FROM UNNEST(sequence(
+    (SELECT MIN("order_date") FROM merge_rows),
+    (SELECT MAX("order_date") FROM merge_rows),
+    INTERVAL '1' DAY
+)) AS t (s)
+)
+SELECT COALESCE(merge_spine."order_date", merge_rows."order_date") AS "order_date",
+       merge_rows."c0_0",
+       merge_rows."c1_0"
+FROM merge_spine
+FULL OUTER JOIN merge_rows ON merge_spine."order_date" = merge_rows."order_date""
+`;
+
+exports[`per-dialect compile snapshots > date-spine fill > fills a timestamp key at HOUR grain on bigquery 1`] = `
+"WITH merge_0_a AS (
+SELECT order_date, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT order_date, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+),
+merge_rows AS (
+SELECT COALESCE(merge_0_a.\`order_date\`, merge_1_b.\`order_date\`) AS \`order_date\`,
+       merge_0_a.\`new_organic\` AS \`c0_0\`,
+       merge_1_b.\`total_followers\` AS \`c1_0\`
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON merge_0_a.\`order_date\` = merge_1_b.\`order_date\`
+),
+merge_spine AS (
+SELECT ts AS \`order_date\`
+FROM UNNEST(GENERATE_TIMESTAMP_ARRAY(
+    (SELECT MIN(\`order_date\`) FROM merge_rows),
+    (SELECT MAX(\`order_date\`) FROM merge_rows),
+    INTERVAL 1 HOUR
+)) AS ts
+)
+SELECT COALESCE(merge_spine.\`order_date\`, merge_rows.\`order_date\`) AS \`order_date\`,
+       merge_rows.\`c0_0\`,
+       merge_rows.\`c1_0\`
+FROM merge_spine
+FULL OUTER JOIN merge_rows ON merge_spine.\`order_date\` = merge_rows.\`order_date\`"
+`;
+
+exports[`per-dialect compile snapshots > date-spine fill > fills a timestamp key at HOUR grain on databricks 1`] = `
+"WITH merge_0_a AS (
+SELECT order_date, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT order_date, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+),
+merge_rows AS (
+SELECT COALESCE(merge_0_a.\`order_date\`, merge_1_b.\`order_date\`) AS \`order_date\`,
+       merge_0_a.\`new_organic\` AS \`c0_0\`,
+       merge_1_b.\`total_followers\` AS \`c1_0\`
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON merge_0_a.\`order_date\` = merge_1_b.\`order_date\`
+),
+merge_spine AS (
+SELECT explode(sequence(
+    (SELECT MIN(\`order_date\`) FROM merge_rows),
+    (SELECT MAX(\`order_date\`) FROM merge_rows),
+    INTERVAL '1' HOUR
+)) AS \`order_date\`
+)
+SELECT COALESCE(merge_spine.\`order_date\`, merge_rows.\`order_date\`) AS \`order_date\`,
+       merge_rows.\`c0_0\`,
+       merge_rows.\`c1_0\`
+FROM merge_spine
+FULL OUTER JOIN merge_rows ON merge_spine.\`order_date\` = merge_rows.\`order_date\`"
+`;
+
+exports[`per-dialect compile snapshots > date-spine fill > fills a timestamp key at HOUR grain on duckdb 1`] = `
+"WITH merge_0_a AS (
+SELECT order_date, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT order_date, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+),
+merge_rows AS (
+SELECT COALESCE(merge_0_a."order_date", merge_1_b."order_date") AS "order_date",
+       merge_0_a."new_organic" AS "c0_0",
+       merge_1_b."total_followers" AS "c1_0"
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON merge_0_a."order_date" = merge_1_b."order_date"
+),
+merge_spine AS (
+SELECT unnest(generate_series(
+    (SELECT MIN("order_date") FROM merge_rows),
+    (SELECT MAX("order_date") FROM merge_rows),
+    INTERVAL '1 hour'
+)) AS "order_date"
+)
+SELECT COALESCE(merge_spine."order_date", merge_rows."order_date") AS "order_date",
+       merge_rows."c0_0",
+       merge_rows."c1_0"
+FROM merge_spine
+FULL OUTER JOIN merge_rows ON merge_spine."order_date" = merge_rows."order_date""
+`;
+
+exports[`per-dialect compile snapshots > date-spine fill > fills a timestamp key at HOUR grain on postgres 1`] = `
+"WITH merge_0_a AS (
+SELECT order_date, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT order_date, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+),
+merge_rows AS (
+SELECT COALESCE(merge_0_a."order_date", merge_1_b."order_date") AS "order_date",
+       merge_0_a."new_organic" AS "c0_0",
+       merge_1_b."total_followers" AS "c1_0"
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON merge_0_a."order_date" = merge_1_b."order_date"
+),
+merge_spine AS (
+SELECT generate_series(
+    (SELECT MIN("order_date") FROM merge_rows),
+    (SELECT MAX("order_date") FROM merge_rows),
+    INTERVAL '1 hour'
+) AS "order_date"
+)
+SELECT COALESCE(merge_spine."order_date", merge_rows."order_date") AS "order_date",
+       merge_rows."c0_0",
+       merge_rows."c1_0"
+FROM merge_spine
+FULL OUTER JOIN merge_rows ON merge_spine."order_date" = merge_rows."order_date""
+`;
+
+exports[`per-dialect compile snapshots > date-spine fill > fills a timestamp key at HOUR grain on snowflake 1`] = `
+"WITH merge_0_a AS (
+SELECT order_date, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT order_date, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+),
+merge_rows AS (
+SELECT COALESCE(merge_0_a."order_date", merge_1_b."order_date") AS "order_date",
+       merge_0_a."new_organic" AS "c0_0",
+       merge_1_b."total_followers" AS "c1_0"
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON merge_0_a."order_date" = merge_1_b."order_date"
+),
+merge_spine AS (
+SELECT DATEADD(hour, ROW_NUMBER() OVER (ORDER BY SEQ4()) - 1, (SELECT MIN("order_date") FROM merge_rows)) AS "order_date"
+FROM TABLE(GENERATOR(ROWCOUNT => 100000))
+QUALIFY "order_date" <= (SELECT MAX("order_date") FROM merge_rows)
+)
+SELECT COALESCE(merge_spine."order_date", merge_rows."order_date") AS "order_date",
+       merge_rows."c0_0",
+       merge_rows."c1_0"
+FROM merge_spine
+FULL OUTER JOIN merge_rows ON merge_spine."order_date" = merge_rows."order_date""
+`;
+
+exports[`per-dialect compile snapshots > date-spine fill > fills a timestamp key at HOUR grain on trino 1`] = `
+"WITH merge_0_a AS (
+SELECT order_date, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT order_date, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+),
+merge_rows AS (
+SELECT COALESCE(merge_0_a."order_date", merge_1_b."order_date") AS "order_date",
+       merge_0_a."new_organic" AS "c0_0",
+       merge_1_b."total_followers" AS "c1_0"
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON merge_0_a."order_date" = merge_1_b."order_date"
+),
+merge_spine AS (
+SELECT s AS "order_date"
+FROM UNNEST(sequence(
+    (SELECT MIN("order_date") FROM merge_rows),
+    (SELECT MAX("order_date") FROM merge_rows),
+    INTERVAL '1' HOUR
+)) AS t (s)
+)
+SELECT COALESCE(merge_spine."order_date", merge_rows."order_date") AS "order_date",
+       merge_rows."c0_0",
+       merge_rows."c1_0"
+FROM merge_spine
+FULL OUTER JOIN merge_rows ON merge_spine."order_date" = merge_rows."order_date""
+`;
+
+exports[`per-dialect compile snapshots > date-spine fill > fills a timestamp key at MONTH grain on bigquery 1`] = `
+"WITH merge_0_a AS (
+SELECT order_date, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT order_date, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+),
+merge_rows AS (
+SELECT COALESCE(merge_0_a.\`order_date\`, merge_1_b.\`order_date\`) AS \`order_date\`,
+       merge_0_a.\`new_organic\` AS \`c0_0\`,
+       merge_1_b.\`total_followers\` AS \`c1_0\`
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON merge_0_a.\`order_date\` = merge_1_b.\`order_date\`
+),
+merge_spine AS (
+SELECT TIMESTAMP(d, 'UTC') AS \`order_date\`
+FROM UNNEST(GENERATE_DATE_ARRAY(
+    DATE((SELECT MIN(\`order_date\`) FROM merge_rows)),
+    DATE((SELECT MAX(\`order_date\`) FROM merge_rows)),
+    INTERVAL 1 MONTH
+)) AS d
+)
+SELECT COALESCE(merge_spine.\`order_date\`, merge_rows.\`order_date\`) AS \`order_date\`,
+       merge_rows.\`c0_0\`,
+       merge_rows.\`c1_0\`
+FROM merge_spine
+FULL OUTER JOIN merge_rows ON merge_spine.\`order_date\` = merge_rows.\`order_date\`"
+`;
+
+exports[`per-dialect compile snapshots > date-spine fill > fills a timestamp key at MONTH grain on databricks 1`] = `
+"WITH merge_0_a AS (
+SELECT order_date, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT order_date, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+),
+merge_rows AS (
+SELECT COALESCE(merge_0_a.\`order_date\`, merge_1_b.\`order_date\`) AS \`order_date\`,
+       merge_0_a.\`new_organic\` AS \`c0_0\`,
+       merge_1_b.\`total_followers\` AS \`c1_0\`
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON merge_0_a.\`order_date\` = merge_1_b.\`order_date\`
+),
+merge_spine AS (
+SELECT explode(sequence(
+    (SELECT MIN(\`order_date\`) FROM merge_rows),
+    (SELECT MAX(\`order_date\`) FROM merge_rows),
+    INTERVAL '1' MONTH
+)) AS \`order_date\`
+)
+SELECT COALESCE(merge_spine.\`order_date\`, merge_rows.\`order_date\`) AS \`order_date\`,
+       merge_rows.\`c0_0\`,
+       merge_rows.\`c1_0\`
+FROM merge_spine
+FULL OUTER JOIN merge_rows ON merge_spine.\`order_date\` = merge_rows.\`order_date\`"
+`;
+
+exports[`per-dialect compile snapshots > date-spine fill > fills a timestamp key at MONTH grain on duckdb 1`] = `
+"WITH merge_0_a AS (
+SELECT order_date, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT order_date, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+),
+merge_rows AS (
+SELECT COALESCE(merge_0_a."order_date", merge_1_b."order_date") AS "order_date",
+       merge_0_a."new_organic" AS "c0_0",
+       merge_1_b."total_followers" AS "c1_0"
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON merge_0_a."order_date" = merge_1_b."order_date"
+),
+merge_spine AS (
+SELECT unnest(generate_series(
+    (SELECT MIN("order_date") FROM merge_rows),
+    (SELECT MAX("order_date") FROM merge_rows),
+    INTERVAL '1 month'
+)) AS "order_date"
+)
+SELECT COALESCE(merge_spine."order_date", merge_rows."order_date") AS "order_date",
+       merge_rows."c0_0",
+       merge_rows."c1_0"
+FROM merge_spine
+FULL OUTER JOIN merge_rows ON merge_spine."order_date" = merge_rows."order_date""
+`;
+
+exports[`per-dialect compile snapshots > date-spine fill > fills a timestamp key at MONTH grain on postgres 1`] = `
+"WITH merge_0_a AS (
+SELECT order_date, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT order_date, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+),
+merge_rows AS (
+SELECT COALESCE(merge_0_a."order_date", merge_1_b."order_date") AS "order_date",
+       merge_0_a."new_organic" AS "c0_0",
+       merge_1_b."total_followers" AS "c1_0"
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON merge_0_a."order_date" = merge_1_b."order_date"
+),
+merge_spine AS (
+SELECT generate_series(
+    (SELECT MIN("order_date") FROM merge_rows),
+    (SELECT MAX("order_date") FROM merge_rows),
+    INTERVAL '1 month'
+) AS "order_date"
+)
+SELECT COALESCE(merge_spine."order_date", merge_rows."order_date") AS "order_date",
+       merge_rows."c0_0",
+       merge_rows."c1_0"
+FROM merge_spine
+FULL OUTER JOIN merge_rows ON merge_spine."order_date" = merge_rows."order_date""
+`;
+
+exports[`per-dialect compile snapshots > date-spine fill > fills a timestamp key at MONTH grain on snowflake 1`] = `
+"WITH merge_0_a AS (
+SELECT order_date, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT order_date, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+),
+merge_rows AS (
+SELECT COALESCE(merge_0_a."order_date", merge_1_b."order_date") AS "order_date",
+       merge_0_a."new_organic" AS "c0_0",
+       merge_1_b."total_followers" AS "c1_0"
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON merge_0_a."order_date" = merge_1_b."order_date"
+),
+merge_spine AS (
+SELECT DATEADD(month, ROW_NUMBER() OVER (ORDER BY SEQ4()) - 1, (SELECT MIN("order_date") FROM merge_rows)) AS "order_date"
+FROM TABLE(GENERATOR(ROWCOUNT => 50000))
+QUALIFY "order_date" <= (SELECT MAX("order_date") FROM merge_rows)
+)
+SELECT COALESCE(merge_spine."order_date", merge_rows."order_date") AS "order_date",
+       merge_rows."c0_0",
+       merge_rows."c1_0"
+FROM merge_spine
+FULL OUTER JOIN merge_rows ON merge_spine."order_date" = merge_rows."order_date""
+`;
+
+exports[`per-dialect compile snapshots > date-spine fill > fills a timestamp key at MONTH grain on trino 1`] = `
+"WITH merge_0_a AS (
+SELECT order_date, 1 AS new_organic FROM followers GROUP BY 1
+),
+merge_1_b AS (
+SELECT order_date, 2 AS total_followers FROM follower_snapshots GROUP BY 1
+),
+merge_rows AS (
+SELECT COALESCE(merge_0_a."order_date", merge_1_b."order_date") AS "order_date",
+       merge_0_a."new_organic" AS "c0_0",
+       merge_1_b."total_followers" AS "c1_0"
+FROM merge_0_a
+FULL OUTER JOIN merge_1_b ON merge_0_a."order_date" = merge_1_b."order_date"
+),
+merge_spine AS (
+SELECT s AS "order_date"
+FROM UNNEST(sequence(
+    (SELECT MIN("order_date") FROM merge_rows),
+    (SELECT MAX("order_date") FROM merge_rows),
+    INTERVAL '1' MONTH
+)) AS t (s)
+)
+SELECT COALESCE(merge_spine."order_date", merge_rows."order_date") AS "order_date",
+       merge_rows."c0_0",
+       merge_rows."c1_0"
+FROM merge_spine
+FULL OUTER JOIN merge_rows ON merge_spine."order_date" = merge_rows."order_date""
+`;

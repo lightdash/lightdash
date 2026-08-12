@@ -36,6 +36,9 @@ export type QueryComposerDefinition = {
     // (totals only arrive from the internal calculate-total path, which never
     // sets them).
     totalConfiguration?: TotalConfiguration;
+    // Compile without ORDER BY / LIMIT, for embedding as a CTE body in an
+    // outer statement (a merge) that orders and limits once.
+    asCteBody?: boolean;
 };
 
 /**
@@ -321,7 +324,9 @@ export class QueryComposer {
     protected computeCompiled(): CompiledQuery {
         const queryBuilder = this.getQueryBuilder();
         return wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () =>
-            queryBuilder.compileQuery(),
+            queryBuilder.compileQuery({
+                excludeOrderByAndLimit: this.definition.asCteBody,
+            }),
         );
     }
 
