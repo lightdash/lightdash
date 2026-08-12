@@ -15,16 +15,18 @@ import {
     assertRegisteredAccount,
     checkThemeLimits,
     ForbiddenError,
+    getOrganizationDesignFileExtension,
+    getOrganizationDesignPackageFilePath,
     MAX_THEME_FILE_BYTES,
     MAX_THEME_PACKAGE_BYTES,
     MAX_THEME_TOTAL_BYTES,
     MissingConfigError,
     NotFoundError,
-    ORGANIZATION_DESIGN_FILE_KINDS,
     ORGANIZATION_DESIGN_PACKAGE_CODE_VERSION,
-    OrganizationDesignFileKind,
     ParameterError,
     themeLimitMessage,
+    validateOrganizationDesignFileContent,
+    validateOrganizationDesignFileMetadata,
     type Account,
     type OrganizationDesignPackageManifest,
     type UuidOrSlug,
@@ -42,7 +44,6 @@ import {
 import { BaseService } from '../BaseService';
 import {
     buildOrganizationDesignPackage,
-    getOrganizationDesignPackageFilePath,
     parseOrganizationDesignPackage,
     type OrganizationDesignPackageFile,
 } from './OrganizationDesignPackage';
@@ -50,120 +51,6 @@ import {
 type OrganizationDesignServiceArguments = {
     lightdashConfig: LightdashConfig;
     organizationDesignModel: OrganizationDesignModel;
-};
-
-/**
- * Allowed filename extensions for each kind. Filename extension is the
- * authoritative signal — client-supplied Content-Type is stored but not
- * relied on for routing/validation, since browsers send wildly different
- * MIME strings for the same font/image types.
- */
-const KIND_EXTENSIONS: Record<OrganizationDesignFileKind, string[]> = {
-    css: ['.css'],
-    font: ['.woff', '.woff2', '.ttf', '.otf'],
-    image: ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'],
-    instruction: ['.md'],
-};
-
-const FILENAME_BAD_CHARS = /[\0/\\]/;
-
-const ensureValidFilename = (filename: string): string => {
-    const trimmed = filename.trim();
-    if (!trimmed) {
-        throw new ParameterError('Filename is required');
-    }
-    if (trimmed.length > 255) {
-        throw new ParameterError('Filename exceeds 255 characters');
-    }
-    if (trimmed.includes('..')) {
-        throw new ParameterError('Filename may not contain ".."');
-    }
-    if (FILENAME_BAD_CHARS.test(trimmed)) {
-        throw new ParameterError(
-            'Filename may not contain slashes or null bytes',
-        );
-    }
-    return trimmed;
-};
-
-const ensureFilenameMatchesKind = (
-    filename: string,
-    kind: OrganizationDesignFileKind,
-): void => {
-    const lower = filename.toLowerCase();
-    const allowed = KIND_EXTENSIONS[kind];
-    if (!allowed.some((ext) => lower.endsWith(ext))) {
-        throw new ParameterError(
-            `Filename "${filename}" does not match kind "${kind}". Allowed extensions: ${allowed.join(', ')}`,
-        );
-    }
-};
-
-const ensureValidKind = (kind: string): OrganizationDesignFileKind => {
-    if (!(ORGANIZATION_DESIGN_FILE_KINDS as readonly string[]).includes(kind)) {
-        throw new ParameterError(
-            `Invalid kind "${kind}". Allowed: ${ORGANIZATION_DESIGN_FILE_KINDS.join(', ')}`,
-        );
-    }
-    return kind as OrganizationDesignFileKind;
-};
-
-/**
- * Magic-byte validation. A SignatureAlternative is a set of byte-runs at
- * given offsets that must ALL match. An extension's signature list is an
- * OR over alternatives (e.g. GIF87a OR GIF89a, TTF magic 00 01 00 00 OR
- * the 'true' variant). Extension is the authoritative signal (matched
- * against the declared `kind` upstream), so we only need one mapping.
- */
-type SignatureAlternative = ReadonlyArray<{
-    offset: number;
-    bytes: ReadonlyArray<number>;
-}>;
-
-const BINARY_SIGNATURES: Record<string, ReadonlyArray<SignatureAlternative>> = {
-    // Fonts
-    '.woff2': [[{ offset: 0, bytes: [0x77, 0x4f, 0x46, 0x32] }]], // wOF2
-    '.woff': [[{ offset: 0, bytes: [0x77, 0x4f, 0x46, 0x46] }]], // wOFF
-    '.ttf': [
-        [{ offset: 0, bytes: [0x00, 0x01, 0x00, 0x00] }],
-        [{ offset: 0, bytes: [0x74, 0x72, 0x75, 0x65] }], // 'true'
-    ],
-    '.otf': [[{ offset: 0, bytes: [0x4f, 0x54, 0x54, 0x4f] }]], // OTTO
-    // Images
-    '.png': [
-        [
-            {
-                offset: 0,
-                bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
-            },
-        ],
-    ],
-    '.jpg': [[{ offset: 0, bytes: [0xff, 0xd8, 0xff] }]],
-    '.jpeg': [[{ offset: 0, bytes: [0xff, 0xd8, 0xff] }]],
-    '.gif': [
-        [{ offset: 0, bytes: [0x47, 0x49, 0x46, 0x38, 0x37, 0x61] }], // GIF87a
-        [{ offset: 0, bytes: [0x47, 0x49, 0x46, 0x38, 0x39, 0x61] }], // GIF89a
-    ],
-    '.webp': [
-        [
-            { offset: 0, bytes: [0x52, 0x49, 0x46, 0x46] }, // RIFF
-            { offset: 8, bytes: [0x57, 0x45, 0x42, 0x50] }, // WEBP
-        ],
-    ],
-};
-
-const TEXT_EXTENSIONS = new Set<string>(['.css', '.md', '.svg']);
-
-// SVG is XML — require a plausible XML/SVG prefix before the full DOMPurify
-// sanitation performed below.
-const SVG_HEAD_PREFIX = /^\s*<(?:\?xml|svg|!--|!DOCTYPE)/i;
-
-const TEXT_HEAD_SCAN_BYTES = 1024;
-
-const getExtension = (filename: string): string => {
-    const lower = filename.toLowerCase();
-    const dot = lower.lastIndexOf('.');
-    return dot === -1 ? '' : lower.slice(dot);
 };
 
 /**
@@ -194,69 +81,33 @@ const sanitizeSvg = (svgText: string): string =>
         USE_PROFILES: { svg: true, svgFilters: true },
     });
 
-const ensureContentMatchesExtension = (
+const sanitizeOrganizationDesignFile = (
     body: Buffer,
     filename: string,
-): { body: Buffer } => {
-    const ext = getExtension(filename);
-
-    const binaryAlternatives = BINARY_SIGNATURES[ext];
-    if (binaryAlternatives) {
-        const matchesAny = binaryAlternatives.some((alternative) =>
-            alternative.every(({ offset, bytes }) =>
-                bytes.every((byte, i) => body[offset + i] === byte),
-            ),
-        );
-        if (!matchesAny) {
-            throw new ParameterError(
-                `File content does not match ${ext} signature`,
-            );
-        }
-        return { body };
+): Buffer => {
+    if (getOrganizationDesignFileExtension(filename) !== '.svg') return body;
+    const sanitizedBody = Buffer.from(
+        sanitizeSvg(body.toString('utf8')),
+        'utf8',
+    );
+    if (sanitizedBody.length === 0) {
+        throw new ParameterError('SVG contains no safe content');
     }
+    return sanitizedBody;
+};
 
-    if (TEXT_EXTENSIONS.has(ext)) {
-        let text: string;
-        try {
-            text = new TextDecoder('utf-8', { fatal: true }).decode(body);
-        } catch {
-            throw new ParameterError(
-                `File content for ${ext} must be valid UTF-8 text`,
-            );
-        }
-        // Binary files almost always have a null byte in the first kilobyte;
-        // legitimate text doesn't. Cheap belt-and-suspenders alongside the
-        // UTF-8 check (NULs are valid UTF-8).
-        const head = body.subarray(
-            0,
-            Math.min(body.length, TEXT_HEAD_SCAN_BYTES),
+const getEffectiveOrganizationDesignFiles = (
+    files: ApiOrganizationDesignFile[],
+): Map<string, ApiOrganizationDesignFile> => {
+    const effectiveFiles = new Map<string, ApiOrganizationDesignFile>();
+    for (const file of files) {
+        const packagePath = getOrganizationDesignPackageFilePath(
+            file.kind,
+            file.filename,
         );
-        if (head.includes(0)) {
-            throw new ParameterError(
-                `File content for ${ext} contains null bytes`,
-            );
-        }
-        if (ext === '.svg') {
-            if (!SVG_HEAD_PREFIX.test(head.toString('utf8'))) {
-                throw new ParameterError(
-                    'SVG content must start with <?xml, <svg, or an XML comment/doctype',
-                );
-            }
-            // Returned bytes are the sanitized SVG — anything DOMPurify
-            // stripped (<script>, on*= handlers, foreignObject, javascript:
-            // hrefs) never lands in S3.
-            const sanitizedBody = Buffer.from(sanitizeSvg(text), 'utf8');
-            if (sanitizedBody.length === 0) {
-                throw new ParameterError('SVG contains no safe content');
-            }
-            return { body: sanitizedBody };
-        }
-        return { body };
+        effectiveFiles.set(packagePath.toLowerCase(), file);
     }
-
-    // Defensive default: ensureFilenameMatchesKind upstream guarantees
-    // the extension is one we recognize, so we should never get here.
-    return { body };
+    return effectiveFiles;
 };
 
 /**
@@ -439,14 +290,9 @@ export class OrganizationDesignService extends BaseService {
         // more than once. The sandbox applies those in created order, so the
         // last file is the effective one. Export only that effective file to
         // produce an importable package with unique paths.
-        const effectiveFiles = new Map<string, ApiOrganizationDesignFile>();
-        for (const file of design.files) {
-            const path = getOrganizationDesignPackageFilePath(
-                file.kind,
-                file.filename,
-            );
-            effectiveFiles.set(path.toLowerCase(), file);
-        }
+        const effectiveFiles = getEffectiveOrganizationDesignFiles(
+            design.files,
+        );
 
         const packageFiles: OrganizationDesignPackageFile[] = [];
         let totalBytes = 0;
@@ -536,15 +382,19 @@ export class OrganizationDesignService extends BaseService {
         }
         const parsed = await parseOrganizationDesignPackage(archive);
         const validatedFiles = parsed.files.map((file) => {
-            const kind = ensureValidKind(file.kind);
-            const filename = ensureValidFilename(file.filename);
-            ensureFilenameMatchesKind(filename, kind);
-            const { body } = ensureContentMatchesExtension(file.body, filename);
+            const { kind, filename } = validateOrganizationDesignFileMetadata({
+                kind: file.kind,
+                filename: file.filename,
+            });
+            validateOrganizationDesignFileContent({
+                body: file.body,
+                filename,
+            });
             return {
                 kind,
                 filename,
                 contentType: file.contentType,
-                body,
+                body: sanitizeOrganizationDesignFile(file.body, filename),
             };
         });
         const violation = checkThemeLimits(
@@ -778,9 +628,10 @@ export class OrganizationDesignService extends BaseService {
         const { organizationUuid, userUuid } = this.assertCanManage(account);
         const design = await this.loadOwned(organizationUuid, designUuidOrSlug);
 
-        const kind = ensureValidKind(input.kind);
-        const filename = ensureValidFilename(input.filename);
-        ensureFilenameMatchesKind(filename, kind);
+        const { kind, filename } = validateOrganizationDesignFileMetadata({
+            kind: input.kind,
+            filename: input.filename,
+        });
 
         // Reject uploads that would push the theme past its total-size
         // guardrail, so a theme can't grow large enough to time out the
@@ -827,9 +678,8 @@ export class OrganizationDesignService extends BaseService {
             throw new ParameterError('Upload body is empty');
         }
 
-        // ensureContentMatchesExtension may return a sanitized body (SVG).
-        // Always use the returned buffer for both S3 upload and size accounting.
-        const { body } = ensureContentMatchesExtension(rawBody, filename);
+        validateOrganizationDesignFileContent({ body: rawBody, filename });
+        const body = sanitizeOrganizationDesignFile(rawBody, filename);
 
         const contentType =
             input.contentType?.trim() || 'application/octet-stream';

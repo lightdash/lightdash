@@ -1,9 +1,16 @@
 import {
+    getOrganizationDesignPackageContentType,
+    getOrganizationDesignPackageFilePath,
+    isOrganizationDesignPackageDirectory,
     MAX_THEME_FILE_BYTES,
+    MAX_THEME_MANIFEST_BYTES,
     MAX_THEME_TOTAL_BYTES,
-    ORGANIZATION_DESIGN_PACKAGE_CODE_VERSION,
+    ORGANIZATION_DESIGN_PACKAGE_DIRECTORIES,
     ORGANIZATION_DESIGN_PACKAGE_MANIFEST,
     ParameterError,
+    parseOrganizationDesignPackageFilePath,
+    parseOrganizationDesignPackageManifest,
+    validateOrganizationDesignPackageEntryPath,
     type OrganizationDesignFileKind,
     type OrganizationDesignPackageManifest,
 } from '@lightdash/common';
@@ -14,42 +21,7 @@ import {
 } from 'tar-stream';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
-const MAX_MANIFEST_BYTES = 64 * 1024;
-const MAX_SLUG_LENGTH = 255;
-const MAX_ENTRY_PATH_LENGTH = 512;
-const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const UUID_SHAPED_SLUG_PATTERN =
-    /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const TAR_EPOCH = new Date(0);
-
-const PACKAGE_DIRECTORY_BY_KIND: Record<OrganizationDesignFileKind, string> = {
-    css: 'css',
-    font: 'fonts',
-    image: 'images',
-    instruction: 'instructions',
-};
-
-const PACKAGE_KIND_BY_DIRECTORY = new Map<string, OrganizationDesignFileKind>(
-    Object.entries(PACKAGE_DIRECTORY_BY_KIND).map(([kind, directory]) => [
-        directory,
-        kind as OrganizationDesignFileKind,
-    ]),
-);
-
-const CONTENT_TYPE_BY_EXTENSION: Record<string, string> = {
-    '.css': 'text/css; charset=utf-8',
-    '.gif': 'image/gif',
-    '.jpeg': 'image/jpeg',
-    '.jpg': 'image/jpeg',
-    '.md': 'text/markdown; charset=utf-8',
-    '.otf': 'font/otf',
-    '.png': 'image/png',
-    '.svg': 'image/svg+xml',
-    '.ttf': 'font/ttf',
-    '.webp': 'image/webp',
-    '.woff': 'font/woff',
-    '.woff2': 'font/woff2',
-};
 
 export type OrganizationDesignPackageFile = {
     kind: OrganizationDesignFileKind;
@@ -61,92 +33,6 @@ export type OrganizationDesignPackageFile = {
 export type ParsedOrganizationDesignPackage = {
     manifest: OrganizationDesignPackageManifest;
     files: OrganizationDesignPackageFile[];
-};
-
-const getExtension = (filename: string): string => {
-    const dot = filename.lastIndexOf('.');
-    return dot === -1 ? '' : filename.slice(dot).toLowerCase();
-};
-
-export const getOrganizationDesignPackageContentType = (
-    filename: string,
-): string =>
-    CONTENT_TYPE_BY_EXTENSION[getExtension(filename)] ??
-    'application/octet-stream';
-
-export const getOrganizationDesignPackageFilePath = (
-    kind: OrganizationDesignFileKind,
-    filename: string,
-): string => `${PACKAGE_DIRECTORY_BY_KIND[kind]}/${filename}`;
-
-const validateArchivePath = (entryName: string): string => {
-    if (!entryName || entryName.length > MAX_ENTRY_PATH_LENGTH) {
-        throw new ParameterError('Theme package entry path is invalid');
-    }
-    if (
-        entryName.startsWith('/') ||
-        entryName.includes('\\') ||
-        entryName.includes('\0')
-    ) {
-        throw new ParameterError(
-            `Theme package entry path is unsafe: ${entryName}`,
-        );
-    }
-
-    const withoutTrailingSlash = entryName.endsWith('/')
-        ? entryName.slice(0, -1)
-        : entryName;
-    const segments = withoutTrailingSlash.split('/');
-    if (
-        !withoutTrailingSlash ||
-        segments.some(
-            (segment) => !segment || segment === '.' || segment === '..',
-        )
-    ) {
-        throw new ParameterError(
-            `Theme package entry path is unsafe: ${entryName}`,
-        );
-    }
-    return withoutTrailingSlash;
-};
-
-const parseFilePath = (
-    entryName: string,
-): { kind: OrganizationDesignFileKind; filename: string } => {
-    const segments = entryName.split('/');
-    if (segments.length !== 2) {
-        throw new ParameterError(
-            `Theme package file must be inside css/, fonts/, images/, or instructions/: ${entryName}`,
-        );
-    }
-    const kind = PACKAGE_KIND_BY_DIRECTORY.get(segments[0]);
-    if (!kind) {
-        throw new ParameterError(
-            `Unknown theme package directory: ${segments[0]}`,
-        );
-    }
-    if (segments[1] !== segments[1].trim()) {
-        throw new ParameterError(
-            `Theme package filename may not have surrounding whitespace: ${entryName}`,
-        );
-    }
-    return { kind, filename: segments[1] };
-};
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-    typeof value === 'object' && value !== null && !Array.isArray(value);
-
-const normalizeNullableText = (
-    value: unknown,
-    field: 'description' | 'extraInstructions',
-): string | null => {
-    if (value === null) return null;
-    if (typeof value !== 'string') {
-        throw new ParameterError(
-            `Theme manifest ${field} must be a string or null`,
-        );
-    }
-    return value.trim() || null;
 };
 
 const parseManifest = (body: Buffer): OrganizationDesignPackageManifest => {
@@ -163,57 +49,7 @@ const parseManifest = (body: Buffer): OrganizationDesignPackageManifest => {
     } catch {
         throw new ParameterError('Theme manifest contains invalid YAML');
     }
-    if (!isRecord(parsed)) {
-        throw new ParameterError('Theme manifest must be a YAML object');
-    }
-
-    const expectedKeys = new Set([
-        'codeVersion',
-        'slug',
-        'name',
-        'description',
-        'extraInstructions',
-    ]);
-    const actualKeys = Object.keys(parsed);
-    const unknownKey = actualKeys.find((key) => !expectedKeys.has(key));
-    const missingKey = [...expectedKeys].find(
-        (key) => !Object.prototype.hasOwnProperty.call(parsed, key),
-    );
-    if (unknownKey) {
-        throw new ParameterError(`Unknown theme manifest field: ${unknownKey}`);
-    }
-    if (missingKey) {
-        throw new ParameterError(`Missing theme manifest field: ${missingKey}`);
-    }
-    if (parsed.codeVersion !== ORGANIZATION_DESIGN_PACKAGE_CODE_VERSION) {
-        throw new ParameterError(
-            `Unsupported theme package codeVersion: ${String(parsed.codeVersion)}`,
-        );
-    }
-    if (
-        typeof parsed.slug !== 'string' ||
-        parsed.slug.length > MAX_SLUG_LENGTH ||
-        !SLUG_PATTERN.test(parsed.slug) ||
-        UUID_SHAPED_SLUG_PATTERN.test(parsed.slug)
-    ) {
-        throw new ParameterError(
-            'Theme manifest slug must contain lowercase letters, numbers, and single hyphen separators',
-        );
-    }
-    if (typeof parsed.name !== 'string' || !parsed.name.trim()) {
-        throw new ParameterError('Theme manifest name is required');
-    }
-
-    return {
-        codeVersion: ORGANIZATION_DESIGN_PACKAGE_CODE_VERSION,
-        slug: parsed.slug,
-        name: parsed.name.trim(),
-        description: normalizeNullableText(parsed.description, 'description'),
-        extraInstructions: normalizeNullableText(
-            parsed.extraInstructions,
-            'extraInstructions',
-        ),
-    };
+    return parseOrganizationDesignPackageManifest(parsed);
 };
 
 const toError = (error: unknown): Error =>
@@ -244,7 +80,9 @@ export const parseOrganizationDesignPackage = (
 
         extractor.on('entry', (header, stream, next) => {
             try {
-                const entryName = validateArchivePath(header.name);
+                const entryName = validateOrganizationDesignPackageEntryPath(
+                    header.name,
+                );
                 const entryType = header.type ?? 'file';
                 const pathKey = entryName.toLowerCase();
                 if (seenPaths.has(pathKey)) {
@@ -255,7 +93,7 @@ export const parseOrganizationDesignPackage = (
                 seenPaths.add(pathKey);
 
                 if (entryType === 'directory') {
-                    if (!PACKAGE_KIND_BY_DIRECTORY.has(entryName)) {
+                    if (!isOrganizationDesignPackageDirectory(entryName)) {
                         throw new ParameterError(
                             `Unknown theme package directory: ${entryName}`,
                         );
@@ -273,7 +111,7 @@ export const parseOrganizationDesignPackage = (
                 const isManifest =
                     entryName === ORGANIZATION_DESIGN_PACKAGE_MANIFEST;
                 const maxBytes = isManifest
-                    ? MAX_MANIFEST_BYTES
+                    ? MAX_THEME_MANIFEST_BYTES
                     : MAX_THEME_FILE_BYTES;
                 if ((header.size ?? 0) > maxBytes) {
                     throw new ParameterError(
@@ -281,7 +119,9 @@ export const parseOrganizationDesignPackage = (
                     );
                 }
 
-                const parsedPath = isManifest ? null : parseFilePath(entryName);
+                const parsedPath = isManifest
+                    ? null
+                    : parseOrganizationDesignPackageFilePath(entryName);
                 const chunks: Buffer[] = [];
                 let bytes = 0;
                 stream.on('data', (chunk: Buffer | string) => {
@@ -410,7 +250,7 @@ export const buildOrganizationDesignPackage = (
                 manifestBody,
             );
 
-            for (const directory of PACKAGE_KIND_BY_DIRECTORY.keys()) {
+            for (const directory of ORGANIZATION_DESIGN_PACKAGE_DIRECTORIES) {
                 // eslint-disable-next-line no-await-in-loop
                 await addTarEntry(packer, {
                     name: `${directory}/`,
@@ -435,13 +275,13 @@ export const buildOrganizationDesignPackage = (
             );
             const seenPaths = new Set<string>();
             for (const file of sortedFiles) {
-                const entryName = validateArchivePath(
+                const entryName = validateOrganizationDesignPackageEntryPath(
                     getOrganizationDesignPackageFilePath(
                         file.kind,
                         file.filename,
                     ),
                 );
-                parseFilePath(entryName);
+                parseOrganizationDesignPackageFilePath(entryName);
                 const pathKey = entryName.toLowerCase();
                 if (seenPaths.has(pathKey)) {
                     throw new ParameterError(
