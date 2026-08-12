@@ -1,3 +1,11 @@
+## [1.134.1](https://github.com/lightdash/lightdash/compare/1.134.0...1.134.1) (2026-08-12)
+
+
+### Bug Fixes
+
+* **ai:** resolve AWS default credential chain for Bedrock ([#27230](https://github.com/lightdash/lightdash/issues/27230)) ([fd75ae1](https://github.com/lightdash/lightdash/commit/fd75ae185c653af2b7ff5e2e1289a4e8baf4e146))
+* allow supported multi-release migration upgrades ([#27219](https://github.com/lightdash/lightdash/issues/27219)) ([f7785f2](https://github.com/lightdash/lightdash/commit/f7785f2962f2e8c9f22f176faf7ed5cce150c09f))
+
 # [1.134.0](https://github.com/lightdash/lightdash/compare/1.133.0...1.134.0) (2026-08-12)
 
 
