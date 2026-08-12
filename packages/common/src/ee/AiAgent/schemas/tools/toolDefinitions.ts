@@ -1430,9 +1430,9 @@ export const getContextToolDefinition: ToolDefinitionWithMcpOutput<
 /** @deprecated Use getContextToolDefinition and explicit projectUuid arguments. */
 export const setProjectToolDefinition = defineTool({
     name: 'setProject',
-    title: 'Set project (deprecated)',
+    title: 'Set project',
     description:
-        '@deprecated Use get_context and pass projectUuid explicitly to every project-scoped tool. Sets legacy shared project context for older clients only.',
+        'Set the configured project context. Most tools (list_explores, MCP schema-discovery tools, run_metric_query, etc.) also require its projectUuid explicitly. Setting a project clears any previously selected agent, since agents are scoped to a project. After setting a project, prefer route_agent to auto-select the best agent for each request and pass its returned agentUuid explicitly to subsequent scoped tools; use list_agents and set_agent only for manual override.',
     availability: ['mcp'],
     inputSchema: z.object({
         projectUuid: z.string(),
@@ -1491,9 +1491,9 @@ export const routeAgentToolDefinition: ToolDefinitionWithMcpOutput<
 /** @deprecated Use routeAgentToolDefinition and explicit agentUuid arguments. */
 export const setAgentToolDefinition = defineTool({
     name: 'setAgent',
-    title: 'Set agent (deprecated)',
+    title: 'Set agent',
     description:
-        '@deprecated Use route_agent with an explicit projectUuid and pass its returned agentUuid to scoped tools. Sets legacy shared agent context for older clients only.',
+        "Manually select an AI agent for the required projectUuid. Prefer route_agent for default automatic selection; use this when you need to override that choice explicitly. Returns the agent's full context including: explores it has access to, space restrictions, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Pass the agentUuid explicitly to subsequent scoped tools and use this context to guide them — prefer the agent's explores when calling MCP schema-discovery tools, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
     availability: ['mcp'],
     inputSchema: z.object({
         agentUuid: z.string(),
