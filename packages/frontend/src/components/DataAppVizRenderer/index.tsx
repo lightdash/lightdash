@@ -117,8 +117,26 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
 
     const metricQuery = resultsData?.metricQuery;
     const sourceQueryUuid = resultsData?.queryUuid;
+
+    // Explore-independent gating, mirroring regular chart context menus: no
+    // query (builder canvas/sample previews), no permission, custom bin
+    // dimensions, embeds (GLITCH-592) and screenshot renders all disable
+    // underlying data.
+    const underlyingDataPreconditions =
+        !!sourceQueryUuid &&
+        !!metricQuery &&
+        canViewUnderlyingData &&
+        !hasCustomBinDimension(metricQuery) &&
+        !embedToken &&
+        !minimal;
+
     const { data: explore } = useExplore(metricQuery?.exploreName, {
         refetchOnMount: false,
+        // Passing `enabled` overrides useExplore's own guards — keep them.
+        enabled:
+            underlyingDataPreconditions &&
+            !!metricQuery?.exploreName &&
+            !!projectUuid,
     });
 
     // Reconciled against the contract and columns in force now, so a rebuilt
@@ -137,18 +155,8 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         [fields, itemsMap, fieldMapping],
     );
 
-    // Mirrors the regular chart context-menu gating: no query (builder
-    // canvas/sample previews), no permission, custom bin dimensions, embeds
-    // (GLITCH-592) and screenshot renders all disable underlying data.
     const underlyingDataEnabled =
-        !!sourceQueryUuid &&
-        !!metricQuery &&
-        !!explore &&
-        !!reconciledFieldMapping &&
-        canViewUnderlyingData &&
-        !hasCustomBinDimension(metricQuery) &&
-        !embedToken &&
-        !minimal;
+        underlyingDataPreconditions && !!explore && !!reconciledFieldMapping;
 
     // enabled:false ⇒ callback undefined ⇒ the bridge answers the virtual
     // route with an error — enforcement is structural, not menu-side.

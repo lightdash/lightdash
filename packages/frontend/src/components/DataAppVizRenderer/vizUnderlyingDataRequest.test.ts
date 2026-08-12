@@ -137,6 +137,24 @@ describe('buildVizUnderlyingDataRequest', () => {
         ).toThrow(/invalid/i);
     });
 
+    test('malformed row cells are skipped, not turned into filters', () => {
+        const { body } = buildVizUnderlyingDataRequest(
+            {
+                row: {
+                    orders_status: { value: 'bad' },
+                    orders_order_date_month: { value: { formatted: 'x' } },
+                    orders_amount: { value: { raw: 100, formatted: '$100' } },
+                },
+                metric: 'value',
+            },
+            baseArgs,
+        );
+        expect(flattenRules(body.filters.dimensions as FilterGroup)).toEqual(
+            [],
+        );
+        expect(body.filters.dimensions).toBeUndefined();
+    });
+
     test('rejects a metric name not in the reconciled mapping', () => {
         expect(() =>
             buildVizUnderlyingDataRequest({ row, metric: 'nope' }, baseArgs),

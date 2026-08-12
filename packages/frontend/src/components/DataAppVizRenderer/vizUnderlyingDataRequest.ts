@@ -4,6 +4,7 @@ import {
     getItemId,
     isCustomBinDimension,
     isField,
+    isResultValue,
     QueryExecutionContext,
     type DataAppVizUnderlyingDataIntent,
     type DateZoom,
@@ -79,15 +80,12 @@ export const buildVizUnderlyingDataRequest = (
     ];
 
     // ResultRow cells → the { raw, formatted } fieldValues the shared builder
-    // consumes; malformed cells from the untrusted payload are skipped.
+    // consumes; cells that fail strict ResultValue validation are skipped —
+    // the payload crosses an untrusted iframe boundary.
     const fieldValues: Record<string, ResultValue> = Object.fromEntries(
-        Object.entries(intent.row).flatMap(([id, cell]) => {
-            const value =
-                cell && typeof cell === 'object' && 'value' in cell
-                    ? cell.value
-                    : undefined;
-            return value ? [[id, value]] : [];
-        }),
+        Object.entries(intent.row).flatMap(([id, cell]) =>
+            isResultValue(cell) ? [[id, cell.value]] : [],
+        ),
     );
 
     const filterParts = getUnderlyingDataFilterParts({
