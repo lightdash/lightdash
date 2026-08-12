@@ -104,9 +104,18 @@ type TerminalMetrics = Pick<
     | 'tool_call_count'
     | 'tool_error_count'
     | 'warehouse_query_count'
+    | 'warehouse_limit_prevented_count'
+    | 'warehouse_limit_retry_count'
+    | 'warehouse_limit_recovered_count'
+    | 'warehouse_limit_unrecovered_count'
     | 'findings_count'
     | 'chart_count'
 >;
+
+const WAREHOUSE_LIMIT_ERROR_RE =
+    /bytesBilledLimitExceeded|maximumBytesBilled|bytes billed|resource[_ -]?exhausted|resource limit|memory limit|out of memory|exceeded (?:its |the )?(?:query |warehouse )?(?:limit|quota)/i;
+const PREVENTED_WAREHOUSE_SCAN_RE =
+    /full-column scan|listing all values for this field is disabled/i;
 
 export type AiDeepResearchReportCleanupResult = {
     scanned: number;
@@ -175,7 +184,7 @@ export class AiDeepResearchRunModel {
                 .select('tool_call_id', 'tool_name', 'created_at')
                 .where('ai_prompt_uuid', promptUuid),
             database<AiAgentToolResultTable>(AiAgentToolResultTableName)
-                .select('tool_call_id', 'metadata')
+                .select('tool_call_id', 'tool_name', 'result', 'metadata')
                 .where('ai_prompt_uuid', promptUuid),
             database<AiAgentToolCallErrorTable>(AiAgentToolCallErrorTableName)
                 .select('tool_call_id')
@@ -221,16 +230,59 @@ export class AiDeepResearchRunModel {
             attemptedToolCallIds.delete(successfulReportSubmissionId);
         }
 
+        const warehouseCalls = toolCalls
+            .filter(({ tool_name: toolName }) =>
+                isDeepResearchWarehouseTool(toolName),
+            )
+            .sort((left, right) => left.created_at.getTime() - right.created_at.getTime());
+        const resultsByCallId = new Map(
+            toolResults.map((result) => [result.tool_call_id, result]),
+        );
+        const isWarehouseFailure = (callId: string) => {
+            const result = resultsByCallId.get(callId);
+            return (
+                toolErrorIds.has(callId) ||
+                (result !== undefined &&
+                    WAREHOUSE_LIMIT_ERROR_RE.test(result.result))
+            );
+        };
+        const warehouseFailures = warehouseCalls.filter(({ tool_call_id }) =>
+            isWarehouseFailure(tool_call_id),
+        );
+        const warehouseLimitPreventedCount = warehouseFailures.filter(
+            ({ tool_call_id: toolCallId }) =>
+                PREVENTED_WAREHOUSE_SCAN_RE.test(
+                    resultsByCallId.get(toolCallId)?.result ?? '',
+                ),
+        ).length;
+        const warehouseLimitRetryCount = warehouseFailures.filter(
+            ({ created_at: failureCreatedAt }) =>
+                warehouseCalls.some(
+                    ({ created_at: laterCreatedAt }) =>
+                        laterCreatedAt > failureCreatedAt,
+                ),
+        ).length;
+        const warehouseLimitRecoveredCount = warehouseFailures.filter(
+            ({ created_at: failureCreatedAt }) =>
+                warehouseCalls.some(
+                    ({ tool_call_id: laterCallId, created_at: laterCreatedAt }) =>
+                        laterCreatedAt > failureCreatedAt &&
+                        !isWarehouseFailure(laterCallId),
+                ),
+        ).length;
+
         return {
             tool_call_count: attemptedToolCallIds.size,
             tool_error_count: toolErrorIds.size,
             warehouse_query_count: new Set(
-                toolCalls
-                    .filter(({ tool_name: toolName }) =>
-                        isDeepResearchWarehouseTool(toolName),
-                    )
+                warehouseCalls
                     .map(({ tool_call_id: toolCallId }) => toolCallId),
             ).size,
+            warehouse_limit_prevented_count: warehouseLimitPreventedCount,
+            warehouse_limit_retry_count: warehouseLimitRetryCount,
+            warehouse_limit_recovered_count: warehouseLimitRecoveredCount,
+            warehouse_limit_unrecovered_count:
+                warehouseFailures.length - warehouseLimitRecoveredCount,
             findings_count:
                 resultMarkdown === null
                     ? 0

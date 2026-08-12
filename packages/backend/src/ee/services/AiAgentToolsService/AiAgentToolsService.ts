@@ -1891,6 +1891,18 @@ export class AiAgentToolsService extends BaseService {
                     >[1],
                 );
 
+                const isUnboundedDimensionScan =
+                    context.source === 'ai_agent' &&
+                    metricQuery.dimensions.length > 0 &&
+                    metricQuery.metrics.length === 0 &&
+                    Object.keys(metricQuery.filters ?? {}).length === 0;
+                if (isUnboundedDimensionScan) {
+                    throw new Error(
+                        'This query would scan distinct values across an entire field. ' +
+                            'Add a metric, a filter, or a narrower dimension before querying.',
+                    );
+                }
+
                 await context.onWarehouseQuery?.();
                 const result =
                     await this.asyncQueryService.executeMetricQueryAndGetResults(
@@ -2249,12 +2261,19 @@ export class AiAgentToolsService extends BaseService {
                         : curatedResult.results;
                 }
 
-                // Live PostHog toggle; default off => byte-identical to today.
+                // Keep the rollout flag for MCP and existing operational
+                // control, but always protect agent runs. An empty search is
+                // compiled as `LIKE '%%'`, which is an unbounded distinct
+                // scan and a predictable warehouse-limit failure on large
+                // tables. Agent runs can safely ask for a narrower value and
+                // retry without spending a warehouse slot first.
                 const { enabled: guardEnabled } =
                     await this.featureFlagService.get({
                         user: context.user,
                         featureFlagId: FeatureFlags.AiFieldValueSearchGuard,
                     });
+                const effectiveGuardEnabled =
+                    context.source === 'ai_agent' || guardEnabled;
 
                 // Observability. Deliberately does NOT log the query text or any
                 // returned values (they can contain user data) — only the field
@@ -2263,14 +2282,14 @@ export class AiAgentToolsService extends BaseService {
                     `[ai-field-values] search source=${context.source} ` +
                         `table=${args.table} fieldId=${args.fieldId} ` +
                         `isEmptyQuery=${isEmptyQuery} queryLen=${query.length} ` +
-                        `guard=${guardEnabled}`,
+                        `guard=${effectiveGuardEnabled}`,
                 );
 
                 // An empty query compiles to `LIKE '%%'` — "distinct the whole
                 // column" — the worst case on a high-cardinality field. With the
                 // guard on, refuse it up front (0s) with a message the agent can
                 // act on, instead of paying for a full-column scan first.
-                if (guardEnabled && isEmptyQuery) {
+                if (effectiveGuardEnabled && isEmptyQuery) {
                     Logger.warn(
                         `[ai-field-values] guard blocked empty-query scan ` +
                             `source=${context.source} table=${args.table} ` +
