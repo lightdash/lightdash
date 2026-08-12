@@ -532,10 +532,7 @@ const versionPathCheck = (
             data,
         };
     }
-    if (
-        !directPredecessorOrUpToDate &&
-        unresolvedHistoricalStops.length > 0
-    ) {
+    if (!directPredecessorOrUpToDate && unresolvedHistoricalStops.length > 0) {
         return {
             id: 'version-path',
             severity: 'red',
