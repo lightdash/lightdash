@@ -50,3 +50,7 @@ When the gate detects a breaking pattern, use this decision tree:
 ## Runtime rollback granularity
 
 The lease runtime applies each migration as a separate Knex batch rather than grouping a deploy into one batch. Consequently, development tooling such as `knex migrate:rollback` unwinds one migration per invocation, not the whole deploy. During an incident, expect this per-migration unwind granularity; production recovery remains forward-only.
+
+## Rollback batch semantics
+
+The lease migration runtime records each migration as its own knex batch. Stock knex records every migration applied in one deploy as a single batch. `knex migrate:rollback` therefore unwinds ONE migration per invocation, not a whole deploy's worth. When unwinding several migrations, run rollback repeatedly and verify the resulting state with `migrate status`; never assume one rollback restores the pre-deploy schema.
