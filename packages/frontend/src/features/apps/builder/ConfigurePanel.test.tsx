@@ -41,9 +41,7 @@ describe('ConfigurePanel', () => {
     it('marks the options as the generated contract', () => {
         renderPanel();
 
-        expect(
-            screen.getByText('Builder options · Generated'),
-        ).toBeInTheDocument();
+        expect(screen.getByText('Generated options')).toBeInTheDocument();
     });
 
     it('splits the declared options into one tab per group', () => {

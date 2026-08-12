@@ -216,13 +216,12 @@ describe('ChartTypeBuilder', () => {
             screen.getByPlaceholderText('Describe a new chart type…'),
         ).toBeInTheDocument();
         // Starter prompts sit under the copy so the page is never a blank ask.
-        expect(screen.getByText('Or try one of these')).toBeInTheDocument();
         expect(
             screen.getByText('A funnel of signup steps'),
         ).toBeInTheDocument();
         expect(screen.queryByText('Preview in explorer')).toBeNull();
         // Nothing to configure before a schema exists.
-        expect(screen.queryByText('Builder options · Generated')).toBeNull();
+        expect(screen.queryByText('Generated options')).toBeNull();
     });
 
     it('shows the configure panel as soon as a version declares a schema', () => {
@@ -240,9 +239,7 @@ describe('ChartTypeBuilder', () => {
         );
 
         // No toggle to find: the panel sits beside the preview from the start.
-        expect(
-            screen.getByText('Builder options · Generated'),
-        ).toBeInTheDocument();
+        expect(screen.getByText('Generated options')).toBeInTheDocument();
         expect(
             screen.getByText('This chart type declares no display options.'),
         ).toBeInTheDocument();

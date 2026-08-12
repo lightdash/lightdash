@@ -2,9 +2,9 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: var(--mantine-spacing-md);
-    padding: 0 20px;
-    height: 56px;
+    gap: 10px;
+    padding: 0 16px;
+    height: 52px;
     background: var(--mantine-color-background-0);
     border-bottom: 1px solid var(--mantine-color-ldGray-2);
     flex-shrink: 0;
@@ -15,19 +15,20 @@
 .side {
     display: flex;
     align-items: center;
-    gap: var(--mantine-spacing-sm);
+    gap: 10px;
     min-width: 0;
 }
 
 .divider {
     width: 1px;
-    height: 20px;
+    height: 22px;
     background: var(--mantine-color-ldGray-2);
     flex-shrink: 0;
 }
 
+/* Sized by the input's own `size`; this only makes it read as a title that
+   happens to be editable rather than as a form field. */
 .nameInput {
-    font-size: 15px;
     font-weight: 600;
     color: var(--mantine-color-foreground-0);
     background: transparent;

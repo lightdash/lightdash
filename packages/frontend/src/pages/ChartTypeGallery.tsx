@@ -8,7 +8,6 @@ import {
     Stack,
     Text,
     TextInput,
-    Title,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconPlus, IconSearch } from '@tabler/icons-react';
@@ -97,23 +96,31 @@ const ChartTypeGallery = () => {
                 />
 
                 <Stack gap="md">
+                    {/* A section rather than the page title: the gallery holds
+                        only chart types today, other kinds sit beside them. */}
                     <Group justify="space-between" align="center">
                         <Group gap={6} align="baseline">
-                            <Title order={4}>Chart types</Title>
+                            <Text size="md" fw={600} c="ldGray.8">
+                                Chart types
+                            </Text>
                             {!isEmptyGallery && totalCount !== null && (
-                                <Text fz="sm" c="ldGray.6">
+                                <Text fz="xs" c="dimmed">
                                     ({totalCount})
                                 </Text>
                             )}
                         </Group>
 
                         {!isEmptyGallery && (
-                            <Group gap="sm">
+                            <Group gap="xs">
                                 <TextInput
-                                    w={260}
-                                    placeholder="Search chart types…"
+                                    size="xs"
+                                    w={220}
+                                    placeholder="Search by name"
                                     leftSection={
-                                        <MantineIcon icon={IconSearch} />
+                                        <MantineIcon
+                                            icon={IconSearch}
+                                            size={15}
+                                        />
                                     }
                                     value={search}
                                     onChange={(e) =>
@@ -129,12 +136,13 @@ const ChartTypeGallery = () => {
                                     })}
                                 >
                                     <Button
+                                        size="xs"
                                         component={Link}
                                         to={`/projects/${projectUuid}/chart-types/new`}
                                         leftSection={
                                             <MantineIcon
                                                 icon={IconPlus}
-                                                size={18}
+                                                size={15}
                                             />
                                         }
                                     >
@@ -144,6 +152,7 @@ const ChartTypeGallery = () => {
                             </Group>
                         )}
                     </Group>
+
                     {isInitialLoading ? (
                         <EmptyStateLoader title="Loading chart types…" />
                     ) : error ? (
@@ -154,7 +163,7 @@ const ChartTypeGallery = () => {
                     ) : dataAppVizs.length === 0 ? (
                         debouncedSearch ? (
                             <Paper variant="dotted" p="xl">
-                                <Text ta="center" fz="sm" c="ldGray.6">
+                                <Text ta="center" fz="xs" c="dimmed">
                                     No chart types match &ldquo;
                                     {debouncedSearch}&rdquo;
                                 </Text>
@@ -168,7 +177,7 @@ const ChartTypeGallery = () => {
                         <>
                             <SimpleGrid
                                 cols={{ base: 1, sm: 2, lg: 3 }}
-                                spacing="lg"
+                                spacing="md"
                             >
                                 {dataAppVizs.map((viz) => (
                                     <ChartTypeGalleryCard

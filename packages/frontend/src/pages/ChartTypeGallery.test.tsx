@@ -137,7 +137,7 @@ describe('ChartTypeGallery', () => {
         renderPage();
 
         expect(screen.getByText('Bar race')).toBeInTheDocument();
-        expect(screen.getByText('Chart types')).toBeInTheDocument();
+        expect(screen.getByText('Gallery')).toBeInTheDocument();
         expect(screen.getByText('(2)')).toBeInTheDocument();
 
         fireEvent.click(screen.getByText('Radial gauge'));
@@ -260,7 +260,7 @@ describe('ChartTypeGallery', () => {
             screen.getByText(/Chart types are custom visualizations/),
         ).toBeInTheDocument();
         expect(
-            screen.queryByPlaceholderText('Search chart types…'),
+            screen.queryByPlaceholderText('Search by name'),
         ).not.toBeInTheDocument();
     });
 
@@ -268,7 +268,7 @@ describe('ChartTypeGallery', () => {
         setData([makeDataAppViz({})]);
         renderPage();
 
-        fireEvent.change(screen.getByPlaceholderText('Search chart types…'), {
+        fireEvent.change(screen.getByPlaceholderText('Search by name'), {
             target: { value: 'nonexistent' },
         });
         setData([]);

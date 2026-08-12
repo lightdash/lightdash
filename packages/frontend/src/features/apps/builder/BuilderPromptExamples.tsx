@@ -1,5 +1,5 @@
 import { ECHARTS_DEFAULT_COLORS } from '@lightdash/common';
-import { Group, Stack, Text, UnstyledButton } from '@mantine/core';
+import { Group, Text, UnstyledButton } from '@mantine/core';
 import { type FC } from 'react';
 import { useResolvedColorPalette } from '../../../hooks/appearance/useResolvedColorPalette';
 import classes from './BuilderPromptExamples.module.css';
@@ -114,25 +114,20 @@ const BuilderPromptExamples: FC<Props> = ({ projectUuid, onPick }) => {
     const colors = palette.length > 0 ? palette : ECHARTS_DEFAULT_COLORS;
 
     return (
-        <Stack gap="md" align="center">
-            <Text className={classes.label} fz={11} fw={700} c="ldGray.6">
-                Or try one of these
-            </Text>
-            <Group gap="md" align="stretch" justify="center">
-                {EXAMPLES.map(({ prompt, Thumbnail }) => (
-                    <UnstyledButton
-                        key={prompt}
-                        className={classes.card}
-                        onClick={() => onPick(prompt)}
-                    >
-                        <Thumbnail colors={colors} />
-                        <Text fz={13} c="ldGray.8" lh={1.45}>
-                            {prompt}
-                        </Text>
-                    </UnstyledButton>
-                ))}
-            </Group>
-        </Stack>
+        <Group gap="sm" align="stretch" justify="center">
+            {EXAMPLES.map(({ prompt, Thumbnail }) => (
+                <UnstyledButton
+                    key={prompt}
+                    className={classes.card}
+                    onClick={() => onPick(prompt)}
+                >
+                    <Thumbnail colors={colors} />
+                    <Text fz={13} fw={500} c="ldGray.8" lh={1.35}>
+                        {prompt}
+                    </Text>
+                </UnstyledButton>
+            ))}
+        </Group>
     );
 };
 

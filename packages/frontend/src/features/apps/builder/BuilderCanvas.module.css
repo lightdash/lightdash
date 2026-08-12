@@ -8,15 +8,17 @@
     }
 }
 
+/* Stays under full strength throughout: the bars are a placeholder for the
+   chart, not the chart. */
 @keyframes ldBar {
     0%,
     100% {
         transform: scaleY(0.5);
-        opacity: 0.55;
+        opacity: 0.3;
     }
     50% {
         transform: scaleY(1);
-        opacity: 1;
+        opacity: 0.85;
     }
 }
 
@@ -27,19 +29,21 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 18px 80px 10px;
+    padding: var(--mantine-spacing-xl) var(--mantine-spacing-xxl)
+        var(--mantine-spacing-md);
 }
 
 /* Configuration column and preview share one surface, so the panel scrolls,
    resizes and moves with the chart it configures. */
 .card {
     width: 100%;
-    max-width: 1004px;
+    /* The same content width the other builder canvases use. */
+    max-width: 1160px;
     height: 100%;
     display: flex;
     background: var(--mantine-color-background-0);
     border: 1px solid var(--mantine-color-ldGray-2);
-    border-radius: var(--mantine-radius-lg);
+    border-radius: var(--mantine-radius-md);
     box-shadow: var(--mantine-shadow-subtle);
     /* Not clipped: the configure column's chip rides the top border. Each
        column rounds its own corners instead. */
@@ -51,7 +55,7 @@
     min-width: 0;
     /* Rounded on every corner so it sits right both beside the configure
        column and alone, and clipped so the iframe follows the curve. */
-    border-radius: var(--mantine-radius-lg);
+    border-radius: var(--mantine-radius-md);
     overflow: hidden;
     transition: opacity 300ms;
 
@@ -74,7 +78,7 @@
     display: flex;
     align-items: center;
     gap: var(--mantine-spacing-xs);
-    font-size: var(--mantine-font-size-sm);
+    font-size: 13px;
     font-weight: 500;
     color: var(--mantine-color-ldGray-7);
     background: var(--mantine-color-background-0);
@@ -86,42 +90,32 @@
     pointer-events: auto;
 }
 
-.skeletonBars {
-    display: flex;
-    align-items: flex-end;
-    gap: 12px;
-    height: 150px;
+/* The same width an example card's thumbnail gets, so the build reads as the
+   next frame of the card you clicked rather than a new piece of furniture. */
+.skeleton {
+    display: block;
+    width: 200px;
 }
 
 .skeletonBar {
-    width: 34px;
-    border-radius: 6px;
-    background: light-dark(#e4e1f7, var(--mantine-color-ldDark-6));
+    transform-box: fill-box;
     transform-origin: bottom;
     animation: ldBar 1.15s ease-in-out infinite;
 }
 
-.skeletonBar:nth-child(1) {
-    height: 62px;
-}
 .skeletonBar:nth-child(2) {
-    height: 104px;
     animation-delay: 0.12s;
 }
 .skeletonBar:nth-child(3) {
-    height: 82px;
     animation-delay: 0.24s;
 }
 .skeletonBar:nth-child(4) {
-    height: 136px;
     animation-delay: 0.36s;
 }
 .skeletonBar:nth-child(5) {
-    height: 96px;
     animation-delay: 0.48s;
 }
 .skeletonBar:nth-child(6) {
-    height: 118px;
     animation-delay: 0.6s;
 }
 
