@@ -2227,6 +2227,10 @@ export type AiDeepResearchRunCompletedEvent = BaseTrack & {
             | 'provider'
             | 'data'
             | 'internal';
+        warehouseLimitPreventedCount: number | null;
+        warehouseLimitRetryCount: number | null;
+        warehouseLimitRecoveredCount: number | null;
+        warehouseLimitUnrecoveredCount: number | null;
     };
 };
 

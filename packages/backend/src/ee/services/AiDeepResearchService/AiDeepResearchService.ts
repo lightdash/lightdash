@@ -602,6 +602,13 @@ export class AiDeepResearchService extends BaseService {
                 reportReproducible: reportQuality.reproducible,
                 reportQualityClass: reportQuality.qualityClass,
                 failureCategory: getFailureCategory(args.event.terminal_reason),
+                warehouseLimitPreventedCount:
+                    args.run.warehouse_limit_prevented_count,
+                warehouseLimitRetryCount: args.run.warehouse_limit_retry_count,
+                warehouseLimitRecoveredCount:
+                    args.run.warehouse_limit_recovered_count,
+                warehouseLimitUnrecoveredCount:
+                    args.run.warehouse_limit_unrecovered_count,
             },
         });
         return true;
