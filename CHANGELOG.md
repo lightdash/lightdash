@@ -1,3 +1,10 @@
+## [1.144.2](https://github.com/lightdash/lightdash/compare/1.144.1...1.144.2) (2026-08-12)
+
+
+### Bug Fixes
+
+* **data-apps:** restore the From scratch app template ([#27291](https://github.com/lightdash/lightdash/issues/27291)) ([8d3a69e](https://github.com/lightdash/lightdash/commit/8d3a69e0f5eb4b1f3d30dea35e96b069e1b20814))
+
 ## [1.144.1](https://github.com/lightdash/lightdash/compare/1.144.0...1.144.1) (2026-08-12)
 
 
