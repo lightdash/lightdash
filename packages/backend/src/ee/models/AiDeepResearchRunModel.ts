@@ -234,7 +234,10 @@ export class AiDeepResearchRunModel {
             .filter(({ tool_name: toolName }) =>
                 isDeepResearchWarehouseTool(toolName),
             )
-            .sort((left, right) => left.created_at.getTime() - right.created_at.getTime());
+            .sort(
+                (left, right) =>
+                    left.created_at.getTime() - right.created_at.getTime(),
+            );
         const resultsByCallId = new Map(
             toolResults.map((result) => [result.tool_call_id, result]),
         );
@@ -265,7 +268,10 @@ export class AiDeepResearchRunModel {
         const warehouseLimitRecoveredCount = warehouseFailures.filter(
             ({ created_at: failureCreatedAt }) =>
                 warehouseCalls.some(
-                    ({ tool_call_id: laterCallId, created_at: laterCreatedAt }) =>
+                    ({
+                        tool_call_id: laterCallId,
+                        created_at: laterCreatedAt,
+                    }) =>
                         laterCreatedAt > failureCreatedAt &&
                         !isWarehouseFailure(laterCallId),
                 ),
@@ -275,8 +281,9 @@ export class AiDeepResearchRunModel {
             tool_call_count: attemptedToolCallIds.size,
             tool_error_count: toolErrorIds.size,
             warehouse_query_count: new Set(
-                warehouseCalls
-                    .map(({ tool_call_id: toolCallId }) => toolCallId),
+                warehouseCalls.map(
+                    ({ tool_call_id: toolCallId }) => toolCallId,
+                ),
             ).size,
             warehouse_limit_prevented_count: warehouseLimitPreventedCount,
             warehouse_limit_retry_count: warehouseLimitRetryCount,

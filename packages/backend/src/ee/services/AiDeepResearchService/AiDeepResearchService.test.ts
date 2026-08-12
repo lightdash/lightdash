@@ -1309,6 +1309,16 @@ describe('AiDeepResearchService', () => {
                     aiDeepResearchRunUuid: 'run-1',
                 });
 
+                let completionClass:
+                    | 'useful_partial'
+                    | 'cancelled'
+                    | 'empty_failure' = 'empty_failure';
+                if (status === 'partially_completed') {
+                    completionClass = 'useful_partial';
+                } else if (status === 'cancelled') {
+                    completionClass = 'cancelled';
+                }
+
                 expect(analytics.track).toHaveBeenCalledExactlyOnceWith(
                     expect.objectContaining({
                         messageId: `analytics-${status}`,
@@ -1317,6 +1327,11 @@ describe('AiDeepResearchService', () => {
                             status,
                             terminalReason,
                             durationMs: 5_000,
+                            completionClass,
+                            reportOutcome:
+                                status === 'partially_completed'
+                                    ? 'report'
+                                    : 'empty',
                         }),
                     }),
                 );

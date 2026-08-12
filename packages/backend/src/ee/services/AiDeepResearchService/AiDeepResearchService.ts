@@ -17,6 +17,7 @@ import {
     isAiDeepResearchEvidencePackEmpty,
     isAiDeepResearchRunTerminal,
     isUserWithOrg,
+    lintDeepResearchReport,
     NotFoundError,
     ParameterError,
     QueryExecutionContext,
@@ -79,6 +80,60 @@ const STALE_RUN_ERROR_MESSAGE =
     'Deep Research stopped unexpectedly before it could finish.';
 const FAILED_RUN_ERROR_MESSAGE =
     'Deep Research could not finish. Please try again.';
+
+const getCompletionClass = (
+    status: DbAiDeepResearchRun['status'],
+    hasReport: boolean,
+): 'strict_success' | 'useful_partial' | 'empty_failure' | 'cancelled' => {
+    if (status === 'completed') return 'strict_success';
+    if (status === 'partially_completed' && hasReport) {
+        return 'useful_partial';
+    }
+    if (status === 'cancelled') return 'cancelled';
+    return 'empty_failure';
+};
+
+const getReportQuality = (run: DbAiDeepResearchRun) => {
+    const hasReport = run.result_markdown !== null;
+    const structureValid = hasReport
+        ? lintDeepResearchReport(run.result_markdown ?? '').length === 0
+        : false;
+    const evidenceGrounded = hasReport && (run.findings_count ?? 0) > 0;
+    const reproducible = hasReport && (run.warehouse_query_count ?? 0) > 0;
+    let qualityClass: 'none' | 'strong' | 'partial';
+    if (!hasReport) {
+        qualityClass = 'none';
+    } else if (structureValid && evidenceGrounded && reproducible) {
+        qualityClass = 'strong';
+    } else {
+        qualityClass = 'partial';
+    }
+
+    return {
+        structureValid,
+        evidenceGrounded,
+        reproducible,
+        qualityClass,
+    };
+};
+
+const getFailureCategory = (
+    reason: AiDeepResearchTerminalReason | null,
+): 'none' | 'user' | 'budget' | 'provider' | 'data' | 'internal' => {
+    if (reason === null) return 'none';
+    if (reason === 'user_cancellation') return 'user';
+    if (reason === 'provider_error') return 'provider';
+    if (reason === 'no_relevant_data') return 'data';
+    if (
+        reason === 'tool_limit' ||
+        reason === 'query_limit' ||
+        reason === 'token_limit' ||
+        reason === 'time_limit'
+    ) {
+        return 'budget';
+    }
+    return 'internal';
+};
 export const AI_DEEP_RESEARCH_NO_RELEVANT_DATA_ERROR_MESSAGE =
     'Deep Research could not find relevant data for this question.';
 const isToolResultFailure = (toolResult: AiAgentToolResult | null): boolean => {
@@ -518,6 +573,7 @@ export class AiDeepResearchService extends BaseService {
         if (!isAiDeepResearchRunTerminal(args.run.status)) {
             return false;
         }
+        const reportQuality = getReportQuality(args.run);
         this.analytics.track({
             messageId: args.event.ai_deep_research_analytics_event_uuid,
             event: 'ai_deep_research.run_completed',
@@ -525,6 +581,10 @@ export class AiDeepResearchService extends BaseService {
             properties: {
                 ...this.getAnalyticsDimensions(args.run),
                 status: args.run.status,
+                completionClass: getCompletionClass(
+                    args.run.status,
+                    args.run.result_markdown !== null,
+                ),
                 terminalReason: args.event.terminal_reason,
                 durationMs: args.run.duration_ms,
                 inputTokens: args.run.input_tokens,
@@ -539,7 +599,21 @@ export class AiDeepResearchService extends BaseService {
                 warehouseQueryCount: args.run.warehouse_query_count,
                 findingsCount: args.run.findings_count,
                 hasReport: args.run.result_markdown !== null,
+                reportOutcome:
+                    args.run.result_markdown !== null ? 'report' : 'empty',
                 chartCount: args.run.chart_count,
+                reportStructureValid: reportQuality.structureValid,
+                reportEvidenceGrounded: reportQuality.evidenceGrounded,
+                reportReproducible: reportQuality.reproducible,
+                reportQualityClass: reportQuality.qualityClass,
+                failureCategory: getFailureCategory(args.event.terminal_reason),
+                warehouseLimitPreventedCount:
+                    args.run.warehouse_limit_prevented_count,
+                warehouseLimitRetryCount: args.run.warehouse_limit_retry_count,
+                warehouseLimitRecoveredCount:
+                    args.run.warehouse_limit_recovered_count,
+                warehouseLimitUnrecoveredCount:
+                    args.run.warehouse_limit_unrecovered_count,
             },
         });
         return true;
