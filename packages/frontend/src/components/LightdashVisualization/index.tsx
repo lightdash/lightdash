@@ -78,7 +78,7 @@ interface LightdashVisualizationProps {
     isDashboard?: boolean;
     tileUuid?: string;
     isTitleHidden?: boolean;
-    /** Chart description, surfaced on the visualization when the tile title is hidden. */
+    /** Chart description, surfaced on the big number when the tile title is hidden. */
     description?: string;
     className?: string;
     'data-testid'?: string;
@@ -171,9 +171,8 @@ const LightdashVisualization = memo(
                     chartContent = (
                         <SimpleStatistic
                             minimal={minimal}
-                            description={
-                                isTitleHidden ? description : undefined
-                            }
+                            isTitleHidden={isTitleHidden}
+                            description={description}
                             onScreenshotReady={onScreenshotReady}
                             onScreenshotError={onScreenshotError}
                         />

@@ -71,8 +71,8 @@ export type BigNumberDisplayProps = {
     /** Raw CSS colour from conditional formatting, if any. */
     valueColor?: string;
     /**
-     * Chart description, shown as a tooltip on the value. Only provided when
-     * the tile title (which normally carries the description tooltip) is hidden.
+     * Shown as a tooltip on the value and the label. Only provided when the
+     * tile title, which normally carries the description tooltip, is hidden.
      */
     description?: string;
     /** Wraps the value so callers can attach a context menu. */
@@ -129,23 +129,11 @@ export const BigNumberDisplay: FC<BigNumberDisplayProps> = ({
         </BigNumberText>
     );
 
-    const valueNodeWithDescription = description ? (
-        <Tooltip
-            withinPortal
-            multiline
-            maw={400}
-            position="top"
-            label={
-                <Text className={styles.descriptionTooltipLabel} fz="sm">
-                    {description}
-                </Text>
-            }
-        >
-            {valueNode}
-        </Tooltip>
-    ) : (
-        valueNode
-    );
+    const descriptionLabel = description ? (
+        <Text className={styles.descriptionTooltipLabel} fz="sm">
+            {description}
+        </Text>
+    ) : undefined;
 
     return (
         <Center
@@ -159,11 +147,17 @@ export const BigNumberDisplay: FC<BigNumberDisplayProps> = ({
             ref={setRef}
             {...wrapperProps}
         >
-            <Flex style={{ flexShrink: 1 }} justify="center" align="center">
-                {renderValue
-                    ? renderValue(valueNodeWithDescription)
-                    : valueNodeWithDescription}
-            </Flex>
+            <Tooltip
+                withinPortal
+                maw={400}
+                position="top"
+                label={descriptionLabel}
+                disabled={!descriptionLabel}
+            >
+                <Flex style={{ flexShrink: 1 }} justify="center" align="center">
+                    {renderValue ? renderValue(valueNode) : valueNode}
+                </Flex>
+            </Tooltip>
 
             {showLabel && (
                 <Flex
@@ -174,9 +168,11 @@ export const BigNumberDisplay: FC<BigNumberDisplayProps> = ({
                 >
                     <Tooltip
                         withinPortal
-                        label={label}
+                        maw={400}
+                        label={descriptionLabel ?? label}
                         disabled={
-                            !label || label.length < LABEL_TOOLTIP_MIN_LENGTH
+                            !descriptionLabel &&
+                            (!label || label.length < LABEL_TOOLTIP_MIN_LENGTH)
                         }
                     >
                         <Text

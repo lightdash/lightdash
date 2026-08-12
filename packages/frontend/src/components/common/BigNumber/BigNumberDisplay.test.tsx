@@ -96,6 +96,41 @@ describe('BigNumberDisplay', () => {
         ).toBeInTheDocument();
     });
 
+    it('shows the description on hover over the label', async () => {
+        renderWithProviders(
+            <BigNumberDisplay
+                {...baseProps}
+                description="Total revenue for the period"
+            />,
+        );
+
+        await userEvent.hover(screen.getByText('Revenue'));
+
+        expect(
+            await screen.findByText('Total revenue for the period'),
+        ).toBeInTheDocument();
+    });
+
+    it('shows the description on hover over a value that has a context menu', async () => {
+        renderWithProviders(
+            <BigNumberDisplay
+                {...baseProps}
+                description="Total revenue for the period"
+                renderValue={(value) => (
+                    <button type="button" data-testid="context-menu">
+                        {value}
+                    </button>
+                )}
+            />,
+        );
+
+        await userEvent.hover(screen.getByTestId('big-number-value'));
+
+        expect(
+            await screen.findByText('Total revenue for the period'),
+        ).toBeInTheDocument();
+    });
+
     it('does not render a description tooltip when there is no description', async () => {
         renderWithProviders(<BigNumberDisplay {...baseProps} />);
 
