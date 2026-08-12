@@ -87,8 +87,8 @@ const INITIAL_SYNC_TIMEOUT_MS = 60000; // 60 seconds
 const SYNC_POLL_INTERVAL_MS = 1000; // 1 second
 
 // Slack Tier 2 rate limit throttling configuration
-// Tier 2 allows at least 20 requests/minute. Use the documented minimum while
-// leaving the retry path below to handle workspace-specific rate limits.
+// Tier 2 allows at least 20 requests/minute. Use 60% of that documented minimum
+// to balance sync throughput with headroom for workspace-specific rate limits.
 const TIER_2_REQUESTS_PER_MIN = 20;
 const RATE_LIMIT_USAGE_PERCENT = 0.6;
 const THROTTLE_MIN_DELAY_MS = Math.ceil(
@@ -97,7 +97,7 @@ const THROTTLE_MIN_DELAY_MS = Math.ceil(
 
 /**
  * Creates a throttled executor for Slack API calls.
- * Uses lodash throttle pattern to proactively stay within 20% of Tier 2 rate limits.
+ * Uses lodash throttle pattern to proactively stay within 60% of Tier 2 rate limits.
  * This prevents rate limit errors instead of reacting to them.
  * Includes a simple retry as safety net for unexpected rate limits (e.g., from other integrations).
  */
