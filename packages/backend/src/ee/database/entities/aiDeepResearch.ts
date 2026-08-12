@@ -43,6 +43,10 @@ export type DbAiDeepResearchRun = {
     tool_call_count: number | null;
     tool_error_count: number | null;
     warehouse_query_count: number | null;
+    warehouse_limit_prevented_count: number | null;
+    warehouse_limit_retry_count: number | null;
+    warehouse_limit_recovered_count: number | null;
+    warehouse_limit_unrecovered_count: number | null;
     findings_count: number | null;
     chart_count: number | null;
     error_message: string | null;
@@ -95,6 +99,10 @@ export type AiDeepResearchRunsTable = Knex.CompositeTableType<
             | 'tool_call_count'
             | 'tool_error_count'
             | 'warehouse_query_count'
+            | 'warehouse_limit_prevented_count'
+            | 'warehouse_limit_retry_count'
+            | 'warehouse_limit_recovered_count'
+            | 'warehouse_limit_unrecovered_count'
             | 'findings_count'
             | 'chart_count'
         >
