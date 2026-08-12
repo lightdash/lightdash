@@ -1254,9 +1254,7 @@ export class AiDeepResearchService extends BaseService {
                     return null;
                 }
                 try {
-                    const ownerRun = sourceCharts.has(key)
-                        ? sourceRun
-                        : run;
+                    const ownerRun = sourceCharts.has(key) ? sourceRun : run;
                     const entry = await this.buildWarehouseChartData(
                         ownerRun ?? run,
                         candidate.chart,
