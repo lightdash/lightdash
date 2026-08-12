@@ -36,8 +36,17 @@ pr_url=
 verdict_json=
 if [[ -n "$merged_upgrade_prs" ]]; then
     while IFS=$'\t' read -r candidate_number candidate_merge_sha; do
-        if [[ -z "$candidate_merge_sha" ]] || ! git merge-base --is-ancestor "$candidate_merge_sha" "$DEPLOYED_SHA"; then
+        if [[ -z "$candidate_merge_sha" ]]; then
             continue
+        fi
+        ancestry_rc=0
+        git merge-base --is-ancestor "$candidate_merge_sha" "$DEPLOYED_SHA" 2>/dev/null || ancestry_rc=$?
+        if [[ "$ancestry_rc" -eq 1 ]]; then
+            continue
+        fi
+        if [[ "$ancestry_rc" -gt 1 ]]; then
+            echo "Unable to check ancestry for $candidate_merge_sha; the checkout may be too shallow. Use fetch-depth: 0 for verification." >&2
+            exit 1
         fi
         if ! candidate_body=$(gh pr view "$candidate_number" --repo "$GITHUB_REPOSITORY" --json body --jq '.body'); then
             echo "Unable to read merged upgrade pull request #$candidate_number." >&2
