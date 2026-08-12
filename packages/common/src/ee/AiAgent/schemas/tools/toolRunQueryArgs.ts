@@ -45,6 +45,21 @@ const queryConfigBaseSchema = z.object({
         .describe(
             'The total number of data points / rows allowed on the chart. null means this tool\'s maximum, not "no data" — use it unless the user asked for a specific number of rows. Row limits documented for other tools do not apply here.',
         ),
+    parameters: z
+        .record(
+            z.string(),
+            z.union([
+                z.string(),
+                z.number(),
+                z.array(z.string()),
+                z.array(z.number()),
+            ]),
+        )
+        .nullable()
+        .default(null)
+        .describe(
+            'Lightdash parameter values for this query, keyed by parameter name exactly as shown in the explore metadata (e.g. {"orders.metric": "active_users"}). REQUIRED whenever a selected field is marked "requires parameters" and the default value does not match what the user asked for — an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.',
+        ),
 });
 
 // V1 took filters/customMetrics/tableCalculations at the top level, but LLMs
@@ -141,6 +156,8 @@ const chartConfigSchema = z
 
 export const TOOL_RUN_QUERY_DESCRIPTION = `Execute a metric query.
 
+If any selected field is marked "requires parameters" in field discovery or metadata, set the right values in queryConfig.parameters — an unset parameter silently resolves to its default, which can make the query return data that does not match the question.
+
 This tool returns metric query data only. ${buildMcpVisualizationFollowUpInstruction(
     'run_metric_query',
 )}
@@ -234,6 +251,7 @@ export const migrateRunQueryArgsV1ToV2 = (
         metrics: v1.queryConfig.metrics,
         sorts: v1.queryConfig.sorts,
         limit: v1.queryConfig.limit,
+        parameters: v1.queryConfig.parameters,
         customMetrics: v1.customMetrics,
         tableCalculations: v1.tableCalculations,
         // V1 accepted filters at the top level and (loosely) nested in

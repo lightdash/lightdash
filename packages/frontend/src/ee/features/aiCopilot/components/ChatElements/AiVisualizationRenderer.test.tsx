@@ -122,6 +122,7 @@ const chartConfig: ToolRunQueryArgs = {
         metrics: ['orders_total_revenue'],
         sorts: [],
         limit: 500,
+        parameters: null,
         filters: null,
         customMetrics: null,
         tableCalculations: null,

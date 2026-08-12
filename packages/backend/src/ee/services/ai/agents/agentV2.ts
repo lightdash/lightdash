@@ -787,6 +787,7 @@ export const getAgentTools = (
         maxContextRows: args.maxContextRows,
         exposeQueryUuid: args.execution.mode === 'deep_research',
         enableDataAccess: args.enableDataAccess,
+        projectParameterDefinitions,
     });
 
     const runSavedChart = getRunSavedChart({
