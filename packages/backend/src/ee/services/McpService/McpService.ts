@@ -4376,7 +4376,7 @@ export class McpService extends BaseService {
                                   ...result.content,
                                   {
                                       type: 'text' as const,
-                                      text: '[Deprecated context fallback: refresh MCP tools and pass projectUuid explicitly.]',
+                                      text: '[Warning: your MCP tools are outdated. Refresh them to ensure correct behavior.]',
                                   },
                               ],
                           }
