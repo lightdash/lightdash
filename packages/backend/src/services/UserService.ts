@@ -135,6 +135,7 @@ import { getOrganizationSettingsInstanceDefaults } from './OrganizationSettingsS
 
 const AWS_SSO_DEVICE_GRANT_TYPE =
     'urn:ietf:params:oauth:grant-type:device_code';
+const MAX_INVITE_LINK_TTL_MS = 3 * 24 * 60 * 60 * 1000;
 
 type RedshiftAwsSsoSession = {
     clientId: string;
@@ -714,10 +715,15 @@ export class UserService extends BaseService {
         }
         const { email, role } = createInviteLink;
         const purpose = createInviteLink.purpose ?? InviteLinkPurpose.Member;
-        // Same default expiry as the invite modal in the frontend
+        // Same expiry as the invite modal in the frontend
+        const now = Date.now();
+        const maximumExpiresAt = new Date(now + MAX_INVITE_LINK_TTL_MS);
         const expiresAt =
-            createInviteLink.expiresAt ??
-            new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+            createInviteLink.expiresAt &&
+            createInviteLink.expiresAt.getTime() > now &&
+            createInviteLink.expiresAt < maximumExpiresAt
+                ? createInviteLink.expiresAt
+                : maximumExpiresAt;
         const inviteCode = nanoid(30);
         if (organizationUuid === undefined) {
             throw new NotFoundError('Organization not found');
