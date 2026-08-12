@@ -24,6 +24,7 @@ import {
     type FC,
     type ReactNode,
 } from 'react';
+import { Link } from 'react-router';
 import { type StreamdownProps } from 'streamdown';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -37,7 +38,6 @@ import {
     useCancelDeepResearchMutation,
     useTrackDeepResearchReportEngagement,
 } from '../../hooks/useDeepResearch';
-import { DeepResearchReport } from './DeepResearchReport';
 import styles from './DeepResearchRunCard.module.css';
 
 const PreviewLink: FC<AnchorHTMLAttributes<HTMLAnchorElement>> = ({
@@ -189,7 +189,6 @@ export const DeepResearchRunCard = ({
     const status = STATUS_CONFIG[run.status];
     const cancelMutation = useCancelDeepResearchMutation(projectUuid, run.uuid);
     const [isActivityOpen, setIsActivityOpen] = useState(false);
-    const [isReportOpen, setIsReportOpen] = useState(false);
     const activityId = useId();
     const trackReportEngagement = useTrackDeepResearchReportEngagement();
     const [announcedStatus, setAnnouncedStatus] = useState(run.status);
@@ -437,6 +436,8 @@ export const DeepResearchRunCard = ({
                                 </AiMarkdown>
                             )}
                             <Button
+                                component={Link}
+                                to={`/projects/${run.projectUuid}/ai-agents/deep-research/${run.uuid}`}
                                 color="ldDark"
                                 size="xs"
                                 w="fit-content"
@@ -457,7 +458,6 @@ export const DeepResearchRunCard = ({
                                             updatedAt: run.updatedAt,
                                         });
                                     }
-                                    setIsReportOpen(true);
                                 }}
                             >
                                 View full report
@@ -528,12 +528,6 @@ export const DeepResearchRunCard = ({
                     </Stack>
                 )}
             </Stack>
-
-            <DeepResearchReport
-                run={run}
-                opened={isReportOpen}
-                onClose={() => setIsReportOpen(false)}
-            />
         </Paper>
     );
 };

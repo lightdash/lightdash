@@ -36,6 +36,7 @@ import {
     toDeepResearchRegistration,
 } from '../deepResearch/runProgress';
 import {
+    type DeepResearchReportView,
     type DeepResearchRunRegistration,
     type StartDeepResearchArgs,
 } from '../deepResearch/types';
@@ -491,6 +492,41 @@ export const useDeepResearchRun = (
             : undefined,
         eventsQuery,
     };
+};
+
+export const useDeepResearchReport = (
+    projectUuid: string | undefined,
+    runUuid: string | undefined,
+) => {
+    const runQuery = useQuery<AiDeepResearchRun, ApiError>({
+        queryKey: [DEEP_RESEARCH_QUERY_KEY, projectUuid, runUuid],
+        queryFn: () => getDeepResearchRun(projectUuid ?? '', runUuid ?? ''),
+        enabled: !!projectUuid && !!runUuid,
+        refetchInterval: (run) =>
+            getDeepResearchRunRefetchInterval(
+                run,
+                DEEP_RESEARCH_POLL_INTERVAL_MS,
+            ),
+    });
+    const report = useMemo<DeepResearchReportView | undefined>(
+        () =>
+            runQuery.data
+                ? {
+                      uuid: runQuery.data.aiDeepResearchRunUuid,
+                      projectUuid: runQuery.data.projectUuid,
+                      agentUuid: runQuery.data.agentUuid,
+                      threadUuid: runQuery.data.aiThreadUuid,
+                      question: runQuery.data.prompt,
+                      completedAt: runQuery.data.completedAt,
+                      sourceCount: null,
+                      resultMarkdown: runQuery.data.resultMarkdown,
+                      isReportExpired: runQuery.data.isReportExpired,
+                  }
+                : undefined,
+        [runQuery.data],
+    );
+
+    return { ...runQuery, data: report };
 };
 
 export const useCancelDeepResearchMutation = (
