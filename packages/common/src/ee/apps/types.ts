@@ -162,19 +162,23 @@ const DATA_APP_CLAUDE_MODEL_FALLBACK_ORDER: readonly DataAppClaudeModel[] = [
  * every model has been hidden (rejected at write time — see
  * AiOrganizationSettingsService).
  */
-export const resolveDefaultVisibleDataAppClaudeModel = (
-    visibility: DataAppModelVisibility | null | undefined,
+export const resolveDefaultDataAppClaudeModel = (
+    visibleModels: readonly DataAppClaudeModel[],
 ): DataAppClaudeModel | null => {
-    const visible = getVisibleDataAppClaudeModels(visibility);
-    if (visible.includes(DEFAULT_DATA_APP_CLAUDE_MODEL)) {
+    if (visibleModels.includes(DEFAULT_DATA_APP_CLAUDE_MODEL)) {
         return DEFAULT_DATA_APP_CLAUDE_MODEL;
     }
     return (
         DATA_APP_CLAUDE_MODEL_FALLBACK_ORDER.find((model) =>
-            visible.includes(model),
+            visibleModels.includes(model),
         ) ?? null
     );
 };
+
+export const resolveDefaultVisibleDataAppClaudeModel = (
+    visibility: DataAppModelVisibility | null | undefined,
+): DataAppClaudeModel | null =>
+    resolveDefaultDataAppClaudeModel(getVisibleDataAppClaudeModels(visibility));
 
 /**
  * A saved-chart reference attached to a generation request.

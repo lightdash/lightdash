@@ -2877,14 +2877,16 @@ export class AiAgentService extends BaseService {
             embedSpaceUuid: runtimeOptions?.embedSpaceUuid,
         });
 
-        const aiOrganizationSettings =
+        const organizationDefaultModelConfig =
             body.modelConfig || agent.modelConfig
                 ? undefined
-                : await this.aiOrganizationSettingsService.getSettings(user);
+                : await this.aiOrganizationSettingsService.getDefaultModelConfig(
+                      organizationUuid,
+                  );
         const modelConfig =
             body.modelConfig ??
             agent.modelConfig ??
-            aiOrganizationSettings?.defaultAiAgentModelConfig ??
+            organizationDefaultModelConfig ??
             undefined;
 
         if (body.prompt) {

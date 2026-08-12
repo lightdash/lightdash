@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     AI_DEEP_RESEARCH_DEFAULT_LIMITS,
+    AiOrganizationRuntimeSettings,
     AiOrganizationSettings,
     BYO_AI_PROVIDERS,
     CommercialFeatureFlags,
@@ -23,10 +24,7 @@ import { LightdashConfig } from '../../config/parseConfig';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { BaseService } from '../../services/BaseService';
 import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
-import {
-    AiOrganizationSettingsModel,
-    type StoredAiOrganizationSettings,
-} from '../models/AiOrganizationSettingsModel';
+import { AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
 import { CommercialFeatureFlagModel } from '../models/CommercialFeatureFlagModel';
 import {
     filterModelsForOrg,
@@ -93,23 +91,6 @@ export const pickReplacementDefaultModelConfig = (
         reasoning: preset.supportsReasoning ? previous.reasoning : undefined,
     };
 };
-
-/**
- * Redact partial key material (hints) and the "key is set" booleans for callers
- * without the manage-AI-agent ability. Non-admin org members read the settings
- * endpoint (agent chat surfaces) and must not see key hints.
- */
-export const maskProviderKeyExposure = (
-    settings: StoredAiOrganizationSettings,
-    canManage: boolean,
-): StoredAiOrganizationSettings =>
-    canManage
-        ? settings
-        : {
-              ...settings,
-              providerApiKeysSet: { anthropic: false, openai: false },
-              providerApiKeyHints: { anthropic: null, openai: null },
-          };
 
 /**
  * Providers being SET to a key that this instance does not configure. BYO can
@@ -217,6 +198,35 @@ export class AiOrganizationSettingsService extends BaseService {
         return isCopilotEnabled.enabled;
     }
 
+    private async getAiAvailability(
+        user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,
+        organizationUuid: string,
+    ): Promise<{ isCopilotEnabled: boolean; isTrial: boolean }> {
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        const isTrial = await this.isEligibleForTrial(
+            isCopilotEnabled,
+            organizationUuid,
+        );
+        return { isCopilotEnabled, isTrial };
+    }
+
+    private async checkAiSettingsAccess(
+        user: SessionUser,
+        organizationUuid: string,
+    ): Promise<{ isCopilotEnabled: boolean; isTrial: boolean }> {
+        this.checkManageAiAgentAccess(user);
+        const availability = await this.getAiAvailability(
+            user,
+            organizationUuid,
+        );
+        if (!availability.isCopilotEnabled && !availability.isTrial) {
+            throw new ForbiddenError(
+                'AI agent settings are not available for this organization',
+            );
+        }
+        return availability;
+    }
+
     private async getModelOptionLists(organizationUuid: string): Promise<{
         effectiveOptions: AiModelOption[];
         configurableOptions: AiModelOption[];
@@ -318,44 +328,31 @@ export class AiOrganizationSettingsService extends BaseService {
         return flag.enabled;
     }
 
-    async getSettings(
+    private async resolveSettings(
         user: SessionUser,
+        availability: { isCopilotEnabled: boolean; isTrial: boolean },
     ): Promise<AiOrganizationSettings & ComputedAiOrganizationSettings> {
-        if (!user.organizationUuid) {
-            throw new ForbiddenError('User must belong to an organization');
-        }
-
-        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
-
-        // Check if organization qualifies for trial
-        const isTrialEligible = await this.isEligibleForTrial(
-            isCopilotEnabled,
-            user.organizationUuid,
-        );
+        const organizationUuid = user.organizationUuid!;
+        const { isCopilotEnabled, isTrial } = availability;
 
         const [settings, aiAgentMemoryEnabled] = await Promise.all([
             this.aiOrganizationSettingsModel.findByOrganizationUuid(
-                user.organizationUuid,
+                organizationUuid,
             ),
             this.isAiAgentMemoryEnabled(user),
         ]);
-
-        // Partial key material (hints) and the "key is set" booleans are only
-        // exposed to org admins; other members read this endpoint too (agent
-        // chat surfaces) but must not see another org member's key hints.
-        const canManage = this.canManageAiAgent(user);
 
         const [
             { effectiveOptions, configurableOptions, effectiveModelVisibility },
             reviewJudge,
             effectiveDataAppModelVisibility,
         ] = await Promise.all([
-            this.getModelOptionLists(user.organizationUuid),
+            this.getModelOptionLists(organizationUuid),
             this.orgAiCopilotConfigResolver.getReviewJudgeAvailability(
-                user.organizationUuid,
+                organizationUuid,
             ),
             this.orgAiCopilotConfigResolver.getDataAppModelVisibility(
-                user.organizationUuid,
+                organizationUuid,
             ),
         ]);
 
@@ -367,7 +364,7 @@ export class AiOrganizationSettingsService extends BaseService {
         // Return default settings if none exist
         if (!settings) {
             return {
-                organizationUuid: user.organizationUuid,
+                organizationUuid,
                 isCopilotEnabled,
                 aiAgentsVisible: true,
                 aiAgentReviewsEnabled: false,
@@ -382,16 +379,14 @@ export class AiOrganizationSettingsService extends BaseService {
                 providerApiKeysSet: { anthropic: false, openai: false },
                 providerApiKeyHints: { anthropic: null, openai: null },
                 defaultAiAgentModelOptions: effectiveOptions,
-                configurableModelOptions: canManage
-                    ? configurableOptions
-                    : null,
+                configurableModelOptions: configurableOptions,
                 aiAgentReviewsPausedByByok,
-                isTrial: isTrialEligible,
+                isTrial,
             };
         }
 
         return {
-            ...maskProviderKeyExposure(settings, canManage),
+            ...settings,
             aiAgentMemoryEnabled,
             // Surface the effective visibility (implicit BYOK defaults merged in)
             // so the admin card reflects what users actually see.
@@ -399,12 +394,81 @@ export class AiOrganizationSettingsService extends BaseService {
             // Likewise: stored Data App settings are inert without a BYO key,
             // so the picker must not filter on them when the backend won't.
             dataAppModelVisibility: effectiveDataAppModelVisibility,
-            isTrial: isTrialEligible,
+            isTrial,
             isCopilotEnabled,
             defaultAiAgentModelOptions: effectiveOptions,
-            configurableModelOptions: canManage ? configurableOptions : null,
+            configurableModelOptions: configurableOptions,
             aiAgentReviewsPausedByByok,
         };
+    }
+
+    async getSettings(
+        user: SessionUser,
+    ): Promise<AiOrganizationSettings & ComputedAiOrganizationSettings> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('User must belong to an organization');
+        }
+        const availability = await this.checkAiSettingsAccess(
+            user,
+            organizationUuid,
+        );
+        return this.resolveSettings(user, availability);
+    }
+
+    async getRuntimeSettings(
+        user: SessionUser,
+    ): Promise<AiOrganizationRuntimeSettings> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('User must belong to an organization');
+        }
+        const availability = await this.getAiAvailability(
+            user,
+            organizationUuid,
+        );
+        if (!availability.isCopilotEnabled && !availability.isTrial) {
+            const dataAppModelVisibility =
+                await this.orgAiCopilotConfigResolver.getDataAppModelVisibility(
+                    organizationUuid,
+                );
+            return {
+                ...availability,
+                aiAgentsVisible: false,
+                aiAgentMemoryEnabled: false,
+                aiAgentReviewsEnabled: false,
+                aiAgentReviewsAvailable: false,
+                defaultAiAgentModelConfig: null,
+                defaultAiAgentModelOptions: [],
+                visibleDataAppModels: getVisibleDataAppClaudeModels(
+                    dataAppModelVisibility,
+                ),
+            };
+        }
+
+        const settings = await this.resolveSettings(user, availability);
+        return {
+            ...availability,
+            aiAgentsVisible: settings.aiAgentsVisible,
+            aiAgentMemoryEnabled: settings.aiAgentMemoryEnabled,
+            aiAgentReviewsEnabled: settings.aiAgentReviewsEnabled,
+            aiAgentReviewsAvailable:
+                settings.aiAgentReviewsEnabled &&
+                settings.aiAgentReviewsPausedByByok !== true,
+            defaultAiAgentModelConfig: settings.defaultAiAgentModelConfig,
+            defaultAiAgentModelOptions: settings.defaultAiAgentModelOptions,
+            visibleDataAppModels: getVisibleDataAppClaudeModels(
+                settings.dataAppModelVisibility,
+            ),
+        };
+    }
+
+    async isAiAgentsVisible(organizationUuid: string): Promise<boolean> {
+        const settings =
+            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                organizationUuid,
+            );
+        return settings?.aiAgentsVisible ?? true;
     }
 
     async isDeepResearchRawSqlEnabled({
@@ -428,7 +492,7 @@ export class AiOrganizationSettingsService extends BaseService {
             throw new ForbiddenError('User must belong to an organization');
         }
 
-        this.checkManageAiAgentAccess(user);
+        await this.checkAiSettingsAccess(user, organizationUuid);
 
         const { aiAgentMemoryEnabled, ...aiSettingsUpdate } = data;
         const isMemoryOnlyUpdate =

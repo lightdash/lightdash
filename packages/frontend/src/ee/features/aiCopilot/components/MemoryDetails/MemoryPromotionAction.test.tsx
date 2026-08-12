@@ -14,7 +14,7 @@ const { mutate, permissions, settings } = vi.hoisted(() => ({
     settings: {
         current: {
             aiAgentReviewsEnabled: true,
-            aiAgentReviewsPausedByByok: false,
+            aiAgentReviewsAvailable: true,
         },
     },
 }));
@@ -53,7 +53,7 @@ describe('MemoryPromotionAction', () => {
         mutate.mockClear();
         settings.current = {
             aiAgentReviewsEnabled: true,
-            aiAgentReviewsPausedByByok: false,
+            aiAgentReviewsAvailable: true,
         };
         permissions.canManageOrganization = false;
         permissions.canManageProject = true;
@@ -198,6 +198,7 @@ describe('MemoryPromotionAction', () => {
 
     it('disables promotion with the feature gate reason', async () => {
         settings.current.aiAgentReviewsEnabled = false;
+        settings.current.aiAgentReviewsAvailable = false;
         const user = userEvent.setup();
         renderAction();
 

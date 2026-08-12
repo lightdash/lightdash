@@ -4,11 +4,10 @@ import {
     DATA_APP_VIZ_TEMPLATE,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
     FeatureFlags,
-    getVisibleDataAppClaudeModels,
     isApiError,
     isAppVersionInProgress,
     MAX_APP_FILES_PER_VERSION,
-    resolveDefaultVisibleDataAppClaudeModel,
+    resolveDefaultDataAppClaudeModel,
     type ApiAppVersionSummary,
     type AppChartReference,
     type AppClarification,
@@ -206,6 +205,7 @@ const TemplateChip: FC<{ template: DataAppTemplate }> = ({ template }) => {
 };
 
 const NO_THEME_LABEL = 'No theme';
+const NO_DATA_APP_MODELS: DataAppClaudeModel[] = [];
 
 const ThemeChip: FC<{
     themeName: string;
@@ -943,12 +943,8 @@ const AppGenerate: FC = () => {
         data: aiOrganizationSettings,
         isLoading: isModelVisibilityLoading,
     } = useAiOrganizationSettings();
-    const dataAppModelVisibility =
-        aiOrganizationSettings?.dataAppModelVisibility ?? null;
-    const visibleModels = useMemo(
-        () => getVisibleDataAppClaudeModels(dataAppModelVisibility),
-        [dataAppModelVisibility],
-    );
+    const visibleModels =
+        aiOrganizationSettings?.visibleDataAppModels ?? NO_DATA_APP_MODELS;
 
     // Effective model for the picker / next submit:
     // user's explicit pick (if it's for this app) > latest version's model
@@ -967,7 +963,7 @@ const AppGenerate: FC = () => {
     // the next candidate rather than resurrecting a hidden model.
     const selectedModel: DataAppClaudeModel = useMemo(() => {
         const fallback =
-            resolveDefaultVisibleDataAppClaudeModel(dataAppModelVisibility) ??
+            resolveDefaultDataAppClaudeModel(visibleModels) ??
             DEFAULT_DATA_APP_CLAUDE_MODEL;
         if (modelOverride) {
             const overrideAppUuid = modelOverride.appUuid;
@@ -983,13 +979,7 @@ const AppGenerate: FC = () => {
             return latestVersionModel;
         }
         return fallback;
-    }, [
-        modelOverride,
-        activeAppUuid,
-        latestVersionModel,
-        visibleModels,
-        dataAppModelVisibility,
-    ]);
+    }, [modelOverride, activeAppUuid, latestVersionModel, visibleModels]);
 
     const handleModelChange = useCallback(
         (model: DataAppClaudeModel) => {
