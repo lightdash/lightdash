@@ -221,9 +221,50 @@ describe('Lightdash catalog all tables and fields', () => {
 
 describe('Lightdash catalog search', () => {
     let admin: ApiClient;
+    let adminAttributeUuid: string;
+
+    const setAdminAttribute = async (value: string | null) => {
+        const response = await admin.put(
+            `${apiUrl}/org/attributes/${adminAttributeUuid}`,
+            {
+                name: 'is_admin',
+                users:
+                    value === null
+                        ? []
+                        : [
+                              {
+                                  userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                                  value,
+                              },
+                          ],
+                groups: [],
+                attributeDefault: null,
+            },
+        );
+        expect(response.status).toBe(201);
+    };
 
     beforeAll(async () => {
         admin = await login();
+        const response = await admin.post<{ results: { uuid: string } }>(
+            `${apiUrl}/org/attributes`,
+            {
+                name: 'is_admin',
+                users: [],
+                groups: [],
+                attributeDefault: null,
+            },
+        );
+        expect(response.status).toBe(201);
+        adminAttributeUuid = response.body.results.uuid;
+    });
+
+    afterAll(async () => {
+        if (!adminAttributeUuid) return;
+        const response = await admin.delete(
+            `${apiUrl}/org/attributes/${adminAttributeUuid}`,
+        );
+        expect(response.status).toBe(200);
     });
 
     it('Should search for customer tables and fields', async () => {
@@ -326,6 +367,16 @@ describe('Lightdash catalog search', () => {
 
     it('Should filter fields with required attributes (age)', async () => {
         const projectUuid = SEED_PROJECT.project_uuid;
+        await setAdminAttribute('true');
+        const visibleResp = await admin.get<{
+            results: Array<{ name: string; type: string }>;
+        }>(`${apiUrl}/projects/${projectUuid}/dataCatalog?search=average_age`);
+        expect(visibleResp.status).toBe(200);
+        expect(visibleResp.body.results).toContainEqual(
+            expect.objectContaining({ name: 'average_age', type: 'field' }),
+        );
+
+        await setAdminAttribute(null);
         const resp = await admin.get<{ results: unknown[] }>(
             `${apiUrl}/projects/${projectUuid}/dataCatalog?search=average_age`,
         );
@@ -335,6 +386,16 @@ describe('Lightdash catalog search', () => {
 
     it('Should filter table with required attributes (memberships)', async () => {
         const projectUuid = SEED_PROJECT.project_uuid;
+        await setAdminAttribute('true');
+        const visibleResp = await admin.get<{
+            results: Array<{ name: string; type: string }>;
+        }>(`${apiUrl}/projects/${projectUuid}/dataCatalog?search=memberships`);
+        expect(visibleResp.status).toBe(200);
+        expect(visibleResp.body.results).toContainEqual(
+            expect.objectContaining({ name: 'membership', type: 'table' }),
+        );
+
+        await setAdminAttribute(null);
         const resp = await admin.get<{ results: unknown[] }>(
             `${apiUrl}/projects/${projectUuid}/dataCatalog?search=memberships`,
         );

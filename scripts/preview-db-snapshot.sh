@@ -9,6 +9,7 @@ set -euo pipefail
 
 NAMESPACE="${DB_SNAPSHOT_NAMESPACE:-db-snapshot}"
 SUFFIX="${1:?usage: preview-db-snapshot.sh <suffix, e.g. short sha>}"
+SEED_READY_SQL="$(dirname "$0")/preview-db-seed-ready.sql"
 # GCP rate-limits disk creation per source snapshot, so publish several
 # identical copies and let previews spread their restores across them
 # (okteto.preview.yaml picks one at random). Keep two generations.
@@ -16,9 +17,8 @@ COPIES=3
 KEEP=6
 
 is_seeded() {
-    [ "$(kubectl -n "$NAMESPACE" exec statefulset/db-preview -- psql -U postgres -tAc \
-        "SELECT to_regclass('jaffle.orders') IS NOT NULL AND EXISTS (SELECT 1 FROM emails WHERE email = 'demo@lightdash.com')" \
-        2>/dev/null)" = "t" ]
+    [ "$(kubectl -n "$NAMESPACE" exec -i statefulset/db-preview -- psql -U postgres -tA -f - \
+        < "$SEED_READY_SQL" 2>/dev/null)" = "t" ]
 }
 
 echo "Waiting for the seeder to finish (dbt + migrate + seed)..."
