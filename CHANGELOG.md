@@ -1,3 +1,12 @@
+## [1.137.1](https://github.com/lightdash/lightdash/compare/1.137.0...1.137.1) (2026-08-12)
+
+
+### Bug Fixes
+
+* **mcp:** hide unauthorized metric query tool ([#27259](https://github.com/lightdash/lightdash/issues/27259)) ([ff5c932](https://github.com/lightdash/lightdash/commit/ff5c932f9b63b6ed9c676e2fe4e90d7083018030))
+* **slack:** prevent large workspace sync timeouts ([#27256](https://github.com/lightdash/lightdash/issues/27256)) ([261b792](https://github.com/lightdash/lightdash/commit/261b792a65eb16925f7741ae5370eb54ff790aa8))
+* validate bump-target values before writing ([#27233](https://github.com/lightdash/lightdash/issues/27233)) ([81b1798](https://github.com/lightdash/lightdash/commit/81b1798d11413a90b51ee26347625d4b4b6c3a31))
+
 # [1.137.0](https://github.com/lightdash/lightdash/compare/1.136.1...1.137.0) (2026-08-12)
 
 
