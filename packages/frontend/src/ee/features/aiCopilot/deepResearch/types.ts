@@ -52,6 +52,19 @@ export type DeepResearchRunView = {
     errorMessage: string | null;
 };
 
+export type DeepResearchReportView = Pick<
+    DeepResearchRunView,
+    | 'uuid'
+    | 'projectUuid'
+    | 'agentUuid'
+    | 'threadUuid'
+    | 'question'
+    | 'completedAt'
+    | 'sourceCount'
+    | 'resultMarkdown'
+    | 'isReportExpired'
+>;
+
 export type DeepResearchRunRegistration = {
     runUuid: string;
     projectUuid: string;
