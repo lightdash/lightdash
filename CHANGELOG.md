@@ -1,3 +1,11 @@
+## [1.134.2](https://github.com/lightdash/lightdash/compare/1.134.1...1.134.2) (2026-08-12)
+
+
+### Bug Fixes
+
+* enforce invite expiry bounds ([#27162](https://github.com/lightdash/lightdash/issues/27162)) ([299da93](https://github.com/lightdash/lightdash/commit/299da935147a6a701fdc6ca55b3438cac15af018))
+* **frontend:** align PasswordInput font size with other inputs ([#27227](https://github.com/lightdash/lightdash/issues/27227)) ([c67a42e](https://github.com/lightdash/lightdash/commit/c67a42eb4154ae571de51685e96d95c135fb5db8))
+
 ## [1.134.1](https://github.com/lightdash/lightdash/compare/1.134.0...1.134.1) (2026-08-12)
 
 
