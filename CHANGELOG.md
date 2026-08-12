@@ -1,3 +1,10 @@
+# [1.141.0](https://github.com/lightdash/lightdash/compare/1.140.0...1.141.0) (2026-08-12)
+
+
+### Features
+
+* **frontend:** pulse deep research toggle when a draft reads investigative ([#27272](https://github.com/lightdash/lightdash/issues/27272)) ([f6dc090](https://github.com/lightdash/lightdash/commit/f6dc090fa7cae89e6acc7814a7eb9656d47eedc2))
+
 # [1.140.0](https://github.com/lightdash/lightdash/compare/1.139.0...1.140.0) (2026-08-12)
 
 
