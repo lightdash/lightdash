@@ -16,7 +16,7 @@ exports[`MCP tool contracts > matches the current MCP tool and prompt contract s
 
 ## Query Building Workflow
 
-0. **Get started and route to the right agent**: Call \`get_context\` first, select the relevant project, and pass its \`projectUuid\` to every project-scoped tool. Call \`route_agent\` with that project UUID at the start of each new user request; when it selects an agent, pass the returned \`agentUuid\` explicitly to subsequent scoped tools
+0. **Get started with explicit context**: Call \`get_context\` first, select the relevant project, and pass its \`projectUuid\` to every project-scoped tool. When agent-specific scope is useful, call \`route_agent\` with that project UUID and pass its returned \`agentUuid\` explicitly to subsequent scoped tools. If routing is unavailable or full project scope is desired, omit \`agentUuid\`; use \`set_agent\` to select an agent manually
 1. **Find explores first**: Use \`find_explores\` with a natural language search query to discover relevant data models and any matching verified answers
    - If the response includes a verified answer that clearly matches, prefer its returned config over constructing a new query from scratch
    - Use matching verified answers as the starting point, then adapt only if the user asked for a clear modification
@@ -1548,7 +1548,7 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": false,
       },
-      "description": "Select the best AI agent for a user request within the required projectUuid. Call this at the start of each new user request, then pass the returned agentUuid explicitly to subsequent scoped tools. Also updates legacy shared agent context for older clients.",
+      "description": "Select the best AI agent for a user request within the required projectUuid when agent-specific scope is useful and routing is available. Pass the returned agentUuid explicitly to subsequent scoped tools. If routing is unavailable, use list_agents and set_agent for manual selection; omit agentUuid when full project scope is desired. Also updates shared agent context for clients that use it.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,

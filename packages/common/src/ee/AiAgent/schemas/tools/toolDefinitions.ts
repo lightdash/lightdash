@@ -1479,7 +1479,7 @@ export const routeAgentToolDefinition: ToolDefinitionWithMcpOutput<
     name: 'routeAgent',
     title: 'Route agent',
     description:
-        'Select the best AI agent for a user request within the required projectUuid. Call this at the start of each new user request, then pass the returned agentUuid explicitly to subsequent scoped tools. Also updates legacy shared agent context for older clients.',
+        'Select the best AI agent for a user request within the required projectUuid when agent-specific scope is useful and routing is available. Pass the returned agentUuid explicitly to subsequent scoped tools. If routing is unavailable, use list_agents and set_agent for manual selection; omit agentUuid when full project scope is desired. Also updates shared agent context for clients that use it.',
     availability: ['mcp'],
     inputSchema: routeAgentArgsSchema,
     mcp: {
