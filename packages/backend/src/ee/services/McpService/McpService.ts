@@ -1679,6 +1679,7 @@ export class McpService extends BaseService {
             mcpContentWritesEnabled: boolean;
             scheduledDeliveryEnabled: boolean;
             runSqlEnabled: boolean;
+            runMetricQueryEnabled?: boolean;
         } = {
             projectPinned: false,
             aiWritebackEnabled: false,
@@ -1686,6 +1687,7 @@ export class McpService extends BaseService {
             mcpContentWritesEnabled: true,
             scheduledDeliveryEnabled: true,
             runSqlEnabled: false,
+            runMetricQueryEnabled: true,
         },
     ): void {
         this.registerTrackedTool(
@@ -2699,115 +2701,127 @@ export class McpService extends BaseService {
             },
         );
 
-        this.registerTrackedTool(
-            mcpRunMetricQueryTool.name,
-            {
-                title: mcpRunMetricQueryTool.title,
-                description: mcpRunMetricQueryTool.description,
-                inputSchema: mcpRunMetricQueryTool.inputSchema.shape,
-                outputSchema: mcpRunMetricQueryTool.outputSchema,
-                annotations: mcpRunMetricQueryTool.annotations,
-            },
-            async (_args, extra) => {
-                const ctx = getMcpContext(extra);
+        if (options.runMetricQueryEnabled ?? true) {
+            this.registerTrackedTool(
+                mcpRunMetricQueryTool.name,
+                {
+                    title: mcpRunMetricQueryTool.title,
+                    description: mcpRunMetricQueryTool.description,
+                    inputSchema: mcpRunMetricQueryTool.inputSchema.shape,
+                    outputSchema: mcpRunMetricQueryTool.outputSchema,
+                    annotations: mcpRunMetricQueryTool.annotations,
+                },
+                async (_args, extra) => {
+                    const ctx = getMcpContext(extra);
 
-                const projectUuid = await this.resolveProjectUuid(ctx);
-                const argsWithProject = { ..._args, projectUuid };
+                    const projectUuid = await this.resolveProjectUuid(ctx);
+                    const argsWithProject = { ..._args, projectUuid };
 
-                try {
-                    const deadlineMs =
-                        Date.now() + McpService.getMcpQueryWaitMs(extra);
-                    const { account } = McpService.getAccount(ctx);
-                    const queryTool =
-                        toolRunQueryArgsSchemaTransformed.parse(
-                            argsWithProject,
-                        );
-                    const {
-                        query,
-                        userAttributeOverrides,
-                        appliedParametersNote,
-                    } = await this.buildMcpMetricQuery({
-                        ctx,
-                        projectUuid,
-                        queryTool,
-                    });
+                    try {
+                        const deadlineMs =
+                            Date.now() + McpService.getMcpQueryWaitMs(extra);
+                        const { account } = McpService.getAccount(ctx);
+                        const queryTool =
+                            toolRunQueryArgsSchemaTransformed.parse(
+                                argsWithProject,
+                            );
+                        const {
+                            query,
+                            userAttributeOverrides,
+                            appliedParametersNote,
+                        } = await this.buildMcpMetricQuery({
+                            ctx,
+                            projectUuid,
+                            queryTool,
+                        });
 
-                    const { queryUuid } =
-                        await this.asyncQueryService.executeAsyncMetricQuery({
-                            account,
+                        const { queryUuid } =
+                            await this.asyncQueryService.executeAsyncMetricQuery(
+                                {
+                                    account,
+                                    projectUuid,
+                                    metricQuery: query,
+                                    context:
+                                        QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+                                    userAttributeOverrides,
+                                    parameters:
+                                        queryTool.queryConfig.parameters ??
+                                        undefined,
+                                },
+                            );
+
+                        const queryHistory =
+                            await this.asyncQueryService.pollQueryHistoryUntilDeadline(
+                                {
+                                    account,
+                                    projectUuid,
+                                    queryUuid,
+                                    deadlineMs,
+                                    pollIntervalMs: MCP_QUERY_POLL_INTERVAL_MS,
+                                    signal: extra.signal,
+                                },
+                            );
+
+                        if (
+                            McpService.isQueryRunningStatus(queryHistory.status)
+                        ) {
+                            return McpService.getRunningQueryResponse(
+                                queryUuid,
+                            );
+                        }
+
+                        if (queryHistory.status !== QueryHistoryStatus.READY) {
+                            throw new UnexpectedServerError(
+                                queryHistory.error ??
+                                    `Metric query finished with status ${queryHistory.status}`,
+                            );
+                        }
+
+                        const results =
+                            await this.asyncQueryService.getRawAsyncQueryResults(
+                                {
+                                    account,
+                                    projectUuid,
+                                    queryUuid,
+                                },
+                            );
+                        const exploreUrl = await this.buildMetricExploreUrl({
+                            ctx,
                             projectUuid,
                             metricQuery: query,
-                            context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
-                            userAttributeOverrides,
-                            parameters:
-                                queryTool.queryConfig.parameters ?? undefined,
+                            fieldsMap: results.fields,
+                            columnOrder: results.rows[0]
+                                ? Object.keys(results.rows[0])
+                                : Object.keys(results.fields),
+                            queryTool,
                         });
 
-                    const queryHistory =
-                        await this.asyncQueryService.pollQueryHistoryUntilDeadline(
-                            {
-                                account,
-                                projectUuid,
-                                queryUuid,
-                                deadlineMs,
-                                pollIntervalMs: MCP_QUERY_POLL_INTERVAL_MS,
-                                signal: extra.signal,
-                            },
-                        );
-
-                    if (McpService.isQueryRunningStatus(queryHistory.status)) {
-                        return McpService.getRunningQueryResponse(queryUuid);
-                    }
-
-                    if (queryHistory.status !== QueryHistoryStatus.READY) {
-                        throw new UnexpectedServerError(
-                            queryHistory.error ??
-                                `Metric query finished with status ${queryHistory.status}`,
-                        );
-                    }
-
-                    const results =
-                        await this.asyncQueryService.getRawAsyncQueryResults({
-                            account,
-                            projectUuid,
+                        return McpService.buildMetricQueryPollResult({
                             queryUuid,
+                            rows: results.rows,
+                            fields: results.fields,
+                            exploreUrl,
+                            appliedParametersNote,
                         });
-                    const exploreUrl = await this.buildMetricExploreUrl({
-                        ctx,
-                        projectUuid,
-                        metricQuery: query,
-                        fieldsMap: results.fields,
-                        columnOrder: results.rows[0]
-                            ? Object.keys(results.rows[0])
-                            : Object.keys(results.fields),
-                        queryTool,
-                    });
-
-                    return McpService.buildMetricQueryPollResult({
-                        queryUuid,
-                        rows: results.rows,
-                        fields: results.fields,
-                        exploreUrl,
-                        appliedParametersNote,
-                    });
-                } catch (e) {
-                    const errorMessage =
-                        e instanceof Error ? e.message : String(e);
-                    this.logger.error(
-                        `[McpService] Error in run_metric_query tool: ${errorMessage}`,
-                    );
-                    return {
-                        content: [
-                            {
-                                type: 'text' as const,
-                                text: `Error running metric query: ${errorMessage}`,
-                            },
-                        ],
-                        isError: true,
-                    };
-                }
-            },
-        );
+                    } catch (e) {
+                        const errorMessage =
+                            e instanceof Error ? e.message : String(e);
+                        this.logger.error(
+                            `[McpService] Error in run_metric_query tool: ${errorMessage}`,
+                        );
+                        return {
+                            content: [
+                                {
+                                    type: 'text' as const,
+                                    text: `Error running metric query: ${errorMessage}`,
+                                },
+                            ],
+                            isError: true,
+                        };
+                    }
+                },
+            );
+        }
 
         registerAppTool(
             this.mcpServer,
@@ -3640,6 +3654,7 @@ export class McpService extends BaseService {
         mcpContentWritesEnabled?: boolean;
         scheduledDeliveryEnabled?: boolean;
         runSqlEnabled?: boolean;
+        runMetricQueryEnabled?: boolean;
     }): Promise<McpServer> {
         const newServer = this.buildMcpServer({
             enableGrepFields: options?.grepFieldsEnabled ?? false,
@@ -3658,6 +3673,7 @@ export class McpService extends BaseService {
             mcpContentWritesEnabled: options?.mcpContentWritesEnabled ?? true,
             scheduledDeliveryEnabled: options?.scheduledDeliveryEnabled ?? true,
             runSqlEnabled: options?.runSqlEnabled ?? false,
+            runMetricQueryEnabled: options?.runMetricQueryEnabled ?? false,
         });
         this.mcpServer = originalServer;
 
@@ -3944,6 +3960,43 @@ export class McpService extends BaseService {
         }
 
         return ability.can('manage', 'SqlRunner');
+    }
+
+    /**
+     * Whether the run_metric_query tool should be registered for this caller.
+     *
+     * Query execution performs a more specific explore-level authorization
+     * check. This registration gate uses the project-level manage:Explore
+     * capability so viewers do not see a tool that will always reject them.
+     */
+    public async isRunMetricQueryEnabled(
+        user: SessionUser,
+        headerProjectUuid?: string,
+    ): Promise<boolean> {
+        const ability = this.createAuditedAbility(user);
+
+        const projectUuid =
+            headerProjectUuid ??
+            (user.organizationUuid
+                ? (
+                      await this.mcpContextModel.getContext(
+                          user.userUuid,
+                          user.organizationUuid,
+                      )
+                  )?.context.projectUuid
+                : undefined);
+
+        if (projectUuid && user.organizationUuid) {
+            return ability.can(
+                'manage',
+                subject('Explore', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                }),
+            );
+        }
+
+        return ability.can('manage', 'Explore');
     }
 
     public getLightdashVersion(context: McpProtocolContext): string {

@@ -128,6 +128,24 @@ const makeMcpService = (mcpContentWritesEnabled = true): McpService =>
         userAttributesModel: {},
     } as unknown as ConstructorParameters<typeof McpService>[0]);
 
+const makeServiceWithContextProject = (projectUuid?: string): McpService => {
+    const service = makeMcpService();
+    (
+        service as unknown as {
+            mcpContextModel: {
+                getContext: (...args: unknown[]) => unknown;
+            };
+        }
+    ).mcpContextModel = {
+        getContext: vi
+            .fn()
+            .mockResolvedValue(
+                projectUuid ? { context: { projectUuid } } : undefined,
+            ),
+    };
+    return service;
+};
+
 const sharedMcpToolDefinitionNames = mcpToolDefinitions.map(
     (toolDefinition) => toolDefinition.for('mcp').name,
 );
@@ -159,6 +177,7 @@ describe('MCP tool contracts', () => {
         await mcpService.createServer({
             aiWritebackEnabled: true,
             runSqlEnabled: true,
+            runMetricQueryEnabled: true,
         });
 
         const prompts = mockRegisteredMcpPrompts.map(({ name, config }) => ({
@@ -208,6 +227,22 @@ describe('MCP tool contracts', () => {
         );
     });
 
+    it('registers run_metric_query only when runMetricQueryEnabled', async () => {
+        const mcpService = makeMcpService();
+
+        mockRegisteredMcpTools.length = 0;
+        await mcpService.createServer({ runMetricQueryEnabled: true });
+        expect(mockRegisteredMcpTools.map(({ name }) => name)).toContain(
+            McpToolName.RUN_METRIC_QUERY,
+        );
+
+        mockRegisteredMcpTools.length = 0;
+        await mcpService.createServer({ runMetricQueryEnabled: false });
+        expect(mockRegisteredMcpTools.map(({ name }) => name)).not.toContain(
+            McpToolName.RUN_METRIC_QUERY,
+        );
+    });
+
     describe('isRunSqlEnabled', () => {
         const ORG_UUID = 'org-1';
         const PROJECT_A = 'project-a';
@@ -239,26 +274,6 @@ describe('MCP tool contracts', () => {
                 organizationUuid: ORG_UUID,
                 ability,
             } as unknown as SessionUser;
-        };
-
-        const makeServiceWithContextProject = (
-            projectUuid?: string,
-        ): McpService => {
-            const service = makeMcpService();
-            (
-                service as unknown as {
-                    mcpContextModel: {
-                        getContext: (...args: unknown[]) => unknown;
-                    };
-                }
-            ).mcpContextModel = {
-                getContext: vi
-                    .fn()
-                    .mockResolvedValue(
-                        projectUuid ? { context: { projectUuid } } : undefined,
-                    ),
-            };
-            return service;
         };
 
         it('is false for a viewer of the pinned project', async () => {
@@ -305,6 +320,68 @@ describe('MCP tool contracts', () => {
             const orgViewer = buildUser(OrganizationMemberRole.VIEWER);
             expect(await service.isRunSqlEnabled(orgDeveloper)).toBe(true);
             expect(await service.isRunSqlEnabled(orgViewer)).toBe(false);
+        });
+    });
+
+    describe('isRunMetricQueryEnabled', () => {
+        const ORG_UUID = 'org-1';
+        const PROJECT_UUID = 'project-a';
+
+        const buildUser = (
+            orgRole: OrganizationMemberRole,
+            projectRole?: ProjectMemberRole,
+        ): SessionUser => {
+            const userUuid = 'user-1';
+            const ability = defineUserAbility(
+                {
+                    role: orgRole,
+                    organizationUuid: ORG_UUID,
+                    userUuid,
+                    roleUuid: undefined,
+                },
+                projectRole
+                    ? [
+                          {
+                              projectUuid: PROJECT_UUID,
+                              role: projectRole,
+                              userUuid,
+                              roleUuid: undefined,
+                          },
+                      ]
+                    : [],
+            );
+            return {
+                userUuid,
+                organizationUuid: ORG_UUID,
+                ability,
+            } as unknown as SessionUser;
+        };
+
+        it('is false for a viewer of the pinned project', async () => {
+            const service = makeServiceWithContextProject();
+            const viewer = buildUser(
+                OrganizationMemberRole.VIEWER,
+                ProjectMemberRole.VIEWER,
+            );
+
+            expect(
+                await service.isRunMetricQueryEnabled(viewer, PROJECT_UUID),
+            ).toBe(false);
+        });
+
+        it('is true for an interactive viewer of the pinned project', async () => {
+            const service = makeServiceWithContextProject();
+            const interactiveViewer = buildUser(
+                OrganizationMemberRole.VIEWER,
+                ProjectMemberRole.INTERACTIVE_VIEWER,
+            );
+
+            expect(
+                await service.isRunMetricQueryEnabled(
+                    interactiveViewer,
+                    PROJECT_UUID,
+                ),
+            ).toBe(true);
         });
     });
 
