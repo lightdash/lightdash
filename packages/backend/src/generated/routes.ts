@@ -44427,6 +44427,89 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ContentAsCodeUpsertAction: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'PromotionAction.CREATE' },
+                { ref: 'PromotionAction.UPDATE' },
+                { ref: 'PromotionAction.NO_CHANGES' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    OrganizationDesignPackageImportResult: {
+        dataType: 'refObject',
+        properties: {
+            files: {
+                dataType: 'array',
+                array: {
+                    dataType: 'refAlias',
+                    ref: 'ApiOrganizationDesignFile',
+                },
+                required: true,
+            },
+            createdByUserUuid: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'string' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            updatedAt: { dataType: 'datetime', required: true },
+            createdAt: { dataType: 'datetime', required: true },
+            isDefault: { dataType: 'boolean', required: true },
+            extraInstructions: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'string' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            description: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'string' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            name: { dataType: 'string', required: true },
+            slug: { dataType: 'string', required: true },
+            organizationUuid: { dataType: 'string', required: true },
+            designUuid: { dataType: 'string', required: true },
+            action: { ref: 'ContentAsCodeUpsertAction', required: true },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSuccess_OrganizationDesignPackageImportResult_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    ref: 'OrganizationDesignPackageImportResult',
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiOrganizationDesignPackageImportResponse: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'ApiSuccess_OrganizationDesignPackageImportResult_',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     UpdateOrganizationDesignRequest: {
         dataType: 'refAlias',
         type: {

@@ -1,3 +1,18 @@
+# [1.138.0](https://github.com/lightdash/lightdash/compare/1.137.1...1.138.0) (2026-08-12)
+
+
+### Bug Fixes
+
+* fail upgrade verification loudly when the PR lookup fails ([#27249](https://github.com/lightdash/lightdash/issues/27249)) ([5b3520c](https://github.com/lightdash/lightdash/commit/5b3520cb1c41ae9347614618e8b187407ee62590))
+* **frontend:** correct font size in Github auth method description ([#27260](https://github.com/lightdash/lightdash/issues/27260)) ([d5e4018](https://github.com/lightdash/lightdash/commit/d5e4018bfb54abbbbebcb16bbdb505272b68c442)), closes [/linear.app/lightdash/issue/ZAP-839/project-connection-form-has-incorrect-font-size-in-authorization-copy#agent-session-52f2aff4](https://github.com//linear.app/lightdash/issue/ZAP-839/project-connection-form-has-incorrect-font-size-in-authorization-copy/issues/agent-session-52f2aff4)
+
+
+### Features
+
+* **cli:** add organization theme package transport ([#27185](https://github.com/lightdash/lightdash/issues/27185)) ([1d189fd](https://github.com/lightdash/lightdash/commit/1d189fdb15a5d56aab023fba770c89e38f589079))
+* **cli:** sync themes with organization content ([#27186](https://github.com/lightdash/lightdash/issues/27186)) ([d9e71b1](https://github.com/lightdash/lightdash/commit/d9e71b15061a7621d86127643ad5a7805173200c))
+* **themes:** skip unchanged package imports ([#27184](https://github.com/lightdash/lightdash/issues/27184)) ([afae799](https://github.com/lightdash/lightdash/commit/afae7998e5728153c86656733376bbc25422bc94))
+
 ## [1.137.1](https://github.com/lightdash/lightdash/compare/1.137.0...1.137.1) (2026-08-12)
 
 

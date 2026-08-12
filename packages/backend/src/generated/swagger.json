@@ -44602,6 +44602,101 @@
                 "required": ["name"],
                 "type": "object"
             },
+            "ContentAsCodeUpsertAction": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/PromotionAction.CREATE"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PromotionAction.UPDATE"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PromotionAction.NO_CHANGES"
+                    }
+                ]
+            },
+            "OrganizationDesignPackageImportResult": {
+                "properties": {
+                    "files": {
+                        "items": {
+                            "$ref": "#/components/schemas/ApiOrganizationDesignFile"
+                        },
+                        "type": "array"
+                    },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "isDefault": {
+                        "type": "boolean"
+                    },
+                    "extraInstructions": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Free-text override appended to the agent's effective skill at build\ntime, alongside any uploaded `instruction` markdown files. Empty\nstring is normalised to `null` server-side."
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "designUuid": {
+                        "type": "string"
+                    },
+                    "action": {
+                        "$ref": "#/components/schemas/ContentAsCodeUpsertAction"
+                    }
+                },
+                "required": [
+                    "files",
+                    "createdByUserUuid",
+                    "updatedAt",
+                    "createdAt",
+                    "isDefault",
+                    "extraInstructions",
+                    "description",
+                    "name",
+                    "slug",
+                    "organizationUuid",
+                    "designUuid",
+                    "action"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "ApiSuccess_OrganizationDesignPackageImportResult_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/OrganizationDesignPackageImportResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiOrganizationDesignPackageImportResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_OrganizationDesignPackageImportResult_"
+            },
             "UpdateOrganizationDesignRequest": {
                 "properties": {
                     "extraInstructions": {
@@ -52750,7 +52845,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.137.1",
+        "version": "1.138.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -76518,7 +76613,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiOrganizationDesignResponse"
+                                    "$ref": "#/components/schemas/ApiOrganizationDesignPackageImportResponse"
                                 }
                             }
                         }
