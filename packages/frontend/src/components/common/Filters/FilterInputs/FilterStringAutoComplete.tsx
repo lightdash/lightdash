@@ -408,7 +408,9 @@ const FilterStringAutoComplete: FC<Props> = ({
                             placeholder={
                                 values.length > 0 || disabled
                                     ? undefined
-                                    : placeholder
+                                    : autocompleteDisabled
+                                      ? 'Type a value and press Enter'
+                                      : placeholder
                             }
                             disabled={disabled}
                             shouldCreate={(query: string) =>
@@ -435,12 +437,11 @@ const FilterStringAutoComplete: FC<Props> = ({
                             onSearchChange={setSearch}
                             comboboxProps={comboboxProps}
                             onPaste={handlePaste}
+                            withDropdown={!autocompleteDisabled}
                             nothingFoundMessage={
-                                autocompleteDisabled
-                                    ? 'Value suggestions are turned off for this field. Type a value and press Enter.'
-                                    : isInitialLoading
-                                      ? 'Loading...'
-                                      : 'No results found'
+                                isInitialLoading
+                                    ? 'Loading...'
+                                    : 'No results found'
                             }
                             rightSectionWidth={30}
                             rightSectionPointerEvents="all"

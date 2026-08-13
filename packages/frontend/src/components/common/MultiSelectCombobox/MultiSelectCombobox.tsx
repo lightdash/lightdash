@@ -45,6 +45,8 @@ type Props = Omit<PillsInputProps, 'onChange'> & {
     onCreate?: (value: string) => void;
     shouldCreate?: (value: string) => boolean;
     filterOptions?: boolean;
+    /** When false, no dropdown is shown — the input is plain entry (type + Enter). */
+    withDropdown?: boolean;
     limit?: number;
     hidePickedOptions?: boolean;
     maxValues?: number;
@@ -94,6 +96,7 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
             onCreate,
             shouldCreate = (query) => query.trim().length > 0,
             filterOptions = true,
+            withDropdown = true,
             limit = Infinity,
             hidePickedOptions = false,
             maxValues,
@@ -277,7 +280,12 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
                                 (clearable ? 'all' : undefined)
                             }
                             onClick={() => {
-                                if (!disabled && !readOnly && !atMaxValues) {
+                                if (
+                                    withDropdown &&
+                                    !disabled &&
+                                    !readOnly &&
+                                    !atMaxValues
+                                ) {
                                     combobox.openDropdown();
                                 }
                             }}
@@ -332,11 +340,14 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
                                             onSearchChange(
                                                 event.currentTarget.value,
                                             );
-                                            combobox.openDropdown();
-                                            combobox.updateSelectedOptionIndex();
+                                            if (withDropdown) {
+                                                combobox.openDropdown();
+                                                combobox.updateSelectedOptionIndex();
+                                            }
                                         }}
                                         onFocus={(event) => {
                                             if (
+                                                withDropdown &&
                                                 !disabled &&
                                                 !readOnly &&
                                                 !atMaxValues
@@ -358,7 +369,9 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
                     </Combobox.DropdownTarget>
 
                     <Combobox.Dropdown
-                        hidden={disabled || readOnly || atMaxValues}
+                        hidden={
+                            !withDropdown || disabled || readOnly || atMaxValues
+                        }
                     >
                         <Combobox.Options>
                             <ScrollArea.Autosize

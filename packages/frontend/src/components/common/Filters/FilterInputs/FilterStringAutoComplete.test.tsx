@@ -57,15 +57,16 @@ describe('FilterStringAutoComplete', () => {
     });
 
     describe('disabled autocomplete', () => {
-        it('explains that suggestions are turned off when autocomplete is disabled', async () => {
+        const fieldWithDisabledAutocomplete: FilterableItem = {
+            ...mockField,
+            filterAutocomplete: {
+                enabled: false,
+                fetchFromWarehouse: false,
+            },
+        };
+
+        it('shows no dropdown when autocomplete is disabled', async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
-            const fieldWithDisabledAutocomplete: FilterableItem = {
-                ...mockField,
-                filterAutocomplete: {
-                    enabled: false,
-                    fetchFromWarehouse: false,
-                },
-            };
 
             renderWithProviders(
                 <FilterStringAutoComplete
@@ -74,16 +75,37 @@ describe('FilterStringAutoComplete', () => {
                     values={[]}
                     suggestions={[]}
                     onChange={vi.fn()}
+                    showNullOption
                 />,
             );
 
-            await user.click(screen.getByRole('textbox'));
+            const input = screen.getByRole('textbox');
+            await user.click(input);
+            await user.type(input, 'some value');
 
-            expect(
-                await screen.findByText(
-                    'Value suggestions are turned off for this field. Type a value and press Enter.',
-                ),
-            ).toBeInTheDocument();
+            expect(screen.queryByRole('option')).not.toBeInTheDocument();
+            expect(screen.queryByText('(null)')).not.toBeInTheDocument();
+        });
+
+        it('adds the typed value on Enter when autocomplete is disabled', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const onChange = vi.fn();
+
+            renderWithProviders(
+                <FilterStringAutoComplete
+                    filterId="test-filter"
+                    field={fieldWithDisabledAutocomplete}
+                    values={[]}
+                    suggestions={[]}
+                    onChange={onChange}
+                />,
+            );
+
+            const input = screen.getByRole('textbox');
+            await user.click(input);
+            await user.type(input, 'credit_card{Enter}');
+
+            expect(onChange).toHaveBeenCalledWith(['credit_card']);
         });
     });
 
