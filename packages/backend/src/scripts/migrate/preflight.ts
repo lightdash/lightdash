@@ -1,5 +1,6 @@
 import { type Knex } from 'knex';
 import { promises as fs } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { type KnexMigrationState } from './migrationState';
 
@@ -388,6 +389,8 @@ const migrationDirectories = (config: Knex.MigratorConfig): string[] => {
         : [...config.directory];
 };
 
+const requireMigration = createRequire(__filename);
+
 const readMigrationTransaction = async (
     config: Knex.MigratorConfig,
     migrationName: string,
@@ -395,19 +398,18 @@ const readMigrationTransaction = async (
     if (path.basename(migrationName) !== migrationName) {
         return null;
     }
-    const reads = await Promise.all(
+    const candidates = await Promise.all(
         migrationDirectories(config).map(async (directory) => {
+            const migrationPath = path.join(
+                path.resolve(process.cwd(), directory),
+                migrationName,
+            );
             try {
-                return {
-                    source: await fs.readFile(
-                        path.join(directory, migrationName),
-                        'utf8',
-                    ),
-                    error: null,
-                };
+                await fs.access(migrationPath);
+                return { migrationPath, error: null };
             } catch (error) {
                 return {
-                    source: null,
+                    migrationPath: null,
                     error:
                         isRecord(error) && error.code === 'ENOENT'
                             ? null
@@ -416,15 +418,23 @@ const readMigrationTransaction = async (
             }
         }),
     );
-    if (reads.some((read) => read.error !== null)) {
+    if (candidates.some((candidate) => candidate.error !== null)) {
         return null;
     }
-    const source = reads.find((read) => read.source !== null)?.source ?? null;
-    return source === null
-        ? null
-        : !/(?:export\s+const\s+config(?:\s*:[^=]+)?|exports\.config)\s*=\s*\{[^}]*\btransaction\s*:\s*false\b[^}]*\}/s.test(
-              source,
-          );
+    const migrationPath = candidates.find(
+        (candidate) => candidate.migrationPath !== null,
+    )?.migrationPath;
+    if (migrationPath === undefined || migrationPath === null) {
+        return null;
+    }
+    try {
+        const migration = requireMigration(migrationPath) as {
+            config?: { transaction?: unknown };
+        };
+        return migration.config?.transaction !== false;
+    } catch {
+        return null;
+    }
 };
 
 export const getPendingMigrationInventory = async ({

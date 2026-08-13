@@ -2,6 +2,7 @@ import { type Knex } from 'knex';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import 'tsx/cjs';
 import { type KnexMigrationState } from './migrationState';
 import {
     getPendingMigrationInventory,
@@ -353,6 +354,42 @@ describe('release-safety artifact handling', () => {
 });
 
 describe('pending migration inventory', () => {
+    const loadMigrationTransaction = async ({
+        source,
+        extension = '.ts',
+        relativeDirectory = false,
+    }: {
+        source: string;
+        extension?: '.js' | '.ts';
+        relativeDirectory?: boolean;
+    }): Promise<boolean | null> => {
+        const directory = await mkdtemp(
+            path.join(tmpdir(), 'migration-transaction-'),
+        );
+        const migrationName = `20260813120000_test_transaction${extension}`;
+
+        try {
+            await writeFile(
+                path.join(directory, migrationName),
+                source,
+                'utf8',
+            );
+            const result = await getPendingMigrationInventory({
+                migrationState: state({ pending: [migrationName] }),
+                migrationConfig: {
+                    directory: relativeDirectory
+                        ? path.relative(process.cwd(), directory)
+                        : directory,
+                    loadExtensions: [extension],
+                },
+                artifact: null,
+            });
+            return result[0]?.transaction ?? null;
+        } finally {
+            await rm(directory, { recursive: true });
+        }
+    };
+
     test('matches artifact .ts names to production .js names and reports transaction false', async () => {
         const getTransaction = vi.fn(
             async (_config: Knex.MigratorConfig, _name: string) => false,
@@ -395,6 +432,51 @@ describe('pending migration inventory', () => {
                 metadataAvailable: false,
             },
         ]);
+    });
+
+    test.each<[string, string, boolean]>([
+        [
+            'as const',
+            'export const config = { transaction: false } as const;',
+            false,
+        ],
+        [
+            'spread configuration',
+            'const base = { transaction: false } as const; export const config = { ...base };',
+            false,
+        ],
+        [
+            'nested configuration',
+            'export const config = { metadata: { transaction: true }, transaction: false } as const;',
+            false,
+        ],
+        [
+            'commented-out transaction flag',
+            'export const config = { /* transaction: false */ };',
+            true,
+        ],
+    ])('loads %s from the migration module', async (_, source, transaction) => {
+        await expect(loadMigrationTransaction({ source })).resolves.toBe(
+            transaction,
+        );
+    });
+
+    test('reports an unknown transaction when the migration module fails to load', async () => {
+        await expect(
+            loadMigrationTransaction({
+                source: "throw new Error('load failed');",
+            }),
+        ).resolves.toBeNull();
+    });
+
+    test('loads transaction configuration from a compiled CommonJS migration', async () => {
+        await expect(
+            loadMigrationTransaction({
+                source: 'exports.config = { transaction: false };',
+                extension: '.js',
+                relativeDirectory: true,
+            }),
+        ).resolves.toBe(false);
     });
 });
 
