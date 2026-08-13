@@ -178,7 +178,10 @@ const registerAzureAdStrategyForOrg = (
     const strategyName = `azuread:${organizationUuid}`;
     const existing = azureAdStrategyCache.get(strategyName);
     // Always re-register so config changes (e.g. rotated secret) take effect.
-    passport.use(strategyName, createAzureAdOidcStrategyForConfig(config));
+    passport.use(
+        strategyName,
+        createAzureAdOidcStrategyForConfig(config, organizationUuid),
+    );
     if (existing) {
         clearTimeout(existing.timer);
     }
@@ -239,7 +242,7 @@ const registerGenericOidcStrategyForOrg = async (
     // Always re-register so config changes (e.g. rotated secret) take effect.
     passport.use(
         strategyName,
-        await createGenericOidcStrategyForConfig(config),
+        await createGenericOidcStrategyForConfig(config, organizationUuid),
     );
     if (existing) {
         clearTimeout(existing.timer);
@@ -296,7 +299,10 @@ const registerOneLoginStrategyForOrg = (
 ): string => {
     const strategyName = `oneLogin:${organizationUuid}`;
     const existing = oneLoginStrategyCache.get(strategyName);
-    passport.use(strategyName, createOneLoginStrategyForConfig(config));
+    passport.use(
+        strategyName,
+        createOneLoginStrategyForConfig(config, organizationUuid),
+    );
     if (existing) {
         clearTimeout(existing.timer);
     }

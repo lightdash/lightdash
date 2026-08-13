@@ -5,7 +5,10 @@ import EvalHtmlReporter from './src/ee/services/ai/agents/tests/eval-reporter';
 export default defineConfig({
     test: {
         name: 'integration-tests',
-        include: ['src/ee/**/*integration.test.ts'],
+        include: [
+            'src/ee/**/*integration.test.ts',
+            'src/controllers/authentication/**/*integration.test.ts',
+        ],
         exclude: [
             'node_modules',
             'dist',
