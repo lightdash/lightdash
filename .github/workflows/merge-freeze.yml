@@ -80,6 +80,7 @@ jobs:
           fi
 
       - name: ${{ inputs.action }} merges to main
+        id: toggle
         env:
           GH_TOKEN: ${{ secrets.MERGE_FREEZE_TOKEN || secrets.CI_GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
@@ -209,6 +210,21 @@ jobs:
           # The statuses API rejects a description over 140 characters outright.
           description=${description:0:140}
 
+          # `changed` is false when this run was a no-op (freezing an already
+          # frozen main, or unfreezing an open one). The announce step reads it
+          # so a second freeze does not post a second [merge-freeze-on].
+          if [ "$ACTION" = "freeze" ] && [ "$was_required" = "true" ]; then
+            changed=false
+          elif [ "$ACTION" = "unfreeze" ] && [ "$was_required" = "false" ]; then
+            changed=false
+          else
+            changed=true
+          fi
+          {
+            echo "changed=$changed"
+            echo "description=$description"
+          } >> "$GITHUB_OUTPUT"
+
           # Mirrored into repo variables so merge-freeze-status.yml can label PRs
           # opened mid-freeze without an admin token of its own. Non-fatal: the
           # ruleset is what blocks merges, so a stale variable degrades the
@@ -281,3 +297,56 @@ jobs:
               echo "Merges are unblocked. Anyone whose PR still shows a stale \`$CONTEXT\` failure can push or reopen it to clear."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # A freeze that nobody is told about is the manual coordination this
+      # workflow exists to remove: the first anyone knows is a dead merge
+      # button. Posts on both directions, and only when the state actually
+      # changed, so a repeat freeze does not announce twice.
+      #
+      # SLACK_WEBHOOK_URL is the repo's existing incoming webhook, targeted at
+      # #engineering by the channel override in the payload - the same shape
+      # ai-agent-integration-tests.yml uses to reach #ai-agent-tests-feed.
+      #
+      # SPK-986.
+      - name: Announce in #engineering
+        if: steps.toggle.outputs.changed == 'true'
+        env:
+          WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          ACTION: ${{ inputs.action }}
+          REASON: ${{ inputs.reason }}
+          ACTOR_LOGIN: ${{ github.actor }}
+          DESCRIPTION: ${{ steps.toggle.outputs.description }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/workflows/merge-freeze.yml
+        run: |
+          set -euo pipefail
+
+          if [ -z "${WEBHOOK:-}" ]; then
+            echo "::warning::SLACK_WEBHOOK_URL is not set, so nothing was announced. The freeze itself is unaffected."
+            exit 0
+          fi
+
+          if [ "$ACTION" = "freeze" ]; then
+            text=":lock: *[merge-freeze-on]* Merges to \`main\` are frozen by @${ACTOR_LOGIN}."
+            text="$text"$'\n'"Reason: ${REASON:-_none given_}"
+            text="$text"$'\n'"Your PRs will show a red \`merge-freeze\` check until it lifts. Anyone can lift it: <${WORKFLOW_URL}|run Merge freeze with unfreeze>."
+          else
+            text=":unlock: *[merge-freeze-off]* Merges to \`main\` are open again, lifted by @${ACTOR_LOGIN}."
+            text="$text"$'\n'"If your PR still shows a stale \`merge-freeze\` failure, push or reopen it to clear."
+          fi
+          text="$text"$'\n'"<${RUN_URL}|View run>"
+
+          # jq builds the payload so a reason containing quotes, backslashes or
+          # newlines cannot break the JSON.
+          payload=$(jq -n --arg text "$text" '{channel: "#engineering", username: "Merge freeze", text: $text}')
+
+          # Never fail the run on a Slack problem: the freeze is already applied
+          # by this point, and a failed job here would read as "the freeze did
+          # not take" to whoever dispatched it.
+          if ! curl --connect-timeout 10 --max-time 30 --fail --silent --show-error \
+                 --request POST \
+                 --header 'Content-Type: application/json' \
+                 --data "$payload" \
+                 "$WEBHOOK" >/dev/null; then
+            echo "::warning::Could not post the announcement to #engineering. Merges are still $([ "$ACTION" = freeze ] && echo frozen || echo open) - tell the team by hand."
+          fi
