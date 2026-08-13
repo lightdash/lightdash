@@ -1772,6 +1772,11 @@ program
         'Exit 1 if any checked pre-aggregate has missing columns, an unreachable table, or an SQL error (CI-friendly)',
         false,
     )
+    .option(
+        '--clear-cache',
+        'Bypass warehouse result caches when probing table shapes (use after rebuilding a table, or the warehouse may report its old schema)',
+        false,
+    )
     .option('--verbose', undefined, false)
     .action(preAggregateCheckExternalHandler);
 

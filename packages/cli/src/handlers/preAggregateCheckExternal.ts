@@ -9,6 +9,7 @@ import {
     type WarehouseClient,
     type WarehouseResults,
 } from '@lightdash/common';
+import inquirer from 'inquirer';
 import * as path from 'path';
 import { getDbtContext } from '../dbt/context';
 import GlobalState from '../globalState';
@@ -24,9 +25,14 @@ type PreAggregateCheckExternalOptions = CompileHandlerOptions & {
     json: boolean;
     sql: boolean;
     failOnMismatch: boolean;
+    clearCache: boolean;
 };
 
 type ColumnCheckStatus = 'match' | 'type_mismatch' | 'missing';
+type ValidationSkippedReason =
+    | 'permission_declined'
+    | 'generated_query_no_rows'
+    | 'external_table_no_rows';
 
 type ColumnCheck = {
     name: string;
@@ -45,6 +51,7 @@ type CheckResult = {
     extraColumns: { name: string; type: string; didYouMean: string | null }[];
     tableError: string | null;
     error: string | null;
+    validationSkippedReason: ValidationSkippedReason | null;
 };
 
 const CLI_QUERY_TAGS = { query_context: QueryExecutionContext.CLI };
@@ -52,18 +59,45 @@ const CLI_QUERY_TAGS = { query_context: QueryExecutionContext.CLI };
 const probeShape = async (
     warehouseClient: WarehouseClient,
     sql: string,
-): Promise<WarehouseResults['fields']> => {
+    clearCache: boolean,
+): Promise<{ fields: WarehouseResults['fields']; hasRows: boolean }> => {
     let fields: WarehouseResults['fields'] = {};
+    let hasRows = false;
+    // Nonce defeats result caches keyed on query text (BigQuery/Snowflake
+    // serve the stale schema for a repeated probe after a table is replaced)
+    const probeSql = clearCache ? `${sql} -- ${Date.now().toString(36)}` : sql;
     await warehouseClient.streamQuery(
-        sql,
-        ({ fields: streamedFields }) => {
+        probeSql,
+        ({ fields: streamedFields, rows }) => {
             if (Object.keys(streamedFields).length > 0) {
                 fields = streamedFields;
+            }
+            if (rows.length > 0) {
+                hasRows = true;
             }
         },
         { tags: CLI_QUERY_TAGS },
     );
-    return fields;
+    return { fields, hasRows };
+};
+
+const confirmWarehouseValidation = async (): Promise<boolean> => {
+    const interactive =
+        !GlobalState.isNonInteractive() &&
+        process.stdin.isTTY === true &&
+        process.stdout.isTTY === true;
+    if (!interactive) return true;
+
+    const { confirmed } = await inquirer.prompt<{ confirmed: boolean }>([
+        {
+            type: 'confirm',
+            name: 'confirmed',
+            message:
+                'Run warehouse validation queries? This executes the generated materialization SQL and external table checks with LIMIT 1.',
+            default: false,
+        },
+    ]);
+    return confirmed;
 };
 
 const editDistance = (a: string, b: string): number => {
@@ -111,10 +145,14 @@ const checkPreAggregate = async ({
     explore,
     preAggregateDef,
     warehouseClient,
+    clearCache,
+    executeValidation,
 }: {
     explore: Explore;
     preAggregateDef: PreAggregateDef;
     warehouseClient: WarehouseClient;
+    clearCache: boolean;
+    executeValidation: boolean;
 }): Promise<CheckResult> => {
     const base: CheckResult = {
         model: explore.name,
@@ -125,6 +163,7 @@ const checkPreAggregate = async ({
         extraColumns: [],
         tableError: null,
         error: null,
+        validationSkippedReason: null,
     };
 
     let rendered: preAggregateMaterialization.MaterializationSql;
@@ -138,15 +177,32 @@ const checkPreAggregate = async ({
         return { ...base, error: getErrorMessage(e) };
     }
     base.sql = rendered.sql;
+    base.columns = rendered.columns.map((column) => ({
+        name: column.name,
+        role: describeRole(column),
+        expectedType: null,
+        actualType: null,
+        status: null,
+    }));
 
-    // LIMIT 0 probe: proves the generated SQL is valid on this warehouse and
-    // returns the expected column types without running the aggregation
+    if (!executeValidation) {
+        base.validationSkippedReason = 'permission_declined';
+        return base;
+    }
+
+    // Match SQL Runner column discovery: execute one row and read its fields.
     let expectedFields: WarehouseResults['fields'];
     try {
-        expectedFields = await probeShape(
+        const probe = await probeShape(
             warehouseClient,
-            `SELECT * FROM (\n${rendered.sql}\n) AS ld_shape_probe LIMIT 0`,
+            `SELECT * FROM (\n${rendered.sql}\n) AS ld_shape_probe LIMIT 1`,
+            clearCache,
         );
+        if (!probe.hasRows) {
+            base.validationSkippedReason = 'generated_query_no_rows';
+            return base;
+        }
+        expectedFields = probe.fields;
     } catch (e) {
         return {
             ...base,
@@ -159,10 +215,16 @@ const checkPreAggregate = async ({
     let actualFields: WarehouseResults['fields'] | null = null;
     if (preAggregateDef.table) {
         try {
-            actualFields = await probeShape(
+            const probe = await probeShape(
                 warehouseClient,
-                `SELECT * FROM ${preAggregateDef.table} AS ld_shape_probe LIMIT 0`,
+                `SELECT * FROM ${preAggregateDef.table} AS ld_shape_probe LIMIT 1`,
+                clearCache,
             );
+            if (!probe.hasRows) {
+                base.validationSkippedReason = 'external_table_no_rows';
+            } else {
+                actualFields = probe.fields;
+            }
         } catch (e) {
             base.tableError = getErrorMessage(
                 warehouseClient.parseError(
@@ -314,7 +376,36 @@ const renderHuman = (result: CheckResult, log: (line: string) => void) => {
     });
 
     log('');
-    if (result.columns.some((c) => c.status !== null)) {
+    if (result.validationSkippedReason) {
+        switch (result.validationSkippedReason) {
+            case 'permission_declined':
+                log(
+                    `  ${styles.secondary(
+                        'Warehouse validation skipped — showing generated SQL only.',
+                    )}`,
+                );
+                break;
+            case 'generated_query_no_rows':
+                log(
+                    `  ${styles.warning(
+                        'Generated query returned no rows — unable to validate.',
+                    )}`,
+                );
+                break;
+            case 'external_table_no_rows':
+                log(
+                    `  ${styles.warning(
+                        `${result.table} returned no rows — unable to validate.`,
+                    )}`,
+                );
+                break;
+            default:
+                assertUnreachable(
+                    result.validationSkippedReason,
+                    `Unknown validation skipped reason: ${result.validationSkippedReason}`,
+                );
+        }
+    } else if (result.columns.some((c) => c.status !== null)) {
         const missingCount = result.columns.filter(
             (c) => c.status === 'missing',
         ).length;
@@ -365,7 +456,12 @@ export const preAggregateCheckExternalHandler = async (
         process.exit(1);
     }
 
-    const explores = await compile(options);
+    const executeValidation = await confirmWarehouseValidation();
+    const explores = await compile(
+        executeValidation
+            ? options
+            : { ...options, skipWarehouseCatalog: true },
+    );
     const validExplores = explores.filter(
         (explore): explore is Explore => !isExploreError(explore),
     );
@@ -427,7 +523,6 @@ export const preAggregateCheckExternalHandler = async (
         target: options.target,
         startOfWeek: options.startOfWeek,
     });
-
     const results: CheckResult[] = [];
     // Sequential on purpose: one warehouse connection, readable progress
     for await (const target of targets) {
@@ -436,6 +531,8 @@ export const preAggregateCheckExternalHandler = async (
                 explore: target.explore,
                 preAggregateDef: target.preAggregateDef,
                 warehouseClient,
+                clearCache: options.clearCache,
+                executeValidation,
             }),
         );
     }

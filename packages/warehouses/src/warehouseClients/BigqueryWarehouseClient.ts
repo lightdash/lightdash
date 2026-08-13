@@ -468,15 +468,9 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             const fields =
                 BigqueryWarehouseClient.getFieldsFromResponse(resultsMetadata);
 
-            let hasStreamedRows = false;
-            await this.streamResults(job, (chunk) => {
-                hasStreamedRows = true;
-                return streamCallback({ fields, rows: [chunk] });
-            });
-            // Zero rows — still surface field metadata (e.g. LIMIT 0 probes)
-            if (!hasStreamedRows) {
-                await streamCallback({ fields, rows: [] });
-            }
+            await this.streamResults(job, (chunk) =>
+                streamCallback({ fields, rows: [chunk] }),
+            );
         } catch (e: unknown) {
             if (BigqueryWarehouseClient.isBigqueryError(e)) {
                 const responseError: bigquery.IErrorProto | undefined =

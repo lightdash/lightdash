@@ -1585,7 +1585,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
                     const fields = this.getFieldsFromStatement(stmt);
 
-                    let hasStreamedRows = false;
                     pipeline(
                         stmt.streamRows(),
                         new Transform({
@@ -1598,7 +1597,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                             objectMode: true,
                             async write(chunk, encoding, callback) {
                                 try {
-                                    hasStreamedRows = true;
                                     await streamCallback({
                                         fields,
                                         rows: [chunk],
@@ -1617,17 +1615,9 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                         (error) => {
                             if (error) {
                                 reject(error);
-                                return;
-                            }
-                            if (hasStreamedRows) {
+                            } else {
                                 resolve();
-                                return;
                             }
-                            // Zero rows — still surface field metadata
-                            // (e.g. LIMIT 0 probes)
-                            Promise.resolve(
-                                streamCallback({ fields, rows: [] }),
-                            ).then(resolve, reject);
                         },
                     );
                 },
