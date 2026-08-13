@@ -734,21 +734,6 @@ export const AiAgentFormSetup = ({
                                 }}
                             />
                         </AgentSettingsSubsection>
-
-                        <Divider />
-
-                        <AgentSettingsSubsection
-                            title="Warehouse schemas & tables"
-                            description="Which schemas and tables any agent may query with SQL. Shared by every agent in this project."
-                        >
-                            <Anchor
-                                component={Link}
-                                to={`/generalSettings/projectManagement/${projectUuid}/agentDataScope`}
-                                fz="xs"
-                            >
-                                Configure the project's SQL data scope
-                            </Anchor>
-                        </AgentSettingsSubsection>
                     </AgentSettingsSection>
 
                     <AgentSettingsSection
@@ -776,6 +761,7 @@ export const AiAgentFormSetup = ({
                                                 href="https://docs.lightdash.com/guides/ai-agents#data-access-control"
                                                 target="_blank"
                                                 size="xs"
+                                                className={classes.switchLink}
                                             >
                                                 Learn more
                                             </Anchor>
@@ -828,7 +814,21 @@ export const AiAgentFormSetup = ({
                                             badge={null}
                                         />
                                     }
-                                    description="On by default in new chats; users can switch it off per conversation."
+                                    description={
+                                        <>
+                                            On by default in new chats; users
+                                            can switch it off per conversation.{' '}
+                                            <Anchor
+                                                component={Link}
+                                                to={`/generalSettings/projectManagement/${projectUuid}/agentDataScope`}
+                                                size="xs"
+                                                className={classes.switchLink}
+                                            >
+                                                Configure which schemas and
+                                                tables it can query
+                                            </Anchor>
+                                        </>
+                                    }
                                     {...form.getInputProps('enableSqlMode', {
                                         type: 'checkbox',
                                     })}
