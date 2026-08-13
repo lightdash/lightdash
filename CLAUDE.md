@@ -160,6 +160,19 @@ pnpm -F backend rollback-last
 3. **API**: TSOA generates OpenAPI specs from TypeScript controllers
 4. **Authentication**: CASL-based authorization with multiple auth providers
 
+## Merge Freeze — Holding `main` While a Release Is Cut
+
+`release.yml` fires on every push to `main`, so the release that goes out is whatever `main` contains at that moment. When something needs to reach a release on its own — a fix someone is waiting on — hold merges rather than asking people in Slack not to merge:
+
+-   **Freeze**: `gh workflow run merge-freeze.yml -f action=freeze -f reason="cutting a release for an escalation"`. This adds a `merge-freeze` required status check to the `main` ruleset. Nothing ever reports that check, so merges into `main` are blocked for everyone without a ruleset bypass.
+-   **Unfreeze**: the same workflow with `action=unfreeze`. Do it as soon as the release is cut — a freeze left on blocks the whole team, and there is no auto-expiry.
+-   The `reason` is shown on every blocked PR, so make it specific and say roughly how long.
+-   **Only `main` is affected.** Stacked PRs merging into their parent branch are untouched.
+-   **Check the current state**: the `MERGE_FREEZE` repo variable, or `merge-freeze` in the `main` ruleset's required status checks (`gh api repos/lightdash/lightdash/rulesets`).
+-   **Agents: never freeze or unfreeze on your own initiative.** It blocks every engineer in the repo. Ask, and let a human dispatch it.
+
+Freezing analytics/customer *deployments* is a different mechanism in a different repo — see the `lightdash-cloud` CLAUDE.md.
+
 ## Package-Specific Notes
 
 **Backend (`packages/backend/`):**
