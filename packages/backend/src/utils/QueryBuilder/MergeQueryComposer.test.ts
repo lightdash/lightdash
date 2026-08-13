@@ -58,12 +58,18 @@ const typedColumns = [
     {
         reference: 'merge_k0',
         type: DimensionType.DATE,
-        origin: { kind: 'joinKey' as const },
+        origin: {
+            kind: 'joinKey' as const,
+            fieldIdBySourceId: { a: 'a_date', b: 'b_date' },
+        },
     },
     {
         reference: 'merge_k1',
         type: DimensionType.STRING,
-        origin: { kind: 'joinKey' as const },
+        origin: {
+            kind: 'joinKey' as const,
+            fieldIdBySourceId: { a: 'a_name', b: 'b_name' },
+        },
     },
     {
         reference: 'a_followers_count',

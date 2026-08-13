@@ -5611,7 +5611,10 @@ export class ProjectService extends BaseService {
                             type: DimensionType.STRING,
                         },
                     }),
-                    origin: { kind: 'joinKey' },
+                    origin: {
+                        kind: 'joinKey',
+                        fieldIdBySourceId: part.fieldIdBySourceId,
+                    },
                 };
             },
         );

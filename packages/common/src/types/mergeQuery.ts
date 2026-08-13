@@ -531,7 +531,10 @@ export type MergeFieldOrigin =
           sourceFieldId: FieldId;
       }
     /** Shared by every source, so it descends from no single one. */
-    | { kind: 'joinKey' }
+    | {
+          kind: 'joinKey';
+          fieldIdBySourceId: Record<string, FieldId>;
+      }
     /** Computed over the merged result, so it descends from no source. */
     | { kind: 'tableCalculation' };
 

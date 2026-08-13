@@ -257,7 +257,9 @@ export const MergeJoinBar: FC = () => {
                                             multiline
                                             w={260}
                                         >
-                                            <Text span>{option.label}</Text>
+                                            <Text span size="xs">
+                                                {option.label}
+                                            </Text>
                                         </Tooltip>
                                     ),
                                 }))}

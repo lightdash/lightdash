@@ -3,6 +3,7 @@ import {
     type Filters,
     type ItemsMap,
     type MergeJoinType,
+    type MergeFieldOrigins,
     type MergeQuery,
     type MergeQueryError,
     type MetricQuery,
@@ -43,6 +44,7 @@ export type MergeResults = {
     metricQuery: MetricQuery;
     /** Field ids in the order the merged statement returns them. */
     columnOrder: string[];
+    fieldOrigins: MergeFieldOrigins;
     results: InfiniteQueryResults;
 };
 

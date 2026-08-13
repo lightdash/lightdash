@@ -1,5 +1,6 @@
 import {
     MergeJoinType,
+    type ApiCompiledMergeQueryResults,
     type ApiError,
     type ApiExecuteAsyncMetricQueryResults,
     type MergeQuery,
@@ -110,12 +111,14 @@ export const MergeProvider: FC<
         started: ApiExecuteAsyncMetricQueryResults | null;
         error: ApiError | null;
         parameterReferences: string[];
+        fieldOrigins: ApiCompiledMergeQueryResults['fieldOrigins'];
     }>({
         isRunning: false,
         errors: [],
         started: null,
         error: null,
         parameterReferences: [],
+        fieldOrigins: {},
     });
 
     const addQuery = useCallback(() => {
@@ -136,6 +139,7 @@ export const MergeProvider: FC<
             started: null,
             error: null,
             parameterReferences: [],
+            fieldOrigins: {},
         });
     }, []);
 
@@ -252,6 +256,7 @@ export const MergeProvider: FC<
                 started: null,
                 error: null,
                 parameterReferences: current.parameterReferences,
+                fieldOrigins: current.fieldOrigins,
             }));
             executeMergeQuery(projectUuid, mergeQuery, parameters, savedChart)
                 .then((result) => {
@@ -262,6 +267,7 @@ export const MergeProvider: FC<
                         started: result.started,
                         error: null,
                         parameterReferences: result.parameterReferences,
+                        fieldOrigins: result.fieldOrigins,
                     });
                 })
                 .catch((error: ApiError) => {
@@ -272,6 +278,7 @@ export const MergeProvider: FC<
                         started: null,
                         error,
                         parameterReferences: current.parameterReferences,
+                        fieldOrigins: current.fieldOrigins,
                     }));
                 });
         },
@@ -318,10 +325,11 @@ export const MergeProvider: FC<
                           ...started.metricQuery.dimensions,
                           ...started.metricQuery.metrics,
                       ],
+                      fieldOrigins: runState.fieldOrigins,
                       results,
                   }
                 : null,
-        [started, results],
+        [started, results, runState.fieldOrigins],
     );
 
     const value = useMemo(

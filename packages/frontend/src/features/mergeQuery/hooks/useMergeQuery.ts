@@ -35,6 +35,7 @@ export type MergeQueryRun = {
     /** The query to page results from, or null when the merge was refused. */
     started: ApiExecuteAsyncMetricQueryResults | null;
     parameterReferences: string[];
+    fieldOrigins: ApiCompiledMergeQueryResults['fieldOrigins'];
 };
 
 const runMergeQuery = (
@@ -81,6 +82,7 @@ export const executeMergeQuery = async (
             errors: compiled.errors,
             started: null,
             parameterReferences: compiled.parameterReferences,
+            fieldOrigins: compiled.fieldOrigins,
         };
     }
 
@@ -108,6 +110,7 @@ export const executeMergeQuery = async (
     return {
         errors: [],
         parameterReferences: compiled.parameterReferences,
+        fieldOrigins: compiled.fieldOrigins,
         started: await runMergeQuery(
             projectUuid,
             mergeQuery,
