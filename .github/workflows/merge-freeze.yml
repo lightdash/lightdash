@@ -1,0 +1,283 @@
+name: Merge freeze
+
+# Holds `main` while a release is cut. `release.yml` fires on every push to
+# `main`, so the release that goes out is whatever `main` happens to contain at
+# that moment: a merge landing in the gap between "merge the fix someone is
+# waiting on" and "the release job picks it up" either delays that release or
+# widens it past the change we meant to ship. Until now the only lever was
+# asking people in Slack not to merge.
+#
+# Freezing adds a `merge-freeze` context to the `main` ruleset's required status
+# checks; unfreezing takes it off again. Nothing ever reports that context, so
+# while it is required the merge button is blocked for everyone without a
+# ruleset bypass. Enforcement is that rule alone - the commit statuses this
+# posts on open PRs only replace GitHub's opaque "Expected - Waiting for status
+# to be reported" with a reason. That split is the fail-safe one: if the status
+# half breaks, merges stay blocked while frozen and unblock the moment the rule
+# comes off.
+#
+# The ruleset and variables APIs need Administration: write, which GITHUB_TOKEN
+# cannot be granted (`administration` is not a workflow permission scope), so
+# this runs on a PAT/App token - see the preflight step. workflow_dispatch
+# already requires write access, so whoever can run this can already merge.
+#
+# SPK-985.
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Freeze or unfreeze merges to main
+        required: true
+        type: choice
+        options:
+          - freeze
+          - unfreeze
+      reason:
+        description: Why - shown on every blocked PR (e.g. "cutting a release for an escalation")
+        required: false
+        type: string
+
+permissions: {}
+
+# Two toggles at once would read-modify-write the same ruleset, and the loser of
+# the race would PUT back a rules array built from a stale read.
+concurrency:
+  group: merge-freeze-${{ github.repository }}
+  cancel-in-progress: false
+
+env:
+  FREEZE_CONTEXT: merge-freeze
+
+jobs:
+  toggle:
+    name: ${{ inputs.action }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Preflight - token can administer rulesets
+        env:
+          GH_TOKEN: ${{ secrets.MERGE_FREEZE_TOKEN || secrets.CI_GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::error::No token available. Add a MERGE_FREEZE_TOKEN secret - a fine-grained PAT or App installation token on $REPO with Administration: write (rulesets), Variables: write and Commit statuses: write."
+            exit 1
+          fi
+
+          # Listing rulesets is itself an Administration-scoped read, so this
+          # doubles as the permission check. Failing here costs seconds; failing
+          # after a half-applied freeze costs a confusing repo.
+          if ! gh api "repos/$REPO/rulesets" >/dev/null 2>&1; then
+            echo "::error::The configured token cannot read repository rulesets on $REPO. It needs Administration: write (fine-grained) or repo admin (classic). GITHUB_TOKEN can never do this - 'administration' is not a grantable workflow permission scope."
+            exit 1
+          fi
+
+      - name: ${{ inputs.action }} merges to main
+        env:
+          GH_TOKEN: ${{ secrets.MERGE_FREEZE_TOKEN || secrets.CI_GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          ACTION: ${{ inputs.action }}
+          REASON: ${{ inputs.reason }}
+          ACTOR_LOGIN: ${{ github.actor }}
+          CONTEXT: ${{ env.FREEZE_CONTEXT }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          reason=${REASON:-}
+
+          # `rulesets` also returns org-level rulesets that apply here but
+          # cannot be edited from this repo, hence the source_type filter. The
+          # list response carries no conditions, so each candidate is fetched to
+          # see whether it actually covers the default branch.
+          default_branch=$(gh api "repos/$REPO" --jq .default_branch)
+          candidates=$(gh api "repos/$REPO/rulesets" \
+            --jq '.[] | select(.target == "branch" and .source_type == "Repository" and .enforcement == "active") | .id')
+
+          matching=()
+          for id in $candidates; do
+            covers=$(gh api "repos/$REPO/rulesets/$id" \
+              | jq --arg branch "refs/heads/$default_branch" '
+                  (.conditions.ref_name.include // [])
+                  | any(. == "~ALL" or . == "~DEFAULT_BRANCH" or . == $branch)
+                ')
+            if [ "$covers" = "true" ]; then
+              matching+=("$id")
+            fi
+          done
+
+          if [ "${#matching[@]}" -eq 0 ]; then
+            echo "::error::No active repository branch ruleset covers $default_branch on $REPO, so there is nothing to attach the $CONTEXT check to."
+            exit 1
+          fi
+          if [ "${#matching[@]}" -gt 1 ]; then
+            echo "::error::${#matching[@]} active rulesets cover $default_branch (ids: ${matching[*]}). Refusing to guess which one owns merge protection - consolidate them, or pin one in this workflow."
+            exit 1
+          fi
+
+          ruleset_id=${matching[0]}
+          ruleset=$(gh api "repos/$REPO/rulesets/$ruleset_id")
+          ruleset_name=$(jq -r .name <<<"$ruleset")
+          echo "Editing ruleset $ruleset_name (id $ruleset_id) on $default_branch"
+
+          was_required=$(jq --arg ctx "$CONTEXT" '
+            [.rules[]? | select(.type == "required_status_checks")
+                       | .parameters.required_status_checks[]?
+                       | select(.context == $ctx)] | length > 0
+          ' <<<"$ruleset")
+
+          if [ "$ACTION" = "freeze" ]; then
+            new_rules=$(jq --arg ctx "$CONTEXT" '
+              (.rules // []) as $rules
+              | if any($rules[]; .type == "required_status_checks") then
+                  [$rules[] | if .type == "required_status_checks" and
+                       (any(.parameters.required_status_checks[]?; .context == $ctx) | not)
+                     then .parameters.required_status_checks += [{context: $ctx}]
+                     else . end]
+                else
+                  $rules + [{
+                    type: "required_status_checks",
+                    parameters: {
+                      strict_required_status_checks_policy: false,
+                      do_not_enforce_on_create: false,
+                      required_status_checks: [{context: $ctx}]
+                    }
+                  }]
+                end
+            ' <<<"$ruleset")
+          else
+            new_rules=$(jq --arg ctx "$CONTEXT" '
+              [(.rules // [])[]
+               | if .type == "required_status_checks"
+                 then .parameters.required_status_checks |=
+                        [.[] | select(.context != $ctx)]
+                 else . end]
+              | [.[] | select(.type != "required_status_checks"
+                              or (.parameters.required_status_checks | length) > 0)]
+            ' <<<"$ruleset")
+          fi
+
+          # PUT the whole object rather than a rules-only patch: bypass_actors is
+          # what lets the release bot push to main, and it is not worth finding
+          # out the hard way whether an omitted field is preserved or cleared.
+          payload=$(jq -n --argjson r "$ruleset" --argjson rules "$new_rules" '{
+            name: $r.name,
+            target: $r.target,
+            enforcement: $r.enforcement,
+            conditions: $r.conditions,
+            bypass_actors: [$r.bypass_actors[]? | {actor_id, actor_type, bypass_mode}],
+            rules: $rules
+          }')
+          gh api --method PUT "repos/$REPO/rulesets/$ruleset_id" --input - <<<"$payload" >/dev/null
+
+          # Read back rather than trust the write: a silently no-op'd PUT would
+          # leave everyone believing main is frozen when it is not.
+          now_required=$(gh api "repos/$REPO/rulesets/$ruleset_id" \
+            | jq --arg ctx "$CONTEXT" '
+                [.rules[]? | select(.type == "required_status_checks")
+                           | .parameters.required_status_checks[]?
+                           | select(.context == $ctx)] | length > 0
+              ')
+
+          if [ "$ACTION" = "freeze" ] && [ "$now_required" != "true" ]; then
+            echo "::error::Wrote the ruleset but '$CONTEXT' is still not required - main is NOT frozen."
+            exit 1
+          fi
+          if [ "$ACTION" = "unfreeze" ] && [ "$now_required" != "false" ]; then
+            echo "::error::Wrote the ruleset but '$CONTEXT' is still required - main is still frozen."
+            exit 1
+          fi
+
+          if [ "$ACTION" = "freeze" ]; then
+            state=failure
+            if [ -n "$reason" ]; then
+              description="Merges to main are frozen: $reason"
+            else
+              description="Merges to main are frozen while a release is cut"
+            fi
+          else
+            state=success
+            description="Merges to main are open"
+          fi
+          # The statuses API rejects a description over 140 characters outright.
+          description=${description:0:140}
+
+          # Mirrored into repo variables so merge-freeze-status.yml can label PRs
+          # opened mid-freeze without an admin token of its own. Non-fatal: the
+          # ruleset is what blocks merges, so a stale variable degrades the
+          # message, never the enforcement.
+          if [ "$ACTION" = "freeze" ]; then freeze_var=true; else freeze_var=false; fi
+          gh variable set MERGE_FREEZE --repo "$REPO" --body "$freeze_var" \
+            || echo "::warning::Could not write the MERGE_FREEZE variable. The freeze is applied, but PRs opened during it will show an unexplained blocked check."
+          gh variable set MERGE_FREEZE_REASON --repo "$REPO" --body "$description" \
+            || echo "::warning::Could not write the MERGE_FREEZE_REASON variable."
+
+          # Only PRs targeting the default branch: the ruleset covers main
+          # alone, so a stacked PR merging into its parent is not blocked and
+          # must not be told it is. Assigned before the loop so a failure to
+          # list is fatal here, rather than a process substitution silently
+          # yielding zero PRs to update.
+          open_prs=$(gh pr list --repo "$REPO" --state open --limit 500 \
+            --json number,headRefOid,baseRefName \
+            | jq -r --arg branch "$default_branch" \
+                '.[] | select(.baseRefName == $branch) | "\(.number)\t\(.headRefOid)"')
+
+          # Best-effort by design: the freeze is already in force by this point,
+          # and one unpostable status must not fail the run. Fork PRs are
+          # expected to fail here - their head commits live in another repo - and
+          # stay blocked by the missing required status, which is still the
+          # correct outcome, just a quieter one.
+          posted=0
+          unreachable=0
+          if [ -n "$open_prs" ]; then
+            while IFS=$'\t' read -r number sha; do
+              [ -n "$sha" ] || continue
+              if gh api --method POST "repos/$REPO/statuses/$sha" \
+                   -f state="$state" \
+                   -f context="$CONTEXT" \
+                   -f description="$description" \
+                   -f target_url="$RUN_URL" >/dev/null 2>&1; then
+                posted=$((posted + 1))
+              else
+                unreachable=$((unreachable + 1))
+                echo "Could not post status to PR #$number ($sha)"
+              fi
+            done <<<"$open_prs"
+          fi
+
+          {
+            if [ "$ACTION" = "freeze" ]; then
+              echo "## Merges to main are frozen"
+            else
+              echo "## Merges to main are open"
+            fi
+            echo
+            echo "| | |"
+            echo "| --- | --- |"
+            echo "| Actor | @$ACTOR_LOGIN |"
+            echo "| Reason | ${reason:-_none given_} |"
+            echo "| Ruleset | \`$ruleset_name\` (id $ruleset_id) |"
+            echo "| Required check | \`$CONTEXT\` |"
+            echo "| Open PRs updated | $posted (couldn't reach $unreachable) |"
+            echo
+            if [ "$ACTION" = "freeze" ]; then
+              if [ "$was_required" = "true" ]; then
+                echo "> Main was **already frozen** - this run refreshed the reason and the PR statuses."
+                echo
+              fi
+              echo "Run this workflow again with **unfreeze** to reopen merges."
+            else
+              if [ "$was_required" = "false" ]; then
+                echo "> Main was **not frozen** - this run only cleared any stale \`$CONTEXT\` statuses."
+                echo
+              fi
+              echo "Merges are unblocked. Anyone whose PR still shows a stale \`$CONTEXT\` failure can push or reopen it to clear."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
