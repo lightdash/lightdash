@@ -3,6 +3,43 @@
 Use this checklist for every Lightdash vulnerability disclosure and every
 material correction to a published advisory.
 
+## Triage automated drafts
+
+This runbook is for maintainers. This section defines how to handle private
+drafts created by the `AI Security Advisory Drafts` workflow so an AI result
+cannot bypass the normal disclosure checks. The workflow never requests a CVE
+or publishes an advisory.
+
+The scan runs after release, when the diff is already public. It is only a
+backstop for unnoticed security fixes, not a replacement for coordinated private
+disclosure. Before accepting an automated draft, verify:
+
+- that the change fixes an exploitable vulnerability rather than ordinary
+  hardening;
+- the attacker prerequisites, impact, CVSS vector, severity, and CWE identifiers;
+- the first affected, last vulnerable, and first patched versions for every
+  affected product;
+- the workaround or the statement that no workaround is available;
+- the GitHub release, Docker tag, and immutable image digest; and
+- the remediation instructions and private review evidence.
+
+The workflow requires the existing `ANTHROPIC_API_KEY`, a
+`SECURITY_ALERTS_SLACK_WEBHOOK_URL`, and a `SECURITY_ADVISORY_TOKEN`. The latter
+must be a fine-grained personal access token restricted to this repository with
+Repository security advisories read and write access. The token owner must remain
+a repository administrator or organization security manager. Set an expiration,
+record its owner, and rotate it before it expires.
+
+The `Security Advisory Triage Reminder` workflow checks the repository every day
+at 10:00 Europe/Lisbon. When one or more advisories are in GitHub's `triage`
+state, it posts their titles and private links to `#security-alerts` using the
+same token and webhook.
+
+Close false-positive or duplicate drafts. For an accepted draft, request the CVE
+while it remains private, complete every field required below, and follow the
+publication order. For vulnerabilities known before release, create the private
+advisory before making the fix public.
+
 ## Prepare the fix and advisory
 
 - Create a private GitHub repository security advisory and request the CVE
@@ -17,10 +54,10 @@ material correction to a published advisory.
 
 Use these affected-product identifiers consistently:
 
-| Product | Ecosystem | Package name |
-| --- | --- | --- |
-| Lightdash server and official container image | Other | `lightdash/lightdash` |
-| Lightdash CLI | npm | `@lightdash/cli` |
+| Product                                       | Ecosystem | Package name          |
+| --------------------------------------------- | --------- | --------------------- |
+| Lightdash server and official container image | Other     | `lightdash/lightdash` |
+| Lightdash CLI                                 | npm       | `@lightdash/cli`      |
 
 Do not use the unscoped npm package `lightdash`; it is unrelated to this
 project.
