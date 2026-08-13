@@ -15356,6 +15356,9 @@
                         },
                         "type": "array"
                     },
+                    "table": {
+                        "type": "string"
+                    },
                     "metrics": {
                         "items": {
                             "type": "string"
@@ -15377,6 +15380,9 @@
             },
             "PreAggregateSource": {
                 "properties": {
+                    "externalTable": {
+                        "type": "string"
+                    },
                     "preAggregateName": {
                         "type": "string"
                     },
@@ -26837,6 +26843,10 @@
                     "preAggExploreName": {
                         "type": "string"
                     },
+                    "externalTable": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "preAggregateName": {
                         "type": "string"
                     },
@@ -26858,6 +26868,7 @@
                     "materializationRole",
                     "sourceExploreName",
                     "preAggExploreName",
+                    "externalTable",
                     "preAggregateName",
                     "preAggregateDefinitionUuid"
                 ],
@@ -53420,7 +53431,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.147.0",
+        "version": "1.148.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -1,14 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "1.147.0",
-  "previousVersion": "1.146.6",
-  "releaseDate": "2026-08-13T11:56:33.449Z",
+  "version": "1.148.0",
+  "previousVersion": "1.147.0",
+  "releaseDate": "2026-08-13T13:13:56.789Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20260812132159_add_pre_aggregate_execution_to_query_history.ts",
+        "edition": "core",
+        "tables": [
+          "query_history"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

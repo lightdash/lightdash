@@ -14245,6 +14245,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'PreAggregateSort' },
                 },
+                table: { dataType: 'string' },
                 metrics: {
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -14266,6 +14267,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                externalTable: { dataType: 'string' },
                 preAggregateName: { dataType: 'string', required: true },
                 sourceExploreName: { dataType: 'string', required: true },
             },
@@ -26324,6 +26326,14 @@ const models: TsoaRoute.Models = {
                 },
                 sourceExploreName: { dataType: 'string', required: true },
                 preAggExploreName: { dataType: 'string', required: true },
+                externalTable: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 preAggregateName: { dataType: 'string', required: true },
                 preAggregateDefinitionUuid: {
                     dataType: 'string',

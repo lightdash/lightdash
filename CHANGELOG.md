@@ -1,3 +1,16 @@
+# [1.148.0](https://github.com/lightdash/lightdash/compare/1.147.0...1.148.0) (2026-08-13)
+
+
+### Bug Fixes
+
+* **pre-aggregates:** external materializations ui ([#27277](https://github.com/lightdash/lightdash/issues/27277)) ([80b385b](https://github.com/lightdash/lightdash/commit/80b385bfae7e0e0fa7008c59c4a312dcfdd98ef9))
+
+
+### Features
+
+* **cli:** generate and check external pre-aggregate table shape (ZAP-842) ([#27282](https://github.com/lightdash/lightdash/issues/27282)) ([ada5245](https://github.com/lightdash/lightdash/commit/ada5245a3fcc0dd8b6d13fdcea5fbec425e9b98f))
+* **pre-aggregates:** add external pre-aggregate serving from project warehouse ([#27267](https://github.com/lightdash/lightdash/issues/27267)) ([57639c2](https://github.com/lightdash/lightdash/commit/57639c2e1d8d07e9472196e5c147d94815f7a6d3))
+
 # [1.147.0](https://github.com/lightdash/lightdash/compare/1.146.6...1.147.0) (2026-08-13)
 
 
