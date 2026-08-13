@@ -60,9 +60,13 @@ vi.mock('../features/apps/components/AppPreview', () => ({
     ),
 }));
 vi.mock('../components/common/PromptComposer/PromptComposer', () => ({
-    default: ({ placeholder }: { placeholder: string }) => (
-        <input placeholder={placeholder} />
-    ),
+    default: ({
+        placeholder,
+        disabled,
+    }: {
+        placeholder: string;
+        disabled?: boolean;
+    }) => <input placeholder={placeholder} disabled={disabled} />,
 }));
 vi.mock('../features/apps/hooks/useVizComposerAttachments', () => ({
     useVizComposerAttachments: () => ({
@@ -300,7 +304,7 @@ describe('ChartTypeBuilder', () => {
         // The edit route re-renders with the uuid param; its useGetApp stub
         // has no data, so the header stays bare.
         expect(
-            screen.getByPlaceholderText('Describe a new chart type…'),
+            screen.getByPlaceholderText('Building your chart type…'),
         ).toBeInTheDocument();
         // First build: the skeleton state echoes what was asked for.
         expect(
@@ -335,6 +339,30 @@ describe('ChartTypeBuilder', () => {
         expect(screen.queryByText('Building your chart type…')).toBeNull();
         // A rebuild echoes its prompt too, not just the first build.
         expect(screen.getByText('“make the bars teal”')).toBeInTheDocument();
+    });
+
+    it('closes the composer while the first version builds', () => {
+        // The in-progress v1 is already in history; "has versions" is not the signal.
+        vi.mocked(useAppVersionHistory).mockReturnValue(
+            historyStub([appVersion({ version: 1, status: 'building' })], null),
+        );
+        vi.mocked(useDataAppVizBuild).mockReturnValue(
+            buildStub({
+                isBuilding: true,
+                appUuid: '1e9a3b2c-0000-4000-8000-000000000001',
+                claimedVersion: 1,
+                pendingPrompt: 'give me a chart type',
+                startedAt: new Date('2026-05-15T10:00:00Z'),
+            }),
+        );
+        renderBuilder(
+            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+        );
+
+        expect(screen.queryByPlaceholderText('Ask for a change…')).toBeNull();
+        expect(
+            screen.getByPlaceholderText('Building your chart type…'),
+        ).toBeDisabled();
     });
 
     it('renders the current version and lists its history on demand', () => {
@@ -524,8 +552,7 @@ describe('ChartTypeBuilder', () => {
 
         expect(screen.getByText('The build failed')).toBeInTheDocument();
         expect(screen.getByText('Sandbox crashed')).toBeInTheDocument();
-        expect(
-            screen.getByPlaceholderText('Ask for a change…'),
-        ).toBeInTheDocument();
+        // Nothing is running any more, so the retry has to be typeable.
+        expect(screen.getByPlaceholderText('Ask for a change…')).toBeEnabled();
     });
 });

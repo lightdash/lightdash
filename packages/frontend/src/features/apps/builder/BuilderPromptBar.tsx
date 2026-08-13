@@ -28,6 +28,8 @@ type Props = {
     /** The viz, or the pre-claimed draft uuid while nothing exists yet. */
     composerAppUuid: string;
     hasVersions: boolean;
+    /** No ready version to revise yet, and one is on its way. */
+    isBuildingFirstVersion: boolean;
     build: DataAppVizBuildState;
     onCancelBuild: (() => void) | null;
     modelSelection: DataAppModelSelection;
@@ -44,6 +46,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             projectUuid,
             composerAppUuid,
             hasVersions,
+            isBuildingFirstVersion,
             build,
             onCancelBuild,
             modelSelection,
@@ -106,10 +109,14 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                     ref={composerRef}
                     variant="inline"
                     placeholder={
-                        hasVersions
-                            ? 'Ask for a change…'
-                            : 'Describe a new chart type…'
+                        isBuildingFirstVersion
+                            ? 'Building your chart type…'
+                            : hasVersions
+                              ? 'Ask for a change…'
+                              : 'Describe a new chart type…'
                     }
+                    // Revisions stay editable so the next prompt can be drafted.
+                    disabled={isBuildingFirstVersion}
                     submitDisabled={!canSend}
                     onEmptyChange={setIsEmpty}
                     onSubmit={handleSubmit}
