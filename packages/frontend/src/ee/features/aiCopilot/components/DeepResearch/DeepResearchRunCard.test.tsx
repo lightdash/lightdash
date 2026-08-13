@@ -324,6 +324,23 @@ The full report continues here.`,
         ).not.toBeInTheDocument();
     });
 
+    it('does not render remote images in the research summary preview', () => {
+        renderRunCard(
+            <DeepResearchRunCard
+                run={{
+                    ...deepResearchRunFixture,
+                    status: 'completed',
+                    resultMarkdown:
+                        '# Summary\n\n![secret](https://attacker.example/collect)',
+                }}
+                projectUuid="project-1"
+            />,
+        );
+
+        expect(screen.queryByRole('img')).not.toBeInTheDocument();
+        expect(document.body.innerHTML).not.toContain('attacker.example');
+    });
+
     it('offers reconnection and continue-without-source recovery', async () => {
         const user = userEvent.setup();
         const onReconnect = vi.fn();
