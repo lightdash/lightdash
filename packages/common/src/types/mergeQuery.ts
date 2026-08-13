@@ -61,14 +61,6 @@ export type MergeQuery = {
     joinType: MergeJoinType;
     /** Calculations over the merged result. Applied last, after any pivot. */
     tableCalculations: MergeTableCalculation[];
-    /**
-     * Emit a row for every period between the first and last key, even where
-     * neither query has data. A sparse series silently skips its gaps
-     * otherwise, which reads as continuity rather than absence. Requires a
-     * single temporal join key with a known grain, and an engine that can
-     * generate the spine.
-     */
-    fillMissingDates?: boolean;
     limit: number;
 };
 
@@ -169,8 +161,6 @@ export enum MergeQueryErrorKind {
      * statement would reference a column that side never produced.
      */
     JOIN_KEY_NOT_SELECTED = 'join_key_not_selected',
-    /** Filling missing dates needs a temporal join key with a known grain. */
-    FILL_REQUIRES_TEMPORAL_KEY = 'fill_requires_temporal_key',
     /**
      * Two sides of a join key hold different kinds of value. The warehouse
      * either refuses the comparison or silently coerces it, and a coerced
@@ -206,11 +196,6 @@ export enum MergeQueryErrorKind {
      * text — the same refusal the query makes when it runs on its own.
      */
     MISSING_PARAMETERS = 'missing_parameters',
-    /**
-     * The project warehouse's dialect cannot generate the date-spine fill.
-     * Refused by name: silently dropping the fill would read as continuity.
-     */
-    FILL_NOT_SUPPORTED_ON_DIALECT = 'fill_not_supported_on_dialect',
 }
 
 export type MergeQueryError = {
@@ -302,30 +287,6 @@ export const validateMergeQuery = (
             fieldIds: [],
             message: 'A merge needs at least one field to join on.',
         });
-    }
-
-    if (mergeQuery.fillMissingDates && fieldTypes !== undefined) {
-        const soleKeyIsTemporal =
-            joinKey.length === 1 &&
-            Object.entries(joinKey[0].fieldIdBySourceId).some(
-                ([sourceId, fieldId]) => {
-                    const meta = fieldTypes[sourceId]?.[fieldId];
-                    return (
-                        meta !== undefined &&
-                        getTypeClass(meta.type) === 'temporal' &&
-                        meta.timeInterval != null
-                    );
-                },
-            );
-        if (!soleKeyIsTemporal) {
-            errors.push({
-                kind: MergeQueryErrorKind.FILL_REQUIRES_TEMPORAL_KEY,
-                sourceId: null,
-                fieldIds: [],
-                message:
-                    'Filling missing dates needs the join key to be a single date with a known grain — the spine has to know what one step is.',
-            });
-        }
     }
 
     const knownSourceIds = new Set(sourceIds);

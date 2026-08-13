@@ -5,21 +5,13 @@ import {
     MERGE_TRUNCATED_COLUMN,
     mergeCalculationReferencePattern,
     MergeJoinType,
-    ParameterError,
     type MergeFieldMeta,
     type MergeQueryColumns,
     type MergeTableCalculation,
     type MergeTerminalWrapper,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
-import { getMergeDateSpineSql, type MergeDateSpine } from './mergeDateSpine';
 import { applyLimitToSqlQuery } from './utils';
-
-/** CTE holding the merged rows a date spine spans. */
-const MERGE_ROWS_CTE = 'merge_rows';
-
-/** CTE holding the generated date spine. */
-const MERGE_SPINE_CTE = 'merge_spine';
 
 /**
  * A named CTE and its edges — the private, unpersisted IR the composable core
@@ -152,8 +144,6 @@ export class MergeQueryBuilder {
 
     private readonly sorts: MergeSort[];
 
-    private readonly dateSpine: MergeDateSpine | undefined;
-
     constructor({
         sources,
         joinKeyNames,
@@ -164,7 +154,6 @@ export class MergeQueryBuilder {
         nullPlaceholderByKeyName,
         sourceRowCap,
         sorts,
-        dateSpine,
     }: {
         sources: MergeQuerySourceSql[];
         joinKeyNames: string[];
@@ -186,12 +175,6 @@ export class MergeQueryBuilder {
          * keys match each other; omitting it leaves them unmatched.
          */
         nullPlaceholderByKeyName?: Record<string, string>;
-        /**
-         * Fill missing periods of the (single, temporal) join key with a
-         * generated date spine inside the core. Requires a dialect that can
-         * generate the spine — the caller checks capability first.
-         */
-        dateSpine?: MergeDateSpine;
     }) {
         this.sources = sources;
         this.joinKeyNames = joinKeyNames;
@@ -202,7 +185,6 @@ export class MergeQueryBuilder {
         this.tableCalculations = tableCalculations ?? [];
         this.sourceRowCap = sourceRowCap;
         this.sorts = sorts ?? [];
-        this.dateSpine = dateSpine;
         // Index-prefixed so two source ids that differ only in punctuation
         // cannot collapse to the same identifier.
         this.cteNames = sources.map(
@@ -447,29 +429,6 @@ export class MergeQueryBuilder {
      * merged result stays empty rather than erroring — one guard emitted
      * here, not one implicit behaviour per dialect.
      */
-    private getSpineJoinSelect(): string {
-        const quotedKey = this.quote(this.joinKeyNames[0]);
-        const valueColumns = [
-            ...this.sources.flatMap((source, index) =>
-                source.valueColumns.map((column) =>
-                    this.mergedValueColumnName(index, column),
-                ),
-            ),
-            ...this.tableCalculations.map((calculation) => calculation.name),
-        ];
-        const selects = [
-            `COALESCE(${MERGE_SPINE_CTE}.${quotedKey}, ${MERGE_ROWS_CTE}.${quotedKey}) AS ${quotedKey}`,
-            ...valueColumns.map(
-                (column) => `${MERGE_ROWS_CTE}.${this.quote(column)}`,
-            ),
-        ];
-        return [
-            `SELECT ${selects.join(',\n       ')}`,
-            `FROM ${MERGE_SPINE_CTE}`,
-            `FULL OUTER JOIN ${MERGE_ROWS_CTE} ON ${MERGE_SPINE_CTE}.${quotedKey} = ${MERGE_ROWS_CTE}.${quotedKey}`,
-        ].join('\n');
-    }
-
     private assembleCtes(nodes: MergeIrNode[]): string {
         return MergeQueryBuilder.orderIrNodes(nodes)
             .map((node) => `${this.cteNameFor(node.id)} AS (\n${node.sql}\n)`)
@@ -480,54 +439,16 @@ export class MergeQueryBuilder {
      * The composable core: a self-contained single-statement SELECT with no
      * ORDER BY, no LIMIT and no guard column — clean under `SELECT *`, so it
      * can back a virtual view and be queried further. Per-source row caps
-     * stay inside, and so does the date-spine fill, which changes the row
-     * set; everything terminal lives in the wrapper.
+     * stay inside; everything terminal lives in the wrapper.
      */
     toCoreSql(outputAliasByColumn?: Record<string, string>): string {
         const sourceNodes = this.lowerToIr();
-        const mergeRowsSelect = this.getMergeRowsSelect();
-
-        let sql: string;
-        if (this.dateSpine === undefined) {
-            sql = this.withTableCalculations(
-                [
-                    `WITH ${this.assembleCtes(sourceNodes)}`,
-                    mergeRowsSelect,
-                ].join('\n'),
-            );
-        } else {
-            if (this.joinKeyNames.length !== 1) {
-                throw new ParameterError(
-                    'Filling missing dates needs the join key to be a single date.',
-                );
-            }
-            const nodes: MergeIrNode[] = [
-                ...sourceNodes,
-                {
-                    id: MERGE_ROWS_CTE,
-                    // Calculations compute over the merged row, before the
-                    // fill: a filled row has no merged values to calculate
-                    // over, so it carries NULL like any other value column.
-                    sql: this.withTableCalculations(mergeRowsSelect),
-                    dependsOn: this.sources.map((source) => source.id),
-                },
-                {
-                    id: MERGE_SPINE_CTE,
-                    sql: getMergeDateSpineSql({
-                        adapterType: this.warehouseSqlBuilder.getAdapterType(),
-                        quote: (identifier) => this.quote(identifier),
-                        mergedCteName: MERGE_ROWS_CTE,
-                        spine: this.dateSpine,
-                    }),
-                    dependsOn: [MERGE_ROWS_CTE],
-                },
-            ];
-            sql = [
-                `WITH ${this.assembleCtes(nodes)}`,
-                this.getSpineJoinSelect(),
-            ].join('\n');
-        }
-
+        const sql = this.withTableCalculations(
+            [
+                `WITH ${this.assembleCtes(sourceNodes)}`,
+                this.getMergeRowsSelect(),
+            ].join('\n'),
+        );
         return this.withOutputAliases(sql, outputAliasByColumn);
     }
 
