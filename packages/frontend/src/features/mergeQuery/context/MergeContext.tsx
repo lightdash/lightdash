@@ -104,7 +104,14 @@ export const MergeProvider: FC<
         errors: MergeQueryError[];
         started: ApiExecuteAsyncMetricQueryResults | null;
         error: ApiError | null;
-    }>({ isRunning: false, errors: [], started: null, error: null });
+        parameterReferences: string[];
+    }>({
+        isRunning: false,
+        errors: [],
+        started: null,
+        error: null,
+        parameterReferences: [],
+    });
 
     const addQuery = useCallback(() => {
         setIsMerging(true);
@@ -123,6 +130,7 @@ export const MergeProvider: FC<
             errors: [],
             started: null,
             error: null,
+            parameterReferences: [],
         });
     }, []);
 
@@ -232,12 +240,13 @@ export const MergeProvider: FC<
             if (!projectUuid) return;
             const runId = activeRun.current + 1;
             activeRun.current = runId;
-            setRunState({
+            setRunState((current) => ({
                 isRunning: true,
                 errors: [],
                 started: null,
                 error: null,
-            });
+                parameterReferences: current.parameterReferences,
+            }));
             executeMergeQuery(projectUuid, mergeQuery, parameters, savedChart)
                 .then((result) => {
                     if (activeRun.current !== runId) return;
@@ -246,16 +255,18 @@ export const MergeProvider: FC<
                         errors: result.errors,
                         started: result.started,
                         error: null,
+                        parameterReferences: result.parameterReferences,
                     });
                 })
                 .catch((error: ApiError) => {
                     if (activeRun.current !== runId) return;
-                    setRunState({
+                    setRunState((current) => ({
                         isRunning: false,
                         errors: [],
                         started: null,
                         error,
-                    });
+                        parameterReferences: current.parameterReferences,
+                    }));
                 });
         },
         [projectUuid],
@@ -293,6 +304,7 @@ export const MergeProvider: FC<
             isRunning: runState.isRunning,
             runErrors: runState.errors,
             runError: runState.error,
+            parameterReferences: runState.parameterReferences,
             mergeResults,
             focus,
             queryB,
@@ -318,6 +330,7 @@ export const MergeProvider: FC<
             runState.isRunning,
             runState.errors,
             runState.error,
+            runState.parameterReferences,
             mergeResults,
             focus,
             queryB,

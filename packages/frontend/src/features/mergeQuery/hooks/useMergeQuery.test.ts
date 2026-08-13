@@ -47,6 +47,7 @@ describe('executeMergeQuery', () => {
                 },
             },
             fieldOrigins: {},
+            parameterReferences: ['date_dim_parameter'],
             fieldIdByColumn: {
                 join_key_0: 'merge_join_key_0',
                 orders_count: 'a_orders_count',
@@ -55,7 +56,7 @@ describe('executeMergeQuery', () => {
         } as never);
         api.mockResolvedValueOnce({ queryUuid: 'query-uuid' } as never);
 
-        await executeMergeQuery(
+        const result = await executeMergeQuery(
             'project-uuid',
             {
                 sources: [],
@@ -87,5 +88,29 @@ describe('executeMergeQuery', () => {
                 ],
             },
         });
+        expect(result.parameterReferences).toEqual(['date_dim_parameter']);
+        expect(api).toHaveBeenCalledTimes(2);
+    });
+
+    it('returns parameter references when compilation is refused', async () => {
+        api.mockResolvedValueOnce({
+            sql: null,
+            parameterReferences: ['customers.customer_name'],
+            errors: [{ message: 'Missing customer name' }],
+        } as never);
+
+        const result = await executeMergeQuery('project-uuid', {
+            sources: [],
+            joinKey: [],
+            joinType: MergeJoinType.FULL,
+            limit: 500,
+            tableCalculations: [],
+        });
+
+        expect(result).toMatchObject({
+            started: null,
+            parameterReferences: ['customers.customer_name'],
+        });
+        expect(api).toHaveBeenCalledTimes(1);
     });
 });

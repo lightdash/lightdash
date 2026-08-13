@@ -34,6 +34,7 @@ export type MergeQueryRun = {
     errors: CompiledMergeQuery['errors'];
     /** The query to page results from, or null when the merge was refused. */
     started: ApiExecuteAsyncMetricQueryResults | null;
+    parameterReferences: string[];
 };
 
 const runMergeQuery = (
@@ -73,7 +74,11 @@ export const executeMergeQuery = async (
         parameters,
     );
     if (!compiled.sql) {
-        return { errors: compiled.errors, started: null };
+        return {
+            errors: compiled.errors,
+            started: null,
+            parameterReferences: compiled.parameterReferences,
+        };
     }
 
     const columnOrder = Object.values(compiled.fieldIdByColumn);
@@ -99,6 +104,7 @@ export const executeMergeQuery = async (
 
     return {
         errors: [],
+        parameterReferences: compiled.parameterReferences,
         started: await runMergeQuery(
             projectUuid,
             mergeQuery,
