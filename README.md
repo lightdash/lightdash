@@ -63,7 +63,7 @@ Take a look at our [embedding showcase](https://embed.lightdash.com/) or read ou
 
 ### Open-source core
 
-Self-host the core BI platform, contribute improvements, and run Lightdash in your own infrastructure. Enterprise deployments can add commercial features and support.
+Self-host the core BI platform, contribute improvements, and run Lightdash on your own infrastructure. Enterprise deployments can add commercial features and support.
 
 [Self-host Lightdash](https://docs.lightdash.com/self-host/self-host-lightdash)
 
