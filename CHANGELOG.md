@@ -1,3 +1,12 @@
+## [1.146.4](https://github.com/lightdash/lightdash/compare/1.146.3...1.146.4) (2026-08-13)
+
+
+### Bug Fixes
+
+* read migration transaction config from module instead of regex ([#27311](https://github.com/lightdash/lightdash/issues/27311)) ([f4aefa7](https://github.com/lightdash/lightdash/commit/f4aefa7ccd28386def3b35565dcac3ff19809a82))
+* **release:** fail when safety marker generation fails ([#27312](https://github.com/lightdash/lightdash/issues/27312)) ([d6d31de](https://github.com/lightdash/lightdash/commit/d6d31de039409b96b3efaa0c7a3776515a8b4852))
+* scheduled delivery webhook SSRF ([#27313](https://github.com/lightdash/lightdash/issues/27313)) ([c0ba219](https://github.com/lightdash/lightdash/commit/c0ba219b7c425824ab99169e9cbb62c02f5533b5))
+
 ## [1.146.3](https://github.com/lightdash/lightdash/compare/1.146.2...1.146.3) (2026-08-13)
 
 
