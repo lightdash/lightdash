@@ -7,6 +7,7 @@ import {
 import { waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../api';
+import useEmbed from '../ee/providers/Embed/useEmbed';
 import { renderHookWithProviders } from '../testing/testUtils';
 import {
     getFieldValuesAsync,
@@ -385,6 +386,49 @@ describe('useFieldValues', () => {
                 { value: 'prospect' },
                 { value: 'trial', label: 'Trial account' },
             ]);
+        });
+    });
+
+    it('forwards parameter values to embedded filter autocomplete', async () => {
+        vi.mocked(useEmbed).mockReturnValue({
+            embedToken: 'embed-token',
+        } as ReturnType<typeof useEmbed>);
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            search: '',
+            results: [],
+            cached: false,
+            refreshedAt: new Date('2026-08-13T09:00:00.000Z'),
+        } as never);
+
+        renderHookWithProviders(() =>
+            useFieldValues(
+                '',
+                [],
+                'project-uuid',
+                {
+                    ...fieldWithWarehouseAutocomplete,
+                    filterAutocomplete: {
+                        values: [],
+                        fetchFromWarehouse: true,
+                    },
+                },
+                'filter-uuid',
+                undefined,
+                false,
+                false,
+                undefined,
+                { date_granularity: 'Month' },
+            ),
+        );
+
+        await waitFor(() => {
+            expect(lightdashApi).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    body: expect.stringContaining(
+                        '"parameters":{"date_granularity":"Month"}',
+                    ),
+                }),
+            );
         });
     });
 });
