@@ -277,7 +277,9 @@ import {
     getCompactionModelMetadata,
     getDefaultModel,
     getModel,
+    MODEL_PRESETS,
     presetToModelOption,
+    resolveKeyManagement,
 } from '../ai/models';
 import { OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
 import {
@@ -735,6 +737,43 @@ function validateGeneratedSuggestion(
         };
     }
 }
+
+export const assertDeepResearchFinalizerKeyManagement = (
+    expected: AiDeepResearchExecutionContextSnapshot['model']['keyManagement'],
+    current: AiDeepResearchExecutionContextSnapshot['model']['keyManagement'],
+): void => {
+    if (expected && expected !== current) {
+        throw new ParameterError(
+            'Deep Research finalizer key management changed during the run',
+        );
+    }
+};
+
+export const assertDeepResearchBedrockProfile = (
+    runtimeModelName: string,
+    configuredPrefix: string,
+): void => {
+    const selectedPreset = MODEL_PRESETS.bedrock.find(
+        (preset) =>
+            runtimeModelName === preset.name ||
+            runtimeModelName === preset.modelId ||
+            runtimeModelName.endsWith(`.${preset.modelId}`),
+    );
+    if (!selectedPreset) {
+        throw new ParameterError(
+            'Deep Research finalizer Bedrock model is unavailable',
+        );
+    }
+    const runtimePrefix = runtimeModelName.slice(
+        0,
+        -(selectedPreset.modelId.length + 1),
+    );
+    if (runtimePrefix && runtimePrefix !== configuredPrefix) {
+        throw new ParameterError(
+            'Deep Research Bedrock inference profile changed during the run',
+        );
+    }
+};
 
 export class AiAgentService extends BaseService {
     private readonly aiAgentModel: AiAgentModel;
@@ -6181,19 +6220,74 @@ export class AiAgentService extends BaseService {
             threadUuid,
             evidencePack,
             reason,
+            model,
         }: {
             agentUuid: string;
             threadUuid: string;
             evidencePack: AiDeepResearchEvidencePack;
             reason: string;
+            model: AiDeepResearchExecutionContextSnapshot['model'];
         },
     ): Promise<AiDeepResearchSubmittedReport> {
         const copilotConfig =
             await this.orgAiCopilotConfigResolver.getCopilotConfig(
                 user.organizationUuid ?? null,
             );
+        const configuredProviders = Object.keys(
+            copilotConfig.providers,
+        ) as (typeof copilotConfig.defaultProvider)[];
+        const selectedProvider = model.provider
+            ? configuredProviders.find(
+                  (provider) =>
+                      model.provider === provider ||
+                      model.provider?.startsWith(`${provider}.`) ||
+                      (provider === 'bedrock' &&
+                          model.provider === 'amazon-bedrock'),
+              )
+            : copilotConfig.defaultProvider;
+        if (!selectedProvider) {
+            throw new ParameterError(
+                `Deep Research finalizer provider is unavailable: ${model.provider}`,
+            );
+        }
+        const currentKeyManagement = resolveKeyManagement(
+            copilotConfig,
+            selectedProvider,
+        );
+        assertDeepResearchFinalizerKeyManagement(
+            model.keyManagement,
+            currentKeyManagement,
+        );
+        const selectedModelName =
+            selectedProvider === 'bedrock'
+                ? (MODEL_PRESETS.bedrock.find(
+                      (preset) =>
+                          model.modelName === preset.name ||
+                          model.modelName === preset.modelId ||
+                          model.modelName?.endsWith(`.${preset.modelId}`),
+                  )?.modelId ?? model.modelName)
+                : model.modelName;
+        if (selectedProvider === 'bedrock' && model.modelName) {
+            const bedrockConfig = copilotConfig.providers.bedrock;
+            let configuredPrefix = 'global';
+            if (bedrockConfig?.inferenceProfilePrefix) {
+                configuredPrefix = bedrockConfig.inferenceProfilePrefix;
+            } else if (bedrockConfig?.region.startsWith('us-')) {
+                configuredPrefix = 'us';
+            } else if (bedrockConfig?.region.startsWith('eu-')) {
+                configuredPrefix = 'eu';
+            } else if (bedrockConfig?.region.startsWith('ap-')) {
+                configuredPrefix = 'apac';
+            }
+            assertDeepResearchBedrockProfile(model.modelName, configuredPrefix);
+        }
         const modelOptions = {
-            ...getModel(copilotConfig, { enableReasoning: false }),
+            ...getModel(copilotConfig, {
+                enableReasoning: false,
+                modelName: selectedModelName ?? undefined,
+                provider: selectedProvider,
+                trustPinnedModelName: true,
+            }),
             telemetry: {
                 organizationUuid: user.organizationUuid ?? null,
                 agentUuid,
