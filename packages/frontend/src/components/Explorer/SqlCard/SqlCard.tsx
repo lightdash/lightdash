@@ -32,6 +32,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { useMergeCompiledSql } from '../../../features/mergeQuery/hooks/useMergeCompiledSql';
 import { useCompiledSql } from '../../../hooks/useCompiledSql';
 import { useProject } from '../../../hooks/useProject';
 import { useCannotViewCompiledSql } from '../../../hooks/user/useCannotViewCompiledSql';
@@ -84,10 +85,16 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
     const { data, isSuccess, isInitialLoading, error } = useCompiledSql({
         enabled: !!unsavedChartVersionTableName && !cannotViewSqlAuthoredFields,
     });
+    // With a merge configured, the merged statement is what Run executes;
+    // the card's copy and open-in-SQL-runner must carry it, not Query A's.
+    const merge = useMergeCompiledSql();
 
-    const hasPivotQuery = !!data?.pivotQuery;
-    const selectedSql =
-        selectedView === 'pivotQuery' ? data?.pivotQuery : data?.query;
+    const hasPivotQuery = !merge.isMergeActive && !!data?.pivotQuery;
+    const selectedSql = merge.isMergeActive
+        ? merge.data?.sql
+        : selectedView === 'pivotQuery'
+          ? data?.pivotQuery
+          : data?.query;
 
     const formattedSql = useMemo(
         () =>

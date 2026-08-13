@@ -31,6 +31,8 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../features/explorer/store';
+import { MergeAutoRun } from '../../features/mergeQuery/components/MergeAutoRun';
+import { MergeReadOnlyBar } from '../../features/mergeQuery/components/MergeReadOnlyBar';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import { useParameters } from '../../hooks/parameters/useParameters';
 import { useCompiledSql } from '../../hooks/useCompiledSql';
@@ -253,6 +255,9 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                         ) : (
                             !savedChart && <RefreshDbtButton />
                         ))}
+
+                    <MergeAutoRun />
+                    {!isFullscreen && <MergeReadOnlyBar />}
 
                     {!isFullscreen &&
                         !!tableName &&
