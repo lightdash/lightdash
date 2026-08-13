@@ -19695,102 +19695,6 @@
             "ApiAiRouterDecisionListResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiRouterDecision-Array_"
             },
-            "DashboardSummaryTone": {
-                "enum": ["friendly", "formal", "direct", "enthusiastic"],
-                "type": "string"
-            },
-            "DashboardSummary": {
-                "properties": {
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "summary": {
-                        "type": "string"
-                    },
-                    "audiences": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "tone": {
-                        "$ref": "#/components/schemas/DashboardSummaryTone"
-                    },
-                    "context": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "dashboardVersionId": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "dashboardUuid": {
-                        "type": "string"
-                    },
-                    "dashboardSummaryUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "createdAt",
-                    "summary",
-                    "audiences",
-                    "tone",
-                    "dashboardVersionId",
-                    "dashboardUuid",
-                    "dashboardSummaryUuid"
-                ],
-                "type": "object"
-            },
-            "ApiAiDashboardSummaryResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/DashboardSummary"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "Pick_DashboardSummary.context-or-tone-or-audiences_": {
-                "properties": {
-                    "context": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "tone": {
-                        "$ref": "#/components/schemas/DashboardSummaryTone"
-                    },
-                    "audiences": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["tone", "audiences"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "ApiAiGetDashboardSummaryResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/DashboardSummary"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
             "ApiAiGenerateCustomVizResponse": {
                 "properties": {
                     "results": {
@@ -53450,7 +53354,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.151.3",
+        "version": "1.152.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

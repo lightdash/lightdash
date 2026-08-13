@@ -1,3 +1,10 @@
+# [1.152.0](https://github.com/lightdash/lightdash/compare/1.151.3...1.152.0) (2026-08-13)
+
+
+### Features
+
+* **backend:** add duration_ms to upgrade telemetry events ([#27368](https://github.com/lightdash/lightdash/issues/27368)) ([145209b](https://github.com/lightdash/lightdash/commit/145209bd8b64ee52dcbea0f7cf90a96929e51033))
+
 ## [1.151.3](https://github.com/lightdash/lightdash/compare/1.151.2...1.151.3) (2026-08-13)
 
 
