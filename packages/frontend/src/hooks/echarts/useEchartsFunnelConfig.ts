@@ -113,6 +113,12 @@ const useEchartsFunnelConfig = (
         return {
             type: 'funnel',
             gap: 3,
+            // ECharts defaults funnel series to `sort: 'descending'`, which
+            // re-orders the steps by size and discards the order the results
+            // arrived in. A funnel's step order is usually meaningful and
+            // independent of size (a pipeline stage sequence, a signup flow),
+            // so honour the query's own sort instead.
+            sort: 'none',
             data: seriesData.map(({ id, name, value, meta }) => {
                 const labelOverride = labelOverrides?.[id] ?? name;
                 return {
