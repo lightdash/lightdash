@@ -75,6 +75,7 @@ import {
     type DashboardBlueprint,
     type DataAppActivityEvent,
     type DataAppActivityFilters,
+    type DataAppClaudeEffort,
     type DataAppClaudeModel,
     type DataAppCode,
     type DataAppCodeDownload,
@@ -216,6 +217,11 @@ import {
     buildClaudeCodeOtelEnv,
     claudeCodeOtelAllowedHosts,
 } from './claudeCodeOtelEnv';
+import {
+    jobClaudeEffort,
+    payloadClaudeEffort,
+    resolveClaudeEffort,
+} from './claudeEffort';
 import {
     addClaudeGenerationAttempt,
     addClaudeUsage,
@@ -1354,15 +1360,23 @@ export class AppGenerateService extends BaseService {
         return claudeModel;
     }
 
-    /**
-     * Reasoning-effort policy for the claude CLI: first builds run low —
-     * benchmarked ~40% faster with no quality-gate regressions — while
-     * iterations run high (the CLI default, now passed explicitly), since
-     * they make targeted edits to existing code where deeper reasoning
-     * matters more than blank-page latency.
-     */
-    private static resolveClaudeEffort(version: number): 'low' | 'high' {
-        return version === 1 ? 'low' : 'high';
+    /** Reads the app's own template for the pre-field effort fallback. A
+     *  failure here must not sink the telemetry event it feeds. */
+    private async getTemplateForEffort(
+        payload: AppGeneratePipelineJobPayload,
+    ): Promise<DataAppTemplate | null> {
+        try {
+            const app = await this.appModel.getApp(
+                payload.appUuid,
+                payload.projectUuid,
+            );
+            return app.template;
+        } catch (error) {
+            this.logger.warn(
+                `App ${payload.appUuid}: could not read template for effort telemetry: ${getErrorMessage(error)}`,
+            );
+            return null;
+        }
     }
 
     /**
@@ -1886,6 +1900,10 @@ export class AppGenerateService extends BaseService {
             await this.recordGenerationUsage(payload, generationUsage);
         }
 
+        const claudeEffort = await jobClaudeEffort(payload, () =>
+            this.getTemplateForEffort(payload),
+        );
+
         this.analytics.track({
             event: 'data_app.version.failed',
             userId: payload.userUuid,
@@ -1900,9 +1918,7 @@ export class AppGenerateService extends BaseService {
                 claudeModel,
                 claudeProvider: telemetry.claudeProvider,
                 schedulerWaitMs: telemetry.schedulerWaitMs,
-                claudeEffort: AppGenerateService.resolveClaudeEffort(
-                    payload.version,
-                ),
+                claudeEffort,
                 failureStage,
                 errorMessage: AppGenerateService.truncateEnd(
                     getErrorMessage(error),
@@ -3112,6 +3128,7 @@ export class AppGenerateService extends BaseService {
         continueSession: boolean,
         claudeCodeEnv: Record<string, string>,
         claudeModel: DataAppClaudeModel,
+        claudeEffort: DataAppClaudeEffort,
         // JSON Schema string for `--json-schema` structured output. When set,
         // the CLI validates the run's final output against it (retrying on
         // failure) and emits the parsed object on the result event. `null`
@@ -3151,9 +3168,7 @@ export class AppGenerateService extends BaseService {
             ? '--json-schema "$(cat /tmp/output-schema.json)" '
             : '';
 
-        const effortFlag = `--effort ${AppGenerateService.resolveClaudeEffort(
-            version,
-        )} `;
+        const effortFlag = `--effort ${claudeEffort} `;
 
         // When the sandbox was resumed from a previous iteration, use
         // --continue so Claude has the full conversation history of what
@@ -3313,9 +3328,7 @@ export class AppGenerateService extends BaseService {
             onTelemetry?.(telemetry);
             const durationMs = AppGenerateService.elapsed(start);
             this.logger.info(
-                `App ${appUuid}: Claude code generation completed (model=${claudeModel}, effort=${AppGenerateService.resolveClaudeEffort(
-                    version,
-                )}, exit=${result.exitCode}, toolCalls=${toolCallCount}, turns=${usage?.numTurns ?? 0}, outputTokens=${usage?.outputTokens ?? 0}, cacheReadTokens=${usage?.cacheReadInputTokens ?? 0}, ${durationMs}ms, attempt ${attempt}/${AppGenerateService.MAX_GENERATION_ATTEMPTS})`,
+                `App ${appUuid}: Claude code generation completed (model=${claudeModel}, effort=${claudeEffort}, exit=${result.exitCode}, toolCalls=${toolCallCount}, turns=${usage?.numTurns ?? 0}, outputTokens=${usage?.outputTokens ?? 0}, cacheReadTokens=${usage?.cacheReadInputTokens ?? 0}, ${durationMs}ms, attempt ${attempt}/${AppGenerateService.MAX_GENERATION_ATTEMPTS})`,
             );
             this.logger.info(
                 `App ${appUuid}: claude turn timeline (ttft=${timeToFirstTokenMs ?? 'n/a'}ms, turnsMs=[${turnDurationsMs.join(', ')}])`,
@@ -3580,6 +3593,7 @@ export class AppGenerateService extends BaseService {
         version: number,
         claudeCodeEnv: Record<string, string>,
         claudeModel: DataAppClaudeModel,
+        claudeEffort: DataAppClaudeEffort,
         onTelemetry?: (telemetry: DataAppBuildFixTelemetry) => void,
     ): Promise<{
         buildMs: number;
@@ -3682,6 +3696,7 @@ export class AppGenerateService extends BaseService {
                 true, // --continue: keep conversation context from generation
                 claudeCodeEnv,
                 claudeModel,
+                claudeEffort,
                 null, // build-fix run collects no structured schema
                 (telemetry) => {
                     onTelemetry?.({
@@ -4249,6 +4264,7 @@ export class AppGenerateService extends BaseService {
         // to the default so we never run with `--model undefined`.
         const claudeModel: DataAppClaudeModel =
             payload.claudeModel ?? DEFAULT_DATA_APP_CLAUDE_MODEL;
+        const claudeEffort = payloadClaudeEffort(payload, pipelineApp.template);
         const claudeProvider: 'anthropic' | 'bedrock' =
             claudeCodeEnv.CLAUDE_CODE_USE_BEDROCK === '1'
                 ? 'bedrock'
@@ -4513,6 +4529,7 @@ export class AppGenerateService extends BaseService {
                     continueSession,
                     claudeCodeEnv,
                     claudeModel,
+                    claudeEffort,
                     // Data app vizs collect a validated schema as the run's
                     // structured output; other apps don't declare one.
                     isDataAppViz ? JSON.stringify(dataAppVizJsonSchema) : null,
@@ -4675,6 +4692,7 @@ export class AppGenerateService extends BaseService {
                     version,
                     claudeCodeEnv,
                     claudeModel,
+                    claudeEffort,
                     (telemetry) => {
                         durations.buildMs = telemetry.buildMs;
                         buildFixAttempts = telemetry.fixAttempts;
@@ -4865,7 +4883,7 @@ export class AppGenerateService extends BaseService {
                 claudeModel,
                 claudeProvider,
                 schedulerWaitMs,
-                claudeEffort: AppGenerateService.resolveClaudeEffort(version),
+                claudeEffort,
                 wasResumed,
                 totalDurationMs: totalMs,
                 sandboxMs: durations.sandboxMs,
@@ -5545,6 +5563,7 @@ export class AppGenerateService extends BaseService {
 
         const appUuid = preGeneratedAppUuid ?? uuidv4();
         const version = 1;
+        const claudeEffort = resolveClaudeEffort(version, template ?? null);
 
         // Resolve attachment types/filenames from the staged S3 objects so the
         // version resources can split image chips from file chips in the chat.
@@ -5688,7 +5707,7 @@ export class AppGenerateService extends BaseService {
                 fileCount: stagedFiles.filter((f) => !f.isImage).length,
                 template: template ?? null,
                 claudeModel,
-                claudeEffort: AppGenerateService.resolveClaudeEffort(version),
+                claudeEffort,
                 samplesRequested: sampleStats.requested,
                 samplesAvailable: sampleStats.available,
                 clarificationCount: clarifications?.length ?? 0,
@@ -5707,6 +5726,7 @@ export class AppGenerateService extends BaseService {
             template,
             fileIds: fileIds.length > 0 ? fileIds : undefined,
             isIteration: false,
+            claudeEffort,
             chartReferences:
                 chartReferences.length > 0 ? chartReferences : undefined,
             dashboardBlueprint: dashboardBlueprint ?? undefined,
@@ -5780,6 +5800,7 @@ export class AppGenerateService extends BaseService {
         }
 
         const newVersion = (latestVersion?.version ?? 0) + 1;
+        const claudeEffort = resolveClaudeEffort(newVersion, app.template);
         this.logger.info(
             `App ${appUuid}: iteration started (version=${newVersion}, model=${claudeModel}, promptLength=${prompt.length}, designUuidInput=${
                 designUuidInput === undefined
@@ -5891,8 +5912,7 @@ export class AppGenerateService extends BaseService {
                 imageCount: stagedFiles.filter((f) => f.isImage).length,
                 fileCount: stagedFiles.filter((f) => !f.isImage).length,
                 claudeModel,
-                claudeEffort:
-                    AppGenerateService.resolveClaudeEffort(newVersion),
+                claudeEffort,
                 themeChanged: isThemeChange,
                 designUuid: effectiveDesignUuid,
                 previousVersionStatus: latestVersion?.status ?? null,
@@ -5915,6 +5935,7 @@ export class AppGenerateService extends BaseService {
             ...(creationExperience ? { creationExperience } : {}),
             fileIds: fileIds.length > 0 ? fileIds : undefined,
             isIteration: true,
+            claudeEffort,
             chartReferences:
                 chartReferences.length > 0 ? chartReferences : undefined,
             dashboardBlueprint: dashboardBlueprint ?? undefined,
@@ -6100,6 +6121,8 @@ export class AppGenerateService extends BaseService {
             },
         });
 
+        const claudeEffort = resolveClaudeEffort(newVersion, app.template);
+
         await this.schedulerClient.appGeneratePipeline({
             appUuid,
             version: newVersion,
@@ -6109,6 +6132,7 @@ export class AppGenerateService extends BaseService {
             prompt: AppGenerateService.buildUpgradePrompt(body),
             isIteration: true,
             isUpgrade: true,
+            claudeEffort,
             designUuid: app.design_uuid,
         });
 

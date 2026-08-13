@@ -30,6 +30,7 @@ import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppVersionHistory } from '../features/apps/hooks/useAppVersionHistory';
 import { useCanCreateDataApp } from '../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
+import { useDataAppModelSelection } from '../features/apps/hooks/useDataAppModelSelection';
 import { useDataAppVisualization } from '../features/apps/hooks/useDataAppVisualization';
 import { useDataAppVizBuild } from '../features/apps/hooks/useDataAppVizBuild';
 import { useElapsedClock } from '../features/apps/hooks/useElapsedClock';
@@ -91,6 +92,14 @@ const ChartTypeBuilder: FC = () => {
             : null);
     const elapsed = useElapsedClock(buildStartedAt);
 
+    // The model the next prompt builds with; the latest version's own model
+    // pre-selects it, so reopening a chart type keeps building the way it was.
+    const modelSelection = useDataAppModelSelection({
+        appUuid: activeVizUuid ?? null,
+        latestVersionModel: history.latest?.resources?.claudeModel ?? null,
+    });
+    const { clearPick: clearModelPick } = modelSelection;
+
     // On `/new`, move to the edit route as soon as the build claims an app so
     // a refresh mid-build lands on the in-progress version.
     useEffect(() => {
@@ -130,7 +139,8 @@ const ChartTypeBuilder: FC = () => {
         setOptionValues({});
         setColorPaletteUuid(null);
         setIsHistoryOpen(false);
-    }, [urlVizUuid]);
+        clearModelPick();
+    }, [urlVizUuid, clearModelPick]);
 
     const isBuilding = build.isBuilding || historyLatestInProgress;
 
@@ -370,6 +380,7 @@ const ChartTypeBuilder: FC = () => {
                             hasVersions={history.versions.length > 0}
                             build={build}
                             onCancelBuild={onCancelBuild}
+                            modelSelection={modelSelection}
                         />
                     )}
                 </Box>
