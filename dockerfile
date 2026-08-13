@@ -219,10 +219,6 @@ ENV PATH="/usr/app/node_modules/.bin:$PATH"
 # Increase Node.js heap size for TypeScript compilation
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
-RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY_RELEASE_VERSION}" ]; then \
-    npm install -g @sentry/cli; \
-    fi
-
 # -----------------------------
 # Stage 3: Build packages
 # -----------------------------
@@ -265,17 +261,12 @@ COPY packages/backend/src/ ./packages/backend/src/
 # Build MCP chart app (pnpm workspace member — deps already installed in prod-builder)
 RUN pnpm -F @lightdash/mcp-chart-app build
 
-ARG SENTRY_AUTH_TOKEN=""
-ARG SENTRY_ORG=""
 ARG SENTRY_RELEASE_VERSION=""
-ARG SENTRY_FRONTEND_PROJECT=""
-ARG SENTRY_BACKEND_PROJECT=""
-ARG SENTRY_ENVIRONMENT=""
 
-# Conditionally build backend with sourcemaps if Sentry environment variables are set
+# Conditionally build backend with sourcemaps if a Sentry release version is set
 RUN --mount=type=secret,id=TURBO_TOKEN \
     export TURBO_TOKEN=$(cat /run/secrets/TURBO_TOKEN 2>/dev/null || echo "") && \
-    if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY_RELEASE_VERSION}" ] && [ -n "${SENTRY_FRONTEND_PROJECT}" ] && [ -n "${SENTRY_BACKEND_PROJECT}" ] && [ -n "${SENTRY_ENVIRONMENT}" ]; then \
+    if [ -n "${SENTRY_RELEASE_VERSION}" ]; then \
     echo "Building backend with sourcemaps for Sentry"; \
     pnpm -F backend build-sourcemaps && pnpm -F backend postbuild; \
     else \
@@ -289,16 +280,14 @@ COPY --from=build-common /usr/app/packages/common/ ./packages/common/
 COPY --from=build-formula /usr/app/packages/formula/ ./packages/formula/
 COPY packages/frontend ./packages/frontend
 
-ARG SENTRY_AUTH_TOKEN=""
-ARG SENTRY_ORG=""
 ARG SENTRY_RELEASE_VERSION=""
 
 # Build frontend with sourcemaps (Vite generates them by default)
 RUN --mount=type=secret,id=TURBO_TOKEN \
     export TURBO_TOKEN=$(cat /run/secrets/TURBO_TOKEN 2>/dev/null || echo "") && \
-    if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY_RELEASE_VERSION}" ]; then \
+    if [ -n "${SENTRY_RELEASE_VERSION}" ]; then \
     echo "Building frontend with Sentry integration"; \
-    SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN} SENTRY_RELEASE_VERSION=${SENTRY_RELEASE_VERSION} turbo build --filter=@lightdash/frontend; \
+    SENTRY_RELEASE_VERSION=${SENTRY_RELEASE_VERSION} turbo build --filter=@lightdash/frontend; \
     else \
     echo "Building frontend without Sentry integration"; \
     turbo build --filter=@lightdash/frontend; \
@@ -316,41 +305,19 @@ COPY --from=build-warehouses /usr/app/packages/warehouses/dist/ ./packages/wareh
 COPY --from=build-backend /usr/app/packages/backend/dist/ ./packages/backend/dist/
 COPY --from=build-frontend /usr/app/packages/frontend/build/ ./packages/frontend/build/
 
-# Install Sentry CLI and process sourcemaps if environment variables are set
-ARG SENTRY_AUTH_TOKEN=""
-ARG SENTRY_ORG=""
+# Inject Sentry debug IDs into the artifacts this image ships. Injection stays
+# here because it mutates shipped files; every network call to Sentry (release
+# create, sourcemap upload, finalize, deploy) is done afterwards by the
+# upload-sentry-sourcemaps job in post-release.yml, off the deploy path.
 ARG SENTRY_RELEASE_VERSION=""
-ARG SENTRY_FRONTEND_PROJECT=""
-ARG SENTRY_BACKEND_PROJECT=""
-ARG SENTRY_ENVIRONMENT=""
 
-RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY_RELEASE_VERSION}" ] && [ -n "${SENTRY_FRONTEND_PROJECT}" ] && [ -n "${SENTRY_BACKEND_PROJECT}" ] && [ -n "${SENTRY_ENVIRONMENT}" ]; then \
-    npm install -g @sentry/cli; \
-    echo "Creating Sentry releases and processing sourcemaps"; \
-    # Create releases for both projects \
-    sentry-cli releases new "${SENTRY_RELEASE_VERSION}" --project "${SENTRY_FRONTEND_PROJECT}"; \
-    sentry-cli releases new "${SENTRY_RELEASE_VERSION}" --project "${SENTRY_BACKEND_PROJECT}"; \
-    # Set commits for the releases \
-    sentry-cli releases set-commits "${SENTRY_RELEASE_VERSION}" --auto || echo "Could not determine commits automatically"; \
-    # Inject debug IDs into frontend artifacts \
+# Keep the pinned sentry-cli in step with the one that job installs.
+RUN if [ -n "${SENTRY_RELEASE_VERSION}" ]; then \
+    npm install -g @sentry/cli@3.6.2; \
     echo "Injecting debug IDs into frontend artifacts"; \
     sentry-cli sourcemaps inject ./packages/frontend/build/assets/; \
-    # Upload frontend sourcemaps \
-    echo "Uploading frontend sourcemaps"; \
-    sentry-cli sourcemaps upload --release "${SENTRY_RELEASE_VERSION}" \
-    --url-prefix "~/assets" ./packages/frontend/build/assets/ --project "${SENTRY_FRONTEND_PROJECT}"; \
-    # Inject debug IDs into backend artifacts \
     echo "Injecting debug IDs into backend artifacts"; \
     sentry-cli sourcemaps inject ./packages/backend/dist/; \
-    # Upload backend sourcemaps \
-    echo "Uploading backend sourcemaps"; \
-    sentry-cli sourcemaps upload --release "${SENTRY_RELEASE_VERSION}" \
-    --url-prefix "~/" ./packages/backend/dist/ --project "${SENTRY_BACKEND_PROJECT}"; \
-    # Finalize releases \
-    sentry-cli releases finalize "${SENTRY_RELEASE_VERSION}"; \
-    # Create deploys for both projects \
-    sentry-cli releases deploys "${SENTRY_RELEASE_VERSION}" new -e "${SENTRY_ENVIRONMENT}" --project "${SENTRY_FRONTEND_PROJECT}"; \
-    sentry-cli releases deploys "${SENTRY_RELEASE_VERSION}" new -e "${SENTRY_ENVIRONMENT}" --project "${SENTRY_BACKEND_PROJECT}"; \
     fi
 
 # Cleanup development dependencies
@@ -365,6 +332,18 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 # Keep the versioned playground bundle in a late layer so bundle-only updates
 # do not invalidate production dependency installation or sourcemap processing.
 COPY packages/backend/assets/ ./packages/backend/assets/
+
+# -----------------------------
+# Stage 4b: Sentry sourcemap export target (never part of the published image)
+# -----------------------------
+# Built only when explicitly targeted, so it costs the release build nothing.
+# post-release.yml exports it with `depot build --target sentry-artifacts
+# --output type=local` and uploads exactly these files: same Depot cache, same
+# layers, so the debug IDs are the ones baked into the published image.
+
+FROM scratch AS sentry-artifacts
+COPY --from=build-final /usr/app/packages/frontend/build/assets/ /packages/frontend/build/assets/
+COPY --from=build-final /usr/app/packages/backend/dist/ /packages/backend/dist/
 
 # -----------------------------
 # Stage 5: execution environment for backend

@@ -43,10 +43,14 @@ export default defineConfig({
             telemetry: false,
             org: 'lightdash',
             project: 'lightdash-frontend',
-            authToken: process.env.SENTRY_AUTH_TOKEN,
             release: {
                 name: process.env.SENTRY_RELEASE_VERSION,
+                // Inject the release into the bundle, but never talk to Sentry:
+                // the release is created, finalized and uploaded to after the
+                // build by the upload-sentry-sourcemaps job in post-release.yml.
                 inject: true,
+                create: false,
+                finalize: false,
             },
             // Sourcemaps are already uploaded by the Sentry CLI
             sourcemaps: {

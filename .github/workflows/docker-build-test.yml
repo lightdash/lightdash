@@ -17,10 +17,12 @@
 #     is derived from a build id that exists only in Depot, and dies with the
 #     ephemeral runner. It is a handle for `docker inspect`/`docker export`
 #     here, never a publish target.
-#   * Every SENTRY_* build-arg is passed explicitly empty. All Sentry work in
-#     `dockerfile` sits behind `if [ -n "${SENTRY_AUTH_TOKEN}" ] && ...` guards
-#     and sentry-cli is only installed inside those guards, so no release is
-#     created, no sourcemap is uploaded, and no deploy is recorded.
+#   * SENTRY_RELEASE_VERSION is passed explicitly empty. It is the only Sentry
+#     build-arg `dockerfile` declares: debug-ID injection sits behind an
+#     `if [ -n "${SENTRY_RELEASE_VERSION}" ]` guard and sentry-cli is installed
+#     only inside it. The build carries no Sentry credential at all — releases,
+#     uploads and deploy records live in post-release.yml — so this harness
+#     cannot reach Sentry even if that guard were wrong.
 #   * No file on the release path is touched: not `dockerfile`, not
 #     `release.yml`, not `post-release.yml`.
 #   * `permissions: contents: read` only.
@@ -108,12 +110,7 @@ jobs:
             --load \
             --iidfile image-id.txt \
             --metadata-file build-metadata.json \
-            --build-arg SENTRY_AUTH_TOKEN= \
-            --build-arg SENTRY_ORG= \
             --build-arg SENTRY_RELEASE_VERSION= \
-            --build-arg SENTRY_FRONTEND_PROJECT= \
-            --build-arg SENTRY_BACKEND_PROJECT= \
-            --build-arg SENTRY_ENVIRONMENT= \
             2>&1 | tee build.log
           echo "wall_clock=$(( $(date +%s) - start ))" >> "$GITHUB_OUTPUT"
 
@@ -209,7 +206,7 @@ jobs:
           {
             echo "## Docker build test"
             echo
-            echo "Built \`dockerfile\` with \`push: false\` and empty SENTRY_* build-args. Nothing was tagged or pushed."
+            echo "Built \`dockerfile\` with \`push: false\` and an empty SENTRY_RELEASE_VERSION build-arg. Nothing was tagged or pushed."
             echo
             jq -r '
               "| metric | value |",

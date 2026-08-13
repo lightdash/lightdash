@@ -113,16 +113,103 @@ jobs:
             europe-west2-docker.pkg.dev/lightdash-containers/lightdash/lightdash:beta
             europe-west2-docker.pkg.dev/lightdash-containers/lightdash/lightdash:${{ steps.version.outputs.timestamp }}
           labels: ${{ steps.meta.outputs.labels }}
+          # The image build only stamps the release and injects debug IDs. It
+          # needs no Sentry credentials and makes no call to Sentry — see
+          # upload-sentry-sourcemaps below.
           build-args: |
-            SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
-            SENTRY_ORG=lightdash
             SENTRY_RELEASE_VERSION=${{ steps.version.outputs.version }}
-            SENTRY_FRONTEND_PROJECT=lightdash-frontend
-            SENTRY_BACKEND_PROJECT=lightdash-backend
-            SENTRY_ENVIRONMENT=cloud_beta
 
   # ============================================================================
-  # Job 2: QA Blast Radius
+  # Job 2: Upload Sentry sourcemaps (deliberately off the deploy critical path)
+  # ============================================================================
+  # A Sentry outage used to hold every production deploy hostage: the upload ran
+  # inside the image build with no timeout. In the 13 Aug incident a normally
+  # ~14s step went silent for 3.5+ minutes before the build was cancelled by
+  # hand; nothing but the 6-hour job limit bounded it.
+  # The build now only injects debug IDs; this job exports those exact injected
+  # files from the same Depot build and does all the network work afterwards.
+  # Nothing depends on it, so a red run here never blocks a release, and because
+  # every step is idempotent the job can simply be re-run once Sentry is healthy.
+  upload-sentry-sourcemaps:
+    name: Upload Sentry Sourcemaps
+    needs: build-and-push-images
+    runs-on: depot-ubuntu-24.04-4
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      VERSION: ${{ github.event.release.tag_name }}
+      SENTRY_ORG: lightdash
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      SENTRY_FRONTEND_PROJECT: lightdash-frontend
+      SENTRY_BACKEND_PROJECT: lightdash-backend
+      SENTRY_ENVIRONMENT: cloud_beta
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.release.tag_name }}
+          # `releases set-commits --auto` needs history to resolve the commit range
+          fetch-depth: 0
+
+      - name: Set up Depot CLI
+        uses: depot/setup-action@15c09a5f77a0840ad4bce955686522a257853461 # v1
+
+      # Same project, same dockerfile, same build-arg as the pushed image, so
+      # this resolves to the layers Depot already built and exports the very
+      # files the image ships. Debug IDs are content-derived, so even a cold
+      # cache reproduces them rather than minting new ones.
+      - name: Export injected sourcemaps from the release build
+        env:
+          DEPOT_TOKEN: ${{ secrets.DEPOT_PROJECT_TOKEN }}
+        run: |
+          set -euo pipefail
+          depot build . \
+            --project bgbbt3d0kc \
+            --platform linux/amd64 \
+            --file dockerfile \
+            --target sentry-artifacts \
+            --build-arg "SENTRY_RELEASE_VERSION=${VERSION}" \
+            --output "type=local,dest=sentry-artifacts"
+          find sentry-artifacts -name '*.map' | head -n 20
+          echo "$(find sentry-artifacts -name '*.map' | wc -l) sourcemaps exported"
+
+      # Keep this version in step with the one `dockerfile` injects with.
+      - name: Install Sentry CLI
+        run: npm install -g @sentry/cli@3.6.2
+
+      - name: Create releases
+        run: |
+          set -euo pipefail
+          sentry-cli releases new "$VERSION" --project "$SENTRY_FRONTEND_PROJECT"
+          sentry-cli releases new "$VERSION" --project "$SENTRY_BACKEND_PROJECT"
+          sentry-cli releases set-commits "$VERSION" --auto || echo "Could not determine commits automatically"
+
+      # Run from the export root so the uploaded paths — and therefore the
+      # artifact names Sentry stores — match what the in-image upload produced.
+      - name: Upload sourcemaps
+        working-directory: sentry-artifacts
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC2088 # "~/" is Sentry's artifact URL prefix, not a home dir
+          sentry-cli sourcemaps upload --release "$VERSION" \
+            --url-prefix "~/assets" ./packages/frontend/build/assets/ --project "$SENTRY_FRONTEND_PROJECT"
+          # shellcheck disable=SC2088
+          sentry-cli sourcemaps upload --release "$VERSION" \
+            --url-prefix "~/" ./packages/backend/dist/ --project "$SENTRY_BACKEND_PROJECT"
+
+      - name: Finalize release and record deploys
+        run: |
+          set -euo pipefail
+          sentry-cli releases finalize "$VERSION"
+          sentry-cli releases deploys "$VERSION" new -e "$SENTRY_ENVIRONMENT" --project "$SENTRY_FRONTEND_PROJECT"
+          sentry-cli releases deploys "$VERSION" new -e "$SENTRY_ENVIRONMENT" --project "$SENTRY_BACKEND_PROJECT"
+
+  # ============================================================================
+  # Job 3: QA Blast Radius
   # ============================================================================
   qa-blast-radius:
     name: Generate QA Blast Radius
@@ -176,7 +263,7 @@ jobs:
             --clobber
 
   # ============================================================================
-  # Job 3: CLI Release Binaries
+  # Job 4: CLI Release Binaries
   # ============================================================================
   check-cli-changes:
     name: Check if CLI files changed
@@ -470,7 +557,7 @@ jobs:
           git push origin main
 
   # ============================================================================
-  # Job 4: Update Helm chart default version
+  # Job 5: Update Helm chart default version
   # ============================================================================
   update-helm-chart:
     name: Update Helm Chart Version
@@ -528,7 +615,7 @@ jobs:
           git push origin main
 
   # ============================================================================
-  # Job 5: Publish versioned E2B templates
+  # Job 6: Publish versioned E2B templates
   # ============================================================================
   e2b-templates:
     name: Publish ${{ matrix.template.display_name }} (${{ matrix.region }})
