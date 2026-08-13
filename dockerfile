@@ -366,11 +366,31 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 # do not invalidate production dependency installation or sourcemap processing.
 COPY packages/backend/assets/ ./packages/backend/assets/
 
+# The extension bundle is assembled and verified here rather than in the runtime
+# stage: the check needs the production node_modules, and the runtime stage must
+# stay free of RUN instructions so its application layer can be rebased onto
+# cached parents instead of hydrating them.
+COPY --from=duckdb-extensions \
+    /root/.duckdb/extensions/v1.5.2/*/*.duckdb_extension \
+    /usr/app/packages/warehouses/dist/duckdbExtensions/v1.5.2/
+
+# Never silently restore production runtime downloads after a DuckDB upgrade.
+RUN duckdb_version="$(cd /usr/app/packages/warehouses && node -e "process.stdout.write(require('@duckdb/node-api').version())")" \
+    && extension_directory="/usr/app/packages/warehouses/dist/duckdbExtensions/${duckdb_version}" \
+    && if [ ! -r "${extension_directory}/httpfs.duckdb_extension" ] \
+        || [ ! -r "${extension_directory}/aws.duckdb_extension" ]; then \
+        echo >&2 "Bundled extensions do not match @duckdb/node-api ${duckdb_version}"; \
+        exit 1; \
+    fi
+
 # -----------------------------
-# Stage 5: execution environment for backend
+# Stage 5: runtime base
 # -----------------------------
 
-FROM pnpm-base as prod
+# Everything here is invalidated only by this file: system packages, the dbt
+# virtualenvs and their symlinks. It is deliberately independent of the build
+# context so a release version bump never rebuilds it.
+FROM pnpm-base AS runtime-base
 
 ENV NODE_ENV production
 ENV PLAYGROUND_DATA_DIR=/usr/app/packages/backend/assets/playground
@@ -396,29 +416,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=prod-builder  /usr/local/dbt1.4 /usr/local/dbt1.4
-COPY --from=prod-builder  /usr/local/dbt1.5 /usr/local/dbt1.5
-COPY --from=prod-builder  /usr/local/dbt1.6 /usr/local/dbt1.6
-COPY --from=prod-builder  /usr/local/dbt1.7 /usr/local/dbt1.7
-COPY --from=prod-builder  /usr/local/dbt1.8 /usr/local/dbt1.8
-COPY --from=prod-builder  /usr/local/dbt1.9 /usr/local/dbt1.9
-COPY --from=prod-builder  /usr/local/dbt1.10 /usr/local/dbt1.10
-COPY --from=prod-builder  /usr/local/dbt1.11 /usr/local/dbt1.11
-COPY --from=prod-builder  /usr/local/dbt1.12 /usr/local/dbt1.12
-COPY --from=build-final /usr/app /usr/app
-
-COPY --from=duckdb-extensions \
-    /root/.duckdb/extensions/v1.5.2/*/*.duckdb_extension \
-    /usr/app/packages/warehouses/dist/duckdbExtensions/v1.5.2/
-
-# Never silently restore production runtime downloads after a DuckDB upgrade.
-RUN duckdb_version="$(cd /usr/app/packages/warehouses && node -e "process.stdout.write(require('@duckdb/node-api').version())")" \
-    && extension_directory="/usr/app/packages/warehouses/dist/duckdbExtensions/${duckdb_version}" \
-    && if [ ! -r "${extension_directory}/httpfs.duckdb_extension" ] \
-        || [ ! -r "${extension_directory}/aws.duckdb_extension" ]; then \
-        echo >&2 "Bundled extensions do not match @duckdb/node-api ${duckdb_version}"; \
-        exit 1; \
-    fi
+# Taken from `base` rather than `prod-builder`: the virtualenvs are identical in
+# both, and sourcing them from `base` keeps this stage off the application build
+# graph entirely.
+COPY --link --from=base /usr/local/dbt1.4 /usr/local/dbt1.4
+COPY --link --from=base /usr/local/dbt1.5 /usr/local/dbt1.5
+COPY --link --from=base /usr/local/dbt1.6 /usr/local/dbt1.6
+COPY --link --from=base /usr/local/dbt1.7 /usr/local/dbt1.7
+COPY --link --from=base /usr/local/dbt1.8 /usr/local/dbt1.8
+COPY --link --from=base /usr/local/dbt1.9 /usr/local/dbt1.9
+COPY --link --from=base /usr/local/dbt1.10 /usr/local/dbt1.10
+COPY --link --from=base /usr/local/dbt1.11 /usr/local/dbt1.11
+COPY --link --from=base /usr/local/dbt1.12 /usr/local/dbt1.12
 
 RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt \
     && ln -s /usr/local/dbt1.5/bin/dbt /usr/local/bin/dbt1.5 \
@@ -430,13 +439,30 @@ RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt \
     && ln -s /usr/local/dbt1.11/bin/dbt /usr/local/bin/dbt1.11 \
     && ln -s /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12
 
+# The runtime working directory is set here, not after the application layers.
+# WORKDIR compiles to a mkdir even when the path already exists, and any
+# filesystem mutation after a COPY --link forces BuildKit to materialise the
+# layers it was meant to leave untouched.
+WORKDIR /usr/app/packages/backend
 
-# Run backend
-COPY ./docker/prod-entrypoint.sh /usr/bin/prod-entrypoint.sh
+# -----------------------------
+# Stage 6: execution environment for backend
+# -----------------------------
+
+FROM runtime-base AS prod
+
+# INVARIANT: this stage may contain only COPY --link and image metadata.
+# A RUN, a WORKDIR or a classic COPY placed after the application content has
+# to write onto the parent filesystem, which forces BuildKit to hydrate the
+# ~2.1 GiB of cached runtime and dbt layers below — 252s per release build,
+# even with every one of those layers a cache hit. Keep additions above, in
+# runtime-base.
+# COPY --link also does not follow symlinks in its destination path, so every
+# destination here must stay a real directory.
+COPY --link --from=build-final /usr/app /usr/app
+COPY --link ./docker/prod-entrypoint.sh /usr/bin/prod-entrypoint.sh
 
 EXPOSE 8080
-
-WORKDIR /usr/app/packages/backend
 
 ENTRYPOINT ["dumb-init", "--", "/usr/bin/prod-entrypoint.sh"]
 CMD ["node", "dist/index.js"]
