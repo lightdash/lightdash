@@ -1,3 +1,17 @@
+## [1.150.1](https://github.com/lightdash/lightdash/compare/1.150.0...1.150.1) (2026-08-13)
+
+
+### Bug Fixes
+
+* **ai:** close deep research retention gaps ([#27340](https://github.com/lightdash/lightdash/issues/27340)) ([890d05c](https://github.com/lightdash/lightdash/commit/890d05c0d18f27fc9247ce07f076d2410dd5a366))
+* **ai:** enforce deep research authorization boundaries ([#27330](https://github.com/lightdash/lightdash/issues/27330)) ([1c866ca](https://github.com/lightdash/lightdash/commit/1c866ca885b7228def912dcd7a6d0bf2426648e1))
+* **ai:** harden deep research against untrusted content ([#27334](https://github.com/lightdash/lightdash/issues/27334)) ([50eb53c](https://github.com/lightdash/lightdash/commit/50eb53cd53fb847acc2008d0d5e6e7bd5ae5045f)), closes [#27330](https://github.com/lightdash/lightdash/issues/27330)
+* **ai:** harden deep research frontend recovery ([#27343](https://github.com/lightdash/lightdash/issues/27343)) ([66bad48](https://github.com/lightdash/lightdash/commit/66bad4883d89bd91042b413835270bcd352d33cb))
+* **ai:** isolate deep research workers ([#27335](https://github.com/lightdash/lightdash/issues/27335)) ([9a68694](https://github.com/lightdash/lightdash/commit/9a6869499eb9d115102afd3c74f680ed4a3da1f0)), closes [#27334](https://github.com/lightdash/lightdash/issues/27334)
+* **ai:** preserve completed deep research reports ([#27336](https://github.com/lightdash/lightdash/issues/27336)) ([bfcdf95](https://github.com/lightdash/lightdash/commit/bfcdf95be4b9828e59f33725fa35a52ea05e7a28))
+* **ai:** render adjusted deep research reports ([#27325](https://github.com/lightdash/lightdash/issues/27325)) ([ff98261](https://github.com/lightdash/lightdash/commit/ff98261ac42b94b06bbb9ca18c5435ec762e5534))
+* **data-apps:** prevent restricted Apple fonts from being bundled ([#27320](https://github.com/lightdash/lightdash/issues/27320)) ([3c39faa](https://github.com/lightdash/lightdash/commit/3c39faa53f6f81f5fd7b8d10fcc65d68b5df0ecf))
+
 # [1.150.0](https://github.com/lightdash/lightdash/compare/1.149.0...1.150.0) (2026-08-13)
 
 
