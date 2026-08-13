@@ -1,3 +1,16 @@
+# [1.150.0](https://github.com/lightdash/lightdash/compare/1.149.0...1.150.0) (2026-08-13)
+
+
+### Bug Fixes
+
+* **ci:** harden the merge freeze - no reason box, name the freezer, owner-only unfreeze ([#27345](https://github.com/lightdash/lightdash/issues/27345)) ([80a54fc](https://github.com/lightdash/lightdash/commit/80a54fcbadfcbecaa9ff36c3fc3c840a72137a30))
+* **embed:** only show dashboard parameters on tabs whose charts use them ([#27344](https://github.com/lightdash/lightdash/issues/27344)) ([4b58c75](https://github.com/lightdash/lightdash/commit/4b58c75f424275316529f53aa0eeecb75389cd45))
+
+
+### Features
+
+* **embed:** allow data apps to fetch external connections ([#27338](https://github.com/lightdash/lightdash/issues/27338)) ([71be2f3](https://github.com/lightdash/lightdash/commit/71be2f33d7e385ae9f981be9708f944f18ad3d03))
+
 # [1.149.0](https://github.com/lightdash/lightdash/compare/1.148.0...1.149.0) (2026-08-13)
 
 
