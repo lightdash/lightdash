@@ -112,19 +112,42 @@ jobs:
             2>&1 | tee build.log
           echo "wall_clock=$(( $(date +%s) - start ))" >> "$GITHUB_OUTPUT"
 
+      # The image is loaded untagged (deliberately — see the header), so it has
+      # to be found by digest. `--iidfile` records the digest BuildKit built,
+      # which is not the id the docker daemon assigns when it imports the
+      # docker-format tarball, so every candidate is probed rather than trusted.
       - name: Resolve loaded image id
         id: image
         run: |
           set -euo pipefail
-          image_id="$(tr -d '[:space:]' < image-id.txt || true)"
-          if [ -z "$image_id" ]; then
-            image_id="$(jq -r '."containerimage.config.digest" // ."containerimage.digest" // empty' build-metadata.json)"
+          echo "--- depot metadata ---"
+          cat build-metadata.json || true
+          echo
+          echo "--- images in the local daemon ---"
+          docker images --all --no-trunc --format '{{.ID}} {{.Repository}}:{{.Tag}} {{.Size}}'
+
+          from_iidfile="$(tr -d '[:space:]' < image-id.txt 2>/dev/null || true)"
+          from_metadata="$(jq -r '[."containerimage.config.digest", ."containerimage.digest"] | map(select(type == "string")) | join(" ")' build-metadata.json 2>/dev/null || true)"
+          # depot --load leaves exactly one image behind: builds run remotely, so
+          # nothing else is ever imported into this daemon.
+          from_daemon=""
+          if [ "$(docker images --quiet --no-trunc | sort -u | wc -l)" -eq 1 ]; then
+            from_daemon="$(docker images --quiet --no-trunc | sort -u)"
           fi
+
+          image_id=""
+          for candidate in "$from_iidfile" $from_metadata "$from_daemon"; do
+            if [ -n "$candidate" ] && docker image inspect "$candidate" > /dev/null 2>&1; then
+              image_id="$candidate"
+              break
+            fi
+          done
+
           if [ -z "$image_id" ]; then
-            echo "could not determine the loaded image id" >&2
+            echo "could not resolve the loaded image id from iidfile, metadata or daemon" >&2
             exit 1
           fi
-          docker image inspect "$image_id" > /dev/null
+          echo "resolved image id: $image_id"
           echo "id=$image_id" >> "$GITHUB_OUTPUT"
 
       - name: Collect image config

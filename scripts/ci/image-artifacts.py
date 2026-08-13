@@ -159,8 +159,12 @@ VERTEX_NAME_RE = re.compile(r"^#(\d+) \[([^\]]*)\] (.*)$")
 VERTEX_DONE_RE = re.compile(r"^#(\d+) DONE ([0-9.]+)s$")
 VERTEX_CACHED_RE = re.compile(r"^#(\d+) CACHED$")
 VERTEX_ERROR_RE = re.compile(r"^#(\d+) ERROR: (.*)$")
-# "[build-backend 3/7]", "[internal]", "[duckdb-extensions 1/2]", "[stage-5 4/9]"
-STAGE_RE = re.compile(r"^(.*?)(?: (\d+)/(\d+))?$")
+ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+# "[build-backend 3/7]", "[internal]", "[duckdb-extensions 1/2]".
+# BuildKit right-aligns the index, so a stage with 10+ steps prints
+# "[build-final  1/10]" but "[build-final 10/10]" — match any run of spaces or
+# the stage name picks up a trailing one and splits into two buckets.
+STAGE_RE = re.compile(r"^(.*?)\s*(?:(\d+)/(\d+))?$")
 
 
 def cmd_buildlog(args):
@@ -168,7 +172,7 @@ def cmd_buildlog(args):
     order = []
     with open(args.log, "r", encoding="utf-8", errors="replace") as handle:
         for line in handle:
-            line = line.rstrip("\n")
+            line = ANSI_RE.sub("", line.rstrip("\n"))
 
             match = VERTEX_NAME_RE.match(line)
             if match:
@@ -186,7 +190,7 @@ def cmd_buildlog(args):
                     order.append(vertex)
                     stage_match = STAGE_RE.match(bracket.strip())
                     stage, index, total = stage_match.groups()
-                    steps[vertex]["stage"] = stage or bracket.strip()
+                    steps[vertex]["stage"] = (stage or "").strip() or bracket.strip()
                     if index:
                         steps[vertex]["step"] = f"{index}/{total}"
                 continue
