@@ -3,6 +3,7 @@ import {
     DimensionType,
     convertItemTypeToDimensionType,
     getItemLabelWithoutTableName,
+    getItemId,
     getItemMap,
     getUnaccountedDimensions,
     isCustomDimension,
@@ -259,6 +260,94 @@ export const useMergeSetup = () => {
         [itemMapB, queryB.dimensions],
     );
 
+    // Join keys are dimensions, but they do not need to be selected before
+    // opening this editor. The picker can add a dimension to its query and use
+    // it as the key in one action. Custom dimensions remain limited to ones
+    // already present in the query because they cannot be recreated by id.
+    const availableJoinItemsA = useMemo(
+        () =>
+            Object.entries(itemMapA).flatMap(([id, item]) =>
+                isDimension(item) ||
+                (isCustomDimension(item) && metricQuery.dimensions.includes(id))
+                    ? [item]
+                    : [],
+            ),
+        [itemMapA, metricQuery.dimensions],
+    );
+    const availableJoinItemsB = useMemo(
+        () =>
+            Object.entries(itemMapB).flatMap(([id, item]) =>
+                isDimension(item) ||
+                (isCustomDimension(item) && queryB.dimensions.includes(id))
+                    ? [item]
+                    : [],
+            ),
+        [itemMapB, queryB.dimensions],
+    );
+
+    // Recommend only strong semantic matches. Type compatibility alone is
+    // too weak (many explores have several strings or dates), so a suggestion
+    // also needs the same field name or user-facing label. Identifiers win
+    // over dates when both are available.
+    const suggestedAvailablePair = useMemo<{
+        fieldA: string;
+        fieldB: string;
+    } | null>(() => {
+        let best: { fieldA: string; fieldB: string } | null = null;
+        let bestScore = 0;
+        const normalize = (value: string) =>
+            value.toLocaleLowerCase().replace(/[^a-z0-9]/g, '');
+
+        availableJoinItemsA.forEach((itemA) => {
+            availableJoinItemsB.forEach((itemB) => {
+                const typeA = convertItemTypeToDimensionType(itemA);
+                const typeB = convertItemTypeToDimensionType(itemB);
+                const temporalA =
+                    typeA === DimensionType.DATE ||
+                    typeA === DimensionType.TIMESTAMP;
+                const temporalB =
+                    typeB === DimensionType.DATE ||
+                    typeB === DimensionType.TIMESTAMP;
+                if (temporalA !== temporalB || (!temporalA && typeA !== typeB))
+                    return;
+                if (
+                    temporalA &&
+                    (isDimension(itemA) ? itemA.timeInterval : null) !==
+                        (isDimension(itemB) ? itemB.timeInterval : null)
+                )
+                    return;
+
+                const sameName =
+                    normalize(itemA.name) === normalize(itemB.name);
+                const sameLabel =
+                    normalize(getItemLabelWithoutTableName(itemA)) ===
+                    normalize(getItemLabelWithoutTableName(itemB));
+                if (!sameName && !sameLabel) return;
+
+                const identifier = /(^|_)id$|(^|_)key$/i.test(itemA.name);
+                const fieldBId = getItemId(itemB);
+                const belongsToQueryBRoot = fieldBId.startsWith(
+                    `${queryB.exploreName}_`,
+                );
+                const score =
+                    (sameName ? 6 : 0) +
+                    (sameLabel ? 4 : 0) +
+                    (identifier ? 4 : 0) +
+                    (belongsToQueryBRoot ? 3 : 0) +
+                    (temporalA ? 2 : 0);
+                if (score > bestScore) {
+                    bestScore = score;
+                    best = {
+                        fieldA: getItemId(itemA),
+                        fieldB: fieldBId,
+                    };
+                }
+            });
+        });
+
+        return best;
+    }, [availableJoinItemsA, availableJoinItemsB, queryB.exploreName]);
+
     // What people call these tables, not what dbt does.
     const exploreALabel = exploreA?.label ?? tableName;
     const exploreBLabel = exploreB?.label ?? queryB.exploreName;
@@ -401,6 +490,9 @@ export const useMergeSetup = () => {
         joinFieldLabel,
         joinItemsA,
         joinItemsB,
+        availableJoinItemsA,
+        availableJoinItemsB,
+        suggestedAvailablePair,
         exploreALabel,
         exploreBLabel,
         joinKeyErrors,
