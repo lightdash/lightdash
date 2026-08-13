@@ -23,6 +23,7 @@ import { defaultNullSafeEqualSql } from '../utils/warehouse';
 import { type UncompiledExplore } from './exploreCompiler';
 
 export const warehouseClientMock: WarehouseClient = {
+    getSessionTimezone: async () => null,
     credentials: {} as CreateWarehouseCredentials,
     getCatalog: async () => ({
         default: {
@@ -88,6 +89,9 @@ export const warehouseClientMock: WarehouseClient = {
     },
     escapeString: (value) => value,
     castToTimestamp: (date) => `CAST('${date.toISOString()}' AS TIMESTAMP)`,
+    castToDate: (date) => `CAST('${date.toISOString().slice(0, 10)}' AS DATE)`,
+    castToNaiveTimestamp: (date) =>
+        `CAST('${date.toISOString()}' AS TIMESTAMP)`,
     getIntervalSql: (value: number, unit: TimeIntervalUnit) =>
         `INTERVAL '${value} ${unit}'`,
     getTimestampDiffSeconds: (startTimestampSql, endTimestampSql) =>

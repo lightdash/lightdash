@@ -1,11 +1,13 @@
 import {
     Account,
     DownloadFileType,
+    MergeQuery,
     MetricQuery,
     PersistentDownloadFileAccessMode,
     PivotConfig,
     PivotConfiguration,
     type AndFilterGroup,
+    type ApiExecuteAsyncMetricQueryResults,
     type CacheMetadata,
     type ConditionalFormattingConfig,
     type DashboardFilters,
@@ -161,6 +163,12 @@ export type PreAggregationRoute = {
 export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
     sql: string;
     limit?: number;
+    pivotConfiguration?: PivotConfiguration;
+};
+
+export type ExecuteAsyncMergeQueryArgs = CommonAsyncQueryArgs & {
+    mergeQuery: MergeQuery;
+    /** Standard pivot stage over the merged rows. */
     pivotConfiguration?: PivotConfiguration;
 };
 

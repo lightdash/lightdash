@@ -2,11 +2,13 @@ import { subject } from '@casl/ability';
 import {
     Account,
     addDashboardFiltersToMetricQuery,
+    AdditionalMetric,
     AlreadyExistsError,
     AndFilterGroup,
     AnonymousAccount,
     AnyType,
     ApiChartAndResults,
+    ApiCompiledMergeQueryResults,
     ApiCreatePreviewResults,
     ApiDataTimezonePreviewResults,
     ApiDeployExploresResults,
@@ -21,6 +23,7 @@ import {
     BigqueryAuthenticationType,
     buildDataTimezonePreviewResponse,
     buildDataTimezonePreviewSql,
+    buildMergeItems,
     CacheMetadata,
     calculateCompilationReport,
     calculateExploreWarningReport,
@@ -32,6 +35,7 @@ import {
     ContentType,
     convertCustomMetricToDbt,
     convertExplores,
+    convertItemTypeToDimensionType,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
     CreateJob,
@@ -43,6 +47,7 @@ import {
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
     currentUtcWallClock,
+    CustomDimension,
     CustomFormatType,
     CustomSqlQueryForbiddenError,
     DashboardAvailableFilters,
@@ -63,6 +68,7 @@ import {
     deepEqual,
     DEFAULT_SPOTLIGHT_CONFIG,
     DefaultSupportedDbtVersion,
+    DimensionType,
     DownloadFileType,
     DuckdbConnectionType,
     EnsurePlaygroundProjectResults,
@@ -70,6 +76,8 @@ import {
     ExploreError,
     ExploreType,
     FeatureFlags,
+    Field,
+    FieldType,
     FilterableDimension,
     FilterAutocompleteValue,
     findReplaceableCustomMetrics,
@@ -90,6 +98,8 @@ import {
     getFields,
     getIntrinsicUserAttributes,
     getItemId,
+    getItemMap,
+    getMergeSourceTableLabel,
     getMetricOverridesWithPopInheritance,
     getMetrics,
     getParameterReferences,
@@ -99,12 +109,17 @@ import {
     hasConnectionChanges,
     hasIntersection,
     hasWarehouseCredentials,
+    isAdditionalMetric,
     isCartesianChartConfig,
+    isCustomDimension,
     isCustomSqlDimension,
     isDateItem,
+    isDimension,
     isExploreError,
+    isField,
     isFilterableDimension,
     isJwtUser,
+    isMetric,
     isNotNull,
     isReservedParameterName,
     isSqlTableCalculation,
@@ -124,14 +139,25 @@ import {
     maybeOverrideDbtConnection,
     maybeOverrideWarehouseConnection,
     maybeReplaceFieldsInChartVersion,
+    MERGE_TABLE_NAME,
+    mergeCalculationReferencePattern,
+    MergeFieldTypes,
+    MergeQuery,
+    MergeQueryColumns,
+    MergeQueryError,
+    MergeQueryErrorKind,
+    MergeQueryField,
+    MergeQuerySource,
     mergeWarehouseCredentials,
     MetricQuery,
+    MetricType,
     MissingWarehouseCredentialsError,
     MostPopularAndRecentlyUpdated,
     normalizeIndexColumns,
     NotFoundError,
     OpenIdIdentityIssuerType,
     ParameterError,
+    parseTableCalculationFunctions,
     PivotChartData,
     PivotConfiguration,
     PivotValuesColumn,
@@ -189,6 +215,8 @@ import {
     UserAccessControls,
     UserAttributeValueMap,
     UserWarehouseCredentials,
+    validateMergeQuery,
+    VizAggregationOptions,
     VizColumn,
     WarehouseClient,
     WarehouseConnectionError,
@@ -200,12 +228,15 @@ import {
     type ApiCreateProjectResults,
     type CreateDatabricksCredentials,
     type DataTimezonePreviewRequest,
+    type MergeItemEntry,
+    type MergeTypedColumn,
     type Metric,
     type OrganizationProject,
     type ParameterDefinitions,
     type ParametersValuesMap,
     type RunQueryTags,
     type Tag,
+    type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import {
     BigqueryWarehouseClient,
@@ -288,6 +319,11 @@ import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { omitDbtEnvironment } from '../../utils/dbtProjectConfig';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import {
+    applyMergeTerminalWrapper,
+    getMergeNullPlaceholder,
+    MergeQueryBuilder,
+} from '../../utils/QueryBuilder/MergeQueryBuilder';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
@@ -409,6 +445,8 @@ const isValidDbtCloudWebhookSignature = (
     }
     return timingSafeEqual(expectedBuffer, signatureBuffer);
 };
+
+const WINDOW_CLAUSE_PATTERN = /\bover\s*\(/i;
 
 export class ProjectService extends BaseService {
     lightdashConfig: LightdashConfig;
@@ -4877,6 +4915,11 @@ export class ProjectService extends BaseService {
             };
             projectUuid: string;
             usePreAggregateCache?: boolean;
+            /**
+             * Compile without ORDER BY / LIMIT, for embedding as a CTE body
+             * in an outer statement (a merge) that orders and limits once.
+             */
+            asCteBody?: boolean;
         } & ({ exploreName: string } | { explore: Explore }),
     ) {
         const {
@@ -4985,7 +5028,7 @@ export class ProjectService extends BaseService {
         });
 
         const queryComposer = new QueryComposer(
-            { metricQuery, pivotConfiguration },
+            { metricQuery, pivotConfiguration, asCteBody: args.asCteBody },
             {
                 explore,
                 warehouseSqlBuilder,
@@ -5024,6 +5067,707 @@ export class ProjectService extends BaseService {
             }),
             // Include pivot query if pivot configuration was provided
             ...(pivotQuery && { pivotQuery }),
+        };
+    }
+
+    /**
+     * Field metadata for every field a join key names, so the validator can
+     * tell whether the two sides are actually comparable.
+     */
+    protected getMergeJoinFieldTypes(
+        mergeQuery: MergeQuery,
+        itemMapBySourceId: Record<string, ItemsMap>,
+    ): MergeFieldTypes {
+        const fieldTypes: MergeFieldTypes = {};
+        mergeQuery.joinKey.forEach((part) => {
+            Object.entries(part.fieldIdBySourceId).forEach(
+                ([sourceId, fieldId]) => {
+                    const dimension = itemMapBySourceId[sourceId]?.[fieldId];
+                    if (
+                        !dimension ||
+                        (!isDimension(dimension) &&
+                            !isCustomDimension(dimension))
+                    )
+                        return;
+                    fieldTypes[sourceId] ??= {};
+                    fieldTypes[sourceId][fieldId] = {
+                        type: convertItemTypeToDimensionType(dimension),
+                        timeInterval: isDimension(dimension)
+                            ? (dimension.timeInterval ?? null)
+                            : null,
+                        timestampDomain: isDimension(dimension)
+                            ? dimension.timestampDomain
+                            : undefined,
+                    };
+                },
+            );
+        });
+        return fieldTypes;
+    }
+
+    /**
+     * Table calculations whose value depends on the query's whole row set.
+     * Merging changes that row set, so they cannot be carried across it: a
+     * running total would be frozen at its pre-merge value and a pivot-function
+     * calc compiles to a literal null column.
+     */
+    private static getUnsupportedTableCalculations(
+        source: MergeQuerySource,
+    ): string[] {
+        return source.metricQuery.tableCalculations
+            .filter((calculation) => {
+                const sql = isSqlTableCalculation(calculation)
+                    ? calculation.sql
+                    : undefined;
+                if (sql === undefined) {
+                    // Template and formula calcs are not row-set safe to carry.
+                    return true;
+                }
+                const functions = parseTableCalculationFunctions(sql);
+                return functions.length > 0 || WINDOW_CLAUSE_PATTERN.test(sql);
+            })
+            .map((calculation) => calculation.name);
+    }
+
+    /**
+     * Compiles a merge of several metric queries into one warehouse statement.
+     *
+     * Compilation only — the caller runs the returned SQL through the normal
+     * SQL execution path, so the merge does not duplicate limits, caching or
+     * result handling. Validation errors are returned rather than thrown: the
+     * explorer shows them against the offending query row.
+     */
+    async compileMergeQuery(args: {
+        account: Account;
+        projectUuid: string;
+        mergeQuery: MergeQuery;
+        /** One map for every source: sides of one question share their values. */
+        parameters?: ParametersValuesMap;
+    }): Promise<ApiCompiledMergeQueryResults> {
+        const { account, projectUuid, mergeQuery, parameters } = args;
+
+        // One metadata load feeds validation, output typing and display labels.
+        // Query-defined fields belong in the same item map as explore fields,
+        // so custom dimensions and metrics follow the canonical lookup path.
+        const exploreBySourceId = Object.fromEntries(
+            await Promise.all(
+                mergeQuery.sources.map(
+                    async (source) =>
+                        [
+                            source.id,
+                            await this.getExplore(
+                                account,
+                                projectUuid,
+                                source.metricQuery.exploreName,
+                            ),
+                        ] as const,
+                ),
+            ),
+        );
+        const itemMapBySourceId = Object.fromEntries(
+            mergeQuery.sources.map((source) => [
+                source.id,
+                getItemMap(
+                    exploreBySourceId[source.id],
+                    source.metricQuery.additionalMetrics,
+                    source.metricQuery.tableCalculations,
+                    source.metricQuery.customDimensions,
+                ),
+            ]),
+        );
+        const fieldTypes = this.getMergeJoinFieldTypes(
+            mergeQuery,
+            itemMapBySourceId,
+        );
+
+        const errors = [
+            ...validateMergeQuery(mergeQuery, fieldTypes),
+            ...mergeQuery.sources.flatMap((source) => {
+                const unsupported =
+                    ProjectService.getUnsupportedTableCalculations(source);
+                return unsupported.length === 0
+                    ? []
+                    : [
+                          {
+                              kind: MergeQueryErrorKind.UNSUPPORTED_TABLE_CALCULATION,
+                              sourceId: source.id,
+                              fieldIds: unsupported,
+                              message: `Query "${source.id}" uses ${unsupported.join(
+                                  ', ',
+                              )}, which depend on the rows of that query alone. Merging changes those rows, so the value cannot be carried across the join.`,
+                          },
+                      ];
+            }),
+        ];
+        if (errors.length > 0) {
+            return {
+                sql: null,
+                coreSql: null,
+                typedColumns: null,
+                terminalWrapper: null,
+                columns: null,
+                fields: [],
+                itemsMap: {},
+                fieldOrigins: {},
+                fieldIdByColumn: {},
+                errors,
+            };
+        }
+
+        const warehouseCredentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
+            warehouseCredentials.type,
+            warehouseCredentials.startOfWeek,
+        );
+
+        const sources = await Promise.all(
+            mergeQuery.sources.map(async (source) => {
+                // Each source compiles exactly as it would on its own, so a
+                // merged query inherits the same access rules, required
+                // filters and parameter handling as the query it was built
+                // from.
+                const compiled = await this.compileQuery({
+                    account,
+                    projectUuid,
+                    exploreName: source.metricQuery.exploreName,
+                    body: { ...source.metricQuery, parameters },
+                    // A pre-aggregate compiles to a placeholder table name
+                    // that only the pre-aggregate execution path resolves.
+                    // A merge embeds this SQL as a CTE and runs it itself,
+                    // so routing here would emit a statement the warehouse
+                    // cannot parse.
+                    usePreAggregateCache: false,
+                    // No per-side ORDER BY or LIMIT: a limited side would
+                    // join only its top-N rows — a silent truncation that
+                    // looks like real data. The merged statement sorts and
+                    // limits once for the whole result.
+                    asCteBody: true,
+                });
+                const sourceSql = compiled.query;
+                // The single-query path refuses to run with an unvalued
+                // parameter; the compile-for-embedding path only warns.
+                // Carry the gap so the merge refuses the same way instead
+                // of shipping a literal placeholder to the warehouse.
+                const missingParameters = Array.from(
+                    compiled.missingParameterReferences,
+                );
+
+                const joinKeyColumnByName = Object.fromEntries(
+                    mergeQuery.joinKey.map((part) => [
+                        part.name,
+                        part.fieldIdBySourceId[source.id],
+                    ]),
+                );
+
+                // A compiled metric query aliases every output column by field
+                // id, so the field ids are the column names. Custom dimensions
+                // and custom metrics need no special case: their ids appear in
+                // dimensions/metrics like any other field.
+                const valueColumns = [
+                    ...source.metricQuery.metrics,
+                    ...source.metricQuery.tableCalculations.map(
+                        (calculation) => calculation.name,
+                    ),
+                ];
+
+                return {
+                    id: source.id,
+                    sql: sourceSql,
+                    joinKeyColumnByName,
+                    valueColumns,
+                    missingParameters,
+                    originBySourceColumn: Object.fromEntries(
+                        valueColumns.map((column) => [
+                            column,
+                            { fieldId: column },
+                        ]),
+                    ),
+                };
+            }),
+        );
+
+        const parameterErrors: MergeQueryError[] = sources.flatMap((source) =>
+            source.missingParameters.length === 0
+                ? []
+                : [
+                      {
+                          kind: MergeQueryErrorKind.MISSING_PARAMETERS,
+                          sourceId: source.id,
+                          fieldIds: source.missingParameters,
+                          message: `Query "${source.id}" is missing values for: ${source.missingParameters.join(
+                              ', ',
+                          )}. Supply them with the merge, or set parameter defaults.`,
+                      },
+                  ],
+        );
+        if (parameterErrors.length > 0) {
+            return {
+                sql: null,
+                coreSql: null,
+                typedColumns: null,
+                terminalWrapper: null,
+                columns: null,
+                fields: [],
+                itemsMap: {},
+                fieldOrigins: {},
+                fieldIdByColumn: {},
+                errors: parameterErrors,
+            };
+        }
+
+        // A placeholder per key so null keys match each other rather than
+        // landing as two unmatched rows. Safe because the join also compares
+        // null-ness: a real value equal to the placeholder can never pair with
+        // a null.
+        const nullPlaceholderByKeyName = Object.fromEntries(
+            mergeQuery.joinKey.flatMap((part) => {
+                const meta = Object.entries(part.fieldIdBySourceId)
+                    .map(
+                        ([sourceId, fieldId]) =>
+                            fieldTypes[sourceId]?.[fieldId],
+                    )
+                    .find((candidate) => candidate !== undefined);
+                if (meta === undefined) return [];
+                return [
+                    [
+                        part.name,
+                        getMergeNullPlaceholder(meta, warehouseSqlBuilder),
+                    ],
+                ];
+            }),
+        );
+
+        const mergeQueryBuilder = new MergeQueryBuilder({
+            sources,
+            joinKeyNames: mergeQuery.joinKey.map((part) => part.name),
+            joinType: mergeQuery.joinType,
+            warehouseSqlBuilder,
+            // Clamped like any other query: the merged statement is the one
+            // that actually returns rows, so the instance row cap applies to
+            // it rather than to the queries it was assembled from.
+            limit: Math.min(
+                mergeQuery.limit,
+                this.lightdashConfig.query.maxLimit,
+            ),
+            tableCalculations: mergeQuery.tableCalculations,
+            nullPlaceholderByKeyName,
+            // Each query is bounded, but reaching the bound is reported rather
+            // than trimmed: a join over a trimmed side returns numbers that
+            // look complete and are not.
+            sourceRowCap: this.lightdashConfig.query.maxLimit,
+        });
+
+        // Resolve calculation references against the columns the merge
+        // actually produces. A pre-pivoted source replaces one metric column
+        // with one per value, so this is the only place the real names exist.
+        const columns = mergeQueryBuilder.getColumns();
+        const availableReferences = [
+            ...columns.joinKeyColumns,
+            ...Object.entries(columns.valueColumnBySourceColumn).flatMap(
+                ([sourceId, bySourceColumn]) =>
+                    Object.keys(bySourceColumn).map(
+                        (sourceColumn) => `${sourceId}.${sourceColumn}`,
+                    ),
+            ),
+        ];
+        const referenceErrors = mergeQuery.tableCalculations.flatMap(
+            (calculation) => {
+                const unresolved = [
+                    ...calculation.sql.matchAll(
+                        mergeCalculationReferencePattern,
+                    ),
+                ]
+                    .map((match) => match[1])
+                    .filter(
+                        (reference) => !availableReferences.includes(reference),
+                    );
+                return unresolved.length === 0
+                    ? []
+                    : [
+                          {
+                              kind: MergeQueryErrorKind.UNRESOLVED_CALCULATION_REFERENCE,
+                              sourceId: null,
+                              fieldIds: unresolved,
+                              message: `Calculation "${calculation.name}" references ${unresolved.join(
+                                  ', ',
+                              )}. The merged result has: ${availableReferences.join(
+                                  ', ',
+                              )}.`,
+                          },
+                      ];
+            },
+        );
+        if (referenceErrors.length > 0) {
+            return {
+                sql: null,
+                coreSql: null,
+                typedColumns: null,
+                terminalWrapper: null,
+                columns: null,
+                fields: [],
+                itemsMap: {},
+                fieldOrigins: {},
+                fieldIdByColumn: {},
+                errors: referenceErrors,
+            };
+        }
+
+        // Describe every merged column well enough to be selected, sorted and
+        // formatted. Labels come from the field each column originated in;
+        // a widened column also carries the value it holds, since one metric
+        // becomes several columns and the name alone cannot say which is which.
+        const metricQueryBySourceId = Object.fromEntries(
+            mergeQuery.sources.map((source) => [source.id, source.metricQuery]),
+        );
+
+        // Custom dimensions and additional metrics are defined on the query
+        // rather than the explore, so a lookup that only walks the explore
+        // mis-types every one of them as a string dimension.
+        const mergedLabel = (
+            origin: Field | AdditionalMetric | CustomDimension | undefined,
+        ): string | undefined => {
+            if (!origin) return undefined;
+            return isCustomDimension(origin) ? origin.name : origin.label;
+        };
+
+        const findField = (
+            sourceId: string,
+            fieldId: string,
+        ): Field | AdditionalMetric | CustomDimension | undefined => {
+            const item = itemMapBySourceId[sourceId]?.[fieldId];
+            return item && (isField(item) || isCustomDimension(item))
+                ? item
+                : undefined;
+        };
+
+        const joinKeyFields: MergeQueryField[] = mergeQuery.joinKey.map(
+            (part) => {
+                const [sourceId, fieldId] =
+                    Object.entries(part.fieldIdBySourceId)[0] ?? [];
+                const field =
+                    sourceId && fieldId
+                        ? findField(sourceId, fieldId)
+                        : undefined;
+                return {
+                    column: part.name,
+                    label: mergedLabel(field) ?? part.name,
+                    kind: 'dimension' as const,
+                    type: field
+                        ? convertItemTypeToDimensionType(field)
+                        : DimensionType.STRING,
+                    sourceId: null,
+                    sourceFieldId: null,
+                };
+            },
+        );
+
+        const originBySourceId = Object.fromEntries(
+            sources.map((source) => [source.id, source.originBySourceColumn]),
+        );
+
+        const valueFields: MergeQueryField[] = Object.entries(
+            columns.valueColumnBySourceColumn,
+        ).flatMap(([sourceId, bySourceColumn]) =>
+            Object.entries(bySourceColumn).map(
+                ([sourceColumn, mergedColumn]) => {
+                    const origin = originBySourceId[sourceId]?.[sourceColumn];
+                    const field = origin
+                        ? findField(sourceId, origin.fieldId)
+                        : undefined;
+                    return {
+                        column: mergedColumn,
+                        label:
+                            mergedLabel(field) ??
+                            origin?.fieldId ??
+                            sourceColumn,
+                        kind: (field && isMetric(field)
+                            ? 'metric'
+                            : 'dimension') as 'dimension' | 'metric',
+                        type: field
+                            ? convertItemTypeToDimensionType(field)
+                            : DimensionType.STRING,
+                        sourceId,
+                        sourceFieldId: origin?.fieldId ?? null,
+                    };
+                },
+            ),
+        );
+
+        const calculationFields: MergeQueryField[] =
+            mergeQuery.tableCalculations.map((calculation) => ({
+                column: calculation.name,
+                label: calculation.displayName,
+                kind: 'metric' as const,
+                type: 'number',
+                sourceId: null,
+                sourceFieldId: null,
+            }));
+
+        // Present every merged column as an ordinary field. Downstream code
+        // looks fields up by `getItemId`, so the items map is keyed by it and
+        // the warehouse alias is kept only as the way back to the column.
+        const sourceIndexById = Object.fromEntries(
+            mergeQuery.sources.map((source, index) => [source.id, index]),
+        );
+
+        const mergedItem = (itemArgs: {
+            table: string;
+            tableLabel: string;
+            name: string;
+            label: string;
+            origin: Field | AdditionalMetric | CustomDimension | undefined;
+            /** Used when there is no origin field to read a type from. */
+            fallback:
+                | { fieldType: FieldType.METRIC; type: MetricType }
+                | { fieldType: FieldType.DIMENSION; type: DimensionType };
+        }): ItemsMap[string] => {
+            const { table, tableLabel, name, label, origin, fallback } =
+                itemArgs;
+            const field =
+                origin && !isCustomDimension(origin) ? origin : undefined;
+            const shared = {
+                name,
+                label,
+                table,
+                tableLabel,
+                // The column already exists in a compiled statement, so
+                // nothing has to compile it again. This is a display
+                // identity, not a query fragment.
+                sql: '',
+                hidden: false,
+                description: field?.description,
+                format: field?.format,
+                compact: field?.compact,
+                round: field?.round,
+                urls: field && isField(field) ? field.urls : undefined,
+            };
+            if (origin && (isMetric(origin) || isAdditionalMetric(origin))) {
+                return {
+                    ...shared,
+                    fieldType: FieldType.METRIC,
+                    type: origin.type,
+                    formatOptions: origin.formatOptions,
+                };
+            }
+            if (origin && isDimension(origin)) {
+                return {
+                    ...shared,
+                    fieldType: FieldType.DIMENSION,
+                    type: origin.type,
+                };
+            }
+            return { ...shared, ...fallback };
+        };
+
+        const joinKeyEntries: MergeItemEntry[] = mergeQuery.joinKey.map(
+            (part) => {
+                const [sourceId, fieldId] =
+                    Object.entries(part.fieldIdBySourceId)[0] ?? [];
+                const origin =
+                    sourceId && fieldId
+                        ? findField(sourceId, fieldId)
+                        : undefined;
+                return {
+                    column: part.name,
+                    // The key's own name is stable for the life of the key, so
+                    // renaming it for display never rewrites the field id a
+                    // saved chart config refers to.
+                    item: mergedItem({
+                        table: MERGE_TABLE_NAME,
+                        tableLabel: 'Merged',
+                        name: part.name,
+                        label: mergedLabel(origin) ?? part.name,
+                        origin,
+                        fallback: {
+                            fieldType: FieldType.DIMENSION,
+                            type: DimensionType.STRING,
+                        },
+                    }),
+                    origin: { kind: 'joinKey' },
+                };
+            },
+        );
+
+        // Headers say where a column came from, not which slot it rode in:
+        // the explore's label, unless both sides use the same explore and the
+        // slot is the only thing telling them apart.
+        const exploreLabels = mergeQuery.sources.map(
+            (source) =>
+                exploreBySourceId[source.id]?.label ??
+                source.metricQuery.exploreName,
+        );
+        const labelsCollide =
+            new Set(exploreLabels).size < exploreLabels.length;
+        const sourceTableLabel = (sourceId: string) => {
+            const sourceIndex = sourceIndexById[sourceId] ?? 0;
+            const exploreLabel = exploreLabels[sourceIndex];
+            return labelsCollide
+                ? `${exploreLabel} (${getMergeSourceTableLabel(sourceIndex)})`
+                : exploreLabel;
+        };
+
+        const valueEntries: MergeItemEntry[] = valueFields.flatMap((field) => {
+            const { sourceId, sourceFieldId } = field;
+            if (!sourceId || !sourceFieldId) return [];
+            const origin = findField(sourceId, sourceFieldId);
+            return [
+                {
+                    column: field.column,
+                    item: mergedItem({
+                        // Attributed to the query it came from, so two sources
+                        // of the same explore cannot collide.
+                        table: sourceId,
+                        tableLabel: sourceTableLabel(sourceId),
+                        // The origin field id, not its bare name: within one
+                        // query two joined tables can both expose a `status`.
+                        name: sourceFieldId,
+                        label: field.label,
+                        origin,
+                        fallback: {
+                            fieldType: FieldType.DIMENSION,
+                            type: DimensionType.STRING,
+                        },
+                    }),
+                    origin: {
+                        kind: 'source',
+                        sourceId,
+                        sourceFieldId,
+                    },
+                },
+            ];
+        });
+
+        const calculationEntries: MergeItemEntry[] =
+            mergeQuery.tableCalculations.map((calculation) => ({
+                column: calculation.name,
+                item: mergedItem({
+                    table: MERGE_TABLE_NAME,
+                    tableLabel: 'Merged',
+                    name: calculation.name,
+                    label: calculation.displayName,
+                    origin: undefined,
+                    fallback: {
+                        fieldType: FieldType.METRIC,
+                        type: MetricType.NUMBER,
+                    },
+                }),
+                origin: { kind: 'tableCalculation' },
+            }));
+
+        const mergeEntries = [
+            ...joinKeyEntries,
+            ...valueEntries,
+            ...calculationEntries,
+        ];
+        const { itemsMap, fieldOrigins, fieldIdByColumn } =
+            buildMergeItems(mergeEntries);
+
+        // The output contract's typed field list: every core column with an
+        // accurate value type, in the order the statement returns them. A
+        // column whose type cannot be resolved is refused — a guessed
+        // "string" poisons filters, formatting and re-aggregation over
+        // everything built on the merged result.
+        const findSourceTableCalculation = (sourceId: string, name: string) =>
+            metricQueryBySourceId[sourceId]?.tableCalculations.find(
+                (calculation) => calculation.name === name,
+            );
+        const typeErrors: MergeQueryError[] = [];
+        const typedColumns: MergeTypedColumn[] = mergeEntries.map((entry) => {
+            const reference = fieldIdByColumn[entry.column];
+            const resolvedType = (): DimensionType | null => {
+                switch (entry.origin.kind) {
+                    case 'joinKey': {
+                        const part = mergeQuery.joinKey.find(
+                            (candidate) => candidate.name === entry.column,
+                        );
+                        const meta = Object.entries(
+                            part?.fieldIdBySourceId ?? {},
+                        )
+                            .map(
+                                ([sourceId, fieldId]) =>
+                                    fieldTypes[sourceId]?.[fieldId],
+                            )
+                            .find((candidate) => candidate !== undefined);
+                        return meta?.type ?? null;
+                    }
+                    case 'source': {
+                        const { sourceId, sourceFieldId } = entry.origin;
+                        const origin =
+                            findField(sourceId, sourceFieldId) ??
+                            findSourceTableCalculation(sourceId, sourceFieldId);
+                        return origin
+                            ? convertItemTypeToDimensionType(origin)
+                            : null;
+                    }
+                    case 'tableCalculation':
+                        // Declared, not guessed: a merge calculation is
+                        // arithmetic over the merged row.
+                        return DimensionType.NUMBER;
+                    default:
+                        return assertUnreachable(
+                            entry.origin,
+                            'Unknown merge field origin',
+                        );
+                }
+            };
+            const type = resolvedType();
+            if (type === null) {
+                typeErrors.push({
+                    kind: MergeQueryErrorKind.UNRESOLVED_COLUMN_TYPE,
+                    sourceId:
+                        entry.origin.kind === 'source'
+                            ? entry.origin.sourceId
+                            : null,
+                    fieldIds:
+                        entry.origin.kind === 'source'
+                            ? [entry.origin.sourceFieldId]
+                            : [reference],
+                    message: `The type of "${reference}" cannot be resolved from the field it came from, so the merged column cannot be described.`,
+                });
+            }
+            return {
+                reference,
+                type: type ?? DimensionType.STRING,
+                origin: entry.origin,
+            };
+        });
+        if (typeErrors.length > 0) {
+            return {
+                sql: null,
+                coreSql: null,
+                typedColumns: null,
+                terminalWrapper: null,
+                columns: null,
+                fields: [],
+                itemsMap: {},
+                fieldOrigins: {},
+                fieldIdByColumn: {},
+                errors: typeErrors,
+            };
+        }
+
+        // Named by field id, so results are keyed by the same ids the
+        // items map is keyed by and every lookup downstream resolves.
+        const coreSql = mergeQueryBuilder.toCoreSql(fieldIdByColumn);
+        const terminalWrapper =
+            mergeQueryBuilder.buildTerminalWrapper(fieldIdByColumn);
+
+        return {
+            sql: applyMergeTerminalWrapper(coreSql, terminalWrapper),
+            coreSql,
+            typedColumns,
+            terminalWrapper,
+            columns,
+            // The guard column is not data and is deliberately absent from
+            // fields: callers act on it, they do not display it.
+            fields: [...joinKeyFields, ...valueFields, ...calculationFields],
+            itemsMap,
+            fieldOrigins,
+            fieldIdByColumn,
+            errors: [],
         };
     }
 

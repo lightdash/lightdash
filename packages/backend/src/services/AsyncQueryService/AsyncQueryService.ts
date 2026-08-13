@@ -67,7 +67,9 @@ import {
     ItemsMap,
     KnexPaginateArgs,
     KnexPaginatedData,
+    MergeQuery,
     MetricQuery,
+    MissingConfigError,
     normalizeIndexColumns,
     NotFoundError,
     NotSupportedError,
@@ -86,6 +88,8 @@ import {
     S3Error,
     SchedulerFormat,
     SqlChart,
+    SupportedDbtAdapter,
+    TimeFrames,
     TrialExpiredError,
     UnexpectedServerError,
     UserAccessControls,
@@ -103,6 +107,7 @@ import {
     type CustomDimension,
     type ExecuteAsyncDashboardChartRequestParams,
     type ExecuteAsyncFieldValueSearchRequestParams,
+    type ExecuteAsyncMergeQueryRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
     type ExecuteAsyncQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
@@ -139,7 +144,6 @@ import {
     findSqlScopeViolations,
     formatSqlScopeError,
 } from '../../ee/services/ai/utils/sqlScope';
-import { getDuckdbRuntimeConfig } from '../../ee/services/AsyncQueryService/getDuckdbRuntimeConfig';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
 import { getAppContext, getSchedulerContext } from '../../logging/winston';
@@ -152,11 +156,14 @@ import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { traceSpan } from '../../tracing/tracing';
 import { wrapSentryTransaction } from '../../utils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
+import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
 import {
     processFieldsForExport,
     streamJsonlData,
 } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import { updateExploreWithDateZoom } from '../../utils/QueryBuilder/dateZoom';
+import { MergeQueryComposer } from '../../utils/QueryBuilder/MergeQueryComposer';
+import { consumeMergeResultMetadata } from '../../utils/QueryBuilder/mergeQueryResults';
 import { safeReplaceParametersWithSqlBuilder } from '../../utils/QueryBuilder/parameters';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
@@ -213,6 +220,7 @@ import {
     type ExecuteAsyncDashboardChartQueryArgs,
     type ExecuteAsyncDashboardSqlChartArgs,
     type ExecuteAsyncFieldValueSearchArgs,
+    type ExecuteAsyncMergeQueryArgs,
     type ExecuteAsyncMetricQueryArgs,
     type ExecuteAsyncQueryReturn,
     type ExecuteAsyncSavedChartQueryArgs,
@@ -2044,7 +2052,7 @@ export class AsyncQueryService extends ProjectService {
         // "wrong image showing in pivot" reports.
         const passthroughCardinalityViolations = new Set<string>();
 
-        const writeAndTransformRowsIfPivot = pivotConfiguration
+        const transformRows = pivotConfiguration
             ? async (
                   rows: WarehouseResults['rows'],
                   fields: WarehouseResults['fields'],
@@ -2275,6 +2283,16 @@ export class AsyncQueryService extends ProjectService {
             throw new ParameterError(`Invalid data timezone: ${dataTimezone}`);
         }
 
+        let internalRowsRemoved = 0;
+        const writeAndTransformRows = async (
+            rows: WarehouseResults['rows'],
+            fields: WarehouseResults['fields'],
+        ) => {
+            const normalized = consumeMergeResultMetadata(rows, fields);
+            internalRowsRemoved += normalized.removedRows;
+            await transformRows(normalized.rows, normalized.fields);
+        };
+
         const warehouseResults = await traceSpan(
             {
                 op: 'db.query',
@@ -2287,7 +2305,7 @@ export class AsyncQueryService extends ProjectService {
                         tags: queryTags,
                         timezone: dataTimezone,
                     },
-                    write ? writeAndTransformRowsIfPivot : undefined,
+                    writeAndTransformRows,
                 ),
         );
 
@@ -2323,7 +2341,13 @@ export class AsyncQueryService extends ProjectService {
         }
 
         return {
-            warehouseResults,
+            warehouseResults: {
+                ...warehouseResults,
+                totalRows: Math.max(
+                    0,
+                    warehouseResults.totalRows - internalRowsRemoved,
+                ),
+            },
             columns,
             pivotDetails: pivotConfiguration
                 ? {
@@ -6128,6 +6152,124 @@ export class AsyncQueryService extends ProjectService {
             parameterReferences,
             usedParametersValues: usedParameters,
             resolvedTimezone: null,
+        };
+    }
+
+    /**
+     * Runs a merge as one statement on the org's own warehouse.
+     *
+     * The compile is the merge: both sides become CTEs of one statement in
+     * the warehouse's dialect, and that statement runs through the ordinary
+     * async tail — query history, paging, formatting, pivoting, caching and
+     * downloads all behave as for any other query. Nothing materialises to
+     * S3 and nothing runs anywhere but the project warehouse.
+     */
+    async executeAsyncMergeQuery({
+        account,
+        projectUuid,
+        mergeQuery,
+        context,
+        invalidateCache,
+        pivotConfiguration,
+        parameters,
+    }: ExecuteAsyncMergeQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
+        assertIsAccountWithOrg(account);
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        const compiledMerge = await this.compileMergeQuery({
+            account,
+            projectUuid,
+            mergeQuery,
+            parameters,
+        });
+        if (
+            compiledMerge.coreSql === null ||
+            compiledMerge.typedColumns === null ||
+            compiledMerge.terminalWrapper === null
+        ) {
+            throw new ParameterError(
+                `This merge cannot be run: ${compiledMerge.errors
+                    .map((error) => error.message)
+                    .join(' ')}`,
+                { errors: compiledMerge.errors },
+            );
+        }
+
+        // Only for composing SQL — quoting and the pivot stage need the
+        // dialect. The async runtime opens its own connection to execute.
+        const [warehouseCredentials, userAccessControls] = await Promise.all([
+            this.getWarehouseCredentials({
+                projectUuid,
+                userId: account.user.id,
+                isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
+            }),
+            this.getUserAttributes({ account }),
+        ]);
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+            warehouseCredentials,
+        );
+
+        let composer: MergeQueryComposer;
+        try {
+            composer = new MergeQueryComposer({
+                coreSql: compiledMerge.coreSql,
+                terminalWrapper: compiledMerge.terminalWrapper,
+                itemsMap: compiledMerge.itemsMap,
+                typedColumns: compiledMerge.typedColumns,
+                columnOrder: Object.values(compiledMerge.fieldIdByColumn),
+                limit: mergeQuery.limit,
+                warehouseClient,
+                pivotConfiguration,
+            });
+        } finally {
+            await sshTunnel.disconnect();
+        }
+
+        const baseQueryTags: RunQueryTags = {
+            ...this.getUserQueryTags(account),
+            ...AsyncQueryService.getSchedulerQueryTags(),
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            query_context: context,
+        };
+        const queryTags = AsyncQueryService.addUserAttributeQueryTags(
+            baseQueryTags,
+            userAccessControls,
+        );
+        const requestParameters: ExecuteAsyncMergeQueryRequestParams = {
+            context,
+            invalidateCache,
+            mergeQuery,
+            parameters,
+            pivotConfiguration,
+        };
+        const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
+            {
+                account,
+                projectUuid,
+                organizationUuid,
+                context,
+                queryTags,
+                invalidateCache,
+                queryComposer: composer,
+                warehouseCredentials,
+                routingTarget: 'warehouse',
+            },
+            requestParameters,
+        );
+
+        return {
+            queryUuid,
+            cacheMetadata,
+            metricQuery: composer.getMetricQuery(),
+            fields: composer.getFields(),
+            warnings: composer.getWarnings(),
+            parameterReferences: composer.getParameterReferences(),
+            usedParametersValues: composer.getUsedParameters(),
+            resolvedTimezone: composer.getDisplayTimezone(),
         };
     }
 

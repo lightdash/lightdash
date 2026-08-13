@@ -3,7 +3,7 @@ import {
     getDuckdbPreAggregateSqlTable,
     getPreAggregateDuckdbLocator,
     type PreAggregateDuckdbLocator,
-} from './getDuckdbPreAggregateSqlTable';
+} from './duckdbSqlTables';
 
 const locator: PreAggregateDuckdbLocator = {
     storage: 's3',
