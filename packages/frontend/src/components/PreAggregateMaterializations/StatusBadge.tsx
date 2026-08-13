@@ -1,6 +1,8 @@
 import { type PreAggregateMaterializationSummary } from '@lightdash/common';
 import { Badge, Tooltip } from '@mantine/core';
+import { IconDatabaseExport } from '@tabler/icons-react';
 import { type FC } from 'react';
+import MantineIcon from '../common/MantineIcon';
 
 export const StatusBadge: FC<{
     summary: PreAggregateMaterializationSummary;
@@ -10,6 +12,23 @@ export const StatusBadge: FC<{
             <Tooltip label={summary.definitionError} multiline maw={300}>
                 <Badge color="red" variant="light" size="sm">
                     Definition error
+                </Badge>
+            </Tooltip>
+        );
+    }
+
+    if (summary.externalTable) {
+        return (
+            <Tooltip label="Served from a customer-managed warehouse table">
+                <Badge
+                    color="indigo"
+                    variant="light"
+                    size="sm"
+                    leftSection={
+                        <MantineIcon icon={IconDatabaseExport} size="xs" />
+                    }
+                >
+                    External
                 </Badge>
             </Tooltip>
         );
