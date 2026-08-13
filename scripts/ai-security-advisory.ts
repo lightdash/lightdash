@@ -976,14 +976,42 @@ export function advisoryAlreadyExists(
         ),
     ];
     return (
-        existing.find(
-            (advisory) =>
-                advisory.description.includes(fingerprintMarker) ||
-                fixReferences.some((reference) =>
-                    advisory.description.includes(reference),
-                ),
-        ) ?? null
+        existing.find((advisory) => {
+            if (advisory.description.includes(fingerprintMarker)) return true;
+            if (
+                advisory.description.includes(`${MARKER_PREFIX} fingerprint=`)
+            ) {
+                return false;
+            }
+            return fixReferences.some((reference) =>
+                advisory.description.includes(reference),
+            );
+        }) ?? null
     );
+}
+
+function nextCursor(response: Response): string | null {
+    const link = response.headers.get('link');
+    if (!link) return null;
+    const next = link
+        .split(',')
+        .map((item) => item.trim())
+        .find((item) => /;\s*rel="next"$/.test(item));
+    if (!next) return null;
+    const match = next.match(/^<([^>]+)>/);
+    if (!match)
+        throw new Error('GitHub advisory API returned an invalid next link');
+    const url = new URL(match[1], 'https://api.github.com');
+    if (url.origin !== 'https://api.github.com') {
+        throw new Error('GitHub advisory API returned an invalid next link');
+    }
+    const cursor = url.searchParams.get('after');
+    if (!cursor) {
+        throw new Error(
+            'GitHub advisory API returned a next link without a cursor',
+        );
+    }
+    return cursor;
 }
 
 export class GitHubAdvisoryClient {
@@ -1015,13 +1043,25 @@ export class GitHubAdvisoryClient {
     async listAll(): Promise<ExistingAdvisory[]> {
         const advisories: ExistingAdvisory[] = [];
         for (const state of ['triage', 'draft', 'published', 'closed']) {
-            for (let page = 1; ; page += 1) {
+            let cursor: string | null = null;
+            const seenCursors = new Set<string>();
+            for (;;) {
+                const after = cursor
+                    ? `&after=${encodeURIComponent(cursor)}`
+                    : '';
                 const response = await this.request(
-                    `/repos/${this.repository}/security-advisories?state=${state}&per_page=100&page=${page}`,
+                    `/repos/${this.repository}/security-advisories?state=${state}&per_page=100${after}`,
                 );
                 const batch = (await response.json()) as ExistingAdvisory[];
                 advisories.push(...batch);
-                if (batch.length < 100) break;
+                cursor = nextCursor(response);
+                if (!cursor) break;
+                if (seenCursors.has(cursor)) {
+                    throw new Error(
+                        'GitHub advisory API returned a repeated pagination cursor',
+                    );
+                }
+                seenCursors.add(cursor);
             }
         }
         return advisories;

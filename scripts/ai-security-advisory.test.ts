@@ -148,6 +148,32 @@ async function run(): Promise<void> {
         )?.ghsa_id,
         duplicate.ghsa_id,
     );
+    const manualDuplicate = {
+        ...duplicate,
+        description: `Fixed by https://github.com/lightdash/lightdash/commit/${finding().primaryFixCommit}`,
+    };
+    assert.strictEqual(
+        advisoryAlreadyExists(
+            finding({
+                evidence: [{ path: 'different.ts', reason: 'Different' }],
+            }),
+            '1.2.3',
+            [manualDuplicate],
+            'lightdash/lightdash',
+        )?.ghsa_id,
+        manualDuplicate.ghsa_id,
+    );
+    assert.strictEqual(
+        advisoryAlreadyExists(
+            finding({
+                evidence: [{ path: 'different.ts', reason: 'Different' }],
+            }),
+            '1.2.3',
+            [duplicate],
+            'lightdash/lightdash',
+        ),
+        null,
+    );
 
     const createdPayloads: string[] = [];
     const drafts = await createEligibleDrafts({
@@ -173,6 +199,41 @@ async function run(): Promise<void> {
     });
     assert.strictEqual(drafts.length, 1);
     assert.strictEqual(createdPayloads.length, 1);
+
+    let sharedDraftCount = 0;
+    const sharedFixDrafts = await createEligibleDrafts({
+        analysis: {
+            schemaVersion: 1,
+            previousTag: '1.2.2',
+            releaseTag: '1.2.3',
+            findings: [
+                finding(),
+                finding({
+                    title: 'Session token remains valid after revocation',
+                    cweIds: ['CWE-613'],
+                    evidence: [
+                        {
+                            path: 'packages/backend/src/session.ts',
+                            reason: 'The diff invalidates revoked sessions.',
+                        },
+                    ],
+                }),
+            ],
+        },
+        repository: 'lightdash/lightdash',
+        releaseUrl: 'https://github.com/lightdash/lightdash/releases/tag/1.2.3',
+        dockerDigest: null,
+        existing: [],
+        create: async (_candidate, rendered) => {
+            sharedDraftCount += 1;
+            return {
+                ghsa_id: `GHSA-shared-${sharedDraftCount}`,
+                html_url: `https://github.com/lightdash/lightdash/security/advisories/GHSA-shared-${sharedDraftCount}`,
+                description: rendered,
+            };
+        },
+    });
+    assert.strictEqual(sharedFixDrafts.length, 2);
 
     const requests: Array<{ url: string; init?: RequestInit }> = [];
     const mockFetch = async (
@@ -222,6 +283,41 @@ async function run(): Promise<void> {
         vulnerable_version_range: '< 1.2.3',
         patched_versions: '1.2.3',
     });
+
+    const paginatedRequests: string[] = [];
+    const page = Array.from({ length: 100 }, (_, index) => ({
+        ghsa_id: `GHSA-${index}`,
+        html_url: `https://github.com/lightdash/lightdash/security/advisories/GHSA-${index}`,
+        description: `advisory ${index}`,
+    }));
+    const paginatedClient = new GitHubAdvisoryClient(
+        'lightdash/lightdash',
+        'test-token',
+        (async (input: string | URL | Request) => {
+            const url = String(input);
+            paginatedRequests.push(url);
+            if (url.includes('state=triage') && !url.includes('after=')) {
+                return new Response(JSON.stringify(page), {
+                    status: 200,
+                    headers: {
+                        Link: '<https://api.github.com/repos/lightdash/lightdash/security-advisories?state=triage&per_page=100&after=next-cursor>; rel="next"',
+                    },
+                });
+            }
+            if (url.includes('after=next-cursor')) {
+                return new Response(JSON.stringify([page[0]]), {
+                    status: 200,
+                });
+            }
+            return new Response('[]', { status: 200 });
+        }) as typeof fetch,
+    );
+    assert.strictEqual((await paginatedClient.listAll()).length, 101);
+    assert.strictEqual(paginatedRequests.length, 5);
+    assert.ok(
+        paginatedRequests.some((url) => url.includes('after=next-cursor')),
+    );
+    assert.ok(paginatedRequests.every((url) => !/[?&]page=/.test(url)));
 
     const stableTags = execFileSync(
         'git',
@@ -294,6 +390,12 @@ async function run(): Promise<void> {
     assert.doesNotMatch(workflow, /SECURITY_ADVISORY_APP_(ID|PRIVATE_KEY)/);
     assert.doesNotMatch(workflow, /security-advisories\/[^\s"']+\/cve/);
     assert.doesNotMatch(workflow, /state:\s*published/);
+
+    const releaseSafetyWorkflow = fs.readFileSync(
+        '.github/workflows/release-safety-tests.yml',
+        'utf8',
+    );
+    assert.match(releaseSafetyWorkflow, /fetch-tags:\s*true/);
 
     const triageWorkflow = fs.readFileSync(
         '.github/workflows/security-advisory-triage-reminder.yml',
