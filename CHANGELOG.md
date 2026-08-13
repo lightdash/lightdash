@@ -1,3 +1,11 @@
+## [1.146.5](https://github.com/lightdash/lightdash/compare/1.146.4...1.146.5) (2026-08-13)
+
+
+### Bug Fixes
+
+* **pre-aggregates:** apply start of week to week re-aggregation ([#27273](https://github.com/lightdash/lightdash/issues/27273)) ([dad9536](https://github.com/lightdash/lightdash/commit/dad95363421395ea0fe48baa27cfe6c8b896582b))
+* reconcile scheduler project slugs ([#27310](https://github.com/lightdash/lightdash/issues/27310)) ([32cbc4b](https://github.com/lightdash/lightdash/commit/32cbc4b917e07af809e9544f63552cd1995a4de7))
+
 ## [1.146.4](https://github.com/lightdash/lightdash/compare/1.146.3...1.146.4) (2026-08-13)
 
 
