@@ -39,7 +39,10 @@ jobs:
 
   release:
     if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
-    runs-on: depot-ubuntu-24.04-8
+    # Must stay on a GitHub-hosted runner: npm's trusted-publishing provenance
+    # rejects self-hosted/Depot runners (422 "Unsupported GitHub Actions runner
+    # environment", run 31724064116).
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: build-and-test
     concurrency: ${{ github.ref }}
