@@ -26,6 +26,11 @@ type GenerateHandlers = {
     onError: (error: unknown) => void;
 };
 
+type CancelHandlers = {
+    onSuccess: () => void;
+    onError: (error: unknown) => void;
+};
+
 /** The last `onDone` the hook handed the poller. */
 const finishBuild = (version: Partial<ApiAppVersionSummary>) => {
     const onDone = mockedPoller.mock.lastCall?.[3];
@@ -297,6 +302,76 @@ describe('useDataAppVizBuild', () => {
 
         expect(result.current.draft).toBeNull();
         expect(result.current.discard).toBeNull();
+    });
+
+    it('interrupts a draft without deleting its app', () => {
+        const { result } = setup();
+        let generateHandlers: GenerateHandlers | null = null;
+        let cancelSucceeded: (() => void) | null = null;
+        generate.mockImplementation((_params, handlers: GenerateHandlers) => {
+            generateHandlers = handlers;
+        });
+        cancelVersion.mockImplementation(
+            (_params, handlers: { onSuccess: () => void }) => {
+                cancelSucceeded = handlers.onSuccess;
+            },
+        );
+
+        act(() =>
+            result.current.send({
+                description: 'make a bar chart',
+                fileIds: [],
+                claudeModel: 'sonnet',
+            }),
+        );
+        act(() =>
+            generateHandlers?.onSuccess({ appUuid: 'viz-1', version: 1 }),
+        );
+        act(() => result.current.interrupt?.());
+
+        expect(cancelVersion).toHaveBeenCalledWith(
+            {
+                projectUuid: 'project-1',
+                appUuid: 'viz-1',
+                version: 1,
+            },
+            expect.anything(),
+        );
+        expect(deleteApp).not.toHaveBeenCalled();
+
+        act(() => cancelSucceeded?.());
+        expect(result.current.isBuilding).toBe(false);
+    });
+
+    it('keeps building and surfaces an interrupt failure', () => {
+        const { result } = setup();
+        let generateHandlers: GenerateHandlers | null = null;
+        let cancelFailed: ((error: unknown) => void) | null = null;
+        generate.mockImplementation((_params, handlers: GenerateHandlers) => {
+            generateHandlers = handlers;
+        });
+        cancelVersion.mockImplementation(
+            (_params, handlers: CancelHandlers) => {
+                cancelFailed = handlers.onError;
+            },
+        );
+
+        act(() =>
+            result.current.send({
+                description: 'make a bar chart',
+                fileIds: [],
+                claudeModel: 'sonnet',
+            }),
+        );
+        act(() =>
+            generateHandlers?.onSuccess({ appUuid: 'viz-1', version: 1 }),
+        );
+        act(() => result.current.interrupt?.());
+        act(() => cancelFailed?.(new Error('Request timed out')));
+
+        expect(result.current.isBuilding).toBe(true);
+        expect(result.current.cancelError).toBe('Request timed out');
+        expect(result.current.interrupt).not.toBeNull();
     });
 
     it('cancels a revision without deleting its app', () => {

@@ -109,6 +109,11 @@ const ChartTypeBuilder: FC = () => {
     // Intentional navigation between vizs resets session state; the
     // post-submit `/new` → uuid replace must not.
     const prevUrlVizUuid = useRef(urlVizUuid);
+    const latestDraftAppUuid = useRef(build.draftAppUuid);
+    latestDraftAppUuid.current = build.draftAppUuid;
+    const [promptSessionKey, setPromptSessionKey] = useState(
+        () => urlVizUuid ?? build.draftAppUuid,
+    );
     const [pin, setPin] = useState<{
         appUuid: string;
         version: number;
@@ -130,6 +135,7 @@ const ChartTypeBuilder: FC = () => {
         prevUrlVizUuid.current = urlVizUuid;
         // Post-submit redirect: undefined → new uuid. Don't clear state.
         if (!prev && urlVizUuid) return;
+        setPromptSessionKey(urlVizUuid ?? latestDraftAppUuid.current);
         setPin(null);
         setOptionValues({});
         setColorPaletteUuid(null);
@@ -351,9 +357,6 @@ const ChartTypeBuilder: FC = () => {
                         appUuid={activeVizUuid ?? null}
                         previewVersion={previewVersion}
                         isBuilding={isBuilding}
-                        buildingPrompt={buildingPrompt}
-                        elapsed={elapsed}
-                        onCancelBuild={onCancelBuild}
                         failureMessage={failureMessage}
                         previewContext={previewContext}
                         configurePanel={configurePanel}
@@ -364,15 +367,18 @@ const ChartTypeBuilder: FC = () => {
                     {isPromptBarMounted && (
                         <BuilderPromptBar
                             ref={promptBarRef}
+                            sessionKey={promptSessionKey}
                             projectUuid={projectUuid}
                             composerAppUuid={
-                                activeVizUuid ?? build.draftAppUuid
+                                activeVizUuid ??
+                                build.appUuid ??
+                                build.draftAppUuid
                             }
                             hasVersions={history.versions.length > 0}
-                            isBuildingFirstVersion={
-                                isBuilding &&
-                                history.latestReadyVersion === null
-                            }
+                            isBuilding={isBuilding}
+                            buildingPrompt={buildingPrompt}
+                            elapsed={elapsed}
+                            latestReadyVersion={history.latestReadyVersion}
                             build={build}
                             onCancelBuild={onCancelBuild}
                             modelSelection={modelSelection}
