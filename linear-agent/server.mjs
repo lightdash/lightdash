@@ -6,6 +6,7 @@ import {
     chmod,
     mkdir,
     readFile,
+    readdir,
     rename,
     rm,
     writeFile,
@@ -38,6 +39,7 @@ const RUNNER_FILE = join(APP_ROOT, 'runner.sh');
 const CAPTURE_FILE = join(APP_ROOT, 'capture-evidence.cjs');
 const EVENT_STREAM_FILE = join(APP_ROOT, 'stream-codex-events.cjs');
 const ARTIFACTS_ROOT = join(DATA_ROOT, 'artifacts');
+const PUBLISH_ROOT = join(DATA_ROOT, 'publish');
 const GRAPHQL_URL = 'https://api.linear.app/graphql';
 const TOKEN_URL = 'https://api.linear.app/oauth/token';
 const EXE_API_URL = 'https://exe.dev/exec';
@@ -87,6 +89,7 @@ if (
 
 await mkdir(DATA_ROOT, { recursive: true, mode: 0o700 });
 await mkdir(ARTIFACTS_ROOT, { recursive: true, mode: 0o700 });
+await mkdir(PUBLISH_ROOT, { recursive: true, mode: 0o700 });
 
 async function loadObject(path) {
     try {
@@ -98,12 +101,33 @@ async function loadObject(path) {
 }
 
 async function saveObject(path, value) {
-    const temporary = `${path}.${process.pid}.tmp`;
-    await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, {
-        mode: 0o600,
-    });
-    await rename(temporary, path);
-    await chmod(path, 0o600);
+    const temporary = `${path}.${process.pid}.${randomBytes(6).toString('hex')}.tmp`;
+    try {
+        await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, {
+            mode: 0o600,
+        });
+        await rename(temporary, path);
+        await chmod(path, 0o600);
+    } finally {
+        await rm(temporary, { force: true }).catch(() => {});
+    }
+}
+
+async function cleanupPublishWorkspace(jobRoot) {
+    await Promise.all([
+        rm(join(jobRoot, 'repository'), { recursive: true, force: true }),
+        rm(join(jobRoot, 'github-token'), { force: true }),
+        rm(join(jobRoot, 'git-askpass.sh'), { force: true }),
+    ]);
+}
+
+async function cleanupPublishWorkspaces() {
+    const entries = await readdir(PUBLISH_ROOT, { withFileTypes: true });
+    await Promise.all(
+        entries
+            .filter((entry) => entry.isDirectory() && /^[a-f0-9]{16}$/.test(entry.name))
+            .map((entry) => cleanupPublishWorkspace(join(PUBLISH_ROOT, entry.name))),
+    );
 }
 
 const tokens = await loadObject(TOKENS_FILE);
@@ -632,8 +656,9 @@ function linearResponseBody(job, event, evidence, prUrl, previewUrl) {
 
 async function publishPatch(job, event, evidence) {
     const patch = Buffer.from(event.patchBase64 || '', 'base64');
-    const jobRoot = join(DATA_ROOT, 'publish', job.id);
+    const jobRoot = join(PUBLISH_ROOT, job.id);
     await mkdir(jobRoot, { recursive: true, mode: 0o700 });
+    await cleanupPublishWorkspace(jobRoot);
     await writeFile(join(jobRoot, 'change.patch'), patch, { mode: 0o600 });
     if (!patch.length || !config.githubToken) return null;
 
@@ -643,70 +668,73 @@ async function publishPatch(job, event, evidence) {
     const prTitle = semanticPullRequestTitle(event.prTitle, 'implement Linear request');
     const prBody = pullRequestBody(job, event, evidence);
 
-    const checkout = join(jobRoot, 'repository');
-    await rm(checkout, { recursive: true, force: true });
-    await run('git', ['clone', '--quiet', '--no-checkout', `https://github.com/${config.repository}.git`, checkout]);
-    await run('git', ['checkout', '--quiet', '--detach', event.baseCommit], { cwd: checkout });
-    await run('git', ['apply', '--binary', join(jobRoot, 'change.patch')], { cwd: checkout });
-    await run('git', ['add', '--all'], { cwd: checkout });
+    try {
+        const checkout = join(jobRoot, 'repository');
+        await run('git', ['clone', '--quiet', '--no-checkout', `https://github.com/${config.repository}.git`, checkout]);
+        await run('git', ['checkout', '--quiet', '--detach', event.baseCommit], { cwd: checkout });
+        await run('git', ['apply', '--binary', join(jobRoot, 'change.patch')], { cwd: checkout });
+        await run('git', ['add', '--all'], { cwd: checkout });
 
-    const branch = branchName(job.issueIdentifier, job.id);
-    await run('git', ['checkout', '--quiet', '-B', branch], { cwd: checkout });
-    await run('git', ['-c', 'user.name=Lightdash Linear Agent', '-c', 'user.email=linear-agent@lightdash.com', 'commit', '--quiet', '-m', prTitle], { cwd: checkout });
+        const branch = branchName(job.issueIdentifier, job.id);
+        await run('git', ['checkout', '--quiet', '-B', branch], { cwd: checkout });
+        await run('git', ['-c', 'user.name=Lightdash Linear Agent', '-c', 'user.email=linear-agent@lightdash.com', 'commit', '--quiet', '-m', prTitle], { cwd: checkout });
 
-    const tokenFile = join(jobRoot, 'github-token');
-    const askpassFile = join(jobRoot, 'git-askpass.sh');
-    await writeFile(tokenFile, `${config.githubToken}\n`, { mode: 0o600 });
-    await writeFile(
-        askpassFile,
-        `#!/bin/sh\ncase "$1" in *Username*) echo x-access-token ;; *) cat ${shellQuote(tokenFile)} ;; esac\n`,
-        { mode: 0o700 },
-    );
-    await run(
-        'git',
-        ['push', '--force', `https://github.com/${config.repository}.git`, `HEAD:refs/heads/${branch}`],
-        {
-            cwd: checkout,
-            env: {
-                ...process.env,
-                GIT_ASKPASS: askpassFile,
-                GIT_TERMINAL_PROMPT: '0',
+        const tokenFile = join(jobRoot, 'github-token');
+        const askpassFile = join(jobRoot, 'git-askpass.sh');
+        await writeFile(tokenFile, `${config.githubToken}\n`, { mode: 0o600 });
+        await writeFile(
+            askpassFile,
+            `#!/bin/sh\ncase "$1" in *Username*) echo x-access-token ;; *) cat ${shellQuote(tokenFile)} ;; esac\n`,
+            { mode: 0o700 },
+        );
+        await run(
+            'git',
+            ['push', '--force', `https://github.com/${config.repository}.git`, `HEAD:refs/heads/${branch}`],
+            {
+                cwd: checkout,
+                env: {
+                    ...process.env,
+                    GIT_ASKPASS: askpassFile,
+                    GIT_TERMINAL_PROMPT: '0',
+                },
             },
-        },
-    );
+        );
 
-    if (!job.prUrl) {
-        const pull = await githubRequest(`/repos/${config.repository}/pulls`, {
-            method: 'POST',
-            body: JSON.stringify({
-                title: prTitle,
-                head: branch,
-                base: config.baseRef,
-                body: prBody,
-                draft: true,
-            }),
-        });
-        job.prUrl = pull.html_url;
-        job.prNumber = pull.number;
-        job.prTitle = prTitle;
-        await saveObject(JOBS_FILE, jobs);
-        await syncExternalUrls(job).catch((error) => {
-            log('External URL sync failed', { jobId: job.id, error: error.message });
-        });
-    } else {
-        const prNumber = job.prNumber || Number(job.prUrl.match(/\/pull\/(\d+)$/)?.[1]);
-        if (!Number.isInteger(prNumber) || prNumber < 1) {
-            throw new Error(`Could not determine pull request number from ${job.prUrl}`);
+        if (!job.prUrl) {
+            const pull = await githubRequest(`/repos/${config.repository}/pulls`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    title: prTitle,
+                    head: branch,
+                    base: config.baseRef,
+                    body: prBody,
+                    draft: true,
+                }),
+            });
+            job.prUrl = pull.html_url;
+            job.prNumber = pull.number;
+            job.prTitle = prTitle;
+            await saveObject(JOBS_FILE, jobs);
+            await syncExternalUrls(job).catch((error) => {
+                log('External URL sync failed', { jobId: job.id, error: error.message });
+            });
+        } else {
+            const prNumber = job.prNumber || Number(job.prUrl.match(/\/pull\/(\d+)$/)?.[1]);
+            if (!Number.isInteger(prNumber) || prNumber < 1) {
+                throw new Error(`Could not determine pull request number from ${job.prUrl}`);
+            }
+            await githubRequest(`/repos/${config.repository}/pulls/${prNumber}`, {
+                method: 'PATCH',
+                body: JSON.stringify({ title: prTitle, body: prBody }),
+            });
+            job.prNumber = prNumber;
+            job.prTitle = prTitle;
+            await saveObject(JOBS_FILE, jobs);
         }
-        await githubRequest(`/repos/${config.repository}/pulls/${prNumber}`, {
-            method: 'PATCH',
-            body: JSON.stringify({ title: prTitle, body: prBody }),
-        });
-        job.prNumber = prNumber;
-        job.prTitle = prTitle;
-        await saveObject(JOBS_FILE, jobs);
+        return job.prUrl;
+    } finally {
+        await cleanupPublishWorkspace(jobRoot);
     }
-    return job.prUrl;
 }
 
 async function handleRunnerEvent(job, event) {
@@ -996,5 +1024,9 @@ const server = createServer((request, response) => {
 
 server.listen(config.port, '0.0.0.0', () => {
     log('Linear exe.dev agent listening', { port: config.port, publicUrl: config.publicUrl });
-    setImmediate(() => recoverPendingJobs());
+    setImmediate(() => {
+        cleanupPublishWorkspaces()
+            .catch((error) => log('Publish workspace cleanup failed', { error: error.message }))
+            .then(() => recoverPendingJobs());
+    });
 });

@@ -155,6 +155,9 @@ and draft pull request. Its final response is structured separately and rendered
 in Linear as Markdown with implementation, validation, visual-evidence, and link
 sections.
 
+The controller retains patches and visual evidence, but removes temporary Git
+checkouts and GitHub credential files after every publish attempt and on startup.
+
 PR titles and descriptions describe behavior generically and must not include
 client or customer names, organization names, or customer data examples. The
 controller adds `Closes: <LINEAR-ID>` itself. It also reads GitHub issue links
