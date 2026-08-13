@@ -1,0 +1,6 @@
+/* Mantine's Switch input is an invisible overlay across the whole row, so a
+   control inside the label never receives the pointer without being lifted. */
+.switchHelpIcon {
+    position: relative;
+    z-index: 1;
+}
