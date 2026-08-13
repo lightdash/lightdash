@@ -1,3 +1,10 @@
+## [1.151.2](https://github.com/lightdash/lightdash/compare/1.151.1...1.151.2) (2026-08-13)
+
+
+### Bug Fixes
+
+* **ci:** move the release job back to a GitHub-hosted runner ([#27362](https://github.com/lightdash/lightdash/issues/27362)) ([55bbbce](https://github.com/lightdash/lightdash/commit/55bbbce6721297e0088711b0a67dde795ee22c26)), closes [#27361](https://github.com/lightdash/lightdash/issues/27361) [#27361](https://github.com/lightdash/lightdash/issues/27361)
+
 ## [1.151.1](https://github.com/lightdash/lightdash/compare/1.151.0...1.151.1) (2026-08-13)
 
 
