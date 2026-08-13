@@ -82,6 +82,7 @@ describe('BuilderPromptBar', () => {
                 projectUuid="p1"
                 composerAppUuid="draft-1"
                 hasVersions={false}
+                isBuildingFirstVersion={false}
                 build={buildState(send)}
                 onCancelBuild={null}
                 modelSelection={modelSelection('haiku')}
@@ -107,6 +108,7 @@ describe('BuilderPromptBar', () => {
                 projectUuid="p1"
                 composerAppUuid="draft-1"
                 hasVersions
+                isBuildingFirstVersion={false}
                 build={buildState(vi.fn())}
                 onCancelBuild={null}
                 modelSelection={modelSelection('opus')}

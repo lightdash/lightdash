@@ -369,6 +369,10 @@ const ChartTypeBuilder: FC = () => {
                                 activeVizUuid ?? build.draftAppUuid
                             }
                             hasVersions={history.versions.length > 0}
+                            isBuildingFirstVersion={
+                                isBuilding &&
+                                history.latestReadyVersion === null
+                            }
                             build={build}
                             onCancelBuild={onCancelBuild}
                             modelSelection={modelSelection}
