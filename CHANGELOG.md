@@ -1,3 +1,10 @@
+## [1.146.1](https://github.com/lightdash/lightdash/compare/1.146.0...1.146.1) (2026-08-13)
+
+
+### Bug Fixes
+
+* **data-apps:** stop the chart type builder looping on a running build ([#27303](https://github.com/lightdash/lightdash/issues/27303)) ([b940a68](https://github.com/lightdash/lightdash/commit/b940a68fcd7242ad84e53137aeaee1b1ae10ca86))
+
 # [1.146.0](https://github.com/lightdash/lightdash/compare/1.145.0...1.146.0) (2026-08-13)
 
 
