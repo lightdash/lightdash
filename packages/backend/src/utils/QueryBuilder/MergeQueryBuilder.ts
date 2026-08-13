@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     DimensionType,
+    MERGE_ROW_PRESENT_COLUMN,
     MERGE_TRUNCATED_COLUMN,
     mergeCalculationReferencePattern,
     MergeJoinType,
@@ -42,14 +43,20 @@ export const applyMergeTerminalWrapper = (
     wrapper: MergeTerminalWrapper,
 ): string => {
     const wrapped =
-        wrapper.truncatedColumnSql === null
+        wrapper.sourceLimitExceededSql === null
             ? sql
             : [
-                  `SELECT merged_terminal.*,`,
-                  `       ${wrapper.truncatedColumnSql}`,
+                  `SELECT merge_guard_data.*,`,
+                  `       merge_guard.${MERGE_TRUNCATED_COLUMN}`,
                   `FROM (`,
+                  `    SELECT merge_data.*, TRUE AS ${MERGE_ROW_PRESENT_COLUMN}`,
+                  `    FROM (`,
                   sql,
-                  `) AS merged_terminal`,
+                  `    ) AS merge_data`,
+                  `) AS merge_guard_data`,
+                  `RIGHT JOIN (`,
+                  `    SELECT ${wrapper.sourceLimitExceededSql} AS ${MERGE_TRUNCATED_COLUMN}`,
+                  `) AS merge_guard ON TRUE`,
               ].join('\n');
     return applyLimitToSqlQuery({
         sqlQuery: [
@@ -536,7 +543,7 @@ export class MergeQueryBuilder {
     buildTerminalWrapper(
         outputAliasByColumn?: Record<string, string>,
     ): MergeTerminalWrapper {
-        const truncatedColumnSql =
+        const sourceLimitExceededSql =
             this.sourceRowCap === undefined
                 ? null
                 : `(${this.sources
@@ -548,7 +555,7 @@ export class MergeQueryBuilder {
                                   this.sourceRowCap
                               }`,
                       )
-                      .join(' OR ')}) AS ${this.quote(MERGE_TRUNCATED_COLUMN)}`;
+                      .join(' OR ')})`;
 
         // Ordered outside the calculation wrapper, so a sort can name a
         // calculated column and so the ordering is not left inside a subquery,
@@ -556,7 +563,7 @@ export class MergeQueryBuilder {
         return {
             orderBy: this.getOrderBy(outputAliasByColumn),
             limit: this.limit ?? null,
-            truncatedColumnSql,
+            sourceLimitExceededSql,
         };
     }
 

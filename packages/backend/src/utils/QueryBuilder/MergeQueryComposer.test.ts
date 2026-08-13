@@ -78,7 +78,12 @@ const typedColumns = [
 
 const compose = () =>
     new MergeQueryComposer({
-        sql: 'SELECT 1',
+        coreSql: 'SELECT 1',
+        terminalWrapper: {
+            orderBy: [],
+            limit: null,
+            sourceLimitExceededSql: null,
+        },
         itemsMap,
         typedColumns,
         columnOrder: ['merge_k0', 'a_followers_count'],
@@ -125,7 +130,12 @@ describe('MergeQueryComposer', () => {
     // query, not a bespoke one.
     it('wraps the merged statement with the standard pivot stage', () => {
         const composer = new MergeQueryComposer({
-            sql: 'SELECT 1',
+            coreSql: 'SELECT 1',
+            terminalWrapper: {
+                orderBy: [],
+                limit: null,
+                sourceLimitExceededSql: null,
+            },
             itemsMap,
             typedColumns,
             columnOrder: ['merge_k0', 'merge_k1', 'a_followers_count'],
@@ -150,5 +160,38 @@ describe('MergeQueryComposer', () => {
         expect(sql).toContain('column_index');
         // The base compile stays unwrapped: the pivot is a stage over it.
         expect(composer.compile().query).toEqual('SELECT 1');
+    });
+
+    it('keeps source-cap assertions outside the presentation pivot', () => {
+        const composer = new MergeQueryComposer({
+            coreSql: 'SELECT 1',
+            terminalWrapper: {
+                orderBy: ['"merge_k0"'],
+                limit: 500,
+                sourceLimitExceededSql: 'FALSE',
+            },
+            itemsMap,
+            typedColumns,
+            columnOrder: ['merge_k0', 'merge_k1', 'a_followers_count'],
+            limit: 500,
+            warehouseClient: mockWarehouseClient,
+            pivotConfiguration: {
+                indexColumn: { reference: 'merge_k0', type: VizIndexType.TIME },
+                valuesColumns: [
+                    {
+                        reference: 'a_followers_count',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'merge_k1' }],
+                sortBy: undefined,
+            },
+        });
+
+        const sql = composer.getSql({ columnLimit: 100 });
+        expect(sql.indexOf('pivot_query')).toBeLessThan(
+            sql.indexOf('RIGHT JOIN'),
+        );
+        expect(sql).not.toContain('ORDER BY "merge_k0"');
     });
 });

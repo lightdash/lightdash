@@ -3,11 +3,13 @@ import {
     isDimension,
     type Explore,
     type ItemsMap,
+    type MergeTerminalWrapper,
     type MergeTypedColumn,
     type MetricQuery,
     type PivotConfiguration,
     type WarehouseClient,
 } from '@lightdash/common';
+import { applyMergeTerminalWrapper } from './MergeQueryBuilder';
 import { type CompiledQuery } from './MetricQueryBuilder';
 import { QueryComposer } from './QueryComposer';
 
@@ -15,8 +17,9 @@ import { QueryComposer } from './QueryComposer';
 export const MERGE_EXPLORE_NAME = 'merge';
 
 export type MergeQueryComposerArguments = {
-    /** The compiled merged statement, from `ProjectService.compileMergeQuery`. */
-    sql: string;
+    /** Composable merge SQL, before presentation pivot and terminal checks. */
+    coreSql: string;
+    terminalWrapper: MergeTerminalWrapper;
     /** Every merged column as an ordinary field, keyed by field id. */
     itemsMap: ItemsMap;
     /** The compile's typed field list — the virtual view's column types. */
@@ -51,9 +54,12 @@ export class MergeQueryComposer extends QueryComposer {
 
     private readonly mergedItemsMap: ItemsMap;
 
+    private readonly terminalWrapper: MergeTerminalWrapper;
+
     constructor(args: MergeQueryComposerArguments) {
         const {
-            sql,
+            coreSql,
+            terminalWrapper,
             itemsMap,
             typedColumns,
             columnOrder,
@@ -73,7 +79,7 @@ export class MergeQueryComposer extends QueryComposer {
             },
             {
                 explore: MergeQueryComposer.buildVirtualView(
-                    sql,
+                    coreSql,
                     typedColumns,
                     warehouseClient,
                 ),
@@ -85,8 +91,9 @@ export class MergeQueryComposer extends QueryComposer {
                 displayTimezone: null,
             },
         );
-        this.mergedSql = sql;
+        this.mergedSql = coreSql;
         this.mergedItemsMap = itemsMap;
+        this.terminalWrapper = terminalWrapper;
     }
 
     /** The merged statement is already compiled; nothing recompiles it. */
@@ -100,6 +107,15 @@ export class MergeQueryComposer extends QueryComposer {
             usedParameters: {},
             compilationErrors: [],
         };
+    }
+
+    protected finalizeSql(sql: string, isPivoted: boolean): string {
+        return applyMergeTerminalWrapper(sql, {
+            ...this.terminalWrapper,
+            // PivotQueryBuilder owns presentation ordering and limiting once
+            // present. The source-cap assertion must remain outermost.
+            ...(isPivoted ? { orderBy: [], limit: null } : {}),
+        });
     }
 
     /**

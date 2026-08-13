@@ -339,7 +339,7 @@ export class QueryComposer {
         const pivotConfiguration = this.getPivotConfiguration();
 
         if (!pivotConfiguration) {
-            return compiledQuery.query;
+            return this.finalizeSql(compiledQuery.query, false);
         }
 
         const pivotQueryBuilder = new PivotQueryBuilder(
@@ -349,6 +349,15 @@ export class QueryComposer {
             this.getMetricQuery().limit,
             this.context.pivotItemsMap ?? compiledQuery.fields,
         );
-        return pivotQueryBuilder.toSql({ columnLimit });
+        return this.finalizeSql(pivotQueryBuilder.toSql({ columnLimit }), true);
+    }
+
+    /**
+     * Last composition seam, after the optional pivot. Most queries need no
+     * extra stage; composed result sets can attach assertions or wrappers
+     * without reimplementing the async execution path.
+     */
+    protected finalizeSql(sql: string, _isPivoted: boolean): string {
+        return sql;
     }
 }

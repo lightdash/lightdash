@@ -477,16 +477,16 @@ describe('MergeQueryBuilder', () => {
 
             expect(sql).toContain('AS merge_guard_0) > 100');
             expect(sql).toContain('AS merge_guard_1) > 100');
-            expect(sql).toContain('AS "__merge_truncated"');
+            expect(sql).toContain('AS __merge_truncated');
         });
 
         it('keeps the guard in the wrapper, not the core', () => {
             const builder = cappedBuilder(100);
 
             expect(builder.toCoreSql()).not.toContain('__merge_truncated');
-            expect(builder.buildTerminalWrapper().truncatedColumnSql).toContain(
-                '__merge_truncated',
-            );
+            expect(
+                builder.buildTerminalWrapper().sourceLimitExceededSql,
+            ).toContain('merge_guard_0');
         });
 
         it('adds nothing when no cap is set', () => {
@@ -562,12 +562,12 @@ describe('MergeQueryBuilder', () => {
                 applyMergeTerminalWrapper('SELECT 1 AS "date_day"', {
                     orderBy: ['"date_day"'],
                     limit: 10,
-                    truncatedColumnSql: '(FALSE) AS "__merge_truncated"',
+                    sourceLimitExceededSql: 'FALSE',
                 }),
             );
 
             expect(sql).toBe(
-                'SELECT merged_terminal.*, (FALSE) AS "__merge_truncated" FROM ( SELECT 1 AS "date_day" ) AS merged_terminal ORDER BY "date_day" LIMIT 10',
+                'SELECT merge_guard_data.*, merge_guard.__merge_truncated FROM ( SELECT merge_data.*, TRUE AS __merge_row_present FROM ( SELECT 1 AS "date_day" ) AS merge_data ) AS merge_guard_data RIGHT JOIN ( SELECT FALSE AS __merge_truncated ) AS merge_guard ON TRUE ORDER BY "date_day" LIMIT 10',
             );
         });
 
@@ -576,7 +576,7 @@ describe('MergeQueryBuilder', () => {
                 applyMergeTerminalWrapper('SELECT 1 AS "date_day"', {
                     orderBy: [],
                     limit: null,
-                    truncatedColumnSql: null,
+                    sourceLimitExceededSql: null,
                 }),
             ).toBe('SELECT 1 AS "date_day"');
         });

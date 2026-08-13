@@ -98,6 +98,7 @@ import {
     getFields,
     getIntrinsicUserAttributes,
     getItemId,
+    getItemMap,
     getMergeSourceTableLabel,
     getMetricOverridesWithPopInheritance,
     getMetrics,
@@ -5071,52 +5072,33 @@ export class ProjectService extends BaseService {
     }
 
     /**
-     * Compiles a merge of several metric queries into one warehouse statement.
-     *
-     * Compilation only — the caller runs the returned SQL through the normal
-     * SQL execution path, so the merge does not duplicate limits, caching or
-     * result handling. Validation errors are returned rather than thrown: the
-     * explorer shows them against the offending query row.
-     */
-    /**
      * Field metadata for every field a join key names, so the validator can
      * tell whether the two sides are actually comparable.
      */
-    protected async getMergeJoinFieldTypes(
-        account: Account,
-        projectUuid: string,
+    protected getMergeJoinFieldTypes(
         mergeQuery: MergeQuery,
-    ): Promise<MergeFieldTypes> {
-        const exploreBySourceId = Object.fromEntries(
-            await Promise.all(
-                mergeQuery.sources.map(
-                    async (source) =>
-                        [
-                            source.id,
-                            await this.getExplore(
-                                account,
-                                projectUuid,
-                                source.metricQuery.exploreName,
-                            ),
-                        ] as const,
-                ),
-            ),
-        );
-
+        itemMapBySourceId: Record<string, ItemsMap>,
+    ): MergeFieldTypes {
         const fieldTypes: MergeFieldTypes = {};
         mergeQuery.joinKey.forEach((part) => {
             Object.entries(part.fieldIdBySourceId).forEach(
                 ([sourceId, fieldId]) => {
-                    const explore = exploreBySourceId[sourceId];
-                    if (!explore) return;
-                    const dimension = Object.values(explore.tables)
-                        .flatMap((table) => Object.values(table.dimensions))
-                        .find((candidate) => getItemId(candidate) === fieldId);
-                    if (!dimension) return;
-                    fieldTypes[fieldId] = {
-                        type: dimension.type,
-                        timeInterval: dimension.timeInterval ?? null,
-                        timestampDomain: dimension.timestampDomain,
+                    const dimension = itemMapBySourceId[sourceId]?.[fieldId];
+                    if (
+                        !dimension ||
+                        (!isDimension(dimension) &&
+                            !isCustomDimension(dimension))
+                    )
+                        return;
+                    fieldTypes[sourceId] ??= {};
+                    fieldTypes[sourceId][fieldId] = {
+                        type: convertItemTypeToDimensionType(dimension),
+                        timeInterval: isDimension(dimension)
+                            ? (dimension.timeInterval ?? null)
+                            : null,
+                        timestampDomain: isDimension(dimension)
+                            ? dimension.timestampDomain
+                            : undefined,
                     };
                 },
             );
@@ -5165,10 +5147,38 @@ export class ProjectService extends BaseService {
     }): Promise<ApiCompiledMergeQueryResults> {
         const { account, projectUuid, mergeQuery, parameters } = args;
 
-        const fieldTypes = await this.getMergeJoinFieldTypes(
-            account,
-            projectUuid,
+        // One metadata load feeds validation, output typing and display labels.
+        // Query-defined fields belong in the same item map as explore fields,
+        // so custom dimensions and metrics follow the canonical lookup path.
+        const exploreBySourceId = Object.fromEntries(
+            await Promise.all(
+                mergeQuery.sources.map(
+                    async (source) =>
+                        [
+                            source.id,
+                            await this.getExplore(
+                                account,
+                                projectUuid,
+                                source.metricQuery.exploreName,
+                            ),
+                        ] as const,
+                ),
+            ),
+        );
+        const itemMapBySourceId = Object.fromEntries(
+            mergeQuery.sources.map((source) => [
+                source.id,
+                getItemMap(
+                    exploreBySourceId[source.id],
+                    source.metricQuery.additionalMetrics,
+                    source.metricQuery.tableCalculations,
+                    source.metricQuery.customDimensions,
+                ),
+            ]),
+        );
+        const fieldTypes = this.getMergeJoinFieldTypes(
             mergeQuery,
+            itemMapBySourceId,
         );
 
         const errors = [
@@ -5315,8 +5325,11 @@ export class ProjectService extends BaseService {
         // a null.
         const nullPlaceholderByKeyName = Object.fromEntries(
             mergeQuery.joinKey.flatMap((part) => {
-                const meta = Object.values(part.fieldIdBySourceId)
-                    .map((fieldId) => fieldTypes[fieldId])
+                const meta = Object.entries(part.fieldIdBySourceId)
+                    .map(
+                        ([sourceId, fieldId]) =>
+                            fieldTypes[sourceId]?.[fieldId],
+                    )
                     .find((candidate) => candidate !== undefined);
                 if (meta === undefined) return [];
                 return [
@@ -5360,8 +5373,11 @@ export class ProjectService extends BaseService {
             if (mergeQuery.fillMissingDates !== true) return undefined;
             const part = mergeQuery.joinKey[0];
             const meta = part
-                ? Object.values(part.fieldIdBySourceId)
-                      .map((fieldId) => fieldTypes[fieldId])
+                ? Object.entries(part.fieldIdBySourceId)
+                      .map(
+                          ([sourceId, fieldId]) =>
+                              fieldTypes[sourceId]?.[fieldId],
+                      )
                       .find((candidate) => candidate?.timeInterval != null)
                 : undefined;
             if (!part || !meta?.timeInterval) {
@@ -5458,22 +5474,6 @@ export class ProjectService extends BaseService {
         // formatted. Labels come from the field each column originated in;
         // a widened column also carries the value it holds, since one metric
         // becomes several columns and the name alone cannot say which is which.
-        const exploreBySourceId = Object.fromEntries(
-            await Promise.all(
-                mergeQuery.sources.map(
-                    async (source) =>
-                        [
-                            source.id,
-                            await this.getExplore(
-                                account,
-                                projectUuid,
-                                source.metricQuery.exploreName,
-                            ),
-                        ] as const,
-                ),
-            ),
-        );
-
         const metricQueryBySourceId = Object.fromEntries(
             mergeQuery.sources.map((source) => [source.id, source.metricQuery]),
         );
@@ -5492,23 +5492,10 @@ export class ProjectService extends BaseService {
             sourceId: string,
             fieldId: string,
         ): Field | AdditionalMetric | CustomDimension | undefined => {
-            const explore = exploreBySourceId[sourceId];
-            const metricQuery = metricQueryBySourceId[sourceId];
-            const candidates: Array<
-                Field | AdditionalMetric | CustomDimension
-            > = [
-                ...(explore
-                    ? Object.values(explore.tables).flatMap((table) => [
-                          ...Object.values(table.dimensions),
-                          ...Object.values(table.metrics),
-                      ])
-                    : []),
-                ...(metricQuery?.additionalMetrics ?? []),
-                ...(metricQuery?.customDimensions ?? []),
-            ];
-            return candidates.find(
-                (candidate) => getItemId(candidate) === fieldId,
-            );
+            const item = itemMapBySourceId[sourceId]?.[fieldId];
+            return item && (isField(item) || isCustomDimension(item))
+                ? item
+                : undefined;
         };
 
         const joinKeyFields: MergeQueryField[] = mergeQuery.joinKey.map(
@@ -5523,7 +5510,9 @@ export class ProjectService extends BaseService {
                     column: part.name,
                     label: mergedLabel(field) ?? part.name,
                     kind: 'dimension' as const,
-                    type: field?.type ?? 'string',
+                    type: field
+                        ? convertItemTypeToDimensionType(field)
+                        : DimensionType.STRING,
                     sourceId: null,
                     sourceFieldId: null,
                 };
@@ -5552,7 +5541,9 @@ export class ProjectService extends BaseService {
                         kind: (field && isMetric(field)
                             ? 'metric'
                             : 'dimension') as 'dimension' | 'metric',
-                        type: field?.type ?? 'string',
+                        type: field
+                            ? convertItemTypeToDimensionType(field)
+                            : DimensionType.STRING,
                         sourceId,
                         sourceFieldId: origin?.fieldId ?? null,
                     };
@@ -5747,10 +5738,13 @@ export class ProjectService extends BaseService {
                         const part = mergeQuery.joinKey.find(
                             (candidate) => candidate.name === entry.column,
                         );
-                        const meta = Object.values(
+                        const meta = Object.entries(
                             part?.fieldIdBySourceId ?? {},
                         )
-                            .map((fieldId) => fieldTypes[fieldId])
+                            .map(
+                                ([sourceId, fieldId]) =>
+                                    fieldTypes[sourceId]?.[fieldId],
+                            )
                             .find((candidate) => candidate !== undefined);
                         return meta?.type ?? null;
                     }

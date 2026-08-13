@@ -131,7 +131,6 @@ import {
 } from '@lightdash/common';
 import { SshTunnel, warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
-import { createHash } from 'crypto';
 import { Readable, Writable } from 'stream';
 import { DownloadCsv } from '../../analytics/LightdashAnalytics';
 import { transformAndExportResults } from '../../clients/Aws/transformAndExportResults';
@@ -163,8 +162,8 @@ import {
     streamJsonlData,
 } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import { updateExploreWithDateZoom } from '../../utils/QueryBuilder/dateZoom';
-import { applyMergeTerminalWrapper } from '../../utils/QueryBuilder/MergeQueryBuilder';
 import { MergeQueryComposer } from '../../utils/QueryBuilder/MergeQueryComposer';
+import { consumeMergeResultMetadata } from '../../utils/QueryBuilder/mergeQueryResults';
 import { safeReplaceParametersWithSqlBuilder } from '../../utils/QueryBuilder/parameters';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
@@ -2053,7 +2052,7 @@ export class AsyncQueryService extends ProjectService {
         // "wrong image showing in pivot" reports.
         const passthroughCardinalityViolations = new Set<string>();
 
-        const writeAndTransformRowsIfPivot = pivotConfiguration
+        const transformRows = pivotConfiguration
             ? async (
                   rows: WarehouseResults['rows'],
                   fields: WarehouseResults['fields'],
@@ -2284,6 +2283,16 @@ export class AsyncQueryService extends ProjectService {
             throw new ParameterError(`Invalid data timezone: ${dataTimezone}`);
         }
 
+        let internalRowsRemoved = 0;
+        const writeAndTransformRows = async (
+            rows: WarehouseResults['rows'],
+            fields: WarehouseResults['fields'],
+        ) => {
+            const normalized = consumeMergeResultMetadata(rows, fields);
+            internalRowsRemoved += normalized.removedRows;
+            await transformRows(normalized.rows, normalized.fields);
+        };
+
         const warehouseResults = await traceSpan(
             {
                 op: 'db.query',
@@ -2296,7 +2305,7 @@ export class AsyncQueryService extends ProjectService {
                         tags: queryTags,
                         timezone: dataTimezone,
                     },
-                    write ? writeAndTransformRowsIfPivot : undefined,
+                    writeAndTransformRows,
                 ),
         );
 
@@ -2332,7 +2341,13 @@ export class AsyncQueryService extends ProjectService {
         }
 
         return {
-            warehouseResults,
+            warehouseResults: {
+                ...warehouseResults,
+                totalRows: Math.max(
+                    0,
+                    warehouseResults.totalRows - internalRowsRemoved,
+                ),
+            },
             columns,
             pivotDetails: pivotConfiguration
                 ? {
@@ -6168,7 +6183,11 @@ export class AsyncQueryService extends ProjectService {
             mergeQuery,
             parameters,
         });
-        if (compiledMerge.sql === null || compiledMerge.typedColumns === null) {
+        if (
+            compiledMerge.coreSql === null ||
+            compiledMerge.typedColumns === null ||
+            compiledMerge.terminalWrapper === null
+        ) {
             throw new ParameterError(
                 `This merge cannot be run: ${compiledMerge.errors
                     .map((error) => error.message)
@@ -6179,106 +6198,79 @@ export class AsyncQueryService extends ProjectService {
 
         // Only for composing SQL — quoting and the pivot stage need the
         // dialect. The async runtime opens its own connection to execute.
-        const warehouseCredentials = await this.getWarehouseCredentials({
-            projectUuid,
-            userId: account.user.id,
-            isRegisteredUser: account.isRegisteredUser(),
-            isServiceAccount: account.isServiceAccount(),
-        });
+        const [warehouseCredentials, userAccessControls] = await Promise.all([
+            this.getWarehouseCredentials({
+                projectUuid,
+                userId: account.user.id,
+                isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
+            }),
+            this.getUserAttributes({ account }),
+        ]);
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             warehouseCredentials,
         );
 
+        let composer: MergeQueryComposer;
         try {
-            const columnOrder = Object.values(compiledMerge.fieldIdByColumn);
-            // Presentation pivot is the standard stage: the composer wraps
-            // the merged statement with PivotQueryBuilder exactly as any
-            // other query.
-            const composer = new MergeQueryComposer({
-                sql: compiledMerge.sql,
+            composer = new MergeQueryComposer({
+                coreSql: compiledMerge.coreSql,
+                terminalWrapper: compiledMerge.terminalWrapper,
                 itemsMap: compiledMerge.itemsMap,
                 typedColumns: compiledMerge.typedColumns,
-                columnOrder,
+                columnOrder: Object.values(compiledMerge.fieldIdByColumn),
                 limit: mergeQuery.limit,
                 warehouseClient,
                 pivotConfiguration,
             });
-            const metricQuery = composer.getMetricQuery();
-            const query = composer.getSql({
-                columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
-            });
-
-            const cacheKey = createHash('sha256').update(query).digest('hex');
-            const requestParameters: ExecuteAsyncMergeQueryRequestParams = {
-                context,
-                invalidateCache,
-                mergeQuery,
-                parameters,
-                pivotConfiguration,
-            };
-            const queryCreatedAt = new Date();
-            const { queryUuid } = await this.queryHistoryModel.create(account, {
-                organizationUuid,
-                projectUuid,
-                compiledSql: query,
-                context,
-                metricQuery,
-                fields: compiledMerge.itemsMap,
-                requestParameters,
-                cacheKey,
-                pivotConfiguration: pivotConfiguration ?? null,
-                originalColumns: null,
-            });
-
-            const queryTags: RunQueryTags = {
-                ...this.getUserQueryTags(account),
-                ...AsyncQueryService.getSchedulerQueryTags(),
-                organization_uuid: organizationUuid,
-                project_uuid: projectUuid,
-                query_context: context,
-            };
-            const projectSummary =
-                await this.projectModel.getSummary(projectUuid);
-            const onboardingFlow = await this.getOnboardingFlow({
-                userUuid: account.user.id,
-                organizationUuid,
-            });
-            void this.runAsyncWarehouseQuery({
-                userUuid: account.user.id,
-                organizationUuid,
-                isPreviewProject: projectSummary.type === ProjectType.PREVIEW,
-                isRegisteredUser: account.isRegisteredUser(),
-                isServiceAccount: account.isServiceAccount(),
-                onboardingFlow,
-                projectUuid,
-                queryUuid,
-                queryTags,
-                query,
-                fieldsMap: compiledMerge.itemsMap,
-                cacheKey,
-                pivotConfiguration,
-                queryCreatedAt,
-                displayTimezone: null,
-            }).catch((e) => {
-                this.logger.error(
-                    `Merge query ${queryUuid} failed: ${getErrorMessage(e)}`,
-                );
-            });
-
-            return {
-                queryUuid,
-                cacheMetadata: { cacheHit: false },
-                metricQuery,
-                fields: compiledMerge.itemsMap,
-                warnings: [],
-                parameterReferences: [],
-                usedParametersValues: {},
-                resolvedTimezone: null,
-            };
         } finally {
             await sshTunnel.disconnect();
         }
+
+        const baseQueryTags: RunQueryTags = {
+            ...this.getUserQueryTags(account),
+            ...AsyncQueryService.getSchedulerQueryTags(),
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            query_context: context,
+        };
+        const queryTags = AsyncQueryService.addUserAttributeQueryTags(
+            baseQueryTags,
+            userAccessControls,
+        );
+        const requestParameters: ExecuteAsyncMergeQueryRequestParams = {
+            context,
+            invalidateCache,
+            mergeQuery,
+            parameters,
+            pivotConfiguration,
+        };
+        const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
+            {
+                account,
+                projectUuid,
+                organizationUuid,
+                context,
+                queryTags,
+                invalidateCache,
+                queryComposer: composer,
+                warehouseCredentials,
+                routingTarget: 'warehouse',
+            },
+            requestParameters,
+        );
+
+        return {
+            queryUuid,
+            cacheMetadata,
+            metricQuery: composer.getMetricQuery(),
+            fields: composer.getFields(),
+            warnings: composer.getWarnings(),
+            parameterReferences: composer.getParameterReferences(),
+            usedParametersValues: composer.getUsedParameters(),
+            resolvedTimezone: composer.getDisplayTimezone(),
+        };
     }
 
     private async prepareSqlChartAsyncQueryArgs({

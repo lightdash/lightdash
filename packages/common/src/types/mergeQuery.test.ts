@@ -235,8 +235,8 @@ describe('join key comparability', () => {
         b: { type: DimensionType; timeInterval: TimeFrames | null },
     ) =>
         validateMergeQuery(mergeQuery(), {
-            followers_created_date: a,
-            follower_snapshots_date: b,
+            a: { followers_created_date: a },
+            b: { follower_snapshots_date: b },
         });
 
     const day = {
@@ -277,6 +277,38 @@ describe('join key comparability', () => {
         expect(errors).toHaveLength(1);
         expect(errors[0].kind).toBe(
             MergeQueryErrorKind.JOIN_KEY_GRANULARITY_MISMATCH,
+        );
+    });
+
+    it('keeps types separate when two sources use the same field id', () => {
+        const query = mergeQuery({
+            sources: [
+                queryA(['shared']),
+                {
+                    ...queryB(),
+                    metricQuery: metricQuery(
+                        'follower_snapshots',
+                        ['shared'],
+                        [],
+                    ),
+                },
+            ],
+            joinKey: [
+                {
+                    name: 'shared',
+                    fieldIdBySourceId: { a: 'shared', b: 'shared' },
+                },
+            ],
+        });
+        const errors = validateMergeQuery(query, {
+            a: { shared: day },
+            b: {
+                shared: { type: DimensionType.STRING, timeInterval: null },
+            },
+        });
+
+        expect(errors.map(({ kind }) => kind)).toContain(
+            MergeQueryErrorKind.JOIN_KEY_TYPE_MISMATCH,
         );
     });
 

@@ -96,8 +96,11 @@ export type MergeFieldMeta = {
     timestampDomain?: TimestampDomain;
 };
 
-/** Field metadata by field id, for every field named in a join key. */
-export type MergeFieldTypes = Record<FieldId, MergeFieldMeta>;
+/** Field metadata by source and field id for every field named in a join key. */
+export type MergeFieldTypes = Record<
+    MergeQuerySource['id'],
+    Record<FieldId, MergeFieldMeta>
+>;
 
 /**
  * Types that can be compared across a join without the warehouse guessing.
@@ -304,14 +307,16 @@ export const validateMergeQuery = (
     if (mergeQuery.fillMissingDates && fieldTypes !== undefined) {
         const soleKeyIsTemporal =
             joinKey.length === 1 &&
-            Object.values(joinKey[0].fieldIdBySourceId).some((fieldId) => {
-                const meta = fieldTypes[fieldId];
-                return (
-                    meta !== undefined &&
-                    getTypeClass(meta.type) === 'temporal' &&
-                    meta.timeInterval != null
-                );
-            });
+            Object.entries(joinKey[0].fieldIdBySourceId).some(
+                ([sourceId, fieldId]) => {
+                    const meta = fieldTypes[sourceId]?.[fieldId];
+                    return (
+                        meta !== undefined &&
+                        getTypeClass(meta.type) === 'temporal' &&
+                        meta.timeInterval != null
+                    );
+                },
+            );
         if (!soleKeyIsTemporal) {
             errors.push({
                 kind: MergeQueryErrorKind.FILL_REQUIRES_TEMPORAL_KEY,
@@ -363,9 +368,9 @@ export const validateMergeQuery = (
             return;
         }
 
-        const joined = Object.values(part.fieldIdBySourceId).flatMap(
-            (fieldId) => {
-                const meta = fieldTypes[fieldId];
+        const joined = Object.entries(part.fieldIdBySourceId).flatMap(
+            ([sourceId, fieldId]) => {
+                const meta = fieldTypes[sourceId]?.[fieldId];
                 return meta === undefined ? [] : [{ fieldId, meta }];
             },
         );
@@ -486,12 +491,8 @@ export type MergeTerminalWrapper = {
     /** ORDER BY terms in output-alias space, already quoted for the dialect. */
     orderBy: string[];
     limit: number | null;
-    /**
-     * Select-list SQL producing the `__merge_truncated` guard column, or null
-     * when no source is capped. Self-contained: it re-probes the capped
-     * sources, so it works at any layer of the statement.
-     */
-    truncatedColumnSql: string | null;
+    /** Boolean SQL expression that is true when a source exceeded its cap. */
+    sourceLimitExceededSql: string | null;
 };
 
 /**
@@ -537,6 +538,9 @@ export type ApiCompiledMergeQueryResults = {
  * refuses the result rather than showing a partial join.
  */
 export const MERGE_TRUNCATED_COLUMN = '__merge_truncated';
+
+/** Internal marker that distinguishes the empty-result guard row from data. */
+export const MERGE_ROW_PRESENT_COLUMN = '__merge_row_present';
 
 /**
  * Table merged columns that belong to no single source are attributed to:
