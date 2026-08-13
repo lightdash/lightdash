@@ -1,13 +1,3 @@
-@keyframes ldPulse {
-    0%,
-    100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.45;
-    }
-}
-
 .panel {
     width: 264px;
     flex-shrink: 0;
@@ -96,7 +86,6 @@
 
     &[data-state='building'] {
         color: var(--mantine-color-ldBrandViolet-7);
-        animation: ldPulse 1.2s ease-in-out infinite;
     }
 }
 

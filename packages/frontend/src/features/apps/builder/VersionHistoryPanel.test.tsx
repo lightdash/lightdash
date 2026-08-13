@@ -1,9 +1,19 @@
 import { fireEvent, screen } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { appVersion } from '../testing/appVersionHistory';
 import { buildStub } from '../testing/dataAppVizBuildStub';
 import VersionHistoryPanel from './VersionHistoryPanel';
+
+const styles = readFileSync(
+    join(
+        process.cwd(),
+        'src/features/apps/builder/VersionHistoryPanel.module.css',
+    ),
+    'utf8',
+);
 
 vi.mock('./RestoreVersionModal', () => ({
     default: ({ version }: { version: number }) => (
@@ -91,6 +101,11 @@ describe('VersionHistoryPanel', () => {
         );
 
         expect(screen.getByText('Building…')).toBeInTheDocument();
+    });
+
+    it('does not pulse an in-progress version', () => {
+        expect(styles).not.toMatch(/@keyframes\s+ldPulse/);
+        expect(styles).not.toMatch(/animation:\s*ldPulse/);
     });
 
     it('writes a live entry for a build not yet in history', () => {

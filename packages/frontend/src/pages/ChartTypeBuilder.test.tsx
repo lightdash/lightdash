@@ -333,6 +333,8 @@ describe('ChartTypeBuilder', () => {
         );
         expect(screen.getByText(/Building…/)).toBeInTheDocument();
         expect(screen.queryByText('Building your chart type…')).toBeNull();
+        // A rebuild echoes its prompt too, not just the first build.
+        expect(screen.getByText('“make the bars teal”')).toBeInTheDocument();
     });
 
     it('renders the current version and lists its history on demand', () => {
