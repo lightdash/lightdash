@@ -86,6 +86,7 @@ jobs:
         uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
         with:
           mode: firewall-free
+          firewall-version: 1.15.0
 
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
@@ -99,11 +100,11 @@ jobs:
 
       - name: Install root deps
         if: steps.plan.outputs.action == 'build' && inputs.install_root_deps
-        run: sfw pnpm install --frozen-lockfile --prefer-offline
+        run: sfw pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
 
       - name: Install sandbox deps
         working-directory: ${{ inputs.template_directory }}
-        run: sfw pnpm install --frozen-lockfile --prefer-offline
+        run: sfw pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
 
       - name: Build and publish template
         if: steps.plan.outputs.action == 'build'
