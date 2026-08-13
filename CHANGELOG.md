@@ -1,3 +1,16 @@
+## [1.151.3](https://github.com/lightdash/lightdash/compare/1.151.2...1.151.3) (2026-08-13)
+
+
+### Bug Fixes
+
+* **data-apps:** drop forced uppercase from chart type builder labels ([#27300](https://github.com/lightdash/lightdash/issues/27300)) ([372cd15](https://github.com/lightdash/lightdash/commit/372cd15bd5c2773189ecc3e2f311414ef99fc3c2))
+* **data-apps:** edit chart type name and description in a modal ([#27299](https://github.com/lightdash/lightdash/issues/27299)) ([f074d4a](https://github.com/lightdash/lightdash/commit/f074d4a5a0e4565c97adda2d1de1324089ca4cd8))
+* **data-apps:** lock the composer while the first version builds ([#27301](https://github.com/lightdash/lightdash/issues/27301)) ([476e7b0](https://github.com/lightdash/lightdash/commit/476e7b00ad3c2c54b6ae694c868985dae02c2f4e))
+* **data-apps:** stop the rebuild indicator flashing and show its prompt ([#27298](https://github.com/lightdash/lightdash/issues/27298)) ([2638248](https://github.com/lightdash/lightdash/commit/26382482b6663723de752f8950bd591b4fb4a2fa))
+* require a boolean verdict in upgrade-automation gate output ([#27364](https://github.com/lightdash/lightdash/issues/27364)) ([0cbe534](https://github.com/lightdash/lightdash/commit/0cbe534eaba58f74ddaca7b277208d0095171a4f))
+* stop persisting checkout credentials in upgrade verification ([#27363](https://github.com/lightdash/lightdash/issues/27363)) ([989ad37](https://github.com/lightdash/lightdash/commit/989ad37169f6f53fa5abba90127e40f9dccc295e))
+* **upgrade-automation:** separate plan and verify concurrency groups ([#27365](https://github.com/lightdash/lightdash/issues/27365)) ([e1ff0f8](https://github.com/lightdash/lightdash/commit/e1ff0f8cee97abdf9e12656b669a7c4438d92b55))
+
 ## [1.151.2](https://github.com/lightdash/lightdash/compare/1.151.1...1.151.2) (2026-08-13)
 
 
