@@ -31,6 +31,7 @@ explicit nulls.
 | `span_migrations` | Pending Knex migration count for an attempt, or the preflight pending-migrations check count. |
 | `execution_mode` | Sanitized `LIGHTDASH_MIGRATION_EXECUTION_MODE`, or `unknown`. |
 | `duration_seconds` | Rounded elapsed seconds from attempt start to a terminal event. |
+| `duration_ms` | Elapsed milliseconds from attempt start to a terminal event; null on non-terminal events. Prefer this for typical-run durations — `duration_seconds` floors sub-second runs to 0. |
 | `attempt` | Run-ledger attempt number. Takeover and preflight events use null. |
 | `outcome` | `succeeded`, `retrying`, `parked`, or null for non-terminal events and abandoned runs. |
 | `failure_class` | Stable failure category below, or null when no failure occurred. |

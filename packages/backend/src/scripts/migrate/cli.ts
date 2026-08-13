@@ -439,6 +439,7 @@ const createUpgradeRunTracker = (
         span_migrations: run.spanMigrations,
         execution_mode: executionMode,
         duration_seconds: null,
+        duration_ms: null,
         attempt: null,
         outcome: null,
         failure_class: null,
@@ -467,12 +468,12 @@ const createUpgradeRunTracker = (
                       stage: activeRun.failingMigration,
                       error,
                   });
+        const elapsedMs = context.now() - activeRun.startedAtMs;
         context.emitUpgradeEvent({
             event,
             properties: attemptProperties(activeRun, {
-                duration_seconds: Math.round(
-                    (context.now() - activeRun.startedAtMs) / 1_000,
-                ),
+                duration_seconds: Math.round(elapsedMs / 1_000),
+                duration_ms: elapsedMs,
                 attempt: activeRun.attempt,
                 outcome,
                 failure_class: failureClass,
@@ -507,6 +508,7 @@ const createUpgradeRunTracker = (
                         pendingMigrations?.data.migrations.length ?? null,
                     execution_mode: executionMode,
                     duration_seconds: null,
+                    duration_ms: null,
                     attempt: null,
                     outcome: null,
                     failure_class: 'preflight_blocked',

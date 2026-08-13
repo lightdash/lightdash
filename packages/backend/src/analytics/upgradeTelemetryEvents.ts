@@ -26,6 +26,7 @@ export type UpgradeEventProperties = {
     span_migrations: number | null;
     execution_mode: string;
     duration_seconds: number | null;
+    duration_ms: number | null;
     attempt: number | null;
     outcome: 'succeeded' | 'parked' | 'retrying' | null;
     failure_class: UpgradeFailureClass | null;
