@@ -157,7 +157,9 @@ The `--non-interactive` flag is designed for environments where interactive prom
 | Variable | Description |
 |----------|-------------|
 | `CI=true` | Equivalent to `--non-interactive` |
-| `LIGHTDASH_API_KEY` | API token for authentication (can be used instead of `--token`). Ignored when you have logged in with `lightdash login` to the same instance — the saved login token wins |
+| `LIGHTDASH_API_KEY` | API token for authentication (can be used instead of `--token`) |
+
+Credentials resolve in the usual order: command flags, then environment variables, then the config file written by `lightdash login`. So a `LIGHTDASH_API_KEY` left in your shell profile is used ahead of your saved login — `lightdash login` warns when this is the case, and `unset LIGHTDASH_API_KEY` restores the saved token.
 
 ### Example Automation Scripts
 
