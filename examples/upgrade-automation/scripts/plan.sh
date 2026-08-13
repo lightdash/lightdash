@@ -182,7 +182,7 @@ if [[ -z "$selected_version" ]]; then
     if ! run_gate "$next_version"; then
         exit 0
     fi
-    if [[ "$(jq -r '.verdict' <<<"$GATE_JSON")" != "false" ]]; then
+    if ! jq -e '.verdict == false' <<<"$GATE_JSON" >/dev/null; then
         exit 0
     fi
     selected_version=$next_version
