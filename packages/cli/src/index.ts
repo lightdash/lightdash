@@ -41,6 +41,7 @@ import { lintHandler } from './handlers/lint';
 import { listProjectsHandler } from './handlers/listProjects';
 import { login } from './handlers/login';
 import { preAggregateAuditHandler } from './handlers/preAggregateAudit';
+import { preAggregateCheckExternalHandler } from './handlers/preAggregateCheckExternal';
 import {
     previewHandler,
     startPreviewHandler,
@@ -1711,6 +1712,73 @@ program
     )
     .option('--verbose', 'Expand the ineligible section in human output', false)
     .action(preAggregateAuditHandler);
+
+program
+    .command('pre-aggregate-check-external')
+    .description(
+        'Generate the expected table shape and materialization SQL for an external pre-aggregate, and check the declared table against it. Runs fully locally against the dbt project and warehouse credentials from profiles.yml.',
+    )
+    .option('--model <model>', 'Model the pre-aggregate is defined on')
+    .option('--name <name>', 'Pre-aggregate name')
+    .option(
+        '--all',
+        'Check every external pre-aggregate (with a `table:` key) in the project',
+        false,
+    )
+    .option(
+        '--project-dir <path>',
+        'The directory of the dbt project',
+        defaultProjectDir,
+    )
+    .option(
+        '--profiles-dir <path>',
+        'The directory of the dbt profiles',
+        defaultProfilesDir,
+    )
+    .option(
+        '--profile <name>',
+        'The name of the profile to use (defaults to profile name in dbt_project.yml)',
+        undefined,
+    )
+    .option('--target <name>', 'target to use in profiles.yml file', undefined)
+    .option(
+        '--target-path <path>',
+        'The target directory for dbt (overrides DBT_TARGET_PATH and dbt_project.yml)',
+        undefined,
+    )
+    .option('--vars <vars>')
+    .option(
+        '--skip-dbt-compile',
+        'Skip `dbt compile` and deploy from the existing ./target/manifest.json',
+        false,
+    )
+    .option(
+        '--skip-warehouse-catalog',
+        'Skip fetch warehouse catalog and use types defined in the YAML.',
+        false,
+    )
+    .option(
+        '--json',
+        'Emit machine-readable JSON instead of human output',
+        false,
+    )
+    .option(
+        '--sql',
+        'Print bare materialization SQL on stdout (human output goes to stderr)',
+        false,
+    )
+    .option(
+        '--fail-on-mismatch',
+        'Exit 1 if any checked pre-aggregate has missing columns, an unreachable table, or an SQL error (CI-friendly)',
+        false,
+    )
+    .option(
+        '--clear-cache',
+        'Bypass warehouse result caches when probing table shapes (use after rebuilding a table, or the warehouse may report its old schema)',
+        false,
+    )
+    .option('--verbose', undefined, false)
+    .action(preAggregateCheckExternalHandler);
 
 program
     .command('sql')

@@ -4,6 +4,7 @@ import {
     FilterOperator,
     getParameterReferences,
     MetricType,
+    preAggregateMaterialization,
     QueryExecutionContext,
     SupportedDbtAdapter,
     TimeFrames,
@@ -11,11 +12,13 @@ import {
     type CompiledDimension,
     type CompiledMetric,
     type Explore,
+    type MetricQuery,
     type PreAggregateDef,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { QueryComposer } from '../../../utils/QueryBuilder/QueryComposer';
-import { buildMaterializationMetricQuery } from './buildMaterializationMetricQuery';
+
+const { buildMaterializationMetricQuery } = preAggregateMaterialization;
 
 const makeDimension = ({
     name,
@@ -1004,5 +1007,237 @@ describe('buildMaterializationMetricQuery', () => {
         ).toThrow(
             'Pre-aggregate "orders_rollup" references ineligible metric "filtered_revenue": dimension "orders_parameterized_status" is not eligible for pre-aggregation metric filters (reason: parameter_references)',
         );
+    });
+});
+
+describe('renderMaterializationSql', () => {
+    const normalizeSql = (sql: string) => sql.replace(/\s+/g, ' ').trim();
+    const stripOrderByAndLimit = (sql: string) =>
+        sql.replace(/\s*ORDER BY[\s\S]*$/, '').replace(/\s*LIMIT \d+\s*$/, '');
+
+    const composeManagedSql = (
+        sourceExplore: Explore,
+        metricQuery: MetricQuery,
+    ) =>
+        new QueryComposer(
+            { metricQuery },
+            {
+                explore: sourceExplore,
+                warehouseSqlBuilder: warehouseSqlBuilderFromType(
+                    SupportedDbtAdapter.POSTGRES,
+                ),
+                queryExecutionContext:
+                    QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+            },
+        ).compile().query;
+
+    it('matches the managed materialization SQL minus ORDER BY/LIMIT (dims, join, avg components, time dimension)', () => {
+        const sourceExplore = getSourceExplore();
+        const preAggregateDef: PreAggregateDef = {
+            name: 'orders_rollup',
+            dimensions: ['status', 'customers.first_name'],
+            metrics: ['total_order_amount', 'avg_order_amount'],
+            timeDimension: 'order_date',
+            granularity: TimeFrames.DAY,
+        };
+
+        const { sql, payload, columns } =
+            preAggregateMaterialization.renderMaterializationSql({
+                sourceExplore,
+                preAggregateDef,
+                warehouseSqlBuilder: warehouseSqlBuilderFromType(
+                    SupportedDbtAdapter.POSTGRES,
+                ),
+            });
+
+        const managedSql = composeManagedSql(
+            sourceExplore,
+            payload.metricQuery,
+        );
+        expect(normalizeSql(sql)).toEqual(
+            normalizeSql(stripOrderByAndLimit(managedSql)),
+        );
+
+        expect(columns).toEqual([
+            {
+                name: 'orders_status',
+                role: 'dimension',
+                granularity: null,
+                aggregation: null,
+                parentMetricFieldId: null,
+            },
+            {
+                name: 'customers_first_name',
+                role: 'dimension',
+                granularity: null,
+                aggregation: null,
+                parentMetricFieldId: null,
+            },
+            {
+                name: 'orders_order_date_day',
+                role: 'time_dimension',
+                granularity: TimeFrames.DAY,
+                aggregation: null,
+                parentMetricFieldId: null,
+            },
+            {
+                name: 'orders_total_order_amount',
+                role: 'metric',
+                granularity: null,
+                aggregation: MetricType.SUM,
+                parentMetricFieldId: null,
+            },
+            {
+                name: 'orders_avg_order_amount__sum',
+                role: 'metric_component',
+                granularity: null,
+                aggregation: MetricType.SUM,
+                parentMetricFieldId: 'orders_avg_order_amount',
+            },
+            {
+                name: 'orders_avg_order_amount__count',
+                role: 'metric_component',
+                granularity: null,
+                aggregation: MetricType.COUNT,
+                parentMetricFieldId: 'orders_avg_order_amount',
+            },
+        ]);
+    });
+
+    it('matches the managed materialization SQL when definition filters are present', () => {
+        const sourceExplore = getSourceExplore();
+        const preAggregateDef: PreAggregateDef = {
+            name: 'orders_rollup',
+            dimensions: ['status'],
+            metrics: ['total_order_amount'],
+            filters: [
+                {
+                    id: 'status-filter',
+                    target: { fieldRef: 'orders.status' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['completed'],
+                },
+            ],
+        };
+
+        const { sql, payload } =
+            preAggregateMaterialization.renderMaterializationSql({
+                sourceExplore,
+                preAggregateDef,
+                warehouseSqlBuilder: warehouseSqlBuilderFromType(
+                    SupportedDbtAdapter.POSTGRES,
+                ),
+            });
+
+        expect(sql).toContain('WHERE');
+        const managedSql = composeManagedSql(
+            sourceExplore,
+            payload.metricQuery,
+        );
+        expect(normalizeSql(sql)).toEqual(
+            normalizeSql(stripOrderByAndLimit(managedSql)),
+        );
+    });
+
+    it('rejects definitions whose SQL references user attributes', () => {
+        const sourceExplore = getSourceExplore();
+        sourceExplore.tables.orders.dimensions.status.compiledSql =
+            "CASE WHEN '${lightdash.attributes.region}' = 'EU' THEN 'eu' ELSE \"orders\".status END";
+
+        expect(() =>
+            preAggregateMaterialization.renderMaterializationSql({
+                sourceExplore,
+                preAggregateDef: {
+                    name: 'orders_rollup',
+                    dimensions: ['status'],
+                    metrics: ['total_order_amount'],
+                },
+                warehouseSqlBuilder: warehouseSqlBuilderFromType(
+                    SupportedDbtAdapter.POSTGRES,
+                ),
+            }),
+        ).toThrow('references user attributes');
+    });
+
+    it('matches the managed materialization SQL when the base table has a sql_filter', () => {
+        const sourceExplore = getSourceExplore();
+        sourceExplore.tables.orders.sqlWhere = '"orders".amount > 0';
+
+        const { sql, payload } =
+            preAggregateMaterialization.renderMaterializationSql({
+                sourceExplore,
+                preAggregateDef: {
+                    name: 'orders_rollup',
+                    dimensions: ['status'],
+                    metrics: ['total_order_amount'],
+                    filters: [
+                        {
+                            id: 'status-filter',
+                            target: { fieldRef: 'orders.status' },
+                            operator: FilterOperator.EQUALS,
+                            values: ['completed'],
+                        },
+                    ],
+                },
+                warehouseSqlBuilder: warehouseSqlBuilderFromType(
+                    SupportedDbtAdapter.POSTGRES,
+                ),
+            });
+
+        expect(sql).toContain('"orders".amount > 0');
+        const managedSql = composeManagedSql(
+            sourceExplore,
+            payload.metricQuery,
+        );
+        expect(normalizeSql(sql)).toEqual(
+            normalizeSql(stripOrderByAndLimit(managedSql)),
+        );
+    });
+
+    it('ignores joined-table sql_filters, matching the managed materialization SQL', () => {
+        const sourceExplore = getSourceExplore();
+        sourceExplore.tables.customers.sqlWhere = '"customers".is_active';
+
+        const { sql, payload } =
+            preAggregateMaterialization.renderMaterializationSql({
+                sourceExplore,
+                preAggregateDef: {
+                    name: 'orders_rollup',
+                    dimensions: ['status', 'customers.first_name'],
+                    metrics: ['total_order_amount'],
+                },
+                warehouseSqlBuilder: warehouseSqlBuilderFromType(
+                    SupportedDbtAdapter.POSTGRES,
+                ),
+            });
+
+        expect(sql).not.toContain('is_active');
+        const managedSql = composeManagedSql(
+            sourceExplore,
+            payload.metricQuery,
+        );
+        expect(normalizeSql(sql)).toEqual(
+            normalizeSql(stripOrderByAndLimit(managedSql)),
+        );
+    });
+
+    it('rejects base-table sql_filters that reference user attributes', () => {
+        const sourceExplore = getSourceExplore();
+        sourceExplore.tables.orders.sqlWhere =
+            '"orders".region = \'${lightdash.attributes.region}\'';
+
+        expect(() =>
+            preAggregateMaterialization.renderMaterializationSql({
+                sourceExplore,
+                preAggregateDef: {
+                    name: 'orders_rollup',
+                    dimensions: ['status'],
+                    metrics: ['total_order_amount'],
+                },
+                warehouseSqlBuilder: warehouseSqlBuilderFromType(
+                    SupportedDbtAdapter.POSTGRES,
+                ),
+            }),
+        ).toThrow('references user attributes');
     });
 });
