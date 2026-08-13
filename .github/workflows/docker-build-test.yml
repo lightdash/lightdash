@@ -12,6 +12,11 @@
 #     local daemon. There is no registry credential in this workflow at all —
 #     no Docker Hub login, no GCP auth — so a push is not merely disabled, it
 #     is impossible.
+#     Depot does name the loaded image itself, as
+#     `depot-project-<project>:build-<buildID>`. That name has no registry host,
+#     is derived from a build id that exists only in Depot, and dies with the
+#     ephemeral runner. It is a handle for `docker inspect`/`docker export`
+#     here, never a publish target.
 #   * Every SENTRY_* build-arg is passed explicitly empty. All Sentry work in
 #     `dockerfile` sits behind `if [ -n "${SENTRY_AUTH_TOKEN}" ] && ...` guards
 #     and sentry-cli is only installed inside those guards, so no release is
@@ -112,60 +117,58 @@ jobs:
             2>&1 | tee build.log
           echo "wall_clock=$(( $(date +%s) - start ))" >> "$GITHUB_OUTPUT"
 
-      # The image is loaded untagged (deliberately — see the header), so it has
-      # to be found by digest. `--iidfile` records the digest BuildKit built,
-      # which is not the id the docker daemon assigns when it imports the
-      # docker-format tarball, so every candidate is probed rather than trusted.
-      - name: Resolve loaded image id
+      # We pass no --tag, but depot names the loaded image after its own build id
+      # (depot-project-<project>:build-<buildID>) and reports it as `image.name`.
+      # That local name is the only reliable handle: the digests in --iidfile and
+      # containerimage.digest identify the image BuildKit built, not the id the
+      # docker daemon assigns when it imports the tarball. Every candidate is
+      # probed rather than trusted, and the runner's preinstalled images mean
+      # "the only image in the daemon" is never a safe assumption.
+      - name: Resolve loaded image
         id: image
         run: |
           set -euo pipefail
-          echo "--- depot metadata ---"
-          cat build-metadata.json || true
-          echo
+          echo "--- depot metadata (imageConfigs elided) ---"
+          jq 'del(.imageConfigs)' build-metadata.json || true
           echo "--- images in the local daemon ---"
           docker images --all --no-trunc --format '{{.ID}} {{.Repository}}:{{.Tag}} {{.Size}}'
 
+          from_name="$(jq -r '."image.name" // empty' build-metadata.json 2>/dev/null || true)"
           from_iidfile="$(tr -d '[:space:]' < image-id.txt 2>/dev/null || true)"
-          from_metadata="$(jq -r '[."containerimage.config.digest", ."containerimage.digest"] | map(select(type == "string")) | join(" ")' build-metadata.json 2>/dev/null || true)"
-          # depot --load leaves exactly one image behind: builds run remotely, so
-          # nothing else is ever imported into this daemon.
-          from_daemon=""
-          if [ "$(docker images --quiet --no-trunc | sort -u | wc -l)" -eq 1 ]; then
-            from_daemon="$(docker images --quiet --no-trunc | sort -u)"
-          fi
+          from_digests="$(jq -r '[."containerimage.config.digest", ."containerimage.digest"] | map(select(type == "string")) | join(" ")' build-metadata.json 2>/dev/null || true)"
+          from_repo="$(docker images --no-trunc --format '{{.Repository}}:{{.Tag}}' --filter 'reference=depot-project-*' | head -n 1)"
 
-          image_id=""
-          for candidate in "$from_iidfile" $from_metadata "$from_daemon"; do
+          image_ref=""
+          for candidate in "$from_name" "$from_iidfile" $from_digests "$from_repo"; do
             if [ -n "$candidate" ] && docker image inspect "$candidate" > /dev/null 2>&1; then
-              image_id="$candidate"
+              image_ref="$candidate"
               break
             fi
           done
 
-          if [ -z "$image_id" ]; then
-            echo "could not resolve the loaded image id from iidfile, metadata or daemon" >&2
+          if [ -z "$image_ref" ]; then
+            echo "could not resolve the loaded image from metadata, iidfile or daemon" >&2
             exit 1
           fi
-          echo "resolved image id: $image_id"
-          echo "id=$image_id" >> "$GITHUB_OUTPUT"
+          echo "resolved image: $image_ref"
+          echo "ref=$image_ref" >> "$GITHUB_OUTPUT"
 
       - name: Collect image config
         env:
-          IMAGE_ID: ${{ steps.image.outputs.id }}
+          IMAGE_REF: ${{ steps.image.outputs.ref }}
         run: |
           set -euo pipefail
           mkdir -p image-artifacts
-          docker image inspect "$IMAGE_ID" \
+          docker image inspect "$IMAGE_REF" \
             | python3 scripts/ci/image-artifacts.py config --output image-artifacts/image-config.json
           cat image-artifacts/image-config.json
 
       - name: Collect filesystem manifest
         env:
-          IMAGE_ID: ${{ steps.image.outputs.id }}
+          IMAGE_REF: ${{ steps.image.outputs.ref }}
         run: |
           set -euo pipefail
-          container="$(docker create "$IMAGE_ID")"
+          container="$(docker create "$IMAGE_REF")"
           trap 'docker rm -f "$container" > /dev/null 2>&1 || true' EXIT
           # Streamed straight into the hasher: a multi-GB export never lands on disk.
           docker export "$container" \
@@ -186,7 +189,7 @@ jobs:
 
       - name: Record build identity
         env:
-          IMAGE_ID: ${{ steps.image.outputs.id }}
+          IMAGE_REF: ${{ steps.image.outputs.ref }}
           WALL_CLOCK: ${{ steps.build.outputs.wall_clock }}
         run: |
           set -euo pipefail
@@ -194,9 +197,9 @@ jobs:
             --arg sha "$GITHUB_SHA" \
             --arg ref "$GITHUB_REF_NAME" \
             --arg run_id "$GITHUB_RUN_ID" \
-            --arg image_id "$IMAGE_ID" \
+            --arg image_ref "$IMAGE_REF" \
             --argjson wall_clock "$WALL_CLOCK" \
-            '{sha: $sha, ref: $ref, run_id: $run_id, image_id: $image_id, wall_clock_seconds: $wall_clock}' \
+            '{sha: $sha, ref: $ref, run_id: $run_id, image_ref: $image_ref, wall_clock_seconds: $wall_clock}' \
             > image-artifacts/build-info.json
           cp build-metadata.json image-artifacts/build-metadata.json
 
