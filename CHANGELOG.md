@@ -1,3 +1,10 @@
+# [1.153.0](https://github.com/lightdash/lightdash/compare/1.152.0...1.153.0) (2026-08-13)
+
+
+### Features
+
+* queue chart type prompts during builds ([#27374](https://github.com/lightdash/lightdash/issues/27374)) ([56d6fe5](https://github.com/lightdash/lightdash/commit/56d6fe5639f861176ae41b455bff2e4701b62942))
+
 # [1.152.0](https://github.com/lightdash/lightdash/compare/1.151.3...1.152.0) (2026-08-13)
 
 
