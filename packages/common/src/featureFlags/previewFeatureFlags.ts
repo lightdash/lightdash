@@ -24,6 +24,8 @@ const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
     // Off pending a security review, or only meaningful for eval orgs.
     FeatureFlags.SsoOrganizationSettings,
     FeatureFlags.AiReviewReplayCapture,
+    // Security hardening: previews must not accept long-lived GitHub PATs.
+    FeatureFlags.AiMcpGithubPat,
     // Derived from instance configuration: left to their config handler so a
     // preview never advertises a feature whose backend isn't configured.
     CommercialFeatureFlags.AiCopilot,

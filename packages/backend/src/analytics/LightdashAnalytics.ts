@@ -2596,7 +2596,11 @@ export type AiAgentGithubMcpConnectedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         mcpServerId: string;
-        method: 'one_click' | 'one_click_reconnect';
+        method:
+            | 'one_click'
+            | 'one_click_reconnect'
+            | 'one_click_app'
+            | 'one_click_app_reconnect';
     };
 };
 
