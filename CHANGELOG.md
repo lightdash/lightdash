@@ -1,3 +1,10 @@
+## [1.146.2](https://github.com/lightdash/lightdash/compare/1.146.1...1.146.2) (2026-08-13)
+
+
+### Bug Fixes
+
+* markdown formatting ([#27308](https://github.com/lightdash/lightdash/issues/27308)) ([c9380ec](https://github.com/lightdash/lightdash/commit/c9380ec4c877c9609f740abbef7789c861f27b11))
+
 ## [1.146.1](https://github.com/lightdash/lightdash/compare/1.146.0...1.146.1) (2026-08-13)
 
 
