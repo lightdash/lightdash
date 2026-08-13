@@ -1,10 +1,15 @@
 import {
+    derivePivotConfigurationFromChart,
+    isDimension,
+    MERGE_TABLE_NAME,
     type ApiCompiledMergeQueryResults,
     type ApiExecuteAsyncMetricQueryResults,
     type CompileMergeQueryRequest,
     type MergeQuery,
     type ParametersValuesMap,
+    type PivotConfiguration,
     type RunMergeQueryRequest,
+    type SavedChartDAO,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
 
@@ -35,6 +40,7 @@ const runMergeQuery = (
     projectUuid: string,
     mergeQuery: MergeQuery,
     parameters: ParametersValuesMap | undefined,
+    pivotConfiguration: PivotConfiguration | undefined,
 ) =>
     lightdashApi<ApiExecuteAsyncMetricQueryResults>({
         url: `/projects/${projectUuid}/mergeQuery/run`,
@@ -42,6 +48,7 @@ const runMergeQuery = (
         body: JSON.stringify({
             mergeQuery,
             parameters,
+            pivotConfiguration,
         } satisfies RunMergeQueryRequest),
     });
 
@@ -58,6 +65,7 @@ export const executeMergeQuery = async (
     projectUuid: string,
     mergeQuery: MergeQuery,
     parameters?: ParametersValuesMap,
+    savedChart?: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>,
 ): Promise<MergeQueryRun> => {
     const compiled = await compileMergeQuery(
         projectUuid,
@@ -67,8 +75,35 @@ export const executeMergeQuery = async (
     if (!compiled.sql) {
         return { errors: compiled.errors, started: null };
     }
+
+    const columnOrder = Object.values(compiled.fieldIdByColumn);
+    const dimensions = columnOrder.filter((fieldId) =>
+        isDimension(compiled.itemsMap[fieldId]),
+    );
+    const metricQuery = {
+        exploreName: MERGE_TABLE_NAME,
+        dimensions,
+        metrics: columnOrder.filter((fieldId) => !dimensions.includes(fieldId)),
+        filters: {},
+        sorts: [],
+        limit: mergeQuery.limit,
+        tableCalculations: [],
+    };
+    const pivotConfiguration = savedChart
+        ? derivePivotConfigurationFromChart(
+              savedChart,
+              metricQuery,
+              compiled.itemsMap,
+          )
+        : undefined;
+
     return {
         errors: [],
-        started: await runMergeQuery(projectUuid, mergeQuery, parameters),
+        started: await runMergeQuery(
+            projectUuid,
+            mergeQuery,
+            parameters,
+            pivotConfiguration,
+        ),
     };
 };

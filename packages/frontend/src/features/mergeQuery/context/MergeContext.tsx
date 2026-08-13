@@ -6,6 +6,7 @@ import {
     type Filters,
     type MergeQueryError,
     type ParametersValuesMap,
+    type SavedChartDAO,
     type SavedMergeQuery,
 } from '@lightdash/common';
 import {
@@ -223,7 +224,11 @@ export const MergeProvider: FC<
     );
 
     const run = useCallback(
-        (mergeQuery: MergeQuery, parameters?: ParametersValuesMap) => {
+        (
+            mergeQuery: MergeQuery,
+            parameters?: ParametersValuesMap,
+            savedChart?: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>,
+        ) => {
             if (!projectUuid) return;
             const runId = activeRun.current + 1;
             activeRun.current = runId;
@@ -233,7 +238,7 @@ export const MergeProvider: FC<
                 started: null,
                 error: null,
             });
-            executeMergeQuery(projectUuid, mergeQuery, parameters)
+            executeMergeQuery(projectUuid, mergeQuery, parameters, savedChart)
                 .then((result) => {
                     if (activeRun.current !== runId) return;
                     setRunState({

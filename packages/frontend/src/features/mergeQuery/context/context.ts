@@ -7,6 +7,7 @@ import {
     type MergeQueryError,
     type MetricQuery,
     type ParametersValuesMap,
+    type SavedChartDAO,
 } from '@lightdash/common';
 import { createContext } from 'react';
 import { type InfiniteQueryResults } from '../../../hooks/useQueryResults';
@@ -56,7 +57,11 @@ export type MergeContextValue = {
      */
     wasRestored: boolean;
     /** Runs a merge, replacing any run already on screen. */
-    run: (mergeQuery: MergeQuery, parameters?: ParametersValuesMap) => void;
+    run: (
+        mergeQuery: MergeQuery,
+        parameters?: ParametersValuesMap,
+        savedChart?: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>,
+    ) => void;
     isRunning: boolean;
     /** Why a merge was refused. Empty when it compiled. */
     runErrors: MergeQueryError[];

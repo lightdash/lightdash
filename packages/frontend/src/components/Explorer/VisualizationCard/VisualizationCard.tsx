@@ -195,6 +195,9 @@ const VisualizationCard: FC<Props> = memo((props) => {
     }, [query.data, queryResults, mergeResults, awaitingRestoredMerge]);
 
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
+    const visualizationMetricQuery = awaitingRestoredMerge
+        ? undefined
+        : (mergeResults?.metricQuery ?? unsavedChartVersion.metricQuery);
 
     const handleSetPivotFields = useCallback(
         (fields: FieldId[] = []) => {
@@ -300,11 +303,11 @@ const VisualizationCard: FC<Props> = memo((props) => {
         (e: EchartsSeriesClickEvent, series: EChartsSeries[]) => {
             setEchartsClickEvent({
                 event: e,
-                dimensions: unsavedChartVersion.metricQuery.dimensions,
+                dimensions: visualizationMetricQuery?.dimensions ?? [],
                 series,
             });
         },
-        [unsavedChartVersion],
+        [visualizationMetricQuery],
     );
 
     const { missingRequiredParameters } = useExplorerQuery();
@@ -328,17 +331,28 @@ const VisualizationCard: FC<Props> = memo((props) => {
     ]);
 
     const dirtyPivotConfiguration = useMemo(() => {
-        return explore
-            ? derivePivotConfigurationFromChart(
-                  unsavedChartVersion,
-                  unsavedChartVersion.metricQuery,
-                  getFieldsFromMetricQuery(
+        const fields =
+            mergeResults?.fields ??
+            (explore
+                ? getFieldsFromMetricQuery(
                       unsavedChartVersion.metricQuery,
                       explore,
-                  ),
+                  )
+                : undefined);
+
+        return visualizationMetricQuery && fields
+            ? derivePivotConfigurationFromChart(
+                  unsavedChartVersion,
+                  visualizationMetricQuery,
+                  fields,
               )
             : undefined;
-    }, [unsavedChartVersion, explore]);
+    }, [
+        unsavedChartVersion,
+        explore,
+        mergeResults?.fields,
+        visualizationMetricQuery,
+    ]);
 
     if (!unsavedChartVersion.tableName) {
         return <CollapsableCard title="Charts" disabled />;
@@ -380,7 +394,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
                     unsavedChartVersion.pivotConfig?.columns
                 }
                 initialPivotRows={unsavedChartVersion.pivotConfig?.rows}
-                unsavedMetricQuery={unsavedChartVersion.metricQuery}
+                unsavedMetricQuery={visualizationMetricQuery}
                 resultsData={resultsData}
                 apiErrorDetail={apiErrorDetail}
                 isLoading={isLoadingQueryResults}
