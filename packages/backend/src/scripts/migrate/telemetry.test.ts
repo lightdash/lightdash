@@ -31,6 +31,7 @@ const event: UpgradeTelemetryEvent = {
         span_migrations: 2,
         execution_mode: 'compose',
         duration_seconds: null,
+        duration_ms: null,
         attempt: 1,
         outcome: null,
         failure_class: null,

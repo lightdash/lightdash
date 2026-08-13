@@ -198,6 +198,7 @@ const context = (
 
 const upgradePropertyKeys = [
     'attempt',
+    'duration_ms',
     'duration_seconds',
     'execution_mode',
     'failing_migration',
@@ -248,6 +249,7 @@ describe('runMigrateCli', () => {
             span_migrations: 1,
             attempt: 1,
             duration_seconds: null,
+            duration_ms: null,
             outcome: null,
         });
         expect(command.upgradeEvents[1]?.properties).toMatchObject({
@@ -256,6 +258,7 @@ describe('runMigrateCli', () => {
             span_migrations: 1,
             attempt: 1,
             duration_seconds: 5,
+            duration_ms: 5000,
             outcome: 'succeeded',
         });
         command.upgradeEvents.forEach(({ properties }) => {
@@ -873,6 +876,7 @@ describe('runMigrateCli', () => {
             migration_run_uuid: 'run-1',
             attempt: null,
             duration_seconds: null,
+            duration_ms: null,
             outcome: null,
         });
     });
