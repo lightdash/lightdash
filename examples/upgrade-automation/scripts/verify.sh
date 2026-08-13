@@ -167,6 +167,8 @@ fi
 gh label create "$FREEZE_LABEL" --repo "$GITHUB_REPOSITORY" --force --color B60205 --description 'Disarms automated Lightdash upgrades'
 issue_title="Lightdash $pinned_public upgrade verification failed"
 cat >"$issue_body" <<EOF
+<!-- upgrade-automation:auto-freeze -->
+
 The automated verification for \`$from_version\` → \`$pinned_public\` failed and future upgrades are frozen.
 
 - Pull request: $pr_url
