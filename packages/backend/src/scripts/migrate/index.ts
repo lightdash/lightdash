@@ -1,6 +1,7 @@
 import { runMigrations } from 'graphile-worker';
 import knex from 'knex';
 import os from 'node:os';
+import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { MigrationLeaseManager } from '../../database/migrationLease';
 import knexConfig from '../../knexfile';
@@ -21,6 +22,7 @@ import {
     resolveReleaseSafetyArtifactPath,
     runPreflight,
 } from './preflight';
+import { createUpgradeTelemetry } from './telemetry';
 
 const environment =
     process.env.NODE_ENV === 'production' ? 'production' : 'development';
@@ -43,6 +45,28 @@ const leaseManager = new MigrationLeaseManager({ database });
 const heartbeatLeaseManager = new MigrationLeaseManager({
     database: heartbeatDatabase,
 });
+
+const { emitUpgradeEvent, flushUpgradeEvents } = createUpgradeTelemetry({
+    lightdashConfig,
+    analyticsFactory: () => {
+        const { writeKey, dataPlaneUrl } = lightdashConfig.rudder;
+        if (!writeKey || !dataPlaneUrl) {
+            throw new Error('Upgrade analytics configuration is unavailable');
+        }
+        return new LightdashAnalytics({
+            lightdashConfig,
+            writeKey,
+            dataPlaneUrl,
+            options: { enable: true },
+        });
+    },
+});
+
+const flushAndExit = async (error: Error): Promise<void> => {
+    console.error(`Migration command failed: ${error.message}`);
+    await flushUpgradeEvents();
+    process.exit(1);
+};
 
 type KnexMigrationLockRow = {
     is_locked: number;
@@ -115,9 +139,9 @@ const main = async (): Promise<void> => {
                 connectionString: lightdashConfig.database.connectionUri,
             });
         },
+        emitUpgradeEvent,
         onLeaseLost: (error) => {
-            console.error(`Migration command failed: ${error.message}`);
-            process.exit(1);
+            void flushAndExit(error);
         },
         allowMissingMigrations: lightdashConfig.database.allowMissingMigrations,
         defaultTimeoutMs,
@@ -132,5 +156,6 @@ main()
         process.exitCode = 1;
     })
     .finally(async () => {
+        await flushUpgradeEvents();
         await Promise.all([database.destroy(), heartbeatDatabase.destroy()]);
     });
