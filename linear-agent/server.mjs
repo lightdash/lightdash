@@ -733,7 +733,9 @@ async function publishPatch(job, event, evidence) {
         }
         return job.prUrl;
     } finally {
-        await cleanupPublishWorkspace(jobRoot);
+        await cleanupPublishWorkspace(jobRoot).catch((error) => {
+            log('Publish workspace cleanup failed', { jobId: job.id, error: error.message });
+        });
     }
 }
 
