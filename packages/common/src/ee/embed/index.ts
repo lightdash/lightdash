@@ -85,9 +85,9 @@ export const InteractivityOptionsSchema = z.object({
     // Off by default — without it, data app tiles render as a placeholder.
     // Setting it grants the embed JWT the broader CASL abilities a data app
     // needs (view:DataApp + view:Explore project-wide) so it can mint a
-    // preview token and run its arbitrary metric queries. Mirrors the
-    // existing canExplore opt-in: an explicit decision to widen the embed's
-    // surface beyond pre-built chart queries.
+    // preview token, run its arbitrary metric queries, and use external
+    // connections that an admin linked to the app. Mirrors canExplore: an
+    // explicit decision to widen the embed beyond pre-built chart queries.
     canViewDataApps: z.boolean().optional(),
     // Pins tabs and the filter bar to the top while scrolling. Off by default.
     stickyHeader: z.boolean().optional(),

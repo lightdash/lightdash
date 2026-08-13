@@ -467,7 +467,7 @@ const EmbedPreviewDashboardForm: FC<{
                                                     View data apps
                                                 </Text>
                                                 <Tooltip
-                                                    label="Grants project-wide explore access so the data app can run its metric queries."
+                                                    label="Lets data apps run project-wide metric queries and use external connections linked by an admin."
                                                     withArrow
                                                     withinPortal
                                                     multiline

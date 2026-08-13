@@ -4,6 +4,7 @@ import {
     APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
     FilterOperator,
+    JWT_HEADER_NAME,
     LightdashAppPreviewTokenHeader,
     LightdashAppUuidHeader,
     LightdashSignedDownloadHeader,
@@ -957,33 +958,39 @@ describe('external-fetch branch', () => {
             query: { limit: '10' },
             body: { amount: 500 },
         });
-        // No app-supplied headers leak through; external fetch never sends the
-        // embed JWT (it is not supported in embed mode).
+        // No app-supplied headers leak through.
         expect(Object.keys(init.headers)).toEqual(['Content-Type']);
     });
 
-    it('rejects external fetch in embed mode without calling the backend', async () => {
+    it('authenticates external fetches in embed mode with the embed JWT', async () => {
         mockUseEmbed.mockReturnValue({
             embedToken: 'embed-jwt',
-            projectUuid: undefined,
+            projectUuid: PROJECT_UUID,
         });
         renderBridge(() => undefined);
-        const { responses } = captureResponses();
+        mockFetchOk({
+            status: 'ok',
+            results: {
+                status: 200,
+                contentType: 'application/json',
+                body: { temperature: 18 },
+                truncated: false,
+            },
+        });
 
         postExternalFetch({ alias: 'weather', path: '/today' });
 
         await vi.waitFor(() =>
-            expect(
-                responses.find(
-                    (r) =>
-                        r['type'] === 'lightdash:sdk:external-fetch-response',
-                ),
-            ).toMatchObject({
-                id: POST_ID,
-                error: 'External data access is not available in embedded apps',
-            }),
+            expect(fetch).toHaveBeenCalledWith(
+                `/api/v1/ee/projects/${PROJECT_UUID}/apps/${APP_UUID}/external-fetch`,
+                expect.objectContaining({ method: 'POST' }),
+            ),
         );
-        expect(fetch).not.toHaveBeenCalled();
+        const [, init] = (fetch as Mock).mock.calls[0];
+        expect(init.headers).toEqual({
+            'Content-Type': 'application/json',
+            [JWT_HEADER_NAME]: 'embed-jwt',
+        });
     });
 
     it('posts back the result on success', async () => {

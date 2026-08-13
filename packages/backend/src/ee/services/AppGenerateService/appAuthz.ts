@@ -1,6 +1,11 @@
 import { subject, type Ability } from '@casl/ability';
-import { ForbiddenError, type SessionUser } from '@lightdash/common';
+import {
+    ForbiddenError,
+    type AnonymousAccount,
+    type SessionUser,
+} from '@lightdash/common';
 import { type CaslAuditWrapper } from '../../../logging/caslAuditWrapper';
+import { type AppModel } from '../../../models/AppModel';
 
 export type AppViewAuthzApp = {
     project_uuid: string;
@@ -46,5 +51,68 @@ export async function assertCanViewApp(
         throw new ForbiddenError(
             'Insufficient permissions to access this data app',
         );
+    }
+}
+
+export type EmbeddedAppViewAuthzDeps = {
+    createAuditedAbility: (
+        account: AnonymousAccount,
+    ) => CaslAuditWrapper<Ability>;
+    appModel: Pick<AppModel, 'findDashboardsContainingApp'>;
+};
+
+type EmbeddedAppViewAuthzApp = Pick<
+    AppViewAuthzApp,
+    'organization_uuid' | 'project_uuid'
+> & { app_id: string };
+
+/**
+ * Authorize a JWT account against the app it is trying to render or use.
+ * Standalone app embeds are pinned to one app; dashboard embeds may use only
+ * apps referenced by the dashboard named in the JWT.
+ */
+export async function assertCanViewEmbeddedApp(
+    deps: EmbeddedAppViewAuthzDeps,
+    account: AnonymousAccount,
+    app: EmbeddedAppViewAuthzApp,
+): Promise<void> {
+    const appUuid = app.app_id;
+    const auditedAbility = deps.createAuditedAbility(account);
+    if (
+        auditedAbility.cannot(
+            'view',
+            subject('DataApp', {
+                organizationUuid: app.organization_uuid,
+                projectUuid: app.project_uuid,
+                metadata: { appUuid },
+            }),
+        )
+    ) {
+        throw new ForbiddenError(
+            'Insufficient permissions to access this data app',
+        );
+    }
+
+    if (account.access.content.type === 'dataApp') {
+        if (account.access.content.appUuid !== appUuid) {
+            throw new ForbiddenError(
+                'This embed is not authorized for this data app',
+            );
+        }
+        return;
+    }
+
+    const { dashboardUuid } = account.access.content;
+    if (!dashboardUuid) {
+        throw new ForbiddenError('Data app is not authorized by this embed');
+    }
+
+    const dashboardsWithApp = await deps.appModel.findDashboardsContainingApp(
+        appUuid,
+        app.project_uuid,
+        [dashboardUuid],
+    );
+    if (!dashboardsWithApp.includes(dashboardUuid)) {
+        throw new ForbiddenError('Data app is not authorized by this embed');
     }
 }

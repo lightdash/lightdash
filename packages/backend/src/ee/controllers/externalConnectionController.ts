@@ -1,5 +1,6 @@
 import {
     assertRegisteredAccount,
+    ForbiddenError,
     type ApiErrorPayload,
     type ApiListExternalConnectionSamplesResponse,
     type ApiProposeExternalConnectionConfigRequest,
@@ -31,7 +32,6 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
-import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -327,10 +327,12 @@ export class ExternalConnectionController extends BaseController {
         @Path() appUuid: string,
         @Body() body: ExternalFetchRequest,
     ): Promise<ApiExternalFetchResponse> {
-        assertRegisteredAccount(req.account);
+        if (!req.account) {
+            throw new ForbiddenError('Account is required');
+        }
         this.setStatus(200);
         const results = await this.getService().proxyFetch(
-            toSessionUser(req.account),
+            req.account,
             projectUuid,
             appUuid,
             body,

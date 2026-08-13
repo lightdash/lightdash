@@ -1,12 +1,15 @@
 import { subject } from '@casl/ability';
 import {
+    assertRegisteredAccount,
     EXTERNAL_CONNECTION_DEFAULTS,
     ForbiddenError,
     getErrorMessage,
+    isJwtUser,
     MissingConfigError,
     NotFoundError,
     ParameterError,
     TooManyRequestsError,
+    type Account,
     type ApiSaveExternalConnectionSampleRequest,
     type CreateExternalConnection,
     type ExternalConnection,
@@ -17,11 +20,11 @@ import {
     type ExternalFetchRequest,
     type ExternalFetchResponse,
     type RegisteredAccount,
-    type SessionUser,
     type UpdateExternalConnection,
 } from '@lightdash/common';
 import { performance } from 'node:perf_hooks';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
+import { toSessionUser } from '../../../auth/account';
 import { type AppModel } from '../../../models/AppModel';
 import { BaseService } from '../../../services/BaseService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
@@ -35,7 +38,10 @@ import { generateExternalConnectionConfigProposal } from '../ai/agents/externalC
 import { getModel } from '../ai/models';
 import { type GeneratorModelOptions } from '../ai/models/types';
 import { type OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
-import { assertCanViewApp } from '../AppGenerateService/appAuthz';
+import {
+    assertCanViewApp,
+    assertCanViewEmbeddedApp,
+} from '../AppGenerateService/appAuthz';
 import { getExternalConnectionSubject } from './externalConnectionAuthz';
 import {
     validateExternalConnectionConfig,
@@ -569,7 +575,7 @@ export class ExternalConnectionService extends BaseService {
     }
 
     async proxyFetch(
-        user: SessionUser,
+        account: Account,
         projectUuid: string,
         appUuid: string,
         req: ExternalFetchRequest,
@@ -577,23 +583,43 @@ export class ExternalConnectionService extends BaseService {
         const start = performance.now();
 
         // 1. Load app + authorize VIEW (same authz as reading the app).
-        const app = await this.appModel.getApp(appUuid, projectUuid);
-        await assertCanViewApp(
-            {
-                auditedAbility: this.createAuditedAbility(user),
-                getSpaceAccessContext: (userUuid, spaceUuid) =>
-                    this.spacePermissionService.getSpaceAccessContext(
-                        userUuid,
-                        spaceUuid,
-                    ),
-            },
-            user,
-            app,
-        );
+        if (isJwtUser(account)) {
+            const app = await this.appModel.findApp(appUuid, projectUuid);
+            if (!app) {
+                throw new ForbiddenError(
+                    'Data app is not authorized by this embed',
+                );
+            }
+            await assertCanViewEmbeddedApp(
+                {
+                    createAuditedAbility: (embeddedAccount) =>
+                        this.createAuditedAbility(embeddedAccount),
+                    appModel: this.appModel,
+                },
+                account,
+                app,
+            );
+        } else {
+            assertRegisteredAccount(account);
+            const app = await this.appModel.getApp(appUuid, projectUuid);
+            const user = toSessionUser(account);
+            await assertCanViewApp(
+                {
+                    auditedAbility: this.createAuditedAbility(user),
+                    getSpaceAccessContext: (userUuid, spaceUuid) =>
+                        this.spacePermissionService.getSpaceAccessContext(
+                            userUuid,
+                            spaceUuid,
+                        ),
+                },
+                user,
+                app,
+            );
+        }
 
         // 2. Resolve the alias → connection (must be linked to this app).
         const connection = await this.externalConnectionModel.resolveAppAlias(
-            app.app_id,
+            appUuid,
             req.connectionAlias,
         );
         if (!connection) {
@@ -610,23 +636,23 @@ export class ExternalConnectionService extends BaseService {
             );
         }
 
-        // 4. Rate limit — all methods, including GET. Reads still spend
-        //    Lightdash egress and upstream quota under the injected auth, so an
-        //    app viewer must not be able to drive unlimited GETs.
+        // 4. Shared app/connection rate limit, including embed viewers. This is
+        //    the credential owner's global ceiling; per-viewer buckets would
+        //    allow aggregate traffic to exceed the configured upstream quota.
         const limit =
             connection.rateLimitPerMinute ??
             ExternalConnectionService.DEFAULT_RATE_LIMIT_PER_MINUTE;
         const window = computeMinuteWindow(new Date());
         const count = await this.externalConnectionModel.incrementRateCounter(
             connection.externalConnectionUuid,
-            app.app_id,
+            appUuid,
             window,
         );
         if (count > limit) {
             this.trackFetch({
-                user,
+                account,
                 projectUuid,
-                appUuid: app.app_id,
+                appUuid,
                 connectionAlias: req.connectionAlias,
                 connection,
                 method,
@@ -669,9 +695,9 @@ export class ExternalConnectionService extends BaseService {
                 error instanceof SecureFetchError;
             const outcome = isKnown ? 'rejected' : 'upstream_error';
             this.trackFetch({
-                user,
+                account,
                 projectUuid,
-                appUuid: app.app_id,
+                appUuid,
                 connectionAlias: req.connectionAlias,
                 connection,
                 method,
@@ -699,9 +725,9 @@ export class ExternalConnectionService extends BaseService {
 
         // 7. Audit the result — never bodies, never the secret.
         this.trackFetch({
-            user,
+            account,
             projectUuid,
-            appUuid: app.app_id,
+            appUuid,
             connectionAlias: req.connectionAlias,
             connection,
             method,
@@ -937,7 +963,7 @@ export class ExternalConnectionService extends BaseService {
     }
 
     private trackFetch(args: {
-        user: SessionUser;
+        account: Account;
         projectUuid: string;
         appUuid: string;
         connectionAlias: string;
@@ -950,9 +976,8 @@ export class ExternalConnectionService extends BaseService {
         requestBytes: number;
         responseBytes: number;
     }): void {
-        this.analytics.track({
+        this.analytics.trackAccount(args.account, {
             event: 'external_connection.fetch',
-            userId: args.user.userUuid,
             properties: {
                 organizationId: args.connection.organizationUuid,
                 projectId: args.projectUuid,

@@ -1,6 +1,7 @@
 import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { AppsTableName, type DbApp } from '../database/entities/apps';
+import { DashboardTileDataAppsTableName } from '../database/entities/dashboards';
 import { AppModel } from './AppModel';
 
 const appId = '11111111-1111-4111-8111-111111111111';
@@ -111,5 +112,41 @@ describe('AppModel.setMetadataIfUnset', () => {
         expect(tracker.history.select).toHaveLength(1);
         expect(tracker.history.update[0].sql).not.toContain('"slug"');
         expect(tracker.history.update[0].sql).not.toContain('"name"');
+    });
+});
+
+describe('AppModel.findDashboardsContainingApp', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const model = new AppModel({ database });
+    let tracker: Tracker;
+
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+
+    afterEach(() => {
+        tracker.reset();
+    });
+
+    it('limits the latest-version lookup to the candidate dashboards', async () => {
+        const dashboardUuid = '44444444-4444-4444-8444-444444444444';
+        tracker.on
+            .select(DashboardTileDataAppsTableName)
+            .responseOnce([{ dashboard_uuid: dashboardUuid }]);
+
+        const result = await model.findDashboardsContainingApp(
+            appId,
+            projectUuid,
+            [dashboardUuid],
+        );
+
+        expect(result).toEqual([dashboardUuid]);
+        expect(tracker.history.select).toHaveLength(1);
+        expect(tracker.history.select[0].sql).toContain(
+            '"dashboards"."dashboard_uuid" in ($2)',
+        );
+        expect(tracker.history.select[0].bindings).toEqual(
+            expect.arrayContaining([projectUuid, dashboardUuid, appId]),
+        );
     });
 });
