@@ -987,7 +987,6 @@ const Dashboard: FC = () => {
                                 hasTilesThatSupportFilters
                             }
                             // parameters
-                            parameters={referencedParameters}
                             shadowedReservedNames={shadowedReservedNames}
                             parameterValues={parameterValues}
                             onParameterChange={handleParameterChange}

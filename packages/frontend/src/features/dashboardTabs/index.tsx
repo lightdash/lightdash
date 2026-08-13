@@ -7,7 +7,6 @@ import {
     type DashboardTab,
     type DashboardTile,
     type Dashboard as IDashboard,
-    type LightdashProjectParameter,
     type ParametersValuesMap,
     type ParameterValue,
 } from '@lightdash/common';
@@ -34,6 +33,7 @@ import { ScrollToTop } from '../../components/common/ScrollToTop';
 import { StickyWithDetection } from '../../components/common/StickyWithDetection';
 import EmptyStateNoTiles from '../../components/DashboardTiles/EmptyStateNoTiles';
 import { useIsLauncherMounted } from '../../ee/features/aiCopilot/components/Launcher/useIsLauncherMounted';
+import { useActiveTabParameters } from '../../hooks/dashboard/useActiveTabParameters';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProject } from '../../hooks/useProject';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
@@ -210,9 +210,6 @@ type DashboardTabsProps = {
     // parameters
     hasTilesThatSupportFilters: boolean;
     parameterValues: ParametersValuesMap;
-    parameters: {
-        [k: string]: LightdashProjectParameter;
-    };
     shadowedReservedNames: string[];
     isParameterLoading: boolean;
     missingRequiredParameters: string[];
@@ -239,7 +236,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     // parameters
     hasTilesThatSupportFilters,
     parameterValues,
-    parameters,
     shadowedReservedNames,
     isParameterLoading,
     missingRequiredParameters,
@@ -348,9 +344,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     );
     const dashboardTemporaryFilters = useDashboardContext(
         (c) => c.dashboardTemporaryFilters,
-    );
-    const tileParameterReferences = useDashboardContext(
-        (c) => c.tileParameterReferences,
     );
 
     // filters bar state
@@ -611,19 +604,11 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         ],
     );
 
-    const activeTabParameters = useMemo(() => {
-        if (!dashboardTiles) return parameters;
-
-        const activeParamKeys = dashboardTiles
-            .filter(isActiveTile)
-            .flatMap((tile) => tileParameterReferences[tile.uuid] ?? []);
-
-        return Object.fromEntries(
-            Object.entries(parameters).filter(([key]) =>
-                activeParamKeys.includes(key),
-            ),
-        );
-    }, [dashboardTiles, parameters, tileParameterReferences, isActiveTile]);
+    const activeTiles = useMemo(
+        () => dashboardTiles?.filter(isActiveTile),
+        [dashboardTiles, isActiveTile],
+    );
+    const activeTabParameters = useActiveTabParameters(activeTiles);
 
     // Collapsed summary values
     const totalFiltersCount =

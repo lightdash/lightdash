@@ -2,6 +2,7 @@ import {
     isFilterInteractivityEnabled,
     isParameterInteractivityEnabled,
     type Dashboard,
+    type DashboardTile,
     type InteractivityOptions,
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
@@ -17,9 +18,16 @@ type Props = {
     projectUuid: string;
     /** Tab switcher, pinned on top of the filters when the dashboard has tabs */
     tabs?: ReactNode;
+    /** Tiles rendered on the active tab */
+    activeTiles: DashboardTile[];
 };
 
-const EmbedDashboardHeader: FC<Props> = ({ dashboard, projectUuid, tabs }) => {
+const EmbedDashboardHeader: FC<Props> = ({
+    dashboard,
+    projectUuid,
+    tabs,
+    activeTiles,
+}) => {
     const hasFilterBar =
         dashboard.canDateZoom ||
         isParameterInteractivityEnabled(dashboard.parameterInteractivity) ||
@@ -45,6 +53,7 @@ const EmbedDashboardHeader: FC<Props> = ({ dashboard, projectUuid, tabs }) => {
         <EmbedDashboardFilterBar
             dashboard={dashboard}
             shouldShowFilters={shouldShowFilters}
+            activeTiles={activeTiles}
         />
     ) : null;
 
