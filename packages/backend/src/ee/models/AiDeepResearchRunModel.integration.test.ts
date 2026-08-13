@@ -35,6 +35,7 @@ import {
 } from '../database/entities/aiDeepResearch';
 import {
     AiDeepResearchActiveRunError,
+    AiDeepResearchPromptExecutionModeError,
     AiDeepResearchRunModel,
 } from './AiDeepResearchRunModel';
 
@@ -246,6 +247,17 @@ describe('AiDeepResearchRunModel integration', () => {
         );
     };
 
+    it('rejects research after standard execution claims the prompt', async () => {
+        const standardPromptUuid = await createAdditionalPrompt();
+        await database(AiPromptTableName)
+            .update({ execution_mode: 'standard' })
+            .where('ai_prompt_uuid', standardPromptUuid);
+
+        await expect(
+            createRun({ promptUuid: standardPromptUuid }),
+        ).rejects.toBeInstanceOf(AiDeepResearchPromptExecutionModeError);
+    });
+
     it('allows exactly one worker to claim a queued run', async () => {
         const run = await createRun();
 
@@ -303,6 +315,17 @@ describe('AiDeepResearchRunModel integration', () => {
         ).rejects.toMatchObject({
             activeRunUuid: winner.ai_deep_research_run_uuid,
         });
+        await expect(
+            database(AiPromptTableName)
+                .select('execution_mode')
+                .whereIn('ai_prompt_uuid', [
+                    queuedPromptUuid,
+                    runningPromptUuid,
+                ]),
+        ).resolves.toEqual([
+            { execution_mode: null },
+            { execution_mode: null },
+        ]);
     });
 
     it.each<AiDeepResearchRunStatus>([
@@ -646,7 +669,6 @@ describe('AiDeepResearchRunModel integration', () => {
             .update({
                 status: 'completed',
                 result_markdown: 'expired report',
-                result_chart_data: JSON.stringify({}),
                 completed_at: database.raw("now() - interval '31 days'"),
                 report_expires_at: null,
             });
@@ -664,7 +686,6 @@ describe('AiDeepResearchRunModel integration', () => {
             .update({
                 status: 'completed',
                 result_markdown: 'future report',
-                result_chart_data: JSON.stringify({}),
                 completed_at: database.raw("now() - interval '1 day'"),
                 report_expires_at: database.raw("now() + interval '29 days'"),
             });
@@ -778,7 +799,6 @@ describe('AiDeepResearchRunModel integration', () => {
             );
             expect(persistedExpired).toMatchObject({
                 result_markdown: null,
-                result_chart_data: null,
             });
             expect(persistedExpired?.report_expires_at).not.toBeNull();
             expect(persistedExpired?.report_expired_at).not.toBeNull();
@@ -832,7 +852,6 @@ describe('AiDeepResearchRunModel integration', () => {
             .update({
                 status: 'completed',
                 result_markdown: 'must survive',
-                result_chart_data: JSON.stringify({}),
                 completed_at: database.raw("now() - interval '31 days'"),
                 report_expires_at: database.raw("now() - interval '1 day'"),
             });

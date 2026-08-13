@@ -199,6 +199,7 @@ import {
 } from '../database/entities/aiEvals';
 import { type SqlApprovalDecision } from '../services/ai/tools/sqlApprovals';
 import { AiAgentReviewClassifierModel } from './AiAgentReviewClassifierModel';
+import { claimAiPromptExecutionMode } from './claimAiPromptExecutionMode';
 
 export type AiPromptResponseState = {
     respondedAt: string | null;
@@ -5028,6 +5029,17 @@ export class AiAgentModel {
             .returning<{ ai_prompt_uuid: string }[]>('ai_prompt_uuid');
 
         return rows.length > 0;
+    }
+
+    async claimPromptExecutionMode(
+        promptUuid: string,
+        executionMode: 'standard' | 'deep_research',
+    ): Promise<boolean> {
+        return claimAiPromptExecutionMode(
+            this.database,
+            promptUuid,
+            executionMode,
+        );
     }
 
     async failPendingPrompts(

@@ -168,6 +168,68 @@ export const DEEP_RESEARCH_WORKER_TOOL_NAMES = new Set([
     'searchSemanticLayer',
 ]);
 
+export const DEEP_RESEARCH_COORDINATOR_TOOL_NAMES = new Set([
+    'analyzeFieldImpact',
+    'describeWarehouseTable',
+    'discoverFields',
+    'findContent',
+    'generateVisualization',
+    'getDashboardCharts',
+    'getKnowledgeDocumentContent',
+    'getMetadata',
+    'getProjectInfo',
+    'grepFields',
+    'listContent',
+    'listKnowledgeDocuments',
+    'listProjects',
+    'listWarehouseTables',
+    'loadProjectContext',
+    'readContent',
+    'readPinnedThread',
+    'resolveUrl',
+    'runContentQuery',
+    'runSavedChart',
+    'runSql',
+    'searchFieldValues',
+    'searchSemanticLayer',
+]);
+
+const getTrustedDeepResearchMcpToolNames = (
+    args: AiAgentArgs,
+    mcpToolSetup: AgentMcpToolSetup,
+): Set<string> => {
+    const expectedUrl = new URL(
+        `/api/v1/mcp/projects/${args.agentSettings.projectUuid}`,
+        args.siteUrl,
+    );
+    const trustedServerUuids = new Set(
+        (args.mcpServers ?? [])
+            .filter((server) => {
+                try {
+                    const serverUrl = new URL(server.url);
+                    return (
+                        serverUrl.origin === expectedUrl.origin &&
+                        serverUrl.pathname.replace(/\/$/, '') ===
+                            expectedUrl.pathname.replace(/\/$/, '')
+                    );
+                } catch {
+                    return false;
+                }
+            })
+            .map((server) => server.uuid),
+    );
+
+    return new Set(
+        Object.entries(mcpToolSetup.mcpToolNameToServerUuid)
+            .filter(
+                ([toolName, serverUuid]) =>
+                    trustedServerUuids.has(serverUuid) &&
+                    isDeepResearchWarehouseMcpTool(toolName),
+            )
+            .map(([toolName]) => toolName),
+    );
+};
+
 const PERSIST_TIMEOUT_MS = 10_000;
 
 /**
@@ -1084,11 +1146,22 @@ export const getAgentTools = (
         args.execution.mode === 'deep_research'
             ? args.execution.research
             : undefined;
+    const trustedDeepResearchMcpToolNames = research
+        ? getTrustedDeepResearchMcpToolNames(args, mcpToolSetup)
+        : new Set<string>();
     const getResearchTools = (): ToolSet | null => {
         switch (research?.role) {
             case 'coordinator':
                 return {
-                    ...mergedTools,
+                    ...Object.fromEntries(
+                        Object.entries(mergedTools).filter(
+                            ([toolName]) =>
+                                DEEP_RESEARCH_COORDINATOR_TOOL_NAMES.has(
+                                    toolName,
+                                ) ||
+                                trustedDeepResearchMcpToolNames.has(toolName),
+                        ),
+                    ),
                     delegateResearchTask: getDelegateResearchTask({
                         runTask: research.runTask,
                     }),
@@ -1099,7 +1172,7 @@ export const getAgentTools = (
                         Object.entries(mergedTools).filter(
                             ([toolName]) =>
                                 DEEP_RESEARCH_WORKER_TOOL_NAMES.has(toolName) ||
-                                isDeepResearchWarehouseMcpTool(toolName),
+                                trustedDeepResearchMcpToolNames.has(toolName),
                         ),
                     ),
                     submitWorkerFindings: getSubmitWorkerFindings({

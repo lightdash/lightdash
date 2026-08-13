@@ -81,6 +81,30 @@ describe('AiAgentModel prompt activity', () => {
         );
     });
 
+    it('atomically assigns one execution mode to a prompt', async () => {
+        const threadUuid = await createWebAppThread();
+        const promptUuid = await model.createWebAppPrompt({
+            threadUuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            prompt: 'Choose one execution mode',
+        });
+
+        const [standardClaimed, researchClaimed] = await Promise.all([
+            model.claimPromptExecutionMode(promptUuid, 'standard'),
+            model.claimPromptExecutionMode(promptUuid, 'deep_research'),
+        ]);
+
+        expect([standardClaimed, researchClaimed].filter(Boolean)).toHaveLength(
+            1,
+        );
+        expect(
+            await model.claimPromptExecutionMode(
+                promptUuid,
+                standardClaimed ? 'standard' : 'deep_research',
+            ),
+        ).toBe(true);
+    });
+
     it('fails only prompts that are still pending during shutdown', async () => {
         const threadUuid = await createWebAppThread();
         const [pendingPromptUuid, completedPromptUuid, failedPromptUuid] =

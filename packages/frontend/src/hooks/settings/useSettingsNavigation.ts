@@ -83,7 +83,6 @@ export const useSettingsNavigation = (
         isScimTokenManagementEnabled,
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
-        isDeepResearchEnabled,
         shouldShowAiAgentReviews,
         shouldShowAiAgentMemories,
         canManageOrgAiAgent,
@@ -544,7 +543,6 @@ export const useSettingsNavigation = (
             if (
                 canAccessDeepResearchSettings({
                     isAiCopilotEnabledOrTrial,
-                    isDeepResearchEnabled,
                     canManageOrgAiAgent,
                     hasAnyAiAgentAccess,
                 })
@@ -988,7 +986,6 @@ export const useSettingsNavigation = (
         isScimEnabled,
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
-        isDeepResearchEnabled,
         shouldShowAiAgentReviews,
         shouldShowAiAgentMemories,
         canManageOrgAiAgent,
