@@ -52,6 +52,7 @@ const manager = (token: string) =>
     });
 
 const handleBootstrap = () => {
+    tracker.on.any(/CREATE EXTENSION IF NOT EXISTS "uuid-ossp"/).response([]);
     tracker.on.any(MIGRATION_LEASE_SCHEMA_SQL).response([]);
     tracker.on.any(MIGRATION_RUN_LEDGER_SCHEMA_SQL).response([]);
 };
@@ -86,9 +87,10 @@ describe('MigrationLeaseManager', () => {
     test('uses the runtime schema during bootstrap', async () => {
         handleBootstrap();
         await manager('claim-a').ensureSchema();
-        expect(tracker.history.any).toHaveLength(2);
-        expect(tracker.history.any[0]?.sql).toEqual(MIGRATION_LEASE_SCHEMA_SQL);
-        expect(tracker.history.any[1]?.sql).toEqual(
+        expect(tracker.history.any).toHaveLength(3);
+        expect(tracker.history.any[0]?.sql).toContain('uuid-ossp');
+        expect(tracker.history.any[1]?.sql).toEqual(MIGRATION_LEASE_SCHEMA_SQL);
+        expect(tracker.history.any[2]?.sql).toEqual(
             MIGRATION_RUN_LEDGER_SCHEMA_SQL,
         );
     });
