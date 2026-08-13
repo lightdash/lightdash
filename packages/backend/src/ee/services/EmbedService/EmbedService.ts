@@ -112,6 +112,7 @@ import { SubtotalsCalculator } from '../../../utils/SubtotalsCalculator';
 import { EmbedDashboardViewed, EmbedQueryViewed } from '../../analytics';
 import { EmbedModel } from '../../models/EmbedModel';
 import { ExternalConnectionModel } from '../../models/ExternalConnectionModel';
+import { getBundleServableChecker } from '../AppGenerateService/appBundleStorage';
 import {
     resolveDataAppVisualizationForRender,
     resolveDataAppVizRenderMetadata,
@@ -1856,6 +1857,7 @@ export class EmbedService extends BaseService {
         return resolveDataAppVizRenderMetadata(
             this.appModel,
             dataAppViz.app_id,
+            getBundleServableChecker(this.lightdashConfig.appRuntime.s3),
         );
     }
 

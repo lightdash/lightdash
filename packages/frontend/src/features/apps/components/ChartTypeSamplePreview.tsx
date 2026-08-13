@@ -6,7 +6,6 @@ import { useResolvedColorPalette } from '../../../hooks/appearance/useResolvedCo
 import { useResizeObserver } from '../../../hooks/useResizeObserver';
 import AppIframePreview from '../AppIframePreview';
 import {
-    useDataAppVizBundlePreflight,
     useDataAppVizPreviewToken,
     useDataAppVizRenderMetadata,
 } from '../hooks/useDataAppVizRender';
@@ -54,8 +53,6 @@ const ChartTypeSamplePreview: FC<Props> = ({ projectUuid, dataAppVizUuid }) => {
         readyMetadata && token
             ? `${previewOrigin}/api/apps/${dataAppVizUuid}/versions/${readyMetadata.version}/t/${token}/`
             : undefined;
-    const { data: bundleServable } =
-        useDataAppVizBundlePreflight(previewBaseUrl);
 
     const colorPalette = useResolvedColorPalette(projectUuid);
     const sampleContext = useMemo(
@@ -83,14 +80,14 @@ const ChartTypeSamplePreview: FC<Props> = ({ projectUuid, dataAppVizUuid }) => {
     if (metadata.state === 'building') {
         return <PreviewPlaceholder message="Still generating…" />;
     }
+    if (metadata.state === 'unavailable') {
+        return <PreviewPlaceholder message="Preview unavailable" />;
+    }
     if (metadata.state === 'failed') {
         return <PreviewPlaceholder message="No finished version yet" />;
     }
-    if (!token || !previewBaseUrl || bundleServable === undefined) {
+    if (!token || !previewBaseUrl) {
         return <PreviewPlaceholder message="Loading preview…" />;
-    }
-    if (!bundleServable) {
-        return <PreviewPlaceholder message="Preview unavailable" />;
     }
 
     const previewUrl = `${previewBaseUrl}?r=0#transport=postMessage&projectUuid=${projectUuid}`;
