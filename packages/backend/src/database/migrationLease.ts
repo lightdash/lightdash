@@ -12,6 +12,7 @@ export const MIGRATION_LEASE_EXPIRY_MS = 75_000;
 const BOOTSTRAP_MAX_ATTEMPTS = 10;
 const BOOTSTRAP_RETRY_DELAY_MS = 50;
 const UNLOCK_MAX_ATTEMPTS = 3;
+const UUID_EXTENSION_SQL = 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp"';
 const RETRYABLE_BOOTSTRAP_ERROR_CODES = new Set(['23505', '42P07']);
 
 const LEGACY_LEASE_COLUMNS = [
@@ -294,6 +295,7 @@ export class MigrationLeaseManager {
 
     private async ensureSchemaAttempt(attempt: number): Promise<void> {
         try {
+            await this.database.raw(UUID_EXTENSION_SQL);
             await this.database.raw(MIGRATION_LEASE_SCHEMA_SQL);
             await this.database.raw(MIGRATION_RUN_LEDGER_SCHEMA_SQL);
         } catch (error) {
