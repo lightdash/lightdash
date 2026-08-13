@@ -67,6 +67,10 @@ import { type PersistentDownloadFileSource } from '../services/PersistentDownloa
 import { VERSION } from '../version';
 import type { AiUsageEvent } from './aiUsage';
 import type { EventStreamSink } from './eventStream/EventStreamSink';
+import type {
+    UpgradeEventName,
+    UpgradeEventProperties,
+} from './upgradeTelemetryEvents';
 
 type Identify = {
     userId: string;
@@ -3241,6 +3245,12 @@ export type PromptFetchedEvent = BaseTrack & {
 
 export type FeatureFlagCheckProcessType = 'api' | 'scheduler' | null;
 
+type UpgradeTelemetryAnalyticsEvent = BaseTrack & {
+    event: UpgradeEventName;
+    anonymousId: string;
+    properties: UpgradeEventProperties;
+};
+
 export type FeatureFlagCheckedAggregatedEvent = BaseTrack & {
     event: 'feature_flag.checked_aggregated';
     properties: {
@@ -3428,6 +3438,7 @@ type TypedEvent =
     | PersistentFileGenerationCompletedEvent
     | PersistentFileUrlRequestedEvent
     | PersistentFileUrlRespondedEvent
+    | UpgradeTelemetryAnalyticsEvent
     | AiUsageEvent;
 
 type UntypedEvent<T extends BaseTrack> = Omit<BaseTrack, 'event'> &

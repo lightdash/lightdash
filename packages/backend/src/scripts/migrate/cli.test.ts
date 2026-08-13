@@ -1,3 +1,4 @@
+import { type UpgradeTelemetryEvent } from '../../analytics/upgradeTelemetryEvents';
 import {
     type MigrationLease,
     type MigrationLeaseClaimResult,
@@ -12,6 +13,7 @@ import {
     type MigrateCliContext,
     type MigrationLeaseCommandClient,
 } from './cli';
+import { MigrationLeaseLostError } from './heartbeat';
 import { type KnexMigrationState } from './migrationState';
 import { type PreflightReport } from './preflight';
 
@@ -130,6 +132,7 @@ const leaseManager = (): MigrationLeaseCommandClient => {
                 runs: [],
             }),
         ),
+        readLastSucceededRun: vi.fn(async () => null),
         unlock: vi.fn<MigrationLeaseCommandClient['unlock']>(
             async (actor, force) => ({
                 status: 'unlocked',
@@ -158,10 +161,12 @@ const context = (
     const lines: string[] = [];
     const errors: string[] = [];
     const warnings: string[] = [];
+    const upgradeEvents: UpgradeTelemetryEvent[] = [];
     return {
         lines,
         errors,
         warnings,
+        upgradeEvents,
         value: createMigrateCliContext({
             leaseManager: manager,
             heartbeatLeaseManager: {
@@ -181,6 +186,7 @@ const context = (
             log: (line) => lines.push(line),
             logError: (line) => errors.push(line),
             warn: (line) => warnings.push(line),
+            emitUpgradeEvent: (event) => upgradeEvents.push(event),
             onLeaseLost: vi.fn(),
             sleep: vi.fn(async () => {}),
             heartbeatIntervalMs: 60_000,
@@ -190,7 +196,134 @@ const context = (
     };
 };
 
+const upgradePropertyKeys = [
+    'attempt',
+    'duration_seconds',
+    'execution_mode',
+    'failing_migration',
+    'failure_class',
+    'from_version',
+    'migration_run_uuid',
+    'outcome',
+    'preceded_by_unlock',
+    'preceding_unlock_forced',
+    'preflight_blocked_checks',
+    'preflight_decision',
+    'preflight_red',
+    'preflight_yellow',
+    'span_migrations',
+    'to_version',
+];
+
 describe('runMigrateCli', () => {
+    test('emits a complete started and completed lifecycle for a successful upgrade', async () => {
+        const manager = leaseManager();
+        vi.mocked(manager.readLastSucceededRun).mockResolvedValue(
+            migrationRun({ appVersion: '1.1.0' }),
+        );
+        const states = [
+            migrationState(['001_first.ts']),
+            migrationState(['001_first.ts']),
+            migrationState(),
+        ];
+        const now = vi.fn().mockReturnValueOnce(1_000).mockReturnValue(6_000);
+        const command = context(manager, {
+            getMigrationState: vi.fn(
+                async () => states.shift() ?? migrationState(),
+            ),
+            now,
+        });
+
+        await runMigrateCli(['up'], command.value);
+
+        expect(manager.readLastSucceededRun).toHaveBeenCalledOnce();
+        expect(command.upgradeEvents.map(({ event }) => event)).toEqual([
+            'upgrade_started',
+            'upgrade_completed',
+        ]);
+        expect(command.upgradeEvents[0]?.properties).toMatchObject({
+            migration_run_uuid: 'run-1',
+            from_version: '1.1.0',
+            to_version: '1.2.3',
+            span_migrations: 1,
+            attempt: 1,
+            duration_seconds: null,
+            outcome: null,
+        });
+        expect(command.upgradeEvents[1]?.properties).toMatchObject({
+            migration_run_uuid: 'run-1',
+            from_version: '1.1.0',
+            span_migrations: 1,
+            attempt: 1,
+            duration_seconds: 5,
+            outcome: 'succeeded',
+        });
+        command.upgradeEvents.forEach(({ properties }) => {
+            expect(Object.keys(properties).sort()).toEqual(upgradePropertyKeys);
+        });
+    });
+
+    test('emits retry and success lifecycles against each attempt run uuid', async () => {
+        const manager = leaseManager();
+        const states = [
+            migrationState(['001_first.ts']),
+            migrationState(['001_first.ts']),
+            migrationState(['001_first.ts']),
+            migrationState(),
+        ];
+        const command = context(manager, {
+            getMigrationState: vi.fn(
+                async () => states.shift() ?? migrationState(),
+            ),
+            migrateOne: vi
+                .fn<MigrateCliContext['migrateOne']>()
+                .mockRejectedValueOnce(new Error('retry once'))
+                .mockResolvedValue(undefined),
+            now: vi
+                .fn()
+                .mockReturnValueOnce(1_000)
+                .mockReturnValueOnce(3_000)
+                .mockReturnValueOnce(4_000)
+                .mockReturnValue(7_000),
+        });
+
+        await runMigrateCli(['up'], command.value);
+
+        expect(
+            command.upgradeEvents.map(({ event, properties }) => ({
+                event,
+                runUuid: properties.migration_run_uuid,
+                attempt: properties.attempt,
+                outcome: properties.outcome,
+            })),
+        ).toEqual([
+            {
+                event: 'upgrade_started',
+                runUuid: 'run-1',
+                attempt: 1,
+                outcome: null,
+            },
+            {
+                event: 'upgrade_failed',
+                runUuid: 'run-1',
+                attempt: 1,
+                outcome: 'retrying',
+            },
+            {
+                event: 'upgrade_started',
+                runUuid: 'run-2',
+                attempt: 2,
+                outcome: null,
+            },
+            {
+                event: 'upgrade_completed',
+                runUuid: 'run-2',
+                attempt: 2,
+                outcome: 'succeeded',
+            },
+        ]);
+    });
+
     test('preflight runs as a standalone read-only command', async () => {
         const manager = leaseManager();
         const command = context(manager);
@@ -235,6 +368,76 @@ describe('runMigrateCli', () => {
         expect(command.value.runPreflight).toHaveBeenCalledOnce();
         expect(manager.claim).not.toHaveBeenCalled();
         expect(command.value.getMigrationState).not.toHaveBeenCalled();
+    });
+
+    test('preflight abort emits only the blocked checks and pending span', async () => {
+        const manager = leaseManager();
+        const command = context(manager, {
+            runPreflight: vi.fn(async () =>
+                preflightReport({
+                    decision: 'abort',
+                    summary: { red: 1, yellow: 0, info: 1 },
+                    checks: [
+                        {
+                            id: 'postgres-version',
+                            severity: 'red',
+                            outcome: 'fail',
+                            message: 'unsupported',
+                            data: {
+                                serverVersion: '11.0',
+                                serverVersionNum: 110000,
+                                minimumSupportedMajor: 12,
+                                probeError: null,
+                            },
+                        },
+                        {
+                            id: 'pending-migrations',
+                            severity: 'info',
+                            outcome: 'info',
+                            message: '2 pending migration(s)',
+                            data: {
+                                migrations: [
+                                    {
+                                        name: '001_first.ts',
+                                        transaction: true,
+                                        tables: [],
+                                        metadataAvailable: true,
+                                    },
+                                    {
+                                        name: '002_second.ts',
+                                        transaction: true,
+                                        tables: [],
+                                        metadataAvailable: true,
+                                    },
+                                ],
+                            },
+                        },
+                    ],
+                }),
+            ),
+        });
+
+        await expect(
+            runMigrateCli(['preflight'], command.value),
+        ).rejects.toThrow('Migration preflight aborted');
+
+        expect(command.upgradeEvents).toEqual([
+            {
+                event: 'preflight_blocked',
+                properties: expect.objectContaining({
+                    migration_run_uuid: null,
+                    span_migrations: 2,
+                    failure_class: 'preflight_blocked',
+                    preflight_decision: 'abort',
+                    preflight_red: 1,
+                    preflight_yellow: 0,
+                    preflight_blocked_checks: ['postgres-version'],
+                }),
+            },
+        ]);
+        expect(
+            Object.keys(command.upgradeEvents[0]?.properties ?? {}).sort(),
+        ).toEqual(upgradePropertyKeys);
     });
 
     test('strict promotes yellow preflight results to an abort before lease claim', async () => {
@@ -540,6 +743,45 @@ describe('runMigrateCli', () => {
         expect(command.value.sleep).toHaveBeenNthCalledWith(2, 2);
     });
 
+    test('classifies a parked constraint failure without leaking raw error detail', async () => {
+        const manager = leaseManager();
+        const sentinel = 'SENTINEL_SCHEMA_LEAK_xyz';
+        const failure = Object.assign(new Error(sentinel), {
+            code: '23505',
+        });
+        failure.stack = `${sentinel}\nstack detail`;
+        const command = context(manager, {
+            getMigrationState: vi.fn(async () =>
+                migrationState(['001_failing.ts']),
+            ),
+            migrateOne: vi.fn(async () => {
+                throw failure;
+            }),
+        });
+
+        await expect(runMigrateCli(['up'], command.value)).rejects.toThrow(
+            sentinel,
+        );
+
+        const parkedEvent = command.upgradeEvents.find(
+            ({ properties }) => properties.outcome === 'parked',
+        );
+        expect(parkedEvent).toMatchObject({
+            event: 'upgrade_failed',
+            properties: {
+                migration_run_uuid: 'run-3',
+                attempt: 3,
+                outcome: 'parked',
+                failure_class: 'constraint_violation',
+                failing_migration: '001_failing.ts',
+            },
+        });
+        expect(JSON.stringify(command.upgradeEvents)).not.toContain(sentinel);
+        expect(vi.mocked(manager.parkRun).mock.calls[0]?.[4]).toContain(
+            sentinel,
+        );
+    });
+
     test('the same app version does not reclaim a parked migration', async () => {
         const manager = leaseManager();
         const parkedLease = heldLease({
@@ -611,6 +853,72 @@ describe('runMigrateCli', () => {
             'claim-b',
             expect.any(String),
         );
+    });
+
+    test('emits takeover after started when the pre-claim lease is expired', async () => {
+        const manager = leaseManager();
+        vi.mocked(manager.read).mockResolvedValue(
+            readLease(heldLease({ expired: true })),
+        );
+        const command = context(manager);
+
+        await runMigrateCli(['up'], command.value);
+
+        expect(command.upgradeEvents.map(({ event }) => event)).toEqual([
+            'upgrade_started',
+            'migration_lock_takeover',
+            'upgrade_completed',
+        ]);
+        expect(command.upgradeEvents[1]?.properties).toMatchObject({
+            migration_run_uuid: 'run-1',
+            attempt: null,
+            duration_seconds: null,
+            outcome: null,
+        });
+    });
+
+    test('does not emit takeover for a non-expired pre-claim lease', async () => {
+        const manager = leaseManager();
+        vi.mocked(manager.read).mockResolvedValue(readLease(heldLease()));
+        const command = context(manager);
+
+        await runMigrateCli(['up'], command.value);
+
+        expect(command.upgradeEvents.map(({ event }) => event)).toEqual([
+            'upgrade_started',
+            'upgrade_completed',
+        ]);
+    });
+
+    test('emits an abandoned failure when heartbeat lease loss escapes', async () => {
+        const manager = leaseManager();
+        const command = context(manager, {
+            heartbeatLeaseManager: {
+                heartbeat: vi.fn(async () => false),
+            },
+            heartbeatIntervalMs: 1,
+            clearKnexLock: vi.fn(async () => {
+                await new Promise<void>((resolve) => {
+                    setTimeout(resolve, 5);
+                });
+            }),
+        });
+
+        await expect(
+            runMigrateCli(['up'], command.value),
+        ).rejects.toBeInstanceOf(MigrationLeaseLostError);
+
+        expect(command.upgradeEvents.map(({ event }) => event)).toEqual([
+            'upgrade_started',
+            'upgrade_failed',
+        ]);
+        expect(command.upgradeEvents[1]?.properties).toMatchObject({
+            migration_run_uuid: 'run-1',
+            attempt: 1,
+            outcome: null,
+            failure_class: 'lease_lost',
+            failing_migration: 'knex-lock-recovery',
+        });
     });
 
     test('wait promotes through the same claim path when pending work is stale', async () => {
