@@ -284,7 +284,7 @@ jobs:
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
         # Force reinstall so pnpm includes optional DuckDB native bindings
         # needed to build both macOS pkg targets from a single runner.
-        run: sfw pnpm install --filter @lightdash/cli --filter @lightdash/common --filter @lightdash/warehouses --frozen-lockfile --prefer-offline --prod=false --force --network-concurrency=16
+        run: sfw pnpm install --config.minimumReleaseAge=0 --filter @lightdash/cli --filter @lightdash/common --filter @lightdash/warehouses --frozen-lockfile --prefer-offline --prod=false --force --network-concurrency=16
 
       - name: Cache common build
         id: cache-common
@@ -654,7 +654,14 @@ jobs:
           cache-dependency-path: 'pnpm-lock.yaml'
 
       - name: Install dependencies
-        run: sfw pnpm install --frozen-lockfile --prefer-offline --prod=false --network-concurrency=16
+        run: sfw pnpm install --config.minimumReleaseAge=0 --frozen-lockfile --prefer-offline --prod=false --network-concurrency=16
+
+      # sfw's proxy can die mid-install and still exit 0, leaving a partial
+      # node_modules (missing .bin links — releases 1.151.3 attempts 1+2 both
+      # failed on `tsoa: not found`). Same repair pattern as release.config.js:
+      # plain pnpm relinks from the lockfile with honest exit codes.
+      - name: Repair install without sfw
+        run: pnpm install --prefer-offline
 
       - name: Generate backend API artifacts
         run: pnpm generate-api:backend
