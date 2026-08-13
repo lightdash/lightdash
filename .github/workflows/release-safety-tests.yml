@@ -35,6 +35,7 @@ jobs:
         uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
         with:
           mode: firewall-free
+          firewall-version: 1.15.0
 
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
@@ -44,7 +45,7 @@ jobs:
 
       - name: Install root dependencies
         run: |
-          sfw pnpm install --frozen-lockfile --filter . || true
+          sfw pnpm install --frozen-lockfile --filter . --network-concurrency=16 || true
           node -e "require.resolve('ajv')" 2>/dev/null || pnpm install --frozen-lockfile --filter .
 
       - name: Install tsx
