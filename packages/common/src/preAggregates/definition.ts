@@ -15,6 +15,8 @@ import { TimeFrames } from '../types/timeFrames';
 import type { UserAttributeValueMap } from '../types/userAttributes';
 
 const PRE_AGGREGATE_NAME_PATTERN = /^[a-zA-Z0-9_]+$/;
+const EXTERNAL_TABLE_PATTERN =
+    /^(?:[A-Za-z_][A-Za-z0-9_$]*|"(?:""|[^"\u0000-\u001F])+"|`[^`\u0000-\u001F]+`)(?:\.(?:[A-Za-z_][A-Za-z0-9_$]*|"(?:""|[^"\u0000-\u001F])+"|`[^`\u0000-\u001F]+`))*$/;
 
 const isUnknownRecord = (value: unknown): value is Record<string, unknown> =>
     isPlainObject(value);
@@ -262,9 +264,12 @@ export const parseDbtPreAggregateDef = (
         typeof safePreAggregate?.table === 'string'
             ? safePreAggregate.table.trim()
             : undefined;
-    if (safePreAggregate?.table !== undefined && !table) {
+    if (
+        safePreAggregate?.table !== undefined &&
+        (!table || !EXTERNAL_TABLE_PATTERN.test(table))
+    ) {
         throw new ParseError(
-            `Pre-aggregate "${name}" in model "${modelName}" has invalid "table". Expected a non-empty string.`,
+            `Pre-aggregate "${name}" in model "${modelName}" has invalid "table". Expected a qualified SQL identifier.`,
         );
     }
 

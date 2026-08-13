@@ -23,6 +23,7 @@ import {
     type TimeFrames,
     type WeekDay,
 } from '@lightdash/common';
+import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { assertDimensionEligibleForDirectMaterialization } from './eligibility';
 import {
     getDimensionsByReference,
@@ -41,31 +42,6 @@ const isFinerGranularity = (
         return false;
     }
     return candidateIndex < targetIndex;
-};
-
-// Float type for average re-aggregation casts, per serving dialect
-const getFloatCastType = (adapter: SupportedDbtAdapter): string => {
-    switch (adapter) {
-        case SupportedDbtAdapter.BIGQUERY:
-            return 'FLOAT64';
-        case SupportedDbtAdapter.POSTGRES:
-        case SupportedDbtAdapter.REDSHIFT:
-            return 'DOUBLE PRECISION';
-        case SupportedDbtAdapter.CLICKHOUSE:
-            return 'Float64';
-        case SupportedDbtAdapter.DUCKDB:
-        case SupportedDbtAdapter.SNOWFLAKE:
-        case SupportedDbtAdapter.DATABRICKS:
-        case SupportedDbtAdapter.TRINO:
-        case SupportedDbtAdapter.ATHENA:
-        case SupportedDbtAdapter.SPARK:
-            return 'DOUBLE';
-        default:
-            return assertUnreachable(
-                adapter,
-                `Unsupported adapter "${adapter}"`,
-            );
-    }
 };
 
 const getMetricAggregateSql = (
@@ -101,7 +77,8 @@ const getAverageMetricAggregateSql = (
         'count',
     )}`;
 
-    const floatType = getFloatCastType(servingAdapter);
+    const floatType =
+        warehouseSqlBuilderFromType(servingAdapter).getFloatingType();
     // Force floating-point division because both components are numeric aggregates.
     return `CAST(SUM(${sumColumnReference}) AS ${floatType}) / CAST(NULLIF(SUM(${countColumnReference}), 0) AS ${floatType})`;
 };

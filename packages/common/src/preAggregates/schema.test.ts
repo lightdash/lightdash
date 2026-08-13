@@ -90,6 +90,30 @@ describe('pre-aggregate external table schema', () => {
             preAggregate: { ...basePreAggregate, table: '' },
             valid: false,
         },
+        {
+            name: 'a quoted external table',
+            preAggregate: {
+                ...basePreAggregate,
+                table: '"analytics"."orders rollup"',
+            },
+            valid: true,
+        },
+        {
+            name: 'an external table SQL expression',
+            preAggregate: {
+                ...basePreAggregate,
+                table: '(SELECT * FROM orders)',
+            },
+            valid: false,
+        },
+        {
+            name: 'an external table with multiple statements',
+            preAggregate: {
+                ...basePreAggregate,
+                table: 'orders; DROP TABLE users',
+            },
+            valid: false,
+        },
     ])('$name is valid: $valid', ({ preAggregate, valid }) => {
         validateInBothSchemas(preAggregate, valid);
     });

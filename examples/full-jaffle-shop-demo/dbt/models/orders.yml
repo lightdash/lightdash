@@ -33,7 +33,8 @@ models:
               - total_completed_order_amount
             time_dimension: order_date
             granularity: day
-          # External pre-aggregate candidates, backed by matviews in the jaffle schema
+          # External pre-aggregate candidates. Enable create_external_pre_aggregate_tables
+          # in dbt_project.yml before testing them locally.
           - name: orders_ext_daily_status
             table: '"jaffle"."orders_ext_daily_status_mv"'
             dimensions:

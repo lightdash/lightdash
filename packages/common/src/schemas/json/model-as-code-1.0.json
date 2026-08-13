@@ -98,7 +98,8 @@
                             "table": {
                                 "type": "string",
                                 "minLength": 1,
-                                "description": "External table: a customer-managed warehouse table or view that Lightdash does not create or refresh. Lightdash injects it verbatim into FROM (same trust level as sql_table), and it must expose the pre-aggregate's generated column names. When set, Lightdash never materializes this pre-aggregate; materialization keys (refresh, sorts, max_rows, materialization_role) are ignored."
+                                "pattern": "^(?:[A-Za-z_][A-Za-z0-9_$]*|\"(?:\"\"|[^\"\\u0000-\\u001F])+\"|`[^`\\u0000-\\u001F]+`)(?:\\.(?:[A-Za-z_][A-Za-z0-9_$]*|\"(?:\"\"|[^\"\\u0000-\\u001F])+\"|`[^`\\u0000-\\u001F]+`))*$",
+                                "description": "External table: a qualified identifier for a customer-managed warehouse table or view that Lightdash does not create or refresh. It must expose the pre-aggregate's generated column names. When set, Lightdash never materializes this pre-aggregate; materialization keys (refresh, sorts, max_rows, materialization_role) are ignored."
                             },
                             "sorts": {
                                 "description": "Materialization sort order. When omitted, Lightdash automatically sorts the time dimension first and descending, then all remaining materialized dimensions ascending. Set to false or [] to disable sorting, or provide canonical query sort entries with a compiled Lightdash fieldId and explicit descending value. Compiled time-dimension IDs include granularity (for example, orders_order_date_day) and must be updated when granularity changes. Sort order determines which rows are retained when max_rows truncates results.",

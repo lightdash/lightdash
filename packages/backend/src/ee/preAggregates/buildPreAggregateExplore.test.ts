@@ -444,7 +444,7 @@ describe('buildPreAggregateExplore', () => {
                 postgresResult.tables.orders.metrics.avg_order_amount
                     .compiledSql,
             ).toBe(
-                'CAST(SUM(orders.orders_avg_order_amount__sum) AS DOUBLE PRECISION) / CAST(NULLIF(SUM(orders.orders_avg_order_amount__count), 0) AS DOUBLE PRECISION)',
+                'CAST(SUM(orders.orders_avg_order_amount__sum) AS FLOAT) / CAST(NULLIF(SUM(orders.orders_avg_order_amount__count), 0) AS FLOAT)',
             );
 
             const bigqueryResult = buildExplore(

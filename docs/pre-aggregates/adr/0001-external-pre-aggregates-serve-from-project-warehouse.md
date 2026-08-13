@@ -3,10 +3,10 @@
 Customers at large scale (30–60TB scans) want to manage pre-aggregate lifecycle
 themselves (e.g. BigQuery materialized views with incremental refresh) and use
 Lightdash only for matching and serving. We decided an external pre-aggregate
-declares a `table` — a trusted SQL fragment injected verbatim into FROM, same
-trust level as a model's `sql_table` — and serving compiles the matched query
-against the generated pre-aggregate explore in the **project warehouse dialect**
-and runs it on the project warehouse client. The entire managed machinery
+declares a `table` — a validated qualified SQL identifier — and serving compiles
+the matched query against the generated pre-aggregate explore in the **project
+warehouse dialect** and runs it on the project warehouse client. The entire
+managed machinery
 (materialization jobs, DuckDB, S3, materialization rows) is bypassed: the
 definition stores a null materialization metric query, which the scheduler
 already skips.

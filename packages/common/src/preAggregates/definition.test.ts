@@ -37,15 +37,19 @@ describe('parseDbtPreAggregateDef', () => {
         });
     });
 
-    it('parses and trims an external table', () => {
+    it.each([
+        'analytics.orders_rollup_mv',
+        '"analytics"."orders rollup"',
+        '`project-id.analytics.orders_rollup_mv`',
+    ])('parses and trims external table %s', (table) => {
         expect(
             parseDbtPreAggregateDef(
-                { ...basePreAggregate, table: '  analytics.orders_rollup_mv ' },
+                { ...basePreAggregate, table: `  ${table}  ` },
                 'orders',
             ),
         ).toEqual({
             ...basePreAggregate,
-            table: 'analytics.orders_rollup_mv',
+            table,
         });
     });
 
@@ -59,6 +63,9 @@ describe('parseDbtPreAggregateDef', () => {
         { name: 'an empty string', table: '' },
         { name: 'a whitespace-only string', table: '   ' },
         { name: 'a non-string value', table: 42 },
+        { name: 'a SQL expression', table: '(SELECT * FROM orders)' },
+        { name: 'multiple statements', table: 'orders; DROP TABLE users' },
+        { name: 'a SQL comment', table: 'orders -- injected' },
     ])('throws when table is $name', ({ table }) => {
         expect(() =>
             parseDbtPreAggregateDef({ ...basePreAggregate, table }, 'orders'),

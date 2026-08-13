@@ -137,7 +137,7 @@ export type DbtPreAggregateDef = {
     name: string;
     dimensions: string[];
     metrics: string[];
-    // External table to serve from (trusted SQL fragment injected verbatim into FROM). Marks the pre-aggregate as external.
+    // Qualified warehouse table identifier. Marks the pre-aggregate as external.
     table?: string;
     sorts?: false | PreAggregateSort[];
     filters?: Record<string, unknown>[];
