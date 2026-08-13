@@ -318,6 +318,29 @@ export class AiAgentController extends BaseController {
         };
     }
 
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('201', 'Created')
+    @Post('/mcpServers/github/connect-app')
+    @OperationId('connectGithubMcpServerApp')
+    async connectGithubMcpServerApp(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiAiMcpServerResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(201);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().connectGithubMcpServerApp(
+                toSessionUser(req.account),
+                projectUuid,
+            ),
+        };
+    }
+
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/mcpServers/{mcpServerUuid}/tools')

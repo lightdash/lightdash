@@ -289,6 +289,17 @@ export enum FeatureFlags {
     OrgAiProviderApiKeys = 'org-ai-provider-api-keys',
 
     /**
+     * Allow storing long-lived GitHub personal access tokens as GitHub MCP
+     * credentials (guided connect flow and generic bearer endpoints targeting
+     * the hosted GitHub MCP URL). Off by default — orgs should authenticate
+     * via the Lightdash GitHub App, which mints a short-lived installation
+     * token per run and stores no long-lived secret. When off, previously
+     * stored PATs are also ignored at runtime. Enable
+     * per-org only as a stopgap for orgs that cannot install the GitHub App.
+     */
+    AiMcpGithubPat = 'ai-mcp-github-pat',
+
+    /**
      * Gate the whole new onboarding experience as one unit: email-only
      * signup (register collects only an email; ownership proven via email
      * OTP), the full-page organization setup experience shown after
