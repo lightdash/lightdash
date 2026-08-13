@@ -1,14 +1,25 @@
 {
   "schemaVersion": "2",
-  "version": "1.146.2",
-  "previousVersion": "1.146.1",
-  "releaseDate": "2026-08-13T08:07:49.614Z",
+  "version": "1.146.3",
+  "previousVersion": "1.146.2",
+  "releaseDate": "2026-08-13T09:44:16.882Z",
   "migrations": {
-    "present": false,
-    "count": 0,
+    "present": true,
+    "count": 1,
     "coreCount": 0,
-    "eeCount": 0,
-    "files": []
+    "eeCount": 1,
+    "files": [
+      {
+        "name": "20260813083849_add_deep_research_report_adjusted_event_type.ts",
+        "edition": "ee",
+        "tables": [],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

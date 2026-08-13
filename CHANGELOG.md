@@ -1,3 +1,11 @@
+## [1.146.3](https://github.com/lightdash/lightdash/compare/1.146.2...1.146.3) (2026-08-13)
+
+
+### Bug Fixes
+
+* **ai:** allow repaired deep research report events ([#27309](https://github.com/lightdash/lightdash/issues/27309)) ([8ad0ab9](https://github.com/lightdash/lightdash/commit/8ad0ab95e1622ea834e709f57c8181edf5ea70c3))
+* scope dashboard comment updates to their dashboard ([#27271](https://github.com/lightdash/lightdash/issues/27271)) ([09b3790](https://github.com/lightdash/lightdash/commit/09b37907314cbef2552a83437a4dd6c5865ab864))
+
 ## [1.146.2](https://github.com/lightdash/lightdash/compare/1.146.1...1.146.2) (2026-08-13)
 
 
