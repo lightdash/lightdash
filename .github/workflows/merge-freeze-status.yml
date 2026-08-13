@@ -48,17 +48,25 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           SHA: ${{ github.event.pull_request.head.sha }}
+          FREEZE_ACTOR: ${{ vars.MERGE_FREEZE_ACTOR }}
           FREEZE_URL: ${{ github.server_url }}/${{ github.repository }}/actions/workflows/merge-freeze.yml
         run: |
           set -euo pipefail
 
-          # Fixed text, matching what merge-freeze.yml posts. The reason a
-          # freeze is on goes to #engineering and never here: this workflow's
-          # log and the statuses it writes are both public.
+          # Names the person, never the reason: this workflow's log and the
+          # statuses it writes are both public, and a freeze reason is exactly
+          # the sort of sentence that names a customer. A username carries
+          # nothing sensitive and tells the author who to go and ask.
+          if [ -n "${FREEZE_ACTOR:-}" ]; then
+            description="Merges to main are frozen by $FREEZE_ACTOR - ask them in Slack"
+          else
+            description="Merges to main are frozen while a release is cut"
+          fi
+
           gh api --method POST "repos/$REPO/statuses/$SHA" \
             -f state=failure \
             -f context=merge-freeze \
-            -f description="Merges to main are frozen while a release is cut" \
+            -f description="${description:0:140}" \
             -f target_url="$FREEZE_URL" >/dev/null
 
           echo "Flagged PR #${{ github.event.pull_request.number }} as blocked by the active merge freeze."

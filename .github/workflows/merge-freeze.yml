@@ -213,11 +213,15 @@ jobs:
           # This repo is public, so commit statuses are world-readable. The
           # reason stays out of them deliberately and goes to Slack instead -
           # "we are holding main for an escalation" is exactly the sort of
-          # sentence that names a customer. PRs still learn that a freeze is
-          # on, which is the part that stops people being confused.
+          # sentence that names a customer.
+          #
+          # The person is named instead of the reason: it carries nothing
+          # sensitive, and it gives whoever is blocked something to act on -
+          # go and ask them in Slack, rather than hunting through the Actions
+          # tab to find out who to ask.
           if [ "$ACTION" = "freeze" ]; then
             state=failure
-            description="Merges to main are frozen while a release is cut"
+            description="Merges to main are frozen by $ACTOR_LOGIN - ask them in Slack"
           else
             state=success
             description="Merges to main are open"
