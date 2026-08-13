@@ -35,7 +35,6 @@ import { useDataAppVisualization } from '../features/apps/hooks/useDataAppVisual
 import { useDataAppVizBuild } from '../features/apps/hooks/useDataAppVizBuild';
 import { useElapsedClock } from '../features/apps/hooks/useElapsedClock';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
-import { useUpdateApp } from '../features/apps/hooks/useUpdateApp';
 import { buildSampleVizContext } from '../features/apps/utils/sampleVizContext';
 import { useResolvedColorPalette } from '../hooks/appearance/useResolvedColorPalette';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
@@ -224,15 +223,6 @@ const ChartTypeBuilder: FC = () => {
         [],
     );
 
-    const { mutate: updateApp } = useUpdateApp({ resourceLabel: 'Chart type' });
-    const handleSaveMeta = useCallback(
-        (patch: { name?: string; description?: string }) => {
-            if (!projectUuid || !appMeta) return;
-            updateApp({ projectUuid, appUuid: appMeta.appUuid, ...patch });
-        },
-        [projectUuid, appMeta, updateApp],
-    );
-
     const canEdit = useCanEditDataApp(projectUuid, {
         spaceUuid: appMeta?.spaceUuid ?? null,
         createdByUserUuid: appMeta?.createdByUserUuid ?? null,
@@ -348,7 +338,6 @@ const ChartTypeBuilder: FC = () => {
                         ? handleCloseHistory()
                         : setIsHistoryOpen(true)
                 }
-                onSaveMeta={handleSaveMeta}
                 onPreviewInExplorer={() =>
                     void navigate(
                         `/projects/${projectUuid}/tables?dataAppVizUuid=${activeVizUuid}`,
