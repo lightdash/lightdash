@@ -168,10 +168,12 @@ title and attachment titles are never copied into the PR description.
 After the preview is healthy, a visual-evidence turn plans up to three targeted
 screenshots. A short-lived Browserless container signs in to the seeded demo,
 performs the specified UI actions, and captures the resulting state. The
-controller serves those images from stable artifact URLs and adds them to the
-draft PR under **Visual evidence**, alongside the summary and preview link. A
-capture failure does not discard the implementation; the PR records the failure
-instead of attaching a misleading generic screenshot.
+controller serves those images from stable artifact URLs and adds them to both
+the Linear response and draft PR under **Visual evidence**, alongside the exact
+verified preview URL and plain-language reproduction steps for each screenshot.
+A capture failure does not discard the planned URL or reproduction steps; the
+response and PR explain that the image could not be generated instead of
+attaching a misleading generic screenshot.
 
 On a `prompted` event, the prompt is queued for the existing runner and handled
 with `codex exec resume --last`. Runner VMs expire after 24 hours by default.

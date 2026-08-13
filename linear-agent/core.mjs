@@ -192,3 +192,32 @@ export function evidenceFileName(value, index) {
         .slice(0, 60);
     return `${stem || `screenshot-${index}`}.jpg`;
 }
+
+export function evidencePreviewUrl(previewUrl, relativeUrl) {
+    try {
+        const preview = new URL(String(previewUrl || ''));
+        const path = String(relativeUrl || '');
+        if (!path.startsWith('/') || path.startsWith('//')) return null;
+        const resolved = new URL(path, preview);
+        return resolved.origin === preview.origin ? resolved.href : null;
+    } catch {
+        return null;
+    }
+}
+
+export function evidenceMarkdown(item, previewUrl) {
+    const description = String(item.description || 'Visual evidence').replace(/[\[\]]/g, '');
+    const sections = item.url
+        ? [`![${description}](${item.url})`, `_${description}_`]
+        : ['> It was not possible to generate the image.', `_${description}_`];
+    const verifiedUrl = evidencePreviewUrl(previewUrl, item.relativeUrl);
+    const steps = Array.isArray(item.steps) ? item.steps.filter(Boolean) : [];
+    if (verifiedUrl) sections.push(`**Verified URL:** <${verifiedUrl}>`);
+    if (steps.length) {
+        const reproductionSteps = steps
+            .map((step, index) => `${index + 1}. ${step}`)
+            .join('\n');
+        sections.push(`**Reproduction steps**\n\n${reproductionSteps}`);
+    }
+    return sections.join('\n\n');
+}
