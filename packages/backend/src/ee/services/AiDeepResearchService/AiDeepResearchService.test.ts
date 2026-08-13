@@ -1504,7 +1504,9 @@ describe('AiDeepResearchService', () => {
             const { service, model, queryHistoryModel } = buildService({
                 executor: vi.fn().mockResolvedValue({
                     status: 'completed',
-                    report: chartReport,
+                    report: {
+                        markdown: `# Evidence report\n\n${chartReportMarkdown}`,
+                    },
                     warehouseQueryUuids: [chart.queryUuid],
                 }),
             });
@@ -1525,6 +1527,16 @@ describe('AiDeepResearchService', () => {
             expect(model.markCompleted).toHaveBeenCalledWith(
                 'run-1',
                 expect.stringContaining('The baseline trend is stable.'),
+                {
+                    repaired: [],
+                    dropped: [{ key: chart.queryUuid, reason: 'unverifiable' }],
+                },
+            );
+            expect(model.markCompleted).toHaveBeenCalledWith(
+                'run-1',
+                expect.stringMatching(
+                    /^# Evidence report\n\n<warning title="Report adjusted">/,
+                ),
                 {
                     repaired: [],
                     dropped: [{ key: chart.queryUuid, reason: 'unverifiable' }],

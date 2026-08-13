@@ -79,6 +79,21 @@ const STALE_RUN_ERROR_MESSAGE =
     'Deep Research stopped unexpectedly before it could finish.';
 const FAILED_RUN_ERROR_MESSAGE =
     'Deep Research could not finish. Please try again.';
+const REPORT_ADJUSTED_WARNING =
+    '<warning title="Report adjusted">Some chart evidence was omitted because it could not be verified. The remaining narrative and verified evidence are preserved.</warning>';
+
+const addReportAdjustedWarning = (markdown: string): string => {
+    const reportTitle = markdown.match(/^# +.+$/m);
+    if (!reportTitle || reportTitle.index === undefined) {
+        return `${REPORT_ADJUSTED_WARNING}\n\n${markdown}`;
+    }
+
+    const reportTitleEnd = reportTitle.index + reportTitle[0].length;
+    return `${markdown.slice(
+        0,
+        reportTitleEnd,
+    )}\n\n${REPORT_ADJUSTED_WARNING}${markdown.slice(reportTitleEnd)}`;
+};
 
 const getCompletionClass = (
     status: DbAiDeepResearchRun['status'],
@@ -1395,7 +1410,7 @@ export class AiDeepResearchService extends BaseService {
         const hasDroppedCharts = chartReport.adjustments.dropped.length > 0;
         return {
             markdown: hasDroppedCharts
-                ? `<warning title="Report adjusted">Some chart evidence was omitted because it could not be verified. The remaining narrative and verified evidence are preserved.</warning>\n\n${chartReport.markdown}`
+                ? addReportAdjustedWarning(chartReport.markdown)
                 : chartReport.markdown,
             adjustments: chartReport.adjustments,
         };
