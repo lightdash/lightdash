@@ -1,5 +1,6 @@
 import {
     AgentToolOutput,
+    AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
     AnyType,
     assertUnreachable,
     Explore,
@@ -569,6 +570,12 @@ const buildStopWhenPromptInterrupted =
  * discussing the fix. No-op if the forced tool isn't in the registered set.
  */
 export const buildForcedFirstStep = (args: AiAgentArgs, tools: ToolSet) => {
+    if (
+        args.execution?.mode === 'deep_research' &&
+        args.execution.research?.role === 'worker'
+    ) {
+        return undefined;
+    }
     if (!args.forceToolHints) return undefined;
     const forcedTool = args.toolHints[0];
     if (!forcedTool || !(forcedTool in tools)) return undefined;
@@ -582,6 +589,23 @@ export const getStepBudgetOverride = (
     execution: AiAgentArgs['execution'],
     stepNumber: number,
 ) => {
+    if (
+        execution.mode === 'deep_research' &&
+        execution.research?.role === 'worker'
+    ) {
+        if (stepNumber < Math.max(0, execution.maxSteps - 1)) {
+            return undefined;
+        }
+        return {
+            message: `This is your final step. Submit the best findings packet available now with ${AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME}, even if the evidence is incomplete or inconclusive. Do not run another query.`,
+            activeTools: [AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME],
+            toolChoice: {
+                type: 'tool' as const,
+                toolName: AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
+            },
+        };
+    }
+
     if (
         execution.mode !== 'standard' ||
         stepNumber < Math.max(0, execution.maxSteps - AGENT_WRAP_UP_STEPS)
@@ -600,7 +624,7 @@ export const getStepBudgetOverride = (
     return { message: AGENT_WRAP_UP_INSTRUCTION };
 };
 
-const buildPrepareStep = ({
+export const buildPrepareStep = ({
     args,
     dependencies,
     tools,
@@ -688,10 +712,15 @@ const buildPrepareStep = ({
             }
         }
 
-        const steers = await dependencies.consumePromptSteers({
-            promptUuid: args.promptUuid,
-            stepNumber,
-        });
+        const isDeepResearchWorker =
+            args.execution.mode === 'deep_research' &&
+            args.execution.research?.role === 'worker';
+        const steers = isDeepResearchWorker
+            ? []
+            : await dependencies.consumePromptSteers({
+                  promptUuid: args.promptUuid,
+                  stepNumber,
+              });
         if (steers.length > 0) {
             logger(
                 'Prepare Step',
@@ -1298,6 +1327,31 @@ export const buildAgentMessages = ({
     ...messageHistory,
 ];
 
+export const scopeAgentConversation = ({
+    execution,
+    messageHistory,
+    compactionSummary,
+    memoryBlock,
+}: {
+    execution: AiAgentArgs['execution'];
+    messageHistory: ModelMessage[];
+    compactionSummary: string | null;
+    memoryBlock: string | null;
+}) =>
+    execution.mode === 'deep_research' && execution.research?.role === 'worker'
+        ? {
+              messageHistory: [
+                  {
+                      role: 'user' as const,
+                      content:
+                          'Carry out the isolated task packet in your system instructions.',
+                  },
+              ],
+              compactionSummary: null,
+              memoryBlock: null,
+          }
+        : { messageHistory, compactionSummary, memoryBlock };
+
 export const getDeepResearchBudgetInstruction = (
     budget: AiDeepResearchBudget,
 ): string =>
@@ -1317,7 +1371,7 @@ export const getPromptMcpServers = (
         ),
     }));
 
-const getAgentMessages = (
+export const getAgentMessages = (
     args: AiAgentArgs,
     availableExplores: Explore[],
     mcpToolSetup: AgentMcpToolSetup,
@@ -1328,13 +1382,25 @@ const getAgentMessages = (
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger('Agent Messages', 'Getting agent messages.');
 
-    const messageHistory = args.enableGrepFields
-        ? withPreGrepCandidates(
-              withToolHints(args.messageHistory, args.toolHints),
-              availableExplores,
-              verifiedFieldUsage,
-          )
-        : withToolHints(args.messageHistory, args.toolHints);
+    const scopedConversation = scopeAgentConversation({
+        execution: args.execution,
+        messageHistory: args.messageHistory,
+        compactionSummary: args.compactionSummary,
+        memoryBlock,
+    });
+    const isDeepResearchWorker =
+        args.execution.mode === 'deep_research' &&
+        args.execution.research?.role === 'worker';
+    let { messageHistory } = scopedConversation;
+    if (!isDeepResearchWorker) {
+        messageHistory = args.enableGrepFields
+            ? withPreGrepCandidates(
+                  withToolHints(messageHistory, args.toolHints),
+                  availableExplores,
+                  verifiedFieldUsage,
+              )
+            : withToolHints(messageHistory, args.toolHints);
+    }
 
     // Project context is loaded on demand via the loadProjectContext tool; the
     // system prompt only advertises that it exists (when enabled + non-empty).
@@ -1414,9 +1480,9 @@ const getAgentMessages = (
     });
     const messages = buildAgentMessages({
         systemPrompt,
-        compactionSummary: args.compactionSummary,
+        compactionSummary: scopedConversation.compactionSummary,
         messageHistory,
-        memoryBlock,
+        memoryBlock: scopedConversation.memoryBlock,
     });
 
     logger('Agent Messages', `Retrieved ${messages.length} messages.`);
