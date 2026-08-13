@@ -169,7 +169,7 @@ pnpm -F backend rollback-last
 -   **Only the person who froze can unfreeze it** from the Actions tab. If they're unavailable, a repo admin can remove the `merge-freeze` check from the `main` ruleset by hand.
 -   **There is no free-text reason, deliberately** — this repo is public, and a reason box invites someone to name a customer in it. Blocked PRs show who froze it so people know who to ask, and `#engineering` gets the same on both directions. Say why in Slack.
 -   **Only `main` is affected.** Stacked PRs merging into their parent branch are untouched.
--   **Check the current state**: the `MERGE_FREEZE` repo variable, or `merge-freeze` in the `main` ruleset's required status checks (`gh api repos/lightdash/lightdash/rulesets`).
+-   **Check the current state**: the `MERGE_FREEZE` repo variable (`true`/`false`), and `MERGE_FREEZE_ACTOR` for who froze it — `gh variable list -R lightdash/lightdash`. The authority is the ruleset itself: `merge-freeze` in the `main` ruleset's required status checks (`gh api repos/lightdash/lightdash/rulesets`). The variables are a mirror, so trust the ruleset if they ever disagree.
 -   **Agents: never freeze or unfreeze on your own initiative.** It blocks every engineer in the repo. Ask, and let a human dispatch it.
 
 Freezing analytics/customer *deployments* is a different mechanism in a different repo — see the `lightdash-cloud` CLAUDE.md.
