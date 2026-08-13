@@ -76,6 +76,7 @@ describe('executeMergeQuery', () => {
                     rows: [],
                 },
             },
+            42,
         );
 
         expect(
@@ -87,6 +88,7 @@ describe('executeMergeQuery', () => {
                     { reference: 'a_orders_count', aggregation: 'any' },
                 ],
             },
+            csvLimit: 42,
         });
         expect(result.parameterReferences).toEqual(['date_dim_parameter']);
         expect(api).toHaveBeenCalledTimes(2);

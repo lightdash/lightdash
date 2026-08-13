@@ -42,6 +42,7 @@ const runMergeQuery = (
     mergeQuery: MergeQuery,
     parameters: ParametersValuesMap | undefined,
     pivotConfiguration: PivotConfiguration | undefined,
+    csvLimit?: number | null,
 ) =>
     lightdashApi<ApiExecuteAsyncMetricQueryResults>({
         url: `/projects/${projectUuid}/mergeQuery/run`,
@@ -50,6 +51,7 @@ const runMergeQuery = (
             mergeQuery,
             parameters,
             pivotConfiguration,
+            csvLimit,
         } satisfies RunMergeQueryRequest),
     });
 
@@ -67,6 +69,7 @@ export const executeMergeQuery = async (
     mergeQuery: MergeQuery,
     parameters?: ParametersValuesMap,
     savedChart?: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>,
+    csvLimit?: number | null,
 ): Promise<MergeQueryRun> => {
     const compiled = await compileMergeQuery(
         projectUuid,
@@ -110,6 +113,7 @@ export const executeMergeQuery = async (
             mergeQuery,
             parameters,
             pivotConfiguration,
+            csvLimit,
         ),
     };
 };

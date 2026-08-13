@@ -415,6 +415,8 @@ export const validateMergeQuery = (
 export type RunMergeQueryRequest = {
     mergeQuery: MergeQuery;
     pivotConfiguration?: PivotConfiguration;
+    /** Export row limit. Null means all rows within the organization's cell cap. */
+    csvLimit?: number | null;
     /**
      * Parameter values for every source query, one map for the whole merge —
      * two sides of one question should never disagree on a parameter.

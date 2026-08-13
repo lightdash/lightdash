@@ -99,6 +99,11 @@ export const MergeProvider: FC<
     );
     const [filtersB, setFiltersB] = useState<Filters>(restored?.filtersB ?? {});
     const activeRun = useRef(0);
+    const lastRun = useRef<{
+        mergeQuery: MergeQuery;
+        parameters?: ParametersValuesMap;
+        savedChart?: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>;
+    } | null>(null);
     const [runState, setRunState] = useState<{
         isRunning: boolean;
         errors: MergeQueryError[];
@@ -238,6 +243,7 @@ export const MergeProvider: FC<
             savedChart?: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>,
         ) => {
             if (!projectUuid) return;
+            lastRun.current = { mergeQuery, parameters, savedChart };
             const runId = activeRun.current + 1;
             activeRun.current = runId;
             setRunState((current) => ({
@@ -272,6 +278,29 @@ export const MergeProvider: FC<
         [projectUuid],
     );
 
+    const getDownloadQueryUuid = useCallback(
+        async (limit: number | null, exportPivotedResults = false) => {
+            if (!projectUuid || !lastRun.current) {
+                throw new Error('Missing merged query');
+            }
+            const { mergeQuery, parameters, savedChart } = lastRun.current;
+            const result = await executeMergeQuery(
+                projectUuid,
+                mergeQuery,
+                parameters,
+                exportPivotedResults ? savedChart : undefined,
+                limit,
+            );
+            if (!result.started) {
+                throw new Error(
+                    result.errors.map((error) => error.message).join(' '),
+                );
+            }
+            return result.started.queryUuid;
+        },
+        [projectUuid],
+    );
+
     const { started } = runState;
     const results = useInfiniteQueryResults(projectUuid, started?.queryUuid);
 
@@ -301,6 +330,7 @@ export const MergeProvider: FC<
             readOnly,
             wasRestored: restored !== null,
             run,
+            getDownloadQueryUuid,
             isRunning: runState.isRunning,
             runErrors: runState.errors,
             runError: runState.error,
@@ -327,6 +357,7 @@ export const MergeProvider: FC<
             readOnly,
             restored,
             run,
+            getDownloadQueryUuid,
             runState.isRunning,
             runState.errors,
             runState.error,

@@ -62,6 +62,10 @@ export type MergeContextValue = {
         parameters?: ParametersValuesMap,
         savedChart?: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>,
     ) => void;
+    getDownloadQueryUuid: (
+        limit: number | null,
+        exportPivotedResults?: boolean,
+    ) => Promise<string>;
     isRunning: boolean;
     /** Why a merge was refused. Empty when it compiled. */
     runErrors: MergeQueryError[];

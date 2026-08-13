@@ -509,11 +509,17 @@ const VisualizationCard: FC<Props> = memo((props) => {
                                     {!!projectUuid && (
                                         <ChartDownloadMenu
                                             getDownloadQueryUuid={
-                                                getDownloadQueryUuid
+                                                mergeResults && merge
+                                                    ? merge.getDownloadQueryUuid
+                                                    : getDownloadQueryUuid
                                             }
                                             projectUuid={projectUuid}
                                             chartName={savedChart?.name}
-                                            getGsheetLink={getGsheetLink}
+                                            getGsheetLink={
+                                                mergeResults
+                                                    ? undefined
+                                                    : getGsheetLink
+                                            }
                                         />
                                     )}
                                 </Can>
