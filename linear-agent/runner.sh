@@ -159,7 +159,24 @@ cache_preview_images() {
     docker pull pgvector/pgvector:pg18 >/dev/null
     docker pull coollabsio/minio:latest >/dev/null
     docker pull axllent/mailpit:latest >/dev/null
-    docker pull ghcr.io/browserless/chromium:v2.49.0 >/dev/null
+}
+
+prepare_chrome() {
+    if ! command -v google-chrome >/dev/null 2>&1; then
+        case "$(uname -m)" in
+            x86_64)
+                curl --fail --location --silent --show-error \
+                    https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
+                    -o /tmp/google-chrome.deb
+                sudo apt-get update -qq
+                sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq /tmp/google-chrome.deb >/dev/null
+                rm /tmp/google-chrome.deb
+                ;;
+            *) fail_runner "chrome-devtools-mcp needs Chrome and there is no automated install for $(uname -m)." ;;
+        esac
+    fi
+    npm install --global chrome-devtools-mcp@latest >/dev/null
+    npm cache clean --force >/dev/null 2>&1 || true
 }
 
 install_template_bootstrap() {
@@ -231,6 +248,7 @@ prepare_template() {
             build_shared_packages
         fi
         warm_vite_dependencies
+        prepare_chrome
         cache_preview_images
         printf 'commit=%s\nlockfile_sha256=%s\n' \
             "$current_commit" "$current_lock" >"$template_marker"
@@ -241,6 +259,7 @@ prepare_template() {
     prepare_python
     prepare_lightdash
     warm_vite_dependencies
+    prepare_chrome
     cache_preview_images
     printf 'commit=%s\nlockfile_sha256=%s\n' \
         "$(git -C "$repository_dir" rev-parse HEAD)" \
@@ -495,121 +514,96 @@ JS
 
 capture_visual_evidence() {
     local prompt_id="$1"
-    local plan_file="$workspace/evidence-plan-${prompt_id}.json"
     local result_file="$workspace/evidence-result-${prompt_id}.json"
     local error_file="$workspace/evidence-error-${prompt_id}.log"
     local evidence_prompt="$workspace/evidence-prompt-${prompt_id}.txt"
-    local browser_container="${LD_CONTAINER_PREFIX}-evidence-browser"
-    local browser_ready=false capture_exit plan_valid=false
+    local evidence_dir="$workspace/evidence-${prompt_id}"
+    local raw_result="$workspace/evidence-raw-${prompt_id}.json"
+    local capture_exit result_valid=false
 
-    [ -f "$workspace/capture-evidence.cjs" ] || {
-        printf '%s\n' 'The evidence capture helper is missing.' >"$error_file"
+    command -v chrome-devtools-mcp >/dev/null 2>&1 || {
+        printf '%s\n' 'chrome-devtools-mcp is not installed on this runner.' >"$error_file"
         return 1
     }
-    docker rm -f "$browser_container" >/dev/null 2>&1 || true
-    if ! docker run --detach --rm \
-        --name "$browser_container" \
-        --add-host host.docker.internal:host-gateway \
-        --shm-size=512m \
-        --publish 127.0.0.1:3001:3000 \
-        --env CONNECTION_TIMEOUT=120000 \
-        ghcr.io/browserless/chromium:v2.49.0 >"$workspace/evidence-browser-${prompt_id}.id"; then
-        printf '%s\n' 'Browserless failed to start.' >"$error_file"
-        return 1
-    fi
-    for _ in $(seq 1 30); do
-        if curl --fail --silent --output /dev/null http://127.0.0.1:3001/json/version; then
-            browser_ready=true
-            break
-        fi
-        sleep 1
-    done
-    if [ "$browser_ready" != true ]; then
-        printf '%s\n' 'Browserless did not become ready.' >"$error_file"
-        docker rm -f "$browser_container" >/dev/null 2>&1 || true
-        return 1
-    fi
+    mkdir -p "$evidence_dir"
 
     cat >"$evidence_prompt" <<EOF
-The Lightdash preview for the implementation is running locally. Prepare a visual evidence plan that demonstrates the fix or functionality you just implemented. Do not modify repository files and do not take a generic homepage screenshot unless the change itself is on the homepage.
+The Lightdash preview for the implementation is running at http://localhost:${FE_PORT}. Use the chrome-devtools MCP tools to capture visual evidence demonstrating the fix or functionality you just implemented. Do not modify repository files.
+
+Sign in at http://localhost:${FE_PORT}/login with demo@lightdash.com and demo_password! unless the change is about the login or authentication screens themselves. Navigate and interact (click, fill, wait_for) until the implemented behavior is visible, using only seeded demo data. Do not take a generic homepage screenshot unless the change itself is on the homepage.
+
+Capture at most three screenshots with take_screenshot, each saved as JPEG using format "jpeg", quality 80, and filePath "${evidence_dir}/<short-kebab-name>.jpg".
+
+Never put client or customer names, organization names, or customer-provided data examples in file names, descriptions, or typed form values.
 
 Respond with only valid JSON using this shape:
 {
-  "screenshots": [
-    {
-      "name": "short-kebab-name",
-      "description": "What this screenshot proves",
-      "path": "/relevant/lightdash/path",
-      "authenticated": true,
-      "fullPage": false,
-      "actions": [
-        { "type": "fill", "selector": "CSS selector", "value": "value" },
-        { "type": "click", "selector": "CSS selector", "repeat": 1, "force": false, "waitAfterMs": 500 },
-        { "type": "press", "selector": "CSS selector", "key": "Enter" },
-        { "type": "waitFor", "selector": "CSS selector", "state": "visible" },
-        { "type": "assertText", "selector": "optional CSS selector", "value": "Expected visible text" },
-        { "type": "wait", "milliseconds": 500 }
-      ]
-    }
-  ]
+  "evidence": [
+    { "name": "short-kebab-name", "description": "What this screenshot proves", "file": "${evidence_dir}/short-kebab-name.jpg" }
+  ],
+  "errors": []
 }
-
-Use at most three screenshots. Set authenticated to false for login or authentication states. The capture uses the seeded demo user automatically when authenticated is true. Use only seeded demo data. Never put client or customer names, organization names, or customer-provided data examples in screenshot names, descriptions, actions, assertions, or visible form values. Set force to true for repeated clicks that may be covered by transient notifications. End each screenshot with assertText for the visible result that proves its description. Inspect routes, selectors, and seeded data as needed so the plan targets the implemented behavior. Omit unnecessary actions and ensure the final state visibly demonstrates the change.
 EOF
     set +e
     (
         cd "$repository_dir"
         CODEX_API_KEY="$(cat "$codex_key_file")" codex exec resume --last \
-            --ignore-user-config --output-last-message "$plan_file" \
+            --ignore-user-config --output-last-message "$raw_result" \
             --config 'sandbox_mode="read-only"' \
             --config shell_environment_policy.ignore_default_excludes=false \
+            --config 'mcp_servers.chrome_devtools.command="chrome-devtools-mcp"' \
+            --config 'mcp_servers.chrome_devtools.args=["--headless","--isolated"]' \
             - <"$evidence_prompt" >"$workspace/evidence-codex-${prompt_id}.log" 2>&1
     )
     capture_exit=$?
     set -e
-    if [ "$capture_exit" -eq 0 ] && [ -s "$plan_file" ]; then
-        plan_valid="$(python3 - "$plan_file" <<'PY'
+    if [ "$capture_exit" -eq 0 ] && [ -s "$raw_result" ]; then
+        result_valid="$(python3 - "$raw_result" "$result_file" "$evidence_dir" <<'PY'
 import json
 import pathlib
 import sys
+
+raw_path, result_path, evidence_dir = sys.argv[1:]
 try:
-    path = pathlib.Path(sys.argv[1])
-    text = path.read_text(encoding='utf-8').strip()
+    text = pathlib.Path(raw_path).read_text(encoding='utf-8').strip()
     try:
         value = json.loads(text)
     except json.JSONDecodeError:
         value = json.loads(text[text.index('{'):text.rindex('}') + 1])
-    shots = value.get('screenshots', [])
-    valid = isinstance(shots, list) and 0 < len(shots) <= 3
-    if valid:
-        path.write_text(json.dumps(value), encoding='utf-8')
-    print('true' if valid else 'false')
+    root = pathlib.Path(evidence_dir).resolve()
+    kept = []
+    errors = [str(error) for error in value.get('errors', [])][:5]
+    for item in value.get('evidence', [])[:3]:
+        path = pathlib.Path(str(item.get('file', '')))
+        try:
+            resolved = path.resolve(strict=True)
+        except OSError:
+            errors.append(f'Missing screenshot file: {path.name}')
+            continue
+        if root not in resolved.parents:
+            errors.append(f'Skipped {resolved.name}: outside the evidence directory')
+            continue
+        if resolved.read_bytes()[:3] != b'\xff\xd8\xff':
+            errors.append(f'Skipped {resolved.name}: not a JPEG')
+            continue
+        kept.append({
+            'name': str(item.get('name', resolved.stem))[:80],
+            'description': str(item.get('description', 'Visual evidence'))[:300],
+            'file': str(resolved),
+        })
+    pathlib.Path(result_path).write_text(
+        json.dumps({'evidence': kept, 'errors': errors}), encoding='utf-8',
+    )
+    print('true' if kept else 'false')
 except Exception:
     print('false')
 PY
 )"
     fi
-    if [ "$plan_valid" != true ]; then
-        printf '%s\n' 'The visual evidence agent did not produce a valid screenshot plan.' >"$error_file"
-        docker rm -f "$browser_container" >/dev/null 2>&1 || true
-        return 1
-    fi
-
-    set +e
-    NODE_PATH="$repository_dir/packages/backend/node_modules" node \
-        "$workspace/capture-evidence.cjs" \
-        "http://host.docker.internal:${FE_PORT}" \
-        ws://127.0.0.1:3001 \
-        "$plan_file" \
-        "$workspace/evidence-${prompt_id}" \
-        "$result_file" >"$workspace/evidence-capture-${prompt_id}.log" 2>&1
-    capture_exit=$?
-    set -e
-    docker rm -f "$browser_container" >/dev/null 2>&1 || true
-    if [ "$capture_exit" -ne 0 ]; then
+    if [ "$result_valid" != true ]; then
         {
+            printf '%s\n' 'The visual evidence agent did not produce usable screenshots.'
             tail -c 2000 "$workspace/evidence-codex-${prompt_id}.log" 2>/dev/null || true
-            tail -c 2000 "$workspace/evidence-capture-${prompt_id}.log" 2>/dev/null || true
         } >"$error_file"
         return 1
     fi
@@ -630,6 +624,7 @@ else
         "https://github.com/${GITHUB_REPOSITORY}.git" "$repository_dir"
     prepare_python
     prepare_lightdash
+    prepare_chrome
 fi
 base_commit="$(git -C "$repository_dir" rev-parse HEAD)"
 curl --fail --silent --show-error --retry 5 -H "$auth_header" \

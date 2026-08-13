@@ -97,8 +97,8 @@ export EXE_API_KEY=...
 ```
 
 This creates `ld-linear-agent-template`, installs Node, pnpm dependencies,
-Python 3.11, dbt 1.7 and 1.11, shared package builds, and the Browserless image
-used for visual evidence. It also primes Vite's dependency cache, records the
+Python 3.11, dbt 1.7 and 1.11, shared package builds, and Chrome plus
+`chrome-devtools-mcp` used for visual evidence. It also primes Vite's dependency cache, records the
 Git commit and lockfile hash, and stops Docker before the VM is copied. Run the
 same command again to refresh the template to the latest base branch. Rebuild
 the VM explicitly when its resource sizing or system packages need to change:
@@ -162,13 +162,14 @@ from Linear attachments: links on the delegated ticket use `Closes: #<number>`,
 while links inherited from a parent ticket use `Relates: #<number>`. The ticket
 title and attachment titles are never copied into the PR description.
 
-After the preview is healthy, a visual-evidence turn plans up to three targeted
-screenshots. A short-lived Browserless container signs in to the seeded demo,
-performs the specified UI actions, and captures the resulting state. The
-controller serves those images from stable artifact URLs and adds them to the
-draft PR under **Visual evidence**, alongside the summary and preview link. A
-capture failure does not discard the implementation; the PR records the failure
-instead of attaching a misleading generic screenshot.
+After the preview is healthy, a read-only visual-evidence turn resumes the Codex
+session with a `chrome-devtools-mcp` server (headless, isolated Chrome). Codex
+signs in to the seeded demo itself, drives the UI to the implemented behavior,
+and saves up to three JPEG screenshots. The runner validates the files before
+sending them; the controller serves those images from stable artifact URLs and
+adds them to the draft PR under **Visual evidence**, alongside the summary and
+preview link. A capture failure does not discard the implementation; the PR
+records the failure instead of attaching a misleading generic screenshot.
 
 On a `prompted` event, the prompt is queued for the existing runner and handled
 with `codex exec resume --last`. Runner VMs expire after 24 hours by default.

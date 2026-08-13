@@ -35,7 +35,6 @@ const DATA_ROOT = process.env.DATA_ROOT || join(APP_ROOT, 'data');
 const TOKENS_FILE = join(DATA_ROOT, 'tokens.json');
 const JOBS_FILE = join(DATA_ROOT, 'jobs.json');
 const RUNNER_FILE = join(APP_ROOT, 'runner.sh');
-const CAPTURE_FILE = join(APP_ROOT, 'capture-evidence.cjs');
 const EVENT_STREAM_FILE = join(APP_ROOT, 'stream-codex-events.cjs');
 const ARTIFACTS_ROOT = join(DATA_ROOT, 'artifacts');
 const GRAPHQL_URL = 'https://api.linear.app/graphql';
@@ -111,7 +110,6 @@ const jobs = await loadObject(JOBS_FILE);
 const oauthStates = new Map();
 const deliveries = new Map();
 const runnerSource = await readFile(RUNNER_FILE, 'utf8');
-const captureSource = await readFile(CAPTURE_FILE, 'utf8');
 const eventStreamSource = await readFile(EVENT_STREAM_FILE, 'utf8');
 const requestTimeout = 30_000;
 
@@ -465,7 +463,7 @@ function bootstrapScript(job) {
     const exports = Object.entries(values)
         .map(([key, value]) => `export ${key}=${shellQuote(value)}`)
         .join('\n');
-    return `#!/usr/bin/env bash\nset -euo pipefail\n${exports}\nmkdir -p /home/exedev/linear-agent\ncat > /home/exedev/linear-agent/capture-evidence.cjs <<'LINEAR_AGENT_EVIDENCE'\n${captureSource}\nLINEAR_AGENT_EVIDENCE\ncat > /home/exedev/linear-agent/stream-codex-events.cjs <<'LINEAR_AGENT_EVENT_STREAM'\n${eventStreamSource}\nLINEAR_AGENT_EVENT_STREAM\n${runnerSource}`;
+    return `#!/usr/bin/env bash\nset -euo pipefail\n${exports}\nmkdir -p /home/exedev/linear-agent\ncat > /home/exedev/linear-agent/stream-codex-events.cjs <<'LINEAR_AGENT_EVENT_STREAM'\n${eventStreamSource}\nLINEAR_AGENT_EVENT_STREAM\n${runnerSource}`;
 }
 
 async function publishRunnerPreview(job) {
