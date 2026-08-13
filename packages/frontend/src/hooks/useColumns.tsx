@@ -65,7 +65,9 @@ import {
     selectTableName,
     useExplorerSelector,
 } from '../features/explorer/store';
+import provenanceStyles from '../features/mergeQuery/components/MergeColumnProvenance.module.css';
 import { useMergeSafe } from '../features/mergeQuery/context/useMerge';
+import { getMergeFieldProvenance } from '../features/mergeQuery/utils/getMergeFieldProvenance';
 import { getFieldColors } from '../utils/fieldColors';
 import { TableCellBar } from './TableCellBar';
 import {
@@ -503,6 +505,19 @@ export const useColumns = (): TableColumn[] => {
     // recovered from one. They arrive already described, and every one of them
     // is active — a merge returns exactly the columns it was asked for.
     const mergeResults = useMergeSafe()?.mergeResults ?? null;
+    const mergeSourceLabels = useMemo(() => {
+        if (!mergeResults) return {};
+
+        return Object.entries(mergeResults.fieldOrigins).reduce<
+            Record<string, string>
+        >((labels, [fieldId, origin]) => {
+            const item = mergeResults.fields[fieldId];
+            if (origin.kind === 'source' && isField(item)) {
+                labels[origin.sourceId] = item.tableLabel;
+            }
+            return labels;
+        }, {});
+    }, [mergeResults]);
     const activeFields = useMemo(
         () =>
             mergeResults
@@ -666,6 +681,7 @@ export const useColumns = (): TableColumn[] => {
             const sortIndex = sorts.findIndex((sf) => fieldId === sf.fieldId);
             const isFieldSorted = sortIndex !== -1;
             const fieldColors = getFieldColors(item);
+            const mergeOrigin = mergeResults?.fieldOrigins[fieldId];
             // A merged result's dimensions are the join key; mark them so the
             // shared columns read apart from each side's own.
             const isMergeJoinKey =
@@ -693,7 +709,25 @@ export const useColumns = (): TableColumn[] => {
                                     )}
                                     {showTablePrefix && !isMergeJoinKey && (
                                         <TableHeaderRegularLabel>
-                                            {item.tableLabel}{' '}
+                                            {mergeOrigin?.kind === 'source' ? (
+                                                <span
+                                                    className={
+                                                        provenanceStyles.source
+                                                    }
+                                                >
+                                                    <span
+                                                        className={
+                                                            provenanceStyles.dot
+                                                        }
+                                                        data-side={
+                                                            mergeOrigin.sourceId
+                                                        }
+                                                    />
+                                                    {item.tableLabel}
+                                                </span>
+                                            ) : (
+                                                item.tableLabel
+                                            )}{' '}
                                         </TableHeaderRegularLabel>
                                     )}
 
@@ -763,6 +797,12 @@ export const useColumns = (): TableColumn[] => {
                         draggable: true,
                         frozen: false,
                         bgColor: fieldColors.bg,
+                        headerContext: mergeOrigin
+                            ? getMergeFieldProvenance(
+                                  mergeOrigin,
+                                  mergeSourceLabels,
+                              )
+                            : undefined,
                         sort: isFieldSorted
                             ? {
                                   sortIndex,
@@ -829,5 +869,6 @@ export const useColumns = (): TableColumn[] => {
         parameters,
         timezone,
         mergeResults,
+        mergeSourceLabels,
     ]);
 };
