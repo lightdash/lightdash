@@ -134,7 +134,8 @@ export enum FeatureFlags {
     AiAutopilot = 'ai-autopilot',
 
     /**
-     * Enable long-running, read-only Deep Research investigations from AI chat.
+     * Legacy no-op retained so existing self-hosted feature flag configuration
+     * remains valid. Deep Research now follows AI Copilot availability.
      */
     AiDeepResearch = 'ai-deep-research',
 

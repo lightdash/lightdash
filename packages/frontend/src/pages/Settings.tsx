@@ -155,13 +155,11 @@ const Settings: FC = () => {
         dataAppsFlag,
         isDataAppsFlagLoading,
         isAiCopilotEnabledOrTrial,
-        isDeepResearchEnabled,
         shouldShowAiAgentReviews,
         shouldShowAiAgentMemories,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
         isAiOrganizationSettingsLoading,
-        isDeepResearchFlagLoading,
         showImpersonationPanel,
         isLeaveOrganizationEnabled,
         isCustomRolesEnabled,
@@ -662,7 +660,6 @@ const Settings: FC = () => {
                 if (
                     canAccessDeepResearchSettings({
                         isAiCopilotEnabledOrTrial,
-                        isDeepResearchEnabled,
                         canManageOrgAiAgent,
                         hasAnyAiAgentAccess,
                     })
@@ -787,7 +784,6 @@ const Settings: FC = () => {
         isEmailWhitelabelEnabled,
         isLeaveOrganizationEnabled,
         isAiCopilotEnabledOrTrial,
-        isDeepResearchEnabled,
         shouldShowAiAgentReviews,
         shouldShowAiAgentMemories,
         canManageOrgAiAgent,
@@ -912,11 +908,6 @@ const Settings: FC = () => {
     const isAwaitingAiSettingsRoute =
         isAiOrganizationSettingsLoading &&
         Boolean(matchPath('/generalSettings/ai/*', location.pathname));
-    const isAwaitingDeepResearchRoute =
-        isDeepResearchFlagLoading &&
-        Boolean(
-            matchPath('/generalSettings/ai/deep-research', location.pathname),
-        );
     const isAwaitingRoadmapRoute =
         isOrganizationRoadmapLoading &&
         Boolean(matchPath('/generalSettings/roadmap', location.pathname));
@@ -931,7 +922,6 @@ const Settings: FC = () => {
         isActiveProjectUuidLoading ||
         isProjectLoading ||
         isAwaitingAiSettingsRoute ||
-        isAwaitingDeepResearchRoute ||
         isAwaitingRoadmapRoute ||
         isAwaitingDataAppsRoute
     ) {

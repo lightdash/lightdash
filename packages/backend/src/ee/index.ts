@@ -240,7 +240,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel<AiOrganizationSettingsModel>(),
                         projectModel: models.getProjectModel(),
-                        featureFlagModel: models.getFeatureFlagModel(),
                         schedulerClient:
                             clients.getSchedulerClient() as CommercialSchedulerClient,
                         asyncQueryService: repository.getAsyncQueryService(),

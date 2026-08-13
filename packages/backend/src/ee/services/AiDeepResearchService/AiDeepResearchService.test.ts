@@ -5,7 +5,6 @@ import {
     AiResultType,
     AnyType,
     ConflictError,
-    FeatureFlags,
     ForbiddenError,
     NotFoundError,
     ParameterError,
@@ -242,7 +241,6 @@ const buildService = (
         aiAgentService?: Record<string, unknown>;
         aiOrganizationSettingsModel?: Record<string, unknown>;
         projectModel?: Record<string, unknown>;
-        featureFlagModel?: Record<string, unknown>;
         schedulerClient?: Record<string, unknown>;
         asyncQueryService?: Record<string, unknown>;
         queryHistoryModel?: Record<string, unknown>;
@@ -301,6 +299,7 @@ const buildService = (
     };
     const aiAgentService = {
         assertDeepResearchAccess: vi.fn().mockResolvedValue(undefined),
+        getIsCopilotEnabled: vi.fn().mockResolvedValue(true),
         resolveDeepResearchExecutionContext: vi
             .fn()
             .mockResolvedValue(executionContextSnapshot),
@@ -322,13 +321,6 @@ const buildService = (
     const projectModel = {
         getSummary: vi.fn().mockResolvedValue({ organizationUuid: 'org-1' }),
         ...overrides.projectModel,
-    };
-    const featureFlagModel = {
-        get: vi.fn().mockResolvedValue({
-            id: FeatureFlags.AiDeepResearch,
-            enabled: true,
-        }),
-        ...overrides.featureFlagModel,
     };
     const schedulerClient = {
         aiDeepResearch: vi.fn().mockResolvedValue({ jobId: 'job-1' }),
@@ -360,7 +352,6 @@ const buildService = (
         aiAgentService: aiAgentService as AnyType,
         aiOrganizationSettingsModel: aiOrganizationSettingsModel as AnyType,
         projectModel: projectModel as AnyType,
-        featureFlagModel: featureFlagModel as AnyType,
         schedulerClient: schedulerClient as AnyType,
         asyncQueryService: asyncQueryService as AnyType,
         queryHistoryModel: queryHistoryModel as AnyType,
@@ -373,7 +364,6 @@ const buildService = (
         aiAgentService,
         aiOrganizationSettingsModel,
         projectModel,
-        featureFlagModel,
         schedulerClient,
         asyncQueryService,
         queryHistoryModel,
@@ -401,7 +391,6 @@ describe('AiDeepResearchService', () => {
                 aiAgentModel,
                 aiAgentService,
                 schedulerClient,
-                featureFlagModel,
             } = buildService();
 
             const run = await service.createRun({
@@ -446,10 +435,9 @@ describe('AiDeepResearchService', () => {
                 projectUuid: 'project-1',
                 userUuid: 'user-1',
             });
-            expect(featureFlagModel.get).toHaveBeenCalledWith({
-                user: expect.objectContaining({ userUuid: 'user-1' }),
-                featureFlagId: FeatureFlags.AiDeepResearch,
-            });
+            expect(aiAgentService.getIsCopilotEnabled).toHaveBeenCalledWith(
+                expect.objectContaining({ userUuid: 'user-1' }),
+            );
             expect(run.status).toBe('queued');
         });
 
@@ -735,13 +723,10 @@ describe('AiDeepResearchService', () => {
             expect(model.create).not.toHaveBeenCalled();
         });
 
-        it('rejects run creation when Deep Research is disabled', async () => {
+        it('rejects run creation when AI Agents are unavailable', async () => {
             const { service, model } = buildService({
-                featureFlagModel: {
-                    get: vi.fn().mockResolvedValue({
-                        id: FeatureFlags.AiDeepResearch,
-                        enabled: false,
-                    }),
+                aiAgentService: {
+                    getIsCopilotEnabled: vi.fn().mockResolvedValue(false),
                 },
             });
 
@@ -766,7 +751,7 @@ describe('AiDeepResearchService', () => {
                 ...userWithProjectAccess(),
                 ability: build(),
             } as SessionUser;
-            const { service, model, featureFlagModel } = buildService();
+            const { service, model, aiAgentService } = buildService();
 
             await expect(
                 service.createRun({
@@ -774,7 +759,7 @@ describe('AiDeepResearchService', () => {
                     user,
                 }),
             ).rejects.toBeInstanceOf(ForbiddenError);
-            expect(featureFlagModel.get).not.toHaveBeenCalled();
+            expect(aiAgentService.getIsCopilotEnabled).not.toHaveBeenCalled();
             expect(model.create).not.toHaveBeenCalled();
         });
 
@@ -795,7 +780,7 @@ describe('AiDeepResearchService', () => {
                 ...userWithProjectAccess(),
                 ability: build(),
             } as SessionUser;
-            const { service, model, featureFlagModel } = buildService();
+            const { service, model, aiAgentService } = buildService();
 
             await expect(
                 service.createRun({
@@ -803,7 +788,7 @@ describe('AiDeepResearchService', () => {
                     user,
                 }),
             ).rejects.toBeInstanceOf(ForbiddenError);
-            expect(featureFlagModel.get).not.toHaveBeenCalled();
+            expect(aiAgentService.getIsCopilotEnabled).not.toHaveBeenCalled();
             expect(model.create).not.toHaveBeenCalled();
         });
 
@@ -820,7 +805,7 @@ describe('AiDeepResearchService', () => {
                 ...userWithProjectAccess(),
                 ability: build(),
             } as SessionUser;
-            const { service, model, featureFlagModel } = buildService();
+            const { service, model, aiAgentService } = buildService();
 
             await expect(
                 service.createRun({
@@ -828,7 +813,7 @@ describe('AiDeepResearchService', () => {
                     user,
                 }),
             ).rejects.toBeInstanceOf(ForbiddenError);
-            expect(featureFlagModel.get).not.toHaveBeenCalled();
+            expect(aiAgentService.getIsCopilotEnabled).not.toHaveBeenCalled();
             expect(model.create).not.toHaveBeenCalled();
         });
 

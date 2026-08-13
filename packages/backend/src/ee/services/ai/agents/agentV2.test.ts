@@ -1,5 +1,11 @@
 import { type AnyType } from '@lightdash/common';
-import { APICallError, generateText, streamText, type ModelMessage } from 'ai';
+import {
+    APICallError,
+    generateText,
+    streamText,
+    type ModelMessage,
+    type ToolSet,
+} from 'ai';
 import {
     registerAiUsageTracker,
     type AiUsageEvent,
@@ -1124,26 +1130,56 @@ describe('getAgentTools workstream tool gate', () => {
     const getResearchTools = (
         research: AiDeepResearchExecutionRole,
         canUseRawSql = true,
-    ) =>
-        Object.keys(
+        includeSpoofedMcp = false,
+    ) => {
+        const args = buildResearchArgs(research, canUseRawSql);
+        args.agentSettings.projectUuid = 'project-1';
+        args.mcpServers = [
+            {
+                uuid: 'lightdash-mcp',
+                url: 'http://localhost/api/v1/mcp/projects/project-1',
+            },
+            ...(includeSpoofedMcp
+                ? [
+                      {
+                          uuid: 'external-mcp',
+                          url: 'https://untrusted.example/mcp',
+                      },
+                  ]
+                : []),
+        ] as AiAgentArgs['mcpServers'];
+        const researchMcpTools: ToolSet = {
+            mcp_github__create_issue: {} as never,
+            mcp_lightdash__run_metric_query: {} as never,
+            mcp_lightdash__run_sql: {} as never,
+        };
+        const researchMcpToolServers: Record<string, string> = {
+            mcp_github__create_issue: 'github-mcp',
+            mcp_lightdash__run_metric_query: 'lightdash-mcp',
+            mcp_lightdash__run_sql: 'lightdash-mcp',
+        };
+        if (includeSpoofedMcp) {
+            researchMcpTools.mcp_external__run_sql = {} as never;
+            researchMcpToolServers.mcp_external__run_sql = 'external-mcp';
+        }
+
+        return Object.keys(
             getAgentTools(
-                buildResearchArgs(research, canUseRawSql),
+                args,
                 depsStub(),
                 [],
                 {
                     ...mcpStub,
-                    tools: {
-                        mcp_github__create_issue: {} as never,
-                        mcp_lightdash__run_metric_query: {} as never,
-                        mcp_lightdash__run_sql: {} as never,
-                    },
+                    tools: researchMcpTools,
+                    mcpToolNameToServerUuid: researchMcpToolServers,
                 },
                 new Map(),
                 {},
             ),
         );
+    };
 
-    it('adds delegation while preserving inherited built-in and MCP tools for the coordinator', () => {
+    it('limits the coordinator to read-only research tools', () => {
         const names = getResearchTools({
             role: 'coordinator',
             runTask: vi.fn(),
@@ -1152,13 +1188,18 @@ describe('getAgentTools workstream tool gate', () => {
         expect(names).toEqual(
             expect.arrayContaining([
                 'delegateResearchTask',
-                'editDbtProject',
+                'findContent',
                 'generateVisualization',
-                'loadMcpTools',
-                'mcp_github__create_issue',
                 'mcp_lightdash__run_sql',
             ]),
         );
+        expect(names).not.toContain('createContent');
+        expect(names).not.toContain('createScheduledDelivery');
+        expect(names).not.toContain('editDbtProject');
+        expect(names).not.toContain('editRepo');
+        expect(names).not.toContain('loadMcpTools');
+        expect(names).not.toContain('mcp_github__create_issue');
+        expect(names).not.toContain('updateUserName');
     });
 
     it('removes native and MCP raw SQL when Deep Research SQL is disabled', () => {
@@ -1170,6 +1211,17 @@ describe('getAgentTools workstream tool gate', () => {
         expect(names).not.toContain('runSql');
         expect(names).not.toContain('mcp_lightdash__run_sql');
         expect(names).toContain('mcp_lightdash__run_metric_query');
+    });
+
+    it('rejects warehouse-named tools from untrusted MCP servers', () => {
+        const names = getResearchTools(
+            { role: 'coordinator', runTask: vi.fn() },
+            true,
+            true,
+        );
+
+        expect(names).toContain('mcp_lightdash__run_sql');
+        expect(names).not.toContain('mcp_external__run_sql');
     });
 
     // Workers are not given attached MCP servers at all (see

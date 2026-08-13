@@ -1,10 +1,8 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags } from '@lightdash/common';
 import { Box, Center, Flex, Loader } from '@mantine/core';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useOutletContext, useParams, useSearchParams } from 'react-router';
 import { matchesModelConfig } from '../../../components/common/ModelSelector/utils';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import { ReviewVerificationPanel } from '../../features/aiCopilot/components/Admin/ReviewVerificationPanel';
 import { AgentChatDisplay } from '../../features/aiCopilot/components/ChatElements/AgentChatDisplay';
@@ -35,6 +33,7 @@ import {
     useStartDeepResearchMutation,
     useTrackDeepResearchFollowUp,
 } from '../../features/aiCopilot/hooks/useDeepResearch';
+import { useDeepResearchAccess } from '../../features/aiCopilot/hooks/useDeepResearchAccess';
 import { useModelOptions } from '../../features/aiCopilot/hooks/useModelOptions';
 import { usePendingThreadRefetch } from '../../features/aiCopilot/hooks/usePendingThreadRefetch';
 import { usePinnedContext } from '../../features/aiCopilot/hooks/usePinnedContext';
@@ -178,7 +177,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const updateReviewItemStatus = useUpdateAiAgentReviewItemStatus();
 
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
-    const deepResearchFlag = useServerFeatureFlag(FeatureFlags.AiDeepResearch);
+    const canStartDeepResearch = useDeepResearchAccess(projectUuid);
     const startDeepResearch = useStartDeepResearchMutation({
         projectUuid: projectUuid!,
         agentUuid: agentUuid!,
@@ -303,6 +302,9 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const handleStartDeepResearch = async ({
         question,
     }: StartDeepResearchArgs) => {
+        if (!canStartDeepResearch) {
+            return;
+        }
         const retryableRun = findRetryableDeepResearchRun({
             projectUuid: projectUuid!,
             agentUuid: agentUuid!,
@@ -328,8 +330,12 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     };
     const handleRunDeepResearchAgain = async (
         registration: DeepResearchRunRegistration,
-    ) =>
-        runDeepResearchAgain({
+    ) => {
+        if (!canStartDeepResearch) {
+            return;
+        }
+
+        return runDeepResearchAgain({
             registration,
             createPrompt: (question) =>
                 createAgentThreadMessage({
@@ -341,6 +347,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                 }),
             startRun: startDeepResearch.mutateAsync,
         });
+    };
     const isBusy = Boolean(
         isCreatingMessage ||
         isStreaming ||
@@ -387,7 +394,9 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                     agentUuid={agentUuid}
                     showAddToEvalsButton={canManage}
                     onDashboardLinkClick={handleDashboardLinkClick}
-                    canRetryDeepResearch={!inputDisabled && !isBusy}
+                    canRetryDeepResearch={
+                        canStartDeepResearch && !inputDisabled && !isBusy
+                    }
                     onRunDeepResearchAgain={(registration) => {
                         void handleRunDeepResearchAgain(registration).catch(
                             () => undefined,
@@ -403,7 +412,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                         loading={isBusy}
                         onSubmit={handleSubmit}
                         onStartDeepResearch={
-                            deepResearchFlag.data?.enabled
+                            canStartDeepResearch
                                 ? handleStartDeepResearch
                                 : undefined
                         }

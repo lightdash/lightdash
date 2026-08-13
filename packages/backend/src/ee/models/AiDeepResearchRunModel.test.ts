@@ -106,6 +106,23 @@ describe('AiDeepResearchRunModel', () => {
         ]);
     });
 
+    it('loads a prompt run for execution regardless of the acting user', async () => {
+        tracker.on.select(AiDeepResearchRunsTableName).responseOnce([]);
+
+        await model.findByPromptForExecution({
+            promptUuid: 'prompt-1',
+            organizationUuid: 'organization-1',
+            projectUuid: 'project-1',
+        });
+
+        expect(tracker.history.select[0].bindings).toEqual([
+            'prompt-1',
+            'organization-1',
+            'project-1',
+            1,
+        ]);
+    });
+
     it('loads conversation runs by prompt within the organization and project', async () => {
         tracker.on.select(AiDeepResearchRunsTableName).responseOnce([]);
 
