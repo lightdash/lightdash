@@ -131,6 +131,45 @@ workspace admin to install the app user.
 ./linear-agent/deploy-linear-exe-agent.sh destroy
 ```
 
+## Automatic deployment from GitHub Actions
+
+`.github/workflows/deploy-linear-agent.yml` refreshes the golden runner and
+deploys the controller after a change under `linear-agent/` reaches `main`. It
+can also be run manually from the Actions tab. Deployments are serialized so a
+second merge cannot update the same exe.dev VMs concurrently. GitHub passes the
+secrets as step environment variables; the deploy script writes the controller's
+protected systemd environment file internally.
+
+Configure these repository secrets:
+
+| Secret | Value |
+| --- | --- |
+| `LINEAR_AGENT_CLIENT_ID` | Linear application's client ID |
+| `LINEAR_AGENT_CLIENT_SECRET` | Linear application's client secret |
+| `LINEAR_AGENT_WEBHOOK_SECRET` | Linear webhook signing secret |
+| `LINEAR_AGENT_EXE_API_KEY` | exe.dev API token with `ls,new,cp,rm,tag,share port,share set-public` commands |
+| `LINEAR_AGENT_EXE_SSH_PRIVATE_KEY` | Dedicated unencrypted SSH private key registered with exe.dev |
+| `LINEAR_AGENT_EXE_SSH_KNOWN_HOSTS` | Trusted `exe.dev` entry from `~/.ssh/known_hosts` |
+| `LINEAR_AGENT_CODEX_API_KEY` | API key used by Codex inside runner VMs |
+| `LINEAR_AGENT_GITHUB_TOKEN` | Fine-grained token for `lightdash/lightdash` with Contents and Pull requests read/write access |
+
+Generate a dedicated CI SSH key, add its public half to exe.dev, and store the
+private half in GitHub:
+
+```bash
+ssh-keygen -t ed25519 -N '' -C github-actions-linear-agent \
+  -f ./linear-agent-exe-ci
+cat ./linear-agent-exe-ci.pub | ssh exe.dev ssh-key add
+gh secret set LINEAR_AGENT_EXE_SSH_PRIVATE_KEY < ./linear-agent-exe-ci
+ssh -o HostKeyAlgorithms=rsa-sha2-512 exe.dev whoami
+ssh-keygen -F exe.dev -f ~/.ssh/known_hosts | grep -v '^#' > ./exe-known-hosts
+gh secret set LINEAR_AGENT_EXE_SSH_KNOWN_HOSTS < ./exe-known-hosts
+```
+
+Create the restricted API token with the command from the secrets section
+above, then save its returned token as `LINEAR_AGENT_EXE_API_KEY`. Remove the
+temporary private-key and known-host files after the secrets are stored.
+
 ## Session behavior
 
 On a `created` event, the controller responds to Linear before doing background
