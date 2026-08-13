@@ -183,10 +183,12 @@ organization resources will use the same root.
 | Custom roles         | Organization | Exact role name                  | `lightdash/custom-roles/`                |
 | Users                | Organization | Lowercase primary email          | `lightdash/users/`                       |
 | Groups               | Organization | Exact, case-sensitive group name | `lightdash/groups/`                      |
+| Data App themes      | Organization | Immutable organization slug      | `lightdash/themes/<slug>/`               |
 
-Data apps are deliberately outside the YAML resource registry because they are
-multi-file source bundles. They may reuse shared path-safety and reporting
-utilities without pretending to be single-document resources.
+Data apps and organization Data App themes are deliberately outside the
+single-document YAML resource registry because they are multi-file bundles.
+They reuse shared path-safety, dependency-ordering, and reporting utilities
+without pretending to be single-document resources.
 
 Project APIs use `/api/v1/projects/{projectUuid}/code/{resource}`. Organization
 APIs use `/api/v2/orgs/{orgUuid}/code/{resource}`. The resource segments are
@@ -195,6 +197,10 @@ APIs use `/api/v2/orgs/{orgUuid}/code/{resource}`. The resource segments are
 `roles`, `users`, and `groups`.
 The legacy resource-first routes are deprecated in OpenAPI and should not be
 used by new clients.
+
+Organization themes use the organization-design package endpoints instead of a
+`/code/{resource}` endpoint because their portable representation is an
+uncompressed tar archive rather than one JSON document.
 
 ## Optional project resources
 
@@ -210,6 +216,39 @@ uploads validate the payload and permissions but do not call Google Drive to
 validate the spreadsheet URL. This allows CI and service-account deployments
 without the uploader's personal Google OAuth token. Executing an enabled sync
 still requires usable Google credentials for the scheduler owner.
+
+## Organization Data App themes
+
+Themes live under `lightdash/themes/<slug>/` with a strict
+`lightdash-theme.yml` manifest and optional files directly inside `css/`,
+`fonts/`, `images/`, and `instructions/`. The immutable, organization-scoped
+manifest slug is the portable identity. Existing imports preserve the design
+UUID and default status; a new slug creates a non-default theme.
+
+The endpoints are:
+
+- `GET /api/v1/org/designs/` to list themes in the authenticated organization;
+- `GET /api/v1/org/designs/{uuidOrSlug}/package` to export one canonical tar;
+- `PUT /api/v1/org/designs/package` to atomically import one canonical tar.
+
+The shared validation contract in `packages/common/src/ee/designs/` is used by
+both the backend package parser and the CLI's local-directory preflight. This
+is an intentional exception to the normal single-document responsibility
+split: the CLI must reject an unsafe or incomplete local bundle before any
+organization resource is mutated, while the backend must repeat every security
+and domain check before persistence.
+
+Download stages and validates every remote package before atomically replacing
+the local `themes/` directory, so a failed batch preserves the previous local
+snapshot. Upload preflights every local theme first, processes organization
+documents in dependency order, then imports themes sequentially. Each theme
+replacement is atomic, but the batch is not: successful siblings remain active
+when another import fails, and the summary names completed slugs and failures.
+
+Missing or empty local theme directories are no-ops. Omitting one theme never
+deletes it remotely, and theme sync never changes the organization default.
+There are no standalone theme commands or theme-specific include, skip, or only
+flags.
 
 ## External connections
 
@@ -491,10 +530,11 @@ access, user attributes, and ownership metadata. Changing the name creates a
 new group and leaves the original group intact; missing files do not delete
 groups.
 
-Organization uploads run dependency phases sequentially: custom roles, then
-users, then groups. A failed phase prevents every dependent phase from
-starting, so group emails are resolved only after the complete users phase has
-succeeded.
+Organization uploads preflight theme packages, then run remote phases
+sequentially: custom roles, users, groups, and themes. A failed document phase
+prevents later phases from starting, so group emails are resolved only after
+the complete users phase has succeeded and theme imports begin only after the
+groups phase succeeds.
 
 SCIM and content as code should not manage the same group. Groups do not yet
 record management provenance, so this limitation cannot be enforced by the

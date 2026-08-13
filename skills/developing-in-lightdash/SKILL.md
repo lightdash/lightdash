@@ -1,6 +1,6 @@
 ---
 name: developing-in-lightdash
-description: Use when working with Lightdash YAML files, dbt models with Lightdash metadata, the lightdash CLI (deploy, upload, download, preview, lint, warehouse-catalog, sql, set-warehouse, apps create/preview/validate), or managing charts, dashboards, spaces and access, AI agents, scheduled content, data apps, data-app external connections, users, groups, custom roles, metrics, and dimensions as code
+description: Use when working with Lightdash YAML files, dbt models with Lightdash metadata, the lightdash CLI (deploy, upload, download, preview, lint, warehouse-catalog, sql, set-warehouse, apps create/preview/validate), or managing charts, dashboards, spaces and access, AI agents, scheduled content, data apps, organization Data App themes, data-app external connections, users, groups, custom roles, metrics, and dimensions as code
 ---
 
 # Developing in Lightdash
@@ -14,6 +14,7 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 - Defining metrics, dimensions, joins, or tables in dbt or pure Lightdash projects
 - Creating or editing charts and dashboards as code
 - Downloading, uploading, or locally developing data apps (enterprise)
+- Creating, editing, migrating, downloading, or uploading organization Data App themes
 
 **Don't use for:** Developing the Lightdash application itself (use the codebase CLAUDE.md), general dbt work without Lightdash metadata, or raw SQL unrelated to Lightdash models.
 
@@ -30,6 +31,7 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 | Build dashboards | `lightdash download`, edit YAML, `lightdash upload` | [Dashboard Reference](./resources/dashboard-reference.md) |
 | Manage content as code across project and organization resources | `lightdash download`, `lightdash upload` | [Content as Code](./resources/content-as-code-reference.md) |
 | Manage data apps as code (enterprise) | `lightdash download --apps <ref>` (one app) or `--include-apps` (all), edit bundle, `lightdash upload --apps <ref>`; local dev via `lightdash apps create/preview/validate` | [Data Apps](#working-with-data-apps-enterprise), [Content as Code](./resources/content-as-code-reference.md) |
+| Manage organization Data App themes as code | `lightdash download --organization`, edit `themes/<slug>/`, `lightdash upload --organization` | [Data App Themes](./resources/data-app-themes-reference.md) |
 | Manage data-app external connections (enterprise) | `lightdash download --include-external-connections`, edit YAML, `lightdash upload` | [Content as Code](./resources/content-as-code-reference.md) |
 | Lint yaml files | `lightdash lint` | [CLI Reference](./resources/cli-reference.md) |
 | Set warehouse connection | `lightdash set-warehouse` from profiles.yml | [CLI Reference](./resources/cli-reference.md) |
@@ -48,10 +50,13 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 | **Missing `contentType` field** | Content type can't be determined without relying on directory structure | Always include `contentType: chart`, `contentType: dashboard`, or `contentType: sql_chart` at the top level |
 | **Adding `--include-apps` to an `--apps <ref>` selection** | `--include-apps` always requests ALL project apps (capped at 50), so the command downloads every app plus the ref — not just the one app | `--apps <ref>` alone downloads/uploads only that app (by slug, app URL, or UUID). Use `--include-apps` only when you want every app |
 | **Editing a data app without reading its bundled skills** | App code violates the SDK-only data access and dependency boundaries (direct `fetch`, `pnpm add`, vendored libraries) and the upload rejects or the app breaks when deployed | Every app bundle ships `.claude/skills/developing-data-apps-locally` and `.claude/skills/lightdash-data-app` — read them before editing files in an app folder (see [Data Apps](#working-with-data-apps-enterprise)) |
+| **Inventing a theme-only CLI command or treating a missing folder as deletion** | The command does not exist, or a supposedly deleted remote theme returns on the next download | Use organization download/upload, and read [Data App Themes](./resources/data-app-themes-reference.md) before changing `themes/` |
 
 ## Before You Start
 
-When a task uses `lightdash download` or `lightdash upload`, especially for bulk edits, spaces and access, scheduled content, AI agents, data apps, external connections, users, groups, or custom roles, **read and follow [Content as Code](./resources/content-as-code-reference.md) first**. Project and organization content require separate commands, and a default download is not a complete snapshot.
+When a task uses `lightdash download` or `lightdash upload`, especially for bulk edits, spaces and access, scheduled content, AI agents, data apps, organization themes, external connections, users, groups, or custom roles, **read and follow [Content as Code](./resources/content-as-code-reference.md) first**. Project and organization content require separate commands, and a default download is not a complete snapshot.
+
+For any task that creates, edits, migrates, downloads, uploads, or tests an organization Data App theme, **always read and follow [Data App Themes](./resources/data-app-themes-reference.md) before touching `themes/`**. Theme packages are strict multi-file resources, organization upload has no theme-only mode, and `lightdash lint` does not validate them.
 
 ### Check Your Target Project
 
@@ -243,6 +248,12 @@ lightdash apps validate                    # check source, manifest, dependencie
 
 When editing files inside an app folder, **read those bundled skills first**. They are version-matched to the app and authoritative for local development — this skill only covers moving apps between disk and Lightdash.
 
+### Working with Organization Data App Themes
+
+Organization Data App themes are multi-file packages under `themes/<slug>/` and participate automatically in `lightdash download --organization` and `lightdash upload --organization`. They do not have a standalone command group or theme-specific selectors.
+
+Before creating, editing, migrating, synchronizing, or testing a theme, **read and follow [Data App Themes](./resources/data-app-themes-reference.md)** for the manifest contract, asset rules, synchronization behavior, and generation boundaries.
+
 ### Creating New Content
 
 Charts and dashboards are typically created in the UI first, then managed as code:
@@ -416,6 +427,7 @@ See [Workflows Reference](./resources/workflows-reference.md) for detailed examp
 ### Dashboards & Workflows
 - [Dashboard Reference](./resources/dashboard-reference.md)
 - [Dashboard Best Practices](./resources/dashboard-best-practices.md)
+- [Data App Themes Reference](./resources/data-app-themes-reference.md)
 - [Content as Code Reference](./resources/content-as-code-reference.md)
 - [CLI Reference](./resources/cli-reference.md)
 - [Workflows Reference](./resources/workflows-reference.md)
