@@ -189,8 +189,11 @@ export const createMigrateCliContext = (
     allowMissingMigrations: context.allowMissingMigrations ?? false,
 });
 
-const assertMigrationStateRunnable = (state: KnexMigrationState): void => {
-    if (state.classification !== 'diverged') {
+const assertMigrationStateRunnable = (
+    state: KnexMigrationState,
+    force: boolean,
+): void => {
+    if (state.classification !== 'diverged' || force) {
         return;
     }
     throw new Error(
@@ -354,9 +357,10 @@ const runPendingKnexMigrations = async (
     token: string,
     heartbeat: MigrationHeartbeat,
     state: KnexMigrationState,
+    force: boolean,
     setFailingMigration: (migration: string) => void,
 ): Promise<void> => {
-    assertMigrationStateRunnable(state);
+    assertMigrationStateRunnable(state, force);
     const nextMigration = state.pending[0];
     if (nextMigration === undefined) {
         return;
@@ -374,6 +378,7 @@ const runPendingKnexMigrations = async (
         token,
         heartbeat,
         await context.getMigrationState(),
+        force,
         setFailingMigration,
     );
 };
@@ -598,6 +603,7 @@ const runHolderAttempt = async (
     tracker: UpgradeRunTracker,
     takeover: boolean,
     attempt: number,
+    force: boolean,
 ): Promise<MigrationAttemptResult> => {
     const state = await context.getMigrationState();
     const fromMigration = state.completed[state.completed.length - 1] ?? null;
@@ -624,7 +630,7 @@ const runHolderAttempt = async (
     }
     let failingMigration = 'migration-state';
     try {
-        assertMigrationStateRunnable(state);
+        assertMigrationStateRunnable(state, force);
         failingMigration = 'knex-lock-recovery';
         tracker.setFailingMigration(failingMigration);
         await context.clearKnexLock();
@@ -638,6 +644,7 @@ const runHolderAttempt = async (
             claim.token,
             heartbeat,
             state,
+            force,
             (migration) => {
                 failingMigration = migration;
                 tracker.setFailingMigration(failingMigration);
@@ -686,6 +693,7 @@ const runHolderAttempts = async (
     tracker: UpgradeRunTracker,
     takeover: boolean,
     attempt: number,
+    force: boolean,
 ): Promise<SuccessfulMigrationAttempt> => {
     const result = await runHolderAttempt(
         context,
@@ -694,6 +702,7 @@ const runHolderAttempts = async (
         tracker,
         takeover,
         attempt,
+        force,
     );
     if (result.status === 'succeeded') {
         return {
@@ -726,6 +735,7 @@ const runHolderAttempts = async (
             tracker,
             takeover,
             attempt + 1,
+            force,
         );
     }
     await heartbeat.stop();
@@ -752,6 +762,7 @@ const runAsHolder = async (
     claim: AcquiredMigrationLeaseClaim,
     tracker: UpgradeRunTracker,
     takeover: boolean,
+    force: boolean,
 ): Promise<void> => {
     const heartbeat = new MigrationHeartbeat({
         leaseManager: context.heartbeatLeaseManager,
@@ -774,6 +785,7 @@ const runAsHolder = async (
             tracker,
             takeover,
             1,
+            force,
         );
         await heartbeat.stop();
         heartbeat.assertHeld();
@@ -823,9 +835,10 @@ const followMigrations = async (
     tracker: UpgradeRunTracker,
     deadline: number,
     promote: boolean,
+    force: boolean,
 ): Promise<void> => {
     const state = await context.getMigrationState();
-    assertMigrationStateRunnable(state);
+    assertMigrationStateRunnable(state, force);
     const leaseRead = await context.leaseManager.read();
     const { lease } = leaseRead;
     logFollowerState(context, state, lease);
@@ -845,7 +858,7 @@ const followMigrations = async (
                 lease !== null &&
                 lease.claimToken !== null &&
                 lease.expired === true;
-            await runAsHolder(context, claim, tracker, takeover);
+            await runAsHolder(context, claim, tracker, takeover, force);
             return;
         }
     }
@@ -853,7 +866,7 @@ const followMigrations = async (
         throw new MigrationWaitTimeoutError();
     }
     await context.sleep(context.followerPollIntervalMs);
-    await followMigrations(context, tracker, deadline, promote);
+    await followMigrations(context, tracker, deadline, promote, force);
 };
 
 const runPreflightGate = async (
@@ -886,7 +899,7 @@ const runUp = async (
     await tracker.initializeFromVersion();
     await runPreflightGate(context, tracker, preflightOptions, false);
     const state = await context.getMigrationState();
-    assertMigrationStateRunnable(state);
+    assertMigrationStateRunnable(state, preflightOptions.force);
     const leaseBeforeClaim = await context.leaseManager.read();
     const claim = await context.leaseManager.claim(context.identity);
     if (claim.status === 'acquired') {
@@ -895,10 +908,22 @@ const runUp = async (
             leaseBeforeClaim.lease !== null &&
             leaseBeforeClaim.lease.claimToken !== null &&
             leaseBeforeClaim.lease.expired === true;
-        await runAsHolder(context, claim, tracker, takeover);
+        await runAsHolder(
+            context,
+            claim,
+            tracker,
+            takeover,
+            preflightOptions.force,
+        );
         return;
     }
-    await followMigrations(context, tracker, context.now() + timeoutMs, true);
+    await followMigrations(
+        context,
+        tracker,
+        context.now() + timeoutMs,
+        true,
+        preflightOptions.force,
+    );
 };
 
 const runWait = async (
@@ -907,7 +932,13 @@ const runWait = async (
     timeoutMs: number,
 ): Promise<void> => {
     await tracker.initializeFromVersion();
-    await followMigrations(context, tracker, context.now() + timeoutMs, true);
+    await followMigrations(
+        context,
+        tracker,
+        context.now() + timeoutMs,
+        true,
+        false,
+    );
 };
 
 const getMigrationStatusState = (
