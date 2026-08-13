@@ -445,6 +445,9 @@ describe('AiDeepResearchRunModel', () => {
         expect(tracker.history.update[0].bindings).toEqual(
             expect.arrayContaining(['queued', 'cancelled', RUN_UUID]),
         );
+        expect(tracker.history.update[0].bindings).toContain(
+            'user_cancellation',
+        );
         expect(tracker.history.insert).toHaveLength(3);
         expect(tracker.history.insert[0].bindings).toContain(
             'cancellation_requested',
@@ -565,6 +568,12 @@ describe('AiDeepResearchRunModel', () => {
         );
         expect(tracker.history.update.at(-1)?.sql).not.toContain(
             'result_chart_data',
+        );
+        expect(tracker.history.select[0]?.sql).not.toContain(
+            '"result_markdown" is not null',
+        );
+        expect(tracker.history.select[0]?.sql).toContain(
+            '"status" in ($1, $2, $3, $4)',
         );
     });
 });

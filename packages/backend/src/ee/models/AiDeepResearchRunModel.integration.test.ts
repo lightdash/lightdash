@@ -463,6 +463,19 @@ describe('AiDeepResearchRunModel integration', () => {
         );
     });
 
+    it('records the terminal reason when a queued run is cancelled', async () => {
+        const run = await createRun();
+
+        await model.requestCancellation(run.ai_deep_research_run_uuid);
+
+        await expect(
+            model.findByUuid(run.ai_deep_research_run_uuid),
+        ).resolves.toMatchObject({
+            status: 'cancelled',
+            terminal_reason: 'user_cancellation',
+        });
+    });
+
     it('keeps completion and cancellation terminal under contention', async () => {
         const run = await createRun();
         await model.claimQueuedRun(run.ai_deep_research_run_uuid);
@@ -692,7 +705,7 @@ describe('AiDeepResearchRunModel integration', () => {
         const futureRun = await createRun({ promptUuid: futurePromptUuid });
         const expiredToolCallId = `expired-${crypto.randomUUID()}`;
         const futureToolCallId = `future-${crypto.randomUUID()}`;
-        const unrelatedToolCallId = `unrelated-${crypto.randomUUID()}`;
+        const coordinatorToolCallId = `coordinator-${crypto.randomUUID()}`;
 
         await database(AiDeepResearchRunsTableName)
             .where(
@@ -725,7 +738,7 @@ describe('AiDeepResearchRunModel integration', () => {
             },
             {
                 ai_prompt_uuid: promptUuid,
-                tool_call_id: unrelatedToolCallId,
+                tool_call_id: coordinatorToolCallId,
                 tool_name: 'runSql',
                 tool_args: {},
                 ai_mcp_server_uuid: null,
@@ -741,7 +754,7 @@ describe('AiDeepResearchRunModel integration', () => {
                     promptUuid: futurePromptUuid,
                     toolCallId: futureToolCallId,
                 },
-                { promptUuid, toolCallId: unrelatedToolCallId },
+                { promptUuid, toolCallId: coordinatorToolCallId },
             ].map(({ promptUuid: toolPromptUuid, toolCallId }) => ({
                 ai_prompt_uuid: toolPromptUuid,
                 tool_call_id: toolCallId,
@@ -824,22 +837,22 @@ describe('AiDeepResearchRunModel integration', () => {
                         .whereIn('tool_call_id', [
                             expiredToolCallId,
                             futureToolCallId,
-                            unrelatedToolCallId,
+                            coordinatorToolCallId,
                         ])
                         .pluck('tool_call_id')
                 ).sort(),
-            ).toEqual([futureToolCallId, unrelatedToolCallId].sort());
+            ).toEqual([futureToolCallId]);
             expect(
                 (
                     await database(AiAgentToolResultTableName)
                         .whereIn('tool_call_id', [
                             expiredToolCallId,
                             futureToolCallId,
-                            unrelatedToolCallId,
+                            coordinatorToolCallId,
                         ])
                         .pluck('tool_call_id')
                 ).sort(),
-            ).toEqual([futureToolCallId, unrelatedToolCallId].sort());
+            ).toEqual([futureToolCallId]);
             expect(
                 await database(AiSqlApprovalTableName)
                     .where('tool_call_id', expiredToolCallId)
@@ -855,6 +868,72 @@ describe('AiDeepResearchRunModel integration', () => {
                 .where('tool_call_id', expiredToolCallId)
                 .delete();
         }
+    });
+
+    it('scrubs expired provenance for a failed run without a report', async () => {
+        const failedPromptUuid = await createAdditionalPrompt();
+        const failedRun = await createRun({ promptUuid: failedPromptUuid });
+        const toolCallId = `failed-${crypto.randomUUID()}`;
+        const invalidToolCallId = `invalid-${crypto.randomUUID()}`;
+        await database(AiDeepResearchRunsTableName)
+            .where(
+                'ai_deep_research_run_uuid',
+                failedRun.ai_deep_research_run_uuid,
+            )
+            .update({
+                status: 'failed',
+                terminal_reason: 'internal_error',
+                result_markdown: null,
+                completed_at: database.raw("now() - interval '31 days'"),
+            });
+        await database<AiAgentToolCallTable>(AiAgentToolCallTableName).insert({
+            ai_prompt_uuid: failedPromptUuid,
+            tool_call_id: toolCallId,
+            tool_name: 'runSql',
+            tool_args: {},
+            ai_mcp_server_uuid: null,
+            parent_tool_call_id: null,
+        });
+        await database<AiAgentToolResultTable>(
+            AiAgentToolResultTableName,
+        ).insert({
+            ai_prompt_uuid: failedPromptUuid,
+            tool_call_id: toolCallId,
+            tool_name: 'runSql',
+            result: JSON.stringify({ rows: [{ secret: 'expired' }] }),
+        });
+        await database<AiAgentToolCallErrorTable>(
+            AiAgentToolCallErrorTableName,
+        ).insert({
+            ai_prompt_uuid: failedPromptUuid,
+            tool_call_id: invalidToolCallId,
+            tool_name: 'runSql',
+            error_message: 'invalid call',
+            raw_args: JSON.stringify({ secret: 'expired invalid args' }),
+        });
+
+        expect(await model.cleanExpiredReports(100)).toEqual({
+            scanned: 1,
+            expired: 1,
+            failed: 0,
+        });
+        expect(
+            await database(AiAgentToolCallTableName)
+                .where('tool_call_id', toolCallId)
+                .first(),
+        ).toBeUndefined();
+        expect(
+            await database(AiAgentToolCallErrorTableName)
+                .where('tool_call_id', invalidToolCallId)
+                .first(),
+        ).toBeUndefined();
+        await expect(
+            model.findByUuid(failedRun.ai_deep_research_run_uuid),
+        ).resolves.toMatchObject({
+            status: 'failed',
+            result_markdown: null,
+            report_expired_at: expect.any(Date),
+        });
     });
 
     it('rolls provenance deletion back when scrubbing the report fails', async () => {
