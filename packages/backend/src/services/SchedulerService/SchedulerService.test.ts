@@ -297,6 +297,25 @@ describe('SchedulerService', () => {
             );
         });
 
+        test.each([
+            { webhook: 'https://169.254.169.254/latest/meta-data' },
+            { googleChatWebhook: 'https://127.0.0.1/hook' },
+        ])(
+            'rejects an unsafe webhook before enqueueing a send-now job',
+            async (target) => {
+                await expect(
+                    service.sendScheduler(userWhoCanSend, {
+                        ...sendNowPayload,
+                        targets: [target],
+                    }),
+                ).rejects.toThrowError(ParameterError);
+
+                expect(
+                    schedulerClient.addScheduledDeliveryJob,
+                ).not.toHaveBeenCalled();
+            },
+        );
+
         describe('app payloads', () => {
             const sendAppUuid = 'appUuid';
             const sendAppRow = {

@@ -76,6 +76,7 @@ import { SchedulerModel } from '../../models/SchedulerModel';
 import { UserModel } from '../../models/UserModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { getAdjustedCronByOffset } from '../../utils/cronUtils';
+import { validateSchedulerWebhookTargets } from '../../utils/schedulerWebhookValidation';
 import { BaseService } from '../BaseService';
 import type { SoftDeleteOptions } from '../SoftDeletableService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
@@ -1690,6 +1691,8 @@ export class SchedulerService extends BaseService {
         if (!isValidTimezone(scheduler.timezone)) {
             throw new ParameterError('Timezone string is not valid');
         }
+
+        await validateSchedulerWebhookTargets(scheduler.targets);
 
         // Validate PDF format is not used with webhook destinations
         if (scheduler.format === SchedulerFormat.PDF) {

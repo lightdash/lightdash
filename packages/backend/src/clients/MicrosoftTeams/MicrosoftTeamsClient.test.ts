@@ -1,10 +1,71 @@
 import { PartialFailureType, type PartialFailure } from '@lightdash/common';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { postSchedulerWebhook } from '../../utils/schedulerWebhookValidation';
 import { type AttachmentUrl } from '../EmailClient/EmailClient';
 import {
     MicrosoftTeamsClient,
     redactWebhookIdentity,
 } from './MicrosoftTeamsClient';
+
+vi.mock('../../utils/schedulerWebhookValidation', () => ({
+    postSchedulerWebhook: vi.fn(),
+}));
+
+const mockedPostSchedulerWebhook = vi.mocked(postSchedulerWebhook);
+const successfulWebhookResponse = {
+    status: 200,
+    contentType: '',
+    bodyText: '',
+    truncated: false,
+};
+
+describe('webhook delivery', () => {
+    const client = new MicrosoftTeamsClient({
+        lightdashConfig: {
+            ...lightdashConfigMock,
+            microsoftTeams: { enabled: true },
+        },
+    });
+    const args: Parameters<MicrosoftTeamsClient['postImageWithWebhook']>[0] = {
+        webhookUrl: 'https://outlook.office.com/webhook/abc',
+        title: 'Delivery',
+        name: 'Chart',
+        description: undefined,
+        ctaUrl: 'https://app.lightdash.com/chart',
+        image: 'https://app.lightdash.com/image.png',
+        footer: 'Footer',
+    };
+
+    afterEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('accepts a 202 response from the secured webhook helper', async () => {
+        mockedPostSchedulerWebhook.mockResolvedValueOnce({
+            ...successfulWebhookResponse,
+            status: 202,
+        });
+
+        await client.postImageWithWebhook(args);
+
+        expect(mockedPostSchedulerWebhook).toHaveBeenCalledWith(
+            args.webhookUrl,
+            expect.objectContaining({ attachments: expect.any(Array) }),
+        );
+    });
+
+    it('preserves provider errors for non-success responses', async () => {
+        mockedPostSchedulerWebhook.mockResolvedValueOnce({
+            ...successfulWebhookResponse,
+            status: 500,
+            bodyText: 'upstream failure',
+        });
+
+        await expect(client.postImageWithWebhook(args)).rejects.toThrow(
+            'Microsoft teams webhook returned an error',
+        );
+    });
+});
 
 describe('redactWebhookIdentity', () => {
     const teamsWebhookUrl =
@@ -91,25 +152,21 @@ describe('postCsvsWithWebhook app failure lines', () => {
         failures: PartialFailure[],
         csvUrls: AttachmentUrl[],
     ): Promise<string> => {
-        const fetchMock = vi
-            .spyOn(globalThis, 'fetch')
-            .mockResolvedValue({ ok: true, status: 200 } as Response);
-        try {
-            await client.postCsvsWithWebhook({
-                webhookUrl: 'https://outlook.office.com/webhook/abc',
-                title: 'App delivery',
-                name: 'App delivery',
-                description: 'desc',
-                ctaUrl: 'https://app.lightdash.com/apps/abc',
-                csvUrls,
-                footer: 'footer',
-                failures,
-            });
-            const [, init] = fetchMock.mock.calls[0];
-            return init?.body as string;
-        } finally {
-            fetchMock.mockRestore();
-        }
+        mockedPostSchedulerWebhook.mockResolvedValueOnce(
+            successfulWebhookResponse,
+        );
+        await client.postCsvsWithWebhook({
+            webhookUrl: 'https://outlook.office.com/webhook/abc',
+            title: 'App delivery',
+            name: 'App delivery',
+            description: 'desc',
+            ctaUrl: 'https://app.lightdash.com/apps/abc',
+            csvUrls,
+            footer: 'footer',
+            failures,
+        });
+        const [, payload] = mockedPostSchedulerWebhook.mock.calls.at(-1)!;
+        return JSON.stringify(payload);
     };
 
     const expectNoLiveMarkup = (body: string) => {
@@ -127,19 +184,14 @@ describe('postCsvsWithWebhook app failure lines', () => {
     const cardTextBlocks = async (
         args: Parameters<MicrosoftTeamsClient['postCsvsWithWebhook']>[0],
     ): Promise<string[]> => {
-        const fetchMock = vi
-            .spyOn(globalThis, 'fetch')
-            .mockResolvedValue({ ok: true, status: 200 } as Response);
-        try {
-            await client.postCsvsWithWebhook(args);
-            const [, init] = fetchMock.mock.calls[0];
-            const payload = JSON.parse(init?.body as string);
-            return payload.attachments[0].content.body.map(
-                (block: { text?: string }) => block.text ?? '',
-            );
-        } finally {
-            fetchMock.mockRestore();
-        }
+        mockedPostSchedulerWebhook.mockResolvedValueOnce(
+            successfulWebhookResponse,
+        );
+        await client.postCsvsWithWebhook(args);
+        const [, payload] = mockedPostSchedulerWebhook.mock.calls.at(-1)!;
+        return payload.attachments[0].content.body.map(
+            (block: { text?: string }) => block.text ?? '',
+        );
     };
 
     // Limit notices reached email and Slack but were silently dropped here.

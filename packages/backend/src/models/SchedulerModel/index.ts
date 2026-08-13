@@ -79,6 +79,7 @@ import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTableName } from '../../database/entities/users';
 import KnexPaginate from '../../database/pagination';
 import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAccounts';
+import { validateSchedulerWebhookTargets } from '../../utils/schedulerWebhookValidation';
 
 type SelectScheduler = SchedulerDb & {
     created_by_name: string | null;
@@ -1159,6 +1160,8 @@ export class SchedulerModel {
     async createScheduler(
         newScheduler: CreateSchedulerAndTargets,
     ): Promise<SchedulerAndTargets> {
+        await validateSchedulerWebhookTargets(newScheduler.targets);
+
         const schedulerUuid = await this.database.transaction(async (trx) => {
             const { projectUuid, slug } = await SchedulerModel.getCreateSlug(
                 trx,
@@ -1240,6 +1243,8 @@ export class SchedulerModel {
     async updateScheduler(
         scheduler: UpdateSchedulerAndTargets,
     ): Promise<SchedulerAndTargets> {
+        await validateSchedulerWebhookTargets(scheduler.targets);
+
         await this.database.transaction(async (trx) => {
             await trx(SchedulerTableName)
                 .update({
