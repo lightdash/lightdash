@@ -27,7 +27,6 @@ jobs:
         with:
           token: ${{ secrets.CI_GITHUB_TOKEN }}
           persist-credentials: false
-          fetch-depth: 0
           ref: ${{ github.event.release.tag_name }}
 
       # ========================================
