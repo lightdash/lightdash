@@ -3,6 +3,7 @@ import https from 'https';
 import * as ipaddr from 'ipaddr.js';
 import { LookupFunction } from 'net';
 import fetch, { FetchError } from 'node-fetch';
+import { isPrivateAddress } from '../ssrfProtection';
 
 export type SecureFetchReason =
     | 'non_https'
@@ -68,11 +69,8 @@ const parseHttpsUrl = (rawUrl: string): URL => {
 // (64:ff9b::/96) collapse to their IPv4 range via ipaddr.process(). Fail-closed:
 // if the address cannot be parsed it is treated as blocked.
 const isNonPublicAddress = (address: string): boolean => {
-    try {
-        return ipaddr.process(address).range() !== 'unicast';
-    } catch {
-        return true; // unparseable — fail closed
-    }
+    if (!ipaddr.isValid(address)) return true;
+    return isPrivateAddress(address);
 };
 
 const resolveAndValidateHost = async (
