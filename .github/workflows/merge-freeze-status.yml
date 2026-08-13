@@ -48,17 +48,17 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           SHA: ${{ github.event.pull_request.head.sha }}
-          REASON: ${{ vars.MERGE_FREEZE_REASON }}
           FREEZE_URL: ${{ github.server_url }}/${{ github.repository }}/actions/workflows/merge-freeze.yml
         run: |
           set -euo pipefail
 
-          description=${REASON:-Merges to main are frozen while a release is cut}
-
+          # Fixed text, matching what merge-freeze.yml posts. The reason a
+          # freeze is on goes to #engineering and never here: this workflow's
+          # log and the statuses it writes are both public.
           gh api --method POST "repos/$REPO/statuses/$SHA" \
             -f state=failure \
             -f context=merge-freeze \
-            -f description="${description:0:140}" \
+            -f description="Merges to main are frozen while a release is cut" \
             -f target_url="$FREEZE_URL" >/dev/null
 
-          echo "Flagged PR #${{ github.event.pull_request.number }} as blocked: $description"
+          echo "Flagged PR #${{ github.event.pull_request.number }} as blocked by the active merge freeze."

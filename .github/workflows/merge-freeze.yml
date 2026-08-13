@@ -34,7 +34,7 @@ on:
           - freeze
           - unfreeze
       reason:
-        description: Why - shown on every blocked PR (e.g. "cutting a release for an escalation")
+        description: Why - posted to #engineering, not shown on the public PR checks
         required: false
         type: string
 
@@ -85,14 +85,11 @@ jobs:
           GH_TOKEN: ${{ secrets.MERGE_FREEZE_TOKEN || secrets.CI_GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           ACTION: ${{ inputs.action }}
-          REASON: ${{ inputs.reason }}
           ACTOR_LOGIN: ${{ github.actor }}
           CONTEXT: ${{ env.FREEZE_CONTEXT }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
-
-          reason=${REASON:-}
 
           # `rulesets` also returns org-level rulesets that apply here but
           # cannot be edited from this repo, hence the source_type filter. The
@@ -196,19 +193,18 @@ jobs:
             exit 1
           fi
 
+          # This repo is public, so commit statuses are world-readable. The
+          # reason stays out of them deliberately and goes to Slack instead -
+          # "we are holding main for an escalation" is exactly the sort of
+          # sentence that names a customer. PRs still learn that a freeze is
+          # on, which is the part that stops people being confused.
           if [ "$ACTION" = "freeze" ]; then
             state=failure
-            if [ -n "$reason" ]; then
-              description="Merges to main are frozen: $reason"
-            else
-              description="Merges to main are frozen while a release is cut"
-            fi
+            description="Merges to main are frozen while a release is cut"
           else
             state=success
             description="Merges to main are open"
           fi
-          # The statuses API rejects a description over 140 characters outright.
-          description=${description:0:140}
 
           # `changed` is false when this run was a no-op (freezing an already
           # frozen main, or unfreezing an open one). The announce step reads it
@@ -220,20 +216,16 @@ jobs:
           else
             changed=true
           fi
-          {
-            echo "changed=$changed"
-            echo "description=$description"
-          } >> "$GITHUB_OUTPUT"
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
 
-          # Mirrored into repo variables so merge-freeze-status.yml can label PRs
-          # opened mid-freeze without an admin token of its own. Non-fatal: the
-          # ruleset is what blocks merges, so a stale variable degrades the
-          # message, never the enforcement.
+          # Mirrored into a repo variable so merge-freeze-status.yml can label
+          # PRs opened mid-freeze without an admin token of its own. It carries
+          # the state only, never the reason: that workflow's log is public.
+          # Non-fatal - the ruleset is what blocks merges, so a stale variable
+          # degrades the message, never the enforcement.
           if [ "$ACTION" = "freeze" ]; then freeze_var=true; else freeze_var=false; fi
           gh variable set MERGE_FREEZE --repo "$REPO" --body "$freeze_var" \
             || echo "::warning::Could not write the MERGE_FREEZE variable. The freeze is applied, but PRs opened during it will show an unexplained blocked check."
-          gh variable set MERGE_FREEZE_REASON --repo "$REPO" --body "$description" \
-            || echo "::warning::Could not write the MERGE_FREEZE_REASON variable."
 
           # Only PRs targeting the default branch: the ruleset covers main
           # alone, so a stacked PR merging into its parent is not blocked and
@@ -278,14 +270,14 @@ jobs:
             echo "| | |"
             echo "| --- | --- |"
             echo "| Actor | @$ACTOR_LOGIN |"
-            echo "| Reason | ${reason:-_none given_} |"
+            echo "| Reason | _sent to #engineering, kept out of this public run page_ |"
             echo "| Ruleset | \`$ruleset_name\` (id $ruleset_id) |"
             echo "| Required check | \`$CONTEXT\` |"
             echo "| Open PRs updated | $posted (couldn't reach $unreachable) |"
             echo
             if [ "$ACTION" = "freeze" ]; then
               if [ "$was_required" = "true" ]; then
-                echo "> Main was **already frozen** - this run refreshed the reason and the PR statuses."
+                echo "> Main was **already frozen** - this run only refreshed the PR statuses."
                 echo
               fi
               echo "Run this workflow again with **unfreeze** to reopen merges."
@@ -315,7 +307,6 @@ jobs:
           ACTION: ${{ inputs.action }}
           REASON: ${{ inputs.reason }}
           ACTOR_LOGIN: ${{ github.actor }}
-          DESCRIPTION: ${{ steps.toggle.outputs.description }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/workflows/merge-freeze.yml
         run: |
