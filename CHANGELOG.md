@@ -1,3 +1,18 @@
+# [1.147.0](https://github.com/lightdash/lightdash/compare/1.146.6...1.147.0) (2026-08-13)
+
+
+### Bug Fixes
+
+* **CI:** bootstrap uuid extension before migration ledger ([#27329](https://github.com/lightdash/lightdash/issues/27329)) ([a432060](https://github.com/lightdash/lightdash/commit/a432060aa8b79f51930daef4fb855b7bf52e3d45)), closes [#27140](https://github.com/lightdash/lightdash/issues/27140)
+* **embed:** resolve parameters in filter suggestions ([#27326](https://github.com/lightdash/lightdash/issues/27326)) ([67f73c6](https://github.com/lightdash/lightdash/commit/67f73c6487256c19623be44188d2560ceb155a70))
+* use news icon for What's new nav button ([#27327](https://github.com/lightdash/lightdash/issues/27327)) ([094602b](https://github.com/lightdash/lightdash/commit/094602baa1202653046fe52d0f7ec2b0a074ed38)), closes [/linear.app/lightdash/issue/PROD-10101/whats-new-nav-icon-uses-the-sparkle-glyph-which-reads-as-ai-and-causes#agent-session-3ea6bcf8](https://github.com//linear.app/lightdash/issue/PROD-10101/whats-new-nav-icon-uses-the-sparkle-glyph-which-reads-as-ai-and-causes/issues/agent-session-3ea6bcf8)
+
+
+### Features
+
+* add upgrade freeze dispatch controls ([#27324](https://github.com/lightdash/lightdash/issues/27324)) ([94a503e](https://github.com/lightdash/lightdash/commit/94a503e88a04026559bcaed43ce3d0db705407d8))
+* announce upgrade freeze state changes ([#27322](https://github.com/lightdash/lightdash/issues/27322)) ([25abbbc](https://github.com/lightdash/lightdash/commit/25abbbc3817cafd9b90233e2bdbac3667d262ebc))
+
 ## [1.146.6](https://github.com/lightdash/lightdash/compare/1.146.5...1.146.6) (2026-08-13)
 
 

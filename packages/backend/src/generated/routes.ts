@@ -62047,6 +62047,7 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                parameters: { ref: 'ParametersValuesMap' },
                 timezone: { dataType: 'string' },
                 fieldId: { dataType: 'string' },
                 tableName: { dataType: 'string' },
