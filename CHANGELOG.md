@@ -1,3 +1,10 @@
+# [1.154.0](https://github.com/lightdash/lightdash/compare/1.153.1...1.154.0) (2026-08-13)
+
+
+### Features
+
+* add org/project IDs to webapp onboarding events ([#26742](https://github.com/lightdash/lightdash/issues/26742)) ([47057d4](https://github.com/lightdash/lightdash/commit/47057d492e729a2cfaf5920af7d4abbf4188ab50))
+
 ## [1.153.1](https://github.com/lightdash/lightdash/compare/1.153.0...1.153.1) (2026-08-13)
 
 
