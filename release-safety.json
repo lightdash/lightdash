@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "1.150.1",
-  "previousVersion": "1.150.0",
-  "releaseDate": "2026-08-13T15:49:51.750Z",
+  "version": "1.151.0",
+  "previousVersion": "1.150.1",
+  "releaseDate": "2026-08-13T16:18:43.718Z",
   "migrations": {
-    "present": true,
-    "count": 1,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20260813130000_add_ai_prompt_execution_mode.ts",
-        "edition": "ee",
-        "tables": [
-          "ai_prompt"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

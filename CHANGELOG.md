@@ -1,3 +1,10 @@
+# [1.151.0](https://github.com/lightdash/lightdash/compare/1.150.1...1.151.0) (2026-08-13)
+
+
+### Features
+
+* **backend:** emit upgrade lifecycle telemetry from the migrate CLI ([#27353](https://github.com/lightdash/lightdash/issues/27353)) ([61280a3](https://github.com/lightdash/lightdash/commit/61280a36085f3ecbe33dc88c954002f894481db3))
+
 ## [1.150.1](https://github.com/lightdash/lightdash/compare/1.150.0...1.150.1) (2026-08-13)
 
 
