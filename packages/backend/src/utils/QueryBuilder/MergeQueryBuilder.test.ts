@@ -749,6 +749,189 @@ describe('per-dialect compile snapshots', () => {
         ).toMatchSnapshot();
     });
 
+    describe('date-spine fill', () => {
+        const spineBuilder = (
+            adapter: SupportedDbtAdapter,
+            grain: TimeFrames,
+            keyMeta: MergeFieldMeta,
+        ) =>
+            new MergeQueryBuilder({
+                sources: sourcesFor('order_date'),
+                joinKeyNames: ['order_date'],
+                joinType: MergeJoinType.FULL,
+                warehouseSqlBuilder: warehouseSqlBuilderFromType(
+                    adapter,
+                    WeekDay.MONDAY,
+                ),
+                dateSpine: { keyName: 'order_date', grain, keyMeta },
+            });
+
+        const dateKey: MergeFieldMeta = {
+            type: DimensionType.DATE,
+            timeInterval: TimeFrames.DAY,
+        };
+        const timestampKey: MergeFieldMeta = {
+            type: DimensionType.TIMESTAMP,
+            timeInterval: TimeFrames.HOUR,
+        };
+
+        const spineAdapters = [
+            SupportedDbtAdapter.POSTGRES,
+            SupportedDbtAdapter.BIGQUERY,
+            SupportedDbtAdapter.SNOWFLAKE,
+            SupportedDbtAdapter.DATABRICKS,
+            SupportedDbtAdapter.TRINO,
+            SupportedDbtAdapter.DUCKDB,
+        ] as const;
+
+        it.each(spineAdapters)(
+            'fills a date key at DAY grain on %s',
+            (adapter) => {
+                expect(
+                    spineBuilder(adapter, TimeFrames.DAY, dateKey).toCoreSql(),
+                ).toMatchSnapshot();
+            },
+        );
+
+        it.each(spineAdapters)(
+            'fills a timestamp key at HOUR grain on %s',
+            (adapter) => {
+                expect(
+                    spineBuilder(
+                        adapter,
+                        TimeFrames.HOUR,
+                        timestampKey,
+                    ).toCoreSql(),
+                ).toMatchSnapshot();
+            },
+        );
+
+        it.each(spineAdapters)(
+            'fills a timestamp key at MONTH grain on %s',
+            (adapter) => {
+                expect(
+                    spineBuilder(adapter, TimeFrames.MONTH, {
+                        type: DimensionType.TIMESTAMP,
+                        timeInterval: TimeFrames.MONTH,
+                    }).toCoreSql(),
+                ).toMatchSnapshot();
+            },
+        );
+
+        // The shared empty-result guard, pinned: the fill joins FULL with a
+        // coalesced key, so a merged row the spine misses survives, and an
+        // empty merged result stays empty in every dialect instead of five
+        // implicit behaviours.
+        it('joins the spine FULL with a coalesced key', () => {
+            const core = collapse(
+                spineBuilder(
+                    SupportedDbtAdapter.POSTGRES,
+                    TimeFrames.DAY,
+                    dateKey,
+                ).toCoreSql(),
+            );
+
+            expect(core).toContain(
+                'FULL OUTER JOIN merge_rows ON merge_spine."order_date" = merge_rows."order_date"',
+            );
+            expect(core).toContain(
+                'COALESCE(merge_spine."order_date", merge_rows."order_date") AS "order_date"',
+            );
+        });
+
+        it('keeps the spine inside the core, below the terminal wrapper', () => {
+            const builder = spineBuilder(
+                SupportedDbtAdapter.POSTGRES,
+                TimeFrames.DAY,
+                dateKey,
+            );
+            const core = builder.toCoreSql();
+
+            expect(core).toContain('merge_spine AS (');
+            expect(core).not.toMatch(/ORDER BY/i);
+            expect(builder.toSql()).toBe(
+                applyMergeTerminalWrapper(core, builder.buildTerminalWrapper()),
+            );
+        });
+
+        it('casts the postgres spine back to date for date-typed keys', () => {
+            const core = spineBuilder(
+                SupportedDbtAdapter.POSTGRES,
+                TimeFrames.DAY,
+                dateKey,
+            ).toCoreSql();
+
+            expect(core).toContain(`::date AS "order_date"`);
+        });
+
+        it('routes bigquery coarse grains on a timestamp key through the date array', () => {
+            const core = spineBuilder(
+                SupportedDbtAdapter.BIGQUERY,
+                TimeFrames.MONTH,
+                {
+                    type: DimensionType.TIMESTAMP,
+                    timeInterval: TimeFrames.MONTH,
+                },
+            ).toCoreSql();
+
+            expect(core).toContain('GENERATE_DATE_ARRAY');
+            expect(core).toContain(`TIMESTAMP(d, 'UTC')`);
+        });
+
+        it('routes bigquery naive timestamp keys through DATETIME conversions', () => {
+            const core = spineBuilder(
+                SupportedDbtAdapter.BIGQUERY,
+                TimeFrames.HOUR,
+                {
+                    type: DimensionType.TIMESTAMP,
+                    timeInterval: TimeFrames.HOUR,
+                    timestampDomain: 'naive',
+                },
+            ).toCoreSql();
+
+            expect(core).toContain('GENERATE_TIMESTAMP_ARRAY');
+            expect(core).toContain(`DATETIME(ts, 'UTC')`);
+            expect(core).toContain(`TIMESTAMP((SELECT MIN(`);
+        });
+
+        it('caps the snowflake generator per grain and filters by the max bound', () => {
+            const hourly = spineBuilder(
+                SupportedDbtAdapter.SNOWFLAKE,
+                TimeFrames.HOUR,
+                timestampKey,
+            ).toCoreSql();
+            const daily = spineBuilder(
+                SupportedDbtAdapter.SNOWFLAKE,
+                TimeFrames.DAY,
+                dateKey,
+            ).toCoreSql();
+
+            expect(hourly).toContain('GENERATOR(ROWCOUNT => 100000)');
+            expect(daily).toContain('GENERATOR(ROWCOUNT => 50000)');
+            expect(collapse(hourly)).toContain('QUALIFY "order_date" <=');
+        });
+
+        it('refuses the fill by name on redshift', () => {
+            expect(() =>
+                spineBuilder(
+                    SupportedDbtAdapter.REDSHIFT,
+                    TimeFrames.DAY,
+                    dateKey,
+                ).toCoreSql(),
+            ).toThrow(/not supported on redshift/);
+        });
+
+        it('refuses a grain the spine cannot step', () => {
+            expect(() =>
+                spineBuilder(
+                    SupportedDbtAdapter.POSTGRES,
+                    TimeFrames.MINUTE,
+                    timestampKey,
+                ).toCoreSql(),
+            ).toThrow(/not supported at the MINUTE grain/);
+        });
+    });
+
     it('uses a DATETIME placeholder for a naive timestamp key on bigquery', () => {
         const sql = compile(SupportedDbtAdapter.BIGQUERY, 'created_at', {
             type: DimensionType.TIMESTAMP,

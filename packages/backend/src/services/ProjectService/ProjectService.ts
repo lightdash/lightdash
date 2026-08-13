@@ -319,6 +319,7 @@ import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { omitDbtEnvironment } from '../../utils/dbtProjectConfig';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { canFillMissingDatesOnAdapter } from '../../utils/QueryBuilder/mergeDateSpine';
 import {
     applyMergeTerminalWrapper,
     getMergeNullPlaceholder,
@@ -5340,11 +5341,65 @@ export class ProjectService extends BaseService {
             }),
         );
 
+        // The date-spine fill compiles into the core. A dialect that cannot
+        // generate a spine (Redshift's generate_series is leader-node-only)
+        // refuses by name — silently dropping the fill would read as data.
+        if (
+            mergeQuery.fillMissingDates === true &&
+            !canFillMissingDatesOnAdapter(warehouseSqlBuilder.getAdapterType())
+        ) {
+            const adapterType = warehouseSqlBuilder.getAdapterType();
+            return {
+                sql: null,
+                coreSql: null,
+                typedColumns: null,
+                terminalWrapper: null,
+                columns: null,
+                fields: [],
+                itemsMap: {},
+                fieldOrigins: {},
+                fieldIdByColumn: {},
+                errors: [
+                    {
+                        kind: MergeQueryErrorKind.FILL_NOT_SUPPORTED_ON_DIALECT,
+                        sourceId: null,
+                        fieldIds: [],
+                        message: `Filling missing dates is not supported on ${adapterType}. Remove the date fill to run this merge.`,
+                    },
+                ],
+            };
+        }
+        const dateSpine = (() => {
+            if (mergeQuery.fillMissingDates !== true) return undefined;
+            const part = mergeQuery.joinKey[0];
+            const meta = part
+                ? Object.entries(part.fieldIdBySourceId)
+                      .map(
+                          ([sourceId, fieldId]) =>
+                              fieldTypes[sourceId]?.[fieldId],
+                      )
+                      .find((candidate) => candidate?.timeInterval != null)
+                : undefined;
+            if (!part || !meta?.timeInterval) {
+                // Validation guarantees a single temporal key with a grain;
+                // this is the backstop for a spec that bypassed it.
+                throw new ParameterError(
+                    'Filling missing dates needs a temporal join key with a known grain.',
+                );
+            }
+            return {
+                keyName: part.name,
+                grain: meta.timeInterval,
+                keyMeta: meta,
+            };
+        })();
+
         const mergeQueryBuilder = new MergeQueryBuilder({
             sources,
             joinKeyNames: mergeQuery.joinKey.map((part) => part.name),
             joinType: mergeQuery.joinType,
             warehouseSqlBuilder,
+            dateSpine,
             // Clamped like any other query: the merged statement is the one
             // that actually returns rows, so the instance row cap applies to
             // it rather than to the queries it was assembled from.

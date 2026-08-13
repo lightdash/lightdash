@@ -281,6 +281,178 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
     // The date-spine fill, generated natively on the project warehouse: every
     // period between the first and last key exists as a row, so the pages
     // come back gap-free in key order.
+    const rawKeyValues = (rows: Record<string, unknown>[], fieldId: string) =>
+        rows.map((row) => {
+            const cell = row[fieldId] as { value: { raw: string } };
+            return new Date(cell.value.raw).getTime();
+        });
+
+    const expectConsecutiveSteps = (
+        timestamps: number[],
+        stepMs: number,
+        toleranceMs = 0,
+    ) => {
+        expect(timestamps.length).toBeGreaterThan(1);
+        timestamps.slice(1).forEach((current, index) => {
+            const step = current - timestamps[index];
+            expect(Math.abs(step - stepMs)).toBeLessThanOrEqual(toleranceMs);
+        });
+    };
+
+    it('fills missing days with a warehouse-generated spine', async () => {
+        const runResp = await admin.post<Body<{ queryUuid: string }>>(
+            `/api/v1/projects/${projectUuid}/mergeQuery/run`,
+            {
+                mergeQuery: {
+                    ...mergeQuery,
+                    sources: [
+                        {
+                            id: 'orders',
+                            metricQuery: {
+                                ...ordersByMonth,
+                                dimensions: ['orders_order_date_day'],
+                            },
+                        },
+                        {
+                            id: 'payments',
+                            metricQuery: {
+                                ...paymentsByMonth,
+                                dimensions: ['orders_order_date_day'],
+                            },
+                        },
+                    ],
+                    joinKey: [
+                        {
+                            name: 'order_day',
+                            fieldIdBySourceId: {
+                                orders: 'orders_order_date_day',
+                                payments: 'orders_order_date_day',
+                            },
+                        },
+                    ],
+                    fillMissingDates: true,
+                },
+            },
+        );
+        expect(runResp.status).toBe(200);
+
+        const results = await pollQueryResults(
+            admin,
+            runResp.body.results.queryUuid,
+        );
+
+        // Seeded orders are sparse; a gap-free page proves the spine ran. A
+        // day step in a DST-aware session zone is 23–25 hours across the two
+        // transition days, hence the one-hour tolerance.
+        expectConsecutiveSteps(
+            rawKeyValues(results.rows, 'merge_order_day'),
+            24 * 60 * 60 * 1000,
+            60 * 60 * 1000,
+        );
+    }, 60_000);
+
+    it('fills missing hours with a warehouse-generated spine', async () => {
+        const eventsByHour = (id: string, metric: string) => ({
+            id,
+            metricQuery: {
+                exploreName: 'events',
+                dimensions: ['events_timestamp_tz_hour'],
+                metrics: [metric],
+                filters: {},
+                sorts: [],
+                limit: 500,
+                tableCalculations: [],
+                additionalMetrics: [],
+            },
+        });
+
+        const runResp = await admin.post<Body<{ queryUuid: string }>>(
+            `/api/v1/projects/${projectUuid}/mergeQuery/run`,
+            {
+                mergeQuery: {
+                    sources: [
+                        eventsByHour('counts', 'events_count'),
+                        eventsByHour('value', 'events_in_dkk'),
+                    ],
+                    joinKey: [
+                        {
+                            name: 'event_hour',
+                            fieldIdBySourceId: {
+                                counts: 'events_timestamp_tz_hour',
+                                value: 'events_timestamp_tz_hour',
+                            },
+                        },
+                    ],
+                    joinType: 'full',
+                    tableCalculations: [],
+                    fillMissingDates: true,
+                    limit: 500,
+                },
+            },
+        );
+        expect(runResp.status).toBe(200);
+
+        const results = await pollQueryResults(
+            admin,
+            runResp.body.results.queryUuid,
+        );
+
+        expectConsecutiveSteps(
+            rawKeyValues(results.rows, 'merge_event_hour'),
+            60 * 60 * 1000,
+        );
+    }, 60_000);
+
+    it('keeps an empty merged result empty under the fill, not an error', async () => {
+        const emptyFilter = {
+            dimensions: {
+                id: 'root',
+                and: [
+                    {
+                        id: 'f1',
+                        target: { fieldId: 'orders_status' },
+                        operator: 'equals',
+                        values: ['no_such_status'],
+                    },
+                ],
+            },
+        };
+        const runResp = await admin.post<Body<{ queryUuid: string }>>(
+            `/api/v1/projects/${projectUuid}/mergeQuery/run`,
+            {
+                mergeQuery: {
+                    ...mergeQuery,
+                    sources: [
+                        {
+                            id: 'orders',
+                            metricQuery: {
+                                ...ordersByMonth,
+                                filters: emptyFilter,
+                            },
+                        },
+                        {
+                            id: 'payments',
+                            metricQuery: {
+                                ...paymentsByMonth,
+                                filters: emptyFilter,
+                            },
+                        },
+                    ],
+                    fillMissingDates: true,
+                },
+            },
+        );
+        expect(runResp.status).toBe(200);
+
+        const results = await pollQueryResults(
+            admin,
+            runResp.body.results.queryUuid,
+        );
+
+        expect(results.totalResults).toBe(0);
+        expect(results.rows).toEqual([]);
+    }, 60_000);
+
     // The jaffle subscriptions explore's customers join carries a Lightdash
     // parameter, so selecting orders_status through it forces the
     // parameterized join in. The single-query path refuses to run without a
