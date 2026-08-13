@@ -71,6 +71,12 @@ export type ExecuteAsyncSqlQueryRequestParams =
         pivotConfiguration?: PivotConfiguration;
     };
 
+export type ExecuteAsyncPreAggregateSqlQueryRequestParams =
+    CommonExecuteQueryRequestParams & {
+        sql: string;
+        limit?: number;
+    };
+
 export type ExecuteAsyncUnderlyingDataRequestParams =
     CommonExecuteQueryRequestParams & {
         underlyingDataSourceQueryUuid: string;
@@ -159,6 +165,7 @@ export type ExecuteAsyncQueryRequestParams =
     | ExecuteAsyncMetricQueryRequestParams
     | ExecuteAsyncMergeQueryRequestParams
     | ExecuteAsyncSqlQueryRequestParams
+    | ExecuteAsyncPreAggregateSqlQueryRequestParams
     | ExecuteAsyncSavedChartRequestParams
     | ExecuteAsyncDashboardChartRequestParams
     | ExecuteAsyncUnderlyingDataRequestParams

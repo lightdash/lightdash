@@ -5,6 +5,7 @@ import {
     isExploreError,
     ItemsMap,
     MetricQuery,
+    MissingConfigError,
     ParameterDefinitions,
     ParametersValuesMap,
     PivotConfiguration,
@@ -133,7 +134,9 @@ export class PreAggregationDuckDbClient {
             );
 
             if (!duckdbRuntimeConfig) {
-                throw new Error('Missing DuckDB runtime config');
+                throw new MissingConfigError(
+                    'Pre-aggregate DuckDB execution is unavailable: missing pre-aggregate S3 configuration',
+                );
             }
 
             this.cachedWarehouseClient = this.createDuckdbWarehouseClient({

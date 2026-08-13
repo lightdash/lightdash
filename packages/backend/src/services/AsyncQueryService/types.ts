@@ -172,6 +172,11 @@ export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
     pivotConfiguration?: PivotConfiguration;
 };
 
+export type ExecuteAsyncPreAggregateSqlQueryArgs = CommonAsyncQueryArgs & {
+    sql: string;
+    limit?: number;
+};
+
 export type ExecuteAsyncMergeQueryArgs = CommonAsyncQueryArgs & {
     mergeQuery: MergeQuery;
     /** Standard pivot stage over the merged rows. */

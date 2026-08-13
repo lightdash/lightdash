@@ -119,7 +119,7 @@ export class NoOpPreAggregateStrategy implements PreAggregateStrategy {
     }
 
     createExecutionWarehouseClient(): never {
-        throw new Error(
+        throw new NotImplementedError(
             'Pre-aggregate execution is not available in this edition',
         );
     }

@@ -67,6 +67,7 @@ import {
     ItemsMap,
     KnexPaginateArgs,
     KnexPaginatedData,
+    LightdashError,
     MergeQuery,
     MetricQuery,
     MissingConfigError,
@@ -94,6 +95,7 @@ import {
     UnexpectedServerError,
     UserAccessControls,
     WarehouseClient,
+    WarehouseQueryError,
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
     type ApiDownloadAsyncQueryResultsAsXlsx,
@@ -109,6 +111,7 @@ import {
     type ExecuteAsyncFieldValueSearchRequestParams,
     type ExecuteAsyncMergeQueryRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
+    type ExecuteAsyncPreAggregateSqlQueryRequestParams,
     type ExecuteAsyncQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
@@ -222,6 +225,7 @@ import {
     type ExecuteAsyncFieldValueSearchArgs,
     type ExecuteAsyncMergeQueryArgs,
     type ExecuteAsyncMetricQueryArgs,
+    type ExecuteAsyncPreAggregateSqlQueryArgs,
     type ExecuteAsyncQueryReturn,
     type ExecuteAsyncSavedChartQueryArgs,
     type ExecuteAsyncSqlChartArgs,
@@ -6186,6 +6190,187 @@ export class AsyncQueryService extends ProjectService {
             cacheMetadata,
             parameterReferences,
             usedParametersValues: usedParameters,
+            resolvedTimezone: null,
+        };
+    }
+
+    /**
+     * Runs raw SQL directly on the shared pre-aggregate DuckDB engine (the
+     * one that serves managed materializations) and streams results through
+     * the standard async query pipeline, so results are polled with
+     * getAsyncQueryResults like any other async query.
+     */
+    async executeAsyncPreAggregateSqlQuery({
+        account,
+        projectUuid,
+        sql,
+        context,
+        limit,
+    }: ExecuteAsyncPreAggregateSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
+        assertIsAccountWithOrg(account);
+        const projectSummary = await this.projectModel.getSummary(projectUuid);
+        const { organizationUuid } = projectSummary;
+
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('SqlRunner', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        // Throws NotImplementedError when pre-aggregate execution is unavailable
+        const warehouseClient =
+            this.preAggregateStrategy.createExecutionWarehouseClient();
+
+        const queryTags: RunQueryTags = {
+            ...this.getUserQueryTags(account),
+            ...AsyncQueryService.getSchedulerQueryTags(),
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            query_context: context,
+        };
+
+        // Column discovery (LIMIT 1) also validates the SQL before anything is persisted
+        const columns: { name: string; type: DimensionType }[] = [];
+        const columnDiscoverySql = applyLimitToSqlQuery({
+            sqlQuery: sql,
+            limit: 1,
+        });
+        try {
+            await warehouseClient.streamQuery(
+                columnDiscoverySql,
+                (chunk) => {
+                    if (columns.length === 0 && chunk.fields) {
+                        Object.keys(chunk.fields).forEach((key) => {
+                            columns.push({
+                                name: key,
+                                type: chunk.fields[key].type,
+                            });
+                        });
+                    }
+                },
+                { tags: queryTags },
+            );
+        } catch (e) {
+            // The DuckDB client throws raw errors (validation + engine); surface them to the caller
+            if (e instanceof LightdashError) throw e;
+            throw new WarehouseQueryError(getErrorMessage(e));
+        }
+
+        const composer = new SqlQueryComposer({
+            userSql: sql,
+            columns,
+            warehouseClient,
+            pivotConfiguration: undefined,
+            limit,
+            parameters: undefined,
+            dashboardFilters: undefined,
+            tileUuid: undefined,
+            dashboardSorts: undefined,
+        });
+        const compiled = composer.compile();
+        if (compiled.missingParameterReferences.size > 0) {
+            const missing = Array.from(compiled.missingParameterReferences);
+            throw new ParameterError(
+                `Missing values for SQL parameter(s): ${missing.join(', ')}`,
+                { missingReferences: missing },
+            );
+        }
+        const query = composer.getSql({
+            columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
+        });
+        const fieldsMap = composer.getFields();
+
+        const originalColumns: ResultColumns = columns.reduce((acc, col) => {
+            acc[col.name] = { reference: col.name, type: col.type };
+            return acc;
+        }, {} as ResultColumns);
+
+        const cacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
+            sql: query,
+            userUuid: null,
+        });
+
+        const requestParameters: ExecuteAsyncPreAggregateSqlQueryRequestParams =
+            {
+                sql,
+                limit,
+                context,
+            };
+
+        const queryCreatedAt = new Date();
+        const { queryUuid } = await this.queryHistoryModel.create(account, {
+            projectUuid,
+            organizationUuid,
+            context,
+            fields: fieldsMap,
+            compiledSql: query,
+            requestParameters,
+            metricQuery: composer.getMetricQuery(),
+            cacheKey,
+            pivotConfiguration: null,
+            originalColumns,
+        });
+        this.prometheusMetrics?.trackQueryStateTransition(
+            'new',
+            QueryHistoryStatus.PENDING,
+            context,
+        );
+
+        const onboardingFlow = await this.getOnboardingFlow({
+            userUuid: account.user.id,
+            organizationUuid,
+        });
+
+        // Always run in-process with the DuckDB client override: the NATS
+        // pre-aggregate consumer falls back to the project warehouse on DuckDB
+        // errors, which must never happen for SQL written for DuckDB.
+        this.prometheusMetrics?.trackQueryStateTransition(
+            QueryHistoryStatus.PENDING,
+            QueryHistoryStatus.EXECUTING,
+            context,
+        );
+        this.prometheusMetrics?.observeQueueWaitDuration(0, context);
+
+        void this.runAsyncWarehouseQuery({
+            userUuid: account.user.id,
+            organizationUuid,
+            isPreviewProject:
+                projectSummary.type === ProjectType.PREVIEW ||
+                projectSummary.provisioningSource === 'playground',
+            isRegisteredUser: account.isRegisteredUser(),
+            isServiceAccount: account.isServiceAccount(),
+            onboardingFlow,
+            projectUuid,
+            queryUuid,
+            queryTags,
+            query,
+            fieldsMap,
+            cacheKey,
+            originalColumns,
+            queryCreatedAt,
+            displayTimezone: null,
+            warehouseClientOverride: warehouseClient,
+            warehouseCredentialsTypeOverride: warehouseClient.credentials.type,
+        }).catch((e) => {
+            this.logger.error(
+                `Async pre-aggregate SQL query ${queryUuid} failed: ${getErrorMessage(
+                    e,
+                )}`,
+            );
+        });
+
+        return {
+            queryUuid,
+            cacheMetadata: { cacheHit: false },
+            parameterReferences: Array.from(compiled.parameterReferences),
+            usedParametersValues: compiled.usedParameters,
             resolvedTimezone: null,
         };
     }

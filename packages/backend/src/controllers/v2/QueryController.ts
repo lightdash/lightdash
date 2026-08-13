@@ -28,6 +28,7 @@ import {
     type ExecuteAsyncDashboardSqlChartRequestParams,
     type ExecuteAsyncFieldValueSearchRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
+    type ExecuteAsyncPreAggregateSqlQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
     type ExecuteAsyncSqlChartRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
@@ -426,6 +427,40 @@ export class QueryController extends BaseController {
                 pivotConfiguration: body.pivotConfiguration,
                 limit: body.limit,
                 parameters: body.parameters,
+            });
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Executes a raw SQL query asynchronously on the pre-aggregate DuckDB engine, which reads materializations from object storage. Returns a queryUuid to poll for results via Get results.
+     * @summary Execute pre-aggregate SQL query
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/pre-aggregate-sql')
+    @OperationId('executeAsyncPreAggregateSqlQuery')
+    async executeAsyncPreAggregateSqlQuery(
+        @Body()
+        body: ExecuteAsyncPreAggregateSqlQueryRequestParams,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<ApiExecuteAsyncSqlQueryResults>> {
+        this.setStatus(200);
+        const context = body.context ?? getContextFromHeader(req);
+
+        const results = await this.services
+            .getAsyncQueryService()
+            .executeAsyncPreAggregateSqlQuery({
+                account: req.account!,
+                projectUuid,
+                sql: body.sql,
+                limit: body.limit,
+                context:
+                    context ?? QueryExecutionContext.PRE_AGGREGATE_SQL_RUNNER,
             });
 
         return {
