@@ -31,6 +31,7 @@ export const MergeFilterSwitch: FC = () => {
         <SegmentedControl
             size="xs"
             radius="md"
+            styles={{ label: { fontSize: 'var(--mantine-font-size-sm)' } }}
             value={merge.focus}
             onChange={(value) => {
                 if (value === 'a' || value === 'b') merge.setFocus(value);
