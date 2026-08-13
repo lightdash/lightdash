@@ -25,11 +25,6 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - name: Setup Socket Firewall
-        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
-        with:
-          mode: firewall-free
-          firewall-version: 1.15.0
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
@@ -37,7 +32,7 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: 'pnpm-lock.yaml'
       - name: Install packages
-        run: sfw pnpm install --config.minimumReleaseAge=0 --frozen-lockfile --prefer-offline --network-concurrency=16
+        run: pnpm install --config.minimumReleaseAge=0 --frozen-lockfile --prefer-offline --network-concurrency=16
       - name: Generate backend API artifacts
         run: pnpm generate-api:backend
       - name: Build all packages
@@ -75,12 +70,6 @@ jobs:
           fetch-depth: 0
           filter: blob:none
 
-      - name: Setup Socket Firewall
-        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
-        with:
-          mode: firewall-free
-          firewall-version: 1.15.0
-
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
@@ -92,10 +81,10 @@ jobs:
       # pnpm 11 publishes natively via OIDC trusted publishing; npm is pinned only
       # for the npm version prepare step in release.config.js.
       - name: Pin npm for the versioning step
-        run: sfw npm install -g npm@12.0.1
+        run: npm install -g npm@12.0.1
 
       - name: Install dependencies
-        run: sfw pnpm install --config.minimumReleaseAge=0 --frozen-lockfile --prefer-offline --prod=false --network-concurrency=16
+        run: pnpm install --config.minimumReleaseAge=0 --frozen-lockfile --prefer-offline --prod=false --network-concurrency=16
 
       # PROD-8359: install oasdiff so the release-safety marker generator can diff
       # the REST API (swagger.json) between the previous tag and HEAD for breaking
@@ -161,12 +150,6 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || needs.release.outputs.new_release_git_tag }}
 
-      - name: Setup Socket Firewall
-        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
-        with:
-          mode: firewall-free
-          firewall-version: 1.15.0
-
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
@@ -176,14 +159,7 @@ jobs:
           cache-dependency-path: 'pnpm-lock.yaml'
 
       - name: Install dependencies
-        run: sfw pnpm install --config.minimumReleaseAge=0 --frozen-lockfile --prefer-offline --prod=false --network-concurrency=16
-
-      # sfw's proxy can die mid-install and still exit 0, leaving a partial
-      # node_modules (missing .bin links — releases 1.151.3 attempts 1+2 both
-      # failed on `tsoa: not found`). Same repair pattern as release.config.js:
-      # plain pnpm relinks from the lockfile with honest exit codes.
-      - name: Repair install without sfw
-        run: pnpm install --prefer-offline
+        run: pnpm install --config.minimumReleaseAge=0 --frozen-lockfile --prefer-offline --prod=false --network-concurrency=16
 
       - name: Generate backend API artifacts
         run: pnpm generate-api:backend
