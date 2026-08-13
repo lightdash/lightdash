@@ -46,7 +46,7 @@ vi.mock('../features/apps/hooks/useAppBuildPoller', () => ({
     useAppBuildPoller: vi.fn(),
 }));
 vi.mock('../features/apps/hooks/useUpdateApp', () => ({
-    useUpdateApp: () => ({ mutate: vi.fn() }),
+    useUpdateApp: () => ({ mutateAsync: vi.fn(), isLoading: false }),
 }));
 vi.mock('../hooks/appearance/useOrganizationAppearance', () => ({
     useColorPalettes: () => ({ data: [] }),
@@ -472,6 +472,30 @@ describe('ChartTypeBuilder', () => {
         fireEvent.click(screen.getByLabelText('Close history'));
 
         expect(screen.getByLabelText('Show markers')).not.toBeChecked();
+    });
+
+    it('shows the name and description read-only, and edits them in a modal', () => {
+        setApp(appMeta());
+        vi.mocked(useAppVersionHistory).mockReturnValue(
+            historyStub([appVersion({ version: 1 })], 1),
+        );
+        renderBuilder(
+            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+        );
+
+        // The title is text, not a field you can type over by accident.
+        expect(screen.queryByLabelText('Chart type name')).toBeNull();
+        expect(screen.getByText('Stream graph')).toBeInTheDocument();
+        expect(
+            screen.getByLabelText('Chart type description'),
+        ).toBeInTheDocument();
+
+        fireEvent.click(screen.getByLabelText('Edit chart type details'));
+        expect(screen.getByText('Update Chart Type')).toBeInTheDocument();
+        expect(screen.getByLabelText(/Name/)).toHaveValue('Stream graph');
+        expect(screen.getByLabelText(/Description/)).toHaveValue(
+            'Layered flows',
+        );
     });
 
     it('offers no history toggle before the first version exists', () => {
