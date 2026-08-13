@@ -17,6 +17,7 @@ import {
     IconMessageChatbot,
     IconPlus,
 } from '@tabler/icons-react';
+import { lazy, Suspense, type LazyExoticComponent } from 'react';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
@@ -31,6 +32,17 @@ import { useAiRouterConfig } from '../../features/aiCopilot/hooks/useAiRouter';
 import { useProjectAiAgents } from '../../features/aiCopilot/hooks/useProjectAiAgents';
 import { useGetUserAgentPreferences } from '../../features/aiCopilot/hooks/useUserAgentPreferences';
 import AgentsRouterPage from './AgentsRouterPage';
+import type AgentBuildPrototypePageComponent from './prototypes/AgentBuildPrototypePage';
+
+const AgentBuildPrototypePage: LazyExoticComponent<
+    typeof AgentBuildPrototypePageComponent
+> | null = import.meta.env.DEV
+    ? lazy(() => {
+          const prototypeModulePath =
+              './prototypes/AgentBuildPrototypePage.tsx';
+          return import(/* @vite-ignore */ prototypeModulePath);
+      })
+    : null;
 
 const AGENT_FEATURES = [
     {
@@ -87,6 +99,8 @@ const AgentsWelcome = () => {
     const [searchParams] = useSearchParams();
     const forceRouter =
         searchParams.get(AI_ROUTING_SEARCH_PARAM) === AI_ROUTING_AUTO_VALUE;
+    const showAgentBuildPrototype =
+        import.meta.env.DEV && searchParams.get('prototype') === 'agent-builds';
     const canCreateAgent = useAiAgentPermission({
         action: 'manage',
         projectUuid,
@@ -129,6 +143,14 @@ const AgentsWelcome = () => {
         aiRouterConfigQuery.isLoading
     ) {
         return <AiPageLoading />;
+    }
+
+    if (showAgentBuildPrototype && AgentBuildPrototypePage) {
+        return (
+            <Suspense fallback={<AiPageLoading />}>
+                <AgentBuildPrototypePage />
+            </Suspense>
+        );
     }
 
     const userDefaultAgentUuid =
