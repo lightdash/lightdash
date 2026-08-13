@@ -123,21 +123,51 @@ preflight() {
     fi
 }
 
+write_controller_environment() {
+    local output_file="$1" name value
+    for name in PORT LINEAR_CLIENT_ID LINEAR_CLIENT_SECRET LINEAR_WEBHOOK_SECRET \
+        CODEX_API_KEY GITHUB_TOKEN GITHUB_REPOSITORY GITHUB_BASE_REF \
+        EXE_RUNNER_TEMPLATE EXE_RUNNER_CPU EXE_RUNNER_MEMORY EXE_RUNNER_DISK \
+        EXE_RUNNER_TTL_SECONDS EXE_RUNNER_PUBLIC_PREVIEW EXE_RUNNER_PREVIEW_PORT; do
+        value="${!name:-}"
+        [ -n "$value" ] || continue
+        [[ "$value" != *$'\n'* ]] || fail "$name must not contain a newline."
+        printf '%s=%s\n' "$name" "$value" >>"$output_file"
+    done
+}
+
 prepare_template() {
-    local replace=false template_present=false env_file repository base_ref cpu memory disk disk_gb
+    local replace=false from_environment=false template_present=false env_file repository base_ref cpu memory disk disk_gb
     if [ "${1:-}" = --replace ]; then
         replace=true
         shift
     fi
-    env_file="${1:-$APP_ROOT/.env}"
-    [ "$#" -le 1 ] || fail 'prepare-template accepts [--replace] [env-file].'
+    if [ "${1:-}" = --from-environment ]; then
+        from_environment=true
+        shift
+    fi
+    if [ "$from_environment" = true ]; then
+        [ "$#" -eq 0 ] || fail 'prepare-template --from-environment does not accept an env file.'
+        env_file=""
+    else
+        [ "$#" -le 1 ] || fail 'prepare-template accepts [--replace] [env-file].'
+        env_file="${1:-$APP_ROOT/.env}"
+    fi
     preflight
-    [ -f "$env_file" ] || fail "Missing environment file $env_file."
-    repository="$(awk -F= '/^GITHUB_REPOSITORY=/{print substr($0,index($0,"=")+1); exit}' "$env_file")"
-    base_ref="$(awk -F= '/^GITHUB_BASE_REF=/{print substr($0,index($0,"=")+1); exit}' "$env_file")"
-    cpu="$(awk -F= '/^EXE_RUNNER_CPU=/{print substr($0,index($0,"=")+1); exit}' "$env_file")"
-    memory="$(awk -F= '/^EXE_RUNNER_MEMORY=/{print substr($0,index($0,"=")+1); exit}' "$env_file")"
-    disk="$(awk -F= '/^EXE_RUNNER_DISK=/{print substr($0,index($0,"=")+1); exit}' "$env_file")"
+    if [ "$from_environment" = true ]; then
+        repository="${GITHUB_REPOSITORY:-}"
+        base_ref="${GITHUB_BASE_REF:-}"
+        cpu="${EXE_RUNNER_CPU:-}"
+        memory="${EXE_RUNNER_MEMORY:-}"
+        disk="${EXE_RUNNER_DISK:-}"
+    else
+        [ -f "$env_file" ] || fail "Missing environment file $env_file."
+        repository="$(awk -F= '/^GITHUB_REPOSITORY=/{print substr($0,index($0,"=")+1); exit}' "$env_file")"
+        base_ref="$(awk -F= '/^GITHUB_BASE_REF=/{print substr($0,index($0,"=")+1); exit}' "$env_file")"
+        cpu="$(awk -F= '/^EXE_RUNNER_CPU=/{print substr($0,index($0,"=")+1); exit}' "$env_file")"
+        memory="$(awk -F= '/^EXE_RUNNER_MEMORY=/{print substr($0,index($0,"=")+1); exit}' "$env_file")"
+        disk="$(awk -F= '/^EXE_RUNNER_DISK=/{print substr($0,index($0,"=")+1); exit}' "$env_file")"
+    fi
     repository="${repository:-lightdash/lightdash}"
     base_ref="${base_ref:-main}"
     cpu="${cpu:-4}"
@@ -174,12 +204,27 @@ prepare_template() {
 }
 
 deploy() {
-    local env_file="${1:-$APP_ROOT/.env}" resolved_env runner_bootstrap_token
+    local from_environment=false env_file resolved_env runner_bootstrap_token
+    if [ "${1:-}" = --from-environment ]; then
+        from_environment=true
+        shift
+    fi
+    if [ "$from_environment" = true ]; then
+        [ "$#" -eq 0 ] || fail 'deploy --from-environment does not accept an env file.'
+        env_file=""
+    else
+        [ "$#" -le 1 ] || fail 'deploy accepts [env-file].'
+        env_file="${1:-$APP_ROOT/.env}"
+    fi
     preflight
-    [ -f "$env_file" ] || fail "Missing environment file $env_file. Copy .env.example and fill it in."
     resolved_env="$(mktemp /tmp/linear-exe-agent-env.XXXXXX)"
     trap 'rm -f "$resolved_env"' EXIT
-    awk '!/^(EXE_API_KEY|EXE_RUNNER_BOOTSTRAP_TOKEN|PUBLIC_URL)=/' "$env_file" >"$resolved_env"
+    if [ "$from_environment" = true ]; then
+        write_controller_environment "$resolved_env"
+    else
+        [ -f "$env_file" ] || fail "Missing environment file $env_file. Copy .env.example and fill it in."
+        awk '!/^(EXE_API_KEY|EXE_RUNNER_BOOTSTRAP_TOKEN|PUBLIC_URL)=/' "$env_file" >"$resolved_env"
+    fi
     runner_bootstrap_token=""
     if template_exists; then
         wait_for_template_ssh
@@ -288,7 +333,9 @@ destroy() {
 usage() {
     cat <<EOF
 Usage: $0 deploy [env-file]
+       $0 deploy --from-environment
        $0 prepare-template [--replace] [env-file]
+       $0 prepare-template [--replace] --from-environment
        $0 status
        $0 logs
        $0 url
