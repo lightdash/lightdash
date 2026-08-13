@@ -1,3 +1,10 @@
+## [1.153.1](https://github.com/lightdash/lightdash/compare/1.153.0...1.153.1) (2026-08-13)
+
+
+### Bug Fixes
+
+* honor force for diverged migration ledgers ([#27387](https://github.com/lightdash/lightdash/issues/27387)) ([8f9f7fc](https://github.com/lightdash/lightdash/commit/8f9f7fce71bdb158eadc9a722f9972267c03e5a0))
+
 # [1.153.0](https://github.com/lightdash/lightdash/compare/1.152.0...1.153.0) (2026-08-13)
 
 
