@@ -1,3 +1,10 @@
+## [1.146.6](https://github.com/lightdash/lightdash/compare/1.146.5...1.146.6) (2026-08-13)
+
+
+### Bug Fixes
+
+* authenticate local CSV downloads ([#27317](https://github.com/lightdash/lightdash/issues/27317)) ([5aeabd5](https://github.com/lightdash/lightdash/commit/5aeabd56f2d1243da182295e39fde0a4dec651f7))
+
 ## [1.146.5](https://github.com/lightdash/lightdash/compare/1.146.4...1.146.5) (2026-08-13)
 
 

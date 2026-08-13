@@ -1,25 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "1.146.5",
-  "previousVersion": "1.146.4",
-  "releaseDate": "2026-08-13T10:47:47.541Z",
+  "version": "1.146.6",
+  "previousVersion": "1.146.5",
+  "releaseDate": "2026-08-13T11:11:56.574Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260813120000_reconcile_scheduler_project_slugs.ts",
-        "edition": "core",
-        "tables": [],
-        "heaviness": {
-          "locksTable": false,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
