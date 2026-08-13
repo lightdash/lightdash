@@ -1,3 +1,11 @@
+## [1.151.1](https://github.com/lightdash/lightdash/compare/1.151.0...1.151.1) (2026-08-13)
+
+
+### Bug Fixes
+
+* **ai:** show compact deep research icon in Aurora ([#27359](https://github.com/lightdash/lightdash/issues/27359)) ([1da8ed0](https://github.com/lightdash/lightdash/commit/1da8ed0c66c38bc868424763938cbfa802a0f56c))
+* **data-apps:** configure the version the builder is previewing ([#27305](https://github.com/lightdash/lightdash/issues/27305)) ([cf8df91](https://github.com/lightdash/lightdash/commit/cf8df9107738e64177dccfbed8514903253edf50))
+
 # [1.151.0](https://github.com/lightdash/lightdash/compare/1.150.1...1.151.0) (2026-08-13)
 
 
