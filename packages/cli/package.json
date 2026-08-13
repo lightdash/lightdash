@@ -7,6 +7,9 @@
     "type": "git",
     "url": "https://github.com/lightdash/lightdash.git"
   },
+  "engines": {
+    "node": ">=24"
+  },
   "bin": {
     "lightdash": "dist/index.js"
   },
