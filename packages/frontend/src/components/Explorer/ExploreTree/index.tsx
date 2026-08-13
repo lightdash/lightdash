@@ -3,6 +3,7 @@ import {
     isCustomDimension,
     isDimension,
     type AdditionalMetric,
+    type CustomDimension,
     type CompiledTable,
     type Dimension,
     type Explore,
@@ -42,31 +43,74 @@ import {
 } from './TableTree/Virtualization/flattenTree';
 import VirtualizedTreeList from './TableTree/Virtualization/VirtualizedTreeList';
 
+/**
+ * Which fields read as selected, and which extra fields the query defines.
+ *
+ * Supplied when the tree edits a query other than the explorer's own — a
+ * merge's second query. Without it the tree reads the explorer's state, which
+ * is the only query most of the app has.
+ */
+export type ExploreTreeSelection = {
+    activeFields: Set<string>;
+    selectedDimensions: string[];
+};
+
 type ExploreTreeProps = {
     explore: Explore;
     onSelectedFieldChange: (fieldId: string, isDimension: boolean) => void;
+    selection?: ExploreTreeSelection;
 };
 
 type Records = Record<string, AdditionalMetric | Dimension | Metric>;
 
+// Stable empties, so a tree editing another query does not rebuild every render.
+const EMPTY_METRICS: AdditionalMetric[] = [];
+const EMPTY_DIMENSIONS: CustomDimension[] = [];
+const EMPTY_IDS: string[] = [];
+
 const ExploreTreeComponent: FC<ExploreTreeProps> = ({
     explore,
     onSelectedFieldChange,
+    selection,
 }) => {
-    const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
-    const customDimensions = useExplorerSelector(selectCustomDimensions);
+    const explorerAdditionalMetrics = useExplorerSelector(
+        selectAdditionalMetrics,
+    );
+    const explorerCustomDimensions = useExplorerSelector(
+        selectCustomDimensions,
+    );
 
-    const missingCustomMetrics = useExplorerSelector((state) =>
+    const explorerMissingCustomMetrics = useExplorerSelector((state) =>
         selectMissingCustomMetrics(state, explore),
     );
-    const missingCustomDimensions = useExplorerSelector((state) =>
+    const explorerMissingCustomDimensions = useExplorerSelector((state) =>
         selectMissingCustomDimensions(state, explore),
     );
-    const missingFieldIds = useExplorerSelector((state) =>
+    const explorerMissingFieldIds = useExplorerSelector((state) =>
         selectMissingFieldIds(state, explore),
     );
-    const activeFields = useExplorerSelector(selectActiveFields);
-    const selectedDimensions = useExplorerSelector(selectDimensions);
+    const explorerActiveFields = useExplorerSelector(selectActiveFields);
+    const explorerSelectedDimensions = useExplorerSelector(selectDimensions);
+
+    // Custom fields and "missing field" warnings describe the explorer's own
+    // query. Against another query's explore they would report that query's
+    // fields as missing, so they are empty whenever the selection is supplied.
+    const additionalMetrics = selection
+        ? EMPTY_METRICS
+        : explorerAdditionalMetrics;
+    const customDimensions = selection
+        ? EMPTY_DIMENSIONS
+        : explorerCustomDimensions;
+    const missingCustomMetrics = selection
+        ? EMPTY_METRICS
+        : explorerMissingCustomMetrics;
+    const missingCustomDimensions = selection
+        ? EMPTY_DIMENSIONS
+        : explorerMissingCustomDimensions;
+    const missingFieldIds = selection ? EMPTY_IDS : explorerMissingFieldIds;
+    const activeFields = selection?.activeFields ?? explorerActiveFields;
+    const selectedDimensions =
+        selection?.selectedDimensions ?? explorerSelectedDimensions;
 
     const [search, setSearch] = useState<string>('');
     const [isPending, startTransition] = useTransition();

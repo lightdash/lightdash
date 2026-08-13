@@ -35,6 +35,9 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { MergeFilterSwitch } from '../../../features/mergeQuery/components/MergeFilterSwitch';
+import MergeQueryBFiltersCard from '../../../features/mergeQuery/components/MergeQueryBFiltersCard';
+import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProject } from '../../../hooks/useProject';
@@ -46,7 +49,8 @@ import { getConditionalRuleLabelFromItem } from '../../common/Filters/FilterInpu
 import FiltersProvider from '../../common/Filters/FiltersProvider';
 import { useFieldsWithSuggestions } from './useFieldsWithSuggestions';
 
-const FiltersCard: FC = memo(() => {
+const QueryAFiltersCard: FC = memo(() => {
+    const merge = useMergeSafe();
     const projectUuid = useProjectUuid();
     const project = useProject(projectUuid);
 
@@ -271,6 +275,7 @@ const FiltersCard: FC = memo(() => {
             onToggle={() => toggleExpandedSection(ExplorerSection.FILTERS)}
             headerElement={
                 <>
+                    {merge?.isMerging ? <MergeFilterSwitch /> : null}
                     {totalActiveFilters > 0 && !filterIsOpen ? (
                         <Tooltip
                             arrowOffset={12}
@@ -338,6 +343,19 @@ const FiltersCard: FC = memo(() => {
             )}
         </CollapsableCard>
     );
+});
+
+/**
+ * The Filters card follows the merge focus the way the sidebar does: focusing
+ * Query B re-targets this card to that query's filters, with ownership shown
+ * by the query's colour.
+ */
+const FiltersCard: FC = memo(() => {
+    const merge = useMergeSafe();
+    if (merge?.isMerging && merge.focus === 'b' && merge.queryB.exploreName) {
+        return <MergeQueryBFiltersCard />;
+    }
+    return <QueryAFiltersCard />;
 });
 
 export default FiltersCard;

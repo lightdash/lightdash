@@ -1,4 +1,4 @@
-import { getItemId, getMetrics } from '@lightdash/common';
+import { deepEqual, getItemId, getMetrics } from '@lightdash/common';
 import { Button, Group, rgba, Text, Tooltip } from '@mantine/core';
 import {
     IconCircleCheckFilled,
@@ -22,6 +22,7 @@ import {
     selectUnsavedColorPaletteUuid,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { useSavedMerge } from '../../../features/mergeQuery/hooks/useSavedMerge';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -56,6 +57,15 @@ const SaveChartButton: FC<{
     const hasUnsavedChangesInStore = useExplorerSelector(
         selectHasUnsavedChanges,
     );
+    // Merge state lives outside the explorer store, so it is attached at save
+    // time rather than arriving with the chart version — and its changes are
+    // tracked here too, or editing only the merge would leave Save inert.
+    const { merge, isValid: isMergeValid } = useSavedMerge();
+    const hasMergeChanges = useMemo(() => {
+        const saved = savedChart?.merge ?? null;
+        if (merge === null || saved === null) return merge !== saved;
+        return !deepEqual(merge, saved);
+    }, [merge, savedChart?.merge]);
 
     // Read isValidQuery from Redux
     const isValidQuery = useExplorerSelector(selectIsValidQuery);
@@ -64,11 +74,10 @@ const SaveChartButton: FC<{
     // For new charts, button is enabled when query is valid
     // For existing charts, button is enabled when there are unsaved changes
     const hasUnsavedChanges = savedChart
-        ? hasUnsavedChangesInStore
+        ? hasUnsavedChangesInStore || hasMergeChanges
         : isValidQuery;
 
     const { missingRequiredParameters } = useExplorerQuery();
-
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
     const [isSaveAsModal, setIsSaveAsModal] = useState(false);
     const [isSaveVerificationModalOpen, setIsSaveVerificationModalOpen] =
@@ -106,12 +115,13 @@ const SaveChartButton: FC<{
                 ...verificationUpdate,
             });
         }
-        if (hasVersionChanges) {
+        if (hasVersionChanges || hasMergeChanges) {
             update.mutate(
                 {
                     uuid: savedChart.uuid,
                     payload: {
                         ...unsavedChartVersionForSave,
+                        merge,
                         ...verificationUpdate,
                     },
                 },
@@ -160,6 +170,7 @@ const SaveChartButton: FC<{
         !unsavedChartVersion.tableName ||
         !hasUnsavedChanges ||
         foundCustomMetricWithDuplicateId ||
+        !isMergeValid ||
         !!missingRequiredParameters?.length;
 
     const handleSaveChart = () => {
@@ -185,6 +196,7 @@ const SaveChartButton: FC<{
         // one there); the main app keeps requiring changes
         (!hasUnsavedChanges && !isEmbedded) ||
         foundCustomMetricWithDuplicateId ||
+        !isMergeValid ||
         !!missingRequiredParameters?.length;
 
     return (
@@ -192,9 +204,11 @@ const SaveChartButton: FC<{
             <Button.Group>
                 <Tooltip
                     label={
-                        'A custom metric ID matches an existing table metric. Rename it to avoid conflicts.'
+                        !isMergeValid
+                            ? 'Finish configuring the merge before saving.'
+                            : 'A custom metric ID matches an existing table metric. Rename it to avoid conflicts.'
                     }
-                    disabled={!foundCustomMetricWithDuplicateId}
+                    disabled={isMergeValid && !foundCustomMetricWithDuplicateId}
                     withinPortal
                     multiline
                     position={'bottom'}
@@ -265,7 +279,7 @@ const SaveChartButton: FC<{
             {unsavedChartVersionForSave && (
                 <ChartCreateModal
                     opened={isQueryModalOpen}
-                    savedData={unsavedChartVersionForSave}
+                    savedData={{ ...unsavedChartVersionForSave, merge }}
                     colorPaletteUuid={stagedColorPaletteUuid}
                     onClose={() => {
                         setIsQueryModalOpen(false);

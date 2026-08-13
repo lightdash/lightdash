@@ -15,6 +15,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
+import { MergeProvider } from '../features/mergeQuery/context/MergeContext';
 import { useExplore } from '../hooks/useExplore';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import {
@@ -52,14 +53,16 @@ const ExplorerContent = memo(() => {
     useHotkeys([['mod + alt + k', handleClearQuery]]);
 
     return (
-        <Page
-            title={data ? data?.label : 'Tables'}
-            sidebar={<ExploreSideBar />}
-            withFullHeight
-            withPaddedContent
-        >
-            <Explorer />
-        </Page>
+        <MergeProvider>
+            <Page
+                title={data ? data?.label : 'Tables'}
+                sidebar={<ExploreSideBar />}
+                withFullHeight
+                withPaddedContent
+            >
+                <Explorer />
+            </Page>
+        </MergeProvider>
     );
 });
 

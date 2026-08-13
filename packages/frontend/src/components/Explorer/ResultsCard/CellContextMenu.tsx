@@ -14,6 +14,7 @@ import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconStack } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
 import { useCallback, useMemo, type FC } from 'react';
+import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { Can } from '../../../providers/Ability';
@@ -38,6 +39,7 @@ const CellContextMenu: FC<
         onExpand: (name: string, data: object) => void;
     }
 > = ({ cell, isEditMode, itemsMap, onViewJsonCell }) => {
+    const isMerged = !!useMergeSafe()?.mergeResults;
     const { openUnderlyingDataModal, metricQuery } =
         useMetricQueryDataContext();
     const { track } = useTracking();
@@ -114,7 +116,11 @@ const CellContextMenu: FC<
             {item &&
                 !isDimension(item) &&
                 !isCustomDimension(item) &&
-                !hasCustomBinDimension(metricQuery) && (
+                !hasCustomBinDimension(metricQuery) &&
+                // A merged column descends from one of two queries, and
+                // nothing here knows which. Offering the drill would run it
+                // against an explore that does not exist.
+                !isMerged && (
                     <Can
                         I="view"
                         this={subject('UnderlyingData', {

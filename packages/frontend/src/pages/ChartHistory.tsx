@@ -30,6 +30,7 @@ import {
     createExplorerStore,
     explorerActions,
 } from '../features/explorer/store';
+import { MergeProvider } from '../features/mergeQuery/context/MergeContext';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import {
     useChartHistory,
@@ -45,7 +46,11 @@ const ChartHistoryContent = memo(() => {
     // Run the query effects hook - orchestrates all query effects
     useExplorerQueryEffects();
 
-    return <Explorer hideHeader={true} />;
+    return (
+        <MergeProvider>
+            <Explorer hideHeader={true} />
+        </MergeProvider>
+    );
 });
 
 const ChartHistoryExplorer = memo<{ selectedVersionUuid: string | undefined }>(

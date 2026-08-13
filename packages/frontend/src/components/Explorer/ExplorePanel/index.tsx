@@ -34,6 +34,10 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { MergeJoinBar } from '../../../features/mergeQuery/components/MergeJoinBar';
+import { MergeTabStrip } from '../../../features/mergeQuery/components/MergeTabStrip';
+import { QueryBTree } from '../../../features/mergeQuery/components/QueryBTree';
+import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
 import { useSourceCodeEditor } from '../../../features/sourceCodeEditor';
 import {
     DeleteVirtualViewModal,
@@ -75,6 +79,10 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const { data: editYamlInUiFlag } = useServerFeatureFlag(
         FeatureFlags.EditYamlInUi,
     );
+    const { data: mergeFlag } = useServerFeatureFlag(FeatureFlags.MergeQueries);
+    const merge = useMergeSafe();
+    const showQueryBTree =
+        mergeFlag?.enabled === true && merge?.isMerging && merge.focus === 'b';
 
     const activeTableName = useExplorerSelector(selectTableName);
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
@@ -226,7 +234,16 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                     display: isVisualizationConfigOpen ? 'none' : 'flex',
                 }}
             >
-                <Group justify="space-between">
+                <MergeTabStrip />
+                <MergeJoinBar />
+
+                {/* The breadcrumbs, warnings and menu all belong to the
+                    first query's explore; shown above the second query's
+                    picker they read as its header, which they are not. */}
+                <Group
+                    justify="space-between"
+                    display={showQueryBTree ? 'none' : undefined}
+                >
                     <Group gap="xs">
                         <PageBreadcrumbs size="md" items={breadcrumbs} />
                         {explore.warnings && explore.warnings.length > 0 && (
@@ -370,12 +387,19 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                         )}
                 </Group>
 
-                <ItemDetailProvider>
-                    <ExploreTree
-                        explore={explore}
-                        onSelectedFieldChange={toggleActiveField}
-                    />
-                </ItemDetailProvider>
+                {/* The tab strip swaps the field tree only: the second
+                    query's picker takes the tree's place while the rest of
+                    the panel stays put. */}
+                {showQueryBTree ? (
+                    <QueryBTree />
+                ) : (
+                    <ItemDetailProvider>
+                        <ExploreTree
+                            explore={explore}
+                            onSelectedFieldChange={toggleActiveField}
+                        />
+                    </ItemDetailProvider>
+                )}
 
                 {isEditVirtualViewOpen && (
                     <EditVirtualViewModal
