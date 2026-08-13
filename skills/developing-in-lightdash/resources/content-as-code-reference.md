@@ -8,19 +8,19 @@ Content as code has two separate scopes. A project command never includes organi
 
 ### Project resources
 
-| Resource | Default download | Include explicitly | Location |
-|----------|------------------|--------------------|----------|
-| Spaces and access | Yes | `--spaces-only` for only spaces | `spaces/**/*.space.yml` |
-| Charts | Yes | `--charts <slugs...>` to filter | `charts/**/*.yml` |
-| SQL charts | Yes, with charts | Selected through `--charts` | `charts/**/*.sql.yml` |
-| Dashboards | Yes | `--dashboards <slugs...>` to filter | `dashboards/**/*.yml` |
-| Virtual views | No | `--include-virtual-views` or `--include-all` | `virtual-views/*.yml` |
-| AI agents | No | `--include-agents` or `--include-all` | `ai-agents/**/*.yml` |
-| Alerts | No | `--include-alerts` or `--include-all` | `alerts/**/*.yml` |
-| Scheduled deliveries | No | `--include-scheduled-deliveries` or `--include-all` | `scheduled-deliveries/**/*.yml` |
-| Google Sheets syncs | No | `--include-google-sheets` or `--include-all` | `google-sheets/**/*.yml` |
-| External connections | No | `--include-external-connections`, `--external-connections <slugs...>`, or `--include-all` | `external-connections/*.yml` |
-| Data apps | No | `--apps <refs...>` to select, `--include-apps`/`--include-all` for all, `--apps-only` | `apps/<app-folder>/` |
+| Resource             | Default download | Include explicitly                                                                        | Location                        |
+| -------------------- | ---------------- | ----------------------------------------------------------------------------------------- | ------------------------------- |
+| Spaces and access    | Yes              | `--spaces-only` for only spaces                                                           | `spaces/**/*.space.yml`         |
+| Charts               | Yes              | `--charts <slugs...>` to filter                                                           | `charts/**/*.yml`               |
+| SQL charts           | Yes, with charts | Selected through `--charts`                                                               | `charts/**/*.sql.yml`           |
+| Dashboards           | Yes              | `--dashboards <slugs...>` to filter                                                       | `dashboards/**/*.yml`           |
+| Virtual views        | No               | `--include-virtual-views` or `--include-all`                                              | `virtual-views/*.yml`           |
+| AI agents            | No               | `--include-agents` or `--include-all`                                                     | `ai-agents/**/*.yml`            |
+| Alerts               | No               | `--include-alerts` or `--include-all`                                                     | `alerts/**/*.yml`               |
+| Scheduled deliveries | No               | `--include-scheduled-deliveries` or `--include-all`                                       | `scheduled-deliveries/**/*.yml` |
+| Google Sheets syncs  | No               | `--include-google-sheets` or `--include-all`                                              | `google-sheets/**/*.yml`        |
+| External connections | No               | `--include-external-connections`, `--external-connections <slugs...>`, or `--include-all` | `external-connections/*.yml`    |
+| Data apps            | No               | `--apps <refs...>` to select, `--include-apps`/`--include-all` for all, `--apps-only`     | `apps/<app-folder>/`            |
 
 `--include-all` requests every optional project resource available to the caller. Data apps are multi-file bundles rather than YAML resources and are opt-in for both download and upload — see [Data Apps](#data-apps-enterprise) for the selection flags and how they combine.
 
@@ -32,12 +32,12 @@ Downloads reuse an existing managed path when the document at that path has the 
 
 `lightdash download --organization` downloads all supported resources for the authenticated user's organization:
 
-| Resource | Identity | Location |
-|----------|----------|----------|
-| Custom roles | Role name | `custom-roles/*.yml` |
-| Users | Case-insensitive email | `users/*.yml` |
-| Groups and memberships | Group name | `groups/*.yml` |
-| Data App themes | Immutable theme slug | `themes/<slug>/` |
+| Resource               | Identity               | Location             |
+| ---------------------- | ---------------------- | -------------------- |
+| Custom roles           | Role name              | `custom-roles/*.yml` |
+| Users                  | Case-insensitive email | `users/*.yml`        |
+| Groups and memberships | Group name             | `groups/*.yml`       |
+| Data App themes        | Immutable theme slug   | `themes/<slug>/`     |
 
 Organization upload applies resources in dependency order:
 
@@ -66,7 +66,7 @@ lightdash download --apps revenue-explorer --path ./lightdash
 lightdash upload --apps revenue-explorer --path ./lightdash
 ```
 
-**Never combine `--apps <refs...>` with `--include-apps` to "scope" a download.** `--include-apps` is not a gate that enables `--apps`; it always requests the full project app listing. `lightdash download --apps <uuid> --include-apps` downloads every app in the project *plus* the listed reference — the opposite of a single-app download.
+**Never combine `--apps <refs...>` with `--include-apps` to "scope" a download.** `--include-apps` is not a gate that enables `--apps`; it always requests the full project app listing. `lightdash download --apps <uuid> --include-apps` downloads every app in the project _plus_ the listed reference — the opposite of a single-app download.
 
 Upload-only flags:
 
@@ -85,19 +85,19 @@ Each connection is one document in `external-connections/<slug>.yml`:
 
 ```yaml
 allowedContentTypes:
-  - application/json
+    - application/json
 allowedMethods:
-  - GET
-  - POST
+    - GET
+    - POST
 allowedPathPrefixes:
-  - /v1/
+    - /v1/
 apiKeyLocation: header # header | query; only for authType api_key
 apiKeyName: Authorization
 authType: api_key # none | api_key | bearer_token | google_service_account
 contentType: external_connection
 customHeaders: null # static non-secret headers, e.g. anthropic-version
 instructions: | # freeform usage guidance injected into app generation
-  Use /v1/charges for payments. Paginate with starting_after.
+    Use /v1/charges for payments. Paginate with starting_after.
 name: Stripe API
 oauthScopes: null # only for authType google_service_account
 origin: https://api.stripe.com # https, bare host, no path
@@ -130,8 +130,8 @@ The app↔connection link (the `alias` an app's `externalFetch('<alias>', …)` 
 
 ```yaml
 externalConnections:
-  - alias: stripe
-    connectionSlug: stripe-api
+    - alias: stripe
+      connectionSlug: stripe-api
 ```
 
 Semantics on app upload:
@@ -158,7 +158,7 @@ To wire a data app to a new API, an agent can author the config directly instead
 Content as code does not manage:
 
 - dbt or Lightdash semantic-layer models, metrics, dimensions, or joins; use `lightdash deploy`;
-- warehouse credentials, secrets, or external-service authentication — external connection *configs* are managed, but their secrets travel only through environment variables at upload time (see [External Connections](#external-connections-enterprise));
+- warehouse credentials, secrets, or external-service authentication — external connection _configs_ are managed, but their secrets travel only through environment variables at upload time (see [External Connections](#external-connections-enterprise));
 - general project and organization settings outside the registered resources;
 - theme deletion or default-theme selection; use the Lightdash UI;
 - every data app when the project contains more than the configured apps limit;
