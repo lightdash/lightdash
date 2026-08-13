@@ -32,7 +32,7 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: 'pnpm-lock.yaml'
       - name: Install packages
-        run: pnpm install --config.minimumReleaseAge=0 --frozen-lockfile --prefer-offline --network-concurrency=16
+        run: pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
       - name: Generate backend API artifacts
         run: pnpm generate-api:backend
       - name: Build all packages
@@ -84,7 +84,7 @@ jobs:
         run: npm install -g npm@12.0.1
 
       - name: Install dependencies
-        run: pnpm install --config.minimumReleaseAge=0 --frozen-lockfile --prefer-offline --prod=false --network-concurrency=16
+        run: pnpm install --frozen-lockfile --prefer-offline --prod=false --network-concurrency=16
 
       # PROD-8359: install oasdiff so the release-safety marker generator can diff
       # the REST API (swagger.json) between the previous tag and HEAD for breaking
@@ -159,7 +159,7 @@ jobs:
           cache-dependency-path: 'pnpm-lock.yaml'
 
       - name: Install dependencies
-        run: pnpm install --config.minimumReleaseAge=0 --frozen-lockfile --prefer-offline --prod=false --network-concurrency=16
+        run: pnpm install --frozen-lockfile --prefer-offline --prod=false --network-concurrency=16
 
       - name: Generate backend API artifacts
         run: pnpm generate-api:backend
