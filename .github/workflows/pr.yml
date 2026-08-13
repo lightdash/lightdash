@@ -136,6 +136,11 @@ jobs:
           cache-dependency-path: "pnpm-lock.yaml"
       - name: Install packages
         run: sfw pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
+      # sfw can exit 0 with a partial tree; this relinks it with an honest exit code. CI= is
+      # load-bearing: under CI=true pnpm trusts its state file and skips the filesystem check,
+      # so a missing .bin would not be repaired (SPK-981).
+      - name: Repair install without sfw
+        run: CI= pnpm install --frozen-lockfile --prefer-offline
       - name: Build
         run: pnpm build
       - name: Run quality checks in parallel
@@ -181,6 +186,11 @@ jobs:
           cache-dependency-path: "pnpm-lock.yaml"
       - name: Install packages
         run: sfw pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
+      # sfw can exit 0 with a partial tree; this relinks it with an honest exit code. CI= is
+      # load-bearing: under CI=true pnpm trusts its state file and skips the filesystem check,
+      # so a missing .bin would not be repaired (SPK-981).
+      - name: Repair install without sfw
+        run: CI= pnpm install --frozen-lockfile --prefer-offline
       - name: Build SDK bundle
         run: pnpm sdk-build
       - name: Check SDK bundle is CSP-safe
@@ -241,6 +251,10 @@ jobs:
       - name: Generate base OpenAPI schema
         run: |
           sfw pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
+          # sfw can exit 0 with a partial tree; this relinks it with an honest exit code. CI= is
+          # load-bearing: under CI=true pnpm trusts its state file and skips the filesystem check,
+          # so a missing .bin would not be repaired (SPK-981).
+          CI= pnpm install --frozen-lockfile --prefer-offline
           pnpm generate-api
           cp packages/backend/src/generated/swagger.json /tmp/base-swagger.json
       - name: Checkout PR
@@ -248,6 +262,10 @@ jobs:
       - name: Generate PR OpenAPI schema
         run: |
           sfw pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
+          # sfw can exit 0 with a partial tree; this relinks it with an honest exit code. CI= is
+          # load-bearing: under CI=true pnpm trusts its state file and skips the filesystem check,
+          # so a missing .bin would not be repaired (SPK-981).
+          CI= pnpm install --frozen-lockfile --prefer-offline
           pnpm generate-api
       - name: Check for OpenAPI breaking changes
         if: ${{ !contains(github.event.pull_request.body, 'allow-api-breaking-change') }}
@@ -556,6 +574,11 @@ jobs:
           cache-dependency-path: "pnpm-lock.yaml"
       - name: Install packages
         run: sfw pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
+      # sfw can exit 0 with a partial tree; this relinks it with an honest exit code. CI= is
+      # load-bearing: under CI=true pnpm trusts its state file and skips the filesystem check,
+      # so a missing .bin would not be repaired (SPK-981).
+      - name: Repair install without sfw
+        run: CI= pnpm install --frozen-lockfile --prefer-offline
       - name: Build packages/common module
         run: pnpm common-build
       - name: Create BigQuery credentials file

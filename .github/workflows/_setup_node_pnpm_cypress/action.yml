@@ -26,6 +26,12 @@ runs:
         - name: Install Dependencies
           run: sfw pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
           shell: bash
+        # sfw can exit 0 with a partial tree; this relinks it with an honest exit code. CI= is
+        # load-bearing: under CI=true pnpm trusts its state file and skips the filesystem check,
+        # so a missing .bin would not be repaired (SPK-981).
+        - name: Repair install without sfw
+          shell: bash
+          run: CI= pnpm install --frozen-lockfile --prefer-offline
 
         - name: Install Cypress
           run: sfw pnpm exec cypress install

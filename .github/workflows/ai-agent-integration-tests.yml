@@ -56,6 +56,11 @@ jobs:
 
             - name: Install packages
               run: sfw pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
+            # sfw can exit 0 with a partial tree; this relinks it with an honest exit code. CI= is
+            # load-bearing: under CI=true pnpm trusts its state file and skips the filesystem check,
+            # so a missing .bin would not be repaired (SPK-981).
+            - name: Repair install without sfw
+              run: CI= pnpm install --frozen-lockfile --prefer-offline
 
             - name: Build common
               run: pnpm common-build

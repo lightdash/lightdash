@@ -101,10 +101,22 @@ jobs:
       - name: Install root deps
         if: steps.plan.outputs.action == 'build' && inputs.install_root_deps
         run: sfw pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
+      # sfw can exit 0 with a partial tree; this relinks it with an honest exit code. CI= is
+      # load-bearing: under CI=true pnpm trusts its state file and skips the filesystem check,
+      # so a missing .bin would not be repaired (SPK-981).
+      - name: Repair root install without sfw
+        if: steps.plan.outputs.action == 'build' && inputs.install_root_deps
+        run: CI= pnpm install --frozen-lockfile --prefer-offline
 
       - name: Install sandbox deps
         working-directory: ${{ inputs.template_directory }}
         run: sfw pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
+      # sfw can exit 0 with a partial tree; this relinks it with an honest exit code. CI= is
+      # load-bearing: under CI=true pnpm trusts its state file and skips the filesystem check,
+      # so a missing .bin would not be repaired (SPK-981).
+      - name: Repair sandbox install without sfw
+        working-directory: ${{ inputs.template_directory }}
+        run: CI= pnpm install --frozen-lockfile --prefer-offline
 
       - name: Build and publish template
         if: steps.plan.outputs.action == 'build'
