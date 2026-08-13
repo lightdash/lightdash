@@ -1,3 +1,16 @@
+# [1.145.0](https://github.com/lightdash/lightdash/compare/1.144.3...1.145.0) (2026-08-13)
+
+
+### Bug Fixes
+
+* **data-apps:** resolve full credential chain in app preview router ([#27295](https://github.com/lightdash/lightdash/issues/27295)) ([6c9c292](https://github.com/lightdash/lightdash/commit/6c9c2923173d60c1c6f02181848178dc5e6d935a))
+* **data-apps:** verify chart type bundles server-side ([#27294](https://github.com/lightdash/lightdash/issues/27294)) ([99d8337](https://github.com/lightdash/lightdash/commit/99d8337e7607f50a7fb9bf668a08a62a4a7cedff))
+
+
+### Features
+
+* merge query engine — compose two semantic queries into one result set ([#27196](https://github.com/lightdash/lightdash/issues/27196)) ([4646fdb](https://github.com/lightdash/lightdash/commit/4646fdb2015ecf3bb5947822d191703bf2d21bb3))
+
 ## [1.144.3](https://github.com/lightdash/lightdash/compare/1.144.2...1.144.3) (2026-08-13)
 
 
