@@ -16,11 +16,11 @@ The loop is:
 
 ## Copy the workflow
 
-Copy [`template-workflow.yml`](./template-workflow.yml) to `.github/workflows/lightdash-upgrade.yml` in the repository that owns the deployment pin. Change the `Deploy Lightdash` workflow name under `workflow_run` to the exact `name:` of the workflow that deploys the default branch.
+Copy [`template-workflow.yml`](./template-workflow.yml) to `.github/workflows/lightdash-upgrade.yml` in the repository that owns the deployment pin. Change the `Deploy Lightdash` workflow name under `workflow_run` to the exact `name:` of the workflow that deploys the default branch. Copy [`template-freeze-workflow.yml`](./template-freeze-workflow.yml) to `.github/workflows/lightdash-upgrade-freeze.yml` to provide the recommended dispatch-based pause and resume path.
 
 The template polls hourly, can be run manually, and accepts a `repository_dispatch` event of type `lightdash-release`. These are detection mechanisms only: each new release is considered as soon as a trigger observes it, with no upgrade window or veto delay. The template also listens for freeze-label changes and issue close/reopen events so it can announce freeze transitions.
 
-The plan, verify, and freeze-announcement jobs call reusable composite actions from this repository. Replace all three `REPLACE_WITH_LIGHTDASH_COMMIT_SHA` placeholders with the same reviewed full commit SHA that contains this directory. Keeping the actions immutable is important because the jobs receive repository-write credentials and the optional Slack secret.
+The plan, verify, and freeze-announcement jobs call reusable composite actions from this repository. Replace all three `REPLACE_WITH_LIGHTDASH_COMMIT_SHA` placeholders with the same reviewed full commit SHA that contains this directory. Replace the placeholder in the freeze workflow with that same pinned SHA before using it. Keeping these references immutable is important because the workflows receive repository-write credentials and the optional Slack secret.
 
 The plan action creates the pin commit through the GitHub API, so GitHub verifies the commit and it satisfies rulesets that require signed commits. Because the action does not use Git to push, its consumer checkout should set `persist-credentials: false`.
 
@@ -84,7 +84,7 @@ The CLI is exactly pinned and its complete dependency tree is locked in `cli/pac
 
 ## Freeze and recovery
 
-To disarm upgrades manually, open an issue with the configured freeze label. The first planning job detects it before checkout and exits without a pull request or other side effect. When that issue becomes the only open freeze-labelled issue, the issue-event announcer posts one `[upgrade-freeze-on]` Slack message saying that automated Lightdash upgrades are paused and that closing the issue resumes them. The first active freeze issue is the pause transition; additional labelled issues do not announce another pause.
+Use the copied freeze workflow's `freeze` dispatch to pause upgrades and its `unfreeze` dispatch to resume them. The workflow creates or closes freeze-labelled issues but posts no Slack messages itself. Announcements come from the PR 1 issue-event announcer in the main upgrade workflow. Manual issue authoring remains supported: open an issue with the configured freeze label to disarm upgrades. The first planning job detects it before checkout and exits without a pull request or other side effect. When that issue becomes the only open freeze-labelled issue, the issue-event announcer posts one `[upgrade-freeze-on]` Slack message saying that automated Lightdash upgrades are paused and that closing the issue resumes them. The first active freeze issue is the pause transition; additional labelled issues do not announce another pause.
 
 Verification failure creates the same kind of issue automatically, with the auto-freeze sentinel in its body. Investigate the linked deployment run and the recorded readiness reason, restore the deployment forward, and confirm that `readyz` is 200 with three stable version matches. Close or unlabel every open freeze-labelled issue to re-arm planning; when the count reaches zero, the announcer posts one `[upgrade-freeze-off]` Slack message that automated Lightdash upgrades are resumed. The next scheduled or manual run resumes from the version currently pinned in the default branch.
 
