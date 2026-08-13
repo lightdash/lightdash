@@ -3,6 +3,12 @@ name: Release to DockerHub, GCP, Homebrew
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish
+        required: true
+        type: string
 
 permissions:
   id-token: write
@@ -18,6 +24,7 @@ jobs:
   # ============================================================================
   build-and-push-images:
     name: Build and Push Images
+    if: github.event_name == 'release'
     runs-on: depot-ubuntu-24.04-4
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -126,6 +133,7 @@ jobs:
   # ============================================================================
   qa-blast-radius:
     name: Generate QA Blast Radius
+    if: github.event_name == 'release'
     runs-on: ubuntu-latest
     continue-on-error: true
     permissions:
@@ -180,6 +188,7 @@ jobs:
   # ============================================================================
   check-cli-changes:
     name: Check if CLI files changed
+    if: github.event_name == 'release'
     runs-on: depot-ubuntu-24.04-4
     outputs:
       should_build: ${{ steps.check.outputs.should_build }}
@@ -229,7 +238,7 @@ jobs:
   build-macos-binaries:
     name: Build macOS CLI Binaries
     needs: check-cli-changes
-    if: needs.check-cli-changes.outputs.should_build == 'true'
+    if: github.event_name == 'release' && needs.check-cli-changes.outputs.should_build == 'true'
     runs-on: macos-latest
     permissions:
       contents: write
@@ -381,6 +390,7 @@ jobs:
   update-homebrew-formula:
     name: Update Homebrew Formula
     needs: build-macos-binaries
+    if: github.event_name == 'release'
     runs-on: depot-ubuntu-24.04-4
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -488,6 +498,7 @@ jobs:
   update-helm-chart:
     name: Update Helm Chart Version
     needs: build-and-push-images
+    if: github.event_name == 'release'
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
@@ -545,6 +556,7 @@ jobs:
   # ============================================================================
   e2b-templates:
     name: Publish ${{ matrix.template.display_name }} (${{ matrix.region }})
+    if: github.event_name == 'release'
     strategy:
       fail-fast: false
       matrix:
@@ -608,3 +620,47 @@ jobs:
       e2b_domain: ${{ matrix.region == 'eu' && 'e2b-juliett.dev' || '' }}
     secrets:
       e2b_api_key: ${{ matrix.region == 'eu' && secrets.E2B_API_KEY_EU || secrets.E2B_API_KEY }}
+
+  publish-npm-packages:
+    name: Publish npm Packages
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+
+      - name: Setup Socket Firewall
+        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+          firewall-version: 1.15.0
+
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
+      - name: Install dependencies
+        run: sfw pnpm install --frozen-lockfile --prefer-offline --prod=false --network-concurrency=16
+
+      - name: Generate backend API artifacts
+        run: pnpm generate-api:backend
+
+      - name: Build published packages
+        run: pnpm build-published-packages
+
+      - name: Publish npm packages
+        run: pnpm release-packages
