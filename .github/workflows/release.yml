@@ -44,7 +44,9 @@ jobs:
     # environment", run 31724064116).
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: build-and-test
+    # Deliberately no `needs: build-and-test`: a broken build aborts
+    # semantic-release during prepare, before the git plugin pushes the
+    # chore commit/tag, so gating on the build only adds serial latency.
     concurrency: ${{ github.ref }}
     permissions:
       contents: read
