@@ -440,6 +440,17 @@ function gitNameStatus(range: string, dirs: readonly string[]): GitChange[] {
     return changes;
 }
 
+function isResolvableGitRef(ref: string): boolean {
+    try {
+        execFileSync('git', ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], {
+            stdio: 'ignore',
+        });
+        return true;
+    } catch {
+        return false;
+    }
+}
+
 export function declarationSourcePaths(changes: GitChange[]): string[] {
     return changes
         .filter(
@@ -490,24 +501,33 @@ export async function generateReleaseSafety(
     let declarationPaths: string[] = [];
     if (args.lastTag) {
         const range = `${args.lastTag}..${args.toRef}`;
-        const changes = gitNameStatus(range, MIGRATION_DIRS);
-        declarationPaths = declarationSourcePaths(
-            gitNameStatus(range, DECLARATION_DIRS),
+        const unresolvableRefs = [args.lastTag, args.toRef].filter(
+            (ref) => !isResolvableGitRef(ref),
         );
-        migrations = detectMigrations(changes);
-        migrationPaths = changes
-            .filter(
-                (change) =>
-                    change.status.startsWith('A') &&
-                    MIGRATION_FILENAME_RE.test(path.basename(change.path)),
-            )
-            .map((change) => change.path)
-            .sort();
-        if (migrations.deletedHistorical.length > 0) {
+        if (unresolvableRefs.length > 0) {
             console.warn(
-                `[release-safety] WARNING: historical migrations deleted in ${range}: ` +
-                    migrations.deletedHistorical.join(', '),
+                `[release-safety] WARNING: cannot resolve migration diff ref(s) ${unresolvableRefs.join(', ')}; emitting migrations.present="unknown"`,
             );
+        } else {
+            const changes = gitNameStatus(range, MIGRATION_DIRS);
+            declarationPaths = declarationSourcePaths(
+                gitNameStatus(range, DECLARATION_DIRS),
+            );
+            migrations = detectMigrations(changes);
+            migrationPaths = changes
+                .filter(
+                    (change) =>
+                        change.status.startsWith('A') &&
+                        MIGRATION_FILENAME_RE.test(path.basename(change.path)),
+                )
+                .map((change) => change.path)
+                .sort();
+            if (migrations.deletedHistorical.length > 0) {
+                console.warn(
+                    `[release-safety] WARNING: historical migrations deleted in ${range}: ` +
+                        migrations.deletedHistorical.join(', '),
+                );
+            }
         }
     } else {
         console.warn(
@@ -834,5 +854,6 @@ if (invokedDirectly) {
             }
         }
         console.log(json);
+        process.exitCode = 1;
     });
 }
