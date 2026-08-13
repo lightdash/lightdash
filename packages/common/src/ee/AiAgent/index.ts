@@ -672,6 +672,8 @@ export type ApiConnectGithubMcpServerBody = {
 export type AiMcpGithubConnectMode = 'github_app' | 'pat';
 
 export type AiMcpGithubAvailability = {
+    /** @deprecated Use availableModes */
+    available: boolean;
     availableModes: AiMcpGithubConnectMode[];
     // A GitHub MCP server (matching GITHUB_MCP_SERVER_URL) already exists for
     // this project and is usable by the caller.

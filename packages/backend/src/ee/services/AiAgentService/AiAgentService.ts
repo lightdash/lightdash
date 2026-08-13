@@ -4209,6 +4209,7 @@ export class AiAgentService extends BaseService {
         projectUuid: string,
     ): Promise<AiMcpGithubAvailability> {
         const unavailable: AiMcpGithubAvailability = {
+            available: false,
             availableModes: [],
             alreadyConnected: false,
             hasGithubAppInstallation: false,
@@ -4272,7 +4273,12 @@ export class AiAgentService extends BaseService {
                         user.userUuid,
                     ))));
 
-        return { availableModes, alreadyConnected, hasGithubAppInstallation };
+        return {
+            available: availableModes.length > 0,
+            availableModes,
+            alreadyConnected,
+            hasGithubAppInstallation,
+        };
     }
 
     public async connectGithubMcpServer(
