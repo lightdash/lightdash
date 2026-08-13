@@ -1097,6 +1097,7 @@ export type ExplorePostProcessor = (
     context: {
         model: DbtModelNode;
         meta: Record<string, unknown>;
+        startOfWeek: WeekDay | null;
     },
 ) => (Explore | ExploreError)[];
 
@@ -1433,6 +1434,7 @@ export const convertExplores = async (
         const postProcessorContext = {
             model,
             meta,
+            startOfWeek: warehouseSqlBuilder.getStartOfWeek() ?? null,
         };
         const postProcessedExplores = (postProcessors ?? []).reduce<
             (Explore | ExploreError)[]
