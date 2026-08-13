@@ -19,7 +19,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: lightdash-upgrade-${{ github.repository }}
+  group: lightdash-upgrade-${{ github.repository }}-plan
   cancel-in-progress: false
 
 env:

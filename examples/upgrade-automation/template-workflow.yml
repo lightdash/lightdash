@@ -22,7 +22,11 @@ on:
 permissions: {}
 
 concurrency:
-  group: lightdash-upgrade-${{ github.repository }}
+  group: >-
+    lightdash-upgrade-${{ github.repository }}-${{
+    github.event_name == 'workflow_run' && 'verify'
+    || github.event_name == 'issues' && 'freeze-announce'
+    || 'plan' }}
   cancel-in-progress: false
 
 env:
