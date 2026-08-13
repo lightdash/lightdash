@@ -48,7 +48,7 @@ describe('funnel series', () => {
         );
     });
 
-    test("ECharts re-orders by value without the `sort` option, which is why it is set", () => {
+    test('ECharts re-orders by value without the `sort` option, which is why it is set', () => {
         // Guards the fix: if `sort` is dropped from the defaults, the test
         // above starts matching this order instead.
         expect(renderedStepOrder({ type: 'funnel' })).toEqual([
