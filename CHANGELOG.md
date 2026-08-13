@@ -1,3 +1,17 @@
+# [1.149.0](https://github.com/lightdash/lightdash/compare/1.148.0...1.149.0) (2026-08-13)
+
+
+### Bug Fixes
+
+* restore backend hot reloading on Node 24 ([#27339](https://github.com/lightdash/lightdash/issues/27339)) ([ff8759c](https://github.com/lightdash/lightdash/commit/ff8759c0ba57046944f4e305c29f9b9277f4d2ca))
+
+
+### Features
+
+* **ai:** disable GitHub MCP personal access tokens by default ([#27319](https://github.com/lightdash/lightdash/issues/27319)) ([1e511de](https://github.com/lightdash/lightdash/commit/1e511deff6fbdf33cd65fc04e16b5ed59c649660))
+* **ci:** add merge-freeze dispatch to hold main while a release is cut ([#27337](https://github.com/lightdash/lightdash/issues/27337)) ([c5d4a74](https://github.com/lightdash/lightdash/commit/c5d4a740c56ab86aa9897288571d5afef4cf5595))
+* **ci:** announce merge freezes in #engineering ([#27342](https://github.com/lightdash/lightdash/issues/27342)) ([87f2e4b](https://github.com/lightdash/lightdash/commit/87f2e4bdb7a8bc6e16a9049d47b9e6923ad71c38))
+
 # [1.148.0](https://github.com/lightdash/lightdash/compare/1.147.0...1.148.0) (2026-08-13)
 
 

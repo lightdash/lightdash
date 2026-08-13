@@ -20936,16 +20936,35 @@
                 "required": ["bearerToken"],
                 "type": "object"
             },
+            "AiMcpGithubConnectMode": {
+                "type": "string",
+                "enum": ["github_app", "pat"]
+            },
             "AiMcpGithubAvailability": {
                 "properties": {
+                    "hasGithubAppInstallation": {
+                        "type": "boolean"
+                    },
                     "alreadyConnected": {
                         "type": "boolean"
                     },
+                    "availableModes": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiMcpGithubConnectMode"
+                        },
+                        "type": "array"
+                    },
                     "available": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "deprecated": true
                     }
                 },
-                "required": ["alreadyConnected", "available"],
+                "required": [
+                    "hasGithubAppInstallation",
+                    "alreadyConnected",
+                    "availableModes",
+                    "available"
+                ],
                 "type": "object"
             },
             "ApiSuccess_AiMcpGithubAvailability_": {
@@ -53431,7 +53450,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.148.0",
+        "version": "1.149.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -59589,6 +59608,44 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/mcpServers/github/connect-app": {
+            "post": {
+                "operationId": "connectGithubMcpServerApp",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiMcpServerResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/aiAgents/mcpServers/{mcpServerUuid}/tools": {
