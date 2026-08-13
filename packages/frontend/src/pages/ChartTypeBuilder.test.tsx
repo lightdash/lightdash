@@ -128,33 +128,35 @@ const setApp = (meta: AppMeta | null, error: unknown = null) =>
         error,
     } as unknown as ReturnType<typeof useGetApp>);
 
+const builderRoutes = (path: string) => (
+    <MemoryRouter initialEntries={[path]}>
+        <Routes>
+            <Route
+                path="/projects/:projectUuid/chart-types/new"
+                element={<ChartTypeBuilder />}
+            />
+            <Route
+                path="/projects/:projectUuid/chart-types/:dataAppVizUuid"
+                element={<ChartTypeBuilder />}
+            />
+            <Route
+                path="/projects/:projectUuid/gallery"
+                element={<div>gallery</div>}
+            />
+            <Route
+                path="/projects/:projectUuid/home"
+                element={<div>home</div>}
+            />
+            <Route
+                path="/projects/:projectUuid/apps/:appUuid"
+                element={<div>app-builder</div>}
+            />
+        </Routes>
+    </MemoryRouter>
+);
+
 const renderBuilder = (path: string) =>
-    renderWithProviders(
-        <MemoryRouter initialEntries={[path]}>
-            <Routes>
-                <Route
-                    path="/projects/:projectUuid/chart-types/new"
-                    element={<ChartTypeBuilder />}
-                />
-                <Route
-                    path="/projects/:projectUuid/chart-types/:dataAppVizUuid"
-                    element={<ChartTypeBuilder />}
-                />
-                <Route
-                    path="/projects/:projectUuid/gallery"
-                    element={<div>gallery</div>}
-                />
-                <Route
-                    path="/projects/:projectUuid/home"
-                    element={<div>home</div>}
-                />
-                <Route
-                    path="/projects/:projectUuid/apps/:appUuid"
-                    element={<div>app-builder</div>}
-                />
-            </Routes>
-        </MemoryRouter>,
-    );
+    renderWithProviders(builderRoutes(path));
 
 describe('ChartTypeBuilder', () => {
     beforeEach(() => {
@@ -304,7 +306,7 @@ describe('ChartTypeBuilder', () => {
         // The edit route re-renders with the uuid param; its useGetApp stub
         // has no data, so the header stays bare.
         expect(
-            screen.getByPlaceholderText('Building your chart type…'),
+            screen.getByPlaceholderText('Ask for another change…'),
         ).toBeInTheDocument();
         // First build: the skeleton state echoes what was asked for.
         expect(
@@ -313,6 +315,32 @@ describe('ChartTypeBuilder', () => {
         expect(
             screen.getByText('“a stream graph of category share”'),
         ).toBeInTheDocument();
+    });
+
+    it('keeps a drafted follow-up when the create route adopts the app', () => {
+        let currentBuild = buildStub({
+            isBuilding: true,
+            pendingPrompt: 'a stream graph of category share',
+        });
+        vi.mocked(useDataAppVizBuild).mockImplementation(() => currentBuild);
+        const view = renderBuilder('/projects/p1/chart-types/new');
+        const composer = screen.getByPlaceholderText('Ask for another change…');
+        fireEvent.change(composer, {
+            target: { value: 'make the target markers red' },
+        });
+
+        currentBuild = buildStub({
+            draftAppUuid: 'draft-app-2',
+            isBuilding: true,
+            appUuid: '1e9a3b2c-0000-4000-8000-000000000009',
+            claimedVersion: 1,
+            pendingPrompt: 'a stream graph of category share',
+        });
+        view.rerender(builderRoutes('/projects/p1/chart-types/new'));
+
+        expect(
+            screen.getByPlaceholderText('Ask for another change…'),
+        ).toHaveValue('make the target markers red');
     });
 
     it('keeps the previous version dimmed under the pill while rebuilding', () => {
@@ -341,7 +369,7 @@ describe('ChartTypeBuilder', () => {
         expect(screen.getByText('“make the bars teal”')).toBeInTheDocument();
     });
 
-    it('closes the composer while the first version builds', () => {
+    it('keeps the composer editable while the first version builds', () => {
         // The in-progress v1 is already in history; "has versions" is not the signal.
         vi.mocked(useAppVersionHistory).mockReturnValue(
             historyStub([appVersion({ version: 1, status: 'building' })], null),
@@ -359,10 +387,9 @@ describe('ChartTypeBuilder', () => {
             '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
         );
 
-        expect(screen.queryByPlaceholderText('Ask for a change…')).toBeNull();
         expect(
-            screen.getByPlaceholderText('Building your chart type…'),
-        ).toBeDisabled();
+            screen.getByPlaceholderText('Ask for another change…'),
+        ).toBeEnabled();
     });
 
     it('renders the current version and lists its history on demand', () => {
