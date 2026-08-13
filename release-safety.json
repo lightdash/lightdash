@@ -1,28 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "1.145.0",
-  "previousVersion": "1.144.3",
-  "releaseDate": "2026-08-13T02:15:01.068Z",
+  "version": "1.146.0",
+  "previousVersion": "1.145.0",
+  "releaseDate": "2026-08-13T02:35:51.019Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260812230500_create_saved_query_version_merges.ts",
-        "edition": "core",
-        "tables": [
-          "saved_queries_version_merges",
-          "saved_queries_versions"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

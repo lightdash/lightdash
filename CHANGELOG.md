@@ -1,3 +1,10 @@
+# [1.146.0](https://github.com/lightdash/lightdash/compare/1.145.0...1.146.0) (2026-08-13)
+
+
+### Features
+
+* **explorer:** add merge query UI ([#27205](https://github.com/lightdash/lightdash/issues/27205)) ([03b3b0c](https://github.com/lightdash/lightdash/commit/03b3b0c6de78e222201246404e21c7fb57100624))
+
 # [1.145.0](https://github.com/lightdash/lightdash/compare/1.144.3...1.145.0) (2026-08-13)
 
 
