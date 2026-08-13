@@ -154,10 +154,16 @@ export type UnboundedRerunFromQueryHistoryResult =
 
 export type PreAggregationRouteMode = 'required' | 'opportunistic';
 
+// duckdb = managed materialization via the DuckDB client override;
+// project_warehouse = external pre-aggregate on the normal project client
+export type PreAggregateExecutionEngine = 'duckdb' | 'project_warehouse';
+
 export type PreAggregationRoute = {
     sourceExploreName: string;
     preAggregateName: string;
     mode: PreAggregationRouteMode;
+    // Present ⇒ external pre-aggregate served from this table on the project warehouse
+    externalTable?: string;
 };
 
 export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
@@ -261,4 +267,5 @@ export type RunAsyncPreAggregateQueryArgs = Omit<
 > & {
     preAggregateQuery: string;
     warehouseQuery: string;
+    preAggregateExecution: PreAggregateExecutionEngine;
 };

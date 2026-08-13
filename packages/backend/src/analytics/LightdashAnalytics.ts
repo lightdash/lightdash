@@ -416,7 +416,10 @@ type QueryExecutionEvent = BaseTrack & {
     );
 };
 
-type QueryExecutionSource = 'warehouse' | 'pre_aggregate_duckdb';
+type QueryExecutionSource =
+    | 'warehouse'
+    | 'pre_aggregate_duckdb'
+    | 'pre_aggregate_warehouse';
 
 type QueryReadyEvent = BaseTrack & {
     event: 'query.ready';

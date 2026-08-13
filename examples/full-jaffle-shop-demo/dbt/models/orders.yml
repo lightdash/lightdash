@@ -33,6 +33,28 @@ models:
               - total_completed_order_amount
             time_dimension: order_date
             granularity: day
+          # External pre-aggregate candidates. Enable create_external_pre_aggregate_tables
+          # in dbt_project.yml before testing them locally.
+          - name: orders_ext_daily_status
+            table: '"jaffle"."orders_ext_daily_status_mv"'
+            dimensions:
+              - status
+              - order_source
+            metrics:
+              - total_order_amount
+              - average_order_size
+            time_dimension: order_date
+            granularity: day
+          - name: orders_ext_daily_joined
+            table: '"jaffle"."orders_ext_daily_joined_mv"'
+            dimensions:
+              - status
+              - customers.first_name
+            metrics:
+              - total_order_amount
+              - total_completed_order_amount
+            time_dimension: order_date
+            granularity: day
           - name: sql_fields_daily
             dimensions:
               - status

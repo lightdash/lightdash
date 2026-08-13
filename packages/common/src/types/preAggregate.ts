@@ -46,6 +46,9 @@ export type PreAggregateDef = {
     name: string;
     dimensions: string[];
     metrics: string[];
+    // Qualified warehouse table identifier. Present ⇒ external pre-aggregate:
+    // never materialized, served from the project warehouse.
+    table?: string;
     // Omitted sorts all dimensions automatically; [] disables sorting; entries use canonical field IDs.
     sorts?: PreAggregateSort[];
     filters?: MetricFilterRule[];

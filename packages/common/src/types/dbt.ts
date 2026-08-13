@@ -137,6 +137,8 @@ export type DbtPreAggregateDef = {
     name: string;
     dimensions: string[];
     metrics: string[];
+    // Qualified warehouse table identifier. Marks the pre-aggregate as external.
+    table?: string;
     sorts?: false | PreAggregateSort[];
     filters?: Record<string, unknown>[];
     time_dimension?: string;

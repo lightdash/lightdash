@@ -2153,22 +2153,31 @@ export class ProjectService extends BaseService {
                             return;
                         }
 
+                        // External pre-aggregates are never materialized: null
+                        // metric query + null cron keep every enqueue/cron path away.
+                        const isExternal =
+                            preAggregateDefinition.table !== undefined;
+
                         let materializationMetricQuery = null;
                         let materializationQueryError = null;
 
-                        try {
-                            materializationMetricQuery =
-                                buildMaterializationMetricQuery({
-                                    sourceExplore,
-                                    preAggregateDef: preAggregateDefinition,
-                                    materializationConfig: {
-                                        maxRows:
-                                            this.lightdashConfig.preAggregates
-                                                .materializationMaxRows,
-                                    },
-                                });
-                        } catch (error) {
-                            materializationQueryError = getErrorMessage(error);
+                        if (!isExternal) {
+                            try {
+                                materializationMetricQuery =
+                                    buildMaterializationMetricQuery({
+                                        sourceExplore,
+                                        preAggregateDef: preAggregateDefinition,
+                                        materializationConfig: {
+                                            maxRows:
+                                                this.lightdashConfig
+                                                    .preAggregates
+                                                    .materializationMaxRows,
+                                        },
+                                    });
+                            } catch (error) {
+                                materializationQueryError =
+                                    getErrorMessage(error);
+                            }
                         }
 
                         definitionRows.push({
@@ -2181,8 +2190,10 @@ export class ProjectService extends BaseService {
                                 materializationMetricQuery,
                             materialization_query_error:
                                 materializationQueryError,
-                            refresh_cron:
-                                preAggregateDefinition.refresh?.cron ?? null,
+                            refresh_cron: isExternal
+                                ? null
+                                : (preAggregateDefinition.refresh?.cron ??
+                                  null),
                         });
                     },
                 );
@@ -2194,7 +2205,7 @@ export class ProjectService extends BaseService {
         );
 
         const invalidDefinitionsCount = definitionRows.filter(
-            (row) => row.materialization_metric_query === null,
+            (row) => row.materialization_query_error !== null,
         ).length;
         this.logger.info(
             `Upserted ${definitionRows.length} pre-aggregate definition registry row(s) for project ${projectUuid}`,
@@ -5921,19 +5932,25 @@ export class ProjectService extends BaseService {
         try {
             await this.getExplore(account, projectUuid, preAggExploreName);
 
-            const activeMaterialization =
-                await this.preAggregateModel.getActiveMaterialization(
-                    projectUuid,
-                    preAggExploreName,
-                );
+            // External pre-aggregates serve from their external table; no materialization required
+            const matchedDefinition = sourceExplore.preAggregates?.find(
+                (def) => def.name === matchResult.preAggregateName,
+            );
+            if (matchedDefinition?.table === undefined) {
+                const activeMaterialization =
+                    await this.preAggregateModel.getActiveMaterialization(
+                        projectUuid,
+                        preAggExploreName,
+                    );
 
-            if (!activeMaterialization) {
-                return {
-                    hit: false,
-                    reason: {
-                        reason: PreAggregateMissReason.NO_ACTIVE_MATERIALIZATION,
-                    },
-                };
+                if (!activeMaterialization) {
+                    return {
+                        hit: false,
+                        reason: {
+                            reason: PreAggregateMissReason.NO_ACTIVE_MATERIALIZATION,
+                        },
+                    };
+                }
             }
 
             return {
@@ -7923,7 +7940,9 @@ export class ProjectService extends BaseService {
 
         preAggregateDefinitions
             .filter(
-                (definition) => definition.materializationMetricQuery === null,
+                (definition) =>
+                    definition.materializationMetricQuery === null &&
+                    definition.preAggregateDefinition.table === undefined,
             )
             .forEach((definition) => {
                 this.logger.warn(
@@ -7979,6 +7998,12 @@ export class ProjectService extends BaseService {
         if (!preAggregateDefinition) {
             throw new NotFoundError(
                 `Pre-aggregate definition "${preAggregateDefinitionName}" not found`,
+            );
+        }
+
+        if (preAggregateDefinition.preAggregateDefinition.table) {
+            throw new ParameterError(
+                `Pre-aggregate "${preAggregateDefinitionName}" is external and is never materialized by Lightdash`,
             );
         }
 

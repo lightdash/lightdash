@@ -413,6 +413,73 @@ describe('buildPreAggregateExplore', () => {
         );
     });
 
+    describe('external pre-aggregates', () => {
+        const externalDef = () => ({
+            ...sourceExplore().preAggregates![0],
+            table: '"analytics"."orders_rollup_mv"',
+        });
+
+        it('bakes the external table into every sqlTable and marks the source external', () => {
+            const result = buildExplore(sourceExplore(), externalDef());
+
+            expect(result.tables.orders.sqlTable).toBe(
+                '"analytics"."orders_rollup_mv"',
+            );
+            expect(result.tables.customers.sqlTable).toBe(
+                '"analytics"."orders_rollup_mv"',
+            );
+            expect(result.preAggregateSource).toEqual({
+                sourceExploreName: 'orders',
+                preAggregateName: 'orders_rollup',
+                externalTable: '"analytics"."orders_rollup_mv"',
+            });
+        });
+
+        it('compiles average re-aggregation casts in the project warehouse dialect', () => {
+            const postgresResult = buildExplore(
+                sourceExplore(), // targetDatabase: postgres
+                externalDef(),
+            );
+            expect(
+                postgresResult.tables.orders.metrics.avg_order_amount
+                    .compiledSql,
+            ).toBe(
+                'CAST(SUM(orders.orders_avg_order_amount__sum) AS FLOAT) / CAST(NULLIF(SUM(orders.orders_avg_order_amount__count), 0) AS FLOAT)',
+            );
+
+            const bigqueryResult = buildExplore(
+                {
+                    ...sourceExplore(),
+                    targetDatabase: SupportedDbtAdapter.BIGQUERY,
+                },
+                externalDef(),
+            );
+            expect(
+                bigqueryResult.tables.orders.metrics.avg_order_amount
+                    .compiledSql,
+            ).toBe(
+                'CAST(SUM(orders.orders_avg_order_amount__sum) AS FLOAT64) / CAST(NULLIF(SUM(orders.orders_avg_order_amount__count), 0) AS FLOAT64)',
+            );
+        });
+
+        it('derives coarser grains with the project warehouse date truncation', () => {
+            const result = buildExplore(
+                {
+                    ...sourceExplore(),
+                    targetDatabase: SupportedDbtAdapter.BIGQUERY,
+                },
+                externalDef(),
+            );
+
+            // BigQuery argument order, not DuckDB's DATE_TRUNC('MONTH', x)
+            expect(
+                result.tables.orders.dimensions.order_date_month.compiledSql,
+            ).toBe(
+                'DATE_TRUNC(CAST(orders.orders_order_date_day AS TIMESTAMP), MONTH)',
+            );
+        });
+    });
+
     it('throws when pre-aggregate references unknown fields', () => {
         expect(() =>
             buildExplore(sourceExplore(), {
