@@ -1,3 +1,10 @@
+## [1.144.3](https://github.com/lightdash/lightdash/compare/1.144.2...1.144.3) (2026-08-13)
+
+
+### Bug Fixes
+
+* speed up chart type iterations and add a model picker ([#27290](https://github.com/lightdash/lightdash/issues/27290)) ([bb6c74c](https://github.com/lightdash/lightdash/commit/bb6c74c8865160cdfb2b3760cddc22dc300341da))
+
 ## [1.144.2](https://github.com/lightdash/lightdash/compare/1.144.1...1.144.2) (2026-08-12)
 
 
