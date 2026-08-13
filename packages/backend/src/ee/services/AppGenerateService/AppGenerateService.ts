@@ -189,6 +189,7 @@ import {
     type SandboxSpec,
 } from '../SandboxRuntime';
 import { assertCanViewApp as assertUserCanViewApp } from './appAuthz';
+import { getBundleServableChecker } from './appBundleStorage';
 import {
     buildManifest,
     contentTypeForPath,
@@ -2094,7 +2095,7 @@ export class AppGenerateService extends BaseService {
         version: number,
     ): Promise<number> {
         const start = performance.now();
-        const s3Key = `apps/${appUuid}/versions/${version}/source.tar`;
+        const s3Key = `${versionPrefix(appUuid, version)}source.tar`;
 
         const response = await s3Client.send(
             new GetObjectCommand({ Bucket: bucket, Key: s3Key }),
@@ -2142,7 +2143,7 @@ export class AppGenerateService extends BaseService {
         versionDeps: AppVersionDependencies,
     ): Promise<number> {
         const start = performance.now();
-        const depsPrefix = `apps/${appUuid}/versions/${version}/deps/`;
+        const depsPrefix = `${versionPrefix(appUuid, version)}deps/`;
 
         const [packageJsonBuf, lockfileBuf] = await Promise.all([
             readS3ObjectAsBuffer(s3Client, bucket, `${depsPrefix}package.json`),
@@ -3856,7 +3857,7 @@ export class AppGenerateService extends BaseService {
         sourceTar: Buffer,
     ): Promise<number> {
         const start = performance.now();
-        const s3Prefix = `apps/${appUuid}/versions/${version}`;
+        const s3Prefix = versionPrefix(appUuid, version);
 
         const [distResult] = await Promise.all([
             AppGenerateService.extractAndUploadToS3(
@@ -3869,14 +3870,14 @@ export class AppGenerateService extends BaseService {
                 .send(
                     new PutObjectCommand({
                         Bucket: bucket,
-                        Key: `${s3Prefix}/source.tar`,
+                        Key: `${s3Prefix}source.tar`,
                         Body: sourceTar,
                         ContentType: 'application/x-tar',
                     }),
                 )
                 .then(() => {
                     this.logger.debug(
-                        `App ${appUuid}: uploaded ${s3Prefix}/source.tar`,
+                        `App ${appUuid}: uploaded ${s3Prefix}source.tar`,
                     );
                 }),
         ]);
@@ -6327,8 +6328,8 @@ export class AppGenerateService extends BaseService {
         source: { appUuid: string; version: number },
         target: { appUuid: string; version: number },
     ): Promise<string[]> {
-        const sourcePrefix = `apps/${source.appUuid}/versions/${source.version}/`;
-        const destinationPrefix = `apps/${target.appUuid}/versions/${target.version}/`;
+        const sourcePrefix = versionPrefix(source.appUuid, source.version);
+        const destinationPrefix = versionPrefix(target.appUuid, target.version);
         const copiedKeys: string[] = [];
 
         let continuationToken: string | undefined;
@@ -6396,7 +6397,7 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        const sourceKey = `apps/${appUuid}/versions/${version}/source.tar`;
+        const sourceKey = `${versionPrefix(appUuid, version)}source.tar`;
         const response = await s3Client.send(
             new GetObjectCommand({ Bucket: bucket, Key: sourceKey }),
         );
@@ -7862,6 +7863,16 @@ export class AppGenerateService extends BaseService {
         return dataAppViz;
     }
 
+    private resolveVizRenderMetadata(
+        appUuid: string,
+    ): Promise<DataAppVizRenderMetadata> {
+        return resolveDataAppVizRenderMetadata(
+            this.appModel,
+            appUuid,
+            getBundleServableChecker(this.lightdashConfig.appRuntime.s3),
+        );
+    }
+
     async getDataAppVizRenderMetadata(
         user: SessionUser,
         projectUuid: string,
@@ -7872,10 +7883,7 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             dataAppVizUuid,
         );
-        return resolveDataAppVizRenderMetadata(
-            this.appModel,
-            dataAppViz.app_id,
-        );
+        return this.resolveVizRenderMetadata(dataAppViz.app_id);
     }
 
     async getDataAppVizPreviewToken(
@@ -7923,10 +7931,7 @@ export class AppGenerateService extends BaseService {
             dataAppVizUuid,
             chartVersionUuid,
         );
-        return resolveDataAppVizRenderMetadata(
-            this.appModel,
-            dataAppViz.app_id,
-        );
+        return this.resolveVizRenderMetadata(dataAppViz.app_id);
     }
 
     async getChartDataAppVizPreviewToken(
@@ -8582,7 +8587,7 @@ export class AppGenerateService extends BaseService {
                                     /^dist\//,
                                     '',
                                 );
-                                const s3Key = `${s3Prefix}/${relativePath}`;
+                                const s3Key = `${s3Prefix}${relativePath}`;
                                 const contentType =
                                     AppGenerateService.getContentType(
                                         relativePath,

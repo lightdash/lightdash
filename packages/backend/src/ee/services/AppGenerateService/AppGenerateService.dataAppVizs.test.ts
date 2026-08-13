@@ -74,6 +74,9 @@ function buildService(
         lightdashConfig: {
             lightdashSecret: 'test-secret',
             lightdashSecrets: testLightdashSecrets,
+            // No app-runtime storage configured, so the bundle-existence
+            // check fails open and metadata comes from the DB alone.
+            appRuntime: { s3: null },
         } as never,
         analytics: {} as never,
         analyticsModel: {} as never,

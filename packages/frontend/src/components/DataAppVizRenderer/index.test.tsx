@@ -25,6 +25,10 @@ const mocks = vi.hoisted(() => ({
                   latestBuildInProgress: true;
               }
             | {
+                  state: 'unavailable';
+                  latestBuildInProgress: false;
+              }
+            | {
                   state: 'failed';
                   latestBuildInProgress: false;
               }
@@ -212,6 +216,24 @@ describe('DataAppVizRenderer', () => {
         expect(
             screen.getByText('Custom chart type failed to generate.'),
         ).toBeInTheDocument();
+    });
+
+    // A version that built fine and then lost its bundle is not a build
+    // failure, and must not read like one.
+    it('distinguishes an unavailable bundle from a build failure', () => {
+        mocks.metadata.current = {
+            state: 'unavailable',
+            latestBuildInProgress: false,
+        };
+
+        renderRenderer();
+
+        expect(
+            screen.getByText('Custom chart type preview is unavailable.'),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByText('Custom chart type failed to generate.'),
+        ).not.toBeInTheDocument();
     });
 
     it.each([
