@@ -468,9 +468,24 @@ describe('runMigrateCli', () => {
         expect(manager.claim).not.toHaveBeenCalled();
     });
 
-    test('force overrides a red preflight with unmistakable warning logging', async () => {
+    test('force overrides a diverged ledger and records the override', async () => {
         const manager = leaseManager();
+        const divergedWithPending = migrationState(
+            ['002_second.ts'],
+            ['001_alien.ts'],
+            ['001_alien.ts'],
+        );
+        const divergedComplete = migrationState(
+            [],
+            ['001_alien.ts'],
+            ['001_alien.ts'],
+        );
         const command = context(manager, {
+            getMigrationState: vi
+                .fn<MigrateCliContext['getMigrationState']>()
+                .mockResolvedValueOnce(divergedWithPending)
+                .mockResolvedValueOnce(divergedWithPending)
+                .mockResolvedValue(divergedComplete),
             runPreflight: vi.fn(async () =>
                 preflightReport({
                     decision: 'force-proceed',
@@ -486,6 +501,8 @@ describe('runMigrateCli', () => {
             '!!! MIGRATION PREFLIGHT OVERRIDE ACTIVE: proceeding despite blocking checks because --force was supplied !!!',
         );
         expect(manager.claim).toHaveBeenCalledOnce();
+        expect(command.value.migrateOne).toHaveBeenCalledWith('002_second.ts');
+        expect(command.value.runGraphileMigrations).toHaveBeenCalledOnce();
     });
 
     test('status --json is read-only and accepts a database-ahead state', async () => {
