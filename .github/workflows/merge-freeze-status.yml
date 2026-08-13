@@ -2,7 +2,7 @@ name: Merge freeze status
 
 # Companion to merge-freeze.yml. That workflow stamps every PR that was already
 # open when the freeze went on; this one covers PRs opened or pushed during the
-# window, so their blocked merge carries the same reason instead of GitHub's
+# window, so their blocked merge names whoever froze it instead of GitHub's
 # bare "Expected - Waiting for status to be reported".
 #
 # Messaging only: the required status check on the main ruleset is what blocks

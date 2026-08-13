@@ -12,9 +12,9 @@ name: Merge freeze
 # while it is required the merge button is blocked for everyone without a
 # ruleset bypass. Enforcement is that rule alone - the commit statuses this
 # posts on open PRs only replace GitHub's opaque "Expected - Waiting for status
-# to be reported" with a reason. That split is the fail-safe one: if the status
-# half breaks, merges stay blocked while frozen and unblock the moment the rule
-# comes off.
+# to be reported" with the name of whoever froze it. That split is the
+# fail-safe one: if the status half breaks, merges stay blocked while frozen
+# and unblock the moment the rule comes off.
 #
 # The ruleset and variables APIs need Administration: write, which GITHUB_TOKEN
 # cannot be granted (`administration` is not a workflow permission scope), so
@@ -33,10 +33,6 @@ on:
         options:
           - freeze
           - unfreeze
-      reason:
-        description: Why - posted to #engineering, not shown on the public PR checks
-        required: false
-        type: string
 
 permissions: {}
 
@@ -210,15 +206,14 @@ jobs:
             exit 1
           fi
 
-          # This repo is public, so commit statuses are world-readable. The
-          # reason stays out of them deliberately and goes to Slack instead -
-          # "we are holding main for an escalation" is exactly the sort of
-          # sentence that names a customer.
+          # This repo is public, so commit statuses are world-readable. There is
+          # no free-text reason anywhere in this workflow by design: "we are
+          # holding main for an escalation" is exactly the sort of sentence
+          # that names a customer, and a text box invites someone to write it.
           #
-          # The person is named instead of the reason: it carries nothing
-          # sensitive, and it gives whoever is blocked something to act on -
-          # go and ask them in Slack, rather than hunting through the Actions
-          # tab to find out who to ask.
+          # Naming the person instead carries nothing sensitive and gives
+          # whoever is blocked something to act on - go and ask them - rather
+          # than hunting the Actions tab to work out who to ask.
           if [ "$ACTION" = "freeze" ]; then
             state=failure
             description="Merges to main are frozen by $ACTOR_LOGIN - ask them in Slack"
@@ -302,7 +297,6 @@ jobs:
             echo "| | |"
             echo "| --- | --- |"
             echo "| Actor | @$ACTOR_LOGIN |"
-            echo "| Reason | _sent to #engineering, kept out of this public run page_ |"
             echo "| Ruleset | \`$ruleset_name\` (id $ruleset_id) |"
             echo "| Required check | \`$CONTEXT\` |"
             echo "| Open PRs updated | $posted (couldn't reach $unreachable) |"
@@ -339,7 +333,6 @@ jobs:
         env:
           WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
           ACTION: ${{ inputs.action }}
-          REASON: ${{ inputs.reason }}
           ACTOR_LOGIN: ${{ github.actor }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/workflows/merge-freeze.yml
@@ -351,9 +344,11 @@ jobs:
             exit 0
           fi
 
+          # No reason is carried anywhere, by design: this repo is public and a
+          # free-text box invites someone to name a customer in it. Whoever
+          # froze main can say why in the thread if it matters.
           if [ "$ACTION" = "freeze" ]; then
             text=":lock: *[merge-freeze-on]* Merges to \`main\` are frozen by @${ACTOR_LOGIN}."
-            text="$text"$'\n'"Reason: ${REASON:-_none given_}"
             text="$text"$'\n'"Your PRs will show a red \`merge-freeze\` check until it lifts. Only @${ACTOR_LOGIN} can lift it: <${WORKFLOW_URL}|Merge freeze / unfreeze>. If they are unavailable, a repo admin can remove the check from the main ruleset by hand."
           else
             text=":unlock: *[merge-freeze-off]* Merges to \`main\` are open again, lifted by @${ACTOR_LOGIN}."
@@ -361,8 +356,6 @@ jobs:
           fi
           text="$text"$'\n'"<${RUN_URL}|View run>"
 
-          # jq builds the payload so a reason containing quotes, backslashes or
-          # newlines cannot break the JSON.
           payload=$(jq -n --arg text "$text" '{channel: "#engineering", username: "Merge freeze", text: $text}')
 
           # Never fail the run on a Slack problem: the freeze is already applied
