@@ -141,6 +141,28 @@ const convertFilterAutocomplete = (
         return { filterAutocomplete: undefined, warnings: [] };
     }
 
+    if (filterAutocomplete.enabled === false) {
+        // Disabled wins: drop curated values/label so no consumer can surface
+        // them, and turn off warehouse fetching.
+        const ignoredOptions = [
+            ...(filterAutocomplete.values?.length ? ['values'] : []),
+            ...(filterAutocomplete.label_dimension ? ['label_dimension'] : []),
+        ];
+        return {
+            filterAutocomplete: { enabled: false, fetchFromWarehouse: false },
+            warnings: ignoredOptions.length
+                ? [
+                      {
+                          type: InlineErrorType.FIELD_ERROR,
+                          message: `Ignoring filter_autocomplete ${ignoredOptions.join(
+                              ' and ',
+                          )} for dimension "${dimensionName}" in dbt model "${modelName}" because autocomplete is disabled (enabled: false).`,
+                      },
+                  ]
+                : [],
+        };
+    }
+
     const { values } = filterAutocomplete;
     const duplicateValues = values
         ?.map(({ value }) => value)

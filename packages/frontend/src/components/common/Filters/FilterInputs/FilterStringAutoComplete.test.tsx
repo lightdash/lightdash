@@ -56,6 +56,37 @@ describe('FilterStringAutoComplete', () => {
         vi.clearAllMocks();
     });
 
+    describe('disabled autocomplete', () => {
+        it('explains that suggestions are turned off when autocomplete is disabled', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const fieldWithDisabledAutocomplete: FilterableItem = {
+                ...mockField,
+                filterAutocomplete: {
+                    enabled: false,
+                    fetchFromWarehouse: false,
+                },
+            };
+
+            renderWithProviders(
+                <FilterStringAutoComplete
+                    filterId="test-filter"
+                    field={fieldWithDisabledAutocomplete}
+                    values={[]}
+                    suggestions={[]}
+                    onChange={vi.fn()}
+                />,
+            );
+
+            await user.click(screen.getByRole('textbox'));
+
+            expect(
+                await screen.findByText(
+                    'Value suggestions are turned off for this field. Type a value and press Enter.',
+                ),
+            ).toBeInTheDocument();
+        });
+    });
+
     describe('truncation behavior', () => {
         it('shows "+N more" pill when values exceed inline limit', async () => {
             const values = createValues(100);

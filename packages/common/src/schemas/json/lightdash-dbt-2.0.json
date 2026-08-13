@@ -1737,6 +1737,10 @@
                             "type": "object",
                             "description": "Configure static filter autocomplete suggestions and warehouse fetching for this dimension.",
                             "properties": {
+                                "enabled": {
+                                    "type": "boolean",
+                                    "description": "When false, disables value autocomplete for this dimension everywhere: no suggestions are shown and no warehouse queries are run to fetch values. Useful for high-cardinality fields where a distinct-value scan is expensive. Defaults to true."
+                                },
                                 "values": {
                                     "type": "array",
                                     "items": {
@@ -1993,6 +1997,10 @@
                                     "type": "object",
                                     "description": "Configure static filter autocomplete suggestions and warehouse fetching for this dimension.",
                                     "properties": {
+                                        "enabled": {
+                                            "type": "boolean",
+                                            "description": "When false, disables value autocomplete for this dimension everywhere: no suggestions are shown and no warehouse queries are run to fetch values. Useful for high-cardinality fields where a distinct-value scan is expensive. Defaults to true."
+                                        },
                                         "values": {
                                             "type": "array",
                                             "items": {

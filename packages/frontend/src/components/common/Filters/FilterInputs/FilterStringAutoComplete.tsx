@@ -1,4 +1,8 @@
-import { isDimension, type FilterableItem } from '@lightdash/common';
+import {
+    isDimension,
+    isFilterAutocompleteDisabled,
+    type FilterableItem,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -318,8 +322,11 @@ const FilterStringAutoComplete: FC<Props> = ({
         [handleAdd, handleResetSearch, onInputBlur, pastePopUpOpened, search],
     );
 
+    const autocompleteDisabled =
+        isFilterAutocompleteDisabled(filterAutocomplete);
     const searchedMaxResults = results.length >= MAX_AUTOCOMPLETE_RESULTS;
     const canRefreshAutocomplete =
+        !autocompleteDisabled &&
         filterAutocomplete?.fetchFromWarehouse !== false &&
         !((filterAutocomplete?.values?.length ?? 0) > 0 && search.length === 0);
     return (
@@ -429,9 +436,11 @@ const FilterStringAutoComplete: FC<Props> = ({
                             comboboxProps={comboboxProps}
                             onPaste={handlePaste}
                             nothingFoundMessage={
-                                isInitialLoading
-                                    ? 'Loading...'
-                                    : 'No results found'
+                                autocompleteDisabled
+                                    ? 'Value suggestions are turned off for this field. Type a value and press Enter.'
+                                    : isInitialLoading
+                                      ? 'Loading...'
+                                      : 'No results found'
                             }
                             rightSectionWidth={30}
                             rightSectionPointerEvents="all"
