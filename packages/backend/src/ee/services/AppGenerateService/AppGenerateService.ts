@@ -154,6 +154,7 @@ import {
 import { BaseService } from '../../../services/BaseService';
 import type { CoderService } from '../../../services/CoderService/CoderService';
 import type { DashboardService } from '../../../services/DashboardService/DashboardService';
+import { omittedThemeFontGuidance } from '../../../services/OrganizationDesignService/restrictedAppleFonts';
 import type { ProjectService } from '../../../services/ProjectService/ProjectService';
 import type { PromoteService } from '../../../services/PromoteService/PromoteService';
 import type { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
@@ -3091,10 +3092,16 @@ export class AppGenerateService extends BaseService {
                 manifestLines.length > 0
                     ? `\n\nAvailable theme files:\n${manifestLines.join('\n')}`
                     : '\n\nNo CSS, font, or image files were copied for this theme.';
+            const omittedFontNote =
+                designCopy.omittedRestrictedFonts.length > 0
+                    ? `\n\n${omittedThemeFontGuidance(
+                          designCopy.omittedRestrictedFonts,
+                      )}`
+                    : '';
 
             sections.push(
                 `## Active organization theme: ${designCopy.designSnapshot.name}\n\n` +
-                    `Theme assets are loaded in \`/app/src/design/\` (${designCopy.designSnapshot.fileCount} file(s)). Follow the rules under "Organization themes" in the main skill — they override your defaults for colors, typography, and chart palette where applicable.${manifest}\n\nBefore saying a theme asset is unavailable, inspect \`/app/src/design/\` with Glob or Read.`,
+                    `Theme assets are loaded in \`/app/src/design/\` (${designCopy.filesCopied} file(s)). Follow the rules under "Organization themes" in the main skill — they override your defaults for colors, typography, and chart palette where applicable.${manifest}${omittedFontNote}\n\nBefore saying a theme asset is unavailable, inspect \`/app/src/design/\` with Glob or Read.`,
             );
         }
         if (designCopy.instructionMarkdown) {

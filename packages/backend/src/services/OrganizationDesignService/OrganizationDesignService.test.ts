@@ -16,6 +16,7 @@ import { Readable } from 'node:stream';
 import { buildAccount } from '../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { OrganizationDesignModel } from '../../models/OrganizationDesignModel';
+import { makeTestTrueTypeFont } from '../../testing/makeTestTrueTypeFont';
 import {
     buildOrganizationDesignPackage,
     parseOrganizationDesignPackage,
@@ -149,18 +150,21 @@ describe('OrganizationDesignService package activation', () => {
         design = existingDesign,
         confirmPackageSnapshot = vi.fn(),
         createWithFiles = vi.fn(),
+        addFile = vi.fn(),
     }: {
         replaceFiles: ReturnType<typeof vi.fn>;
         send: ReturnType<typeof vi.fn>;
         design?: ApiOrganizationDesign | null;
         confirmPackageSnapshot?: ReturnType<typeof vi.fn>;
         createWithFiles?: ReturnType<typeof vi.fn>;
+        addFile?: ReturnType<typeof vi.fn>;
     }) => {
         const organizationDesignModel = {
             findByIdOrSlug: vi.fn().mockResolvedValue(design),
             confirmPackageSnapshot,
             replaceFiles,
             createWithFiles,
+            addFile,
         };
         const service = new OrganizationDesignService({
             lightdashConfig: lightdashConfigMock,
@@ -194,6 +198,12 @@ describe('OrganizationDesignService package activation', () => {
                 body: packageBody,
             },
         ]);
+
+    const restrictedFontBody = makeTestTrueTypeFont({
+        familyName: 'SF Pro',
+        fullName: 'SF Pro Regular',
+        postscriptName: 'SFPro-Regular',
+    });
 
     const matchingDesign: ApiOrganizationDesign = {
         ...existingDesign,
@@ -241,6 +251,86 @@ describe('OrganizationDesignService package activation', () => {
         expect(replaceFiles).not.toHaveBeenCalled();
     });
 
+    it('rejects a renamed restricted font upload before writing to S3', async () => {
+        const send = vi.fn().mockResolvedValue({});
+        const addFile = vi.fn();
+        const { service } = makeService({
+            replaceFiles: vi.fn(),
+            send,
+            addFile,
+        });
+
+        await expect(
+            service.uploadFile(buildAccount(), existingDesign.slug, {
+                kind: 'font',
+                filename: 'acme-sans.ttf',
+                contentType: 'font/ttf',
+                body: Readable.from(restrictedFontBody),
+                contentLength: restrictedFontBody.length,
+            }),
+        ).rejects.toThrow(/acme-sans\.ttf.*restricted Apple system font/);
+
+        expect(send).not.toHaveBeenCalled();
+        expect(addFile).not.toHaveBeenCalled();
+    });
+
+    it('continues to store a signature-valid font without readable names', async () => {
+        const body = Buffer.alloc(12);
+        body.writeUInt32BE(0x00010000, 0);
+        const storedFile = {
+            fileUuid: '00000000-0000-4000-8000-000000000201',
+            kind: 'font' as const,
+            filename: 'subset.ttf',
+            contentType: 'font/ttf',
+            sizeBytes: body.length,
+            createdAt: new Date('2026-01-01T00:00:00Z'),
+        };
+        const send = vi.fn().mockResolvedValue({});
+        const addFile = vi.fn().mockResolvedValue(storedFile);
+        const { service } = makeService({
+            replaceFiles: vi.fn(),
+            send,
+            addFile,
+        });
+
+        await expect(
+            service.uploadFile(buildAccount(), existingDesign.slug, {
+                kind: 'font',
+                filename: storedFile.filename,
+                contentType: storedFile.contentType,
+                body: Readable.from(body),
+                contentLength: body.length,
+            }),
+        ).resolves.toEqual(storedFile);
+
+        expect(send).toHaveBeenCalledOnce();
+        expect(addFile).toHaveBeenCalledOnce();
+    });
+
+    it('rejects a restricted font package before staging or activation', async () => {
+        const send = vi.fn().mockResolvedValue({});
+        const replaceFiles = vi.fn();
+        const { service } = makeService({ replaceFiles, send });
+        const archive = await buildOrganizationDesignPackage(MANIFEST, [
+            {
+                kind: 'font',
+                filename: 'acme-sans.ttf',
+                contentType: 'font/ttf',
+                body: restrictedFontBody,
+            },
+        ]);
+
+        await expect(
+            service.importPackage(buildAccount(), {
+                body: Readable.from(archive),
+                contentLength: archive.length,
+            }),
+        ).rejects.toThrow(/restricted Apple system font/);
+
+        expect(send).not.toHaveBeenCalled();
+        expect(replaceFiles).not.toHaveBeenCalled();
+    });
+
     it('returns no changes without staging when package metadata and S3 bytes match', async () => {
         const send = vi.fn(async (command: unknown) => {
             expect(command).toBeInstanceOf(GetObjectCommand);
@@ -277,6 +367,60 @@ describe('OrganizationDesignService package activation', () => {
             'test-org-uuid',
             matchingDesign,
         );
+        expect(replaceFiles).not.toHaveBeenCalled();
+    });
+
+    it('preserves a byte-identical legacy restricted font package as a no-op', async () => {
+        const legacyFontDesign: ApiOrganizationDesign = {
+            ...matchingDesign,
+            files: [
+                {
+                    ...matchingDesign.files[0],
+                    kind: 'font',
+                    filename: 'legacy-brand.ttf',
+                    contentType: 'font/ttf',
+                    sizeBytes: restrictedFontBody.length,
+                },
+            ],
+        };
+        const send = vi.fn(async (command: unknown) => {
+            expect(command).toBeInstanceOf(GetObjectCommand);
+            return {
+                Body: {
+                    transformToByteArray: async () => restrictedFontBody,
+                },
+            };
+        });
+        const replaceFiles = vi.fn();
+        const confirmPackageSnapshot = vi
+            .fn()
+            .mockResolvedValue(legacyFontDesign);
+        const { service } = makeService({
+            replaceFiles,
+            send,
+            design: legacyFontDesign,
+            confirmPackageSnapshot,
+        });
+        const archive = await buildOrganizationDesignPackage(MANIFEST, [
+            {
+                kind: 'font',
+                filename: 'legacy-brand.ttf',
+                contentType: 'font/ttf',
+                body: restrictedFontBody,
+            },
+        ]);
+
+        await expect(
+            service.importPackage(buildAccount(), {
+                body: Readable.from(archive),
+                contentLength: archive.length,
+            }),
+        ).resolves.toEqual({
+            ...legacyFontDesign,
+            action: PromotionAction.NO_CHANGES,
+        });
+
+        expect(send).toHaveBeenCalledOnce();
         expect(replaceFiles).not.toHaveBeenCalled();
     });
 
