@@ -509,6 +509,22 @@ describe('AiDeepResearchRunModel integration', () => {
         );
     });
 
+    it('clears a private report checkpoint when a running run is cancelled', async () => {
+        const run = await createRun();
+        await model.claimQueuedRun(run.ai_deep_research_run_uuid);
+        await model.checkpointReport(run.ai_deep_research_run_uuid, report);
+        await model.requestCancellation(run.ai_deep_research_run_uuid);
+
+        await model.markCancelled(run.ai_deep_research_run_uuid);
+
+        await expect(
+            model.findByUuid(run.ai_deep_research_run_uuid),
+        ).resolves.toMatchObject({
+            status: 'cancelled',
+            result_markdown: null,
+        });
+    });
+
     it.each(['completed', 'partially_completed'] as const)(
         'persists a 30-day expiry for a successfully %s report',
         async (status) => {
@@ -940,5 +956,51 @@ describe('AiDeepResearchRunModel integration', () => {
                 },
             ],
         );
+    });
+
+    it('promotes a stale run with a report checkpoint to useful partial', async () => {
+        const run = await createRun();
+        await model.claimQueuedRun(run.ai_deep_research_run_uuid);
+        await model.checkpointReport(run.ai_deep_research_run_uuid, report);
+        await database(AiDeepResearchRunsTableName)
+            .where('ai_deep_research_run_uuid', run.ai_deep_research_run_uuid)
+            .update({ updated_at: database.raw("now() - interval '2 hours'") });
+
+        const staleRuns = await model.markStaleRunsAsFailed(75, 'stale');
+
+        expect(staleRuns[0]).toMatchObject({
+            status: 'partially_completed',
+            terminal_reason: 'internal_error',
+            result_markdown: report,
+        });
+        expect(await getEventSequence(run.ai_deep_research_run_uuid)).toEqual([
+            'status_changed:queued',
+            'status_changed:running',
+            'status_changed:partially_completed',
+        ]);
+    });
+
+    it('prioritizes a pending cancellation over stale checkpoint recovery', async () => {
+        const run = await createRun();
+        await model.claimQueuedRun(run.ai_deep_research_run_uuid);
+        await model.checkpointReport(run.ai_deep_research_run_uuid, report);
+        await model.requestCancellation(run.ai_deep_research_run_uuid);
+        await database(AiDeepResearchRunsTableName)
+            .where('ai_deep_research_run_uuid', run.ai_deep_research_run_uuid)
+            .update({ updated_at: database.raw("now() - interval '2 hours'") });
+
+        const staleRuns = await model.markStaleRunsAsFailed(75, 'stale');
+
+        expect(staleRuns[0]).toMatchObject({
+            status: 'cancelled',
+            terminal_reason: 'user_cancellation',
+            result_markdown: null,
+        });
+        expect(await getEventSequence(run.ai_deep_research_run_uuid)).toEqual([
+            'status_changed:queued',
+            'status_changed:running',
+            'cancellation_requested',
+            'status_changed:cancelled',
+        ]);
     });
 });

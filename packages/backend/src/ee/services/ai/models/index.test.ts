@@ -130,6 +130,133 @@ describe('getModel', () => {
         expect(keyManagement).toBe('lightdash-managed');
     });
 
+    it('honors a pinned Azure deployment name', () => {
+        const { model } = getModel(
+            {
+                ...baseCopilotConfig,
+                defaultProvider: 'azure',
+                providers: {
+                    azure: {
+                        endpoint: 'https://example.openai.azure.com',
+                        apiKey: 'test',
+                        apiVersion: '2025-01-01',
+                        deploymentName: 'current-deployment',
+                        deploymentSupportsReasoning: false,
+                        embeddingDeploymentName: 'embedding',
+                        useDeploymentBasedUrls: true,
+                        customHeaders: {},
+                        supportsStreaming: true,
+                    },
+                },
+            },
+            {
+                provider: 'azure',
+                modelName: 'run-selected-deployment',
+                trustPinnedModelName: true,
+            },
+        );
+
+        expect(model.modelId).toBe('run-selected-deployment');
+    });
+
+    it('honors a pinned OpenRouter model name', () => {
+        const { model } = getModel(
+            {
+                ...baseCopilotConfig,
+                defaultProvider: 'openrouter',
+                providers: {
+                    openrouter: {
+                        apiKey: 'test',
+                        modelName: 'current/model',
+                        allowedProviders: ['openai'],
+                        sortOrder: 'latency',
+                        customHeaders: {},
+                        supportsStreaming: true,
+                    },
+                },
+            },
+            {
+                provider: 'openrouter',
+                modelName: 'run-selected/model',
+                trustPinnedModelName: true,
+            },
+        );
+
+        expect(model.modelId).toBe('run-selected/model');
+    });
+
+    it('ignores untrusted Azure and OpenRouter model-name overrides', () => {
+        const azure = getModel(
+            {
+                ...baseCopilotConfig,
+                defaultProvider: 'azure',
+                providers: {
+                    azure: {
+                        endpoint: 'https://example.openai.azure.com',
+                        apiKey: 'test',
+                        apiVersion: '2025-01-01',
+                        deploymentName: 'configured-deployment',
+                        deploymentSupportsReasoning: false,
+                        embeddingDeploymentName: 'embedding',
+                        useDeploymentBasedUrls: true,
+                        customHeaders: {},
+                        supportsStreaming: true,
+                    },
+                },
+            },
+            { provider: 'azure', modelName: 'caller-controlled-deployment' },
+        );
+        const openrouter = getModel(
+            {
+                ...baseCopilotConfig,
+                defaultProvider: 'openrouter',
+                providers: {
+                    openrouter: {
+                        apiKey: 'test',
+                        modelName: 'configured/model',
+                        allowedProviders: ['openai'],
+                        sortOrder: 'latency',
+                        customHeaders: {},
+                        supportsStreaming: true,
+                    },
+                },
+            },
+            {
+                provider: 'openrouter',
+                modelName: 'caller-controlled/model',
+            },
+        );
+
+        expect(azure.model.modelId).toBe('configured-deployment');
+        expect(openrouter.model.modelId).toBe('configured/model');
+    });
+
+    it('resolves a pinned Bedrock inference-profile model id', () => {
+        const { model } = getModel(
+            {
+                ...baseCopilotConfig,
+                defaultProvider: 'bedrock',
+                providers: {
+                    bedrock: {
+                        apiKey: 'test',
+                        region: 'eu-west-1',
+                        inferenceProfilePrefix: 'jp',
+                        modelName: 'claude-sonnet-5',
+                        embeddingModelName: 'amazon.titan-embed-text-v2:0',
+                        customHeaders: {},
+                        supportsStreaming: true,
+                    },
+                },
+            },
+            {
+                provider: 'bedrock',
+                modelName: 'jp.anthropic.claude-opus-5',
+            },
+        );
+
+        expect(model.modelId).toBe('jp.anthropic.claude-opus-5');
+    });
+
     it('stamps self-managed when the resolved provider is instance self-managed', () => {
         const { keyManagement } = getModel({
             ...copilotConfigWithStreaming(true),

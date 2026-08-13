@@ -823,6 +823,23 @@ export class AiDeepResearchRunModel {
         );
     }
 
+    async checkpointReport(
+        aiDeepResearchRunUuid: string,
+        resultMarkdown: string,
+    ): Promise<boolean> {
+        const updated = await this.database<AiDeepResearchRunsTable>(
+            AiDeepResearchRunsTableName,
+        )
+            .where('ai_deep_research_run_uuid', aiDeepResearchRunUuid)
+            .where('status', 'running')
+            .whereNull('cancellation_requested_at')
+            .update({
+                result_markdown: resultMarkdown,
+                updated_at: this.database.fn.now() as unknown as Date,
+            });
+        return updated > 0;
+    }
+
     async markPartiallyCompleted(
         aiDeepResearchRunUuid: string,
         resultMarkdown: string,
@@ -926,6 +943,7 @@ export class AiDeepResearchRunModel {
                 .update({
                     status: 'cancelled',
                     terminal_reason: terminalReason,
+                    result_markdown: null,
                     ...metrics,
                     duration_ms:
                         AiDeepResearchRunModel.getDurationMs(transaction),
@@ -1121,8 +1139,23 @@ export class AiDeepResearchRunModel {
                     ]),
                 )
                 .update({
-                    status: 'failed',
-                    error_message: errorMessage,
+                    status: transaction.raw(
+                        "case when cancellation_requested_at is not null then 'cancelled' when result_markdown is not null then 'partially_completed' else 'failed' end",
+                    ) as unknown as DbAiDeepResearchRun['status'],
+                    terminal_reason: transaction.raw(
+                        "case when cancellation_requested_at is not null then 'user_cancellation' else 'internal_error' end",
+                    ) as unknown as DbAiDeepResearchRun['terminal_reason'],
+                    result_markdown: transaction.raw(
+                        'case when cancellation_requested_at is not null then null else result_markdown end',
+                    ) as unknown as string | null,
+                    error_message: transaction.raw(
+                        'case when cancellation_requested_at is not null or result_markdown is not null then null else ? end',
+                        [errorMessage],
+                    ) as unknown as string | null,
+                    report_expires_at: transaction.raw(
+                        "case when cancellation_requested_at is null and result_markdown is not null then now() + (? * interval '1 day') else report_expires_at end",
+                        [AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS],
+                    ) as unknown as Date | null,
                     completed_at: transaction.fn.now() as unknown as Date,
                     updated_at: transaction.fn.now() as unknown as Date,
                 })
@@ -1134,7 +1167,7 @@ export class AiDeepResearchRunModel {
                         await AiDeepResearchRunModel.getTerminalMetrics(
                             transaction,
                             run.prompt_uuid,
-                            null,
+                            run.result_markdown ?? null,
                         );
                     const [updatedRun] =
                         await transaction<AiDeepResearchRunsTable>(
@@ -1162,7 +1195,7 @@ export class AiDeepResearchRunModel {
                         transaction,
                         run.ai_deep_research_run_uuid,
                         'status_changed',
-                        { status: 'failed' },
+                        { status: run.status },
                     ),
                 ),
             );
@@ -1172,7 +1205,7 @@ export class AiDeepResearchRunModel {
                         transaction,
                         run.ai_deep_research_run_uuid,
                         'run_completed',
-                        'internal_error',
+                        run.terminal_reason ?? 'internal_error',
                     ),
                 ),
             );
