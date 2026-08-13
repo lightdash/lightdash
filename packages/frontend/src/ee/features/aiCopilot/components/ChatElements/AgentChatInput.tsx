@@ -119,6 +119,7 @@ interface AgentChatInputProps {
     revealControlsOnFocus?: boolean;
     // Shrinks padding/min-heights for a more compact composer.
     dense?: boolean;
+    showDeepResearchBelowComposer?: boolean;
 }
 
 const extractToolHints = (editor: Editor | null): string[] => {
@@ -164,6 +165,7 @@ export const AgentChatInput = ({
     contentMentionPriorityItems = [],
     revealControlsOnFocus = false,
     dense = false,
+    showDeepResearchBelowComposer = false,
 }: AgentChatInputProps) => {
     const user = useUser(true);
     const [value, setValueState] = useState(defaultValue ?? '');
@@ -579,27 +581,31 @@ export const AgentChatInput = ({
     const showDeepResearchNudge =
         nudgeState === 'shown' && isDeepResearchDraft(value);
 
-    const deepResearchControl = canStartDeepResearch ? (
-        <DeepResearchModeControl
-            mode={composerMode}
-            onModeChange={setComposerMode}
-            disabled={hasActiveDeepResearchRun}
-            disabledReason={ACTIVE_DEEP_RESEARCH_DISABLED_REASON}
-            nudge={showDeepResearchNudge}
-        />
-    ) : null;
-    const compactDeepResearchControl = canStartDeepResearch ? (
-        <DeepResearchModeControl
-            mode={composerMode}
-            onModeChange={setComposerMode}
-            disabled={hasActiveDeepResearchRun}
-            disabledReason={ACTIVE_DEEP_RESEARCH_DISABLED_REASON}
-            iconOnly
-            actionSize="sm"
-            iconSize={14}
-            nudge={showDeepResearchNudge}
-        />
-    ) : null;
+    const shouldShowDeepResearchBelowComposer =
+        isThreadInput || showDeepResearchBelowComposer;
+    const deepResearchControl =
+        canStartDeepResearch && !shouldShowDeepResearchBelowComposer ? (
+            <DeepResearchModeControl
+                mode={composerMode}
+                onModeChange={setComposerMode}
+                disabled={hasActiveDeepResearchRun}
+                disabledReason={ACTIVE_DEEP_RESEARCH_DISABLED_REASON}
+                nudge={showDeepResearchNudge}
+            />
+        ) : null;
+    const compactDeepResearchControl =
+        canStartDeepResearch && shouldShowDeepResearchBelowComposer ? (
+            <DeepResearchModeControl
+                mode={composerMode}
+                onModeChange={setComposerMode}
+                disabled={hasActiveDeepResearchRun}
+                disabledReason={ACTIVE_DEEP_RESEARCH_DISABLED_REASON}
+                iconOnly
+                actionSize="sm"
+                iconSize={14}
+                nudge={showDeepResearchNudge}
+            />
+        ) : null;
     const chipRow = useMemo(() => {
         if (!emptyStateMode && !postResponseMode) return null;
         if (suggestionsQuery.isError) return null;
@@ -688,7 +694,7 @@ export const AgentChatInput = ({
         iconSize: number;
     }) => {
         if (
-            !isThreadInput ||
+            !shouldShowDeepResearchBelowComposer ||
             (!compactDeepResearchControl && !showSqlModeControl)
         ) {
             return null;
@@ -779,14 +785,14 @@ export const AgentChatInput = ({
                         variant="inline"
                         toolbarRight={
                             <Group gap={4} align="center" wrap="nowrap">
-                                {!isThreadInput && deepResearchControl}
+                                {deepResearchControl}
                                 {renderComposerAction('sm')}
                             </Group>
                         }
                     />
                 </Box>
 
-                {isThreadInput
+                {shouldShowDeepResearchBelowComposer
                     ? renderExternalModeControls({
                           actionSize: 'sm',
                           iconSize: 14,
@@ -832,7 +838,7 @@ export const AgentChatInput = ({
                 className={styles.agentComposer}
                 onMouseDown={handleInputCardMouseDown}
                 toolbarLeft={
-                    !isThreadInput &&
+                    !shouldShowDeepResearchBelowComposer &&
                     renderSqlModeControl({
                         actionSize: 30,
                         iconSize: 15,
@@ -840,14 +846,13 @@ export const AgentChatInput = ({
                 }
                 toolbarRight={
                     <Group gap="xs" align="center" wrap="nowrap">
-                        {((!isThreadInput && deepResearchControl) ||
-                            showAgentSelector) && (
+                        {(deepResearchControl || showAgentSelector) && (
                             <Box
                                 className={styles.controlsReveal}
                                 data-visible={hasClickedInput}
                             >
                                 <Group gap="xs" align="center" wrap="nowrap">
-                                    {!isThreadInput && deepResearchControl}
+                                    {deepResearchControl}
 
                                     {showAgentSelector && (
                                         <AgentSelector
