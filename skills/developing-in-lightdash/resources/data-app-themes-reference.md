@@ -75,8 +75,8 @@ slug: acme-brand
 name: Acme Brand
 description: Brand theme for customer-facing Data Apps
 extraInstructions: |-
-  Use the horizontal logo in page headers.
-  Keep data-dense tables compact.
+    Use the horizontal logo in page headers.
+    Keep data-dense tables compact.
 ```
 
 Use `null` when either optional text value has no content:
@@ -109,7 +109,12 @@ Put ordinary licensed web fonts under `fonts/`. Supported formats are `.woff`, `
 Do not commit or upload restricted Apple system-font binaries such as SF-family or New York fonts. Use a system stack instead, for example:
 
 ```css
-font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
 ```
 
 The current package validator checks font format, not every font's licensing metadata. Treat this as an authoring requirement even if an upload is technically accepted.
