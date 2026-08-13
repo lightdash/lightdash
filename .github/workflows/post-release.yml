@@ -262,7 +262,7 @@ jobs:
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
         # Force reinstall so pnpm includes optional DuckDB native bindings
         # needed to build both macOS pkg targets from a single runner.
-        run: pnpm install --config.minimumReleaseAge=0 --filter @lightdash/cli --filter @lightdash/common --filter @lightdash/warehouses --frozen-lockfile --prefer-offline --prod=false --force --network-concurrency=16
+        run: pnpm install --filter @lightdash/cli --filter @lightdash/common --filter @lightdash/warehouses --frozen-lockfile --prefer-offline --prod=false --force --network-concurrency=16
 
       - name: Cache common build
         id: cache-common
