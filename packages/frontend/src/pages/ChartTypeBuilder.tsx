@@ -76,10 +76,6 @@ const ChartTypeBuilder: FC = () => {
 
     const historyUuid = activeVizUuid ?? build.appUuid;
     const history = useAppVersionHistory(projectUuid ?? '', historyUuid);
-    const { data: dataAppViz } = useDataAppVisualization(
-        projectUuid,
-        activeVizUuid,
-    );
 
     // Covers builds sent here and builds found already running in history.
     const historyLatestInProgress =
@@ -172,6 +168,11 @@ const ChartTypeBuilder: FC = () => {
     }, [pin, activeVizUuid, history.latestReadyVersion, history.versions]);
 
     const previewVersion = effectiveViewedVersion ?? history.latestReadyVersion;
+
+    // The schema follows the preview: the options beside a version are the ones
+    // that version declares, and the sample data is built from its fields.
+    const { data: dataAppViz, isFetching: isFetchingSchema } =
+        useDataAppVisualization(projectUuid, activeVizUuid, previewVersion);
 
     const colorPalette = useResolvedColorPalette(projectUuid, colorPaletteUuid);
     // The sample-data preview context, rebuilt on any option or palette edit.
@@ -320,6 +321,7 @@ const ChartTypeBuilder: FC = () => {
             onOptionChange={handleOptionChange}
             colorPaletteUuid={colorPaletteUuid}
             onPaletteChange={setColorPaletteUuid}
+            isStale={isFetchingSchema}
         />
     ) : null;
 

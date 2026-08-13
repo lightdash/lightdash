@@ -278,8 +278,11 @@ describe('ChartTypeBuilder', () => {
             '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
         );
 
-        // The chart dims under the building pill; the options stay usable.
+        // Chart and options are one version: both stay legible under the
+        // building pill, and both go out of play until the next one lands.
         expect(screen.getByLabelText('Show grid')).toBeInTheDocument();
+        const card = screen.getByText('Generated options').closest('[inert]');
+        expect(card).toHaveAttribute('data-dimmed', 'true');
         expect(screen.getByText(/Building…/)).toBeInTheDocument();
     });
 
@@ -382,6 +385,91 @@ describe('ChartTypeBuilder', () => {
         expect(screen.getByTestId('app-preview')).toHaveTextContent(
             'preview-v2',
         );
+    });
+
+    // The schema belongs to the version that generated it, so a v1 preview must
+    // not be configured with v2's options.
+    const setSchemaPerVersion = () =>
+        vi.mocked(useDataAppVisualization).mockImplementation(
+            (_projectUuid, _dataAppVizUuid, version) =>
+                ({
+                    data: {
+                        schema: {
+                            fields: [],
+                            configOptions: [
+                                version === 1
+                                    ? {
+                                          name: 'grid',
+                                          label: 'Show grid',
+                                          type: 'boolean',
+                                          default: true,
+                                      }
+                                    : {
+                                          name: 'markers',
+                                          label: 'Show markers',
+                                          type: 'boolean',
+                                          default: true,
+                                      },
+                            ],
+                            colorPalette: null,
+                        },
+                    },
+                }) as unknown as ReturnType<typeof useDataAppVisualization>,
+        );
+
+    it('configures the version being previewed, not the current one', () => {
+        setApp(appMeta());
+        vi.mocked(useAppVersionHistory).mockReturnValue(
+            historyStub(
+                [appVersion({ version: 2 }), appVersion({ version: 1 })],
+                2,
+            ),
+        );
+        setSchemaPerVersion();
+        renderBuilder(
+            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+        );
+
+        expect(screen.getByLabelText('Show markers')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByText('History'));
+        fireEvent.click(screen.getByLabelText('View v1'));
+
+        // The uuid comes from the loaded app row, the version from the pin.
+        expect(vi.mocked(useDataAppVisualization)).toHaveBeenLastCalledWith(
+            'p1',
+            'viz-1',
+            1,
+        );
+        expect(screen.getByLabelText('Show grid')).toBeInTheDocument();
+        expect(screen.queryByLabelText('Show markers')).toBeNull();
+
+        fireEvent.click(screen.getByLabelText('Close history'));
+        expect(screen.getByLabelText('Show markers')).toBeInTheDocument();
+        expect(screen.queryByLabelText('Show grid')).toBeNull();
+    });
+
+    it('keeps a value set on the current version across a visit to an older one', () => {
+        setApp(appMeta());
+        vi.mocked(useAppVersionHistory).mockReturnValue(
+            historyStub(
+                [appVersion({ version: 2 }), appVersion({ version: 1 })],
+                2,
+            ),
+        );
+        setSchemaPerVersion();
+        renderBuilder(
+            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+        );
+
+        fireEvent.click(screen.getByLabelText('Show markers'));
+        expect(screen.getByLabelText('Show markers')).not.toBeChecked();
+
+        fireEvent.click(screen.getByText('History'));
+        fireEvent.click(screen.getByLabelText('View v1'));
+        fireEvent.click(screen.getByLabelText('Close history'));
+
+        expect(screen.getByLabelText('Show markers')).not.toBeChecked();
     });
 
     it('offers no history toggle before the first version exists', () => {
