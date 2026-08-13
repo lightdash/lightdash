@@ -51,6 +51,7 @@ import { CsvService } from './CsvService';
 import { itemMap, metricQuery } from './CsvService.mock';
 
 describe('Csv service', () => {
+    const createDownloadFile = vi.fn();
     const csvService = new CsvService({
         lightdashConfig,
         analytics: analyticsMock,
@@ -103,10 +104,14 @@ describe('Csv service', () => {
                 additionalMetrics: new Set(),
             }),
         }),
-        fileStorageClient: {} as FileStorageClient,
+        fileStorageClient: {
+            isEnabled: () => false,
+        } as FileStorageClient,
         savedChartModel: {} as SavedChartModel,
         dashboardModel: {} as DashboardModel,
-        downloadFileModel: {} as DownloadFileModel,
+        downloadFileModel: {
+            createDownloadFile,
+        } as unknown as DownloadFileModel,
         schedulerClient: {} as SchedulerClient,
         projectModel: {} as ProjectModel,
         savedSqlModel: {} as SavedSqlModel,
@@ -118,6 +123,27 @@ describe('Csv service', () => {
             organizationSettingsModel: {} as OrganizationSettingsModel,
         }),
         persistentDownloadFileService: {} as PersistentDownloadFileService,
+    });
+
+    it('persists the owning project for a local CSV download', async () => {
+        createDownloadFile.mockClear();
+        createDownloadFile.mockResolvedValue(undefined);
+
+        const download = await csvService.downloadCsvFile({
+            csvContent: 'column\nvalue\n',
+            fileName: 'test-file',
+            projectUuid: 'project-uuid',
+            organizationUuid: 'organization-uuid',
+            createdByUserUuid: 'user-uuid',
+        });
+
+        expect(createDownloadFile).toHaveBeenCalledWith(
+            expect.any(String),
+            download.localPath,
+            'csv',
+            'project-uuid',
+        );
+        await fs.unlink(download.localPath);
     });
 
     it('Should convert rows to CSV with format', async () => {

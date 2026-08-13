@@ -451,6 +451,7 @@ export class ServiceRepository
                 new DownloadFileService({
                     lightdashConfig: this.context.lightdashConfig,
                     downloadFileModel: this.models.getDownloadFileModel(),
+                    projectModel: this.models.getProjectModel(),
                 }),
         );
     }
