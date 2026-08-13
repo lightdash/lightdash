@@ -69,6 +69,10 @@ jobs:
           # previous tag's swagger.json lazily).
           fetch-depth: 0
           filter: blob:none
+          # Tags arrive blobless at checkout (~1s) so semantic-release's own
+          # `git fetch --tags` during getLastRelease becomes a no-op instead of
+          # transferring all 7k+ tags (~63s measured on the 1.152.0 release).
+          fetch-tags: true
 
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
