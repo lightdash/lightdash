@@ -1,3 +1,10 @@
+## [1.154.1](https://github.com/lightdash/lightdash/compare/1.154.0...1.154.1) (2026-08-13)
+
+
+### Bug Fixes
+
+* **auth:** re-check IdP email domain against per-org SSO whitelist at callback ([#27194](https://github.com/lightdash/lightdash/issues/27194)) ([cb72f75](https://github.com/lightdash/lightdash/commit/cb72f75a7d5765400458f72fd8fa72e80bd487cb))
+
 # [1.154.0](https://github.com/lightdash/lightdash/compare/1.153.1...1.154.0) (2026-08-13)
 
 
