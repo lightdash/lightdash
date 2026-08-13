@@ -82,15 +82,70 @@ try {
         requiredStops: ['1.115.0'],
     });
 
-    const degraded = runGenerator([
+    const degradedLastTag = runGenerator([
         '--version',
         '1.115.0',
         '--last-tag',
         'not-a-release-safety-test-ref',
     ]);
-    assert.strictEqual(degraded.status, 0, degraded.stderr);
-    const degradedMarker = markerFrom(degraded.stdout);
-    assert.deepStrictEqual(degradedMarker.migrations, {
+    assert.strictEqual(degradedLastTag.status, 0, degradedLastTag.stderr);
+    assert.match(degradedLastTag.stderr, /cannot resolve migration diff ref/);
+    const degradedLastTagMarker = markerFrom(degradedLastTag.stdout);
+    assert.deepStrictEqual(degradedLastTagMarker.migrations, {
+        present: 'unknown',
+        count: 0,
+        coreCount: 0,
+        eeCount: 0,
+        files: [],
+    });
+
+    const degradedPreviousVersion = runGenerator([
+        '--version',
+        '1.115.0',
+        '--previous-version',
+        'not-a-release-safety-test-ref',
+    ]);
+    assert.strictEqual(
+        degradedPreviousVersion.status,
+        0,
+        degradedPreviousVersion.stderr,
+    );
+    assert.match(
+        degradedPreviousVersion.stderr,
+        /cannot resolve migration diff ref/,
+    );
+    const degradedPreviousVersionMarker = markerFrom(
+        degradedPreviousVersion.stdout,
+    );
+    assert.deepStrictEqual(degradedPreviousVersionMarker.migrations, {
+        present: 'unknown',
+        count: 0,
+        coreCount: 0,
+        eeCount: 0,
+        files: [],
+    });
+
+    const failedMarkerPath = join(directory, 'failed-marker.json');
+    const malformedIndexPath = join(directory, 'malformed-index.json');
+    writeFileSync(malformedIndexPath, '{');
+    const failed = runGenerator(
+        [
+            '--version',
+            '1.115.0',
+            '--out',
+            failedMarkerPath,
+            '--index',
+            malformedIndexPath,
+        ],
+        { RELEASE_SAFETY_MARKER_ENABLED: 'true' },
+    );
+    assert.notStrictEqual(failed.status, 0);
+    assert.match(failed.stderr, /\[release-safety\] FAILED/);
+    const failedMarker = JSON.parse(
+        readFileSync(failedMarkerPath, 'utf8'),
+    ) as Record<string, unknown>;
+    assert.deepStrictEqual(markerFrom(failed.stdout), failedMarker);
+    assert.deepStrictEqual(failedMarker.migrations, {
         present: 'unknown',
         count: 0,
         coreCount: 0,
