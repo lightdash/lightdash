@@ -45,7 +45,6 @@ export type ExternalConnectionEvent = BaseTrack &
           }
         | {
               event: 'external_connection.fetch';
-              userId: string;
               properties: {
                   organizationId: string;
                   projectId: string;

@@ -49,6 +49,11 @@ const resolveFetchUrl = (path: string): string => {
     return `${instanceUrl.replace(/\/$/, '')}${path}`;
 };
 
+const getEmbedAuthHeaders = (
+    embedToken: string | undefined,
+): Record<string, string> =>
+    embedToken ? { [JWT_HEADER_NAME]: embedToken } : {};
+
 export type QueryEventTableCalculation = {
     name: string;
     displayName: string;
@@ -608,21 +613,6 @@ export function useAppSdkBridge({
 
                 emitExternal({ status: 'pending' });
 
-                // External fetch is not available to embedded apps: the proxy
-                // endpoint requires a registered session, not an embed JWT.
-                // Fail clearly rather than make a doomed authenticated call.
-                if (embedToken) {
-                    const embedError =
-                        'External data access is not available in embedded apps';
-                    emitExternal({
-                        status: 'error',
-                        error: embedError,
-                        durationMs: Date.now() - startedAt,
-                    });
-                    respondExternal({ error: embedError });
-                    return;
-                }
-
                 // Build the EE request body from app-supplied fields ONLY.
                 // No URL, no headers, no connection UUID — the backend resolves
                 // the alias and attaches the connection's secrets. The
@@ -644,6 +634,7 @@ export function useAppSdkBridge({
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
+                                ...getEmbedAuthHeaders(embedToken),
                             },
                             body: JSON.stringify(externalFetchBody),
                         },
@@ -888,9 +879,7 @@ export function useAppSdkBridge({
                     method,
                     headers: {
                         'Content-Type': 'application/json',
-                        ...(embedToken
-                            ? { [JWT_HEADER_NAME]: embedToken }
-                            : {}),
+                        ...getEmbedAuthHeaders(embedToken),
                         // Self-reported app attribution; the backend tags
                         // warehouse queries with it. Tracking only.
                         ...(appUuid

@@ -187,7 +187,10 @@ import {
     type SandboxHandle,
     type SandboxSpec,
 } from '../SandboxRuntime';
-import { assertCanViewApp as assertUserCanViewApp } from './appAuthz';
+import {
+    assertCanViewEmbeddedApp,
+    assertCanViewApp as assertUserCanViewApp,
+} from './appAuthz';
 import { getBundleServableChecker } from './appBundleStorage';
 import {
     buildManifest,
@@ -8659,9 +8662,9 @@ export class AppGenerateService extends BaseService {
      *   self-authorizes it (the project opted in via `allow_all_apps` or the
      *   `app_uuids` allowlist, enforced at account build); a mismatched appUuid
      *   is rejected outright.
-     * - dashboard-tile embed: the app must be referenced by a tile on a
-     *   dashboard in the embed's allowlist (or `allowAllDashboards`), mirroring
-     *   how embedded charts are gated by whitelisted dashboards.
+     * - dashboard-tile embed: the app must be referenced by a tile on the
+     *   dashboard named by the JWT, mirroring how embedded charts are pinned
+     *   to their dashboard.
      * The app must live in the embed's project — source-project apps (preview
      * environments) are out of scope and surface as a 404 to the frontend.
      */
@@ -8681,51 +8684,15 @@ export class AppGenerateService extends BaseService {
             throw new NotFoundError(`App not found: ${appUuid}`);
         }
 
-        const auditedAbility = this.createAuditedAbility(account);
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('DataApp', {
-                    organizationUuid: app.organization_uuid,
-                    projectUuid: app.project_uuid,
-                    metadata: { appUuid },
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'Insufficient permissions to access this data app',
-            );
-        }
-
-        if (account.access.content.type === 'dataApp') {
-            // A standalone data app JWT authorizes EXACTLY its named app
-            // (already gated at account build in
-            // EmbedService.getAccountFromJwt). Requesting any other app is
-            // denied — we must NOT fall through to the dashboard-allowlist gate,
-            // which could otherwise mint a token for an app that merely sits on
-            // an allowlisted dashboard, bypassing the per-app `app_uuids`
-            // allowlist.
-            if (account.access.content.appUuid !== appUuid) {
-                throw new ForbiddenError(
-                    'This embed is not authorized for this data app',
-                );
-            }
-        } else if (!account.embed.allowAllDashboards) {
-            const dashboardsWithApp =
-                await this.appModel.findDashboardsContainingApp(
-                    appUuid,
-                    projectUuid,
-                );
-            const allowedDashboards = new Set(account.embed.dashboardUuids);
-            const onAllowedDashboard = dashboardsWithApp.some((d) =>
-                allowedDashboards.has(d),
-            );
-            if (!onAllowedDashboard) {
-                throw new ForbiddenError(
-                    'Data app is not authorized by this embed',
-                );
-            }
-        }
+        await assertCanViewEmbeddedApp(
+            {
+                createAuditedAbility: (embeddedAccount) =>
+                    this.createAuditedAbility(embeddedAccount),
+                appModel: this.appModel,
+            },
+            account,
+            app,
+        );
 
         const latestReady = await this.appModel.getLatestReadyVersion(appUuid);
         if (!latestReady) {
