@@ -1,3 +1,10 @@
+## [1.154.2](https://github.com/lightdash/lightdash/compare/1.154.1...1.154.2) (2026-08-13)
+
+
+### Bug Fixes
+
+* **cli:** warn when LIGHTDASH_API_KEY shadows the login token ([#26887](https://github.com/lightdash/lightdash/issues/26887)) ([84d2675](https://github.com/lightdash/lightdash/commit/84d267514ecc0ec4d9d5904a8766f044003bbf0e)), closes [/linear.app/lightdash/issue/PROD-9690/login-token-should-override-lightdash-api-key-env-var#agent-session-6faffb8](https://github.com//linear.app/lightdash/issue/PROD-9690/login-token-should-override-lightdash-api-key-env-var/issues/agent-session-6faffb8)
+
 ## [1.154.1](https://github.com/lightdash/lightdash/compare/1.154.0...1.154.1) (2026-08-13)
 
 
