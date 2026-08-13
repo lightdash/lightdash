@@ -81,8 +81,8 @@ const CancelBuildLink: FC<{ onCancel: () => void }> = ({ onCancel }) => (
 /**
  * The center of the builder: empty, building, failure, and rendered states.
  * A first build gets a full skeleton; a rebuild keeps the previous version
- * dimmed underneath a pill, with the configuration column beside it staying
- * legible throughout.
+ * legible underneath a pill — chart and options together, dimmed and inert,
+ * since both belong to the version being replaced.
  */
 const BuilderCanvas: FC<Props> = ({
     projectUuid,
@@ -103,9 +103,13 @@ const BuilderCanvas: FC<Props> = ({
     return (
         <Box className={classes.canvas}>
             {hasPreview ? (
-                <Box className={classes.card}>
+                <Box
+                    className={classes.card}
+                    data-dimmed={isBuilding}
+                    inert={isBuilding}
+                >
                     {configurePanel}
-                    <Box className={classes.preview} data-dimmed={isBuilding}>
+                    <Box className={classes.preview}>
                         <AppPreview
                             projectUuid={projectUuid}
                             appUuid={appUuid}

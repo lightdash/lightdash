@@ -47,9 +47,17 @@
     box-shadow: var(--mantine-shadow-subtle);
     /* Not clipped: the configure column's chip rides the top border. Each
        column rounds its own corners instead. */
+    transition: opacity 300ms;
+
+    /* Chart and options are one version, so a rebuild takes both out of play —
+       dimming half of it would say one side is still live. The card is marked
+       `inert` alongside this, so it cannot be reached by pointer or keyboard;
+       the cancel link sits in the overlay above and stays clickable. */
+    &[data-dimmed='true'] {
+        opacity: 0.35;
+    }
 }
 
-/* Only the chart dims while rebuilding; the panel stays readable. */
 .preview {
     flex: 1;
     min-width: 0;
@@ -57,11 +65,6 @@
        column and alone, and clipped so the iframe follows the curve. */
     border-radius: var(--mantine-radius-md);
     overflow: hidden;
-    transition: opacity 300ms;
-
-    &[data-dimmed='true'] {
-        opacity: 0.35;
-    }
 }
 
 .overlay {

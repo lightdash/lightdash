@@ -38,9 +38,12 @@ export const ConfigTabs: FC = memo(() => {
         ? visualizationConfig.chartConfig.dataAppVizUuid
         : '';
 
+    // A chart renders the viz's latest ready version, so its options come from
+    // that version's declaration.
     const { data: dataAppViz } = useDataAppVisualization(
         projectUuid,
         dataAppVizUuid || undefined,
+        null,
     );
 
     const configOptions = useMemo(
