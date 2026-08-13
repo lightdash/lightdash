@@ -138,6 +138,7 @@ allowBuilds:
   # Not compiled; the backend runs without the native build.
   node-liblzma: false
   cpu-features: false
+  '@google/genai': false
 
 packageExtensions:
   '@mastra/schema-compat@0.11.2':
