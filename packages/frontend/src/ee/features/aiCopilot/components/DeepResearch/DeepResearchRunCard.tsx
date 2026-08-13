@@ -48,6 +48,7 @@ const PREVIEW_MARKDOWN_COMPONENTS: StreamdownProps['components'] = {
     a: PreviewLink as unknown as NonNullable<
         StreamdownProps['components']
     >['a'],
+    img: () => null,
 };
 
 const STATUS_CONFIG: Record<DeepResearchRunView['status'], { label: string }> =
