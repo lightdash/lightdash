@@ -9,7 +9,6 @@ import {
     S3Client,
     S3ServiceException,
     type ObjectIdentifier,
-    type S3ClientConfig,
 } from '@aws-sdk/client-s3';
 import { subject } from '@casl/ability';
 import {
@@ -127,7 +126,7 @@ import {
     type DataAppUploadRejectedEvent,
 } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
-import { resolveS3Credentials } from '../../../clients/Aws/S3BaseClient';
+import { createS3ClientFromConfig } from '../../../clients/Aws/S3BaseClient';
 import { LightdashConfig } from '../../../config/parseConfig';
 import {
     APP_VERSION_STAGE_ORDER,
@@ -896,19 +895,8 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        const config: S3ClientConfig = {
-            region: s3Config.region,
-            endpoint: s3Config.endpoint || undefined,
-            forcePathStyle: s3Config.forcePathStyle ?? false,
-        };
-
-        const credentials = resolveS3Credentials(s3Config);
-        if (credentials) {
-            config.credentials = credentials;
-        }
-
         return {
-            client: new S3Client(config),
+            client: createS3ClientFromConfig(s3Config),
             bucket: s3Config.bucket,
         };
     }

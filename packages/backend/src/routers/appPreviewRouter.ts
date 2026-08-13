@@ -1,7 +1,8 @@
-import { GetObjectCommand, S3, S3ServiceException } from '@aws-sdk/client-s3';
+import { GetObjectCommand, S3ServiceException } from '@aws-sdk/client-s3';
 import express, { type Router } from 'express';
 import path from 'path';
 import { validate as isValidUuid } from 'uuid';
+import { createS3ClientFromConfig } from '../clients/Aws/S3BaseClient';
 import {
     type AppRuntimeConfig,
     type LightdashSecrets,
@@ -149,21 +150,7 @@ export const createAppPreviewRouter = (
         });
     }
 
-    const s3 =
-        config.s3 !== null
-            ? new S3({
-                  region: config.s3.region,
-                  endpoint: config.s3.endpoint,
-                  forcePathStyle: config.s3.forcePathStyle,
-                  credentials:
-                      config.s3.accessKey && config.s3.secretKey
-                          ? {
-                                accessKeyId: config.s3.accessKey,
-                                secretAccessKey: config.s3.secretKey,
-                            }
-                          : undefined,
-              })
-            : null;
+    const s3 = config.s3 !== null ? createS3ClientFromConfig(config.s3) : null;
 
     const setSecurityHeaders = (
         res: express.Response,

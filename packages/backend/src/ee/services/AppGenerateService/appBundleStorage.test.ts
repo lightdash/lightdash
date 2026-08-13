@@ -9,21 +9,11 @@ const s3Mocks = vi.hoisted(() => {
     class FakeS3ServiceException extends Error {
         $metadata: { httpStatusCode?: number } = {};
     }
-    const send = vi.fn();
-    const createClient = vi.fn();
-    class FakeS3Client {
-        send = send;
-
-        constructor(config: unknown) {
-            createClient(config);
-        }
-    }
     return {
-        send,
-        createClient,
+        send: vi.fn(),
+        createClient: vi.fn(),
         warn: vi.fn(),
         FakeS3ServiceException,
-        FakeS3Client,
     };
 });
 
@@ -32,11 +22,10 @@ vi.mock('@aws-sdk/client-s3', () => ({
         constructor(public readonly input: unknown) {}
     },
     S3ServiceException: s3Mocks.FakeS3ServiceException,
-    S3Client: s3Mocks.FakeS3Client,
 }));
 
 vi.mock('../../../clients/Aws/S3BaseClient', () => ({
-    resolveS3Credentials: vi.fn(() => undefined),
+    createS3ClientFromConfig: s3Mocks.createClient,
 }));
 
 vi.mock('../../../logging/logger', () => ({
@@ -75,6 +64,7 @@ describe('getBundleServableChecker', () => {
         s3Mocks.send.mockReset();
         s3Mocks.warn.mockReset();
         s3Mocks.createClient.mockReset();
+        s3Mocks.createClient.mockReturnValue({ send: s3Mocks.send });
     });
 
     it('heads the version index document', async () => {

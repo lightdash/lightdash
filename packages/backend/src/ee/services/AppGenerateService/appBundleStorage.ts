@@ -1,10 +1,9 @@
 import {
     HeadObjectCommand,
-    S3Client,
     S3ServiceException,
-    type S3ClientConfig,
+    type S3Client,
 } from '@aws-sdk/client-s3';
-import { resolveS3Credentials } from '../../../clients/Aws/S3BaseClient';
+import { createS3ClientFromConfig } from '../../../clients/Aws/S3BaseClient';
 import { type S3Config } from '../../../config/parseConfig';
 import Logger from '../../../logging/logger';
 import { versionPrefix } from './appCode';
@@ -42,16 +41,7 @@ const createBundleServableChecker = (
         try {
             // Built here so a credential-resolution throw fails open too.
             if (!client) {
-                const clientConfig: S3ClientConfig = {
-                    region: s3Config.region,
-                    endpoint: s3Config.endpoint || undefined,
-                    forcePathStyle: s3Config.forcePathStyle ?? false,
-                };
-                const credentials = resolveS3Credentials(s3Config);
-                if (credentials) {
-                    clientConfig.credentials = credentials;
-                }
-                client = new S3Client(clientConfig);
+                client = createS3ClientFromConfig(s3Config);
             }
 
             await client.send(
