@@ -81,7 +81,7 @@ export type DataAppContextFile = {
 export type DataAppThemeContext = {
     instructions: DataAppContextFile | null;
     assets: DataAppContextFile[];
-    skippedAssetCount: number; // > 0 when assets were dropped by the cap
+    skippedAssetCount: number; // > 0 when assets were dropped by a safety policy
 };
 
 export type DataAppContext = {
