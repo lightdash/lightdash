@@ -92,8 +92,10 @@ vi.mock('@duckdb/node-api', () => ({
 const getMockStreamResult = (
     chunks: Record<string, unknown>[][],
     columnTypeIds: number[],
+    columnNamesOverride?: string[],
 ) => {
-    const columnNames = Object.keys(chunks[0]?.[0] || {});
+    const columnNames =
+        columnNamesOverride ?? Object.keys(chunks[0]?.[0] || {});
     return {
         columnCount: columnNames.length,
         columnNames: () => columnNames,
@@ -285,9 +287,9 @@ describe('DuckdbWarehouseClient', () => {
         expect(result.totalRows).toBe(3);
     });
 
-    it('should handle empty result set', async () => {
+    it('should surface field metadata on empty result set', async () => {
         const streamMock = vi.fn(async () =>
-            getMockStreamResult([], [DUCKDB_TYPE_IDS.INTEGER]),
+            getMockStreamResult([], [DUCKDB_TYPE_IDS.INTEGER], ['id']),
         );
 
         createInstanceMock.mockResolvedValue(createMockConnection(streamMock));
@@ -296,7 +298,7 @@ describe('DuckdbWarehouseClient', () => {
         const result = await client.runQuery('SELECT id FROM empty_table');
 
         expect(result.rows).toEqual([]);
-        expect(result.fields).toEqual({});
+        expect(result.fields).toEqual({ id: { type: DimensionType.NUMBER } });
     });
 
     it('skips MotherDuck timezone and profiling configuration, warns once, and runs every query', async () => {

@@ -2151,6 +2151,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                     hasEmittedRows = true;
                     await streamCallback({ fields, rows });
                 }
+                // Zero rows — still surface field metadata (e.g. LIMIT 0 probes)
+                if (!hasEmittedRows) {
+                    await streamCallback({ fields, rows: [] });
+                }
                 if (fetchStart === undefined) {
                     reportPhase?.('query', performance.now() - queryStart);
                     reportPhase?.('fetch', 0);

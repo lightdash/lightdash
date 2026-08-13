@@ -1159,9 +1159,72 @@ describe('renderMaterializationSql', () => {
         ).toThrow('references user attributes');
     });
 
-    it('rejects models with sql_filter', () => {
+    it('matches the managed materialization SQL when the base table has a sql_filter', () => {
         const sourceExplore = getSourceExplore();
-        sourceExplore.tables.orders.sqlWhere = '1=1';
+        sourceExplore.tables.orders.sqlWhere = '"orders".amount > 0';
+
+        const { sql, payload } =
+            preAggregateMaterialization.renderMaterializationSql({
+                sourceExplore,
+                preAggregateDef: {
+                    name: 'orders_rollup',
+                    dimensions: ['status'],
+                    metrics: ['total_order_amount'],
+                    filters: [
+                        {
+                            id: 'status-filter',
+                            target: { fieldRef: 'orders.status' },
+                            operator: FilterOperator.EQUALS,
+                            values: ['completed'],
+                        },
+                    ],
+                },
+                warehouseSqlBuilder: warehouseSqlBuilderFromType(
+                    SupportedDbtAdapter.POSTGRES,
+                ),
+            });
+
+        expect(sql).toContain('"orders".amount > 0');
+        const managedSql = composeManagedSql(
+            sourceExplore,
+            payload.metricQuery,
+        );
+        expect(normalizeSql(sql)).toEqual(
+            normalizeSql(stripOrderByAndLimit(managedSql)),
+        );
+    });
+
+    it('ignores joined-table sql_filters, matching the managed materialization SQL', () => {
+        const sourceExplore = getSourceExplore();
+        sourceExplore.tables.customers.sqlWhere = '"customers".is_active';
+
+        const { sql, payload } =
+            preAggregateMaterialization.renderMaterializationSql({
+                sourceExplore,
+                preAggregateDef: {
+                    name: 'orders_rollup',
+                    dimensions: ['status', 'customers.first_name'],
+                    metrics: ['total_order_amount'],
+                },
+                warehouseSqlBuilder: warehouseSqlBuilderFromType(
+                    SupportedDbtAdapter.POSTGRES,
+                ),
+            });
+
+        expect(sql).not.toContain('is_active');
+        const managedSql = composeManagedSql(
+            sourceExplore,
+            payload.metricQuery,
+        );
+        expect(normalizeSql(sql)).toEqual(
+            normalizeSql(stripOrderByAndLimit(managedSql)),
+        );
+    });
+
+    it('rejects base-table sql_filters that reference user attributes', () => {
+        const sourceExplore = getSourceExplore();
+        sourceExplore.tables.orders.sqlWhere =
+            '"orders".region = \'${lightdash.attributes.region}\'';
 
         expect(() =>
             preAggregateMaterialization.renderMaterializationSql({
@@ -1175,6 +1238,6 @@ describe('renderMaterializationSql', () => {
                     SupportedDbtAdapter.POSTGRES,
                 ),
             }),
-        ).toThrow('sql_filter');
+        ).toThrow('references user attributes');
     });
 });

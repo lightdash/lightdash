@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     getErrorMessage,
     isExploreError,
     preAggregateMaterialization,
@@ -97,8 +98,12 @@ const describeRole = (
             .METRIC_COMPONENT:
             return 'metric component';
         case preAggregateMaterialization.MaterializationColumnRole.DIMENSION:
-        default:
             return 'dimension';
+        default:
+            return assertUnreachable(
+                column.role,
+                `Unknown column role: ${column.role}`,
+            );
     }
 };
 
@@ -282,8 +287,13 @@ const renderHuman = (result: CheckResult, log: (line: string) => void) => {
             case 'missing':
                 actual = `  ${styles.error('✗')} missing`;
                 break;
-            default:
+            case null:
                 break;
+            default:
+                assertUnreachable(
+                    column.status,
+                    `Unknown column status: ${column.status}`,
+                );
         }
         log(
             `  ${column.name.padEnd(nameWidth)}  ${(

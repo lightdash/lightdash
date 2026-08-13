@@ -20,6 +20,7 @@ import type {
 import type { TimeFrames } from '../../../types/timeFrames';
 import type { WarehouseSqlBuilder } from '../../../types/warehouse';
 import { convertAdditionalMetric } from '../../../utils/additionalMetrics';
+import assertUnreachable from '../../../utils/assertUnreachable';
 import { getDimensionMapFromTables } from '../../../utils/fields';
 import { getFilterRulesFromGroup } from '../../../utils/filters';
 import { getItemId } from '../../../utils/item';
@@ -59,16 +60,18 @@ const getJoinType = (type: 'inner' | 'full' | 'left' | 'right' = 'left') => {
         case 'right':
             return 'RIGHT OUTER JOIN';
         default:
-            throw new ParameterError(`Unknown join type: ${type}`);
+            return assertUnreachable(type, `Unknown join type: ${type}`);
     }
 };
 
 /**
  * Renders the materialization SELECT for a pre-aggregate — the same query the
  * managed materialization pipeline runs, minus ORDER BY / LIMIT (irrelevant to
- * the stored result) and without user-attribute / required-filter handling,
- * which cannot be resolved outside the Lightdash server. Definitions relying
- * on those are rejected rather than silently rendered differently.
+ * the stored result). Includes the base table's sql_filter; definitions whose
+ * SQL references user attributes or parameters are rejected rather than
+ * silently rendered differently, as those only resolve on the server.
+ * Required model filters are excluded on the server too
+ * (skipModelRequiredFilters) — omitting them here is parity, not a gap.
  */
 export const renderMaterializationSql = ({
     sourceExplore,
@@ -266,25 +269,22 @@ export const renderMaterializationSql = ({
                 } AS ${q}${join.table}${q}\n  ON ${join.compiledSqlOn}`,
         );
 
-    referencedTables.forEach((tableName) => {
-        const table = sourceExplore.tables[tableName];
-        if (table?.sqlWhere) {
-            throw new ParameterError(
-                `Model "${tableName}" has a sql_filter, which the local materialization SQL renderer does not support yet.`,
-            );
-        }
-    });
-
     const baseTable = sourceExplore.tables[sourceExplore.baseTable];
     const groupByIndexes = metricQuery.dimensions.map((_, index) => index + 1);
+
+    // Parity with MetricQueryBuilder: only the base table's sql_filter applies
+    const whereClauses = [
+        ...(baseTable.sqlWhere ? [baseTable.sqlWhere] : []),
+        ...(filterSqls.length > 0 ? [`(${filterSqls.join(' AND ')})`] : []),
+    ];
 
     const sql = [
         'SELECT',
         selects.join(',\n'),
         `FROM ${baseTable.sqlTable} AS ${q}${sourceExplore.baseTable}${q}`,
         ...joinSqls,
-        ...(filterSqls.length > 0
-            ? [`WHERE (${filterSqls.join(' AND ')})`]
+        ...(whereClauses.length > 0
+            ? [`WHERE ${whereClauses.join(' AND ')}`]
             : []),
         ...(groupByIndexes.length > 0
             ? [`GROUP BY ${groupByIndexes.join(',')}`]
@@ -293,7 +293,7 @@ export const renderMaterializationSql = ({
 
     if (USER_ATTRIBUTE_PATTERN.test(sql)) {
         throw new ParameterError(
-            `Pre-aggregate "${preAggregateDef.name}" materialization SQL references user attributes, which cannot be resolved outside the Lightdash server.`,
+            `Pre-aggregate "${preAggregateDef.name}" materialization SQL references user attributes or parameters, which cannot be resolved outside the Lightdash server.`,
         );
     }
 
