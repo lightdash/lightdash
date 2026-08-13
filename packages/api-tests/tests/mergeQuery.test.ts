@@ -29,7 +29,7 @@ const ordersByMonth = {
 const paymentsByMonth = {
     exploreName: 'payments',
     dimensions: ['orders_order_date_month'],
-    metrics: ['payments_total_revenue'],
+    metrics: ['payments_unique_payment_count'],
     filters: {},
     sorts: [],
     limit: 500,
@@ -60,7 +60,7 @@ const mergeQuery = {
 // itself, value columns to the query they came from.
 const KEY_FIELD_ID = 'merge_order_month';
 const ORDERS_FIELD_ID = 'orders_orders_total_order_amount';
-const PAYMENTS_FIELD_ID = 'payments_payments_total_revenue';
+const PAYMENTS_FIELD_ID = 'payments_payments_unique_payment_count';
 
 type QueryResultsBody = Body<{
     status: string;
@@ -214,7 +214,7 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
         const paymentsByKey = new Map(
             paymentsRows.map((row) => [
                 monthOf(row.orders_order_date_month),
-                row.payments_total_revenue,
+                row.payments_unique_payment_count,
             ]),
         );
 
