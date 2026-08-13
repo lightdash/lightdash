@@ -5,6 +5,8 @@ import test from 'node:test';
 import {
     branchName,
     evidenceFileName,
+    evidenceMarkdown,
+    evidencePreviewUrl,
     extractParentIssueIdentifier,
     extractPrompt,
     githubIssueNumberFromUrl,
@@ -151,6 +153,78 @@ test('builds canonical direct and parent pull request references', () => {
 test('creates safe evidence filenames', () => {
     assert.equal(evidenceFileName('Login lockout state', 1), 'login-lockout-state.jpg');
     assert.equal(evidenceFileName('../../', 2), 'screenshot-2.jpg');
+});
+
+test('builds evidence details with a verified preview URL and reproduction steps', () => {
+    assert.equal(
+        evidencePreviewUrl(
+            'https://preview.example',
+            '/projects/demo/dashboards/orders?parameters=%7B%22region%22%3A%22EU%22%7D',
+        ),
+        'https://preview.example/projects/demo/dashboards/orders' +
+            '?parameters=%7B%22region%22%3A%22EU%22%7D',
+    );
+    assert.equal(evidencePreviewUrl('https://preview.example', '//other.example/path'), null);
+    assert.equal(evidencePreviewUrl('https://preview.example', '/\\other.example/path'), null);
+    assert.equal(
+        evidenceMarkdown(
+            {
+                description: 'The dashboard shows the EU parameter value.',
+                url: 'https://agent.example/evidence.jpg',
+                relativeUrl: '/projects/demo/dashboards/orders?parameters=eu',
+                steps: [
+                    'Open the dashboard parameters menu.',
+                    'Set Region to EU and confirm the dashboard updates.',
+                ],
+            },
+            'https://preview.example',
+        ),
+        `![The dashboard shows the EU parameter value.](https://agent.example/evidence.jpg)
+
+_The dashboard shows the EU parameter value._
+
+**Verified URL:** <https://preview.example/projects/demo/dashboards/orders?parameters=eu>
+
+**Reproduction steps**
+
+1. Open the dashboard parameters menu.
+2. Set Region to EU and confirm the dashboard updates.`,
+    );
+    assert.equal(
+        evidenceMarkdown(
+            {
+                description: 'Legacy evidence remains readable.',
+                url: 'https://agent.example/legacy.jpg',
+            },
+            null,
+        ),
+        `![Legacy evidence remains readable.](https://agent.example/legacy.jpg)
+
+_Legacy evidence remains readable._`,
+    );
+    assert.equal(
+        evidenceMarkdown(
+            {
+                description: 'The dashboard should show the selected parameter.',
+                relativeUrl: '/projects/demo/dashboards/orders',
+                steps: [
+                    'Open the dashboard parameters menu.',
+                    'Select a parameter value and confirm the dashboard updates.',
+                ],
+            },
+            'https://preview.example',
+        ),
+        `> It was not possible to generate the image.
+
+_The dashboard should show the selected parameter._
+
+**Verified URL:** <https://preview.example/projects/demo/dashboards/orders>
+
+**Reproduction steps**
+
+1. Open the dashboard parameters menu.
+2. Select a parameter value and confirm the dashboard updates.`,
+    );
 });
 
 test('maps Codex reasoning and commands to Linear activities', () => {

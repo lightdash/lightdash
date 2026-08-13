@@ -17,6 +17,7 @@ import { spawn } from 'node:child_process';
 import {
     branchName,
     evidenceFileName,
+    evidenceMarkdown,
     extractParentIssueIdentifier,
     extractPrompt,
     githubIssueNumbersFromUrls,
@@ -565,26 +566,36 @@ async function persistEvidence(job, event) {
     const stored = [];
     const items = Array.isArray(event.evidence) ? event.evidence : [];
     for (const [index, item] of items.slice(0, 3).entries()) {
-        if (item.mimeType !== 'image/jpeg' || typeof item.dataBase64 !== 'string') continue;
-        if (item.dataBase64.length > 3 * 1024 * 1024) continue;
-        const image = Buffer.from(item.dataBase64, 'base64');
+        let url = null;
         if (
-            image.length > 2 * 1024 * 1024 ||
-            image.length < 3 ||
-            image[0] !== 0xff ||
-            image[1] !== 0xd8 ||
-            image[2] !== 0xff
+            item.mimeType === 'image/jpeg' &&
+            typeof item.dataBase64 === 'string' &&
+            item.dataBase64.length <= 3 * 1024 * 1024
         ) {
-            continue;
+            const image = Buffer.from(item.dataBase64, 'base64');
+            if (
+                image.length <= 2 * 1024 * 1024 &&
+                image.length >= 3 &&
+                image[0] === 0xff &&
+                image[1] === 0xd8 &&
+                image[2] === 0xff
+            ) {
+                const fileName = evidenceFileName(`${index + 1}-${item.name}`, index + 1);
+                await writeFile(join(artifactRoot, fileName), image, { mode: 0o600 });
+                url = `${config.publicUrl}/artifacts/${job.id}/${promptId}/${fileName}`;
+            }
         }
-        const fileName = evidenceFileName(`${index + 1}-${item.name}`, index + 1);
-        await writeFile(join(artifactRoot, fileName), image, { mode: 0o600 });
         stored.push({
             description: String(item.description || item.name || `Screenshot ${index + 1}`)
                 .replace(/\s+/g, ' ')
                 .trim()
                 .slice(0, 300),
-            url: `${config.publicUrl}/artifacts/${job.id}/${promptId}/${fileName}`,
+            relativeUrl: String(item.relativeUrl || '').trim().slice(0, 2000),
+            steps: (Array.isArray(item.steps) ? item.steps : [])
+                .map((step) => String(step).replace(/\s+/g, ' ').trim().slice(0, 300))
+                .filter(Boolean)
+                .slice(0, 10),
+            url,
         });
     }
     return stored;
@@ -598,10 +609,7 @@ function pullRequestBody(job, event, evidence) {
         `## What changed\n\n${summary}`,
     ];
     if (evidence.length) {
-        const images = evidence.map((item) => {
-            const description = item.description.replace(/[\[\]]/g, '');
-            return `![${description}](${item.url})\n\n_${description}_`;
-        });
+        const images = evidence.map((item) => evidenceMarkdown(item, job.previewUrl));
         sections.push(`## Visual evidence\n\n${images.join('\n\n')}`);
     } else {
         const detail = event.evidenceError
@@ -631,10 +639,10 @@ function linearResponseBody(job, event, evidence, prUrl, previewUrl) {
     const response = String(event.body || event.summary || 'Implementation complete.').trim();
     const sections = [/^#{1,6}\s/m.test(response) ? response : `## Result\n\n${response}`];
     if (evidence.length) {
-        sections.push(`## Visual evidence\n\n${evidence.map((item) => {
-            const description = item.description.replace(/[\[\]]/g, '');
-            return `![${description}](${item.url})\n\n_${description}_`;
-        }).join('\n\n')}`);
+        const evidenceBody = evidence
+            .map((item) => evidenceMarkdown(item, previewUrl))
+            .join('\n\n');
+        sections.push(`## Visual evidence\n\n${evidenceBody}`);
     } else if (event.evidenceError) {
         sections.push(
             `## Visual evidence\n\n> Screenshot capture failed: ${String(event.evidenceError).trim().slice(0, 1000)}`,

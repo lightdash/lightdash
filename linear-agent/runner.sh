@@ -493,6 +493,18 @@ JS
     curl --fail --silent --output /dev/null "http://localhost:${FE_PORT}/login"
 }
 
+write_failed_evidence_result() {
+    local prompt_id="$1" plan_file="$2" result_file="$3" reason="$4"
+    NODE_PATH="$repository_dir/packages/backend/node_modules" node \
+        "$workspace/capture-evidence.cjs" \
+        "http://host.docker.internal:${FE_PORT}" \
+        unavailable \
+        "$plan_file" \
+        "$workspace/evidence-${prompt_id}" \
+        "$result_file" \
+        "$reason" >"$workspace/evidence-capture-${prompt_id}.log" 2>&1 || true
+}
+
 capture_visual_evidence() {
     local prompt_id="$1"
     local plan_file="$workspace/evidence-plan-${prompt_id}.json"
@@ -506,30 +518,6 @@ capture_visual_evidence() {
         printf '%s\n' 'The evidence capture helper is missing.' >"$error_file"
         return 1
     }
-    docker rm -f "$browser_container" >/dev/null 2>&1 || true
-    if ! docker run --detach --rm \
-        --name "$browser_container" \
-        --add-host host.docker.internal:host-gateway \
-        --shm-size=512m \
-        --publish 127.0.0.1:3001:3000 \
-        --env CONNECTION_TIMEOUT=120000 \
-        ghcr.io/browserless/chromium:v2.49.0 >"$workspace/evidence-browser-${prompt_id}.id"; then
-        printf '%s\n' 'Browserless failed to start.' >"$error_file"
-        return 1
-    fi
-    for _ in $(seq 1 30); do
-        if curl --fail --silent --output /dev/null http://127.0.0.1:3001/json/version; then
-            browser_ready=true
-            break
-        fi
-        sleep 1
-    done
-    if [ "$browser_ready" != true ]; then
-        printf '%s\n' 'Browserless did not become ready.' >"$error_file"
-        docker rm -f "$browser_container" >/dev/null 2>&1 || true
-        return 1
-    fi
-
     cat >"$evidence_prompt" <<EOF
 The Lightdash preview for the implementation is running locally. Prepare a visual evidence plan that demonstrates the fix or functionality you just implemented. Do not modify repository files and do not take a generic homepage screenshot unless the change itself is on the homepage.
 
@@ -540,6 +528,11 @@ Respond with only valid JSON using this shape:
       "name": "short-kebab-name",
       "description": "What this screenshot proves",
       "path": "/relevant/lightdash/path",
+      "steps": [
+        "Open the relevant dashboard or page.",
+        "Use the visible controls to reproduce the changed state.",
+        "Confirm the expected result shown in the screenshot."
+      ],
       "authenticated": true,
       "fullPage": false,
       "actions": [
@@ -554,7 +547,7 @@ Respond with only valid JSON using this shape:
   ]
 }
 
-Use at most three screenshots. Set authenticated to false for login or authentication states. The capture uses the seeded demo user automatically when authenticated is true. Use only seeded demo data. Never put client or customer names, organization names, or customer-provided data examples in screenshot names, descriptions, actions, assertions, or visible form values. Set force to true for repeated clicks that may be covered by transient notifications. End each screenshot with assertText for the visible result that proves its description. Inspect routes, selectors, and seeded data as needed so the plan targets the implemented behavior. Omit unnecessary actions and ensure the final state visibly demonstrates the change.
+Use at most three screenshots. For each screenshot, write 2-6 steps in plain language that let a reviewer reproduce the visual result. Name visible controls and the expected result; do not mention CSS selectors or include login as a step. Make the description explain the page, changed state, and what visibly confirms success. Set authenticated to false for login or authentication states. The capture uses the seeded demo user automatically when authenticated is true. Use only seeded demo data. Never put client or customer names, organization names, or customer-provided data examples in screenshot names, descriptions, steps, actions, assertions, or visible form values. Set force to true for repeated clicks that may be covered by transient notifications. End each screenshot with assertText for the visible result that proves its description. Inspect routes, selectors, and seeded data as needed so the plan targets the implemented behavior. Omit unnecessary actions and ensure the final state visibly demonstrates the change.
 EOF
     set +e
     (
@@ -580,7 +573,17 @@ try:
     except json.JSONDecodeError:
         value = json.loads(text[text.index('{'):text.rindex('}') + 1])
     shots = value.get('screenshots', [])
-    valid = isinstance(shots, list) and 0 < len(shots) <= 3
+    valid = (
+        isinstance(shots, list)
+        and 0 < len(shots) <= 3
+        and all(
+            isinstance(shot, dict)
+            and isinstance(shot.get('steps'), list)
+            and 2 <= len(shot['steps']) <= 6
+            and all(isinstance(step, str) and step.strip() for step in shot['steps'])
+            for shot in shots
+        )
+    )
     if valid:
         path.write_text(json.dumps(value), encoding='utf-8')
     print('true' if valid else 'false')
@@ -591,6 +594,33 @@ PY
     fi
     if [ "$plan_valid" != true ]; then
         printf '%s\n' 'The visual evidence agent did not produce a valid screenshot plan.' >"$error_file"
+        return 1
+    fi
+
+    docker rm -f "$browser_container" >/dev/null 2>&1 || true
+    if ! docker run --detach --rm \
+        --name "$browser_container" \
+        --add-host host.docker.internal:host-gateway \
+        --shm-size=512m \
+        --publish 127.0.0.1:3001:3000 \
+        --env CONNECTION_TIMEOUT=120000 \
+        ghcr.io/browserless/chromium:v2.49.0 >"$workspace/evidence-browser-${prompt_id}.id"; then
+        write_failed_evidence_result \
+            "$prompt_id" "$plan_file" "$result_file" 'Browserless failed to start.'
+        printf '%s\n' 'Browserless failed to start.' >"$error_file"
+        return 1
+    fi
+    for _ in $(seq 1 30); do
+        if curl --fail --silent --output /dev/null http://127.0.0.1:3001/json/version; then
+            browser_ready=true
+            break
+        fi
+        sleep 1
+    done
+    if [ "$browser_ready" != true ]; then
+        write_failed_evidence_result \
+            "$prompt_id" "$plan_file" "$result_file" 'Browserless did not become ready.'
+        printf '%s\n' 'Browserless did not become ready.' >"$error_file"
         docker rm -f "$browser_container" >/dev/null 2>&1 || true
         return 1
     fi
@@ -778,19 +808,28 @@ try:
     capture = json.loads(pathlib.Path(evidence_path).read_text())
     evidence_errors.extend(capture.get("errors", []))
     for item in capture.get("evidence", [])[:3]:
+        evidence_item = {
+            "name": str(item.get("name", "screenshot"))[:80],
+            "description": str(item.get("description", "Visual evidence"))[:300],
+            "relativeUrl": str(item.get("relativeUrl", ""))[:2000],
+            "steps": [str(step)[:300] for step in item.get("steps", [])[:10]],
+        }
         image_path = pathlib.Path(item.get("file", ""))
         if not image_path.is_file() or image_path.stat().st_size > 2 * 1024 * 1024:
+            evidence_item["error"] = str(item.get("error", "Image capture failed"))[:1000]
+            evidence.append(evidence_item)
             continue
         if evidence_bytes + image_path.stat().st_size > 4 * 1024 * 1024:
             evidence_errors.append(f"Skipped {image_path.name}: total evidence size exceeded 4 MB")
+            evidence_item["error"] = "Image capture exceeded the total evidence size limit"
+            evidence.append(evidence_item)
             continue
         evidence_bytes += image_path.stat().st_size
-        evidence.append({
-            "name": str(item.get("name", "screenshot"))[:80],
-            "description": str(item.get("description", "Visual evidence"))[:300],
+        evidence_item.update({
             "mimeType": "image/jpeg",
             "dataBase64": base64.b64encode(image_path.read_bytes()).decode(),
         })
+        evidence.append(evidence_item)
 except (FileNotFoundError, json.JSONDecodeError):
     pass
 try:
