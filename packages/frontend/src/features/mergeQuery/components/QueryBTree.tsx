@@ -1,4 +1,4 @@
-import { Select, Stack, Text } from '@mantine/core';
+import { Group, Select, Stack, Text } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import ExploreTree from '../../../components/Explorer/ExploreTree';
 import LoadingSkeleton from '../../../components/Explorer/ExploreTree/LoadingSkeleton';
@@ -7,7 +7,8 @@ import { useExplore } from '../../../hooks/useExplore';
 import { useExplores } from '../../../hooks/useExplores';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useMerge } from '../context/useMerge';
-import { MergeSetupGuide } from './MergeSetupGuide';
+import { useMergeSetup } from '../hooks/useMergeSetup';
+import { MergeJoinBar } from './MergeJoinBar';
 
 /**
  * The field picker for the second query, shown when its tab has the focus.
@@ -21,6 +22,7 @@ export const QueryBTree: FC = () => {
     const projectUuid = useProjectUuid();
     const { data: explores } = useExplores(projectUuid);
     const { queryB, setExploreB, toggleFieldB } = useMerge();
+    const { setupStep } = useMergeSetup();
     const { data: explore, isInitialLoading } = useExplore(
         queryB.exploreName ?? undefined,
     );
@@ -32,13 +34,18 @@ export const QueryBTree: FC = () => {
         }),
         [queryB.dimensions, queryB.metrics],
     );
+    const guidance =
+        queryB.metrics.length === 0
+            ? 'Add a metric to continue'
+            : setupStep === 'Pick a field from each query to join on'
+              ? 'Choose matching fields'
+              : setupStep;
 
     return (
         <Stack gap="xs" h="100%">
-            <MergeSetupGuide />
             <Select
                 placeholder="Pick a table"
-                label="Query B table"
+                label="Table"
                 size="xs"
                 data={(explores ?? []).map((option) => ({
                     value: option.name,
@@ -51,15 +58,23 @@ export const QueryBTree: FC = () => {
             />
 
             {queryB.exploreName && (
-                <Text size="xs" c="dimmed">
-                    {queryB.dimensions.length + queryB.metrics.length} selected
-                    {' · '}
-                    {queryB.dimensions.length} dimension
-                    {queryB.dimensions.length === 1 ? '' : 's'}
-                    {' · '}
-                    {queryB.metrics.length} metric
-                    {queryB.metrics.length === 1 ? '' : 's'}
-                </Text>
+                <>
+                    <Group justify="space-between" gap="xs" wrap="nowrap">
+                        <Text size="xs" c="dimmed">
+                            {queryB.dimensions.length + queryB.metrics.length}{' '}
+                            selected · {queryB.dimensions.length} dimension
+                            {queryB.dimensions.length === 1 ? '' : 's'} ·{' '}
+                            {queryB.metrics.length} metric
+                            {queryB.metrics.length === 1 ? '' : 's'}
+                        </Text>
+                        {guidance && (
+                            <Text size="xs" c="blue.7" ta="right">
+                                {guidance}
+                            </Text>
+                        )}
+                    </Group>
+                    <MergeJoinBar />
+                </>
             )}
 
             {queryB.exploreName && isInitialLoading && <LoadingSkeleton />}
