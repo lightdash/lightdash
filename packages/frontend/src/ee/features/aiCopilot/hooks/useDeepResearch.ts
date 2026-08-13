@@ -15,7 +15,7 @@ import {
     isAiDeepResearchRunTerminal,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import useUser from '../../../../hooks/user/useUser';
@@ -44,6 +44,17 @@ import {
 const DEEP_RESEARCH_QUERY_KEY = 'deepResearch';
 const DEEP_RESEARCH_POLL_INTERVAL_MS = 2_000;
 const DEEP_RESEARCH_EVENT_PAGE_SIZE = 100;
+
+type PollFailureState = {
+    queryIdentity: string;
+    error: ApiError;
+    failureCount: number;
+};
+
+const getPollFailureForQuery = (
+    failure: PollFailureState | undefined,
+    queryIdentity: string,
+) => (failure?.queryIdentity === queryIdentity ? failure : undefined);
 
 const getBaseUrl = (projectUuid: string) =>
     `/ee/projects/${projectUuid}/ai-deep-research`;
@@ -447,6 +458,8 @@ export const useHasActiveDeepResearchRun = ({
 export const useDeepResearchRun = (
     registration: DeepResearchRunRegistration,
 ) => {
+    const queryIdentity = `${registration.projectUuid}:${registration.runUuid}`;
+    const pollFailure = useRef<PollFailureState | undefined>(undefined);
     const runQuery = useQuery<AiDeepResearchRun, ApiError>({
         queryKey: [
             DEEP_RESEARCH_QUERY_KEY,
@@ -460,11 +473,29 @@ export const useDeepResearchRun = (
             getDeepResearchRunRefetchInterval(
                 run,
                 DEEP_RESEARCH_POLL_INTERVAL_MS,
+                Date.now(),
+                getPollFailureForQuery(pollFailure.current, queryIdentity),
             ),
+        onSuccess: () => {
+            pollFailure.current = undefined;
+        },
+        onError: (error) => {
+            pollFailure.current = {
+                queryIdentity,
+                error,
+                failureCount:
+                    (getPollFailureForQuery(pollFailure.current, queryIdentity)
+                        ?.failureCount ?? 0) + 1,
+            };
+        },
     });
     const isRunActive = runQuery.data
         ? !isDeepResearchRunTerminal(runQuery.data.status)
         : true;
+    const eventsPollFailure = useRef<PollFailureState | undefined>(undefined);
+    const runAccessUnavailable = [403, 404].includes(
+        runQuery.error?.error.statusCode ?? 0,
+    );
     const eventsQuery = useQuery<AiDeepResearchEventsPage, ApiError>({
         queryKey: [
             DEEP_RESEARCH_QUERY_KEY,
@@ -477,8 +508,33 @@ export const useDeepResearchRun = (
                 registration.projectUuid,
                 registration.runUuid,
             ),
-        enabled: registration.state === 'started',
-        refetchInterval: isRunActive ? DEEP_RESEARCH_POLL_INTERVAL_MS : false,
+        enabled: registration.state === 'started' && !runAccessUnavailable,
+        refetchInterval: () =>
+            isRunActive
+                ? getDeepResearchRunRefetchInterval(
+                      undefined,
+                      DEEP_RESEARCH_POLL_INTERVAL_MS,
+                      Date.now(),
+                      getPollFailureForQuery(
+                          eventsPollFailure.current,
+                          queryIdentity,
+                      ),
+                  )
+                : false,
+        onSuccess: () => {
+            eventsPollFailure.current = undefined;
+        },
+        onError: (error) => {
+            eventsPollFailure.current = {
+                queryIdentity,
+                error,
+                failureCount:
+                    (getPollFailureForQuery(
+                        eventsPollFailure.current,
+                        queryIdentity,
+                    )?.failureCount ?? 0) + 1,
+            };
+        },
     });
 
     return {
@@ -498,6 +554,8 @@ export const useDeepResearchReport = (
     projectUuid: string | undefined,
     runUuid: string | undefined,
 ) => {
+    const queryIdentity = `${projectUuid}:${runUuid}`;
+    const pollFailure = useRef<PollFailureState | undefined>(undefined);
     const runQuery = useQuery<AiDeepResearchRun, ApiError>({
         queryKey: [DEEP_RESEARCH_QUERY_KEY, projectUuid, runUuid],
         queryFn: () => getDeepResearchRun(projectUuid ?? '', runUuid ?? ''),
@@ -506,7 +564,21 @@ export const useDeepResearchReport = (
             getDeepResearchRunRefetchInterval(
                 run,
                 DEEP_RESEARCH_POLL_INTERVAL_MS,
+                Date.now(),
+                getPollFailureForQuery(pollFailure.current, queryIdentity),
             ),
+        onSuccess: () => {
+            pollFailure.current = undefined;
+        },
+        onError: (error) => {
+            pollFailure.current = {
+                queryIdentity,
+                error,
+                failureCount:
+                    (getPollFailureForQuery(pollFailure.current, queryIdentity)
+                        ?.failureCount ?? 0) + 1,
+            };
+        },
     });
     const report = useMemo<DeepResearchReportView | undefined>(
         () =>
