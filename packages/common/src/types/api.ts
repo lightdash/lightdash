@@ -38,12 +38,10 @@ import type {
     ApiAiAgentThreadWorkstreamsResponse,
     ApiAiAgentUserMemoriesResponse,
     ApiAiAgentVerifiedArtifactsResponse,
-    ApiAiDashboardSummaryResponse,
     ApiAiGenerateChartMetadataResponse,
     ApiAiGenerateCustomDimensionResponse,
     ApiAiGenerateFormulaTableCalculationResponse,
     ApiAiGenerateTableCalculationResponse,
-    ApiAiGetDashboardSummaryResponse,
     ApiAiOrganizationRuntimeSettingsResponse,
     ApiAiOrganizationSettingsResponse,
     ApiAiReviewNotificationSettingsResponse,
@@ -1198,8 +1196,6 @@ type ApiResults =
     | ApiSuccessEmpty
     | ApiCreateProjectResults
     | ApiDeployExploresResults
-    | ApiAiDashboardSummaryResponse['results']
-    | ApiAiGetDashboardSummaryResponse['results']
     | ApiAiGenerateChartMetadataResponse['results']
     | ApiAiGenerateCustomDimensionResponse['results']
     | ApiAiGenerateFormulaTableCalculationResponse['results']

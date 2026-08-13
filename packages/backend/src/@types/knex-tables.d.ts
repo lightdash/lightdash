@@ -462,10 +462,6 @@ import {
     AiRouterTableName,
 } from '../ee/database/entities/aiRouter';
 import {
-    DashboardSummariesTable,
-    DashboardSummariesTableName,
-} from '../ee/database/entities/dashboardSummaries';
-import {
     AppExternalConnectionsTable,
     AppExternalConnectionsTableName,
     ExternalConnectionRateCountersTable,
@@ -678,7 +674,6 @@ declare module 'knex/types/tables' {
         [NotificationsTableName]: NotificationsTable;
         [AiReviewNotificationLogTableName]: AiReviewNotificationLogTable;
         [AiReviewNotificationSettingsTableName]: AiReviewNotificationSettingsTable;
-        [DashboardSummariesTableName]: DashboardSummariesTable;
         [CatalogTableName]: CatalogTable;
         [SlackChannelProjectMappingsTableName]: SlackChannelProjectMappingsTable;
         [WarehouseAvailableTablesTableName]: WarehouseAvailableTablesTable;
