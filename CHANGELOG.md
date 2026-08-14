@@ -1,3 +1,10 @@
+## [1.160.1](https://github.com/lightdash/lightdash/compare/1.160.0...1.160.1) (2026-08-14)
+
+
+### Performance Improvements
+
+* **release-safety:** cache the preview job's pnpm store ([#27428](https://github.com/lightdash/lightdash/issues/27428)) ([f97113c](https://github.com/lightdash/lightdash/commit/f97113cd72d5df411a17a428609636c569112028))
+
 # [1.160.0](https://github.com/lightdash/lightdash/compare/1.159.6...1.160.0) (2026-08-14)
 
 
