@@ -1,3 +1,10 @@
+# [1.155.0](https://github.com/lightdash/lightdash/compare/1.154.2...1.155.0) (2026-08-14)
+
+
+### Features
+
+* **cli:** declare a Node >=24 engines floor ([#27391](https://github.com/lightdash/lightdash/issues/27391)) ([b2c5b07](https://github.com/lightdash/lightdash/commit/b2c5b07c95aeb42fcde95c7ebddf90e66e663ac1))
+
 ## [1.154.2](https://github.com/lightdash/lightdash/compare/1.154.1...1.154.2) (2026-08-13)
 
 
