@@ -820,6 +820,12 @@ const Settings: FC = () => {
             ) &&
             !matchPath(
                 {
+                    path: '/generalSettings/projectManagement/:projectUuid/dataAppConnections',
+                },
+                location.pathname,
+            ) &&
+            !matchPath(
+                {
                     path: '/generalSettings/customRoles',
                 },
                 location.pathname,
