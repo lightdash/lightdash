@@ -55,7 +55,7 @@ const Note: FC<{ tone: 'muted' | 'warn'; children: ReactNode }> = ({
  * run error) shows beneath the bar whether or not it is expanded, because an
  * error is not chrome.
  */
-export const MergeJoinBar: FC = () => {
+export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
     const dispatch = useExplorerDispatch();
     const { data: mergeFlag } = useServerFeatureFlag(FeatureFlags.MergeQueries);
     const tableName = useExplorerSelector(selectTableName);
@@ -96,7 +96,9 @@ export const MergeJoinBar: FC = () => {
         null,
     );
     const expanded =
-        !readOnly && !!queryB.exploreName && (editingOverride ?? isIncomplete);
+        !readOnly &&
+        !!queryB.exploreName &&
+        (guided || (editingOverride ?? isIncomplete));
 
     if (!mergeContext || !tableName || mergeFlag?.enabled !== true) return null;
     if (!isMerging) return null;
@@ -147,32 +149,34 @@ export const MergeJoinBar: FC = () => {
             {/* The bar and its expanded editor are one attached shape; only
                 the notes below get breathing room. */}
             <Box>
-                <Box className={styles.bar} data-expanded={expanded}>
-                    <Text className={styles.summary} span truncate>
-                        {summary}
-                    </Text>
-                    {!readOnly && (
-                        <Anchor
-                            component="button"
-                            type="button"
-                            size="xs"
-                            fw={600}
-                            onClick={() => setEditingOverride(!expanded)}
-                        >
-                            {expanded ? 'Done' : 'Edit'}
-                        </Anchor>
-                    )}
-                </Box>
+                {!guided && (
+                    <Box className={styles.bar} data-expanded={expanded}>
+                        <Text className={styles.summary} span truncate>
+                            {summary}
+                        </Text>
+                        {!readOnly && (
+                            <Anchor
+                                component="button"
+                                type="button"
+                                size="xs"
+                                fw={600}
+                                onClick={() => setEditingOverride(!expanded)}
+                            >
+                                {expanded ? 'Done' : 'Edit'}
+                            </Anchor>
+                        )}
+                    </Box>
+                )}
 
                 {expanded && (
-                    <Box className={styles.editor}>
+                    <Box className={styles.editor} data-guided={guided}>
                         {effectiveParts.map((part, index) => (
                             // eslint-disable-next-line react/no-array-index-key
                             <Box className={styles.pair} key={index}>
                                 <Box className={styles.pairHeader}>
                                     <Text span size="xs" c="dimmed">
                                         {exploreALabel} matches{' '}
-                                        {exploreBLabel ?? 'Query B'} on
+                                        {exploreBLabel ?? 'the second query'} on
                                     </Text>
                                     {effectiveParts.length > 1 && (
                                         <ActionIcon

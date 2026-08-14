@@ -121,9 +121,9 @@ export const MergeProvider: FC<
         fieldOrigins: {},
     });
 
-    const addQuery = useCallback(() => {
+    const addQuery = useCallback((initialFocus: MergeFocus = 'b') => {
         setIsMerging(true);
-        setFocus('b');
+        setFocus(initialFocus);
     }, []);
 
     const removeQuery = useCallback(() => {

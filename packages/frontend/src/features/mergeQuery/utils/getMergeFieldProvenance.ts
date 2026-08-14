@@ -1,8 +1,8 @@
 import { type MergeFieldOrigin } from '@lightdash/common';
 
 const fallbackSourceLabel = (sourceId: string) => {
-    if (sourceId === 'a') return 'Query A';
-    if (sourceId === 'b') return 'Query B';
+    if (sourceId === 'a') return 'First result';
+    if (sourceId === 'b') return 'Second result';
     return sourceId;
 };
 

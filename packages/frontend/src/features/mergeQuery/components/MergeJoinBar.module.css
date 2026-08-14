@@ -38,6 +38,11 @@
     background: var(--mantine-color-body);
 }
 
+.editor[data-guided='true'] {
+    border: 0;
+    border-radius: 0;
+}
+
 .bar[data-expanded='true'] {
     border-radius: 6px 6px 0 0;
 }

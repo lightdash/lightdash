@@ -13,8 +13,8 @@ import {
 import { createContext } from 'react';
 import { type InfiniteQueryResults } from '../../../hooks/useQueryResults';
 
-/** Which query the field picker is currently editing. */
-export type MergeFocus = 'a' | 'b';
+/** Which part of the merge workflow the sidebar is editing. */
+export type MergeFocus = 'a' | 'b' | 'join';
 
 export type MergeQueryBState = {
     exploreName: string | null;
@@ -83,8 +83,7 @@ export type MergeContextValue = {
     filtersB: Filters;
     joinParts: MergeJoinPart[];
     joinType: MergeJoinType;
-    /** Index of the join key part spread into columns after the join, or null. */
-    addQuery: () => void;
+    addQuery: (initialFocus?: MergeFocus) => void;
     removeQuery: () => void;
     setFocus: (focus: MergeFocus) => void;
     setExploreB: (exploreName: string | null) => void;
