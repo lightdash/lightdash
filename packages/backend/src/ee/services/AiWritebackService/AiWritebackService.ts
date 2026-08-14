@@ -422,6 +422,36 @@ export const workstreamLockKey = (
         : `${aiThreadUuid}::new::${repository}`;
 };
 
+const getRepoContextAnalyticsProperties = (repoContext: RepoContext | null) => {
+    if (repoContext === null) {
+        return {
+            repoContextBytes: null,
+            repoContextCapped: null,
+            repoContextFileCount: null,
+        };
+    }
+    if (repoContext.kind === 'summarised') {
+        return {
+            repoContextBytes: repoContext.bytes,
+            repoContextCapped: true,
+            repoContextFileCount: repoContext.fileCount,
+        };
+    }
+    const { fileCount } = summarizeRepoListing(repoContext.listing);
+    if (fileCount === 0) {
+        return {
+            repoContextBytes: null,
+            repoContextCapped: null,
+            repoContextFileCount: null,
+        };
+    }
+    return {
+        repoContextBytes: Buffer.byteLength(repoContext.listing, 'utf8'),
+        repoContextCapped: false,
+        repoContextFileCount: fileCount,
+    };
+};
+
 export class AiWritebackService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
@@ -2162,6 +2192,7 @@ export class AiWritebackService extends BaseService {
 
         let sandbox: SandboxHandle | undefined;
         let sandboxUuid: string | undefined;
+        let repoContext: RepoContext | null = null;
         // Default to preserving a resumed sandbox through failures — its
         // sandbox_uuid is referenced by an ai_writeback_thread row and killing
         // it would poison the row for every future turn. Fresh turns have no
@@ -2247,6 +2278,7 @@ export class AiWritebackService extends BaseService {
                 turn,
                 repository,
             });
+            repoContext = setup.repoContext;
             const agent = await this.runAgentInSandbox({
                 sandbox,
                 systemPrompt: setup.systemPrompt,
@@ -2352,6 +2384,7 @@ export class AiWritebackService extends BaseService {
                 hasChanges,
                 prCreated: applied.prCreated,
                 usage: agent.usage,
+                repoContext,
             });
 
             this.logger.info('AI writeback run completed', {
@@ -2433,7 +2466,7 @@ export class AiWritebackService extends BaseService {
                     sandboxId: sandbox?.sandboxId ?? null,
                 },
             });
-            tracker.failed(failureStage, error);
+            tracker.failed(failureStage, error, repoContext);
             await persistRunFailed(error);
             throw error;
         } finally {
@@ -3281,6 +3314,7 @@ export class AiWritebackService extends BaseService {
                 hasChanges: boolean;
                 prCreated: boolean;
                 usage: AiWritebackUsage | null;
+                repoContext: RepoContext | null;
             }) =>
                 this.analytics.track({
                     event: 'ai_writeback.completed',
@@ -3300,9 +3334,14 @@ export class AiWritebackService extends BaseService {
                             props.usage?.cacheCreationInputTokens ?? null,
                         numTurns: props.usage?.numTurns ?? null,
                         durationApiMs: props.usage?.durationApiMs ?? null,
+                        ...getRepoContextAnalyticsProperties(props.repoContext),
                     },
                 }),
-            failed: (stage: AiWritebackFailureStage, error: unknown) =>
+            failed: (
+                stage: AiWritebackFailureStage,
+                error: unknown,
+                repoContext: RepoContext | null,
+            ) =>
                 this.analytics.track({
                     event: 'ai_writeback.failed',
                     userId: user.userUuid,
@@ -3311,6 +3350,7 @@ export class AiWritebackService extends BaseService {
                         failureStage: stage,
                         errorMessage: getErrorMessage(error),
                         totalDurationMs: Date.now() - startedAt,
+                        ...getRepoContextAnalyticsProperties(repoContext),
                     },
                 }),
         };
@@ -4082,6 +4122,7 @@ export class AiWritebackService extends BaseService {
                 );
                 return {
                     systemPrompt,
+                    repoContext,
                     allowedTools: ALLOWED_TOOLS,
                     addDirs: ['/tmp', SKILLS_DIR, CLAUDE_SKILLS_DIR],
                     model: CLAUDE_MODEL,
@@ -4253,6 +4294,7 @@ export class AiWritebackService extends BaseService {
                         repository,
                         repoContext,
                     }),
+                    repoContext,
                     allowedTools: GENERAL_ALLOWED_TOOLS,
                     disallowedTools: GENERAL_DISALLOWED_TOOLS,
                     addDirs: ['/tmp', GENERAL_SKILLS_DIR],
