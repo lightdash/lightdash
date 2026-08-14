@@ -1,3 +1,10 @@
+# [1.160.0](https://github.com/lightdash/lightdash/compare/1.159.6...1.160.0) (2026-08-14)
+
+
+### Features
+
+* **dashboards:** persist parameter overrides in URLs ([#27332](https://github.com/lightdash/lightdash/issues/27332)) ([d2a8448](https://github.com/lightdash/lightdash/commit/d2a8448660b167cc72b1188200281a585a0c3dc5))
+
 ## [1.159.6](https://github.com/lightdash/lightdash/compare/1.159.5...1.159.6) (2026-08-14)
 
 
