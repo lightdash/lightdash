@@ -1,3 +1,10 @@
+## [1.162.1](https://github.com/lightdash/lightdash/compare/1.162.0...1.162.1) (2026-08-14)
+
+
+### Bug Fixes
+
+* **explorer:** consolidate query options menu ([#27420](https://github.com/lightdash/lightdash/issues/27420)) ([cdde936](https://github.com/lightdash/lightdash/commit/cdde9366167279adcc5a311851161be8ce2ea6ce))
+
 # [1.162.0](https://github.com/lightdash/lightdash/compare/1.161.0...1.162.0) (2026-08-14)
 
 
