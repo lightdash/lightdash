@@ -1,3 +1,10 @@
+## [1.159.4](https://github.com/lightdash/lightdash/compare/1.159.3...1.159.4) (2026-08-14)
+
+
+### Bug Fixes
+
+* **release-safety:** show a pending state before the verdict lands ([#27419](https://github.com/lightdash/lightdash/issues/27419)) ([3c09a22](https://github.com/lightdash/lightdash/commit/3c09a22e0d0bf58b742a8f0a25928b9e8e21badb))
+
 ## [1.159.3](https://github.com/lightdash/lightdash/compare/1.159.2...1.159.3) (2026-08-14)
 
 
