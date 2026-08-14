@@ -17034,6 +17034,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                showFilters: { dataType: 'boolean' },
                 tabName: { dataType: 'string' },
                 url: { dataType: 'string', required: true },
                 gdriveOrganizationName: { dataType: 'string', required: true },

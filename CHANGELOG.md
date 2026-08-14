@@ -1,3 +1,10 @@
+# [1.162.0](https://github.com/lightdash/lightdash/compare/1.161.0...1.162.0) (2026-08-14)
+
+
+### Features
+
+* show active filters in Google Sheets syncs ([#27432](https://github.com/lightdash/lightdash/issues/27432)) ([7270995](https://github.com/lightdash/lightdash/commit/727099582edb37a1fe8ce9c230e1e02095268024))
+
 # [1.161.0](https://github.com/lightdash/lightdash/compare/1.160.3...1.161.0) (2026-08-14)
 
 
