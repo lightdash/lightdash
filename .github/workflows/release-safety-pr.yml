@@ -58,6 +58,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
+      # SPK-1012: 'true' only while the PR is still open and unmerged. Read live
+      # from the API, not from the event payload — the payload describes the PR
+      # as it was when the event fired, which for a post-merge run is precisely
+      # the stale fact we must not trust.
+      open: ${{ steps.openness.outputs.open }}
       watched: ${{ steps.watched.outputs.watched }}
       base_sha: ${{ steps.base.outputs.sha }}
       base_short: ${{ steps.base.outputs.short }}
@@ -70,6 +75,37 @@ jobs:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
+
+      # SPK-1012: a merged or closed PR must never receive a verdict. Pushing to
+      # the branch after a merge still fires `synchronize`, and GitHub does not
+      # suppress `pull_request` events on merged PRs — so a run can be created,
+      # and finish, entirely post-merge. Two things then go wrong at once: the
+      # write step's only staleness guard compares head SHAs, and merging does
+      # not move the head, so it passes; and the comparison base is re-resolved
+      # at run time against a `main` that now contains this PR, so the API diff
+      # comes out empty. The result is a comment certifying "no breaking changes"
+      # for a PR that carried them. Observed on #27393, which was stamped safe
+      # 21 minutes after it merged while its release carried 42 breaking REST
+      # changes.
+      #
+      # Checked before the path filter so a post-merge run costs one API call.
+      - name: Check the pull request is still open
+        id: openness
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            const open = pr.state === 'open' && !pr.merged;
+            if (!open) {
+              core.info(
+                `PR is ${pr.merged ? 'merged' : pr.state}; no verdict will be written or retracted.`,
+              );
+            }
+            core.setOutput('open', String(open));
 
       # The watched surface — the paths that were previously the trigger-level
       # `paths:` filter (see the `on:` comment). Checked FIRST, without a
@@ -85,6 +121,7 @@ jobs:
       # filter is deliberately broad). Migrations and the MCP snapshot live
       # under those two globs too.
       - name: Check whether the diff touches the watched surface
+        if: steps.openness.outputs.open == 'true'
         uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4
         id: watched
         with:
@@ -177,7 +214,7 @@ jobs:
   openapi-specs:
     name: Generate API snapshots
     needs: changes
-    if: needs.changes.outputs.openapi == 'true' && needs.changes.outputs.fresh != 'true'
+    if: needs.changes.outputs.open == 'true' && needs.changes.outputs.openapi == 'true' && needs.changes.outputs.fresh != 'true'
     runs-on: depot-ubuntu-24.04-4
     timeout-minutes: 30
     env:
@@ -250,7 +287,7 @@ jobs:
     # Skipped entirely when the diff doesn't touch the watched surface — the
     # `retract` job owns the comment in that case — and on an `edited` event
     # whose head+base the comment already describes (SPK-858).
-    if: ${{ always() && needs.changes.result == 'success' && needs.changes.outputs.watched == 'true' && needs.changes.outputs.fresh != 'true' }}
+    if: ${{ always() && needs.changes.result == 'success' && needs.changes.outputs.open == 'true' && needs.changes.outputs.watched == 'true' && needs.changes.outputs.fresh != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -464,6 +501,16 @@ jobs:
               repo: context.repo.repo,
               pull_number: context.issue.number,
             });
+            // SPK-1012: re-checked here and not only in `changes`, because that
+            // gate is evaluated when the job starts and this run takes ~17
+            // minutes. A PR that merges mid-run passes the job gate and reaches
+            // this step, where the base it was compared against is no longer the
+            // base it would be compared against now.
+            if (pr.state !== 'open' || pr.merged) {
+              core.info(`PR is ${pr.merged ? 'merged' : pr.state}; not writing a verdict.`);
+              return;
+            }
+
             const eventHead = context.payload.pull_request.head.sha;
             if (pr.head.sha !== eventHead) {
               core.info(`PR head moved on (${eventHead.slice(0, 7)} -> ${pr.head.sha.slice(0, 7)}); not writing a stale verdict.`);
@@ -509,7 +556,7 @@ jobs:
   retract:
     name: Retract a stale verdict
     needs: changes
-    if: ${{ needs.changes.result == 'success' && needs.changes.outputs.watched != 'true' && github.event.pull_request.head.repo.full_name == github.repository }}
+    if: ${{ needs.changes.result == 'success' && needs.changes.outputs.open == 'true' && needs.changes.outputs.watched != 'true' && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -533,6 +580,11 @@ jobs:
               repo: context.repo.repo,
               pull_number: context.issue.number,
             });
+            if (pr.state !== 'open' || pr.merged) {
+              core.info(`PR is ${pr.merged ? 'merged' : pr.state}; leaving the comment as it stands.`);
+              return;
+            }
+
             if (pr.head.sha !== headSha) {
               core.info(`PR head moved on (${short} -> ${pr.head.sha.slice(0, 7)}); leaving the comment to the newer run.`);
               return;
