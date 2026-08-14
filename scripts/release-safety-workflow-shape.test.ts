@@ -50,4 +50,20 @@ for (const required of [
     );
 }
 
+// SPK-1012: a merged or closed PR must never receive a verdict. The job-level
+// gate alone is not enough — it is evaluated when the job starts, and the run
+// takes long enough that a PR can merge mid-run — so the two write steps check
+// again immediately before writing.
+const openGates = workflow.match(/needs\.changes\.outputs\.open == 'true'/g) ?? [];
+assert.ok(
+    openGates.length >= 3,
+    `expected openapi-specs, preview and retract to be gated on the PR being open; found ${openGates.length} gate(s)`,
+);
+
+const mergedChecks = workflow.match(/pr\.merged/g) ?? [];
+assert.ok(
+    mergedChecks.length >= 3,
+    `expected the openness step and both write steps to check pr.merged; found ${mergedChecks.length}`,
+);
+
 process.stdout.write('release-safety workflow shape tests passed\n');
