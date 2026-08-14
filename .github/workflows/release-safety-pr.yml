@@ -211,6 +211,90 @@ jobs:
             echo "fresh=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # SPK-1013: claim the sticky comment for this run BEFORE the expensive
+      # jobs, so an unfinished gate is visible rather than silent.
+      #
+      # `cancel-in-progress` is right for a status check reporting on the latest
+      # revision and wrong for a gate: on an actively-pushed PR every run can be
+      # cancelled before it reaches a verdict, and a cancelled gate is
+      # indistinguishable from a clean one — nothing on the page separates
+      # "checked, no breaking changes" from "never finished checking". #27393
+      # merged carrying 42 breaking REST changes after eight runs that failed or
+      # were cancelled; at the moment of merge no run had ever completed.
+      #
+      # Whatever happens to this run, the comment now reads as either a verdict
+      # for a named commit or a check in progress for a named commit. A merged
+      # PR still showing this notice never got a verdict.
+      #
+      # Deliberately omits the `release-safety-describes` stamp: that stamp is
+      # what would let an `edited` event short-circuit the recompute, and a
+      # pending notice must never be mistaken for a current verdict. Its absence
+      # fails safe — the next event recomputes. (Today nothing writes that stamp
+      # at all, so the short-circuit never fires — SPK-1017. This omission is
+      # written to stay correct once it does.)
+      - name: Mark the verdict as pending for this commit
+        if: >-
+          steps.openness.outputs.open == 'true' &&
+          steps.watched.outputs.watched == 'true' &&
+          steps.fresh.outputs.fresh != 'true' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const marker = '<!-- release-safety-marker -->';
+            const pending = '<!-- release-safety-pending -->';
+            const headSha = context.payload.pull_request.head.sha;
+            const short = headSha.slice(0, 7);
+
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            if (pr.head.sha !== headSha) {
+              core.info(`PR head moved on (${short} -> ${pr.head.sha.slice(0, 7)}); leaving the comment to the newer run.`);
+              return;
+            }
+
+            const body = [
+              marker,
+              pending,
+              '## 🛡️ Upgrade safety for self-hosted customers',
+              '',
+              `- ⏳ **Checking commit \`${short}\`.** No verdict has been reached yet.`,
+              '',
+              'If this notice is still showing when the pull request is merged, the check never finished — usually because a newer push cancelled it — and no upgrade-safety verdict was recorded for this change.',
+              '',
+              '---',
+              '<sub>Automated upgrade-safety check. The verdict replaces this notice when the run completes.</sub>',
+              '',
+            ].join('\n');
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100,
+            });
+            const existing = comments.find((c) => c.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+            core.info(`Sticky comment marked pending for ${short}.`);
+
   openapi-specs:
     name: Generate API snapshots
     needs: changes

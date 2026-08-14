@@ -66,4 +66,24 @@ assert.ok(
     `expected the openness step and both write steps to check pr.merged; found ${mergedChecks.length}`,
 );
 
+// SPK-1013: the sticky comment is claimed as pending before the expensive jobs,
+// so a run that is cancelled or fails leaves a visible "no verdict yet" notice
+// rather than nothing or a stale verdict from an earlier revision.
+assert.ok(
+    workflow.includes('<!-- release-safety-pending -->'),
+    `${WORKFLOW_PATH} must stamp a pending state on the sticky comment (SPK-1013)`,
+);
+
+// The pending notice must not carry the describes-stamp, or an `edited` event
+// could short-circuit against it and treat "not checked yet" as a live verdict.
+// Nothing writes that stamp today (SPK-1017), so this guards the future fix.
+const pendingBlock = workflow.slice(
+    workflow.indexOf('<!-- release-safety-pending -->'),
+    workflow.indexOf('  openapi-specs:'),
+);
+assert.ok(
+    !pendingBlock.includes('release-safety-describes head:'),
+    'the pending notice must not emit a release-safety-describes stamp (SPK-1013 / SPK-1017)',
+);
+
 process.stdout.write('release-safety workflow shape tests passed\n');
