@@ -24,6 +24,7 @@ import {
     useTransition,
     type FC,
 } from 'react';
+import { useSearchParams } from 'react-router';
 import VirtualViewAsCodeModal from '../../../features/contentAsCode/components/VirtualViewAsCodeModal';
 import {
     explorerActions,
@@ -41,6 +42,7 @@ import {
 } from '../../../features/mergeQuery/components/MergeTabStrip';
 import { QueryBTree } from '../../../features/mergeQuery/components/QueryBTree';
 import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
+import { MergeQueryIaPrototype } from '../../../features/mergeQuery/prototype/MergeQueryIaPrototype';
 import { useSourceCodeEditor } from '../../../features/sourceCodeEditor';
 import {
     DeleteVirtualViewModal,
@@ -67,6 +69,9 @@ interface ExplorePanelProps {
 }
 
 const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
+    const [searchParams] = useSearchParams();
+    const showMergeIaPrototype =
+        import.meta.env.DEV && searchParams.get('prototype') === 'merge-query';
     const { track } = useTracking();
     const { user } = useApp();
     const [isEditVirtualViewOpen, setIsEditVirtualViewOpen] = useState(false);
@@ -217,6 +222,10 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     if (status === 'error' && error.error.statusCode < 500) {
         onBack?.();
         return null;
+    }
+
+    if (showMergeIaPrototype) {
+        return <MergeQueryIaPrototype queryALabel={explore.label} />;
     }
 
     return (
