@@ -396,9 +396,21 @@ jobs:
           mode: firewall-free
           firewall-version: 1.15.0
 
+      # SPK-1021: pnpm is set up BEFORE setup-node so that `cache: 'pnpm'` can
+      # resolve the store path — setup-node shells out to pnpm to find it, and
+      # fails with "Unable to locate executable file: pnpm" if it runs first.
+      # This is the ordering openapi-specs already uses.
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      # The install below was 75% of this job's runtime (255s median) because it
+      # re-fetched the whole CLI dependency tree, uncached, on every run — to
+      # obtain one library. This check is required, so that is merge latency for
+      # everyone, not background CI cost.
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version-file: '.nvmrc'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
 
       - name: Install tsx
         run: sfw npm install -g tsx@4.19.4
@@ -407,8 +419,6 @@ jobs:
       # packages/cli/src/releaseSafety (ajv-backed index validation), so the
       # otherwise dependency-free preview needs the CLI package's dependencies.
       # Verify-then-fallback because sfw can exit 0 on a half-completed install.
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-
       - name: Install CLI package dependencies
         run: |
           sfw pnpm install --frozen-lockfile --filter @lightdash/cli --network-concurrency=16 || true
