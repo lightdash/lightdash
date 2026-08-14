@@ -63,6 +63,7 @@ export const MergeJoinBar: FC = () => {
     const {
         isMerging,
         readOnly,
+        queryB,
         joinType,
         setJoinField,
         addJoinPart,
@@ -94,28 +95,30 @@ export const MergeJoinBar: FC = () => {
     const [editingOverride, setEditingOverride] = useState<boolean | null>(
         null,
     );
-    const expanded = !readOnly && (editingOverride ?? isIncomplete);
+    const expanded =
+        !readOnly && !!queryB.exploreName && (editingOverride ?? isIncomplete);
 
     if (!mergeContext || !tableName || mergeFlag?.enabled !== true) return null;
     if (!isMerging) return null;
+    if (!queryB.exploreName) return null;
 
     const thisQuery = exploreALabel || 'this query';
     const otherQuery = exploreBLabel || 'the other query';
     const keepOptions = [
         {
             value: MergeJoinType.FULL,
-            label: 'Everything',
-            help: `Every ${joinFieldLabel} from either query. Where one side has no match, its columns are blank.`,
+            label: 'All rows',
+            help: `Full outer join · Every ${joinFieldLabel} from either query. Where one side has no match, its columns are blank.`,
         },
         {
             value: MergeJoinType.LEFT,
             label: thisQuery,
-            help: `Only the ${joinFieldLabel} values in ${thisQuery}. Anything found solely in ${otherQuery} is dropped.`,
+            help: `Left join · Only the ${joinFieldLabel} values in ${thisQuery}. Anything found solely in ${otherQuery} is dropped.`,
         },
         {
             value: MergeJoinType.INNER,
             label: 'Matches',
-            help: `Only the ${joinFieldLabel} values in both ${thisQuery} and ${otherQuery}. Everything unmatched is dropped.`,
+            help: `Inner join · Only the ${joinFieldLabel} values in both ${thisQuery} and ${otherQuery}. Everything unmatched is dropped.`,
         },
     ];
     const activeKeep =

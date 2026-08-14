@@ -234,8 +234,8 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                     display: isVisualizationConfigOpen ? 'none' : 'flex',
                 }}
             >
+                <MergeJoinBar />
                 <MergeTabStrip />
-                {!showQueryBTree && <MergeJoinBar />}
 
                 {/* The breadcrumbs, warnings and menu all belong to the
                     first query's explore; shown above the second query's
