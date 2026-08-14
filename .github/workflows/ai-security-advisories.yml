@@ -139,6 +139,12 @@ jobs:
             - name: Install root dependencies
               run: sfw pnpm install --frozen-lockfile --filter . --network-concurrency=16
 
+            # sfw can exit 0 with a partial tree; unset CI so pnpm verifies and relinks it.
+            - name: Repair install without sfw
+              run: |
+                  CI= pnpm install --frozen-lockfile --prefer-offline --filter .
+                  pnpm exec tsx --version
+
             - name: Analyze release and create eligible private drafts
               env:
                   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
