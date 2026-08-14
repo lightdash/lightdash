@@ -52,6 +52,7 @@ export interface RenderOpts {
      * OpenAPI specs it needed — the second is a broken check, not a clean bill.
      */
     restStatus?: 'ran' | 'skipped' | 'failed';
+    declarationGateFailed?: boolean;
 }
 
 const SAFE_HEADLINE = '✅ **Safe to upgrade normally.** No downtime needed.';
@@ -76,6 +77,7 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
     const clearedAsSafeDrop = lintFlagged && rollingUpdateSafe === true;
     // The risk comes from an API change (no DB migration) rather than the schema.
     const apiDriven = (restBreaking || mcpBreaking) && migrationsPresent !== true;
+    const needsUnblock = rollingUpdateSafe !== true || opts.declarationGateFailed === true;
 
     // ---- the answer, in one line + a plain "why" ----------------------------
     const head: string[] = [];
@@ -193,6 +195,17 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
     } else if (requiredStop) {
         advice.push('Call this out in the release notes so customers know they can’t skip this version.');
     }
+    const unblock = needsUnblock
+        ? [
+              '**How to unblock this pull request**',
+              '',
+              'This required check must pass before merge. For a migration break, follow `packages/backend/src/database/migrations/CLAUDE.md`; for an API or type break, add the verified declaration described in [the release-safety guidance](https://github.com/lightdash/lightdash/blob/main/CLAUDE.md#release-safety-declarations).',
+              '',
+              'Never declare a break merely to make CI pass. Declaring a break advises every self-hosted customer to use the Recreate strategy.',
+              '',
+              'A release that ships as `breaking` or `unknown` stops the internal analytics instance upgrading. Every later release inherits the block until someone moves the pin past it by hand. On 2026-08-14, that cost roughly six hours while the automation reported success and said nothing.',
+          ]
+        : [];
 
     // ---- assemble -----------------------------------------------------------
     const baseLine = opts.baseLabel ? `> Comparing against \`${opts.baseLabel}\`.\n` : '';
@@ -208,6 +221,7 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
         '',
         table,
         ...(advice.length ? ['', '**What to do**', '', advice.map((a) => `- ${a}`).join('\n')] : []),
+        ...(unblock.length ? ['', ...unblock] : []),
         '',
         '<details><summary>Technical details (raw JSON)</summary>\n',
         '```json',
@@ -239,6 +253,7 @@ function main(): void {
     const body = renderPrComment(marker, {
         baseLabel: arg('base'),
         restStatus: restStatus as RenderOpts['restStatus'],
+        declarationGateFailed: process.argv.includes('--declaration-gate-failed'),
         draft: process.argv.includes('--draft'),
         linterBreaking: process.argv.includes('--linter-breaking')
             ? true

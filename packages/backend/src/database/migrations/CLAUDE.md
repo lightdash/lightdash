@@ -32,6 +32,8 @@ The migration system supports both up/down functions and includes 150+ historica
 
 ## Release-safety declarations
 
+For API and type breaks outside migrations, see the root [release-safety declarations](../../../../../CLAUDE.md#release-safety-declarations).
+
 The release-safety gate applies these rules only to migration files changed by the pull request. Existing untouched migrations are grandfathered.
 
 - A migration containing a detected breaking operation must declare it in that file with the exact export `export const breaking = { reason: '<operator-facing reason>', requiredStop: <true | false> }`. The reason must be a non-empty string literal and `requiredStop` must be a boolean literal. The declaration records the break; it does not hide the detector finding.

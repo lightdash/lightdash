@@ -562,6 +562,7 @@ jobs:
             --rest-status "${{ steps.rest-result.outputs.status }}" \
             ${{ steps.marker.outputs.draft == 'true' && '--draft' || '' }} \
             ${{ steps.lint.outputs.breaking == 'true' && '--linter-breaking' || '--no-linter-breaking' }} \
+            ${{ (steps.declaration-gate.outcome == 'failure' || steps.sql-declaration-gate.outcome == 'failure') && '--declaration-gate-failed' || '' }} \
             --out /tmp/release-safety-comment.md
 
       - name: Post or update sticky comment
