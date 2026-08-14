@@ -1,6 +1,8 @@
 import {
     SchedulerFormat,
     type AppScheduler,
+    type Dashboard,
+    type DashboardFilterRule,
     type SchedulerAndTargets,
 } from '@lightdash/common';
 import { screen } from '@testing-library/react';
@@ -37,6 +39,22 @@ vi.mock('../../../../../hooks/useProjectUuid', () => ({
     useProjectUuid: vi.fn(() => 'project-uuid'),
 }));
 
+vi.mock('../SchedulerFormFiltersTab', () => ({
+    SchedulerFormFiltersTab: ({
+        filtersWithUnmetRequirements,
+    }: {
+        filtersWithUnmetRequirements: DashboardFilterRule[];
+    }) => (
+        <div data-testid="scheduler-filter-warnings">
+            {filtersWithUnmetRequirements.map((filter) => filter.id).join(',')}
+        </div>
+    ),
+}));
+
+vi.mock('../SchedulerFormParametersTab', () => ({
+    SchedulerFormParametersTab: vi.fn(() => null),
+}));
+
 const FormWrapper: FC<{
     initialValues: SchedulerFormValues;
     formRef?: MutableRefObject<SchedulerForm | null>;
@@ -66,6 +84,8 @@ const renderSection = (
                 currentAppState={null}
                 isDashboardTabsAvailable={false}
                 loading={false}
+                unmetFilterRequirements={[]}
+                filtersWithUnmetRequirements={[]}
                 {...props}
             />
         </FormWrapper>,
@@ -275,6 +295,27 @@ describe('SchedulerDataFormatSection - app formats', () => {
         expect(
             screen.getByRole('radio', { name: 'Custom...' }),
         ).toBeInTheDocument();
+    });
+
+    it('passes the shared scoped requirements to the filter warnings', () => {
+        const requiredFilter = { id: 'required' } as DashboardFilterRule;
+        const dashboard = {
+            tabs: [{ uuid: 'tab-1' }, { uuid: 'tab-2' }],
+        } as Dashboard;
+
+        renderSection({
+            dashboard,
+            isApp: false,
+            isDashboardTabsAvailable: true,
+            unmetFilterRequirements: [
+                { type: 'single', filter: requiredFilter },
+            ],
+            filtersWithUnmetRequirements: [requiredFilter],
+        });
+
+        expect(
+            screen.getByTestId('scheduler-filter-warnings'),
+        ).toHaveTextContent('required');
     });
 
     describe('format-switch side effect', () => {

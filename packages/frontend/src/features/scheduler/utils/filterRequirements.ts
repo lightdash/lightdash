@@ -18,6 +18,7 @@ export type SchedulerFilterRequirements = {
 /** The dashboard tiles and the fields each one can be filtered on. */
 export type SchedulerFilterableTiles = {
     tiles: DashboardTile[];
+    tabUuids: string[];
     filterableFieldsByTileUuid:
         | Record<string, DashboardFilterableField[]>
         | undefined;
@@ -40,17 +41,21 @@ export type SchedulerTabScope = SchedulerFilterableTiles & {
 const getAppliesToDelivery = (
     tabScope: SchedulerTabScope | undefined,
 ): ((filter: DashboardFilterRule) => boolean) => {
-    if (
-        !tabScope ||
-        tabScope.selectedTabs === null ||
-        tabScope.filterableFieldsByTileUuid === undefined
-    ) {
+    if (!tabScope || tabScope.filterableFieldsByTileUuid === undefined) {
         return () => true;
     }
 
-    const { tiles, selectedTabs, filterableFieldsByTileUuid } = tabScope;
+    const { tiles, tabUuids, selectedTabs, filterableFieldsByTileUuid } =
+        tabScope;
+    const includesEveryTab =
+        selectedTabs === null ||
+        (selectedTabs.length === tabUuids.length &&
+            tabUuids.every((tabUuid) => selectedTabs.includes(tabUuid)));
+    if (includesEveryTab) {
+        return () => true;
+    }
+
     return (filter) =>
-        !filter.tileTargets ||
         tiles.some(
             (tile) =>
                 isTileInSelectedTabs(tile, selectedTabs) &&
@@ -82,13 +87,12 @@ export const getSchedulerFilterRequirements = (
     };
 
     const appliesToDelivery = getAppliesToDelivery(tabScope);
-    const unmetRequirements = getUnmetFilterRequirements(
-        effectiveFilters,
-    ).filter((requirement) =>
-        requirement.type === 'single'
-            ? appliesToDelivery(requirement.filter)
-            : requirement.filters.some(appliesToDelivery),
-    );
+    const scopedFilters: DashboardFilters = {
+        ...effectiveFilters,
+        dimensions: effectiveFilters.dimensions.filter(appliesToDelivery),
+        metrics: effectiveFilters.metrics.filter(appliesToDelivery),
+    };
+    const unmetRequirements = getUnmetFilterRequirements(scopedFilters);
     const seenFilterIds = new Set<string>();
     const filtersWithUnmetRequirements = unmetRequirements
         .flatMap((requirement) =>

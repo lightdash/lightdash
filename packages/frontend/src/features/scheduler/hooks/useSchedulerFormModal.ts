@@ -6,6 +6,7 @@ import {
     type ApiError,
     type CreateSchedulerAndTargets,
     type CreateSchedulerAndTargetsWithoutIds,
+    type DashboardFilterableField,
     type ItemsMap,
     type ParametersValuesMap,
     type SchedulerAndTargets,
@@ -33,7 +34,6 @@ import {
 import { Limit } from '../components/types';
 import { getSchedulerFilterRequirements } from '../utils/filterRequirements';
 import { useScheduler, useSendNowScheduler } from './useScheduler';
-import { useSchedulerFilterableTiles } from './useSchedulerFilterableTiles';
 import {
     useSchedulerAiAugmentation,
     useSchedulerAiAugmentationDeleteMutation,
@@ -56,6 +56,7 @@ export interface UseSchedulerFormModalProps {
     itemsMap?: ItemsMap;
     currentParameterValues?: ParametersValuesMap;
     initialFormValues?: Partial<SchedulerFormValues>;
+    filterableFieldsByTileUuid?: Record<string, DashboardFilterableField[]>;
 }
 
 export const useSchedulerFormModal = ({
@@ -69,6 +70,7 @@ export const useSchedulerFormModal = ({
     itemsMap,
     currentParameterValues,
     initialFormValues,
+    filterableFieldsByTileUuid,
 }: UseSchedulerFormModalProps) => {
     const isEditMode = !!schedulerUuid;
 
@@ -147,7 +149,17 @@ export const useSchedulerFormModal = ({
 
     // Required filters that only apply to tabs left out of the delivery must
     // not block it, so requirements are scoped to the selected tabs.
-    const filterableTiles = useSchedulerFilterableTiles(dashboard);
+    const filterableTiles = useMemo(
+        () =>
+            dashboard
+                ? {
+                      tiles: dashboard.tiles,
+                      tabUuids: dashboard.tabs.map((tab) => tab.uuid),
+                      filterableFieldsByTileUuid,
+                  }
+                : undefined,
+        [dashboard, filterableFieldsByTileUuid],
+    );
 
     // Use the explicitly passed parameter values
     const dashboardParameterValues = currentParameterValues || {};
@@ -477,6 +489,7 @@ export const useSchedulerFormModal = ({
         isThresholdAlertWithNoFields,
         numericMetrics,
         isDashboardTabsAvailable,
+        unmetRequirements,
         requiredFiltersWithoutValues,
         hasOnlyUnmetGroupRequirements,
     };

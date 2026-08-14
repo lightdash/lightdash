@@ -157,7 +157,7 @@ describe('getSchedulerFilterRequirements', () => {
 
 describe('getSchedulerFilterRequirements tab scoping', () => {
     const tile = (uuid: string, tabUuid: string | undefined): DashboardTile =>
-        ({ uuid, tabUuid } as DashboardTile);
+        ({ uuid, tabUuid }) as DashboardTile;
 
     const field = (name: string): DashboardFilterableField =>
         ({
@@ -165,7 +165,7 @@ describe('getSchedulerFilterRequirements tab scoping', () => {
             type: DimensionType.STRING,
             name,
             table: 'orders',
-        } as unknown as DashboardFilterableField);
+        }) as unknown as DashboardFilterableField;
 
     const tiles = [tile('tile-1', 'tab-1'), tile('tile-2', 'tab-2')];
     // Both tiles can be filtered on both fields, so only tileTargets scope them
@@ -176,6 +176,7 @@ describe('getSchedulerFilterRequirements tab scoping', () => {
 
     const tabScope = (selectedTabs: string[] | null): SchedulerTabScope => ({
         tiles,
+        tabUuids: ['tab-1', 'tab-2'],
         selectedTabs,
         filterableFieldsByTileUuid,
     });
@@ -221,25 +222,83 @@ describe('getSchedulerFilterRequirements tab scoping', () => {
         ).toEqual(['tab1', 'tab2']);
     });
 
-    it('keeps requirements on filters that target no tiles in particular', () => {
-        const dashboardWideFilter = rule({
-            id: 'all',
+    it('scopes nothing out when every tab is selected explicitly', () => {
+        const unmatchedFilter = rule({
+            id: 'unmatched',
             required: true,
-            tileTargets: undefined,
+            tileTargets: {
+                'tile-1': false,
+                'tile-2': false,
+            },
         });
+
         expect(
             getSchedulerFilterRequirements(
-                dashboardFilters([dashboardWideFilter]),
+                dashboardFilters([unmatchedFilter]),
                 [],
-                tabScope(['tab-2']),
+                tabScope(['tab-1', 'tab-2']),
+            ).filtersWithUnmetRequirements.map((filter) => filter.id),
+        ).toEqual(['unmatched']);
+    });
+
+    it('does not treat every rendered tile as every dashboard tab', () => {
+        const unmatchedFilter = rule({
+            id: 'unmatched',
+            required: true,
+            tileTargets: {
+                'tile-1': false,
+                'tile-2': false,
+            },
+        });
+
+        expect(
+            getSchedulerFilterRequirements(
+                dashboardFilters([unmatchedFilter]),
+                [],
+                {
+                    ...tabScope(['tab-1', 'tab-2']),
+                    tabUuids: ['tab-1', 'tab-2', 'empty-tab'],
+                },
             ).filtersWithUnmetRequirements.map((f) => f.id),
-        ).toEqual(['all']);
+        ).toEqual([]);
+    });
+
+    it('scopes automatic filters by fields available on selected tiles', () => {
+        const automaticFilter = rule({
+            id: 'automatic',
+            required: true,
+            target: { fieldId: 'orders_tab1', tableName: 'orders' },
+            tileTargets: undefined,
+        });
+        const automaticScope: SchedulerTabScope = {
+            ...tabScope(['tab-2']),
+            filterableFieldsByTileUuid: {
+                'tile-1': [field('tab1')],
+                'tile-2': [field('tab2')],
+            },
+        };
+
+        expect(
+            getSchedulerFilterRequirements(
+                dashboardFilters([automaticFilter]),
+                [],
+                automaticScope,
+            ).filtersWithUnmetRequirements,
+        ).toEqual([]);
+        expect(
+            getSchedulerFilterRequirements(
+                dashboardFilters([automaticFilter]),
+                [],
+                { ...automaticScope, selectedTabs: ['tab-1'] },
+            ).filtersWithUnmetRequirements.map((filter) => filter.id),
+        ).toEqual(['automatic']);
     });
 
     it('scopes nothing out while the tiles filterable fields are unknown', () => {
         expect(
             getSchedulerFilterRequirements(filters, [], {
                 tiles,
+                tabUuids: ['tab-1', 'tab-2'],
                 selectedTabs: ['tab-2'],
                 filterableFieldsByTileUuid: undefined,
             }).filtersWithUnmetRequirements.map((f) => f.id),
@@ -270,5 +329,34 @@ describe('getSchedulerFilterRequirements tab scoping', () => {
                 tabScope(['tab-2']),
             ).unmetRequirements,
         ).toEqual([]);
+    });
+
+    it('does not satisfy a selected-tab group with a value from an omitted tab', () => {
+        const populatedTab1Member = rule({
+            id: 'a',
+            requiredGroupId: 'g1',
+            values: ['value'],
+            disabled: false,
+            tileTargets: {
+                'tile-1': { fieldId: 'orders_tab1', tableName: 'orders' },
+                'tile-2': false,
+            },
+        });
+        const emptyTab2Member = rule({
+            id: 'b',
+            requiredGroupId: 'g1',
+            tileTargets: {
+                'tile-1': false,
+                'tile-2': { fieldId: 'orders_tab2', tableName: 'orders' },
+            },
+        });
+
+        expect(
+            getSchedulerFilterRequirements(
+                dashboardFilters([populatedTab1Member, emptyTab2Member]),
+                [],
+                tabScope(['tab-2']),
+            ).filtersWithUnmetRequirements.map((filter) => filter.id),
+        ).toEqual(['b']);
     });
 });
