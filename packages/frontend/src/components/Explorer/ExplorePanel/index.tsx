@@ -81,12 +81,13 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     );
     const { data: mergeFlag } = useServerFeatureFlag(FeatureFlags.MergeQueries);
     const merge = useMergeSafe();
+    const additionalSource = merge?.additionalSources[0];
     const [isChoosingMergeExplore, setIsChoosingMergeExplore] = useState(
-        !merge?.queryB.exploreName,
+        !additionalSource?.exploreName,
     );
     useEffect(() => {
-        if (!merge?.queryB.exploreName) setIsChoosingMergeExplore(true);
-    }, [merge?.queryB.exploreName]);
+        if (!additionalSource?.exploreName) setIsChoosingMergeExplore(true);
+    }, [additionalSource?.exploreName]);
     const isGuidedMerge =
         mergeFlag?.enabled === true &&
         merge?.isMerging === true &&
@@ -243,7 +244,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
             >
                 {merge?.isMerging && merge.readOnly && <MergeJoinBar />}
                 {/* The breadcrumbs, warnings and menu all belong to the
-                    first query's explore; shown above the second query's
+                    primary source's explore; shown above an added source's
                     picker they read as its header, which they are not. */}
                 <Group
                     justify="space-between"
@@ -395,10 +396,12 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
 
                 {isGuidedMerge ? (
                     <MergeQuerySidebar
-                        exploreA={explore}
-                        onFieldChangeA={toggleActiveField}
-                        isChoosingExploreB={isChoosingMergeExplore}
-                        setIsChoosingExploreB={setIsChoosingMergeExplore}
+                        primaryExplore={explore}
+                        onPrimaryFieldChange={toggleActiveField}
+                        isChoosingAdditionalExplore={isChoosingMergeExplore}
+                        setIsChoosingAdditionalExplore={
+                            setIsChoosingMergeExplore
+                        }
                     />
                 ) : (
                     <ItemDetailProvider>

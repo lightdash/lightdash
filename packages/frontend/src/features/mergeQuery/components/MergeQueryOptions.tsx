@@ -5,6 +5,7 @@ import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { selectMetricQuery, useExplorerSelector } from '../../explorer/store';
+import { DEFAULT_ADDITIONAL_SOURCE_ID, PRIMARY_SOURCE_ID } from '../constants';
 import { useMergeSafe } from '../context/useMerge';
 import { isMergeSourceReady } from '../utils/mergeWorkflow';
 
@@ -23,7 +24,7 @@ export const MergeQueryOptions: FC = () => {
         return null;
     }
 
-    const queryAReady = isMergeSourceReady(metricQuery);
+    const primarySourceReady = isMergeSourceReady(metricQuery);
 
     return (
         <Menu position="bottom-end" withinPortal shadow="subtle">
@@ -42,8 +43,15 @@ export const MergeQueryOptions: FC = () => {
             <Menu.Dropdown>
                 <Menu.Item
                     leftSection={<MantineIcon icon={IconGitMerge} size={14} />}
-                    onClick={() => merge.addQuery(queryAReady ? 'b' : 'a')}
-                    data-testid="MergeTabStrip/AddQueryB"
+                    onClick={() =>
+                        merge.addSource(DEFAULT_ADDITIONAL_SOURCE_ID, {
+                            kind: 'source',
+                            sourceId: primarySourceReady
+                                ? DEFAULT_ADDITIONAL_SOURCE_ID
+                                : PRIMARY_SOURCE_ID,
+                        })
+                    }
+                    data-testid="MergeQueryOptions/AddSource"
                 >
                     Merge another query
                 </Menu.Item>

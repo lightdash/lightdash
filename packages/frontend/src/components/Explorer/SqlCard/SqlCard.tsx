@@ -86,7 +86,7 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
         enabled: !!unsavedChartVersionTableName && !cannotViewSqlAuthoredFields,
     });
     // With a merge configured, the merged statement is what Run executes;
-    // the card's copy and open-in-SQL-runner must carry it, not Query A's.
+    // the card's copy and open-in-SQL-runner must carry it, not the primary source's.
     const merge = useMergeCompiledSql();
 
     const hasPivotQuery = !merge.isMergeActive && !!data?.pivotQuery;

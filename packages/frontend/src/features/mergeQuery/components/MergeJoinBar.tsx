@@ -24,7 +24,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../explorer/store';
-import { EMPTY_MERGE } from '../constants';
+import { EMPTY_MERGE, PRIMARY_SOURCE_ID } from '../constants';
 import { useMergeSafe } from '../context/useMerge';
 import { useMergeSetup } from '../hooks/useMergeSetup';
 import styles from './MergeJoinBar.module.css';
@@ -63,14 +63,16 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
     const {
         isMerging,
         readOnly,
-        queryB,
+        additionalSources,
         joinType,
         setJoinField,
         addJoinPart,
         removeJoinPart,
         setJoinType,
-        toggleFieldB,
+        toggleSourceField,
     } = mergeContext ?? EMPTY_MERGE;
+    const additionalSource = additionalSources[0];
+    const additionalSourceId = additionalSource?.id;
     const { runErrors, mergeResults } = mergeContext ?? {};
 
     const {
@@ -79,13 +81,13 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
         fanOut,
         joinKeyErrors,
         joinFieldLabel,
-        joinItemsA,
-        joinItemsB,
-        availableJoinItemsA,
-        availableJoinItemsB,
+        primaryJoinItems,
+        additionalJoinItems,
+        availablePrimaryJoinItems,
+        availableAdditionalJoinItems,
         suggestedAvailablePair,
-        exploreALabel,
-        exploreBLabel,
+        primaryExploreLabel,
+        additionalExploreLabel,
         isIncomplete,
         blockingReason,
     } = useMergeSetup();
@@ -97,15 +99,15 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
     );
     const expanded =
         !readOnly &&
-        !!queryB.exploreName &&
+        !!additionalSource?.exploreName &&
         (guided || (editingOverride ?? isIncomplete));
 
     if (!mergeContext || !tableName || mergeFlag?.enabled !== true) return null;
     if (!isMerging) return null;
-    if (!queryB.exploreName) return null;
+    if (!additionalSource?.exploreName || !additionalSourceId) return null;
 
-    const thisQuery = exploreALabel || 'this query';
-    const otherQuery = exploreBLabel || 'the other query';
+    const thisQuery = primaryExploreLabel || 'this query';
+    const otherQuery = additionalExploreLabel || 'the other query';
     const keepOptions = [
         {
             value: MergeJoinType.FULL,
@@ -137,7 +139,11 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
             joined on{' '}
             <b>
                 {effectiveParts
-                    .map((part) => (part.fieldA ? labelFor(part.fieldA) : '?'))
+                    .map((part) => {
+                        const fieldId =
+                            part.fieldIdBySourceId[PRIMARY_SOURCE_ID];
+                        return fieldId ? labelFor(fieldId) : '?';
+                    })
                     .join(' + ')}
             </b>{' '}
             · keep <b>{activeKeep.label}</b>
@@ -175,8 +181,10 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                             <Box className={styles.pair} key={index}>
                                 <Box className={styles.pairHeader}>
                                     <Text span size="xs" c="dimmed">
-                                        {exploreALabel} matches{' '}
-                                        {exploreBLabel ?? 'the second query'} on
+                                        {primaryExploreLabel} matches{' '}
+                                        {additionalExploreLabel ??
+                                            'the second query'}{' '}
+                                        on
                                     </Text>
                                     {effectiveParts.length > 1 && (
                                         <ActionIcon
@@ -196,8 +204,12 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                     )}
                                 </Box>
                                 {index === 0 &&
-                                    !part.fieldA &&
-                                    !part.fieldB &&
+                                    !part.fieldIdBySourceId[
+                                        PRIMARY_SOURCE_ID
+                                    ] &&
+                                    !part.fieldIdBySourceId[
+                                        additionalSourceId
+                                    ] &&
                                     suggestedAvailablePair && (
                                         <Anchor
                                             component="button"
@@ -205,49 +217,68 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                             size="xs"
                                             ta="left"
                                             onClick={() => {
-                                                const { fieldA, fieldB } =
-                                                    suggestedAvailablePair;
+                                                const primaryField =
+                                                    suggestedAvailablePair[
+                                                        PRIMARY_SOURCE_ID
+                                                    ];
+                                                const additionalField =
+                                                    suggestedAvailablePair[
+                                                        additionalSourceId
+                                                    ];
                                                 if (
-                                                    !joinItemsA.some(
+                                                    !primaryField ||
+                                                    !additionalField
+                                                )
+                                                    return;
+                                                if (
+                                                    !primaryJoinItems.some(
                                                         (item) =>
                                                             getItemId(item) ===
-                                                            fieldA,
+                                                            primaryField,
                                                     )
                                                 ) {
                                                     dispatch(
                                                         explorerActions.toggleDimension(
-                                                            fieldA,
+                                                            primaryField,
                                                         ),
                                                     );
                                                 }
                                                 if (
-                                                    !joinItemsB.some(
+                                                    !additionalJoinItems.some(
                                                         (item) =>
                                                             getItemId(item) ===
-                                                            fieldB,
+                                                            additionalField,
                                                     )
                                                 ) {
-                                                    toggleFieldB(fieldB, true);
+                                                    toggleSourceField(
+                                                        additionalSourceId,
+                                                        additionalField,
+                                                        true,
+                                                    );
                                                 }
                                                 setJoinField(
                                                     index,
-                                                    'fieldA',
-                                                    fieldA,
+                                                    PRIMARY_SOURCE_ID,
+                                                    primaryField,
                                                 );
                                                 setJoinField(
                                                     index,
-                                                    'fieldB',
-                                                    fieldB,
+                                                    additionalSourceId,
+                                                    additionalField,
                                                 );
                                             }}
                                         >
                                             Suggested:{' '}
                                             {labelFor(
-                                                suggestedAvailablePair.fieldA,
+                                                suggestedAvailablePair[
+                                                    PRIMARY_SOURCE_ID
+                                                ],
                                             )}{' '}
                                             ↔{' '}
                                             {labelFor(
-                                                suggestedAvailablePair.fieldB,
+                                                suggestedAvailablePair[
+                                                    additionalSourceId
+                                                ],
                                             )}
                                         </Anchor>
                                     )}
@@ -255,11 +286,13 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                     size="xs"
                                     placeholder="choose or add a field"
                                     hasGrouping
-                                    items={availableJoinItemsA}
-                                    item={availableJoinItemsA.find(
+                                    items={availablePrimaryJoinItems}
+                                    item={availablePrimaryJoinItems.find(
                                         (candidate) =>
                                             getItemId(candidate) ===
-                                            part.fieldA,
+                                            part.fieldIdBySourceId[
+                                                PRIMARY_SOURCE_ID
+                                            ],
                                     )}
                                     onChange={(value) => {
                                         const fieldId = value
@@ -267,7 +300,7 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                             : null;
                                         if (
                                             fieldId &&
-                                            !joinItemsA.some(
+                                            !primaryJoinItems.some(
                                                 (item) =>
                                                     getItemId(item) === fieldId,
                                             )
@@ -278,18 +311,24 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                                 ),
                                             );
                                         }
-                                        setJoinField(index, 'fieldA', fieldId);
+                                        setJoinField(
+                                            index,
+                                            PRIMARY_SOURCE_ID,
+                                            fieldId,
+                                        );
                                     }}
                                 />
                                 <FieldSelect
                                     size="xs"
                                     placeholder="choose or add a field"
                                     hasGrouping
-                                    items={availableJoinItemsB}
-                                    item={availableJoinItemsB.find(
+                                    items={availableAdditionalJoinItems}
+                                    item={availableAdditionalJoinItems.find(
                                         (candidate) =>
                                             getItemId(candidate) ===
-                                            part.fieldB,
+                                            part.fieldIdBySourceId[
+                                                additionalSourceId
+                                            ],
                                     )}
                                     onChange={(value) => {
                                         const fieldId = value
@@ -297,14 +336,22 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                             : null;
                                         if (
                                             fieldId &&
-                                            !joinItemsB.some(
+                                            !additionalJoinItems.some(
                                                 (item) =>
                                                     getItemId(item) === fieldId,
                                             )
                                         ) {
-                                            toggleFieldB(fieldId, true);
+                                            toggleSourceField(
+                                                additionalSourceId,
+                                                fieldId,
+                                                true,
+                                            );
                                         }
-                                        setJoinField(index, 'fieldB', fieldId);
+                                        setJoinField(
+                                            index,
+                                            additionalSourceId,
+                                            fieldId,
+                                        );
                                     }}
                                 />
                             </Box>
@@ -372,12 +419,14 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
             ))}
 
             {!isIncomplete &&
-                fanOut.map(({ side, fields }) => (
-                    <Note key={side} tone="warn">
-                        Query {side.toUpperCase()} is split by{' '}
-                        {fields.map(labelFor).join(' and ')}, which the other
-                        query does not have. Merging would repeat the other
-                        query's rows once per value. Remove{' '}
+                fanOut.map(({ sourceId, fields }) => (
+                    <Note key={sourceId} tone="warn">
+                        {sourceId === PRIMARY_SOURCE_ID
+                            ? primaryExploreLabel
+                            : additionalExploreLabel}{' '}
+                        is split by {fields.map(labelFor).join(' and ')}, which
+                        the other query does not have. Merging would repeat the
+                        other query's rows once per value. Remove{' '}
                         {fields.length === 1 ? 'it' : 'them'}, or select{' '}
                         {fields.length === 1 ? 'it' : 'them'} on both queries
                         and join on {fields.length === 1 ? 'it' : 'them'}.

@@ -10,43 +10,44 @@ import { ItemDetailProvider } from '../../../components/Explorer/ExploreTree/Tab
 import { useExplore } from '../../../hooks/useExplore';
 import { useMerge } from '../context/useMerge';
 
-/**
- * The field picker for the second query, shown when its tab has the focus.
- *
- * The explorer's own tree, pointed at the second query's explore and its
- * selection. Picking fields is picking fields: search, grouping, descriptions
- * and field detail all work here because it is the same component, not a
- * second and worse one that has to be kept in step.
- */
-export const QueryBTree: FC<{
+/** Field picker for a source owned by the merge editor. */
+export const MergeSourceTree: FC<{
+    sourceId: string;
     isChoosingExplore: boolean;
     setIsChoosingExplore: Dispatch<SetStateAction<boolean>>;
     selectedFields: SelectedField[];
     hideSelectedFields?: boolean;
 }> = ({
+    sourceId,
     isChoosingExplore,
     setIsChoosingExplore,
     selectedFields,
     hideSelectedFields = false,
 }) => {
-    const { queryB, setExploreB, toggleFieldB } = useMerge();
+    const merge = useMerge();
+    const source = merge.additionalSources.find(({ id }) => id === sourceId);
     const { data: explore, isInitialLoading } = useExplore(
-        queryB.exploreName ?? undefined,
+        source?.exploreName ?? undefined,
     );
 
     const selection = useMemo(
         () => ({
-            activeFields: new Set([...queryB.dimensions, ...queryB.metrics]),
-            selectedDimensions: queryB.dimensions,
+            activeFields: new Set([
+                ...(source?.dimensions ?? []),
+                ...(source?.metrics ?? []),
+            ]),
+            selectedDimensions: source?.dimensions ?? [],
         }),
-        [queryB.dimensions, queryB.metrics],
+        [source?.dimensions, source?.metrics],
     );
+    if (!source) return null;
+
     if (isChoosingExplore) {
         return (
             <Box h="100%" mih={0} style={{ overflow: 'hidden' }}>
                 <BasePanel
                     onExploreClick={(selectedExplore) => {
-                        setExploreB(selectedExplore.name);
+                        merge.setSourceExplore(source.id, selectedExplore.name);
                         setIsChoosingExplore(false);
                     }}
                 />
@@ -66,7 +67,7 @@ export const QueryBTree: FC<{
                 Change table
             </Button>
 
-            {queryB.exploreName && isInitialLoading && <LoadingSkeleton />}
+            {source.exploreName && isInitialLoading && <LoadingSkeleton />}
 
             {explore && (
                 <Box style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
@@ -74,7 +75,13 @@ export const QueryBTree: FC<{
                         <ExploreTree
                             explore={explore}
                             selection={selection}
-                            onSelectedFieldChange={toggleFieldB}
+                            onSelectedFieldChange={(fieldId, isDimension) =>
+                                merge.toggleSourceField(
+                                    source.id,
+                                    fieldId,
+                                    isDimension,
+                                )
+                            }
                             selectedFieldsOverride={selectedFields}
                             hideSelectedFields={hideSelectedFields}
                         />

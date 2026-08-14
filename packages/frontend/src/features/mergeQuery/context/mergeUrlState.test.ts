@@ -7,33 +7,46 @@ import {
 } from './mergeUrlState';
 
 const state: MergeUrlState = {
-    focus: 'b',
-    queryB: {
-        exploreName: 'subscriptions',
-        dimensions: ['subscriptions_subscription_start_month'],
-        metrics: ['subscriptions_total_subscriptions'],
-    },
+    focus: { kind: 'source', sourceId: 'subscriptions' },
+    additionalSources: [
+        {
+            id: 'subscriptions',
+            exploreName: 'subscriptions',
+            dimensions: ['subscriptions_subscription_start_month'],
+            metrics: ['subscriptions_total_subscriptions'],
+            filters: {},
+        },
+    ],
     joinParts: [
         {
-            fieldA: 'orders_order_date_month',
-            fieldB: 'subscriptions_subscription_start_month',
+            fieldIdBySourceId: {
+                a: 'orders_order_date_month',
+                subscriptions: 'subscriptions_subscription_start_month',
+            },
         },
-        { fieldA: 'orders_status', fieldB: 'subscriptions_status' },
+        {
+            fieldIdBySourceId: {
+                a: 'orders_status',
+                subscriptions: 'subscriptions_status',
+            },
+        },
     ],
     joinType: MergeJoinType.LEFT,
-    filtersB: {},
 };
 
 describe('merge url state', () => {
-    it('round-trips the whole relationship', () => {
+    it('round-trips source-addressed editor state', () => {
         expect(parseMergeState(serializeMergeState(state))).toEqual(state);
     });
 
-    it('round-trips the combine step', () => {
-        const combineState = { ...state, focus: 'join' as const };
+    it('round-trips the relationship step', () => {
+        const relationshipState = {
+            ...state,
+            focus: { kind: 'join' as const },
+        };
 
-        expect(parseMergeState(serializeMergeState(combineState))).toEqual(
-            combineState,
+        expect(parseMergeState(serializeMergeState(relationshipState))).toEqual(
+            relationshipState,
         );
     });
 
@@ -42,51 +55,92 @@ describe('merge url state', () => {
         expect(parseMergeState('')).toBeNull();
     });
 
-    // A shared link can be stale or hand-edited. Dropping back to the ordinary
-    // explorer is the right failure; throwing away the page is not.
-    it('returns null for anything that is not JSON', () => {
+    it('returns null for malformed JSON or a non-object value', () => {
         expect(parseMergeState('not json')).toBeNull();
         expect(parseMergeState('{oops')).toBeNull();
-    });
-
-    it('returns null for JSON that is not an object', () => {
         expect(parseMergeState('"a string"')).toBeNull();
         expect(parseMergeState('null')).toBeNull();
     });
 
-    it('falls back to safe defaults for missing or wrong-typed fields', () => {
-        expect(parseMergeState('{}')).toEqual({
-            focus: 'a',
-            queryB: { exploreName: null, dimensions: [], metrics: [] },
-            // A merge always has at least one key part, even an unfilled one.
-            joinParts: [{ fieldA: null, fieldB: null }],
-            joinType: MergeJoinType.FULL,
-            filtersB: {},
+    it('adapts legacy two-source links at the URL boundary', () => {
+        const parsed = parseMergeState(
+            JSON.stringify({
+                e: 'subscriptions',
+                d: ['subscriptions_month', 3, null],
+                m: ['subscriptions_mrr'],
+                k: [
+                    ['orders_month', 'subscriptions_month'],
+                    'invalid',
+                    [1, 'subscriptions_status'],
+                ],
+                j: MergeJoinType.LEFT,
+                w: {},
+                f: 'b',
+            }),
+        );
+
+        expect(parsed).toEqual({
+            focus: { kind: 'source', sourceId: 'b' },
+            additionalSources: [
+                {
+                    id: 'b',
+                    exploreName: 'subscriptions',
+                    dimensions: ['subscriptions_month'],
+                    metrics: ['subscriptions_mrr'],
+                    filters: {},
+                    additionalMetrics: undefined,
+                    customDimensions: undefined,
+                },
+            ],
+            joinParts: [
+                {
+                    fieldIdBySourceId: {
+                        a: 'orders_month',
+                        b: 'subscriptions_month',
+                    },
+                },
+                {
+                    fieldIdBySourceId: {
+                        a: null,
+                        b: 'subscriptions_status',
+                    },
+                },
+            ],
+            joinType: MergeJoinType.LEFT,
         });
     });
 
-    it('drops non-string entries rather than carrying them into a query', () => {
-        const parsed = parseMergeState(
-            JSON.stringify({ d: ['ok', 3, null, 'fine'] }),
-        );
-
-        expect(parsed?.queryB.dimensions).toEqual(['ok', 'fine']);
+    it('falls back to safe defaults for an empty legacy shape', () => {
+        expect(parseMergeState('{}')).toEqual({
+            focus: { kind: 'source', sourceId: 'a' },
+            additionalSources: [
+                {
+                    id: 'b',
+                    exploreName: null,
+                    dimensions: [],
+                    metrics: [],
+                    filters: {},
+                    additionalMetrics: undefined,
+                    customDimensions: undefined,
+                },
+            ],
+            joinParts: [{ fieldIdBySourceId: { a: null, b: null } }],
+            joinType: MergeJoinType.FULL,
+        });
     });
 
-    it('rejects a join type it does not recognise', () => {
+    it('rejects malformed current sources', () => {
+        expect(parseMergeState(JSON.stringify({ s: [{}] }))).toBeNull();
+        expect(parseMergeState(JSON.stringify({ s: [] }))).toBeNull();
         expect(
-            parseMergeState(JSON.stringify({ j: 'sideways' }))?.joinType,
-        ).toBe(MergeJoinType.FULL);
-    });
-
-    it('keeps composite key parts and drops malformed ones', () => {
-        const parsed = parseMergeState(
-            JSON.stringify({ k: [['a', 'b'], 'nope', [1, 'c']] }),
-        );
-
-        expect(parsed?.joinParts).toEqual([
-            { fieldA: 'a', fieldB: 'b' },
-            { fieldA: null, fieldB: 'c' },
-        ]);
+            parseMergeState(
+                JSON.stringify({
+                    s: [
+                        { i: 'b', e: null, d: [], m: [], w: {} },
+                        { i: 'c', e: null, d: [], m: [], w: {} },
+                    ],
+                }),
+            ),
+        ).toBeNull();
     });
 });

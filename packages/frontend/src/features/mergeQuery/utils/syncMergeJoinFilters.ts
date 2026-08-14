@@ -6,7 +6,7 @@ import {
 } from '@lightdash/common';
 import { type MergeJoinPart } from '../context/context';
 
-type MergeSide = 'a' | 'b';
+export type FiltersBySourceId = Record<string, Filters>;
 
 const itemsOf = (group: FilterGroup): FilterGroupItem[] =>
     'and' in group ? group.and : group.or;
@@ -65,50 +65,42 @@ const replaceJoinKeyRules = (
 };
 
 export const syncMergeJoinFilters = ({
-    changedSide,
-    filtersA,
-    filtersB,
+    changedSourceId,
+    filtersBySourceId,
     joinParts,
 }: {
-    changedSide: MergeSide;
-    filtersA: Filters;
-    filtersB: Filters;
+    changedSourceId: string;
+    filtersBySourceId: FiltersBySourceId;
     joinParts: MergeJoinPart[];
-}): { filtersA: Filters; filtersB: Filters } => {
-    const fieldMap = new Map<string, string>();
-    joinParts.forEach(({ fieldA, fieldB }) => {
-        if (!fieldA || !fieldB) return;
-        fieldMap.set(
-            changedSide === 'a' ? fieldA : fieldB,
-            changedSide === 'a' ? fieldB : fieldA,
-        );
-    });
+}): FiltersBySourceId => {
+    const changedFilters = filtersBySourceId[changedSourceId];
+    if (!changedFilters) return filtersBySourceId;
 
-    if (fieldMap.size === 0) return { filtersA, filtersB };
-
-    if (changedSide === 'a') {
-        return {
-            filtersA,
-            filtersB: {
-                ...filtersB,
-                dimensions: replaceJoinKeyRules(
-                    filtersB.dimensions,
-                    filtersA.dimensions,
-                    fieldMap,
-                ),
-            },
-        };
-    }
-
-    return {
-        filtersA: {
-            ...filtersA,
-            dimensions: replaceJoinKeyRules(
-                filtersA.dimensions,
-                filtersB.dimensions,
-                fieldMap,
-            ),
-        },
-        filtersB,
-    };
+    return Object.fromEntries(
+        Object.entries(filtersBySourceId).map(([targetSourceId, filters]) => {
+            if (targetSourceId === changedSourceId) {
+                return [targetSourceId, filters];
+            }
+            const fieldMap = new Map<string, string>();
+            joinParts.forEach(({ fieldIdBySourceId }) => {
+                const changedField = fieldIdBySourceId[changedSourceId];
+                const targetField = fieldIdBySourceId[targetSourceId];
+                if (changedField && targetField) {
+                    fieldMap.set(changedField, targetField);
+                }
+            });
+            if (fieldMap.size === 0) return [targetSourceId, filters];
+            return [
+                targetSourceId,
+                {
+                    ...filters,
+                    dimensions: replaceJoinKeyRules(
+                        filters.dimensions,
+                        changedFilters.dimensions,
+                        fieldMap,
+                    ),
+                },
+            ];
+        }),
+    );
 };

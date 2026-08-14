@@ -42,7 +42,9 @@ const ExplorerContent = memo(() => {
     const { data } = useExplore(tableId);
 
     const handleClearQuery = useCallback(() => {
-        merge?.removeQuery();
+        merge?.additionalSources.forEach((source) =>
+            merge.removeSource(source.id),
+        );
         dispatch(
             explorerActions.clearQuery({
                 defaultState,

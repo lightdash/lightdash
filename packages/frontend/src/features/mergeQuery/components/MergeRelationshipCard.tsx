@@ -6,7 +6,8 @@ import { useMergeSetup } from '../hooks/useMergeSetup';
 import { MergeJoinBar } from './MergeJoinBar';
 
 const MergeRelationshipCardContent: FC = () => {
-    const { exploreALabel, exploreBLabel, isIncomplete } = useMergeSetup();
+    const { primaryExploreLabel, additionalExploreLabel, isIncomplete } =
+        useMergeSetup();
     const [isOpen, setIsOpen] = useState(true);
 
     return (
@@ -18,8 +19,8 @@ const MergeRelationshipCardContent: FC = () => {
                 <Badge variant="light" color={isIncomplete ? 'orange' : 'gray'}>
                     {isIncomplete
                         ? 'Needs a matching field'
-                        : `${exploreALabel ?? 'First data'} + ${
-                              exploreBLabel ?? 'combined data'
+                        : `${primaryExploreLabel ?? 'First data'} + ${
+                              additionalExploreLabel ?? 'combined data'
                           }`}
                 </Badge>
             }
@@ -34,7 +35,11 @@ const MergeRelationshipCardContent: FC = () => {
 /** The relationship belongs to the result, so it lives with result controls—not inside either dataset. */
 export const MergeRelationshipCard: FC = () => {
     const merge = useMergeSafe();
-    if (!merge?.isMerging || merge.readOnly || !merge.queryB.exploreName) {
+    if (
+        !merge?.isMerging ||
+        merge.readOnly ||
+        !merge.additionalSources[0]?.exploreName
+    ) {
         return null;
     }
 

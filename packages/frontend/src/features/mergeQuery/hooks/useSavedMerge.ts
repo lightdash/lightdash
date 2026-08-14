@@ -1,16 +1,16 @@
 import { type MergeQuery, type SavedMergeQuery } from '@lightdash/common';
 import { useMemo } from 'react';
-import { SOURCE_A } from '../constants';
+import { PRIMARY_SOURCE_ID } from '../constants';
 import { useMergeSetup } from './useMergeSetup';
 
 export const toSavedMerge = (mergeQuery: MergeQuery): SavedMergeQuery => {
-    if (!mergeQuery.sources.some((source) => source.id === SOURCE_A)) {
+    if (!mergeQuery.sources.some((source) => source.id === PRIMARY_SOURCE_ID)) {
         throw new Error('A saved merge requires the chart query.');
     }
     return {
-        primarySourceId: mergeQuery.sources[0].id,
+        primarySourceId: PRIMARY_SOURCE_ID,
         sources: mergeQuery.sources.map((source) =>
-            source.id === SOURCE_A
+            source.id === PRIMARY_SOURCE_ID
                 ? {
                       id: source.id,
                       kind: 'chart' as const,
