@@ -1155,12 +1155,23 @@ export const findMatch = (
         };
     }
 
+    // Defs without a time rollup have no time expansion, so treat them as coarsest.
+    const getGranularityCoarseness = (def: PreAggregateDef): number =>
+        def.granularity
+            ? timeFrameOrder.indexOf(def.granularity)
+            : Number.MAX_SAFE_INTEGER;
+
     // TODO: Prefer using materialized row count once available.
     const smallestMatchingDef = matchedDefs.reduce((best, current) => {
         if (current.dimensions.length !== best.dimensions.length) {
             return current.dimensions.length < best.dimensions.length
                 ? current
                 : best;
+        }
+        const currentCoarseness = getGranularityCoarseness(current);
+        const bestCoarseness = getGranularityCoarseness(best);
+        if (currentCoarseness !== bestCoarseness) {
+            return currentCoarseness > bestCoarseness ? current : best;
         }
         return current.metrics.length < best.metrics.length ? current : best;
     });
