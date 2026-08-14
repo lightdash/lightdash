@@ -1,0 +1,53 @@
+import * as assert from 'assert';
+import * as fs from 'fs';
+
+const WORKFLOW_PATH = '.github/workflows/release-safety-pr.yml';
+const workflow = fs.readFileSync(WORKFLOW_PATH, 'utf-8');
+
+const lines = workflow.split('\n');
+const withoutComments = lines.filter((line) => !/^\s*#/.test(line));
+
+const triggerStart = withoutComments.findIndex((line) => /^on:/.test(line));
+assert.notStrictEqual(triggerStart, -1, `no "on:" block in ${WORKFLOW_PATH}`);
+
+const triggerEnd = withoutComments.findIndex(
+    (line, index) => index > triggerStart && /^\S/.test(line),
+);
+const triggerBlock = withoutComments.slice(
+    triggerStart,
+    triggerEnd === -1 ? undefined : triggerEnd,
+);
+
+// SPK-857 removed the trigger-level `paths:` filter; SPK-924 (#27139) restored
+// it and SPK-1015 removed it again. A trigger-level filter stops the workflow
+// launching at all once a PR revision's diff leaves the watched paths, so the
+// sticky comment freezes describing a revision that no longer exists and the
+// `retract` job never runs to correct it. It also makes the check impossible to
+// mark as required: PRs that touch none of the watched paths would never report
+// it and could never merge. The in-job `changes` filter is the supported way to
+// skip unwatched diffs.
+const offending = triggerBlock.filter((line) => /^\s*paths(-ignore)?:/.test(line));
+assert.deepStrictEqual(
+    offending,
+    [],
+    `${WORKFLOW_PATH} must not use a trigger-level paths filter (see SPK-857 / SPK-1015); found:\n${offending.join('\n')}`,
+);
+
+// The in-job filter is what decides whether the heavy jobs run, so it has to
+// cover every path that can move the release-safety verdict. These two were
+// present only in the trigger-level list, which made `retract` unreachable for
+// every other watched path.
+for (const required of [
+    'scripts/breaking-change-declarations.ts',
+    'scripts/release-safety-pr-gate.ts',
+    'scripts/gen-release-safety.ts',
+    'packages/backend/**',
+    'packages/common/**',
+]) {
+    assert.ok(
+        workflow.includes(`- '${required}'`),
+        `${WORKFLOW_PATH} in-job watched filter is missing ${required}`,
+    );
+}
+
+process.stdout.write('release-safety workflow shape tests passed\n');
