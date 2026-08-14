@@ -35,7 +35,13 @@ type VariantProps = PrototypeState & {
     configure: () => void;
 };
 
-const tables = ['Customers', 'Subscriptions', 'Payments', 'Support tickets'];
+const tables = [
+    'Customers',
+    'Subscriptions',
+    'Payments',
+    'Support tickets',
+    'Subscription lifecycle events by billing account and reporting month',
+];
 
 const TablePicker: FC<{ chooseTable: (table: string) => void }> = ({
     chooseTable,
@@ -53,6 +59,7 @@ const TablePicker: FC<{ chooseTable: (table: string) => void }> = ({
                     className={styles.tableOption}
                     type="button"
                     key={table}
+                    title={table}
                     onClick={() => chooseTable(table)}
                 >
                     <IconTable size={15} />
@@ -207,7 +214,7 @@ const Step: FC<{
 }> = ({ number, title, state }) => (
     <div className={styles.step} data-state={state}>
         <span>{state === 'done' ? <IconCheck size={13} /> : number}</span>
-        <strong>{title}</strong>
+        <strong title={title}>{title}</strong>
     </div>
 );
 
@@ -244,7 +251,7 @@ const VariantB: FC<VariantProps> = ({
                     {!queryB
                         ? 'What do you want to combine with Orders?'
                         : !hasMetric
-                          ? `What do you need from ${queryB}?`
+                          ? 'What do you need from this table?'
                           : 'How should these results line up?'}
                 </h2>
                 {!queryB ? (

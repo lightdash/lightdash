@@ -57,13 +57,17 @@
     align-items: center;
     gap: 7px;
     min-width: 0;
+    max-width: 46%;
     padding: 8px 12px;
+    overflow: hidden;
     border: 0;
     border-bottom: 2px solid transparent;
     background: transparent;
     color: var(--mantine-color-ldGray-6);
     font-size: 13px;
     font-weight: 650;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     cursor: pointer;
 }
 
@@ -158,7 +162,14 @@
     background: var(--mantine-color-blue-0);
 }
 
-.tableOption span:nth-child(2),
+.tableOption span:nth-child(2) {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .field {
     flex: 1;
 }
@@ -328,6 +339,8 @@
     margin: 0 0 4px;
     font-size: 16px;
     line-height: 1.25;
+    overflow-wrap: anywhere;
+    text-wrap: balance;
 }
 
 .sourceStack {
@@ -362,7 +375,10 @@
 }
 
 .sourceHeader strong {
+    overflow: hidden;
     font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .sourceHeader small {
@@ -410,6 +426,7 @@
     align-items: center;
     gap: 5px;
     font-weight: 650;
+    max-width: 230px;
 }
 
 .choice[data-empty='true'] {
