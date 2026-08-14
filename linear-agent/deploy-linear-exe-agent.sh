@@ -117,7 +117,7 @@ preflight() {
     validate_vm_name
     validate_template_name
     [ -n "${EXE_API_KEY:-}" ] || fail 'EXE_API_KEY is required.'
-    if grep -Eq '^(LINEAR_CLIENT_SECRET|LINEAR_WEBHOOK_SECRET|EXE_API_KEY|CODEX_API_KEY|GITHUB_TOKEN)=.+' \
+    if grep -Eq '^(LINEAR_CLIENT_SECRET|LINEAR_WEBHOOK_SECRET|EXE_API_KEY|CODEX_API_KEY|GITHUB_APP_PRIVATE_KEY)=.+' \
         "$APP_ROOT/.env.example"; then
         fail '.env.example contains a secret; keep credentials only in .env.'
     fi
@@ -126,7 +126,8 @@ preflight() {
 write_controller_environment() {
     local output_file="$1" name value
     for name in PORT LINEAR_CLIENT_ID LINEAR_CLIENT_SECRET LINEAR_WEBHOOK_SECRET \
-        CODEX_API_KEY GITHUB_TOKEN GITHUB_REPOSITORY GITHUB_BASE_REF \
+        CODEX_API_KEY GITHUB_APP_ID GITHUB_APP_INSTALLATION_ID \
+        GITHUB_APP_PRIVATE_KEY GITHUB_REPOSITORY GITHUB_BASE_REF \
         EXE_RUNNER_TEMPLATE EXE_RUNNER_CPU EXE_RUNNER_MEMORY EXE_RUNNER_DISK \
         EXE_RUNNER_TTL_SECONDS EXE_RUNNER_PUBLIC_PREVIEW EXE_RUNNER_PREVIEW_PORT; do
         value="${!name:-}"
@@ -223,8 +224,11 @@ deploy() {
         write_controller_environment "$resolved_env"
     else
         [ -f "$env_file" ] || fail "Missing environment file $env_file. Copy .env.example and fill it in."
-        awk '!/^(EXE_API_KEY|EXE_RUNNER_BOOTSTRAP_TOKEN|PUBLIC_URL)=/' "$env_file" >"$resolved_env"
+        awk '!/^(EXE_API_KEY|EXE_RUNNER_BOOTSTRAP_TOKEN|PUBLIC_URL|GITHUB_TOKEN)=/' "$env_file" >"$resolved_env"
     fi
+    for name in GITHUB_APP_ID GITHUB_APP_INSTALLATION_ID GITHUB_APP_PRIVATE_KEY; do
+        grep -Eq "^${name}=.+" "$resolved_env" || fail "$name is required."
+    done
     runner_bootstrap_token=""
     if template_exists; then
         wait_for_template_ssh

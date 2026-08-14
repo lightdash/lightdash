@@ -31,6 +31,11 @@ import {
     validateVmName,
     verifyLinearWebhook,
 } from './core.mjs';
+import {
+    createGithubAppClient,
+    decodeGithubPrivateKey,
+    publishVerifiedCommit,
+} from './github-app.mjs';
 
 const APP_ROOT = dirname(fileURLToPath(import.meta.url));
 const DATA_ROOT = process.env.DATA_ROOT || join(APP_ROOT, 'data');
@@ -60,7 +65,9 @@ const config = {
     exeApiKey: required('EXE_API_KEY'),
     runnerBootstrapToken: process.env.EXE_RUNNER_BOOTSTRAP_TOKEN || '',
     codexApiKey: required('CODEX_API_KEY'),
-    githubToken: process.env.GITHUB_TOKEN || '',
+    githubAppId: required('GITHUB_APP_ID'),
+    githubAppInstallationId: required('GITHUB_APP_INSTALLATION_ID'),
+    githubAppPrivateKey: decodeGithubPrivateKey(required('GITHUB_APP_PRIVATE_KEY')),
     repository: process.env.GITHUB_REPOSITORY || 'lightdash/lightdash',
     baseRef: process.env.GITHUB_BASE_REF || 'main',
     runnerTemplate: process.env.EXE_RUNNER_TEMPLATE || 'ld-linear-agent-template',
@@ -71,6 +78,13 @@ const config = {
     runnerPublicPreview: process.env.EXE_RUNNER_PUBLIC_PREVIEW === 'true',
     runnerPreviewPort: Number(process.env.EXE_RUNNER_PREVIEW_PORT || 3000),
 };
+
+const githubClient = createGithubAppClient({
+    appId: config.githubAppId,
+    installationId: config.githubAppInstallationId,
+    privateKey: config.githubAppPrivateKey,
+    repository: config.repository,
+});
 
 validateTemplateVmName(config.runnerTemplate);
 
@@ -516,10 +530,11 @@ async function publishRunnerPreview(job) {
 }
 
 async function run(command, args, options = {}) {
+    const { encoding = 'utf8', ...spawnOptions } = options;
     return new Promise((resolve, reject) => {
         const child = spawn(command, args, {
             stdio: ['ignore', 'pipe', 'pipe'],
-            ...options,
+            ...spawnOptions,
         });
         const stdout = [];
         const stderr = [];
@@ -528,7 +543,8 @@ async function run(command, args, options = {}) {
         child.on('error', reject);
         child.on('close', (code) => {
             if (code === 0) {
-                resolve(Buffer.concat(stdout).toString('utf8'));
+                const output = Buffer.concat(stdout);
+                resolve(encoding === null ? output : output.toString(encoding));
                 return;
             }
             reject(
@@ -541,21 +557,61 @@ async function run(command, args, options = {}) {
 }
 
 async function githubRequest(path, options = {}) {
-    const response = await fetch(`https://api.github.com${path}`, {
-        ...options,
-        signal: options.signal || AbortSignal.timeout(requestTimeout),
-        headers: {
-            accept: 'application/vnd.github+json',
-            authorization: `Bearer ${config.githubToken}`,
-            'content-type': 'application/json',
-            'x-github-api-version': '2022-11-28',
-            ...options.headers,
-        },
-    });
-    const text = await response.text();
-    const body = text ? parseJson(text, 'GitHub response') : {};
-    if (!response.ok) throw new Error(`GitHub API error (${response.status}): ${JSON.stringify(body)}`);
-    return body;
+    return githubClient.request(path, options);
+}
+
+async function collectGithubFileChanges(checkout) {
+    const output = await run(
+        'git',
+        ['diff', '--cached', '--name-status', '--no-renames', '-z', 'HEAD', '--'],
+        { cwd: checkout },
+    );
+    const fields = output.split('\0');
+    if (fields.at(-1) === '') fields.pop();
+    if (fields.length % 2 !== 0) {
+        throw new Error('Git returned malformed staged file changes');
+    }
+
+    const additions = [];
+    const deletions = [];
+    for (let index = 0; index < fields.length; index += 2) {
+        const status = fields[index];
+        const path = fields[index + 1];
+        if (!['A', 'M', 'D'].includes(status)) {
+            throw new Error(`GitHub API commits do not support staged status ${status}`);
+        }
+        if (status === 'D') {
+            deletions.push({ path });
+            continue;
+        }
+        const indexEntry = await run(
+            'git',
+            ['ls-files', '--stage', '--', path],
+            { cwd: checkout },
+        );
+        const mode = indexEntry.match(/^([0-9]{6}) /)?.[1];
+        if (!['100644', '100755'].includes(mode)) {
+            throw new Error(`GitHub API commits do not support file mode ${mode || 'unknown'} for ${path}`);
+        }
+        const baseEntry = status === 'M'
+            ? await run('git', ['ls-tree', 'HEAD', '--', path], { cwd: checkout })
+            : '';
+        const baseMode = baseEntry.match(/^([0-9]{6}) /)?.[1];
+        if (
+            (status === 'A' && mode !== '100644') ||
+            (status === 'M' && mode !== baseMode)
+        ) {
+            throw new Error(`GitHub API commits do not support file mode changes for ${path}`);
+        }
+        additions.push({
+            path,
+            contents: (await run('git', ['show', `:${path}`], {
+                cwd: checkout,
+                encoding: null,
+            })).toString('base64'),
+        });
+    }
+    return { additions, deletions };
 }
 
 async function persistEvidence(job, event) {
@@ -668,7 +724,7 @@ async function publishPatch(job, event, evidence) {
     await mkdir(jobRoot, { recursive: true, mode: 0o700 });
     await cleanupPublishWorkspace(jobRoot);
     await writeFile(join(jobRoot, 'change.patch'), patch, { mode: 0o600 });
-    if (!patch.length || !config.githubToken) return null;
+    if (!patch.length) return null;
 
     await enrichIssueReferences(job).catch((error) => {
         log('Linear issue reference lookup failed', { jobId: job.id, error: error.message });
@@ -684,29 +740,22 @@ async function publishPatch(job, event, evidence) {
         await run('git', ['add', '--all'], { cwd: checkout });
 
         const branch = branchName(job.issueIdentifier, job.id);
-        await run('git', ['checkout', '--quiet', '-B', branch], { cwd: checkout });
-        await run('git', ['-c', 'user.name=Lightdash Linear Agent', '-c', 'user.email=linear-agent@lightdash.com', 'commit', '--quiet', '-m', prTitle], { cwd: checkout });
-
-        const tokenFile = join(jobRoot, 'github-token');
-        const askpassFile = join(jobRoot, 'git-askpass.sh');
-        await writeFile(tokenFile, `${config.githubToken}\n`, { mode: 0o600 });
-        await writeFile(
-            askpassFile,
-            `#!/bin/sh\ncase "$1" in *Username*) echo x-access-token ;; *) cat ${shellQuote(tokenFile)} ;; esac\n`,
-            { mode: 0o700 },
-        );
-        await run(
-            'git',
-            ['push', '--force', `https://github.com/${config.repository}.git`, `HEAD:refs/heads/${branch}`],
-            {
-                cwd: checkout,
-                env: {
-                    ...process.env,
-                    GIT_ASKPASS: askpassFile,
-                    GIT_TERMINAL_PROMPT: '0',
-                },
+        const fileChanges = await collectGithubFileChanges(checkout);
+        await publishVerifiedCommit({
+            client: githubClient,
+            repository: config.repository,
+            branch,
+            baseCommit: event.baseCommit,
+            headline: prTitle,
+            fileChanges,
+            stagingLabel: `${job.id}-${event.promptId}`,
+            onCleanupError: (error) => {
+                log('GitHub staging branch cleanup failed', {
+                    jobId: job.id,
+                    error: error.message,
+                });
             },
-        );
+        });
 
         if (!job.prUrl) {
             const pull = await githubRequest(`/repos/${config.repository}/pulls`, {
@@ -816,12 +865,16 @@ async function handleRunnerEvent(job, event) {
             job.previewError = event.previewError;
             await saveObject(JOBS_FILE, jobs);
         }
-        const prUrl = await publishPatch(job, event, evidence);
+        let prUrl;
+        try {
+            prUrl = await publishPatch(job, event, evidence);
+        } catch (error) {
+            job.status = 'publish-error';
+            await saveObject(JOBS_FILE, jobs);
+            throw new Error(`GitHub publication failed: ${error.message}`);
+        }
         job.status = 'complete';
         await saveObject(JOBS_FILE, jobs);
-        if (!prUrl && !config.githubToken) {
-            event.body = `${event.body || 'Implementation complete.'}\n\n> No GitHub token is configured; the patch is retained by the controller.`;
-        }
         await emitActivity(job, {
             type: 'response',
             body: linearResponseBody(job, event, evidence, prUrl, previewUrl),
@@ -1031,6 +1084,9 @@ const server = createServer((request, response) => {
         else response.end();
     });
 });
+
+await githubClient.validateRepositoryAccess();
+log('GitHub App installation ready', { repository: config.repository });
 
 server.listen(config.port, '0.0.0.0', () => {
     log('Linear exe.dev agent listening', { port: config.port, publicUrl: config.publicUrl });

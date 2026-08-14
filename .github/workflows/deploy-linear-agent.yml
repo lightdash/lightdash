@@ -70,11 +70,14 @@ jobs:
           LINEAR_CLIENT_SECRET: ${{ secrets.LINEAR_AGENT_CLIENT_SECRET }}
           LINEAR_WEBHOOK_SECRET: ${{ secrets.LINEAR_AGENT_WEBHOOK_SECRET }}
           CODEX_API_KEY: ${{ secrets.LINEAR_AGENT_CODEX_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.LINEAR_AGENT_GITHUB_TOKEN }}
+          GITHUB_APP_ID: ${{ secrets.LINEAR_AGENT_GITHUB_APP_ID }}
+          GITHUB_APP_INSTALLATION_ID: ${{ secrets.LINEAR_AGENT_GITHUB_APP_INSTALLATION_ID }}
+          GITHUB_APP_PRIVATE_KEY: ${{ secrets.LINEAR_AGENT_GITHUB_APP_PRIVATE_KEY }}
         run: |
           set -euo pipefail
           for name in EXE_API_KEY LINEAR_CLIENT_ID LINEAR_CLIENT_SECRET \
-            LINEAR_WEBHOOK_SECRET CODEX_API_KEY GITHUB_TOKEN; do
+            LINEAR_WEBHOOK_SECRET CODEX_API_KEY GITHUB_APP_ID \
+            GITHUB_APP_INSTALLATION_ID GITHUB_APP_PRIVATE_KEY; do
             [ -n "${!name:-}" ] || { echo "Missing required secret: $name" >&2; exit 1; }
           done
           ./linear-agent/deploy-linear-exe-agent.sh deploy --from-environment
