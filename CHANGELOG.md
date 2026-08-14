@@ -1,3 +1,10 @@
+# [1.161.0](https://github.com/lightdash/lightdash/compare/1.160.3...1.161.0) (2026-08-14)
+
+
+### Features
+
+* linear-agent-v2 Flue-based Linear coding agent PoC ([#27360](https://github.com/lightdash/lightdash/issues/27360)) ([eec8085](https://github.com/lightdash/lightdash/commit/eec80859cbf1e23b5a9e14995fbefb28fdd97a3b))
+
 ## [1.160.3](https://github.com/lightdash/lightdash/compare/1.160.2...1.160.3) (2026-08-14)
 
 
