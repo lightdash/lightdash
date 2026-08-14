@@ -1,3 +1,10 @@
+## [1.159.2](https://github.com/lightdash/lightdash/compare/1.159.1...1.159.2) (2026-08-14)
+
+
+### Bug Fixes
+
+* **release-safety:** remove the trigger-level paths filter again ([#27414](https://github.com/lightdash/lightdash/issues/27414)) ([1525985](https://github.com/lightdash/lightdash/commit/15259855fdd574856bb1b6904bfabd5763a61ada)), closes [#26995](https://github.com/lightdash/lightdash/issues/26995) [#27139](https://github.com/lightdash/lightdash/issues/27139) [#27139](https://github.com/lightdash/lightdash/issues/27139)
+
 ## [1.159.1](https://github.com/lightdash/lightdash/compare/1.159.0...1.159.1) (2026-08-14)
 
 
