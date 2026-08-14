@@ -145,6 +145,14 @@ const baseExplore = (): Explore => ({
                     name: 'unique_customers',
                     type: MetricType.COUNT_DISTINCT,
                 }),
+                median_amount: makeMetric({
+                    name: 'median_amount',
+                    type: MetricType.MEDIAN,
+                }),
+                running_total_amount: makeMetric({
+                    name: 'running_total_amount',
+                    type: MetricType.RUNNING_TOTAL,
+                }),
                 custom_metric: makeMetric({
                     name: 'custom_metric',
                     type: MetricType.NUMBER,
@@ -1104,14 +1112,14 @@ describe('findMatch', () => {
         });
     });
 
-    it('returns non_additive_metric for non-reaggregatable metrics', () => {
+    it('returns non_additive_metric for metrics that can never be served', () => {
         const explore = {
             ...baseExplore(),
             preAggregates: [
                 {
                     name: 'orders_summary',
                     dimensions: ['status'],
-                    metrics: ['unique_customers'],
+                    metrics: ['running_total_amount'],
                 },
             ],
         };
@@ -1119,14 +1127,375 @@ describe('findMatch', () => {
         const result = preAggregateUtils.findMatch(
             makeMetricQuery({
                 dimensions: ['orders_status'],
-                metrics: ['orders_unique_customers'],
+                metrics: ['orders_running_total_amount'],
             }),
             explore,
         );
 
         expect(result.miss).toStrictEqual({
             reason: PreAggregateMissReason.NON_ADDITIVE_METRIC,
-            fieldId: 'orders_unique_customers',
+            fieldId: 'orders_running_total_amount',
+        });
+    });
+
+    describe('exact match serving for non-additive metrics', () => {
+        const exploreWithUniqueCustomersDef = (
+            def?: Partial<PreAggregateDef>,
+        ): Explore => ({
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_unique',
+                    dimensions: ['status'],
+                    metrics: ['unique_customers', 'order_count'],
+                    ...def,
+                },
+            ],
+        });
+
+        it('hits when selected dimensions equal the pre-aggregate dimensions', () => {
+            const result = preAggregateUtils.findMatch(
+                makeMetricQuery({
+                    dimensions: ['orders_status'],
+                    metrics: ['orders_unique_customers'],
+                }),
+                exploreWithUniqueCustomersDef(),
+            );
+
+            expect(result).toStrictEqual({
+                hit: true,
+                preAggregateName: 'orders_unique',
+                miss: null,
+            });
+        });
+
+        it('hits with the time dimension selected at exactly the pre-aggregate granularity', () => {
+            const result = preAggregateUtils.findMatch(
+                makeMetricQuery({
+                    dimensions: ['orders_status', 'orders_order_date_day'],
+                    metrics: ['orders_unique_customers'],
+                }),
+                exploreWithUniqueCustomersDef({
+                    timeDimension: 'order_date',
+                    granularity: TimeFrames.DAY,
+                }),
+            );
+
+            expect(result).toStrictEqual({
+                hit: true,
+                preAggregateName: 'orders_unique',
+                miss: null,
+            });
+        });
+
+        it('hits for median metrics on an exact match', () => {
+            const result = preAggregateUtils.findMatch(
+                makeMetricQuery({
+                    dimensions: ['orders_status'],
+                    metrics: ['orders_median_amount'],
+                }),
+                exploreWithUniqueCustomersDef({
+                    metrics: ['median_amount'],
+                }),
+            );
+
+            expect(result).toStrictEqual({
+                hit: true,
+                preAggregateName: 'orders_unique',
+                miss: null,
+            });
+        });
+
+        it('misses when the query selects a subset of the pre-aggregate dimensions', () => {
+            const result = preAggregateUtils.findMatch(
+                makeMetricQuery({
+                    dimensions: ['orders_status'],
+                    metrics: ['orders_unique_customers'],
+                }),
+                exploreWithUniqueCustomersDef({
+                    dimensions: ['status', 'amount'],
+                }),
+            );
+
+            expect(result.miss).toStrictEqual({
+                reason: PreAggregateMissReason.NON_ADDITIVE_METRIC_REQUIRES_EXACT_MATCH,
+                fieldId: 'orders_unique_customers',
+            });
+        });
+
+        it('misses metrics-only queries because the dimensions are not selected', () => {
+            const result = preAggregateUtils.findMatch(
+                makeMetricQuery({
+                    dimensions: [],
+                    metrics: ['orders_unique_customers'],
+                }),
+                exploreWithUniqueCustomersDef(),
+            );
+
+            expect(result.miss).toStrictEqual({
+                reason: PreAggregateMissReason.NON_ADDITIVE_METRIC_REQUIRES_EXACT_MATCH,
+                fieldId: 'orders_unique_customers',
+            });
+        });
+
+        it('misses when the time dimension is queried at a coarser granularity', () => {
+            const result = preAggregateUtils.findMatch(
+                makeMetricQuery({
+                    dimensions: ['orders_status', 'orders_order_date_month'],
+                    metrics: ['orders_unique_customers'],
+                }),
+                exploreWithUniqueCustomersDef({
+                    timeDimension: 'order_date',
+                    granularity: TimeFrames.DAY,
+                }),
+            );
+
+            expect(result.miss).toStrictEqual({
+                reason: PreAggregateMissReason.NON_ADDITIVE_METRIC_REQUIRES_EXACT_MATCH,
+                fieldId: 'orders_unique_customers',
+            });
+        });
+
+        it('misses when a definition dimension is only referenced by a query filter', () => {
+            const result = preAggregateUtils.findMatch(
+                makeMetricQuery({
+                    dimensions: ['orders_status'],
+                    metrics: ['orders_unique_customers'],
+                    filters: {
+                        dimensions: {
+                            id: 'root',
+                            and: [
+                                {
+                                    id: 'f1',
+                                    target: { fieldId: 'orders_amount' },
+                                    operator: FilterOperator.GREATER_THAN,
+                                    values: [10],
+                                },
+                            ],
+                        },
+                    },
+                }),
+                exploreWithUniqueCustomersDef({
+                    dimensions: ['status', 'amount'],
+                }),
+            );
+
+            expect(result.miss).toStrictEqual({
+                reason: PreAggregateMissReason.NON_ADDITIVE_METRIC_REQUIRES_EXACT_MATCH,
+                fieldId: 'orders_unique_customers',
+            });
+        });
+
+        it('keeps the exact match when filters target selected dimensions', () => {
+            const result = preAggregateUtils.findMatch(
+                makeMetricQuery({
+                    dimensions: ['orders_status'],
+                    metrics: ['orders_unique_customers'],
+                    filters: {
+                        dimensions: {
+                            id: 'root',
+                            and: [
+                                {
+                                    id: 'f1',
+                                    target: { fieldId: 'orders_status' },
+                                    operator: FilterOperator.EQUALS,
+                                    values: ['completed'],
+                                },
+                            ],
+                        },
+                    },
+                }),
+                exploreWithUniqueCustomersDef(),
+            );
+
+            expect(result).toStrictEqual({
+                hit: true,
+                preAggregateName: 'orders_unique',
+                miss: null,
+            });
+        });
+
+        it('misses when a definition dimension is reached only through a custom bin', () => {
+            const result = preAggregateUtils.findMatch(
+                makeMetricQuery({
+                    dimensions: ['orders_status', 'fixed_width_bin'],
+                    metrics: ['orders_unique_customers'],
+                    customDimensions: [
+                        makeCustomBinDimension(BinType.FIXED_WIDTH),
+                    ],
+                }),
+                exploreWithUniqueCustomersDef({
+                    dimensions: ['status', 'amount'],
+                }),
+            );
+
+            expect(result.miss).toStrictEqual({
+                reason: PreAggregateMissReason.NON_ADDITIVE_METRIC_REQUIRES_EXACT_MATCH,
+                fieldId: 'orders_unique_customers',
+            });
+        });
+
+        it('keeps the exact match for a subset of the pre-aggregate metrics', () => {
+            const result = preAggregateUtils.findMatch(
+                makeMetricQuery({
+                    dimensions: ['orders_status'],
+                    metrics: ['orders_order_count'],
+                }),
+                exploreWithUniqueCustomersDef(),
+            );
+
+            expect(result).toStrictEqual({
+                hit: true,
+                preAggregateName: 'orders_unique',
+                miss: null,
+            });
+        });
+
+        it('does not gate additive metrics on exactness', () => {
+            const result = preAggregateUtils.findMatch(
+                makeMetricQuery({
+                    dimensions: ['orders_status'],
+                    metrics: ['orders_order_count'],
+                }),
+                exploreWithUniqueCustomersDef({
+                    dimensions: ['status', 'amount'],
+                    metrics: ['order_count'],
+                }),
+            );
+
+            expect(result).toStrictEqual({
+                hit: true,
+                preAggregateName: 'orders_unique',
+                miss: null,
+            });
+        });
+
+        it('misses when the raw time dimension is selected instead of the granular one', () => {
+            const result = preAggregateUtils.findMatch(
+                makeMetricQuery({
+                    dimensions: ['orders_status', 'orders_order_date'],
+                    metrics: ['orders_unique_customers'],
+                }),
+                exploreWithUniqueCustomersDef({
+                    timeDimension: 'order_date',
+                    granularity: TimeFrames.DAY,
+                }),
+            );
+
+            expect(result.miss).toStrictEqual({
+                reason: PreAggregateMissReason.NON_ADDITIVE_METRIC_REQUIRES_EXACT_MATCH,
+                fieldId: 'orders_unique_customers',
+            });
+        });
+
+        it('keeps definition-filter semantics on exact matches', () => {
+            const definitionFilter = {
+                id: 'def-filter',
+                target: { fieldRef: 'status' },
+                operator: FilterOperator.EQUALS,
+                values: ['completed'],
+            };
+
+            const queryWithoutFilter = makeMetricQuery({
+                dimensions: ['orders_status'],
+                metrics: ['orders_unique_customers'],
+            });
+            const queryWithFilter = makeMetricQuery({
+                ...queryWithoutFilter,
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: 'f1',
+                                target: { fieldId: 'orders_status' },
+                                operator: FilterOperator.EQUALS,
+                                values: ['completed'],
+                            },
+                        ],
+                    },
+                },
+            });
+            const explore = exploreWithUniqueCustomersDef({
+                filters: [definitionFilter],
+            });
+
+            expect(
+                preAggregateUtils.findMatch(queryWithoutFilter, explore).miss,
+            ).toStrictEqual({
+                reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED,
+                fieldId: 'orders_status',
+            });
+            expect(
+                preAggregateUtils.findMatch(queryWithFilter, explore),
+            ).toStrictEqual({
+                hit: true,
+                preAggregateName: 'orders_unique',
+                miss: null,
+            });
+        });
+
+        it('reports the exact-match miss over metric-not-in-pre-aggregate from unrelated defs', () => {
+            const explore = {
+                ...baseExplore(),
+                preAggregates: [
+                    {
+                        name: 'additive_only',
+                        dimensions: ['status'],
+                        metrics: ['order_count'],
+                    },
+                    {
+                        name: 'orders_unique',
+                        dimensions: ['status', 'amount'],
+                        metrics: ['unique_customers'],
+                    },
+                ],
+            };
+
+            const result = preAggregateUtils.findMatch(
+                makeMetricQuery({
+                    dimensions: ['orders_status'],
+                    metrics: ['orders_unique_customers'],
+                }),
+                explore,
+            );
+
+            expect(result.miss).toStrictEqual({
+                reason: PreAggregateMissReason.NON_ADDITIVE_METRIC_REQUIRES_EXACT_MATCH,
+                fieldId: 'orders_unique_customers',
+            });
+        });
+
+        it('keeps the smallest-pre-aggregate tie-break on exact matches', () => {
+            const explore = {
+                ...baseExplore(),
+                preAggregates: [
+                    {
+                        name: 'wide',
+                        dimensions: ['status'],
+                        metrics: ['unique_customers', 'order_count'],
+                    },
+                    {
+                        name: 'narrow',
+                        dimensions: ['status'],
+                        metrics: ['unique_customers'],
+                    },
+                ],
+            };
+
+            const result = preAggregateUtils.findMatch(
+                makeMetricQuery({
+                    dimensions: ['orders_status'],
+                    metrics: ['orders_unique_customers'],
+                }),
+                explore,
+            );
+
+            expect(result).toStrictEqual({
+                hit: true,
+                preAggregateName: 'narrow',
+                miss: null,
+            });
         });
     });
 

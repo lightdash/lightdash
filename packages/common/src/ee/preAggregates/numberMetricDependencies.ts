@@ -8,7 +8,7 @@ import {
     type FieldId,
 } from '../../types/field';
 import { getItemId } from '../../utils/item';
-import { isSupportedMetricType } from './metricRepresentation';
+import { isReAggregatableMetricType } from './metricRepresentation';
 import {
     getReferencedMetricForPreAggregation,
     type PreAggregateReferenceLookup,
@@ -194,7 +194,9 @@ const analyzeNumberMetricDependencies = ({
                 continue;
             }
 
-            if (!isSupportedMetricType(referencedMetric.type)) {
+            // Exact-only leaves stay ineligible: a number metric re-aggregates
+            // its references, which is never safe for them.
+            if (!isReAggregatableMetricType(referencedMetric.type)) {
                 result = getIneligibleResult({
                     reason: PreAggregateNumberMetricDependencyIneligibilityReason.UNSUPPORTED_LEAF_METRIC_TYPE,
                     ineligibleMetricFieldId: referencedMetricFieldId,

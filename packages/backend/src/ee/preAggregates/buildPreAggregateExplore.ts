@@ -123,6 +123,17 @@ const getMetricSqlForPreAggregateExplore = ({
                 ),
             };
         }
+        case PreAggregateMetricRepresentationKind.EXACT_ONLY: {
+            const metricColumnReference = `${tableName}.${getPreAggregateMetricColumnName(
+                fieldId,
+            )}`;
+            // MAX is exact: the matcher only serves exact-only metrics when
+            // each result group maps to a single materialization row.
+            return {
+                sql: metricColumnReference,
+                compiledSql: `MAX(${metricColumnReference})`,
+            };
+        }
         case PreAggregateMetricRepresentationKind.UNSUPPORTED:
             throw new Error(`Unsupported metric type "${metricType}"`);
         default:
@@ -447,11 +458,19 @@ export const buildPreAggregateExplore = (
             servingAdapter,
         });
 
+        // Hide exact-only metrics from the pre-aggregate explore preview:
+        // selecting them with fewer dimensions than the definition would
+        // re-aggregate a non-additive value into a wrong number.
+        const isExactOnly =
+            preAggregateUtils.getMetricRepresentation(metric.type).kind ===
+            PreAggregateMetricRepresentationKind.EXACT_ONLY;
+
         tables[metric.table].metrics[metric.name] = {
             ...metric,
             sql,
             compiledSql,
             tablesReferences: [sourceExplore.baseTable],
+            ...(isExactOnly ? { hidden: true } : {}),
         };
     });
 
