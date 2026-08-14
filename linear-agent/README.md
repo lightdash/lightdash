@@ -21,13 +21,13 @@ exe.dev controller VM ── copies/deletes ──► exe.dev runner VM
         │                                      ├─ publishes port 3000
         │                                      └─ returns a Git patch
         ▼
-draft GitHub PR (optional)
+verified draft GitHub PR
 ```
 
 The runner receives only a job-scoped callback token and `CODEX_API_KEY`. The
-Linear OAuth tokens, `EXE_API_KEY`, and optional `GITHUB_TOKEN` remain on the
+Linear OAuth tokens, `EXE_API_KEY`, and GitHub App credentials remain on the
 controller. The controller applies returned patches without executing repository
-code, then publishes an agent-owned draft branch and PR.
+code, then publishes a verified, app-owned commit and draft PR.
 
 Linear's Agent APIs are a Developer Preview. The controller acknowledges signed
 webhooks immediately, emits a thought before provisioning, and uses Agent
@@ -49,7 +49,26 @@ References: [Linear agent setup](https://linear.app/developers/agents),
 [agent interaction](https://linear.app/developers/agent-interaction), and
 [webhook security](https://linear.app/developers/webhooks).
 
-## 2. Configure secrets
+## 2. Create the GitHub application
+
+Create a private GitHub App owned by the Lightdash organization with:
+
+- GitHub App name: `Lightdash Linear Agent`
+- Homepage URL: `https://github.com/lightdash/lightdash`
+- Webhooks: disabled
+- Repository permissions: Contents read/write and Pull requests read/write
+
+Install it only on `lightdash/lightdash`. Record the app ID and installation ID,
+then generate a private key. Store the key as a single-line base64 value:
+
+```bash
+base64 < lightdash-linear-agent.private-key.pem | tr -d '\n'
+```
+
+The app can later add an OAuth callback and user authorization without changing
+its installation. The controller currently authenticates only as the app.
+
+## 3. Configure secrets
 
 ```bash
 cp linear-agent/.env.example linear-agent/.env
@@ -59,7 +78,8 @@ Fill in:
 
 - `LINEAR_CLIENT_ID`, `LINEAR_CLIENT_SECRET`, `LINEAR_WEBHOOK_SECRET`
 - `CODEX_API_KEY` for non-interactive Codex
-- `GITHUB_TOKEN` with access to create branches and PRs, if PR publishing is wanted
+- `GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID`
+- `GITHUB_APP_PRIVATE_KEY` with the base64-encoded PEM value
 
 Export `EXE_API_KEY` in the deployment shell. Restrict it to the exe.dev commands
 `ls,new,cp,rm,tag,share port,share set-public`; deployment writes it to the controller's protected environment
@@ -72,8 +92,12 @@ ssh exe.dev \
   "ssh-key generate-api-key --label=linear-agent-template --cmds='ls,new,cp,rm,tag,share port,share set-public' --exp=30d --json"
 ```
 
-Do not commit `.env`. If `GITHUB_TOKEN` is omitted, completed patches remain on
-the controller and Linear reports that no PR was published.
+Do not commit `.env`. The controller validates the GitHub App installation and
+repository access before it starts serving requests.
+
+After the first successful app-backed deployment, delete the obsolete
+`LINEAR_AGENT_GITHUB_TOKEN` repository secret, remove `GITHUB_TOKEN` from local
+environment files, and revoke the personal access token.
 
 Codex runs with `--sandbox danger-full-access` only inside the dedicated runner
 VM. The API key is provided only to each `codex exec` process, and Codex's shell
@@ -85,7 +109,7 @@ Public previews use `demo@lightdash.com` / `demo_password!` and disable public
 signup. Anyone with the runner URL can use those credentials until the VM
 expires. Do not put production, license, or warehouse credentials in this POC.
 
-## 3. Prepare the golden runner
+## 4. Prepare the golden runner
 
 Use a paid plan with enough pooled disk, set `EXE_RUNNER_DISK=25GB`, then build
 the template once:
@@ -113,7 +137,7 @@ Until the template exists, the controller retains a slower stock-VM fallback.
 Copied runners start through a one-shot systemd service baked into the template;
 the controller's HTTPS token is never copied into runner VMs.
 
-## 4. Deploy the controller
+## 5. Deploy the controller
 
 ```bash
 export EXE_API_KEY=...
@@ -151,7 +175,9 @@ Configure these repository secrets:
 | `LINEAR_AGENT_EXE_SSH_PRIVATE_KEY` | Dedicated unencrypted SSH private key registered with exe.dev |
 | `LINEAR_AGENT_EXE_SSH_KNOWN_HOSTS` | Trusted `exe.dev` entry from `~/.ssh/known_hosts` |
 | `LINEAR_AGENT_CODEX_API_KEY` | API key used by Codex inside runner VMs |
-| `LINEAR_AGENT_GITHUB_TOKEN` | Fine-grained token for `lightdash/lightdash` with Contents and Pull requests read/write access |
+| `LINEAR_AGENT_GITHUB_APP_ID` | ID of the organization-owned GitHub App |
+| `LINEAR_AGENT_GITHUB_APP_INSTALLATION_ID` | ID of the app installation on the Lightdash organization |
+| `LINEAR_AGENT_GITHUB_APP_PRIVATE_KEY` | Single-line base64-encoded GitHub App private key |
 
 Generate a dedicated CI SSH key, add its public half to exe.dev, and store the
 private half in GitHub:
@@ -190,12 +216,14 @@ plus a binary Git patch. The
 implementation agent generates a semantic title such as
 `fix(auth): enforce login attempt limits` and a short implementation summary.
 The controller validates the title format before using it for both the commit
-and draft pull request. Its final response is structured separately and rendered
-in Linear as Markdown with implementation, validation, visual-evidence, and link
+and draft pull request. It creates the commit through GitHub's API on a temporary
+branch, confirms that GitHub reports a valid signature, and only then updates the
+draft PR branch. Its final response is structured separately and rendered in
+Linear as Markdown with implementation, validation, visual-evidence, and link
 sections.
 
 The controller retains patches and visual evidence, but removes temporary Git
-checkouts and GitHub credential files after every publish attempt and on startup.
+checkouts after every publish attempt and on startup.
 
 PR titles and descriptions describe behavior generically and must not include
 client or customer names, organization names, or customer data examples. The
@@ -221,13 +249,13 @@ Only names matching the exact `ldlin-<12 hex>` pattern can be deleted.
 ## Local verification
 
 ```bash
-node --test linear-agent/core.test.mjs
+node --test linear-agent/core.test.mjs linear-agent/github-app.test.mjs
 node --check linear-agent/server.mjs
 bash -n linear-agent/runner.sh
 bash -n linear-agent/deploy-linear-exe-agent.sh
 ```
 
 The end-to-end test requires a Linear OAuth application plus Codex and GitHub
-API credentials. Delegate a sacrificial issue, verify the initial activity
+App credentials. Delegate a sacrificial issue, verify the initial activity
 appears within ten seconds, follow the controller logs, review the draft PR, send
 a follow-up prompt, and confirm the same runner VM updates the PR.
