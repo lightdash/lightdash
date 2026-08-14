@@ -203,7 +203,7 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
               '',
               'Never declare a break merely to make CI pass. Declaring a break advises every self-hosted customer to use the Recreate strategy.',
               '',
-              'A release that ships as `breaking` or `unknown` stops the internal analytics instance upgrading. Every later release inherits the block until someone moves the pin past it by hand. On 2026-08-14, that cost roughly six hours while the automation reported success and said nothing.',
+              'A release that ships as `breaking` or `unknown` stops the internal analytics instance upgrading. Every later release inherits the block until someone moves the pin past it by hand.',
           ]
         : [];
 
