@@ -1,3 +1,10 @@
+## [1.159.3](https://github.com/lightdash/lightdash/compare/1.159.2...1.159.3) (2026-08-14)
+
+
+### Bug Fixes
+
+* **release-safety:** never write a verdict to a merged pull request ([#27415](https://github.com/lightdash/lightdash/issues/27415)) ([73fde76](https://github.com/lightdash/lightdash/commit/73fde76035817f7abb70b625d28405cefa5c3386)), closes [#27393](https://github.com/lightdash/lightdash/issues/27393)
+
 ## [1.159.2](https://github.com/lightdash/lightdash/compare/1.159.1...1.159.2) (2026-08-14)
 
 
