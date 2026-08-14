@@ -1,4 +1,5 @@
-import { Group, Paper, Text } from '@mantine/core';
+import { MergeJoinType } from '@lightdash/common';
+import { Box, Group, Paper, Text, ThemeIcon } from '@mantine/core';
 import { IconArrowMerge } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -23,20 +24,63 @@ export const MergeReadOnlyBar: FC = () => {
     if (!merge?.isMerging || !merge.readOnly || isIncomplete) return null;
 
     const keys = effectiveParts
-        .map((part) => (part.fieldA ? labelFor(part.fieldA) : '?'))
+        .map((part) => {
+            const fieldA = part.fieldA ? labelFor(part.fieldA) : '?';
+            const fieldB = part.fieldB ? labelFor(part.fieldB) : '?';
+
+            return fieldA === fieldB ? fieldA : `${fieldA} ↔ ${fieldB}`;
+        })
         .join(' + ');
+    const keepLabel =
+        merge.joinType === MergeJoinType.LEFT
+            ? `Keep ${exploreALabel}`
+            : merge.joinType === MergeJoinType.INNER
+              ? 'Matches only'
+              : 'Keep all rows';
     const runError = merge.mergeResults?.results.error ?? null;
 
     return (
-        <Paper withBorder radius="md" px="sm" py={6}>
-            <Group gap="xs" wrap="nowrap">
-                <MantineIcon icon={IconArrowMerge} color="ldGray.6" />
-                <Text size="xs" c="dimmed" truncate>
-                    {exploreALabel} merged with {exploreBLabel}, joined on{' '}
-                    <Text span size="xs" fw={600} c="dark">
-                        {keys}
+        <Paper withBorder radius="md" px="sm" py="xs">
+            <Group gap="sm" wrap="nowrap">
+                <ThemeIcon variant="light" color="gray" radius="md" size="md">
+                    <MantineIcon
+                        icon={IconArrowMerge}
+                        color="blue.7"
+                        size={14}
+                    />
+                </ThemeIcon>
+                <Box style={{ flex: 1, minWidth: 0 }}>
+                    <Group gap={6} wrap="nowrap">
+                        <Box
+                            w={7}
+                            h={7}
+                            bg="blue.6"
+                            style={{ borderRadius: '50%', flexShrink: 0 }}
+                        />
+                        <Text size="sm" fw={600} truncate>
+                            {exploreALabel}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                            +
+                        </Text>
+                        <Box
+                            w={7}
+                            h={7}
+                            bg="orange.6"
+                            style={{ borderRadius: '50%', flexShrink: 0 }}
+                        />
+                        <Text size="sm" fw={600} truncate>
+                            {exploreBLabel}
+                        </Text>
+                    </Group>
+                    <Text size="xs" c="dimmed" truncate>
+                        Matched on{' '}
+                        <Text span size="xs" fw={600} c="gray.7">
+                            {keys}
+                        </Text>{' '}
+                        · {keepLabel}
                     </Text>
-                </Text>
+                </Box>
                 {runError && (
                     <Text size="xs" c="orange.8" truncate>
                         {runError.error?.message ?? 'The merge failed to run'}
