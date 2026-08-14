@@ -14,6 +14,7 @@ import {
     type CreateExternalConnection,
     type ExternalConnection,
     type ExternalConnectionConfigProposal,
+    type ExternalConnectionListItem,
     type ExternalConnectionMethod,
     type ExternalConnectionSample,
     type ExternalConnectionSampleRequest,
@@ -219,7 +220,7 @@ export class ExternalConnectionService extends BaseService {
     async list(
         account: RegisteredAccount,
         projectUuid: string,
-    ): Promise<ExternalConnection[]> {
+    ): Promise<ExternalConnectionListItem[]> {
         // Derive the org from the project, not the caller, and filter by both,
         // so an org admin cannot list another org's project's connections.
         const organizationUuid =

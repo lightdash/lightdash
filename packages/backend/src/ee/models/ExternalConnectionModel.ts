@@ -5,6 +5,7 @@ import {
     NotFoundError,
     type CreateExternalConnection,
     type ExternalConnection,
+    type ExternalConnectionListItem,
     type ExternalConnectionSample,
     type ExternalConnectionSampleRequest,
     type UpdateExternalConnection,
@@ -335,12 +336,38 @@ export class ExternalConnectionModel {
     async list(
         projectUuid: string,
         organizationUuid: string,
-    ): Promise<ExternalConnection[]> {
+    ): Promise<ExternalConnectionListItem[]> {
+        const linkedDataAppCounts = this.database(
+            AppExternalConnectionsTableName,
+        )
+            .select(
+                `${AppExternalConnectionsTableName}.external_connection_uuid`,
+                this.database.raw('COUNT(DISTINCT ??) AS ??', [
+                    `${AppsTableName}.app_id`,
+                    'linked_data_app_count',
+                ]),
+            )
+            .innerJoin(
+                AppsTableName,
+                `${AppsTableName}.app_id`,
+                `${AppExternalConnectionsTableName}.app_id`,
+            )
+            .whereNull(`${AppsTableName}.deleted_at`)
+            .groupBy(
+                `${AppExternalConnectionsTableName}.external_connection_uuid`,
+            )
+            .as('linked_data_app_counts');
+
         const rows = await this.database(ExternalConnectionsTableName)
             .leftJoin(
                 ExternalConnectionSecretsTableName,
                 `${ExternalConnectionSecretsTableName}.external_connection_uuid`,
                 `${ExternalConnectionsTableName}.external_connection_uuid`,
+            )
+            .leftJoin(
+                linkedDataAppCounts,
+                `${ExternalConnectionsTableName}.external_connection_uuid`,
+                'linked_data_app_counts.external_connection_uuid',
             )
             .where(`${ExternalConnectionsTableName}.project_uuid`, projectUuid)
             .where(
@@ -351,19 +378,27 @@ export class ExternalConnectionModel {
             .orderBy(`${ExternalConnectionsTableName}.created_at`, 'desc')
             .select<
                 Array<
-                    DbExternalConnection & { encrypted_payload: Buffer | null }
+                    DbExternalConnection & {
+                        encrypted_payload: Buffer | null;
+                        linked_data_app_count: string;
+                    }
                 >
             >(
                 `${ExternalConnectionsTableName}.*`,
                 `${ExternalConnectionSecretsTableName}.encrypted_payload`,
+                this.database.raw('COALESCE(??, 0) AS ??', [
+                    'linked_data_app_counts.linked_data_app_count',
+                    'linked_data_app_count',
+                ]),
             );
 
-        return rows.map((row) =>
-            ExternalConnectionModel.mapToExternalConnection(
+        return rows.map((row) => ({
+            ...ExternalConnectionModel.mapToExternalConnection(
                 row,
                 row.encrypted_payload !== null,
             ),
-        );
+            linkedDataAppCount: Number(row.linked_data_app_count),
+        }));
     }
 
     /**
