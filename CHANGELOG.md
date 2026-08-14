@@ -1,3 +1,10 @@
+## [1.157.1](https://github.com/lightdash/lightdash/compare/1.157.0...1.157.1) (2026-08-14)
+
+
+### Bug Fixes
+
+* **merge-query:** preserve saved merge migration history ([#27396](https://github.com/lightdash/lightdash/issues/27396)) ([2c4a429](https://github.com/lightdash/lightdash/commit/2c4a4293a4868d4740d37a0a976144834742b7b2))
+
 # [1.157.0](https://github.com/lightdash/lightdash/compare/1.156.0...1.157.0) (2026-08-14)
 
 
