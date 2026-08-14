@@ -42416,6 +42416,14 @@
                 "required": ["rows", "fields"],
                 "type": "object"
             },
+            "Record_string.FieldId_": {
+                "properties": {},
+                "additionalProperties": {
+                    "type": "string"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
             "MergeFieldOrigin": {
                 "anyOf": [
                     {
@@ -42437,13 +42445,16 @@
                     },
                     {
                         "properties": {
+                            "fieldIdBySourceId": {
+                                "$ref": "#/components/schemas/Record_string.FieldId_"
+                            },
                             "kind": {
                                 "type": "string",
                                 "enum": ["joinKey"],
                                 "nullable": false
                             }
                         },
-                        "required": ["kind"],
+                        "required": ["fieldIdBySourceId", "kind"],
                         "type": "object"
                     },
                     {
@@ -42580,14 +42591,6 @@
                 "$ref": "#/components/schemas/Record_FieldId.MergeFieldOrigin_",
                 "description": "Provenance of every merged field, by field id."
             },
-            "Record_string.FieldId_": {
-                "properties": {},
-                "additionalProperties": {
-                    "type": "string"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
             "MergeQueryErrorKind": {
                 "enum": [
                     "too_few_sources",
@@ -42643,6 +42646,13 @@
                         "$ref": "#/components/schemas/Record_string.FieldId_",
                         "description": "Field id for each column the statement returns. Warehouse aliases are\nshort and positional so they cannot breach an identifier length limit;\nidentity lives in `itemsMap`, and rows are rekeyed through this map\nbefore anything downstream sees them."
                     },
+                    "parameterReferences": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "User parameters referenced by any source query."
+                    },
                     "fieldOrigins": {
                         "$ref": "#/components/schemas/MergeFieldOrigins",
                         "description": "Provenance of each field in `itemsMap`."
@@ -42696,6 +42706,7 @@
                 "required": [
                     "errors",
                     "fieldIdByColumn",
+                    "parameterReferences",
                     "fieldOrigins",
                     "itemsMap",
                     "fields",
@@ -42793,6 +42804,12 @@
                     "parameters": {
                         "$ref": "#/components/schemas/ParametersValuesMap",
                         "description": "Parameter values for every source query, one map for the whole merge —\ntwo sides of one question should never disagree on a parameter."
+                    },
+                    "csvLimit": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Export row limit. Null means all rows within the organization's cell cap."
                     },
                     "pivotConfiguration": {
                         "$ref": "#/components/schemas/PivotConfiguration"
@@ -53354,7 +53371,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.155.0",
+        "version": "1.156.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

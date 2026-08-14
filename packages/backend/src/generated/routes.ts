@@ -42112,6 +42112,16 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.FieldId_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { dataType: 'string' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MergeFieldOrigin: {
         dataType: 'refAlias',
         type: {
@@ -42132,6 +42142,10 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        fieldIdBySourceId: {
+                            ref: 'Record_string.FieldId_',
+                            required: true,
+                        },
                         kind: {
                             dataType: 'enum',
                             enums: ['joinKey'],
@@ -42279,16 +42293,6 @@ const models: TsoaRoute.Models = {
         type: { ref: 'Record_FieldId.MergeFieldOrigin_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.FieldId_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            additionalProperties: { dataType: 'string' },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MergeQueryErrorKind: {
         dataType: 'refEnum',
         enums: [
@@ -42347,6 +42351,11 @@ const models: TsoaRoute.Models = {
                 },
                 fieldIdByColumn: {
                     ref: 'Record_string.FieldId_',
+                    required: true,
+                },
+                parameterReferences: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
                     required: true,
                 },
                 fieldOrigins: { ref: 'MergeFieldOrigins', required: true },
@@ -42482,6 +42491,13 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 parameters: { ref: 'ParametersValuesMap' },
+                csvLimit: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 pivotConfiguration: { ref: 'PivotConfiguration' },
                 mergeQuery: { ref: 'MergeQuery', required: true },
             },

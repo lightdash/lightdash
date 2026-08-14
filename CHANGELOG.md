@@ -1,3 +1,18 @@
+# [1.156.0](https://github.com/lightdash/lightdash/compare/1.155.0...1.156.0) (2026-08-14)
+
+
+### Bug Fixes
+
+* **explorer:** preserve merged query interactions ([#27357](https://github.com/lightdash/lightdash/issues/27357)) ([e9fab5d](https://github.com/lightdash/lightdash/commit/e9fab5def7b019211cde20bd8937ad180a911d2f))
+
+
+### Features
+
+* **explorer:** drill into merged source fields ([#27377](https://github.com/lightdash/lightdash/issues/27377)) ([412b5eb](https://github.com/lightdash/lightdash/commit/412b5ebce11756e7676911fa3015684766755bf5))
+* **explorer:** guide merge query setup ([#27378](https://github.com/lightdash/lightdash/issues/27378)) ([70d35f7](https://github.com/lightdash/lightdash/commit/70d35f709cc5546aa0ea8b901bd76055d033b730))
+* **explorer:** show merged field provenance ([#27376](https://github.com/lightdash/lightdash/issues/27376)) ([cb9e0b0](https://github.com/lightdash/lightdash/commit/cb9e0b037d71e31bed5fa0b8d1c7a48cc2b55860))
+* **explorer:** unify merge query filters ([#27392](https://github.com/lightdash/lightdash/issues/27392)) ([d92d597](https://github.com/lightdash/lightdash/commit/d92d59798a4f0207927eea6c1ac31eafb6b1090e))
+
 # [1.155.0](https://github.com/lightdash/lightdash/compare/1.154.2...1.155.0) (2026-08-14)
 
 
