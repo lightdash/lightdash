@@ -18,7 +18,12 @@ import { useState, type FC, type ReactNode } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
-import { selectTableName, useExplorerSelector } from '../../explorer/store';
+import {
+    explorerActions,
+    selectTableName,
+    useExplorerDispatch,
+    useExplorerSelector,
+} from '../../explorer/store';
 import { EMPTY_MERGE } from '../constants';
 import { useMergeSafe } from '../context/useMerge';
 import { useMergeSetup } from '../hooks/useMergeSetup';
@@ -51,17 +56,20 @@ const Note: FC<{ tone: 'muted' | 'warn'; children: ReactNode }> = ({
  * error is not chrome.
  */
 export const MergeJoinBar: FC = () => {
+    const dispatch = useExplorerDispatch();
     const { data: mergeFlag } = useServerFeatureFlag(FeatureFlags.MergeQueries);
     const tableName = useExplorerSelector(selectTableName);
     const mergeContext = useMergeSafe();
     const {
         isMerging,
         readOnly,
+        queryB,
         joinType,
         setJoinField,
         addJoinPart,
         removeJoinPart,
         setJoinType,
+        toggleFieldB,
     } = mergeContext ?? EMPTY_MERGE;
     const { runErrors, mergeResults } = mergeContext ?? {};
 
@@ -73,6 +81,9 @@ export const MergeJoinBar: FC = () => {
         joinFieldLabel,
         joinItemsA,
         joinItemsB,
+        availableJoinItemsA,
+        availableJoinItemsB,
+        suggestedAvailablePair,
         exploreALabel,
         exploreBLabel,
         isIncomplete,
@@ -84,28 +95,30 @@ export const MergeJoinBar: FC = () => {
     const [editingOverride, setEditingOverride] = useState<boolean | null>(
         null,
     );
-    const expanded = !readOnly && (editingOverride ?? isIncomplete);
+    const expanded =
+        !readOnly && !!queryB.exploreName && (editingOverride ?? isIncomplete);
 
     if (!mergeContext || !tableName || mergeFlag?.enabled !== true) return null;
     if (!isMerging) return null;
+    if (!queryB.exploreName) return null;
 
     const thisQuery = exploreALabel || 'this query';
     const otherQuery = exploreBLabel || 'the other query';
     const keepOptions = [
         {
             value: MergeJoinType.FULL,
-            label: 'Everything',
-            help: `Every ${joinFieldLabel} from either query. Where one side has no match, its columns are blank.`,
+            label: 'All rows',
+            help: `Full outer join · Every ${joinFieldLabel} from either query. Where one side has no match, its columns are blank.`,
         },
         {
             value: MergeJoinType.LEFT,
             label: thisQuery,
-            help: `Only the ${joinFieldLabel} values in ${thisQuery}. Anything found solely in ${otherQuery} is dropped.`,
+            help: `Left join · Only the ${joinFieldLabel} values in ${thisQuery}. Anything found solely in ${otherQuery} is dropped.`,
         },
         {
             value: MergeJoinType.INNER,
             label: 'Matches',
-            help: `Only the ${joinFieldLabel} values in both ${thisQuery} and ${otherQuery}. Everything unmatched is dropped.`,
+            help: `Inner join · Only the ${joinFieldLabel} values in both ${thisQuery} and ${otherQuery}. Everything unmatched is dropped.`,
         },
     ];
     const activeKeep =
@@ -178,46 +191,117 @@ export const MergeJoinBar: FC = () => {
                                         </ActionIcon>
                                     )}
                                 </Box>
+                                {index === 0 &&
+                                    !part.fieldA &&
+                                    !part.fieldB &&
+                                    suggestedAvailablePair && (
+                                        <Anchor
+                                            component="button"
+                                            type="button"
+                                            size="xs"
+                                            ta="left"
+                                            onClick={() => {
+                                                const { fieldA, fieldB } =
+                                                    suggestedAvailablePair;
+                                                if (
+                                                    !joinItemsA.some(
+                                                        (item) =>
+                                                            getItemId(item) ===
+                                                            fieldA,
+                                                    )
+                                                ) {
+                                                    dispatch(
+                                                        explorerActions.toggleDimension(
+                                                            fieldA,
+                                                        ),
+                                                    );
+                                                }
+                                                if (
+                                                    !joinItemsB.some(
+                                                        (item) =>
+                                                            getItemId(item) ===
+                                                            fieldB,
+                                                    )
+                                                ) {
+                                                    toggleFieldB(fieldB, true);
+                                                }
+                                                setJoinField(
+                                                    index,
+                                                    'fieldA',
+                                                    fieldA,
+                                                );
+                                                setJoinField(
+                                                    index,
+                                                    'fieldB',
+                                                    fieldB,
+                                                );
+                                            }}
+                                        >
+                                            Suggested:{' '}
+                                            {labelFor(
+                                                suggestedAvailablePair.fieldA,
+                                            )}{' '}
+                                            ↔{' '}
+                                            {labelFor(
+                                                suggestedAvailablePair.fieldB,
+                                            )}
+                                        </Anchor>
+                                    )}
                                 <FieldSelect
                                     size="xs"
-                                    placeholder="field in this query"
+                                    placeholder="choose or add a field"
                                     hasGrouping
-                                    items={joinItemsA}
-                                    item={joinItemsA.find(
+                                    items={availableJoinItemsA}
+                                    item={availableJoinItemsA.find(
                                         (candidate) =>
                                             getItemId(candidate) ===
                                             part.fieldA,
                                     )}
-                                    onChange={(value) =>
-                                        setJoinField(
-                                            index,
-                                            'fieldA',
-                                            value ? getItemId(value) : null,
-                                        )
-                                    }
+                                    onChange={(value) => {
+                                        const fieldId = value
+                                            ? getItemId(value)
+                                            : null;
+                                        if (
+                                            fieldId &&
+                                            !joinItemsA.some(
+                                                (item) =>
+                                                    getItemId(item) === fieldId,
+                                            )
+                                        ) {
+                                            dispatch(
+                                                explorerActions.toggleDimension(
+                                                    fieldId,
+                                                ),
+                                            );
+                                        }
+                                        setJoinField(index, 'fieldA', fieldId);
+                                    }}
                                 />
                                 <FieldSelect
                                     size="xs"
-                                    placeholder={
-                                        joinItemsB.length === 0
-                                            ? 'pick a field first'
-                                            : 'field in the other query'
-                                    }
+                                    placeholder="choose or add a field"
                                     hasGrouping
-                                    items={joinItemsB}
-                                    item={joinItemsB.find(
+                                    items={availableJoinItemsB}
+                                    item={availableJoinItemsB.find(
                                         (candidate) =>
                                             getItemId(candidate) ===
                                             part.fieldB,
                                     )}
-                                    onChange={(value) =>
-                                        setJoinField(
-                                            index,
-                                            'fieldB',
-                                            value ? getItemId(value) : null,
-                                        )
-                                    }
-                                    disabled={joinItemsB.length === 0}
+                                    onChange={(value) => {
+                                        const fieldId = value
+                                            ? getItemId(value)
+                                            : null;
+                                        if (
+                                            fieldId &&
+                                            !joinItemsB.some(
+                                                (item) =>
+                                                    getItemId(item) === fieldId,
+                                            )
+                                        ) {
+                                            toggleFieldB(fieldId, true);
+                                        }
+                                        setJoinField(index, 'fieldB', fieldId);
+                                    }}
                                 />
                             </Box>
                         ))}

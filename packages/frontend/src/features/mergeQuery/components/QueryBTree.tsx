@@ -1,12 +1,12 @@
-import { Select, Stack } from '@mantine/core';
-import { useMemo, type FC } from 'react';
+import { Box, Button, Group, Stack, Text } from '@mantine/core';
+import { useEffect, useMemo, useState, type FC } from 'react';
+import BasePanel from '../../../components/Explorer/ExploreSideBar/BasePanel';
 import ExploreTree from '../../../components/Explorer/ExploreTree';
 import LoadingSkeleton from '../../../components/Explorer/ExploreTree/LoadingSkeleton';
 import { ItemDetailProvider } from '../../../components/Explorer/ExploreTree/TableTree/ItemDetailProvider';
 import { useExplore } from '../../../hooks/useExplore';
-import { useExplores } from '../../../hooks/useExplores';
-import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useMerge } from '../context/useMerge';
+import { useMergeSetup } from '../hooks/useMergeSetup';
 
 /**
  * The field picker for the second query, shown when its tab has the focus.
@@ -17,9 +17,11 @@ import { useMerge } from '../context/useMerge';
  * second and worse one that has to be kept in step.
  */
 export const QueryBTree: FC = () => {
-    const projectUuid = useProjectUuid();
-    const { data: explores } = useExplores(projectUuid);
     const { queryB, setExploreB, toggleFieldB } = useMerge();
+    const { setupStep } = useMergeSetup();
+    const [isChoosingExplore, setIsChoosingExplore] = useState(
+        !queryB.exploreName,
+    );
     const { data: explore, isInitialLoading } = useExplore(
         queryB.exploreName ?? undefined,
     );
@@ -31,30 +33,81 @@ export const QueryBTree: FC = () => {
         }),
         [queryB.dimensions, queryB.metrics],
     );
+    const guidance =
+        queryB.metrics.length === 0
+            ? 'Add a metric to continue'
+            : setupStep === 'Pick a field from each query to join on'
+              ? 'Choose matching fields'
+              : setupStep;
+
+    useEffect(() => {
+        if (!queryB.exploreName) setIsChoosingExplore(true);
+    }, [queryB.exploreName]);
+
+    if (isChoosingExplore) {
+        return (
+            <Box h="100%" mih={0} style={{ overflow: 'hidden' }}>
+                <BasePanel
+                    onExploreClick={(selectedExplore) => {
+                        setExploreB(selectedExplore.name);
+                        setIsChoosingExplore(false);
+                    }}
+                />
+            </Box>
+        );
+    }
 
     return (
-        <Stack gap="xs" h="100%">
-            <Select
-                placeholder="Pick a table"
-                data={(explores ?? []).map((option) => ({
-                    value: option.name,
-                    label: option.label,
-                }))}
-                value={queryB.exploreName}
-                onChange={setExploreB}
-                searchable
-            />
+        <Stack gap="xs" h="100%" mih={0}>
+            <Group justify="space-between" gap="xs" wrap="nowrap">
+                <Box miw={0}>
+                    <Text size="xs" c="dimmed">
+                        Table
+                    </Text>
+                    <Text size="sm" fw={600} truncate>
+                        {explore?.label ?? queryB.exploreName}
+                    </Text>
+                </Box>
+                <Button
+                    variant="subtle"
+                    size="compact-xs"
+                    onClick={() => setIsChoosingExplore(true)}
+                >
+                    Change
+                </Button>
+            </Group>
+
+            {queryB.exploreName && (
+                <>
+                    <Group justify="space-between" gap="xs" wrap="nowrap">
+                        <Text size="xs" c="dimmed">
+                            {queryB.dimensions.length + queryB.metrics.length}{' '}
+                            selected · {queryB.dimensions.length} dimension
+                            {queryB.dimensions.length === 1 ? '' : 's'} ·{' '}
+                            {queryB.metrics.length} metric
+                            {queryB.metrics.length === 1 ? '' : 's'}
+                        </Text>
+                        {guidance && (
+                            <Text size="xs" c="blue.7" ta="right">
+                                {guidance}
+                            </Text>
+                        )}
+                    </Group>
+                </>
+            )}
 
             {queryB.exploreName && isInitialLoading && <LoadingSkeleton />}
 
             {explore && (
-                <ItemDetailProvider>
-                    <ExploreTree
-                        explore={explore}
-                        selection={selection}
-                        onSelectedFieldChange={toggleFieldB}
-                    />
-                </ItemDetailProvider>
+                <Box style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                    <ItemDetailProvider>
+                        <ExploreTree
+                            explore={explore}
+                            selection={selection}
+                            onSelectedFieldChange={toggleFieldB}
+                        />
+                    </ItemDetailProvider>
+                </Box>
             )}
         </Stack>
     );
