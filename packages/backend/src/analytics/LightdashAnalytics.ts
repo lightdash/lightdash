@@ -46,6 +46,7 @@ import {
     type AppVersionDependencyEntry,
     type DataAppClaudeEffort,
     type DataAppClaudeModel,
+    type DataAppCodingAgent,
     type DataAppCreationExperience,
     type DataAppTemplate,
     type PersistentDownloadFileAccessMode,
@@ -1697,7 +1698,9 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         isIteration: boolean;
         isUpgrade: boolean;
         claudeModel: DataAppClaudeModel;
-        claudeProvider: 'anthropic' | 'bedrock';
+        codingAgent: DataAppCodingAgent;
+        codingAgentModel: string;
+        claudeProvider: 'anthropic' | 'bedrock' | 'openai';
         schedulerWaitMs: number;
         claudeEffort: DataAppClaudeEffort;
         wasResumed: boolean;
@@ -1752,7 +1755,9 @@ export type DataAppVersionFailedEvent = BaseTrack & {
         isIteration: boolean;
         isUpgrade: boolean;
         claudeModel: DataAppClaudeModel;
-        claudeProvider?: 'anthropic' | 'bedrock';
+        codingAgent?: DataAppCodingAgent;
+        codingAgentModel?: string;
+        claudeProvider?: 'anthropic' | 'bedrock' | 'openai';
         schedulerWaitMs?: number;
         claudeEffort: DataAppClaudeEffort;
         failureStage:

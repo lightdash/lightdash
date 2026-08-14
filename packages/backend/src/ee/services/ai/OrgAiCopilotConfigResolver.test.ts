@@ -314,6 +314,36 @@ describe('OrgAiCopilotConfigResolver', () => {
         });
     });
 
+    describe('getCodexConfig', () => {
+        it('returns the instance config unchanged without an organization uuid', async () => {
+            const result = await makeResolver({
+                flagEnabled: true,
+                instanceConfig: bothProvidersConfig,
+            }).getCodexConfig(null);
+            expect(result.providers.openai?.apiKey).toBe('instance-openai-key');
+        });
+
+        it('runs a BYO org on its own OpenAI key', async () => {
+            const result = await makeResolver({
+                flagEnabled: true,
+                orgKeys: { openai: 'org-openai-key' },
+                instanceConfig: bothProvidersConfig,
+            }).getCodexConfig('org-uuid');
+            expect(result.defaultProvider).toBe('openai');
+            expect(result.providers.openai?.apiKey).toBe('org-openai-key');
+        });
+
+        it('never leaks the instance OpenAI key to a BYO org that only keyed Anthropic', async () => {
+            const result = await makeResolver({
+                flagEnabled: true,
+                orgKeys: { anthropic: 'org-anthropic-key' },
+                instanceConfig: bothProvidersConfig,
+            }).getCodexConfig('org-uuid');
+            expect(result.providers.openai).toBeUndefined();
+            expect(result.defaultProvider).toBe('openai');
+        });
+    });
+
     describe('resolveEffectiveModelVisibilityForOrg', () => {
         it('merges the implicit auto-hide under the submitted visibility', async () => {
             const resolver = makeResolver({

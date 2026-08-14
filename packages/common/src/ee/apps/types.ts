@@ -117,6 +117,10 @@ export const DATA_APP_CREATION_EXPERIENCES = [
 export type DataAppCreationExperience =
     (typeof DATA_APP_CREATION_EXPERIENCES)[number];
 
+/** Coding agent used inside the data-app sandbox. */
+export const DATA_APP_CODING_AGENTS = ['claude', 'codex'] as const;
+export type DataAppCodingAgent = (typeof DATA_APP_CODING_AGENTS)[number];
+
 /**
  * Claude model used to generate / iterate the data app inside the sandbox.
  * Mapped to the Claude CLI's `--model <alias>` flag verbatim. Persisted
@@ -126,6 +130,22 @@ export type DataAppCreationExperience =
 export const DATA_APP_CLAUDE_MODELS = ['opus', 'sonnet', 'haiku'] as const;
 export type DataAppClaudeModel = (typeof DATA_APP_CLAUDE_MODELS)[number];
 export const DEFAULT_DATA_APP_CLAUDE_MODEL: DataAppClaudeModel = 'sonnet';
+
+/**
+ * Codex model used to generate / iterate the data app inside the sandbox.
+ * These are passed to `codex exec --model` verbatim. Kept separate from the
+ * Claude model contract because Claude visibility is managed by org admins,
+ * while Codex currently exposes this fixed instance-level set.
+ */
+export const DATA_APP_CODEX_MODELS = [
+    'gpt-5.6-sol',
+    'gpt-5.6-terra',
+    'gpt-5.6-luna',
+] as const;
+export type DataAppCodexModel = (typeof DATA_APP_CODEX_MODELS)[number];
+export const DEFAULT_DATA_APP_CODEX_MODEL: DataAppCodexModel = 'gpt-5.6-terra';
+
+export type DataAppCodingAgentModel = DataAppClaudeModel | DataAppCodexModel;
 
 /**
  * Reasoning effort passed to the Claude CLI as `--effort`. Resolved from the
@@ -298,6 +318,9 @@ export type GenerateAppRequestBody = {
     // switched between iterations — `claude --continue` keeps the prior
     // conversation context but accepts a fresh `--model` flag per turn.
     claudeModel?: DataAppClaudeModel;
+    // Codex model to use when APPS_CODING_AGENT=codex. Defaults to
+    // DEFAULT_DATA_APP_CODEX_MODEL on the backend when absent.
+    codexModel?: DataAppCodexModel;
     // Theme (org design) to apply to this app's source tree and system
     // prompt. On initial creation, omit to use the org default, null for no
     // theme, or pass a uuid for a specific theme. On iteration, omit to
@@ -399,6 +422,9 @@ export type AppVersionResources = {
     // shipped don't carry the field; readers should fall back to
     // DEFAULT_DATA_APP_CLAUDE_MODEL.
     claudeModel?: DataAppClaudeModel;
+    // Codex model picked for this version. Separate from claudeModel so the
+    // existing Claude visibility and history contract stays unchanged.
+    codexModel?: DataAppCodexModel;
     // Snapshot of the theme used to generate this version (org design). Null
     // when no theme was applied. Captured at generation time so the chat
     // history reflects which theme was active even if it was later renamed

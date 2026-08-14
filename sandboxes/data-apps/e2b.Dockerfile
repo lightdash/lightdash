@@ -2,7 +2,10 @@ FROM node:22
 
 # Global tooling
 RUN npm install -g pnpm@11.17.0
-RUN npm install -g @anthropic-ai/claude-code@2.1.220
+RUN npm install -g sfw@2.0.6
+RUN sfw npm install -g \
+    @anthropic-ai/claude-code@2.1.220 \
+    @openai/codex@0.147.0
 
 WORKDIR /app
 
@@ -42,9 +45,9 @@ RUN npx shadcn@2.3.0 add --overwrite --yes \
 # raw `var(--x)` + complete oklch colors is the single convention.
 COPY template/tailwind.config.js ./tailwind.config.js
 
-# Claude Code skills — first-party plus vendored (frontend-design @ Apache-2.0).
-# The whole directory is copied, so a new skill needs no change here. Read from
-# /app/.claude/skills/ inside the sandbox.
+# Coding-agent skills — first-party plus vendored (frontend-design @ Apache-2.0).
+# Claude reads these directly. Codex mirrors them into its native project skill
+# directory at runtime, so both agents keep using this single source of truth.
 COPY template/.claude/ ./.claude/
 
 # E2B sandbox runs as 'user' — make /app writable

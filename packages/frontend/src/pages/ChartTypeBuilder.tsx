@@ -101,7 +101,10 @@ const ChartTypeBuilder: FC = () => {
     // pre-selects it, so reopening a chart type keeps building the way it was.
     const modelSelection = useDataAppModelSelection({
         appUuid: activeVizUuid ?? null,
-        latestVersionModel: history.latest?.resources?.claudeModel ?? null,
+        latestVersionModel:
+            history.latest?.resources?.codexModel ??
+            history.latest?.resources?.claudeModel ??
+            null,
     });
     const { clearPick: clearModelPick } = modelSelection;
 
