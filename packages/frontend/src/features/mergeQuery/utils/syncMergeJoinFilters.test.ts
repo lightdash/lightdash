@@ -22,33 +22,47 @@ const filters = (...rules: FilterRule[]): Filters => ({
 const fieldIds = (value: Filters) =>
     getTotalFilterRules(value).map((item) => item.target.fieldId);
 
-const joinParts = [{ fieldA: 'a_customer_id', fieldB: 'b_customer_id' }];
+const joinParts = [
+    {
+        fieldIdBySourceId: {
+            a: 'a_customer_id',
+            b: 'b_customer_id',
+            c: 'c_customer_id',
+        },
+    },
+];
 
 describe('syncMergeJoinFilters', () => {
-    it('mirrors a join-key filter to the other query', () => {
+    it('mirrors a join-key filter to every other source', () => {
         const result = syncMergeJoinFilters({
-            changedSide: 'a',
-            filtersA: filters(rule('shared', 'a_customer_id')),
-            filtersB: {},
+            changedSourceId: 'a',
+            filtersBySourceId: {
+                a: filters(rule('shared', 'a_customer_id')),
+                b: {},
+                c: {},
+            },
             joinParts,
         });
 
-        expect(fieldIds(result.filtersA)).toEqual(['a_customer_id']);
-        expect(fieldIds(result.filtersB)).toEqual(['b_customer_id']);
+        expect(fieldIds(result.a)).toEqual(['a_customer_id']);
+        expect(fieldIds(result.b)).toEqual(['b_customer_id']);
+        expect(fieldIds(result.c)).toEqual(['c_customer_id']);
     });
 
-    it('keeps query-specific filters while replacing shared filters', () => {
+    it('keeps source-specific filters while replacing shared filters', () => {
         const result = syncMergeJoinFilters({
-            changedSide: 'a',
-            filtersA: {},
-            filtersB: filters(
-                rule('old-shared', 'b_customer_id'),
-                rule('specific', 'b_status'),
-            ),
+            changedSourceId: 'a',
+            filtersBySourceId: {
+                a: {},
+                b: filters(
+                    rule('old-shared', 'b_customer_id'),
+                    rule('specific', 'b_status'),
+                ),
+            },
             joinParts,
         });
 
-        expect(fieldIds(result.filtersB)).toEqual(['b_status']);
+        expect(fieldIds(result.b)).toEqual(['b_status']);
     });
 
     it('preserves nested boolean structure for shared filters', () => {
@@ -63,13 +77,12 @@ describe('syncMergeJoinFilters', () => {
             ],
         };
         const result = syncMergeJoinFilters({
-            changedSide: 'a',
-            filtersA: { dimensions },
-            filtersB: {},
+            changedSourceId: 'a',
+            filtersBySourceId: { a: { dimensions }, b: {} },
             joinParts,
         });
 
-        expect(result.filtersB.dimensions).toMatchObject({
+        expect(result.b.dimensions).toMatchObject({
             id: 'outer',
             or: [
                 { target: { fieldId: 'b_customer_id' } },
@@ -81,14 +94,16 @@ describe('syncMergeJoinFilters', () => {
         });
     });
 
-    it('mirrors in either direction', () => {
+    it('mirrors in any direction', () => {
         const result = syncMergeJoinFilters({
-            changedSide: 'b',
-            filtersA: {},
-            filtersB: filters(rule('shared', 'b_customer_id')),
+            changedSourceId: 'b',
+            filtersBySourceId: {
+                a: {},
+                b: filters(rule('shared', 'b_customer_id')),
+            },
             joinParts,
         });
 
-        expect(fieldIds(result.filtersA)).toEqual(['a_customer_id']);
+        expect(fieldIds(result.a)).toEqual(['a_customer_id']);
     });
 });

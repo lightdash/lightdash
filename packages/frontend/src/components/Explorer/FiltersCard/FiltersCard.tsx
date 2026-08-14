@@ -349,7 +349,7 @@ const QueryAFiltersCard: FC = memo(() => {
  */
 const FiltersCard: FC = memo(() => {
     const merge = useMergeSafe();
-    if (merge?.isMerging && merge.queryB.exploreName) {
+    if (merge?.isMerging && merge.additionalSources[0]?.exploreName) {
         return <MergeFiltersCard />;
     }
     return <QueryAFiltersCard />;

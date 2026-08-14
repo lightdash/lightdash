@@ -48,15 +48,20 @@ describe('restoreSavedMerge', () => {
                 tableCalculations: [],
             }),
         ).toMatchObject({
-            queryB: {
-                exploreName: 'subscriptions',
-                dimensions: ['subscriptions_month'],
-                metrics: ['subscriptions_mrr'],
-            },
+            additionalSources: [
+                {
+                    id: 'subscriptions',
+                    exploreName: 'subscriptions',
+                    dimensions: ['subscriptions_month'],
+                    metrics: ['subscriptions_mrr'],
+                },
+            ],
             joinParts: [
                 {
-                    fieldA: 'orders_month',
-                    fieldB: 'subscriptions_month',
+                    fieldIdBySourceId: {
+                        orders: 'orders_month',
+                        subscriptions: 'subscriptions_month',
+                    },
                 },
             ],
             joinType: MergeJoinType.FULL,

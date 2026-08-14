@@ -3,6 +3,7 @@ import { Box, Group, Paper, Text, ThemeIcon } from '@mantine/core';
 import { IconArrowMerge } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { PRIMARY_SOURCE_ID } from '../constants';
 import { useMergeSafe } from '../context/useMerge';
 import { useMergeSetup } from '../hooks/useMergeSetup';
 
@@ -16,8 +17,9 @@ export const MergeReadOnlyBar: FC = () => {
     const {
         effectiveParts,
         labelFor,
-        exploreALabel,
-        exploreBLabel,
+        primaryExploreLabel,
+        additionalExploreLabel,
+        additionalSourceId,
         isIncomplete,
     } = useMergeSetup();
 
@@ -25,15 +27,24 @@ export const MergeReadOnlyBar: FC = () => {
 
     const keys = effectiveParts
         .map((part) => {
-            const fieldA = part.fieldA ? labelFor(part.fieldA) : '?';
-            const fieldB = part.fieldB ? labelFor(part.fieldB) : '?';
+            const primaryFieldId = part.fieldIdBySourceId[PRIMARY_SOURCE_ID];
+            const additionalFieldId =
+                part.fieldIdBySourceId[additionalSourceId];
+            const primaryField = primaryFieldId
+                ? labelFor(primaryFieldId)
+                : '?';
+            const additionalField = additionalFieldId
+                ? labelFor(additionalFieldId)
+                : '?';
 
-            return fieldA === fieldB ? fieldA : `${fieldA} ↔ ${fieldB}`;
+            return primaryField === additionalField
+                ? primaryField
+                : `${primaryField} ↔ ${additionalField}`;
         })
         .join(' + ');
     const keepLabel =
         merge.joinType === MergeJoinType.LEFT
-            ? `Keep ${exploreALabel}`
+            ? `Keep ${primaryExploreLabel}`
             : merge.joinType === MergeJoinType.INNER
               ? 'Matches only'
               : 'Keep all rows';
@@ -58,7 +69,7 @@ export const MergeReadOnlyBar: FC = () => {
                             style={{ borderRadius: '50%', flexShrink: 0 }}
                         />
                         <Text size="sm" fw={600} truncate>
-                            {exploreALabel}
+                            {primaryExploreLabel}
                         </Text>
                         <Text size="xs" c="dimmed">
                             +
@@ -70,7 +81,7 @@ export const MergeReadOnlyBar: FC = () => {
                             style={{ borderRadius: '50%', flexShrink: 0 }}
                         />
                         <Text size="sm" fw={600} truncate>
-                            {exploreBLabel}
+                            {additionalExploreLabel}
                         </Text>
                     </Group>
                     <Text size="xs" c="dimmed" truncate>

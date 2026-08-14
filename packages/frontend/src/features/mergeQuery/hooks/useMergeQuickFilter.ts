@@ -16,13 +16,12 @@ import {
     useExplorerDispatch,
     useExplorerStore,
 } from '../../explorer/store';
-import { SOURCE_A, SOURCE_B } from '../constants';
+import { PRIMARY_SOURCE_ID } from '../constants';
 import { type MergeFocus } from '../context/context';
 import { useMergeSafe } from '../context/useMerge';
 
 type ApplyMergeQuickFilterArgs = {
-    filtersA: Filters;
-    filtersB: Filters;
+    filtersBySourceId: Record<string, Filters>;
     field: FilterableField;
     origin: MergeFieldOrigin;
     value?: AnyType;
@@ -32,14 +31,12 @@ type ApplyMergeQuickFilterArgs = {
 };
 
 type AppliedMergeQuickFilter = {
-    filtersA: Filters;
-    filtersB: Filters;
+    filtersBySourceId: Record<string, Filters>;
     focus: MergeFocus;
 };
 
 export const applyMergeQuickFilter = ({
-    filtersA,
-    filtersB,
+    filtersBySourceId,
     field,
     origin,
     value,
@@ -58,31 +55,36 @@ export const applyMergeQuickFilter = ({
         });
 
     if (origin.kind === 'source') {
-        if (origin.sourceId === SOURCE_A) {
-            return {
-                filtersA: add(filtersA, origin.sourceFieldId),
-                filtersB,
-                focus: SOURCE_A,
-            };
-        }
-        if (origin.sourceId === SOURCE_B) {
-            return {
-                filtersA,
-                filtersB: add(filtersB, origin.sourceFieldId),
-                focus: SOURCE_B,
-            };
-        }
-        return null;
+        const sourceFilters = filtersBySourceId[origin.sourceId];
+        if (!sourceFilters) return null;
+        return {
+            filtersBySourceId: {
+                ...filtersBySourceId,
+                [origin.sourceId]: add(sourceFilters, origin.sourceFieldId),
+            },
+            focus: { kind: 'source', sourceId: origin.sourceId },
+        };
     }
 
     if (origin.kind === 'joinKey') {
-        const fieldA = origin.fieldIdBySourceId[SOURCE_A];
-        const fieldB = origin.fieldIdBySourceId[SOURCE_B];
-        if (!fieldA || !fieldB) return null;
+        const entries = Object.entries(origin.fieldIdBySourceId);
+        if (
+            entries.some(
+                ([sourceId]) => filtersBySourceId[sourceId] === undefined,
+            )
+        )
+            return null;
 
         return {
-            filtersA: add(filtersA, fieldA),
-            filtersB: add(filtersB, fieldB),
+            filtersBySourceId: {
+                ...filtersBySourceId,
+                ...Object.fromEntries(
+                    entries.map(([sourceId, fieldId]) => [
+                        sourceId,
+                        add(filtersBySourceId[sourceId], fieldId),
+                    ]),
+                ),
+            },
             focus,
         };
     }
@@ -114,10 +116,16 @@ export const useMergeQuickFilter = () => {
             const origin = merge.mergeResults.fieldOrigins[getItemId(field)];
             if (!origin) return;
 
-            const filtersA = selectFilters(store.getState());
+            const primaryFiltersBefore = selectFilters(store.getState());
+            const filtersBySourceId = Object.fromEntries([
+                [PRIMARY_SOURCE_ID, primaryFiltersBefore],
+                ...merge.additionalSources.map((source) => [
+                    source.id,
+                    source.filters,
+                ]),
+            ]);
             const result = applyMergeQuickFilter({
-                filtersA,
-                filtersB: merge.filtersB,
+                filtersBySourceId,
                 field,
                 origin,
                 value,
@@ -127,12 +135,16 @@ export const useMergeQuickFilter = () => {
             });
             if (!result) return;
 
-            if (result.filtersA !== filtersA) {
-                dispatch(explorerActions.setFilters(result.filtersA));
+            const primaryFilters = result.filtersBySourceId[PRIMARY_SOURCE_ID];
+            if (primaryFilters && primaryFilters !== primaryFiltersBefore) {
+                dispatch(explorerActions.setFilters(primaryFilters));
             }
-            if (result.filtersB !== merge.filtersB) {
-                merge.setFiltersB(result.filtersB);
-            }
+            merge.additionalSources.forEach((source) => {
+                const nextFilters = result.filtersBySourceId[source.id];
+                if (nextFilters && nextFilters !== source.filters) {
+                    merge.setSourceFilters(source.id, nextFilters);
+                }
+            });
             merge.setFocus(result.focus);
 
             if (!selectIsFiltersExpanded(store.getState())) {

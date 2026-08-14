@@ -152,7 +152,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
     // show one of them.
     const merge = useMergeSafe();
     const mergeResults = merge?.mergeResults ?? null;
-    // A restored merge is the chart. Until it lands, Query A's rows are the
+    // A restored merge is the chart. Until it lands, the primary source's rows are the
     // wrong numbers wearing the right config — show loading, not them.
     const awaitingRestoredMerge =
         !!merge?.isMerging &&
@@ -175,7 +175,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
         }
         // No fields and no rows while the restored merge is pending: the
         // chart config validates its layout against whatever fields it is
-        // given, and Query A's fields would fail the saved merged layout and
+        // given, and primary-source fields would fail the saved merged layout and
         // rebuild it from defaults — silently discarding the saved config.
         if (awaitingRestoredMerge) {
             return {

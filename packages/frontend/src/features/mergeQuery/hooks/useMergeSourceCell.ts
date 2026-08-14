@@ -17,7 +17,7 @@ import { useMetricQueryDataContext } from '../../../components/MetricQueryData/u
 import { useExplore } from '../../../hooks/useExplore';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { convertDateFilters } from '../../../utils/dateFilter';
-import { SOURCE_A, SOURCE_B } from '../constants';
+import { PRIMARY_SOURCE_ID } from '../constants';
 import { useMergeSafe } from '../context/useMerge';
 
 export const getMergeSourceFieldValues = (
@@ -75,54 +75,77 @@ export const useMergeSourceCell = () => {
     const merge = useMergeSafe();
     const {
         tableName,
-        metricQuery: metricQueryA,
+        metricQuery: primaryMetricQuery,
         parameters,
         resolvedTimezone,
     } = useMetricQueryDataContext();
-    const { data: exploreA } = useExplore(tableName, { refetchOnMount: false });
-    const { data: exploreB } = useExplore(
-        merge?.queryB.exploreName ?? undefined,
+    const additionalSource = merge?.additionalSources[0];
+    const { data: primaryExplore } = useExplore(tableName, {
+        refetchOnMount: false,
+    });
+    const { data: additionalExplore } = useExplore(
+        additionalSource?.exploreName ?? undefined,
         { refetchOnMount: false },
     );
 
-    const metricQueryB = useMemo<MetricQuery | null>(() => {
-        if (!merge?.queryB.exploreName || !metricQueryA) return null;
+    const additionalMetricQuery = useMemo<MetricQuery | null>(() => {
+        if (!additionalSource?.exploreName || !primaryMetricQuery) return null;
         return {
-            exploreName: merge.queryB.exploreName,
-            dimensions: merge.queryB.dimensions,
-            metrics: merge.queryB.metrics,
-            filters: merge.filtersB,
+            exploreName: additionalSource.exploreName,
+            dimensions: additionalSource.dimensions,
+            metrics: additionalSource.metrics,
+            filters: additionalSource.filters,
             sorts: [],
-            limit: metricQueryA.limit,
+            limit: primaryMetricQuery.limit,
             tableCalculations: [],
-            additionalMetrics: merge.queryB.additionalMetrics,
-            customDimensions: merge.queryB.customDimensions,
+            additionalMetrics: additionalSource.additionalMetrics,
+            customDimensions: additionalSource.customDimensions,
         };
-    }, [merge, metricQueryA]);
+    }, [additionalSource, primaryMetricQuery]);
 
-    const itemMapA = useMemo(
+    const primaryItemMap = useMemo(
         () =>
-            exploreA && metricQueryA
+            primaryExplore && primaryMetricQuery
                 ? getItemMap(
-                      exploreA,
-                      metricQueryA.additionalMetrics,
-                      metricQueryA.tableCalculations,
-                      metricQueryA.customDimensions,
+                      primaryExplore,
+                      primaryMetricQuery.additionalMetrics,
+                      primaryMetricQuery.tableCalculations,
+                      primaryMetricQuery.customDimensions,
                   )
                 : {},
-        [exploreA, metricQueryA],
+        [primaryExplore, primaryMetricQuery],
     );
-    const itemMapB = useMemo(
+    const additionalItemMap = useMemo(
         () =>
-            exploreB && metricQueryB
+            additionalExplore && additionalMetricQuery
                 ? getItemMap(
-                      exploreB,
-                      metricQueryB.additionalMetrics,
-                      metricQueryB.tableCalculations,
-                      metricQueryB.customDimensions,
+                      additionalExplore,
+                      additionalMetricQuery.additionalMetrics,
+                      additionalMetricQuery.tableCalculations,
+                      additionalMetricQuery.customDimensions,
                   )
                 : {},
-        [exploreB, metricQueryB],
+        [additionalExplore, additionalMetricQuery],
+    );
+    const metricQueryBySourceId = useMemo<Record<string, MetricQuery>>(
+        () => ({
+            ...(primaryMetricQuery
+                ? { [PRIMARY_SOURCE_ID]: primaryMetricQuery }
+                : {}),
+            ...(additionalSource && additionalMetricQuery
+                ? { [additionalSource.id]: additionalMetricQuery }
+                : {}),
+        }),
+        [additionalMetricQuery, additionalSource, primaryMetricQuery],
+    );
+    const itemMapBySourceId = useMemo<Record<string, ItemsMap>>(
+        () => ({
+            [PRIMARY_SOURCE_ID]: primaryItemMap,
+            ...(additionalSource
+                ? { [additionalSource.id]: additionalItemMap }
+                : {}),
+        }),
+        [additionalItemMap, additionalSource, primaryItemMap],
     );
 
     const resolve = useCallback(
@@ -131,18 +154,15 @@ export const useMergeSourceCell = () => {
             fieldValues: Record<string, ResultValue>,
         ): ResolvedMergeSourceCell | null => {
             const mergeResults = merge?.mergeResults;
-            if (!mergeResults || !metricQueryA || !metricQueryB) return null;
+            if (!mergeResults) return null;
 
             const origin = mergeResults.fieldOrigins[getItemId(mergedItem)];
             if (origin?.kind !== 'source') return null;
 
-            const isA = origin.sourceId === SOURCE_A;
-            const isB = origin.sourceId === SOURCE_B;
-            if (!isA && !isB) return null;
-            const sourceItem = (isA ? itemMapA : itemMapB)[
-                origin.sourceFieldId
-            ];
-            if (!sourceItem) return null;
+            const sourceItem =
+                itemMapBySourceId[origin.sourceId]?.[origin.sourceFieldId];
+            const sourceMetricQuery = metricQueryBySourceId[origin.sourceId];
+            if (!sourceItem || !sourceMetricQuery) return null;
 
             return {
                 item: sourceItem,
@@ -152,12 +172,12 @@ export const useMergeSourceCell = () => {
                     origin.sourceId,
                 ),
                 source: {
-                    tableName: isA ? tableName : metricQueryB.exploreName,
-                    metricQuery: isA ? metricQueryA : metricQueryB,
+                    tableName: sourceMetricQuery.exploreName,
+                    metricQuery: sourceMetricQuery,
                 },
             };
         },
-        [itemMapA, itemMapB, merge, metricQueryA, metricQueryB, tableName],
+        [itemMapBySourceId, merge, metricQueryBySourceId],
     );
 
     const prepareUnderlyingData = useCallback(

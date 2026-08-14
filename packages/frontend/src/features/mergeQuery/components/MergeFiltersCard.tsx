@@ -28,14 +28,15 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../explorer/store';
+import { PRIMARY_SOURCE_ID } from '../constants';
 import { useMerge } from '../context/useMerge';
 import { syncMergeJoinFilters } from '../utils/syncMergeJoinFilters';
 
 const FilterSectionTitle: FC<{
     label: string;
-    side: 'a' | 'b';
+    primary: boolean;
     count: number;
-}> = ({ label, side, count }) => (
+}> = ({ label, primary, count }) => (
     <Group justify="space-between" gap="xs" px="xs" pt={4} pb={2}>
         <Group gap={7}>
             <Box
@@ -43,10 +44,9 @@ const FilterSectionTitle: FC<{
                 h={7}
                 style={{
                     borderRadius: 2,
-                    background:
-                        side === 'a'
-                            ? 'var(--mantine-color-blue-6)'
-                            : 'var(--mantine-color-orange-6)',
+                    background: primary
+                        ? 'var(--mantine-color-blue-6)'
+                        : 'var(--mantine-color-orange-6)',
                 }}
             />
             <Text size="xs" fw={600}>
@@ -64,10 +64,11 @@ export const MergeFiltersCard: FC = () => {
     const projectUuid = useProjectUuid();
     const project = useProject(projectUuid);
     const merge = useMerge();
+    const additionalSource = merge.additionalSources[0];
     const dispatch = useExplorerDispatch();
 
     const tableName = useExplorerSelector(selectTableName);
-    const filtersA = useExplorerSelector(selectFilters);
+    const primaryFilters = useExplorerSelector(selectFilters);
     const filterIsOpen = useExplorerSelector(selectIsFiltersExpanded);
     const isEditMode = useExplorerSelector(selectIsEditMode);
     const parameterValues = useExplorerSelector(selectParameters);
@@ -76,60 +77,77 @@ export const MergeFiltersCard: FC = () => {
     const customDimensions = useExplorerSelector(selectCustomDimensions);
     const tableCalculations = useExplorerSelector(selectTableCalculations);
 
-    const { data: exploreA } = useExplore(tableName);
-    const { data: exploreB } = useExplore(
-        merge.queryB.exploreName ?? undefined,
+    const { data: primaryExplore } = useExplore(tableName);
+    const { data: additionalExplore } = useExplore(
+        additionalSource?.exploreName ?? undefined,
     );
     const [hasEverOpened, setHasEverOpened] = useState(false);
     useEffect(() => {
         if (filterIsOpen) setHasEverOpened(true);
     }, [filterIsOpen]);
 
-    const fieldsA = useFieldsWithSuggestions({
-        exploreData: exploreA,
+    const primaryFields = useFieldsWithSuggestions({
+        exploreData: primaryExplore,
         rows: undefined,
         customDimensions,
         additionalMetrics,
         tableCalculations,
         includeHiddenFields: false,
     });
-    const fieldsB = useFieldsWithSuggestions({
-        exploreData: exploreB,
+    const additionalFields = useFieldsWithSuggestions({
+        exploreData: additionalExplore,
         rows: undefined,
-        customDimensions: merge.queryB.customDimensions,
-        additionalMetrics: merge.queryB.additionalMetrics,
+        customDimensions: additionalSource?.customDimensions,
+        additionalMetrics: additionalSource?.additionalMetrics,
         tableCalculations: undefined,
         includeHiddenFields: false,
     });
 
-    const countA = useMemo(() => countTotalFilterRules(filtersA), [filtersA]);
-    const countB = useMemo(
-        () => countTotalFilterRules(merge.filtersB),
-        [merge.filtersB],
+    const primaryCount = useMemo(
+        () => countTotalFilterRules(primaryFilters),
+        [primaryFilters],
+    );
+    const additionalCount = useMemo(
+        () => countTotalFilterRules(additionalSource?.filters ?? {}),
+        [additionalSource?.filters],
     );
     const total = useMemo(
         () =>
             new Set(
                 [
-                    ...getTotalFilterRules(filtersA),
-                    ...getTotalFilterRules(merge.filtersB),
+                    ...getTotalFilterRules(primaryFilters),
+                    ...getTotalFilterRules(additionalSource?.filters ?? {}),
                 ].map((rule) => rule.id),
             ).size,
-        [filtersA, merge.filtersB],
+        [primaryFilters, additionalSource?.filters],
     );
 
     const setBoth = useCallback(
-        (changedSide: 'a' | 'b', nextA: Filters, nextB: Filters) => {
+        (
+            changedSourceId: string,
+            nextPrimary: Filters,
+            nextAdditional: Filters,
+        ) => {
+            if (!additionalSource) return;
             const synced = syncMergeJoinFilters({
-                changedSide,
-                filtersA: nextA,
-                filtersB: nextB,
+                changedSourceId,
+                filtersBySourceId: {
+                    [PRIMARY_SOURCE_ID]: nextPrimary,
+                    [additionalSource.id]: nextAdditional,
+                },
                 joinParts: merge.joinParts,
             });
-            dispatch(explorerActions.setFilters(synced.filtersA));
-            merge.setFiltersB(synced.filtersB);
+            dispatch(
+                explorerActions.setFilters(
+                    synced[PRIMARY_SOURCE_ID] ?? nextPrimary,
+                ),
+            );
+            merge.setSourceFilters(
+                additionalSource.id,
+                synced[additionalSource.id] ?? nextAdditional,
+            );
         },
-        [dispatch, merge],
+        [additionalSource, dispatch, merge],
     );
 
     return (
@@ -156,19 +174,19 @@ export const MergeFiltersCard: FC = () => {
                 <Stack gap="md">
                     <Stack gap="xs">
                         <FilterSectionTitle
-                            label={exploreA?.label ?? 'First table'}
-                            side="a"
-                            count={countA}
+                            label={primaryExplore?.label ?? 'First table'}
+                            primary
+                            count={primaryCount}
                         />
                         <FiltersProvider
                             projectUuid={projectUuid}
-                            itemsMap={fieldsA}
+                            itemsMap={primaryFields}
                             startOfWeek={
                                 project.data?.warehouseConnection
                                     ?.startOfWeek ?? undefined
                             }
                             popoverProps={{ withinPortal: true }}
-                            baseTable={exploreA?.baseTable}
+                            baseTable={primaryExplore?.baseTable}
                             parameterValues={parameterValues}
                             metricQueryTimezone={
                                 metricQuery.timezone &&
@@ -179,9 +197,13 @@ export const MergeFiltersCard: FC = () => {
                         >
                             <FiltersForm
                                 isEditMode={isEditMode}
-                                filters={filtersA}
+                                filters={primaryFilters}
                                 setFilters={(next) =>
-                                    setBoth('a', next, merge.filtersB)
+                                    setBoth(
+                                        PRIMARY_SOURCE_ID,
+                                        next,
+                                        additionalSource?.filters ?? {},
+                                    )
                                 }
                             />
                         </FiltersProvider>
@@ -191,26 +213,31 @@ export const MergeFiltersCard: FC = () => {
 
                     <Stack gap="xs">
                         <FilterSectionTitle
-                            label={exploreB?.label ?? 'Second table'}
-                            side="b"
-                            count={countB}
+                            label={additionalExplore?.label ?? 'Second table'}
+                            primary={false}
+                            count={additionalCount}
                         />
                         <FiltersProvider
                             projectUuid={projectUuid}
-                            itemsMap={fieldsB}
+                            itemsMap={additionalFields}
                             startOfWeek={
                                 project.data?.warehouseConnection
                                     ?.startOfWeek ?? undefined
                             }
                             popoverProps={{ withinPortal: true }}
-                            baseTable={exploreB?.baseTable}
+                            baseTable={additionalExplore?.baseTable}
                             parameterValues={parameterValues}
                         >
                             <FiltersForm
                                 isEditMode={isEditMode}
-                                filters={merge.filtersB}
+                                filters={additionalSource?.filters ?? {}}
                                 setFilters={(next) =>
-                                    setBoth('b', filtersA, next)
+                                    additionalSource &&
+                                    setBoth(
+                                        additionalSource.id,
+                                        primaryFilters,
+                                        next,
+                                    )
                                 }
                             />
                         </FiltersProvider>

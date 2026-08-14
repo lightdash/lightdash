@@ -2,7 +2,7 @@ import {
     parseSavedMergeQuery,
     SAVED_MERGE_QUERY_SCHEMA_VERSION,
 } from '@lightdash/common';
-import { type MergeFocus } from './context';
+import { MAX_MERGE_SOURCES } from '../constants';
 
 /**
  * Turns a chart's stored merge back into editable state.
@@ -19,31 +19,35 @@ export const restoreSavedMerge = (value: unknown) => {
         (source) => source.kind === 'query',
     );
     const chartSource = saved.sources.find((source) => source.kind === 'chart');
-    // The persisted shape supports more sources than today's editor. Keep the
-    // chart usable if a newer producer writes a merge this UI cannot edit yet.
+    // Persistence is N-shaped; the current editor's product limit stays
+    // explicit here rather than leaking positional A/B state through callers.
     if (
         !chartSource ||
         saved.primarySourceId !== chartSource.id ||
-        additionalSources.length !== 1
+        saved.sources.length > MAX_MERGE_SOURCES
     ) {
         return null;
     }
-    const [secondSource] = additionalSources;
 
     return {
-        focus: 'a' as MergeFocus,
-        queryB: {
-            exploreName: secondSource.metricQuery.exploreName,
-            dimensions: secondSource.metricQuery.dimensions,
-            metrics: secondSource.metricQuery.metrics,
-            additionalMetrics: secondSource.metricQuery.additionalMetrics,
-            customDimensions: secondSource.metricQuery.customDimensions,
-        },
+        focus: { kind: 'source' as const, sourceId: chartSource.id },
+        additionalSources: additionalSources.map((source) => ({
+            id: source.id,
+            exploreName: source.metricQuery.exploreName,
+            dimensions: source.metricQuery.dimensions,
+            metrics: source.metricQuery.metrics,
+            filters: source.metricQuery.filters ?? {},
+            additionalMetrics: source.metricQuery.additionalMetrics,
+            customDimensions: source.metricQuery.customDimensions,
+        })),
         joinParts: saved.joinKey.map((part) => ({
-            fieldA: part.fieldIdBySourceId[chartSource.id],
-            fieldB: part.fieldIdBySourceId[secondSource.id],
+            fieldIdBySourceId: Object.fromEntries(
+                saved.sources.map((source) => [
+                    source.id,
+                    part.fieldIdBySourceId[source.id] ?? null,
+                ]),
+            ),
         })),
         joinType: saved.joinType,
-        filtersB: secondSource.metricQuery.filters ?? {},
     };
 };

@@ -24,11 +24,17 @@ import {
     selectUnsavedChartVersion,
     useExplorerSelector,
 } from '../../explorer/store';
-import { EMPTY_MERGE, JOIN_KEY, SOURCE_A, SOURCE_B } from '../constants';
+import {
+    DEFAULT_ADDITIONAL_SOURCE_ID,
+    EMPTY_MERGE,
+    emptyMergeSource,
+    JOIN_KEY,
+    PRIMARY_SOURCE_ID,
+} from '../constants';
 import { useMergeSafe } from '../context/useMerge';
 
 /**
- * Everything derived from the two queries and the relationship between them:
+ * Everything derived from the selected sources and their relationship:
  * the merge to run, whether it can run, and what is stopping it.
  *
  * Lives in a hook rather than the setup panel because the run control is not
@@ -43,52 +49,58 @@ export const useMergeSetup = () => {
     const parameters = useExplorerSelector(selectParameters);
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
     const mergeContext = useMergeSafe();
-    const { isMerging, queryB, joinParts, joinType, filtersB } =
+    const { isMerging, additionalSources, joinParts, joinType } =
         mergeContext ?? EMPTY_MERGE;
     const { run, isRunning, runErrors, mergeResults } = mergeContext ?? {};
+    const additionalSource =
+        additionalSources[0] ?? emptyMergeSource(DEFAULT_ADDITIONAL_SOURCE_ID);
+    const additionalSourceId = additionalSource.id;
 
-    const { data: exploreA } = useExplore(tableName, { refetchOnMount: false });
-    const { data: exploreB } = useExplore(queryB.exploreName ?? undefined, {
+    const { data: primaryExplore } = useExplore(tableName, {
         refetchOnMount: false,
     });
+    const { data: additionalExplore } = useExplore(
+        additionalSource.exploreName ?? undefined,
+        { refetchOnMount: false },
+    );
 
-    const metricQueryB = useMemo<MetricQuery>(
+    const additionalMetricQuery = useMemo<MetricQuery>(
         () => ({
-            exploreName: queryB.exploreName ?? '',
-            dimensions: queryB.dimensions,
-            metrics: queryB.metrics,
-            filters: filtersB,
+            exploreName: additionalSource.exploreName ?? '',
+            dimensions: additionalSource.dimensions,
+            metrics: additionalSource.metrics,
+            filters: additionalSource.filters,
             sorts: [],
             limit: metricQuery.limit,
             tableCalculations: [],
-            additionalMetrics: queryB.additionalMetrics,
-            customDimensions: queryB.customDimensions,
+            additionalMetrics: additionalSource.additionalMetrics,
+            customDimensions: additionalSource.customDimensions,
         }),
-        [filtersB, queryB, metricQuery.limit],
+        [additionalSource, metricQuery.limit],
     );
-    const itemMapA = useMemo(
+    const primaryItemMap = useMemo(
         () =>
-            exploreA
+            primaryExplore
                 ? getItemMap(
-                      exploreA,
+                      primaryExplore,
                       metricQuery.additionalMetrics,
                       metricQuery.tableCalculations,
                       metricQuery.customDimensions,
                   )
                 : {},
-        [exploreA, metricQuery],
+        [primaryExplore, metricQuery],
     );
-    const itemMapB = useMemo(
+    const additionalItemMap = useMemo(
         () =>
-            exploreB
+            additionalExplore
                 ? getItemMap(
-                      exploreB,
-                      metricQueryB.additionalMetrics,
-                      metricQueryB.tableCalculations,
-                      metricQueryB.customDimensions,
+                      additionalExplore,
+                      additionalMetricQuery.additionalMetrics,
+                      additionalMetricQuery.tableCalculations,
+                      additionalMetricQuery.customDimensions,
                   )
                 : {},
-        [exploreB, metricQueryB],
+        [additionalExplore, additionalMetricQuery],
     );
 
     /**
@@ -98,61 +110,67 @@ export const useMergeSetup = () => {
      * Only pairs the validator would accept are ever suggested — a suggestion
      * that gets refused is worse than none.
      */
-    const suggestedPair = useMemo<{
-        fieldA: string;
-        fieldB: string;
-    } | null>(() => {
-        if (!exploreA || !exploreB) return null;
+    const suggestedPair = useMemo<Record<string, string> | null>(() => {
+        if (!primaryExplore || !additionalExplore) return null;
         const classOf = (type: DimensionType) =>
             type === DimensionType.DATE || type === DimensionType.TIMESTAMP
                 ? 'temporal'
                 : type;
 
-        let best: { fieldA: string; fieldB: string } | null = null;
+        let best: Record<string, string> | null = null;
         let bestScore = 0;
-        metricQuery.dimensions.forEach((fieldA) => {
-            const itemA = itemMapA[fieldA];
-            if (!itemA || (!isDimension(itemA) && !isCustomDimension(itemA)))
+        metricQuery.dimensions.forEach((primaryFieldId) => {
+            const primaryItem = primaryItemMap[primaryFieldId];
+            if (
+                !primaryItem ||
+                (!isDimension(primaryItem) && !isCustomDimension(primaryItem))
+            )
                 return;
-            queryB.dimensions.forEach((fieldB) => {
-                const itemB = itemMapB[fieldB];
+            additionalSource.dimensions.forEach((additionalFieldId) => {
+                const additionalItem = additionalItemMap[additionalFieldId];
                 if (
-                    !itemB ||
-                    (!isDimension(itemB) && !isCustomDimension(itemB))
+                    !additionalItem ||
+                    (!isDimension(additionalItem) &&
+                        !isCustomDimension(additionalItem))
                 )
                     return;
-                const typeA = convertItemTypeToDimensionType(itemA);
-                const typeB = convertItemTypeToDimensionType(itemB);
-                if (classOf(typeA) !== classOf(typeB)) return;
-                const isTemporal = classOf(typeA) === 'temporal';
+                const primaryType = convertItemTypeToDimensionType(primaryItem);
+                const additionalType =
+                    convertItemTypeToDimensionType(additionalItem);
+                if (classOf(primaryType) !== classOf(additionalType)) return;
+                const isTemporal = classOf(primaryType) === 'temporal';
                 if (
                     isTemporal &&
-                    (isDimension(itemA)
-                        ? (itemA.timeInterval ?? null)
+                    (isDimension(primaryItem)
+                        ? (primaryItem.timeInterval ?? null)
                         : null) !==
-                        (isDimension(itemB)
-                            ? (itemB.timeInterval ?? null)
+                        (isDimension(additionalItem)
+                            ? (additionalItem.timeInterval ?? null)
                             : null)
                 ) {
                     return;
                 }
                 let score = 1;
                 if (isTemporal) score += 3;
-                if (itemA.name === itemB.name) score += 4;
+                if (primaryItem.name === additionalItem.name) score += 4;
                 if (score > bestScore) {
                     bestScore = score;
-                    best = { fieldA, fieldB };
+                    best = {
+                        [PRIMARY_SOURCE_ID]: primaryFieldId,
+                        [additionalSourceId]: additionalFieldId,
+                    };
                 }
             });
         });
         return best;
     }, [
-        exploreA,
-        exploreB,
-        itemMapA,
-        itemMapB,
+        primaryExplore,
+        additionalExplore,
+        primaryItemMap,
+        additionalItemMap,
         metricQuery.dimensions,
-        queryB.dimensions,
+        additionalSource.dimensions,
+        additionalSourceId,
     ]);
 
     // The first key part defaults to the suggested pair, falling back to each
@@ -161,61 +179,82 @@ export const useMergeSetup = () => {
     const effectiveParts = useMemo(
         () =>
             joinParts.map((part, index) => ({
-                fieldA:
-                    part.fieldA ??
-                    (index === 0
-                        ? (suggestedPair?.fieldA ??
-                          metricQuery.dimensions[0] ??
-                          null)
-                        : null),
-                fieldB:
-                    part.fieldB ??
-                    (index === 0
-                        ? (suggestedPair?.fieldB ??
-                          queryB.dimensions[0] ??
-                          null)
-                        : null),
+                fieldIdBySourceId: {
+                    [PRIMARY_SOURCE_ID]:
+                        part.fieldIdBySourceId[PRIMARY_SOURCE_ID] ??
+                        (index === 0
+                            ? (suggestedPair?.[PRIMARY_SOURCE_ID] ??
+                              metricQuery.dimensions[0] ??
+                              null)
+                            : null),
+                    [additionalSourceId]:
+                        part.fieldIdBySourceId[additionalSourceId] ??
+                        (index === 0
+                            ? (suggestedPair?.[additionalSourceId] ??
+                              additionalSource.dimensions[0] ??
+                              null)
+                            : null),
+                },
             })),
-        [joinParts, suggestedPair, metricQuery.dimensions, queryB.dimensions],
+        [
+            joinParts,
+            suggestedPair,
+            metricQuery.dimensions,
+            additionalSource.dimensions,
+            additionalSourceId,
+        ],
     );
     const completeParts = effectiveParts.filter(
-        (part) => part.fieldA && part.fieldB,
+        (part) =>
+            part.fieldIdBySourceId[PRIMARY_SOURCE_ID] &&
+            part.fieldIdBySourceId[additionalSourceId],
     );
 
     // Field ids are how the merge is addressed, but they are not what anyone
     // calls these things. Everything the user reads says the label.
     const labelFor = useCallback(
         (fieldId: string) => {
-            const item = itemMapA[fieldId] ?? itemMapB[fieldId];
+            const item = primaryItemMap[fieldId] ?? additionalItemMap[fieldId];
             return item ? getItemLabelWithoutTableName(item) : fieldId;
         },
-        [itemMapA, itemMapB],
+        [primaryItemMap, additionalItemMap],
     );
 
     // Either query can be the finer-grained one. Both are checked, because a
     // merge is refused for whichever side carries the extra dimension and the
     // refusal has to name where the problem is.
-    const unaccountedA = useMemo(
+    const unaccountedPrimary = useMemo(
         () =>
             getUnaccountedDimensions(
-                { id: SOURCE_A, metricQuery },
+                { id: PRIMARY_SOURCE_ID, metricQuery },
                 completeParts.map((part, index) => ({
                     name: `${JOIN_KEY}_${index}`,
-                    fieldIdBySourceId: { [SOURCE_A]: part.fieldA as string },
+                    fieldIdBySourceId: {
+                        [PRIMARY_SOURCE_ID]: part.fieldIdBySourceId[
+                            PRIMARY_SOURCE_ID
+                        ] as string,
+                    },
                 })),
             ),
         [metricQuery, completeParts],
     );
-    const unaccountedB = useMemo(
+    const unaccountedAdditional = useMemo(
         () =>
             getUnaccountedDimensions(
-                { id: SOURCE_B, metricQuery: metricQueryB },
+                {
+                    id: additionalSourceId,
+                    metricQuery: additionalMetricQuery,
+                },
                 completeParts.map((part, index) => ({
                     name: `${JOIN_KEY}_${index}`,
-                    fieldIdBySourceId: { [SOURCE_B]: part.fieldB as string },
+                    fieldIdBySourceId: {
+                        [additionalSourceId]: part.fieldIdBySourceId[
+                            additionalSourceId
+                        ] as string,
+                    },
                 })),
             ),
-        [metricQueryB, completeParts],
+        [additionalMetricQuery, completeParts, additionalSourceId],
     );
 
     /**
@@ -225,173 +264,217 @@ export const useMergeSetup = () => {
      */
     const fanOut = useMemo(
         () => [
-            ...(unaccountedA.length > 0
-                ? [{ side: 'a' as const, fields: unaccountedA }]
+            ...(unaccountedPrimary.length > 0
+                ? [
+                      {
+                          sourceId: PRIMARY_SOURCE_ID,
+                          fields: unaccountedPrimary,
+                      },
+                  ]
                 : []),
-            ...(unaccountedB.length > 0
-                ? [{ side: 'b' as const, fields: unaccountedB }]
+            ...(unaccountedAdditional.length > 0
+                ? [
+                      {
+                          sourceId: additionalSourceId,
+                          fields: unaccountedAdditional,
+                      },
+                  ]
                 : []),
         ],
-        [unaccountedA, unaccountedB],
+        [unaccountedPrimary, unaccountedAdditional, additionalSourceId],
     );
 
     // The join selects take the fields themselves, not ids, so they can show
     // the same icons and labels as every other field picker.
-    const joinItemsA = useMemo(
+    const primaryJoinItems = useMemo(
         () =>
             metricQuery.dimensions
-                .map((id) => itemMapA[id])
+                .map((id) => primaryItemMap[id])
                 .filter(
                     (item) =>
                         !!item &&
                         (isDimension(item) || isCustomDimension(item)),
                 ),
-        [itemMapA, metricQuery.dimensions],
+        [primaryItemMap, metricQuery.dimensions],
     );
-    const joinItemsB = useMemo(
+    const additionalJoinItems = useMemo(
         () =>
-            queryB.dimensions
-                .map((id) => itemMapB[id])
+            additionalSource.dimensions
+                .map((id) => additionalItemMap[id])
                 .filter(
                     (item) =>
                         !!item &&
                         (isDimension(item) || isCustomDimension(item)),
                 ),
-        [itemMapB, queryB.dimensions],
+        [additionalItemMap, additionalSource.dimensions],
     );
 
     // Join keys are dimensions, but they do not need to be selected before
     // opening this editor. The picker can add a dimension to its query and use
     // it as the key in one action. Custom dimensions remain limited to ones
     // already present in the query because they cannot be recreated by id.
-    const availableJoinItemsA = useMemo(
+    const availablePrimaryJoinItems = useMemo(
         () =>
-            Object.entries(itemMapA).flatMap(([id, item]) =>
+            Object.entries(primaryItemMap).flatMap(([id, item]) =>
                 isDimension(item) ||
                 (isCustomDimension(item) && metricQuery.dimensions.includes(id))
                     ? [item]
                     : [],
             ),
-        [itemMapA, metricQuery.dimensions],
+        [primaryItemMap, metricQuery.dimensions],
     );
-    const availableJoinItemsB = useMemo(
+    const availableAdditionalJoinItems = useMemo(
         () =>
-            Object.entries(itemMapB).flatMap(([id, item]) =>
+            Object.entries(additionalItemMap).flatMap(([id, item]) =>
                 isDimension(item) ||
-                (isCustomDimension(item) && queryB.dimensions.includes(id))
+                (isCustomDimension(item) &&
+                    additionalSource.dimensions.includes(id))
                     ? [item]
                     : [],
             ),
-        [itemMapB, queryB.dimensions],
+        [additionalItemMap, additionalSource.dimensions],
     );
 
     // Recommend only strong semantic matches. Type compatibility alone is
     // too weak (many explores have several strings or dates), so a suggestion
     // also needs the same field name or user-facing label. Identifiers win
     // over dates when both are available.
-    const suggestedAvailablePair = useMemo<{
-        fieldA: string;
-        fieldB: string;
-    } | null>(() => {
-        let best: { fieldA: string; fieldB: string } | null = null;
+    const suggestedAvailablePair = useMemo<Record<
+        string,
+        string
+    > | null>(() => {
+        let best: Record<string, string> | null = null;
         let bestScore = 0;
         const normalize = (value: string) =>
             value.toLocaleLowerCase().replace(/[^a-z0-9]/g, '');
 
-        availableJoinItemsA.forEach((itemA) => {
-            availableJoinItemsB.forEach((itemB) => {
-                const typeA = convertItemTypeToDimensionType(itemA);
-                const typeB = convertItemTypeToDimensionType(itemB);
-                const temporalA =
-                    typeA === DimensionType.DATE ||
-                    typeA === DimensionType.TIMESTAMP;
-                const temporalB =
-                    typeB === DimensionType.DATE ||
-                    typeB === DimensionType.TIMESTAMP;
-                if (temporalA !== temporalB || (!temporalA && typeA !== typeB))
+        availablePrimaryJoinItems.forEach((primaryItem) => {
+            availableAdditionalJoinItems.forEach((additionalItem) => {
+                const primaryType = convertItemTypeToDimensionType(primaryItem);
+                const additionalType =
+                    convertItemTypeToDimensionType(additionalItem);
+                const primaryIsTemporal =
+                    primaryType === DimensionType.DATE ||
+                    primaryType === DimensionType.TIMESTAMP;
+                const additionalIsTemporal =
+                    additionalType === DimensionType.DATE ||
+                    additionalType === DimensionType.TIMESTAMP;
+                if (
+                    primaryIsTemporal !== additionalIsTemporal ||
+                    (!primaryIsTemporal && primaryType !== additionalType)
+                )
                     return;
                 if (
-                    temporalA &&
-                    (isDimension(itemA) ? itemA.timeInterval : null) !==
-                        (isDimension(itemB) ? itemB.timeInterval : null)
+                    primaryIsTemporal &&
+                    (isDimension(primaryItem)
+                        ? primaryItem.timeInterval
+                        : null) !==
+                        (isDimension(additionalItem)
+                            ? additionalItem.timeInterval
+                            : null)
                 )
                     return;
 
                 const sameName =
-                    normalize(itemA.name) === normalize(itemB.name);
+                    normalize(primaryItem.name) ===
+                    normalize(additionalItem.name);
                 const sameLabel =
-                    normalize(getItemLabelWithoutTableName(itemA)) ===
-                    normalize(getItemLabelWithoutTableName(itemB));
+                    normalize(getItemLabelWithoutTableName(primaryItem)) ===
+                    normalize(getItemLabelWithoutTableName(additionalItem));
                 if (!sameName && !sameLabel) return;
 
-                const identifier = /(^|_)id$|(^|_)key$/i.test(itemA.name);
-                const fieldBId = getItemId(itemB);
-                const belongsToQueryBRoot = fieldBId.startsWith(
-                    `${queryB.exploreName}_`,
+                const identifier = /(^|_)id$|(^|_)key$/i.test(primaryItem.name);
+                const additionalFieldId = getItemId(additionalItem);
+                const belongsToAdditionalRoot = additionalFieldId.startsWith(
+                    `${additionalSource.exploreName}_`,
                 );
                 const score =
                     (sameName ? 6 : 0) +
                     (sameLabel ? 4 : 0) +
                     (identifier ? 4 : 0) +
-                    (belongsToQueryBRoot ? 3 : 0) +
-                    (temporalA ? 2 : 0);
+                    (belongsToAdditionalRoot ? 3 : 0) +
+                    (primaryIsTemporal ? 2 : 0);
                 if (score > bestScore) {
                     bestScore = score;
                     best = {
-                        fieldA: getItemId(itemA),
-                        fieldB: fieldBId,
+                        [PRIMARY_SOURCE_ID]: getItemId(primaryItem),
+                        [additionalSourceId]: additionalFieldId,
                     };
                 }
             });
         });
 
         return best;
-    }, [availableJoinItemsA, availableJoinItemsB, queryB.exploreName]);
+    }, [
+        availablePrimaryJoinItems,
+        availableAdditionalJoinItems,
+        additionalSource.exploreName,
+        additionalSourceId,
+    ]);
 
     // What people call these tables, not what dbt does.
-    const exploreALabel = exploreA?.label ?? tableName;
-    const exploreBLabel = exploreB?.label ?? queryB.exploreName;
+    const primaryExploreLabel = primaryExplore?.label ?? tableName;
+    const additionalExploreLabel =
+        additionalExplore?.label ?? additionalSource.exploreName;
 
-    const joinFieldLabel = effectiveParts[0]?.fieldA
-        ? labelFor(effectiveParts[0].fieldA)
+    const primaryJoinField =
+        effectiveParts[0]?.fieldIdBySourceId[PRIMARY_SOURCE_ID];
+    const joinFieldLabel = primaryJoinField
+        ? labelFor(primaryJoinField)
         : 'the join key';
 
-    const unaccountedTotal = unaccountedA.length + unaccountedB.length;
+    const unaccountedTotal =
+        unaccountedPrimary.length + unaccountedAdditional.length;
     // Built here rather than inside the run handler so the same object can be
     // validated while it is being configured. The rules that refuse a merge do
     // not need it to have run.
     const mergeQuery = useMemo<MergeQuery | null>(() => {
-        // Query A hydrates from the saved chart after mount; a merge built
+        // The primary source hydrates from the saved chart after mount; a merge built
         // before that carries an empty explore and compiles to a 404.
         if (!metricQuery.exploreName) return null;
-        if (!queryB.exploreName || completeParts.length === 0) return null;
+        if (!additionalSource.exploreName || completeParts.length === 0)
+            return null;
 
         const joinKey = completeParts.map((part, index) => ({
             name: `${JOIN_KEY}_${index}`,
             fieldIdBySourceId: {
-                [SOURCE_A]: part.fieldA as string,
-                [SOURCE_B]: part.fieldB as string,
+                [PRIMARY_SOURCE_ID]: part.fieldIdBySourceId[
+                    PRIMARY_SOURCE_ID
+                ] as string,
+                [additionalSourceId]: part.fieldIdBySourceId[
+                    additionalSourceId
+                ] as string,
             },
         }));
 
         return {
             sources: [
-                { id: SOURCE_A, metricQuery },
-                { id: SOURCE_B, metricQuery: metricQueryB },
+                { id: PRIMARY_SOURCE_ID, metricQuery },
+                {
+                    id: additionalSourceId,
+                    metricQuery: additionalMetricQuery,
+                },
             ],
             joinKey,
             joinType,
             tableCalculations: [],
             limit: metricQuery.limit,
         };
-    }, [queryB, completeParts, metricQuery, metricQueryB, joinType]);
+    }, [
+        additionalSource.exploreName,
+        additionalSourceId,
+        completeParts,
+        metricQuery,
+        additionalMetricQuery,
+        joinType,
+    ]);
 
     // The same rules the server refuses on, run here as the merge is built.
     // Whether two fields can be joined depends only on the two fields, so
     // making the user press Run to find out is a round trip for an answer we
     // already have.
     const joinFieldTypes = useMemo<MergeFieldTypes>(() => {
-        const collect = (itemMap: typeof itemMapA) =>
+        const collect = (itemMap: typeof primaryItemMap) =>
             Object.entries(itemMap).flatMap(([id, item]) =>
                 isDimension(item) || isCustomDimension(item)
                     ? [
@@ -411,10 +494,12 @@ export const useMergeSetup = () => {
                     : [],
             );
         return {
-            [SOURCE_A]: Object.fromEntries(collect(itemMapA)),
-            [SOURCE_B]: Object.fromEntries(collect(itemMapB)),
+            [PRIMARY_SOURCE_ID]: Object.fromEntries(collect(primaryItemMap)),
+            [additionalSourceId]: Object.fromEntries(
+                collect(additionalItemMap),
+            ),
         };
-    }, [itemMapA, itemMapB]);
+    }, [primaryItemMap, additionalItemMap, additionalSourceId]);
 
     const joinKeyErrors = useMemo(
         () =>
@@ -434,16 +519,20 @@ export const useMergeSetup = () => {
     // different problems. Saying both at once is what makes the panel
     // unreadable: a grain warning means nothing until there is a merge to
     // warn about.
-    const setupStep = !queryB.exploreName
+    const setupStep = !additionalSource.exploreName
         ? 'Choose data to combine'
-        : queryB.metrics.length === 0
-          ? `Add at least one metric from ${exploreBLabel ?? 'the second table'}`
+        : additionalSource.metrics.length === 0
+          ? `Add at least one metric from ${additionalExploreLabel ?? 'the second table'}`
           : !effectiveParts.every(
                   (part) =>
-                      part.fieldA &&
-                      part.fieldB &&
-                      metricQuery.dimensions.includes(part.fieldA) &&
-                      queryB.dimensions.includes(part.fieldB),
+                      part.fieldIdBySourceId[PRIMARY_SOURCE_ID] &&
+                      part.fieldIdBySourceId[additionalSourceId] &&
+                      metricQuery.dimensions.includes(
+                          part.fieldIdBySourceId[PRIMARY_SOURCE_ID] as string,
+                      ) &&
+                      additionalSource.dimensions.includes(
+                          part.fieldIdBySourceId[additionalSourceId] as string,
+                      ),
               )
             ? 'Pick a field from each query to join on'
             : null;
@@ -462,8 +551,8 @@ export const useMergeSetup = () => {
         !!mergeQuery &&
         completeParts.length > 0 &&
         completeParts.length === effectiveParts.length &&
-        !!queryB.exploreName &&
-        queryB.metrics.length > 0 &&
+        !!additionalSource.exploreName &&
+        additionalSource.metrics.length > 0 &&
         joinKeyErrors.length === 0 &&
         fanOut.length === 0;
 
@@ -474,7 +563,8 @@ export const useMergeSetup = () => {
     return {
         // state passed through, so callers need only this hook
         isMerging,
-        queryB,
+        additionalSource,
+        additionalSourceId,
         joinType,
         run,
         isRunning,
@@ -483,20 +573,20 @@ export const useMergeSetup = () => {
         // derived
         effectiveParts,
         labelFor,
-        itemMapA,
-        itemMapB,
-        unaccountedA,
-        unaccountedB,
+        primaryItemMap,
+        additionalItemMap,
+        unaccountedPrimary,
+        unaccountedAdditional,
         unaccountedTotal,
         fanOut,
         joinFieldLabel,
-        joinItemsA,
-        joinItemsB,
-        availableJoinItemsA,
-        availableJoinItemsB,
+        primaryJoinItems,
+        additionalJoinItems,
+        availablePrimaryJoinItems,
+        availableAdditionalJoinItems,
         suggestedAvailablePair,
-        exploreALabel,
-        exploreBLabel,
+        primaryExploreLabel,
+        additionalExploreLabel,
         joinKeyErrors,
         setupStep,
         isIncomplete,
