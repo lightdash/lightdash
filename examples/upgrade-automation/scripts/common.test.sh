@@ -44,6 +44,7 @@ expect_rejected() {
 
 expect_accepted 'a boolean true verdict' "$(with_field verdict true)"
 expect_accepted 'a boolean false verdict' "$(with_field verdict false)"
+expect_accepted 'an unknown verdict' "$(with_field verdict '"unknown"')"
 
 expect_rejected 'a string "true" verdict' "$(with_field verdict '"true"')"
 expect_rejected 'a string "false" verdict' "$(with_field verdict '"false"')"
