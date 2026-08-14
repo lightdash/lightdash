@@ -1,8 +1,11 @@
 import { DimensionType } from './field';
 import {
+    buildMergeQueryFromSaved,
     getUnaccountedDimensions,
     MergeJoinType,
     MergeQueryErrorKind,
+    parseSavedMergeQuery,
+    SAVED_MERGE_QUERY_SCHEMA_VERSION,
     validateMergeQuery,
     type MergeQuery,
     type MergeQuerySource,
@@ -329,5 +332,84 @@ describe('getUnaccountedDimensions', () => {
 
     it('reports nothing when every dimension joins', () => {
         expect(getUnaccountedDimensions(queryA(), dateJoinKey)).toEqual([]);
+    });
+});
+
+describe('saved merge query schemas', () => {
+    it('round-trips every source and key in a version 2 payload', () => {
+        const saved = {
+            primarySourceId: 'payments',
+            sources: [
+                { id: 'orders', kind: 'chart' as const },
+                {
+                    id: 'payments',
+                    kind: 'query' as const,
+                    metricQuery: metricQuery(
+                        'payments',
+                        ['payments_month'],
+                        ['payments_total'],
+                    ),
+                },
+                {
+                    id: 'subscriptions',
+                    kind: 'query' as const,
+                    metricQuery: metricQuery(
+                        'subscriptions',
+                        ['subscriptions_month'],
+                        ['subscriptions_mrr'],
+                    ),
+                },
+            ],
+            joinKey: [
+                {
+                    name: 'month',
+                    fieldIdBySourceId: {
+                        orders: 'orders_month',
+                        payments: 'payments_month',
+                        subscriptions: 'subscriptions_month',
+                    },
+                },
+            ],
+            joinType: MergeJoinType.LEFT,
+            tableCalculations: [],
+        };
+
+        const parsed = parseSavedMergeQuery(
+            SAVED_MERGE_QUERY_SCHEMA_VERSION,
+            saved,
+        );
+        expect(parsed).toEqual(saved);
+        expect(
+            buildMergeQueryFromSaved(
+                metricQuery('orders', ['orders_month'], ['orders_total']),
+                parsed!,
+            ).sources.map(({ id }) => id),
+        ).toEqual(['payments', 'orders', 'subscriptions']);
+    });
+
+    it('rejects unknown schemas and incomplete source mappings', () => {
+        expect(parseSavedMergeQuery(1, {})).toBeNull();
+        expect(parseSavedMergeQuery(99, {})).toBeNull();
+        expect(
+            parseSavedMergeQuery(SAVED_MERGE_QUERY_SCHEMA_VERSION, {
+                primarySourceId: 'orders',
+                sources: [
+                    { id: 'orders', kind: 'chart' },
+                    {
+                        id: 'payments',
+                        kind: 'query',
+                        metricQuery: metricQuery('payments', [], []),
+                    },
+                ],
+                joinKey: [
+                    {
+                        name: 'month',
+                        fieldIdBySourceId: { orders: 'orders_month' },
+                    },
+                ],
+                joinType: 'full',
+                tableCalculations: [],
+            }),
+        ).toBeNull();
     });
 });

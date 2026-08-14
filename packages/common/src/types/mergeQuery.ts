@@ -541,33 +541,37 @@ export type MergeFieldOrigin =
 /** Provenance of every merged field, by field id. */
 export type MergeFieldOrigins = Record<FieldId, MergeFieldOrigin>;
 
+/** Current JSON schema stored in `saved_queries_version_merges.merge`. */
+export const SAVED_MERGE_QUERY_SCHEMA_VERSION = 2;
+
 /**
- * How a merge is stored against a chart version.
+ * A persisted merge source.
  *
- * Deliberately not the runtime `MergeQuery`. The chart version *is* the first
- * query, so storing it again would create two sources of truth that drift the
- * next time the chart is edited. Only the second query and the relationship
- * are kept, and the two sides of each key part are named rather than addressed
- * by a source id that means nothing outside a single request.
+ * The chart source is a reference: its metric query already lives on the chart
+ * version. Every additional source owns its query. This keeps one source of
+ * truth while allowing more sources without adding `thirdQuery`, `fourthQuery`,
+ * and so on.
  */
+export type SavedMergeQuerySource =
+    | {
+          id: string;
+          kind: 'chart';
+      }
+    | {
+          id: string;
+          kind: 'query';
+          metricQuery: MetricQuery;
+      };
+
+/** Canonical, scalable representation of a merge stored on a chart version. */
 export type SavedMergeQuery = {
-    secondQuery: {
-        metricQuery: MetricQuery;
-    };
-    joinKey: Array<{
-        name: string;
-        /** Field in the chart's own query. */
-        chartFieldId: FieldId;
-        /** Field in the second query. */
-        secondFieldId: FieldId;
-    }>;
+    /** Source whose rows a LEFT merge preserves. */
+    primarySourceId: string;
+    sources: SavedMergeQuerySource[];
+    joinKey: MergeJoinKeyPart[];
     joinType: MergeJoinType;
     tableCalculations: MergeTableCalculation[];
 };
-
-/** Source ids the stored shape maps onto when it becomes a runnable merge. */
-export const MERGE_CHART_SOURCE_ID = 'chart';
-export const MERGE_SECOND_SOURCE_ID = 'second';
 
 /**
  * Rebuilds a runnable merge from a chart's own query and its stored merge.
@@ -575,67 +579,107 @@ export const MERGE_SECOND_SOURCE_ID = 'second';
 export const buildMergeQueryFromSaved = (
     chartMetricQuery: MetricQuery,
     saved: SavedMergeQuery,
-): MergeQuery => ({
-    sources: [
-        {
-            id: MERGE_CHART_SOURCE_ID,
-            metricQuery: chartMetricQuery,
-        },
-        {
-            id: MERGE_SECOND_SOURCE_ID,
-            metricQuery: saved.secondQuery.metricQuery,
-        },
-    ],
-    joinKey: saved.joinKey.map((part) => ({
-        name: part.name,
-        fieldIdBySourceId: {
-            [MERGE_CHART_SOURCE_ID]: part.chartFieldId,
-            [MERGE_SECOND_SOURCE_ID]: part.secondFieldId,
-        },
-    })),
-    joinType: saved.joinType,
-    tableCalculations: saved.tableCalculations,
-    limit: chartMetricQuery.limit,
-});
+): MergeQuery => {
+    const sources = saved.sources.map((source): MergeQuerySource => {
+        if (source.kind === 'chart') {
+            return { id: source.id, metricQuery: chartMetricQuery };
+        }
+        return { id: source.id, metricQuery: source.metricQuery };
+    });
+    const primaryIndex = sources.findIndex(
+        (source) => source.id === saved.primarySourceId,
+    );
+    if (primaryIndex > 0) {
+        sources.unshift(...sources.splice(primaryIndex, 1));
+    }
+
+    return {
+        sources,
+        joinKey: saved.joinKey,
+        joinType: saved.joinType,
+        tableCalculations: saved.tableCalculations,
+        limit: chartMetricQuery.limit,
+    };
+};
+
+const parseJoinType = (value: unknown): MergeJoinType =>
+    (Object.values(MergeJoinType) as unknown[]).includes(value)
+        ? (value as MergeJoinType)
+        : MergeJoinType.FULL;
 
 /**
  * Reads a stored merge back, returning null for anything that does not hold
- * together. A payload written by an older shape should leave the chart working
- * without its merge rather than break the chart entirely.
+ * together. An unknown future version leaves the chart working without its
+ * merge rather than breaking the chart entirely.
  */
 export const parseSavedMergeQuery = (
+    schemaVersion: number,
     value: unknown,
 ): SavedMergeQuery | null => {
+    if (schemaVersion !== SAVED_MERGE_QUERY_SCHEMA_VERSION) return null;
     if (value === null || typeof value !== 'object') return null;
     const candidate = value as Partial<SavedMergeQuery>;
 
-    const metricQuery = candidate.secondQuery?.metricQuery;
-    if (!metricQuery || typeof metricQuery.exploreName !== 'string') {
+    if (
+        !Array.isArray(candidate.sources) ||
+        candidate.sources.length < 2 ||
+        typeof candidate.primarySourceId !== 'string'
+    ) {
+        return null;
+    }
+    const sourceIds = candidate.sources.map((source) => source?.id);
+    if (
+        sourceIds.some((id) => typeof id !== 'string' || id.length === 0) ||
+        new Set(sourceIds).size !== sourceIds.length ||
+        !sourceIds.includes(candidate.primarySourceId)
+    ) {
+        return null;
+    }
+    const validSources = candidate.sources.every((source) => {
+        if (source?.kind === 'chart') {
+            return true;
+        }
+        return (
+            source?.kind === 'query' &&
+            source.metricQuery !== null &&
+            typeof source.metricQuery === 'object' &&
+            typeof source.metricQuery.exploreName === 'string'
+        );
+    });
+    const chartSources = candidate.sources.filter(
+        (source) => source?.kind === 'chart',
+    );
+    if (!validSources || chartSources.length !== 1) {
         return null;
     }
     if (!Array.isArray(candidate.joinKey) || candidate.joinKey.length === 0) {
         return null;
     }
-    const joinKey = candidate.joinKey.filter(
-        (part) =>
-            typeof part?.name === 'string' &&
-            typeof part?.chartFieldId === 'string' &&
-            typeof part?.secondFieldId === 'string',
-    );
-    if (joinKey.length !== candidate.joinKey.length) return null;
-
-    const joinType = (Object.values(MergeJoinType) as string[]).includes(
-        String(candidate.joinType),
-    )
-        ? (candidate.joinType as MergeJoinType)
-        : MergeJoinType.FULL;
+    const hasCompleteJoinKeys = candidate.joinKey.every((part) => {
+        if (
+            typeof part?.name !== 'string' ||
+            part.fieldIdBySourceId === null ||
+            typeof part.fieldIdBySourceId !== 'object'
+        ) {
+            return false;
+        }
+        const fieldSourceIds = Object.keys(part.fieldIdBySourceId);
+        return (
+            fieldSourceIds.length === sourceIds.length &&
+            sourceIds.every(
+                (sourceId) =>
+                    typeof sourceId === 'string' &&
+                    typeof part.fieldIdBySourceId[sourceId] === 'string',
+            )
+        );
+    });
+    if (!hasCompleteJoinKeys) return null;
 
     return {
-        secondQuery: {
-            metricQuery,
-        },
-        joinKey,
-        joinType,
+        primarySourceId: candidate.primarySourceId,
+        sources: candidate.sources,
+        joinKey: candidate.joinKey,
+        joinType: parseJoinType(candidate.joinType),
         tableCalculations: Array.isArray(candidate.tableCalculations)
             ? candidate.tableCalculations
             : [],
