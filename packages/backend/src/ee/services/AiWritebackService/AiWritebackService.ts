@@ -3529,6 +3529,14 @@ export class AiWritebackService extends BaseService {
                 );
                 return null;
             }
+            // An empty listing is worse than no listing: the `full` branch
+            // would emit an empty <repo_context> block alongside the "do NOT
+            // run find/ls/Glob" instruction, leaving the agent with an empty
+            // index and no sanctioned way to search. Fall through to null so
+            // the block is omitted entirely.
+            if (!result.stdout.trim()) {
+                return null;
+            }
             const bytes = Buffer.byteLength(result.stdout, 'utf8');
             // Past the cap the listing no longer fits the model's context
             // window alongside the prompt and the agent's own file reads, and
