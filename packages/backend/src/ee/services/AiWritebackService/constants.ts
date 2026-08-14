@@ -234,6 +234,20 @@ export const REPO_CONTEXT_TIMEOUT_MS = 30 * 1000;
 // before running it (see buildGatherRepoContextScript).
 export const GATHER_REPO_CONTEXT_SANDBOX_PATH = '/tmp/gather-repo-context.sh';
 
+// Largest repo file listing we inject into the system prompt verbatim. Above
+// this the listing is replaced by a directory-level digest and the agent is
+// told to find files with Glob/Grep instead.
+//
+// Sized against the model's context window, not aesthetics. Repo listings are
+// mostly paths, which tokenise far worse than prose — measured at ~2.2
+// chars/token on a real customer project (deep directories, long model names)
+// versus ~4 for English. So 96KB is roughly 45K tokens, leaving the bulk of
+// the 200K window for the system prompt, skills, file reads, and the turns
+// that actually do the work. An uncapped listing has been measured at 410KB
+// (~187K tokens), which overflows the window on its own and fails every run
+// before the agent edits anything.
+export const REPO_CONTEXT_MAX_BYTES = 96 * 1024;
+
 // Last N bytes of the agent's stderr kept for diagnostics on a non-zero exit /
 // timeout, so the Sentry payload carries the real error without inflating it.
 export const STDERR_TAIL_BYTES = 4096;

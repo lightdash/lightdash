@@ -257,6 +257,28 @@ export type AgentToolCall = {
 };
 
 /**
+ * The repo file listing handed to the agent in its system prompt.
+ *
+ * `full` is the complete sorted listing — the agent is told to treat it as the
+ * index and not re-discover paths. `summarised` is a directory-level digest
+ * emitted when the full listing is too large to inject: on a big dbt project
+ * the listing alone can exceed the model's context window, which fails the run
+ * before any work happens. In that case the agent is pointed at `Glob`/`Grep`
+ * instead, which costs turns but actually completes.
+ */
+export type RepoContext =
+    | { kind: 'full'; listing: string }
+    | {
+          kind: 'summarised';
+          /** Directory-level digest, one `path/ (N files)` line per directory. */
+          listing: string;
+          /** Number of files in the full listing this was derived from. */
+          fileCount: number;
+          /** Size of the full listing in bytes, for logging. */
+          bytes: number;
+      };
+
+/**
  * The meaningful shapes of a Claude Code stream-json line. Everything the host
  * reacts to (assistant text, tool calls, the final cost summary) is one of
  * these; every other event type collapses to `ignored`.

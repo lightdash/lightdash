@@ -97,6 +97,7 @@ import {
     PR_DESCRIPTION_PATH,
     PR_TITLE_PATH,
     PROMPT_PATH,
+    REPO_CONTEXT_MAX_BYTES,
     REPO_CONTEXT_TIMEOUT_MS,
     RUN_TIMEOUT_MS,
     SANDBOX_TIMEOUT_MS,
@@ -130,6 +131,7 @@ import type {
     CodingAgentConfig,
     GitConnection,
     GitInstallation,
+    RepoContext,
     ResolvedTurnTarget,
     SetStage,
     TurnContext,
@@ -150,6 +152,7 @@ import {
     resolveSandboxDbtVersion,
     resolveSandboxTemplateRef,
     splitStreamBuffer,
+    summarizeRepoListing,
     summarizeToolInput,
 } from './utils';
 
@@ -3506,7 +3509,7 @@ export class AiWritebackService extends BaseService {
     private async gatherRepoContext(
         sandbox: SandboxHandle,
         projectSubPath: string,
-    ): Promise<string | null> {
+    ): Promise<RepoContext | null> {
         const start = performance.now();
         try {
             await sandbox.files.write(
@@ -3526,11 +3529,45 @@ export class AiWritebackService extends BaseService {
                 );
                 return null;
             }
+            // An empty listing is worse than no listing: the `full` branch
+            // would emit an empty <repo_context> block alongside the "do NOT
+            // run find/ls/Glob" instruction, leaving the agent with an empty
+            // index and no sanctioned way to search. Fall through to null so
+            // the block is omitted entirely.
+            if (!result.stdout.trim()) {
+                return null;
+            }
             const bytes = Buffer.byteLength(result.stdout, 'utf8');
+            // Past the cap the listing no longer fits the model's context
+            // window alongside the prompt and the agent's own file reads, and
+            // the run dies before doing any work. Hand over a directory digest
+            // instead — the prompt then points the agent at Glob/Grep.
+            if (bytes > REPO_CONTEXT_MAX_BYTES) {
+                const { digest, fileCount } = summarizeRepoListing(
+                    result.stdout,
+                );
+                this.logger.warn(
+                    `AiWriteback: repo context too large to inject — summarising (sandboxId=${sandbox.sandboxId}, bytes=${bytes}, cap=${REPO_CONTEXT_MAX_BYTES}, files=${fileCount}, ${AiWritebackService.elapsed(start)}ms)`,
+                    {
+                        event: 'ai_writeback.repo_context.summarised',
+                        sandboxId: sandbox.sandboxId,
+                        bytes,
+                        capBytes: REPO_CONTEXT_MAX_BYTES,
+                        fileCount,
+                        digestBytes: Buffer.byteLength(digest, 'utf8'),
+                    },
+                );
+                return {
+                    kind: 'summarised',
+                    listing: digest,
+                    fileCount,
+                    bytes,
+                };
+            }
             this.logger.info(
                 `AiWriteback: repo context gathered (sandboxId=${sandbox.sandboxId}, bytes=${bytes}, ${AiWritebackService.elapsed(start)}ms)`,
             );
-            return result.stdout;
+            return { kind: 'full', listing: result.stdout };
         } catch (error) {
             this.logger.warn(
                 `AiWriteback: gatherRepoContext failed — running without context: ${getErrorMessage(error)}`,
@@ -4237,7 +4274,7 @@ export class AiWritebackService extends BaseService {
      */
     private async gatherGeneralRepoContext(
         sandbox: SandboxHandle,
-    ): Promise<string | null> {
+    ): Promise<RepoContext | null> {
         const MAX_FILES = 600;
         try {
             const result = await sandbox.commands.run(
@@ -4248,7 +4285,34 @@ export class AiWritebackService extends BaseService {
             if (!listing) {
                 return null;
             }
-            return listing;
+            const bytes = Buffer.byteLength(listing, 'utf8');
+            // `head` truncates silently, so on any repo with more than
+            // MAX_FILES files the agent was being handed a partial listing and
+            // told to treat it as the index — it would conclude a file simply
+            // did not exist. Summarise instead, which flips the prompt to
+            // "explore with Glob/Grep" and stops the false negatives.
+            const truncated = listing.split('\n').length >= MAX_FILES;
+            if (truncated || bytes > REPO_CONTEXT_MAX_BYTES) {
+                const { digest, fileCount } = summarizeRepoListing(listing);
+                this.logger.warn(
+                    `AiCodingAgent: repo listing truncated at ${MAX_FILES} files — summarising (sandboxId=${sandbox.sandboxId}, bytes=${bytes}, files=${fileCount})`,
+                    {
+                        event: 'ai_writeback.repo_context.summarised',
+                        sandboxId: sandbox.sandboxId,
+                        bytes,
+                        capBytes: REPO_CONTEXT_MAX_BYTES,
+                        fileCount,
+                        digestBytes: Buffer.byteLength(digest, 'utf8'),
+                    },
+                );
+                return {
+                    kind: 'summarised',
+                    listing: digest,
+                    fileCount,
+                    bytes,
+                };
+            }
+            return { kind: 'full', listing };
         } catch (error) {
             this.logger.warn(
                 `AiCodingAgent: gatherGeneralRepoContext failed — running without context: ${getErrorMessage(
