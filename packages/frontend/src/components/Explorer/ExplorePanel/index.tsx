@@ -35,8 +35,8 @@ import {
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { MergeJoinBar } from '../../../features/mergeQuery/components/MergeJoinBar';
-import { MergeTabStrip } from '../../../features/mergeQuery/components/MergeTabStrip';
-import { QueryBTree } from '../../../features/mergeQuery/components/QueryBTree';
+import { MergeQueryOptions } from '../../../features/mergeQuery/components/MergeQueryOptions';
+import { MergeQuerySidebar } from '../../../features/mergeQuery/components/MergeQuerySidebar';
 import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
 import { useSourceCodeEditor } from '../../../features/sourceCodeEditor';
 import {
@@ -81,9 +81,16 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     );
     const { data: mergeFlag } = useServerFeatureFlag(FeatureFlags.MergeQueries);
     const merge = useMergeSafe();
-    const showQueryBTree =
-        mergeFlag?.enabled === true && merge?.isMerging && merge.focus === 'b';
-
+    const [isChoosingMergeExplore, setIsChoosingMergeExplore] = useState(
+        !merge?.queryB.exploreName,
+    );
+    useEffect(() => {
+        if (!merge?.queryB.exploreName) setIsChoosingMergeExplore(true);
+    }, [merge?.queryB.exploreName]);
+    const isGuidedMerge =
+        mergeFlag?.enabled === true &&
+        merge?.isMerging === true &&
+        !merge.readOnly;
     const activeTableName = useExplorerSelector(selectTableName);
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
 
@@ -234,15 +241,13 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                     display: isVisualizationConfigOpen ? 'none' : 'flex',
                 }}
             >
-                <MergeJoinBar />
-                <MergeTabStrip />
-
+                {merge?.isMerging && merge.readOnly && <MergeJoinBar />}
                 {/* The breadcrumbs, warnings and menu all belong to the
                     first query's explore; shown above the second query's
                     picker they read as its header, which they are not. */}
                 <Group
                     justify="space-between"
-                    display={showQueryBTree ? 'none' : undefined}
+                    display={isGuidedMerge ? 'none' : undefined}
                 >
                     <Group gap="xs">
                         <PageBreadcrumbs size="md" items={breadcrumbs} />
@@ -385,13 +390,16 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                 </Menu>
                             </Can>
                         )}
+                    <MergeQueryOptions />
                 </Group>
 
-                {/* The tab strip swaps the field tree only: the second
-                    query's picker takes the tree's place while the rest of
-                    the panel stays put. */}
-                {showQueryBTree ? (
-                    <QueryBTree />
+                {isGuidedMerge ? (
+                    <MergeQuerySidebar
+                        exploreA={explore}
+                        onFieldChangeA={toggleActiveField}
+                        isChoosingExploreB={isChoosingMergeExplore}
+                        setIsChoosingExploreB={setIsChoosingMergeExplore}
+                    />
                 ) : (
                     <ItemDetailProvider>
                         <ExploreTree

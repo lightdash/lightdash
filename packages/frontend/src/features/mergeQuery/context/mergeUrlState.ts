@@ -91,7 +91,7 @@ export const parseMergeState = (raw: string | null): MergeUrlState | null => {
 
     const value = parsed as Partial<SerializedMerge>;
     return {
-        focus: value.f === 'b' ? 'b' : 'a',
+        focus: value.f === 'b' || value.f === 'join' ? value.f : 'a',
         queryB: {
             exploreName: typeof value.e === 'string' ? value.e : null,
             dimensions: asStringArray(value.d),

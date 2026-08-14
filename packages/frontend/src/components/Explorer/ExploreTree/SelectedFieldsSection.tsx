@@ -39,9 +39,14 @@ import { useCustomMetricDelete } from './useCustomMetricDelete';
 
 export type SelectedField = {
     fieldId: string;
+    /** Distinguishes the same field selected in both merge sources. */
+    selectionKey?: string;
     item: NodeItem;
     tableLabel: string | null;
     isDimension: boolean;
+    onDeselect?: (fieldId: string, isDimension: boolean) => void;
+    /** Cross-query rows only expose the safe, source-aware deselect action. */
+    hideActions?: boolean;
 };
 
 type RenderedRow = SelectedField & { isExiting: boolean };
@@ -65,7 +70,15 @@ type RowProps = {
 };
 
 const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
-    const { fieldId, item, isDimension: isDim, isExiting } = row;
+    const {
+        fieldId,
+        selectionKey,
+        item,
+        isDimension: isDim,
+        isExiting,
+        hideActions,
+        onDeselect: fieldOnDeselect,
+    } = row;
 
     const dispatch = useExplorerDispatch();
     const addFilter = useAddFilter();
@@ -86,14 +99,17 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
 
     const isFiltered = isField(item) && isFieldFiltered;
     const showFilterAction =
+        !hideActions &&
         (isFiltered || isHover) &&
         !isAdditionalMetric(item) &&
         isFilterableField(item);
-    const { showDeleteAction, handleDeleteClick } = useCustomMetricDelete({
-        item,
-        fieldId,
-        isHover,
-    });
+    const { showDeleteAction: canShowDeleteAction, handleDeleteClick } =
+        useCustomMetricDelete({
+            item,
+            fieldId,
+            isHover,
+        });
+    const showDeleteAction = !hideActions && canShowDeleteAction;
 
     const description =
         isField(item) || isAdditionalMetric(item)
@@ -103,8 +119,8 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
     const label = getFieldLabel(item);
 
     const handleClick = useCallback(() => {
-        if (!isExiting) onDeselect(fieldId, isDim);
-    }, [isExiting, onDeselect, fieldId, isDim]);
+        if (!isExiting) (fieldOnDeselect ?? onDeselect)(fieldId, isDim);
+    }, [isExiting, fieldOnDeselect, onDeselect, fieldId, isDim]);
 
     const handleMouseEnter = useCallback(
         () => toggleHover(true),
@@ -151,7 +167,7 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
             onClick={handleClick}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
-            data-testid={`selected-field-${fieldId}`}
+            data-testid={`selected-field-${selectionKey ?? fieldId}`}
         >
             <FieldIcon item={item} size="md" />
             <span className={classes.label} title={label}>
@@ -188,7 +204,7 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
                     </Tooltip>
                 )}
                 {/* Mounted on hover only so the labels get the space at rest */}
-                {(isHover || isMenuOpen) && (
+                {!hideActions && (isHover || isMenuOpen) && (
                     <TreeSingleNodeActions
                         item={item}
                         isHovered={isHover}
@@ -209,6 +225,8 @@ SelectedFieldRow.displayName = 'SelectedFieldRow';
 type Props = {
     fields: SelectedField[];
     onDeselect: (fieldId: string, isDimension: boolean) => void;
+    heading?: string;
+    showAllFieldsDivider?: boolean;
 };
 
 type ExitingField = { field: SelectedField; index: number };
@@ -218,7 +236,12 @@ type ExitingField = { field: SelectedField; index: number };
  * kept mounted briefly (in exitingFields) so they can animate out instead of
  * snapping away; the rendered list is derived from props + exitingFields.
  */
-const SelectedFieldsSectionComponent: FC<Props> = ({ fields, onDeselect }) => {
+const SelectedFieldsSectionComponent: FC<Props> = ({
+    fields,
+    onDeselect,
+    heading = 'Selected',
+    showAllFieldsDivider = true,
+}) => {
     const [exitingFields, setExitingFields] = useState<
         Map<string, ExitingField>
     >(new Map());
@@ -227,35 +250,37 @@ const SelectedFieldsSectionComponent: FC<Props> = ({ fields, onDeselect }) => {
 
     // Single external-system sync: manage exit timers when the selection changes
     useEffect(() => {
-        const currentIds = new Set(fields.map((field) => field.fieldId));
+        const keyFor = (field: SelectedField) =>
+            field.selectionKey ?? field.fieldId;
+        const currentIds = new Set(fields.map(keyFor));
         const prevFields = prevFieldsRef.current;
         prevFieldsRef.current = fields;
 
         // Cancel pending removals for fields that were re-selected mid-exit
-        exitTimeouts.current.forEach((timeout, fieldId) => {
-            if (currentIds.has(fieldId)) {
+        exitTimeouts.current.forEach((timeout, fieldKey) => {
+            if (currentIds.has(fieldKey)) {
                 window.clearTimeout(timeout);
-                exitTimeouts.current.delete(fieldId);
+                exitTimeouts.current.delete(fieldKey);
             }
         });
 
         const removed = prevFields.filter(
             (field) =>
-                !currentIds.has(field.fieldId) &&
-                !exitTimeouts.current.has(field.fieldId),
+                !currentIds.has(keyFor(field)) &&
+                !exitTimeouts.current.has(keyFor(field)),
         );
 
         setExitingFields((prev) => {
             let changed = false;
             const next = new Map(prev);
-            prev.forEach((_, fieldId) => {
-                if (currentIds.has(fieldId)) {
-                    next.delete(fieldId);
+            prev.forEach((_, fieldKey) => {
+                if (currentIds.has(fieldKey)) {
+                    next.delete(fieldKey);
                     changed = true;
                 }
             });
             removed.forEach((field) => {
-                next.set(field.fieldId, {
+                next.set(keyFor(field), {
                     field,
                     index: prevFields.indexOf(field),
                 });
@@ -265,16 +290,17 @@ const SelectedFieldsSectionComponent: FC<Props> = ({ fields, onDeselect }) => {
         });
 
         removed.forEach((field) => {
+            const fieldKey = keyFor(field);
             const timeout = window.setTimeout(() => {
-                exitTimeouts.current.delete(field.fieldId);
+                exitTimeouts.current.delete(fieldKey);
                 setExitingFields((prev) => {
-                    if (!prev.has(field.fieldId)) return prev;
+                    if (!prev.has(fieldKey)) return prev;
                     const next = new Map(prev);
-                    next.delete(field.fieldId);
+                    next.delete(fieldKey);
                     return next;
                 });
             }, EXIT_ANIMATION_MS);
-            exitTimeouts.current.set(field.fieldId, timeout);
+            exitTimeouts.current.set(fieldKey, timeout);
         });
     }, [fields]);
 
@@ -286,14 +312,16 @@ const SelectedFieldsSectionComponent: FC<Props> = ({ fields, onDeselect }) => {
     }, []);
 
     const rows: RenderedRow[] = useMemo(() => {
-        const currentIds = new Set(fields.map((field) => field.fieldId));
+        const keyFor = (field: SelectedField) =>
+            field.selectionKey ?? field.fieldId;
+        const currentIds = new Set(fields.map(keyFor));
         const result: RenderedRow[] = fields.map((field) => ({
             ...field,
             isExiting: false,
         }));
         // Splice exiting rows back in at their previous position
         [...exitingFields.values()]
-            .filter(({ field }) => !currentIds.has(field.fieldId))
+            .filter(({ field }) => !currentIds.has(keyFor(field)))
             .sort((a, b) => a.index - b.index)
             .forEach(({ field, index }) => {
                 result.splice(Math.min(index, result.length), 0, {
@@ -328,7 +356,7 @@ const SelectedFieldsSectionComponent: FC<Props> = ({ fields, onDeselect }) => {
 
     return (
         <div className={classes.section}>
-            <div className={classes.divider}>Selected</div>
+            <div className={classes.divider}>{heading}</div>
             <div className={classes.list} data-testid="SelectedFieldsSection">
                 {groups.map((group) => (
                     <Fragment key={group.tableLabel ?? '__no_table__'}>
@@ -339,7 +367,7 @@ const SelectedFieldsSectionComponent: FC<Props> = ({ fields, onDeselect }) => {
                         )}
                         {group.rows.map((row) => (
                             <SelectedFieldRow
-                                key={row.fieldId}
+                                key={row.selectionKey ?? row.fieldId}
                                 row={row}
                                 onDeselect={onDeselect}
                             />
@@ -347,7 +375,9 @@ const SelectedFieldsSectionComponent: FC<Props> = ({ fields, onDeselect }) => {
                     </Fragment>
                 ))}
             </div>
-            <div className={classes.divider}>All fields</div>
+            {showAllFieldsDivider && (
+                <div className={classes.divider}>All fields</div>
+            )}
         </div>
     );
 };

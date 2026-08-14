@@ -35,8 +35,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
-import { MergeFilterSwitch } from '../../../features/mergeQuery/components/MergeFilterSwitch';
-import MergeQueryBFiltersCard from '../../../features/mergeQuery/components/MergeQueryBFiltersCard';
+import { MergeFiltersCard } from '../../../features/mergeQuery/components/MergeFiltersCard';
 import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
@@ -50,7 +49,6 @@ import FiltersProvider from '../../common/Filters/FiltersProvider';
 import { useFieldsWithSuggestions } from './useFieldsWithSuggestions';
 
 const QueryAFiltersCard: FC = memo(() => {
-    const merge = useMergeSafe();
     const projectUuid = useProjectUuid();
     const project = useProject(projectUuid);
 
@@ -275,7 +273,6 @@ const QueryAFiltersCard: FC = memo(() => {
             onToggle={() => toggleExpandedSection(ExplorerSection.FILTERS)}
             headerElement={
                 <>
-                    {merge?.isMerging ? <MergeFilterSwitch /> : null}
                     {totalActiveFilters > 0 && !filterIsOpen ? (
                         <Tooltip
                             arrowOffset={12}
@@ -346,14 +343,14 @@ const QueryAFiltersCard: FC = memo(() => {
 });
 
 /**
- * The Filters card follows the merge focus the way the sidebar does: focusing
- * Query B re-targets this card to that query's filters, with ownership shown
- * by the query's colour.
+ * A merge shows both source filters together. The relationship is one query;
+ * hiding half its filters behind the active sidebar tab makes it impossible
+ * to read as a whole.
  */
 const FiltersCard: FC = memo(() => {
     const merge = useMergeSafe();
-    if (merge?.isMerging && merge.focus === 'b' && merge.queryB.exploreName) {
-        return <MergeQueryBFiltersCard />;
+    if (merge?.isMerging && merge.queryB.exploreName) {
+        return <MergeFiltersCard />;
     }
     return <QueryAFiltersCard />;
 });

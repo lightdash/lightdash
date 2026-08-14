@@ -75,9 +75,7 @@ const ResultsCard: FC = memo(() => {
 
     const mergedTotalResults = mergeResults?.results.totalResults;
     const totalResults = mergeResults
-        ? mergedTotalResults && mergedTotalResults > 0
-            ? mergedTotalResults
-            : mergeResults.metricQuery.limit
+        ? (mergedTotalResults ?? mergeResults.metricQuery.limit)
         : queryResults.totalResults;
 
     const savedChart = useExplorerSelector(selectSavedChart);

@@ -29,6 +29,14 @@ describe('merge url state', () => {
         expect(parseMergeState(serializeMergeState(state))).toEqual(state);
     });
 
+    it('round-trips the combine step', () => {
+        const combineState = { ...state, focus: 'join' as const };
+
+        expect(parseMergeState(serializeMergeState(combineState))).toEqual(
+            combineState,
+        );
+    });
+
     it('returns null when there is no merge in the url', () => {
         expect(parseMergeState(null)).toBeNull();
         expect(parseMergeState('')).toBeNull();
