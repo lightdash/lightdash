@@ -7132,6 +7132,7 @@ export class AsyncQueryService extends ProjectService {
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         displayTimezone: string | null;
         truncated: boolean;
+        metricQuery: MetricQuery;
     }> {
         const queryHistory = await this.getAsyncQueryHistory({
             account,
@@ -7178,6 +7179,7 @@ export class AsyncQueryService extends ProjectService {
                 AsyncQueryService.getPivotDetailsFromQueryHistory(queryHistory),
             displayTimezone: queryHistory.metricQuery.timezone ?? null,
             truncated,
+            metricQuery: queryHistory.metricQuery,
         };
     }
 
