@@ -46,7 +46,7 @@ fail() { echo "FAIL: $1 -- $2" >&2; exit 1; }
 step() { echo "STEP: $1"; }
 
 instance_pm2_names() {
-    for suffix in api api-routes-watch scheduler frontend common-watch formula-watch warehouses-watch sdk-test spotlight; do
+    for suffix in api api-routes-watch scheduler frontend common-watch formula-watch warehouses-watch sdk-test maple; do
         echo "${LD_INSTANCE_ID}-${suffix}"
     done
 }
@@ -105,6 +105,27 @@ else
     sfw pnpm install || fail "deps" "sfw pnpm install failed"
     pnpm -F common build && pnpm -F warehouses build && pnpm -F @lightdash/formula build || fail "deps" "package builds failed"
     echo "OK: installed and built"
+fi
+
+# ---------------------------------------------------------------------------
+step "Ensure Maple tracing CLI"
+# Maple local mode receives OTLP traces from the API and scheduler (see
+# ecosystem.config.js). It is a standalone binary, not a node_modules bin.
+# Non-fatal: without it the stack runs fine, just untraced.
+if command -v maple >/dev/null 2>&1; then
+    echo "SKIP: maple present ($(command -v maple))"
+else
+    if [ ! -x "$HOME/.maple/bin/maple" ]; then
+        curl -fsSL https://maple.dev/cli/install | sh >/dev/null 2>&1 || true
+    fi
+    if [ -x "$HOME/.maple/bin/maple" ]; then
+        # ecosystem.config.js resolves `maple` off PATH, and PM2 inherits this
+        # shell's PATH, so exporting it here is what makes the sidecar start.
+        export PATH="$HOME/.maple/bin:$PATH"
+        echo "OK: maple available at $HOME/.maple/bin/maple"
+    else
+        echo "SKIP: maple unavailable — stack will run without local tracing"
+    fi
 fi
 
 # ---------------------------------------------------------------------------
@@ -198,7 +219,10 @@ if test -f .env.development.local; then
     reconcile_env SCHEDULER_PORT "${SCHEDULER_PORT}"
     reconcile_env DEBUG_PORT "${DEBUG_PORT}"
     reconcile_env SDK_TEST_PORT "${SDK_TEST_PORT}"
-    reconcile_env SPOTLIGHT_PORT "${SPOTLIGHT_PORT}"
+    reconcile_env MAPLE_PORT "${MAPLE_PORT}"
+    # The maple CLI defaults to port 4318; point it at this instance so a
+    # `source .env.development.local` shell can query the right server.
+    reconcile_env MAPLE_LOCAL_URL "http://127.0.0.1:${MAPLE_PORT}"
     reconcile_env LIGHTDASH_PROMETHEUS_PORT "${LIGHTDASH_PROMETHEUS_PORT}"
     reconcile_env SITE_URL "http://localhost:${FE_PORT}"
     reconcile_env INTERNAL_LIGHTDASH_HOST "http://localhost:${FE_PORT}"
@@ -244,7 +268,8 @@ FE_PORT=${FE_PORT}
 SCHEDULER_PORT=${SCHEDULER_PORT}
 DEBUG_PORT=${DEBUG_PORT}
 SDK_TEST_PORT=${SDK_TEST_PORT}
-SPOTLIGHT_PORT=${SPOTLIGHT_PORT}
+MAPLE_PORT=${MAPLE_PORT}
+MAPLE_LOCAL_URL=http://127.0.0.1:${MAPLE_PORT}
 LIGHTDASH_PROMETHEUS_PORT=${LIGHTDASH_PROMETHEUS_PORT}
 SITE_URL=http://localhost:${FE_PORT}
 S3_ENDPOINT=http://localhost:9000
@@ -652,4 +677,21 @@ done
 [ "$HEALTH" = "200" ] || fail "health" "backend /api/v1/health returned '${HEALTH:-no response}' after 120s (check 'pm2 logs ${LD_INSTANCE_ID}-api --lines 80 --nostream')"
 
 echo "OK: backend healthy"
-echo "READY: instance=$LD_INSTANCE_ID frontend=http://localhost:${FE_PORT} api=http://localhost:${PORT} spotlight=http://localhost:${SPOTLIGHT_PORT}"
+
+# Maple is optional, so only advertise it once its liveness route answers.
+MAPLE_READY=""
+if command -v maple >/dev/null 2>&1; then
+    for _ in $(seq 1 15); do
+        MAPLE_READY="$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${MAPLE_PORT}/health" 2>/dev/null || true)"
+        [ "$MAPLE_READY" = "200" ] && break
+        sleep 1
+    done
+fi
+if [ "$MAPLE_READY" = "200" ]; then
+    echo "OK: maple tracing on http://localhost:${MAPLE_PORT}"
+    MAPLE_READY_FRAGMENT=" maple=http://localhost:${MAPLE_PORT}"
+else
+    echo "SKIP: maple not serving on ${MAPLE_PORT} — traces unavailable (pnpm pm2:logs:maple)"
+    MAPLE_READY_FRAGMENT=""
+fi
+echo "READY: instance=$LD_INSTANCE_ID frontend=http://localhost:${FE_PORT} api=http://localhost:${PORT}${MAPLE_READY_FRAGMENT}"

@@ -20,11 +20,13 @@
  *   - <instanceId>-frontend: Vite dev server (default port 3000)
  *   - <instanceId>-common-watch: TypeScript watcher for common package
  *   - <instanceId>-warehouses-watch: TypeScript watcher for warehouses package
- *   - <instanceId>-spotlight: Sentry Spotlight debugging UI (default port 8969)
+ *   - <instanceId>-maple: Maple local-mode tracing server (default port 4320)
  *
  * Logs are stored in ~/.pm2/logs/ (PM2 default location)
  */
 
+const { spawnSync } = require('child_process');
+const os = require('os');
 const path = require('path');
 const dotenv = require('dotenv');
 
@@ -60,11 +62,41 @@ const fePort = env.FE_PORT || undefined; // Vite auto-detects if not set
 const sdkTestPort = env.SDK_TEST_PORT || '3030';
 const sdkTestEnabled =
     (process.env.LD_ENABLE_SDK_TEST ?? env.LD_ENABLE_SDK_TEST) === 'true';
-const spotlightPort = env.SPOTLIGHT_PORT || '8969';
+const maplePort = env.MAPLE_PORT || '4320';
+
+// Maple is a standalone binary (not a node_modules bin), so it may be absent.
+// Resolve it up front: without it there is nothing to export traces to, and an
+// OTLP exporter pointed at a dead port just logs export failures every batch.
+const mapleBin = (() => {
+    const { stdout } = spawnSync('sh', ['-c', 'command -v maple'], {
+        encoding: 'utf8',
+    });
+    return (stdout || '').trim() || undefined;
+})();
+
+// One Maple server per data dir, so namespace it by instance the same way the
+// port is — two worktrees must not fight over ~/.maple/data.
+const mapleDataDir = path.join(os.homedir(), '.maple', `data-${instanceId}`);
+
+// Each app adds its own OTEL_SERVICE_NAME on top of this: service.name is what
+// namespaces traces per checkout in the Maple UI.
+const tracingEnv = mapleBin
+    ? {
+          LIGHTDASH_OTEL_TRACES_ENABLED: 'true',
+          OTEL_EXPORTER_OTLP_ENDPOINT: `http://127.0.0.1:${maplePort}`,
+      }
+    : {};
 
 // Log the root directory so it's obvious which worktree PM2 is running from
 console.log(`\n  Lightdash PM2 root: ${__dirname}`);
 console.log(`  Instance ID: ${instanceId}\n`);
+
+if (!mapleBin) {
+    console.log(
+        '  maple not found on PATH — local tracing disabled.\n' +
+            '  Install it with: curl -fsSL https://maple.dev/cli/install | sh\n',
+    );
+}
 
 const frontendArgs = fePort ? `--port ${fePort}` : undefined;
 
@@ -82,7 +114,8 @@ module.exports = {
                 LIGHTDASH_MODE: 'development',
                 HEADLESS: 'true',
                 NODE_ENV: 'development',
-                SENTRY_SPOTLIGHT: `http://localhost:${spotlightPort}/stream`,
+                ...tracingEnv,
+                OTEL_SERVICE_NAME: instanceId,
                 PORT: apiPort,
             },
             watch: ['src'],
@@ -119,7 +152,8 @@ module.exports = {
             env: {
                 ...envWithPath,
                 NODE_ENV: 'development',
-                SENTRY_SPOTLIGHT: `http://localhost:${spotlightPort}/stream`,
+                ...tracingEnv,
+                OTEL_SERVICE_NAME: `${instanceId}-scheduler`,
                 PORT: schedulerPort,
                 LIGHTDASH_PROMETHEUS_ENABLED: 'false',
             },
@@ -139,7 +173,6 @@ module.exports = {
             cwd: path.join(__dirname, 'packages/frontend'),
             env: {
                 NODE_ENV: 'development',
-                VITE_SENTRY_SPOTLIGHT: `http://localhost:${spotlightPort}/stream`,
                 PORT: apiPort,
             },
             watch: false,
@@ -213,21 +246,29 @@ module.exports = {
               ]
             : []),
 
-        // Spotlight.js Sidecar (Sentry Dev Debugging UI)
-        {
-            name: `${instanceId}-spotlight`,
-            script: 'node_modules/.bin/spotlight',
-            args: `--port ${spotlightPort}`,
-            interpreter: 'none',
-            cwd: __dirname,
-            env: {
-                NODE_ENV: 'development',
-            },
-            watch: false,
-            autorestart: true,
-            kill_timeout: 3000,
-            merge_logs: true,
-            time: true,
-        },
+        // Maple local mode: OTLP ingest + embedded ClickHouse + trace UI.
+        // --offline serves the UI from the binary (same-origin, no internet, no
+        // Chrome local-network prompt). --on-dirty-store wipe keeps it from
+        // refusing to boot after PM2 SIGKILLs it; local traces are disposable.
+        ...(mapleBin
+            ? [
+                  {
+                      name: `${instanceId}-maple`,
+                      script: mapleBin,
+                      args: `start --port ${maplePort} --data-dir ${mapleDataDir} --offline --on-dirty-store wipe`,
+                      interpreter: 'none',
+                      cwd: __dirname,
+                      env: {
+                          NODE_ENV: 'development',
+                          MAPLE_NO_UPDATE_CHECK: '1',
+                      },
+                      watch: false,
+                      autorestart: true,
+                      kill_timeout: 3000,
+                      merge_logs: true,
+                      time: true,
+                  },
+              ]
+            : []),
     ],
 };

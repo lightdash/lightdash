@@ -338,7 +338,7 @@ JS
 warm_vite_dependencies() {
     write_preview_vite_config
     cd "$repository_dir"
-    VITE_SENTRY_SPOTLIGHT='' pnpm -F frontend exec vite optimize \
+    pnpm -F frontend exec vite optimize \
         --config "$preview_vite_config" >/dev/null
 }
 
@@ -367,7 +367,7 @@ start_preview() {
     set_env_value SCHEDULER_PORT "$SCHEDULER_PORT" .env.development.local
     set_env_value DEBUG_PORT "$DEBUG_PORT" .env.development.local
     set_env_value SDK_TEST_PORT "$SDK_TEST_PORT" .env.development.local
-    set_env_value SPOTLIGHT_PORT "$SPOTLIGHT_PORT" .env.development.local
+    set_env_value MAPLE_PORT "$MAPLE_PORT" .env.development.local
     set_env_value LIGHTDASH_PROMETHEUS_PORT "$LIGHTDASH_PROMETHEUS_PORT" .env.development.local
     set_env_value SITE_URL "$preview_url" .env.development.local
     set_env_value INTERNAL_LIGHTDASH_HOST "http://localhost:${FE_PORT}" .env.development.local
@@ -389,8 +389,7 @@ start_preview() {
     set_env_value SENTRY_DSN '' .env.development.local
     set_env_value SENTRY_BE_DSN '' .env.development.local
     set_env_value SENTRY_FE_DSN '' .env.development.local
-    set_env_value SENTRY_SPOTLIGHT '' .env.development.local
-    set_env_value VITE_SENTRY_SPOTLIGHT '' .env.development.local
+    set_env_value LIGHTDASH_OTEL_TRACES_ENABLED false .env.development.local
     db_container="${LD_CONTAINER_PREFIX}-db-dev-1"
     cat >"$preview_compose" <<YAML
 volumes:
@@ -473,8 +472,7 @@ module.exports = {
             SENTRY_DSN: '',
             SENTRY_BE_DSN: '',
             SENTRY_FE_DSN: '',
-            SENTRY_SPOTLIGHT: '',
-            VITE_SENTRY_SPOTLIGHT: '',
+            LIGHTDASH_OTEL_TRACES_ENABLED: 'false',
         },
     })),
 };

@@ -203,7 +203,7 @@ For each package, design 1–3 focused checks based on what the package actually
 For each check, use these tools in parallel:
 
 - **PM2 logs** — `pnpm exec pm2 logs lightdash-api --lines 50 --nostream` after exercising the flow
-- **Spotlight** — `mcp__spotlight__search_errors {"timeWindow": 300}` for recent runtime errors; `mcp__spotlight__search_traces {"timeWindow": 300}` to confirm requests completed without warnings
+- **Maple** — `maple errors --since 5m` for recent runtime errors; `maple traces --since 5m` to confirm requests completed without warnings (`maple services --format table` for a quick per-service error-rate view)
 - **Chrome DevTools MCP** — for UI checks: `mcp__chrome-devtools__new_page`, `mcp__chrome-devtools__take_snapshot`, `mcp__chrome-devtools__list_console_messages`
 - **curl + LDPAT** — for API-only checks (faster than browser):
   ```bash
@@ -213,7 +213,7 @@ For each check, use these tools in parallel:
 
 **What counts as a failure signal:**
 - Stack traces or unhandled rejections in PM2 logs
-- Spotlight errors with timestamps after we triggered the flow
+- Maple errors with timestamps after we triggered the flow
 - HTTP 500s on previously-working endpoints
 - Console errors in the browser that weren't there on `main`
 - Behavior change visible to the user (e.g. an email body now missing headers, an editor that won't accept input)
