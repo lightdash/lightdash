@@ -1,3 +1,10 @@
+# [1.159.0](https://github.com/lightdash/lightdash/compare/1.158.2...1.159.0) (2026-08-14)
+
+
+### Features
+
+* **data-apps:** show linked app counts for connections ([#27409](https://github.com/lightdash/lightdash/issues/27409)) ([e3754ba](https://github.com/lightdash/lightdash/commit/e3754bacb03a0e5d1ec513f2f785789d48f11f9b))
+
 ## [1.158.2](https://github.com/lightdash/lightdash/compare/1.158.1...1.158.2) (2026-08-14)
 
 

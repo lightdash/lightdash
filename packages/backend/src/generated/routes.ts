@@ -11619,6 +11619,26 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExternalConnectionListItem: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'ExternalConnection' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        linkedDataAppCount: {
+                            dataType: 'double',
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiExternalConnectionListResponse: {
         dataType: 'refAlias',
         type: {
@@ -11626,7 +11646,10 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 results: {
                     dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'ExternalConnection' },
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'ExternalConnectionListItem',
+                    },
                     required: true,
                 },
                 status: { dataType: 'enum', enums: ['ok'], required: true },

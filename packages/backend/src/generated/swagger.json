@@ -12297,11 +12297,28 @@
                 "type": "object",
                 "description": "WRITE shape — includes the secret."
             },
+            "ExternalConnectionListItem": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ExternalConnection"
+                    },
+                    {
+                        "properties": {
+                            "linkedDataAppCount": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["linkedDataAppCount"],
+                        "type": "object"
+                    }
+                ]
+            },
             "ApiExternalConnectionListResponse": {
                 "properties": {
                     "results": {
                         "items": {
-                            "$ref": "#/components/schemas/ExternalConnection"
+                            "$ref": "#/components/schemas/ExternalConnectionListItem"
                         },
                         "type": "array"
                     },
@@ -53391,7 +53408,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.158.2",
+        "version": "1.159.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
