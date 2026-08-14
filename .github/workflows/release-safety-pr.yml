@@ -166,11 +166,17 @@ jobs:
               per_page: 100,
             });
             const existing = comments.find((c) => c.body.includes(marker));
+            // SPK-1017: `gate` is part of the stamp because this check is
+            // required. A job skipped by an `if:` reports SKIPPED, and SKIPPED
+            // satisfies a required check — so reusing a FAILED verdict would
+            // turn a red gate green by editing the PR title. Only a verdict
+            // that passed may be short-circuited.
             const m = existing?.body.match(
-              /<!-- release-safety-describes head:([0-9a-f]{7,40}) base:([0-9a-f]{7,40}) -->/,
+              /<!-- release-safety-describes head:([0-9a-f]{7,40}) base:([0-9a-f]{7,40}) gate:(pass|fail) -->/,
             );
             core.setOutput('head', m ? m[1] : '');
             core.setOutput('base', m ? m[2] : '');
+            core.setOutput('gate', m ? m[3] : '');
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         if: steps.watched.outputs.watched == 'true'
@@ -204,8 +210,9 @@ jobs:
           set -euo pipefail
           if [ -n "${{ steps.sticky.outputs.head }}" ] \
             && [ "${{ steps.sticky.outputs.head }}" = "${{ github.event.pull_request.head.sha }}" ] \
-            && [ "${{ steps.sticky.outputs.base }}" = "${{ steps.base.outputs.sha }}" ]; then
-            echo "The sticky comment already describes this head+base; skipping recompute."
+            && [ "${{ steps.sticky.outputs.base }}" = "${{ steps.base.outputs.sha }}" ] \
+            && [ "${{ steps.sticky.outputs.gate }}" = "pass" ]; then
+            echo "The sticky comment already describes this head+base and its gates passed; skipping recompute."
             echo "fresh=true" >> "$GITHUB_OUTPUT"
           else
             echo "fresh=false" >> "$GITHUB_OUTPUT"
@@ -563,6 +570,7 @@ jobs:
             ${{ steps.marker.outputs.draft == 'true' && '--draft' || '' }} \
             ${{ steps.lint.outputs.breaking == 'true' && '--linter-breaking' || '--no-linter-breaking' }} \
             ${{ (steps.declaration-gate.outcome == 'failure' || steps.sql-declaration-gate.outcome == 'failure') && '--declaration-gate-failed' || '' }} \
+            ${{ (steps.rest-result.outputs.broken == 'true' || steps.mcp-result.outputs.broken == 'true' || steps.declaration-gate.outcome == 'failure' || steps.sql-declaration-gate.outcome == 'failure') && '--gate-failed' || '' }} \
             --out /tmp/release-safety-comment.md
 
       - name: Post or update sticky comment

@@ -86,4 +86,28 @@ assert.ok(
     'the pending notice must not emit a release-safety-describes stamp (SPK-1013 / SPK-1017)',
 );
 
+// SPK-1017: the short-circuit may only reuse a verdict whose gates PASSED.
+// `preview` is skipped when fresh, a skipped job reports SKIPPED, and SKIPPED
+// satisfies a required status check — so reusing a failed verdict would clear a
+// red gate by editing the pull request title.
+assert.ok(
+    workflow.includes('steps.sticky.outputs.gate }}" = "pass"'),
+    'the freshness check must require the previous run\'s gates to have passed (SPK-1017)',
+);
+assert.ok(
+    /gate:\(pass\|fail\)/.test(workflow),
+    'the describes-stamp reader must capture the gate outcome (SPK-1017)',
+);
+
+// The condition deciding "did the gates fail" now appears twice: once to fail
+// the job, once to stamp the comment. They must stay identical, or the stamp
+// will claim a pass the job did not give.
+const gateCondition =
+    /steps\.rest-result\.outputs\.broken == 'true' \|\| steps\.mcp-result\.outputs\.broken == 'true' \|\| steps\.declaration-gate\.outcome == 'failure' \|\| steps\.sql-declaration-gate\.outcome == 'failure'/g;
+const gateConditions = workflow.match(gateCondition) ?? [];
+assert.ok(
+    gateConditions.length >= 2,
+    `the gate-failure condition must be identical where the job fails and where the stamp is written; found ${gateConditions.length} matching occurrence(s)`,
+);
+
 process.stdout.write('release-safety workflow shape tests passed\n');
