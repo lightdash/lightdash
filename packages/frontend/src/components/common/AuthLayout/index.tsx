@@ -29,6 +29,7 @@ type Props = {
     /** Pages that bring their own cards (Invite) opt out of the legacy card. */
     withLegacyCard?: boolean;
     footer?: ReactNode;
+    background?: 'default' | 'pink';
 };
 
 const AuthLayout: FC<PropsWithChildren<Props>> = ({
@@ -39,6 +40,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
     cardId,
     withLegacyCard = true,
     footer,
+    background = 'default',
     children,
 }) => {
     const { isNewLayout, isInitialLoading } = useAuthLayoutVariant();
@@ -49,32 +51,34 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
 
     if (!isNewLayout) {
         return (
-            <Page title={pageTitle} withCenteredContent withNavbar={false}>
-                <Stack w={400} mt="4xl">
-                    <Box mx="auto" my="lg">
-                        <LightdashLogo />
-                    </Box>
-                    {withLegacyCard ? (
-                        <Card
-                            id={cardId}
-                            p="xl"
-                            radius="xs"
-                            withBorder
-                            shadow="xs"
-                        >
-                            {legacyTitle && (
-                                <Title order={3} ta="center" mb="md">
-                                    {legacyTitle}
-                                </Title>
-                            )}
-                            {children}
-                        </Card>
-                    ) : (
-                        children
-                    )}
-                    {footer}
-                </Stack>
-            </Page>
+            <Box className={classes.legacyRoot} data-background={background}>
+                <Page title={pageTitle} withCenteredContent withNavbar={false}>
+                    <Stack w={400} mt="4xl">
+                        <Box mx="auto" my="lg">
+                            <LightdashLogo />
+                        </Box>
+                        {withLegacyCard ? (
+                            <Card
+                                id={cardId}
+                                p="xl"
+                                radius="xs"
+                                withBorder
+                                shadow="xs"
+                            >
+                                {legacyTitle && (
+                                    <Title order={3} ta="center" mb="md">
+                                        {legacyTitle}
+                                    </Title>
+                                )}
+                                {children}
+                            </Card>
+                        ) : (
+                            children
+                        )}
+                        {footer}
+                    </Stack>
+                </Page>
+            </Box>
         );
     }
 
@@ -82,7 +86,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
         <>
             <DocumentTitle title={pageTitle} />
 
-            <Box className={classes.root}>
+            <Box className={classes.root} data-background={background}>
                 <Box className={classes.brandPanel}>
                     <Box className={classes.decorationTop} aria-hidden />
                     <Box className={classes.decorationBottom} aria-hidden />
