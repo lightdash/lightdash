@@ -1,14 +1,66 @@
 import {
     applyDimensionOverrides,
     getUnmetFilterRequirements,
+    isTileInSelectedTabs,
+    type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardFilters,
+    type DashboardTile,
     type UnmetFilterRequirement,
 } from '@lightdash/common';
+import { doesFilterApplyToTile } from '../../dashboardFilters/FilterConfiguration/utils';
 
 export type SchedulerFilterRequirements = {
     unmetRequirements: UnmetFilterRequirement[];
     filtersWithUnmetRequirements: DashboardFilterRule[];
+};
+
+/** The dashboard tiles and the fields each one can be filtered on. */
+export type SchedulerFilterableTiles = {
+    tiles: DashboardTile[];
+    tabUuids: string[];
+    filterableFieldsByTileUuid:
+        | Record<string, DashboardFilterableField[]>
+        | undefined;
+};
+
+/**
+ * Which tiles a delivery renders, so requirements on tabs it leaves out don't
+ * block it. `selectedTabs` is null for "all tabs".
+ */
+export type SchedulerTabScope = SchedulerFilterableTiles & {
+    selectedTabs: string[] | null;
+};
+
+/**
+ * Mirrors the dashboard's own tab scoping: a filter without `tileTargets`
+ * applies everywhere, otherwise it must reach a tile in the delivery. Deciding
+ * that needs each tile's filterable fields, so while those are missing nothing
+ * is scoped out.
+ */
+const getAppliesToDelivery = (
+    tabScope: SchedulerTabScope | undefined,
+): ((filter: DashboardFilterRule) => boolean) => {
+    if (!tabScope || tabScope.filterableFieldsByTileUuid === undefined) {
+        return () => true;
+    }
+
+    const { tiles, tabUuids, selectedTabs, filterableFieldsByTileUuid } =
+        tabScope;
+    const includesEveryTab =
+        selectedTabs === null ||
+        (selectedTabs.length === tabUuids.length &&
+            tabUuids.every((tabUuid) => selectedTabs.includes(tabUuid)));
+    if (includesEveryTab) {
+        return () => true;
+    }
+
+    return (filter) =>
+        tiles.some(
+            (tile) =>
+                isTileInSelectedTabs(tile, selectedTabs) &&
+                doesFilterApplyToTile(filter, tile, filterableFieldsByTileUuid),
+        );
 };
 
 /**
@@ -20,6 +72,7 @@ export type SchedulerFilterRequirements = {
 export const getSchedulerFilterRequirements = (
     savedDashboardFilters: DashboardFilters | undefined,
     schedulerFilters: DashboardFilterRule[] | undefined,
+    tabScope?: SchedulerTabScope,
 ): SchedulerFilterRequirements => {
     if (!savedDashboardFilters) {
         return { unmetRequirements: [], filtersWithUnmetRequirements: [] };
@@ -33,7 +86,13 @@ export const getSchedulerFilterRequirements = (
         ),
     };
 
-    const unmetRequirements = getUnmetFilterRequirements(effectiveFilters);
+    const appliesToDelivery = getAppliesToDelivery(tabScope);
+    const scopedFilters: DashboardFilters = {
+        ...effectiveFilters,
+        dimensions: effectiveFilters.dimensions.filter(appliesToDelivery),
+        metrics: effectiveFilters.metrics.filter(appliesToDelivery),
+    };
+    const unmetRequirements = getUnmetFilterRequirements(scopedFilters);
     const seenFilterIds = new Set<string>();
     const filtersWithUnmetRequirements = unmetRequirements
         .flatMap((requirement) =>
