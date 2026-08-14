@@ -1942,6 +1942,14 @@ export type DataAppEvent =
     | DataAppUploadedEvent
     | DataAppUploadRejectedEvent;
 
+export type AiWritebackEventSource =
+    | 'chat'
+    | 'slack'
+    | 'api'
+    | 'mcp'
+    | 'review_item'
+    | 'unknown';
+
 export type AiWritebackStartedEvent = BaseTrack & {
     event: 'ai_writeback.started';
     userId: string;
@@ -1953,6 +1961,7 @@ export type AiWritebackStartedEvent = BaseTrack & {
         owner: string;
         repo: string;
         workstream: AiWritebackWorkstream;
+        source: AiWritebackEventSource;
         // Whether this turn resumed an existing conversation (and its sandbox)
         // rather than starting a fresh one.
         isResume: boolean;
@@ -1970,6 +1979,7 @@ export type AiWritebackCompletedEvent = BaseTrack & {
         owner: string;
         repo: string;
         workstream: AiWritebackWorkstream;
+        source: AiWritebackEventSource;
         isResume: boolean;
         exitCode: number;
         // Whether the agent changed any files. When false no PR is opened.
@@ -2009,6 +2019,7 @@ export type AiWritebackFailedEvent = BaseTrack & {
         owner: string;
         repo: string;
         workstream: AiWritebackWorkstream;
+        source: AiWritebackEventSource;
         isResume: boolean;
         failureStage: AiWritebackFailureStage;
         errorMessage: string;
@@ -2043,6 +2054,7 @@ export type AiWritebackMergedEvent = BaseTrack & {
         // git-connected projects re-clone on compile, so others are skipped.
         compileScheduled: boolean;
         workstream: AiWritebackWorkstream;
+        source: AiWritebackEventSource;
     };
 };
 

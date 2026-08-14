@@ -443,6 +443,11 @@ const GITHUB_MCP_PAT_DISABLED_ERROR =
 const GITHUB_MCP_UNAVAILABLE_STATUS =
     'GitHub is not connected. An organization admin can install the Lightdash GitHub App from Organization settings → Integrations to reconnect.';
 
+export const getAiWritebackSourceForPrompt = (
+    prompt: SlackPrompt | AiWebAppPrompt,
+    source: AiWritebackSource | undefined,
+): AiWritebackSource => source ?? (isSlackPrompt(prompt) ? 'slack' : 'web');
+
 const isGithubMcpBearerServer = (
     server: Pick<AiMcpServer, 'url' | 'authType'>,
 ) => isGithubMcpServerUrl(server.url) && server.authType === 'bearer';
@@ -6129,6 +6134,7 @@ export class AiAgentService extends BaseService {
             onStepProgress,
             suppressWritebackPreview,
             isReviewRemediationWorkThread,
+            writebackSource,
             execution = { mode: 'standard' },
         }: {
             agentUuid: string;
@@ -6147,6 +6153,7 @@ export class AiAgentService extends BaseService {
             // Enables the work-thread-only editProjectContext tool so the agent
             // can open/change the project_context PR from this thread.
             isReviewRemediationWorkThread?: boolean;
+            writebackSource?: AiWritebackSource;
             execution?: GenerateAgentExecutionOptions;
         },
     ): Promise<string> {
@@ -6197,6 +6204,7 @@ export class AiAgentService extends BaseService {
                     onSlackStepProgress: onStepProgress,
                     suppressWritebackPreview,
                     isReviewRemediationWorkThread,
+                    writebackSource,
                     execution,
                 },
             );
@@ -8711,9 +8719,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
             suppressWritebackPreview?: boolean;
             onWarehouseQuery?: () => void | Promise<void>;
+            writebackSource?: AiWritebackSource;
         },
     ) {
         const { projectUuid, organizationUuid } = prompt;
+        const writebackSource = getAiWritebackSourceForPrompt(
+            prompt,
+            options?.writebackSource,
+        );
         const runtimeAgentSettings = await this.getAgentSettings(user, prompt);
         const sqlScope = await this.projectModel.getAgentSqlScope(projectUuid);
         const toolsRuntime = this.aiAgentToolsService.createRuntime({
@@ -8950,7 +8963,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const editDbtProject: EditDbtProjectFn = async (args) => {
             const writebackPrompt = args.prompt;
-            const source = isSlackPrompt(prompt) ? 'slack' : 'web';
 
             if (!args.progressId) {
                 throw new UnexpectedServerError(
@@ -8962,7 +8974,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     user,
                     projectUuid,
                     aiThreadUuid: prompt.threadUuid,
-                    source,
+                    source: writebackSource,
                     promptUuid: prompt.promptUuid,
                     toolCallId: args.progressId,
                 });
@@ -8976,7 +8988,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 isSlackPrompt: isSlackPrompt(prompt),
                 toolCallId: args.progressId,
                 writebackPrompt,
-                source,
+                source: writebackSource,
                 prUrl: args.prUrl,
                 startNewPullRequest: args.startNewPullRequest ?? null,
                 suppressWritebackPreview: options?.suppressWritebackPreview,
@@ -9025,7 +9037,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         startNewPullRequest: args.startNewPullRequest ?? false,
                         aiThreadUuid: prompt.threadUuid,
                         promptUuid: prompt.promptUuid,
-                        source: isSlackPrompt(prompt) ? 'slack' : 'web',
+                        source: writebackSource,
                         onProgress: editRepoProgressCallback,
                     }),
             );
@@ -9495,6 +9507,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             forceToolHints?: boolean;
             // Enables the work-thread-only editProjectContext tool.
             isReviewRemediationWorkThread?: boolean;
+            writebackSource?: AiWritebackSource;
             toolHints?: string[];
             onSlackStepProgress?: (
                 progress: string,
@@ -9538,6 +9551,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             suppressWritebackPreview?: boolean;
             forceToolHints?: boolean;
             isReviewRemediationWorkThread?: boolean;
+            writebackSource?: AiWritebackSource;
             toolHints?: string[];
             onSlackStepProgress?: (
                 progress: string,
@@ -9663,6 +9677,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     : undefined),
             runtimeOptions: options.runtimeOptions,
             suppressWritebackPreview: options.suppressWritebackPreview,
+            writebackSource: options.writebackSource,
             onWarehouseQuery:
                 responseExecution.mode === 'deep_research'
                     ? responseExecution.onWarehouseQuery
@@ -15908,6 +15923,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             agentUuid,
             threadUuid,
             autoApproveSql: true,
+            writebackSource: 'admin_review',
         });
     }
 
