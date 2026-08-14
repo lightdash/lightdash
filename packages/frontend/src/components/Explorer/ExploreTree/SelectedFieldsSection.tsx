@@ -45,8 +45,13 @@ export type SelectedField = {
     tableLabel: string | null;
     isDimension: boolean;
     onDeselect?: (fieldId: string, isDimension: boolean) => void;
-    /** Cross-query rows only expose the safe, source-aware deselect action. */
+    /** Hides every secondary action for contexts that only support deselect. */
     hideActions?: boolean;
+    /** Routes filter creation to the field's owning query. */
+    onAddFilter?: (field: FilterableField) => void;
+    isFiltered?: boolean;
+    /** Limits the overflow menu to filter and description actions. */
+    basicActionsOnly?: boolean;
 };
 
 type RenderedRow = SelectedField & { isExiting: boolean };
@@ -78,6 +83,9 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
         isExiting,
         hideActions,
         onDeselect: fieldOnDeselect,
+        onAddFilter: fieldOnAddFilter,
+        isFiltered: isFilteredOverride,
+        basicActionsOnly,
     } = row;
 
     const dispatch = useExplorerDispatch();
@@ -97,7 +105,7 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
         (a, b) => a === b,
     );
 
-    const isFiltered = isField(item) && isFieldFiltered;
+    const isFiltered = isFilteredOverride ?? (isField(item) && isFieldFiltered);
     const showFilterAction =
         !hideActions &&
         (isFiltered || isHover) &&
@@ -134,10 +142,16 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
     const handleFilterClick = useCallback(
         (e: React.MouseEvent<HTMLButtonElement>) => {
             track({ name: EventName.ADD_FILTER_CLICKED });
-            if (!isFiltered) addFilter(item as FilterableField, undefined);
+            if (!isFiltered) {
+                if (fieldOnAddFilter) {
+                    fieldOnAddFilter(item as FilterableField);
+                } else {
+                    addFilter(item as FilterableField, undefined);
+                }
+            }
             e.stopPropagation();
         },
-        [isFiltered, addFilter, item, track],
+        [isFiltered, fieldOnAddFilter, addFilter, item, track],
     );
 
     const onOpenDescriptionView = useCallback(() => {
@@ -184,6 +198,9 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
                         }
                     >
                         <ActionIcon
+                            aria-label={
+                                isFiltered ? 'Field is filtered' : 'Add filter'
+                            }
                             variant="subtle"
                             color="gray"
                             onClick={handleFilterClick}
@@ -204,17 +221,24 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
                     </Tooltip>
                 )}
                 {/* Mounted on hover only so the labels get the space at rest */}
-                {!hideActions && (isHover || isMenuOpen) && (
-                    <TreeSingleNodeActions
-                        item={item}
-                        isHovered={isHover}
-                        isSelected={false}
-                        isOpened={isMenuOpen}
-                        hasDescription={!!description}
-                        onViewDescription={onOpenDescriptionView}
-                        onMenuChange={onToggleMenu}
-                    />
-                )}
+                {!hideActions &&
+                    (!basicActionsOnly ||
+                        !!description ||
+                        (!isAdditionalMetric(item) &&
+                            isFilterableField(item))) &&
+                    (isHover || isMenuOpen) && (
+                        <TreeSingleNodeActions
+                            item={item}
+                            isHovered={isHover}
+                            isSelected={false}
+                            isOpened={isMenuOpen}
+                            hasDescription={!!description}
+                            onViewDescription={onOpenDescriptionView}
+                            onMenuChange={onToggleMenu}
+                            onAddFilter={fieldOnAddFilter}
+                            basicActionsOnly={basicActionsOnly}
+                        />
+                    )}
             </span>
         </UnstyledButton>
     );
