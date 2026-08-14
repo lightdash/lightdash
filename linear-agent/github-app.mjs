@@ -40,13 +40,14 @@ function refPath(branch) {
 }
 
 export class GithubApiError extends Error {
+
     constructor(status, body) {
-        const detail = JSON.stringify(body).slice(0, 2000);
-        super(`GitHub API error (${status}): ${detail}`);
+        super(`GitHub API error (${status})`);
         this.name = 'GithubApiError';
         this.status = status;
         this.body = body;
     }
+
 }
 
 export function decodeGithubPrivateKey(encoded) {
