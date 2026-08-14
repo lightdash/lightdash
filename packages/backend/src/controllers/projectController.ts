@@ -601,6 +601,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
                     projectUuid,
                     mergeQuery: body.mergeQuery,
                     pivotConfiguration: body.pivotConfiguration,
+                    csvLimit: body.csvLimit,
                     parameters: body.parameters,
                     context:
                         getContextFromHeader(req) ??

@@ -415,6 +415,8 @@ export const validateMergeQuery = (
 export type RunMergeQueryRequest = {
     mergeQuery: MergeQuery;
     pivotConfiguration?: PivotConfiguration;
+    /** Export row limit. Null means all rows within the organization's cell cap. */
+    csvLimit?: number | null;
     /**
      * Parameter values for every source query, one map for the whole merge —
      * two sides of one question should never disagree on a parameter.
@@ -483,6 +485,8 @@ export type ApiCompiledMergeQueryResults = {
     itemsMap: ItemsMap;
     /** Provenance of each field in `itemsMap`. */
     fieldOrigins: MergeFieldOrigins;
+    /** User parameters referenced by any source query. */
+    parameterReferences: string[];
     /**
      * Field id for each column the statement returns. Warehouse aliases are
      * short and positional so they cannot breach an identifier length limit;
@@ -527,7 +531,10 @@ export type MergeFieldOrigin =
           sourceFieldId: FieldId;
       }
     /** Shared by every source, so it descends from no single one. */
-    | { kind: 'joinKey' }
+    | {
+          kind: 'joinKey';
+          fieldIdBySourceId: Record<string, FieldId>;
+      }
     /** Computed over the merged result, so it descends from no source. */
     | { kind: 'tableCalculation' };
 

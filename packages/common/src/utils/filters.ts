@@ -586,6 +586,8 @@ export const createDashboardFilterRuleFromSqlColumn = ({
 type AddFilterRuleArgs = {
     filters: Filters;
     field: FilterableField;
+    /** Override the display field's id when it represents another source. */
+    targetFieldId?: string;
     value?: AnyType;
     timezone?: string;
     operator?: QuickFilterOperator;
@@ -594,6 +596,7 @@ type AddFilterRuleArgs = {
 export const addFilterRule = ({
     filters,
     field,
+    targetFieldId,
     value,
     timezone,
     operator,
@@ -608,6 +611,21 @@ export const addFilterRule = ({
         return 'metrics';
     })(field);
     const group = filters[groupKey];
+    const createdRule = createFilterRuleFromField(
+        field,
+        value,
+        timezone,
+        operator,
+    );
+    const rule = targetFieldId
+        ? {
+              ...createdRule,
+              target: {
+                  ...createdRule.target,
+                  fieldId: targetFieldId,
+              },
+          }
+        : createdRule;
     return {
         ...filters,
         [groupKey]: {
@@ -615,7 +633,7 @@ export const addFilterRule = ({
             ...group,
             [getFilterGroupItemsPropertyName(group)]: [
                 ...getItemsFromFilterGroup(group),
-                createFilterRuleFromField(field, value, timezone, operator),
+                rule,
             ],
         },
     };

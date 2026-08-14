@@ -1,10 +1,15 @@
 import {
+    derivePivotConfigurationFromChart,
+    isDimension,
+    MERGE_TABLE_NAME,
     type ApiCompiledMergeQueryResults,
     type ApiExecuteAsyncMetricQueryResults,
     type CompileMergeQueryRequest,
     type MergeQuery,
     type ParametersValuesMap,
+    type PivotConfiguration,
     type RunMergeQueryRequest,
+    type SavedChartDAO,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
 
@@ -29,12 +34,16 @@ export type MergeQueryRun = {
     errors: CompiledMergeQuery['errors'];
     /** The query to page results from, or null when the merge was refused. */
     started: ApiExecuteAsyncMetricQueryResults | null;
+    parameterReferences: string[];
+    fieldOrigins: ApiCompiledMergeQueryResults['fieldOrigins'];
 };
 
 const runMergeQuery = (
     projectUuid: string,
     mergeQuery: MergeQuery,
     parameters: ParametersValuesMap | undefined,
+    pivotConfiguration: PivotConfiguration | undefined,
+    csvLimit?: number | null,
 ) =>
     lightdashApi<ApiExecuteAsyncMetricQueryResults>({
         url: `/projects/${projectUuid}/mergeQuery/run`,
@@ -42,6 +51,8 @@ const runMergeQuery = (
         body: JSON.stringify({
             mergeQuery,
             parameters,
+            pivotConfiguration,
+            csvLimit,
         } satisfies RunMergeQueryRequest),
     });
 
@@ -58,6 +69,8 @@ export const executeMergeQuery = async (
     projectUuid: string,
     mergeQuery: MergeQuery,
     parameters?: ParametersValuesMap,
+    savedChart?: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>,
+    csvLimit?: number | null,
 ): Promise<MergeQueryRun> => {
     const compiled = await compileMergeQuery(
         projectUuid,
@@ -65,10 +78,45 @@ export const executeMergeQuery = async (
         parameters,
     );
     if (!compiled.sql) {
-        return { errors: compiled.errors, started: null };
+        return {
+            errors: compiled.errors,
+            started: null,
+            parameterReferences: compiled.parameterReferences,
+            fieldOrigins: compiled.fieldOrigins,
+        };
     }
+
+    const columnOrder = Object.values(compiled.fieldIdByColumn);
+    const dimensions = columnOrder.filter((fieldId) =>
+        isDimension(compiled.itemsMap[fieldId]),
+    );
+    const metricQuery = {
+        exploreName: MERGE_TABLE_NAME,
+        dimensions,
+        metrics: columnOrder.filter((fieldId) => !dimensions.includes(fieldId)),
+        filters: {},
+        sorts: [],
+        limit: mergeQuery.limit,
+        tableCalculations: [],
+    };
+    const pivotConfiguration = savedChart
+        ? derivePivotConfigurationFromChart(
+              savedChart,
+              metricQuery,
+              compiled.itemsMap,
+          )
+        : undefined;
+
     return {
         errors: [],
-        started: await runMergeQuery(projectUuid, mergeQuery, parameters),
+        parameterReferences: compiled.parameterReferences,
+        fieldOrigins: compiled.fieldOrigins,
+        started: await runMergeQuery(
+            projectUuid,
+            mergeQuery,
+            parameters,
+            pivotConfiguration,
+            csvLimit,
+        ),
     };
 };

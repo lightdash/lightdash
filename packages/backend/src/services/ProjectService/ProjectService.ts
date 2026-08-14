@@ -5224,6 +5224,7 @@ export class ProjectService extends BaseService {
                 fields: [],
                 itemsMap: {},
                 fieldOrigins: {},
+                parameterReferences: [],
                 fieldIdByColumn: {},
                 errors,
             };
@@ -5269,6 +5270,9 @@ export class ProjectService extends BaseService {
                 const missingParameters = Array.from(
                     compiled.missingParameterReferences,
                 );
+                const parameterReferences = Array.from(
+                    compiled.parameterReferences,
+                );
 
                 const joinKeyColumnByName = Object.fromEntries(
                     mergeQuery.joinKey.map((part) => [
@@ -5294,6 +5298,7 @@ export class ProjectService extends BaseService {
                     joinKeyColumnByName,
                     valueColumns,
                     missingParameters,
+                    parameterReferences,
                     originBySourceColumn: Object.fromEntries(
                         valueColumns.map((column) => [
                             column,
@@ -5318,6 +5323,9 @@ export class ProjectService extends BaseService {
                       },
                   ],
         );
+        const parameterReferences = Array.from(
+            new Set(sources.flatMap((source) => source.parameterReferences)),
+        );
         if (parameterErrors.length > 0) {
             return {
                 sql: null,
@@ -5328,6 +5336,7 @@ export class ProjectService extends BaseService {
                 fields: [],
                 itemsMap: {},
                 fieldOrigins: {},
+                parameterReferences,
                 fieldIdByColumn: {},
                 errors: parameterErrors,
             };
@@ -5425,6 +5434,7 @@ export class ProjectService extends BaseService {
                 fields: [],
                 itemsMap: {},
                 fieldOrigins: {},
+                parameterReferences,
                 fieldIdByColumn: {},
                 errors: referenceErrors,
             };
@@ -5601,7 +5611,10 @@ export class ProjectService extends BaseService {
                             type: DimensionType.STRING,
                         },
                     }),
-                    origin: { kind: 'joinKey' },
+                    origin: {
+                        kind: 'joinKey',
+                        fieldIdBySourceId: part.fieldIdBySourceId,
+                    },
                 };
             },
         );
@@ -5759,6 +5772,7 @@ export class ProjectService extends BaseService {
                 fields: [],
                 itemsMap: {},
                 fieldOrigins: {},
+                parameterReferences,
                 fieldIdByColumn: {},
                 errors: typeErrors,
             };
@@ -5781,6 +5795,7 @@ export class ProjectService extends BaseService {
             fields: [...joinKeyFields, ...valueFields, ...calculationFields],
             itemsMap,
             fieldOrigins,
+            parameterReferences,
             fieldIdByColumn,
             errors: [],
         };

@@ -176,6 +176,7 @@ export type ExecuteAsyncMergeQueryArgs = CommonAsyncQueryArgs & {
     mergeQuery: MergeQuery;
     /** Standard pivot stage over the merged rows. */
     pivotConfiguration?: PivotConfiguration;
+    csvLimit?: number | null;
 };
 
 export type ExecuteAsyncDashboardSqlChartCommonArgs = CommonAsyncQueryArgs & {

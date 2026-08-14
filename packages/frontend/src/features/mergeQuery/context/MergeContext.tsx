@@ -1,11 +1,13 @@
 import {
     MergeJoinType,
+    type ApiCompiledMergeQueryResults,
     type ApiError,
     type ApiExecuteAsyncMetricQueryResults,
     type MergeQuery,
     type Filters,
     type MergeQueryError,
     type ParametersValuesMap,
+    type SavedChartDAO,
     type SavedMergeQuery,
 } from '@lightdash/common';
 import {
@@ -98,12 +100,26 @@ export const MergeProvider: FC<
     );
     const [filtersB, setFiltersB] = useState<Filters>(restored?.filtersB ?? {});
     const activeRun = useRef(0);
+    const lastRun = useRef<{
+        mergeQuery: MergeQuery;
+        parameters?: ParametersValuesMap;
+        savedChart?: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>;
+    } | null>(null);
     const [runState, setRunState] = useState<{
         isRunning: boolean;
         errors: MergeQueryError[];
         started: ApiExecuteAsyncMetricQueryResults | null;
         error: ApiError | null;
-    }>({ isRunning: false, errors: [], started: null, error: null });
+        parameterReferences: string[];
+        fieldOrigins: ApiCompiledMergeQueryResults['fieldOrigins'];
+    }>({
+        isRunning: false,
+        errors: [],
+        started: null,
+        error: null,
+        parameterReferences: [],
+        fieldOrigins: {},
+    });
 
     const addQuery = useCallback(() => {
         setIsMerging(true);
@@ -122,6 +138,8 @@ export const MergeProvider: FC<
             errors: [],
             started: null,
             error: null,
+            parameterReferences: [],
+            fieldOrigins: {},
         });
     }, []);
 
@@ -223,17 +241,24 @@ export const MergeProvider: FC<
     );
 
     const run = useCallback(
-        (mergeQuery: MergeQuery, parameters?: ParametersValuesMap) => {
+        (
+            mergeQuery: MergeQuery,
+            parameters?: ParametersValuesMap,
+            savedChart?: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>,
+        ) => {
             if (!projectUuid) return;
+            lastRun.current = { mergeQuery, parameters, savedChart };
             const runId = activeRun.current + 1;
             activeRun.current = runId;
-            setRunState({
+            setRunState((current) => ({
                 isRunning: true,
                 errors: [],
                 started: null,
                 error: null,
-            });
-            executeMergeQuery(projectUuid, mergeQuery, parameters)
+                parameterReferences: current.parameterReferences,
+                fieldOrigins: current.fieldOrigins,
+            }));
+            executeMergeQuery(projectUuid, mergeQuery, parameters, savedChart)
                 .then((result) => {
                     if (activeRun.current !== runId) return;
                     setRunState({
@@ -241,17 +266,44 @@ export const MergeProvider: FC<
                         errors: result.errors,
                         started: result.started,
                         error: null,
+                        parameterReferences: result.parameterReferences,
+                        fieldOrigins: result.fieldOrigins,
                     });
                 })
                 .catch((error: ApiError) => {
                     if (activeRun.current !== runId) return;
-                    setRunState({
+                    setRunState((current) => ({
                         isRunning: false,
                         errors: [],
                         started: null,
                         error,
-                    });
+                        parameterReferences: current.parameterReferences,
+                        fieldOrigins: current.fieldOrigins,
+                    }));
                 });
+        },
+        [projectUuid],
+    );
+
+    const getDownloadQueryUuid = useCallback(
+        async (limit: number | null, exportPivotedResults = false) => {
+            if (!projectUuid || !lastRun.current) {
+                throw new Error('Missing merged query');
+            }
+            const { mergeQuery, parameters, savedChart } = lastRun.current;
+            const result = await executeMergeQuery(
+                projectUuid,
+                mergeQuery,
+                parameters,
+                exportPivotedResults ? savedChart : undefined,
+                limit,
+            );
+            if (!result.started) {
+                throw new Error(
+                    result.errors.map((error) => error.message).join(' '),
+                );
+            }
+            return result.started.queryUuid;
         },
         [projectUuid],
     );
@@ -273,10 +325,11 @@ export const MergeProvider: FC<
                           ...started.metricQuery.dimensions,
                           ...started.metricQuery.metrics,
                       ],
+                      fieldOrigins: runState.fieldOrigins,
                       results,
                   }
                 : null,
-        [started, results],
+        [started, results, runState.fieldOrigins],
     );
 
     const value = useMemo(
@@ -285,9 +338,11 @@ export const MergeProvider: FC<
             readOnly,
             wasRestored: restored !== null,
             run,
+            getDownloadQueryUuid,
             isRunning: runState.isRunning,
             runErrors: runState.errors,
             runError: runState.error,
+            parameterReferences: runState.parameterReferences,
             mergeResults,
             focus,
             queryB,
@@ -310,9 +365,11 @@ export const MergeProvider: FC<
             readOnly,
             restored,
             run,
+            getDownloadQueryUuid,
             runState.isRunning,
             runState.errors,
             runState.error,
+            runState.parameterReferences,
             mergeResults,
             focus,
             queryB,

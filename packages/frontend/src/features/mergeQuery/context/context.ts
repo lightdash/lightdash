@@ -3,10 +3,12 @@ import {
     type Filters,
     type ItemsMap,
     type MergeJoinType,
+    type MergeFieldOrigins,
     type MergeQuery,
     type MergeQueryError,
     type MetricQuery,
     type ParametersValuesMap,
+    type SavedChartDAO,
 } from '@lightdash/common';
 import { createContext } from 'react';
 import { type InfiniteQueryResults } from '../../../hooks/useQueryResults';
@@ -42,6 +44,7 @@ export type MergeResults = {
     metricQuery: MetricQuery;
     /** Field ids in the order the merged statement returns them. */
     columnOrder: string[];
+    fieldOrigins: MergeFieldOrigins;
     results: InfiniteQueryResults;
 };
 
@@ -56,12 +59,22 @@ export type MergeContextValue = {
      */
     wasRestored: boolean;
     /** Runs a merge, replacing any run already on screen. */
-    run: (mergeQuery: MergeQuery, parameters?: ParametersValuesMap) => void;
+    run: (
+        mergeQuery: MergeQuery,
+        parameters?: ParametersValuesMap,
+        savedChart?: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>,
+    ) => void;
+    getDownloadQueryUuid: (
+        limit: number | null,
+        exportPivotedResults?: boolean,
+    ) => Promise<string>;
     isRunning: boolean;
     /** Why a merge was refused. Empty when it compiled. */
     runErrors: MergeQueryError[];
     /** Transport or server failure of the last run, if any. */
     runError: ApiError | null;
+    /** User parameters referenced by either source query. */
+    parameterReferences: string[];
     /** The merged run, or null when none has succeeded yet. */
     mergeResults: MergeResults | null;
     focus: MergeFocus;

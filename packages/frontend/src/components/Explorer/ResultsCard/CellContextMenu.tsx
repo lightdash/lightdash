@@ -15,6 +15,7 @@ import { IconCopy, IconStack } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
 import { useCallback, useMemo, type FC } from 'react';
 import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
+import { useMergeQuickFilter } from '../../../features/mergeQuery/hooks/useMergeQuickFilter';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { Can } from '../../../providers/Ability';
@@ -39,7 +40,9 @@ const CellContextMenu: FC<
         onExpand: (name: string, data: object) => void;
     }
 > = ({ cell, isEditMode, itemsMap, onViewJsonCell }) => {
-    const isMerged = !!useMergeSafe()?.mergeResults;
+    const merge = useMergeSafe();
+    const isMerged = !!merge?.mergeResults;
+    const mergeQuickFilter = useMergeQuickFilter();
     const { openUnderlyingDataModal, metricQuery } =
         useMetricQueryDataContext();
     const { track } = useTracking();
@@ -143,9 +146,20 @@ const CellContextMenu: FC<
                     projectUuid: projectUuid,
                 })}
             >
-                {isEditMode && item && isFilterableField(item) && (
-                    <QuickFilterMenuItems item={item} value={value} />
-                )}
+                {isEditMode &&
+                    item &&
+                    isFilterableField(item) &&
+                    (!isMerged || mergeQuickFilter.canFilter(item)) && (
+                        <QuickFilterMenuItems
+                            item={item}
+                            value={value}
+                            onAddFilter={
+                                isMerged
+                                    ? mergeQuickFilter.addFilter
+                                    : undefined
+                            }
+                        />
+                    )}
 
                 <DrillDownMenuItem
                     item={item}

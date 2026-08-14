@@ -20,6 +20,7 @@ import {
     selectMetricQuery,
     selectParameters,
     selectTableName,
+    selectUnsavedChartVersion,
     useExplorerSelector,
 } from '../../explorer/store';
 import { EMPTY_MERGE, JOIN_KEY, SOURCE_A, SOURCE_B } from '../constants';
@@ -39,6 +40,7 @@ export const useMergeSetup = () => {
     const tableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const parameters = useExplorerSelector(selectParameters);
+    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
     const mergeContext = useMergeSafe();
     const { isMerging, queryB, joinParts, joinType, filtersB } =
         mergeContext ?? EMPTY_MERGE;
@@ -378,8 +380,8 @@ export const useMergeSetup = () => {
 
     const handleRun = useCallback(() => {
         if (mergeFlag?.enabled === true && mergeQuery)
-            run?.(mergeQuery, parameters);
-    }, [mergeFlag?.enabled, mergeQuery, run, parameters]);
+            run?.(mergeQuery, parameters, unsavedChartVersion);
+    }, [mergeFlag?.enabled, mergeQuery, run, parameters, unsavedChartVersion]);
     return {
         // state passed through, so callers need only this hook
         isMerging,
