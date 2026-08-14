@@ -60,41 +60,22 @@ export const QueryBTree: FC = () => {
     return (
         <Stack gap="xs" h="100%" mih={0}>
             <Group justify="space-between" gap="xs" wrap="nowrap">
-                <Box miw={0}>
-                    <Text size="xs" c="dimmed">
-                        Table
-                    </Text>
-                    <Text size="sm" fw={600} truncate>
-                        {explore?.label ?? queryB.exploreName}
-                    </Text>
-                </Box>
+                <Text size="xs" c={guidance ? 'blue.7' : 'dimmed'} truncate>
+                    {guidance ??
+                        `${queryB.dimensions.length} dimension${
+                            queryB.dimensions.length === 1 ? '' : 's'
+                        } · ${queryB.metrics.length} metric${
+                            queryB.metrics.length === 1 ? '' : 's'
+                        }`}
+                </Text>
                 <Button
                     variant="subtle"
                     size="compact-xs"
                     onClick={() => setIsChoosingExplore(true)}
                 >
-                    Change
+                    Change table
                 </Button>
             </Group>
-
-            {queryB.exploreName && (
-                <>
-                    <Group justify="space-between" gap="xs" wrap="nowrap">
-                        <Text size="xs" c="dimmed">
-                            {queryB.dimensions.length + queryB.metrics.length}{' '}
-                            selected · {queryB.dimensions.length} dimension
-                            {queryB.dimensions.length === 1 ? '' : 's'} ·{' '}
-                            {queryB.metrics.length} metric
-                            {queryB.metrics.length === 1 ? '' : 's'}
-                        </Text>
-                        {guidance && (
-                            <Text size="xs" c="blue.7" ta="right">
-                                {guidance}
-                            </Text>
-                        )}
-                    </Group>
-                </>
-            )}
 
             {queryB.exploreName && isInitialLoading && <LoadingSkeleton />}
 
