@@ -1,3 +1,10 @@
+## [1.157.3](https://github.com/lightdash/lightdash/compare/1.157.2...1.157.3) (2026-08-14)
+
+
+### Bug Fixes
+
+* keep Sentry browser parents out of OTLP traces ([#27398](https://github.com/lightdash/lightdash/issues/27398)) ([6fb59cc](https://github.com/lightdash/lightdash/commit/6fb59cc0942ed30a2541a8f92e6d18ee9b2a960a))
+
 ## [1.157.2](https://github.com/lightdash/lightdash/compare/1.157.1...1.157.2) (2026-08-14)
 
 
