@@ -1,3 +1,10 @@
+## [1.158.2](https://github.com/lightdash/lightdash/compare/1.158.1...1.158.2) (2026-08-14)
+
+
+### Bug Fixes
+
+* **coding-agent:** match near-miss filenames in the commit denylist ([#27408](https://github.com/lightdash/lightdash/issues/27408)) ([1764080](https://github.com/lightdash/lightdash/commit/1764080a8417954c7cfa72355ef61e34981e3c64))
+
 ## [1.158.1](https://github.com/lightdash/lightdash/compare/1.158.0...1.158.1) (2026-08-14)
 
 
