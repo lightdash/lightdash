@@ -149,6 +149,37 @@ describe('SqlQueryBuilder class', () => {
                 UNWRAPPED_FROM_SUBQUERY_WITH_COMMENTS_SQL,
             );
         });
+
+        it('should hoist a parameterized script prelude before filtering', () => {
+            const queryBuilder = new SqlQueryBuilder(
+                {
+                    referenceMap: SIMPLE_REFERENCE_MAP,
+                    select: ['test_field'],
+                    from: {
+                        name: 'subquery',
+                        sql: 'DECLARE suffix STRING DEFAULT ${ld.parameters.suffix}; SELECT test_field FROM source_table',
+                    },
+                    filters: {
+                        id: 'filter_group_1',
+                        and: [SIMPLE_FILTER_RULE],
+                    },
+                    parameters: { suffix: 'active' },
+                    limit: undefined,
+                },
+                DEFAULT_CONFIG,
+            );
+
+            const { sql, parameterReferences, usedParameters } =
+                queryBuilder.getSqlAndReferences();
+
+            expect(sql).toMatch(/^DECLARE suffix STRING DEFAULT 'active';\n/);
+            expect(sql).not.toContain('(DECLARE');
+            expect(sql).toContain(
+                'FROM (\nSELECT test_field FROM source_table\n) AS "subquery"',
+            );
+            expect(parameterReferences).toEqual(['suffix']);
+            expect(usedParameters).toEqual({ suffix: 'active' });
+        });
     });
 
     // toSql tests have been moved to the 'SQL generation' section

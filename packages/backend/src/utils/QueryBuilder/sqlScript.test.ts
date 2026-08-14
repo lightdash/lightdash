@@ -63,6 +63,55 @@ describe('parseSqlScript', () => {
         });
     });
 
+    test.each([
+        {
+            name: 'tuple assignment without whitespace after SET',
+            sql: 'SET(x, y) = (1, 2);\nSELECT x, y;',
+            expectedPrelude: 'SET(x, y) = (1, 2);',
+            expectedSql: 'SELECT x, y',
+        },
+        {
+            name: 'a comment immediately after DECLARE',
+            sql: 'DECLARE/* type note */ x INT64 DEFAULT 1;\nSELECT x;',
+            expectedPrelude: 'DECLARE/* type note */ x INT64 DEFAULT 1;',
+            expectedSql: 'SELECT x',
+        },
+    ])('recognizes $name', ({ sql, expectedPrelude, expectedSql }) => {
+        expect(parseSqlScript(sql)).toEqual({
+            kind: 'hoistable',
+            prelude: expectedPrelude,
+            sql: expectedSql,
+        });
+    });
+
+    test.each([
+        {
+            name: 'before the first declaration',
+            sql: '-- setup\nDECLARE x INT64 DEFAULT 1;\nSELECT x;',
+            expectedPrelude: '-- setup\nDECLARE x INT64 DEFAULT 1;',
+            expectedSql: 'SELECT x',
+        },
+        {
+            name: 'between scripting statements',
+            sql: 'DECLARE x INT64 DEFAULT 1;\n-- update\nSET x = 2;\nSELECT x;',
+            expectedPrelude:
+                'DECLARE x INT64 DEFAULT 1;\n-- update\nSET x = 2;',
+            expectedSql: 'SELECT x',
+        },
+        {
+            name: 'after the final query',
+            sql: 'DECLARE x INT64 DEFAULT 1;\nSELECT x;\n-- done',
+            expectedPrelude: 'DECLARE x INT64 DEFAULT 1;',
+            expectedSql: 'SELECT x\n-- done',
+        },
+    ])('preserves comments $name', ({ sql, expectedPrelude, expectedSql }) => {
+        expect(parseSqlScript(sql)).toEqual({
+            kind: 'hoistable',
+            prelude: expectedPrelude,
+            sql: expectedSql,
+        });
+    });
+
     test('reports a script with a leading statement that cannot be hoisted', () => {
         const sql = [
             'DECLARE x INT64 DEFAULT 1;',

@@ -1,5 +1,4 @@
 import {
-    assertUnreachable,
     convertItemTypeToDimensionType,
     DimensionType,
     FilterOperator,
@@ -30,7 +29,7 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
-import { parseSqlScript } from './sqlScript';
+import { prepareSqlForWrapping } from './sqlScript';
 import {
     applyLimitToSqlQuery,
     sortDayOfWeekName,
@@ -90,23 +89,9 @@ export class PivotQueryBuilder {
         limit?: number,
         itemsMap?: ItemsMap,
     ) {
-        const script = parseSqlScript(sql);
-        switch (script.kind) {
-            case 'statement':
-                this.sql = script.sql;
-                this.scriptPrelude = null;
-                break;
-            case 'hoistable':
-                this.sql = script.sql;
-                this.scriptPrelude = script.prelude;
-                break;
-            case 'unhoistable':
-                throw new ParameterError(
-                    'Charts can only be generated from SQL where every statement before the final one is a DECLARE or SET statement. Remove the other statements, or view the results as a table instead.',
-                );
-            default:
-                assertUnreachable(script, 'Unknown SQL script kind');
-        }
+        const script = prepareSqlForWrapping(sql);
+        this.sql = script.sql;
+        this.scriptPrelude = script.prelude;
         this.pivotConfiguration = pivotConfiguration;
         this.limit = limit;
         this.warehouseSqlBuilder = warehouseSqlBuilder;

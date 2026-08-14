@@ -101,6 +101,50 @@ describe('SqlQueryComposer', () => {
         );
     });
 
+    it('hoists scripting statements before applying dashboard filters', () => {
+        const dashboardFilters: DashboardFilters = {
+            dimensions: [
+                {
+                    id: 'filter-category',
+                    label: undefined,
+                    operator: FilterOperator.EQUALS,
+                    target: {
+                        fieldId: 'category',
+                        tableName: SQL_QUERY_MOCK_EXPLORER_NAME,
+                        isSqlColumn: true,
+                        fallbackType: DimensionType.STRING,
+                    },
+                    values: ['hardware'],
+                    tileTargets: {
+                        tile_1: {
+                            fieldId: 'category',
+                            tableName: SQL_QUERY_MOCK_EXPLORER_NAME,
+                            isSqlColumn: true,
+                            fallbackType: DimensionType.STRING,
+                        },
+                    },
+                },
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const composer = new SqlQueryComposer({
+            ...baseArgs,
+            userSql: `DECLARE lookback_days INT64 DEFAULT 30;\n${USER_SQL} WHERE days > lookback_days;`,
+            dashboardFilters,
+            tileUuid: 'tile_1',
+            pivotConfiguration: PIVOT_CONFIGURATION,
+        });
+
+        const sql = composer.getSql({ columnLimit: 100 });
+
+        expect(
+            sql.startsWith('DECLARE lookback_days INT64 DEFAULT 30;\nWITH'),
+        ).toBe(true);
+        expect(sql).not.toContain('(DECLARE');
+        expect(sql).toContain('("category") IN (\'hardware\')');
+    });
+
     it('escapes active quote characters in raw SQL chart column references', () => {
         const dashboardFilters: DashboardFilters = {
             dimensions: [
