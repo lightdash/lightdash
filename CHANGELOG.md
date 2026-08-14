@@ -1,3 +1,10 @@
+## [1.160.2](https://github.com/lightdash/lightdash/compare/1.160.1...1.160.2) (2026-08-14)
+
+
+### Bug Fixes
+
+* **scheduler:** scope required filters to delivered tabs ([#27411](https://github.com/lightdash/lightdash/issues/27411)) ([1182507](https://github.com/lightdash/lightdash/commit/1182507dc98776017cb6b075c9e1054e48b3f93c)), closes [/linear.app/lightdash/issue/PROD-10104/scheduled-deliveries-cant-create-a-delivery-for-a-single-tab-unless#agent-session-b8ee3b90](https://github.com//linear.app/lightdash/issue/PROD-10104/scheduled-deliveries-cant-create-a-delivery-for-a-single-tab-unless/issues/agent-session-b8ee3b90)
+
 ## [1.160.1](https://github.com/lightdash/lightdash/compare/1.160.0...1.160.1) (2026-08-14)
 
 
