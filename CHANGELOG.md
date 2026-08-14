@@ -1,3 +1,10 @@
+## [1.157.4](https://github.com/lightdash/lightdash/compare/1.157.3...1.157.4) (2026-08-14)
+
+
+### Bug Fixes
+
+* **ai-writeback:** cap repo-context injection, let the agent explore instead ([#27400](https://github.com/lightdash/lightdash/issues/27400)) ([522cf4c](https://github.com/lightdash/lightdash/commit/522cf4ce38b92c9663e38510f7839d70a0b9c0ea))
+
 ## [1.157.3](https://github.com/lightdash/lightdash/compare/1.157.2...1.157.3) (2026-08-14)
 
 
