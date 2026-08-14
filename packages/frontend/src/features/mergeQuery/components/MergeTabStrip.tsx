@@ -43,19 +43,23 @@ export const MergeTabStrip: FC = () => {
     const collide = merge.isMerging && labelA === labelB;
 
     return (
-        <Box className={styles.tabs}>
-            <UnstyledButton
-                className={styles.tab}
-                data-active={!merge.isMerging || merge.focus === 'a'}
-                onClick={() => {
-                    if (merge.isMerging) merge.setFocus('a');
-                }}
-            >
-                <Box component="span" className={styles.dot} data-side="a" />
-                <Text span size="sm" fw={600} truncate>
-                    {collide ? `${labelA} (A)` : labelA}
-                </Text>
-            </UnstyledButton>
+        <Box className={styles.tabs} data-solo={!merge.isMerging}>
+            {merge.isMerging && (
+                <UnstyledButton
+                    className={styles.tab}
+                    data-active={merge.focus === 'a'}
+                    onClick={() => merge.setFocus('a')}
+                >
+                    <Box
+                        component="span"
+                        className={styles.dot}
+                        data-side="a"
+                    />
+                    <Text span size="sm" fw={600} truncate>
+                        {collide ? `${labelA} (A)` : labelA}
+                    </Text>
+                </UnstyledButton>
+            )}
 
             {merge.isMerging ? (
                 <UnstyledButton
