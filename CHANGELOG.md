@@ -1,3 +1,10 @@
+## [1.157.6](https://github.com/lightdash/lightdash/compare/1.157.5...1.157.6) (2026-08-14)
+
+
+### Bug Fixes
+
+* prevent duplicate project creation from a second "Test & save" ([#26681](https://github.com/lightdash/lightdash/issues/26681)) ([24026bf](https://github.com/lightdash/lightdash/commit/24026bfbecf5c7d4849c029cceb1a4e5366c540e))
+
 ## [1.157.5](https://github.com/lightdash/lightdash/compare/1.157.4...1.157.5) (2026-08-14)
 
 
