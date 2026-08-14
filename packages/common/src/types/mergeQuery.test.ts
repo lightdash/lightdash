@@ -336,46 +336,6 @@ describe('getUnaccountedDimensions', () => {
 });
 
 describe('saved merge query schemas', () => {
-    it('upgrades a version 1 payload in memory', () => {
-        const secondQuery = metricQuery(
-            'payments',
-            ['payments_month'],
-            ['payments_total'],
-        );
-
-        expect(
-            parseSavedMergeQuery(1, {
-                secondQuery: { metricQuery: secondQuery },
-                joinKey: [
-                    {
-                        name: 'month',
-                        chartFieldId: 'orders_month',
-                        secondFieldId: 'payments_month',
-                    },
-                ],
-                joinType: MergeJoinType.LEFT,
-                tableCalculations: [],
-            }),
-        ).toEqual({
-            primarySourceId: 'chart',
-            sources: [
-                { id: 'chart', kind: 'chart' },
-                { id: 'second', kind: 'query', metricQuery: secondQuery },
-            ],
-            joinKey: [
-                {
-                    name: 'month',
-                    fieldIdBySourceId: {
-                        chart: 'orders_month',
-                        second: 'payments_month',
-                    },
-                },
-            ],
-            joinType: MergeJoinType.LEFT,
-            tableCalculations: [],
-        });
-    });
-
     it('round-trips every source and key in a version 2 payload', () => {
         const saved = {
             primarySourceId: 'payments',

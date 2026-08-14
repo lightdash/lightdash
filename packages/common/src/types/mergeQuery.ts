@@ -573,23 +573,6 @@ export type SavedMergeQuery = {
     tableCalculations: MergeTableCalculation[];
 };
 
-type SavedMergeQueryV1 = {
-    secondQuery: {
-        metricQuery: MetricQuery;
-    };
-    joinKey: Array<{
-        name: string;
-        chartFieldId: FieldId;
-        secondFieldId: FieldId;
-    }>;
-    joinType: MergeJoinType;
-    tableCalculations: MergeTableCalculation[];
-};
-
-const SAVED_MERGE_QUERY_SCHEMA_VERSION_V1 = 1;
-const MERGE_CHART_SOURCE_ID_V1 = 'chart';
-const MERGE_SECOND_SOURCE_ID_V1 = 'second';
-
 /**
  * Rebuilds a runnable merge from a chart's own query and its stored merge.
  */
@@ -624,61 +607,15 @@ const parseJoinType = (value: unknown): MergeJoinType =>
         ? (value as MergeJoinType)
         : MergeJoinType.FULL;
 
-const parseSavedMergeQueryV1 = (value: unknown): SavedMergeQuery | null => {
-    if (value === null || typeof value !== 'object') return null;
-    const candidate = value as Partial<SavedMergeQueryV1>;
-    const metricQuery = candidate.secondQuery?.metricQuery;
-
-    if (!metricQuery || typeof metricQuery.exploreName !== 'string') {
-        return null;
-    }
-    if (!Array.isArray(candidate.joinKey) || candidate.joinKey.length === 0) {
-        return null;
-    }
-    const validJoinKey = candidate.joinKey.every(
-        (part) =>
-            typeof part?.name === 'string' &&
-            typeof part.chartFieldId === 'string' &&
-            typeof part.secondFieldId === 'string',
-    );
-    if (!validJoinKey) return null;
-
-    return {
-        primarySourceId: MERGE_CHART_SOURCE_ID_V1,
-        sources: [
-            { id: MERGE_CHART_SOURCE_ID_V1, kind: 'chart' },
-            {
-                id: MERGE_SECOND_SOURCE_ID_V1,
-                kind: 'query',
-                metricQuery,
-            },
-        ],
-        joinKey: candidate.joinKey.map((part) => ({
-            name: part.name,
-            fieldIdBySourceId: {
-                [MERGE_CHART_SOURCE_ID_V1]: part.chartFieldId,
-                [MERGE_SECOND_SOURCE_ID_V1]: part.secondFieldId,
-            },
-        })),
-        joinType: parseJoinType(candidate.joinType),
-        tableCalculations: Array.isArray(candidate.tableCalculations)
-            ? candidate.tableCalculations
-            : [],
-    };
-};
-
 /**
- * Reads a stored merge back, upgrading known older shapes in memory. Anything
- * invalid or from an unknown future version leaves the chart working without
- * its merge rather than breaking the chart entirely.
+ * Reads a stored merge back, returning null for anything that does not hold
+ * together. An unknown future version leaves the chart working without its
+ * merge rather than breaking the chart entirely.
  */
 export const parseSavedMergeQuery = (
     schemaVersion: number,
     value: unknown,
 ): SavedMergeQuery | null => {
-    if (schemaVersion === SAVED_MERGE_QUERY_SCHEMA_VERSION_V1) {
-        return parseSavedMergeQueryV1(value);
-    }
     if (schemaVersion !== SAVED_MERGE_QUERY_SCHEMA_VERSION) return null;
     if (value === null || typeof value !== 'object') return null;
     const candidate = value as Partial<SavedMergeQuery>;
