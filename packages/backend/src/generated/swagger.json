@@ -7766,6 +7766,65 @@
                 ],
                 "type": "object"
             },
+            "SavedMergeQuerySource": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "kind": {
+                                "type": "string",
+                                "enum": ["chart"],
+                                "nullable": false
+                            },
+                            "id": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["kind", "id"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "metricQuery": {
+                                "$ref": "#/components/schemas/MetricQuery"
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": ["query"],
+                                "nullable": false
+                            },
+                            "id": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["metricQuery", "kind", "id"],
+                        "type": "object"
+                    }
+                ],
+                "description": "A persisted merge source.\n\nThe chart source is a reference: its metric query already lives on the chart\nversion. Every additional source owns its query. This keeps one source of\ntruth while allowing more sources without adding `thirdQuery`, `fourthQuery`,\nand so on."
+            },
+            "Record_string.FieldId_": {
+                "properties": {},
+                "additionalProperties": {
+                    "type": "string"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "MergeJoinKeyPart": {
+                "properties": {
+                    "fieldIdBySourceId": {
+                        "$ref": "#/components/schemas/Record_string.FieldId_",
+                        "description": "The field each source joins on. Every source must have an entry."
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Column name this key part takes in the merged result."
+                    }
+                },
+                "required": ["fieldIdBySourceId", "name"],
+                "type": "object",
+                "description": "One column of the join key. Sources name the same real-world key differently\n(`orders.order_date` vs `users.created_date`), so the mapping is explicit per\nsource rather than positional."
+            },
             "MergeJoinType": {
                 "description": "How unmatched keys survive the merge. Mirrors the SQL join it compiles to.",
                 "enum": ["full", "left", "inner"],
@@ -7800,46 +7859,30 @@
                     },
                     "joinKey": {
                         "items": {
-                            "properties": {
-                                "secondFieldId": {
-                                    "$ref": "#/components/schemas/FieldId",
-                                    "description": "Field in the second query."
-                                },
-                                "chartFieldId": {
-                                    "$ref": "#/components/schemas/FieldId",
-                                    "description": "Field in the chart's own query."
-                                },
-                                "name": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": [
-                                "secondFieldId",
-                                "chartFieldId",
-                                "name"
-                            ],
-                            "type": "object"
+                            "$ref": "#/components/schemas/MergeJoinKeyPart"
                         },
                         "type": "array"
                     },
-                    "secondQuery": {
-                        "properties": {
-                            "metricQuery": {
-                                "$ref": "#/components/schemas/MetricQuery"
-                            }
+                    "sources": {
+                        "items": {
+                            "$ref": "#/components/schemas/SavedMergeQuerySource"
                         },
-                        "required": ["metricQuery"],
-                        "type": "object"
+                        "type": "array"
+                    },
+                    "primarySourceId": {
+                        "type": "string",
+                        "description": "Source whose rows a LEFT merge preserves."
                     }
                 },
                 "required": [
                     "tableCalculations",
                     "joinType",
                     "joinKey",
-                    "secondQuery"
+                    "sources",
+                    "primarySourceId"
                 ],
                 "type": "object",
-                "description": "How a merge is stored against a chart version.\n\nDeliberately not the runtime `MergeQuery`. The chart version *is* the first\nquery, so storing it again would create two sources of truth that drift the\nnext time the chart is edited. Only the second query and the relationship\nare kept, and the two sides of each key part are named rather than addressed\nby a source id that means nothing outside a single request."
+                "description": "Canonical, scalable representation of a merge stored on a chart version."
             },
             "ColorPaletteSource": {
                 "anyOf": [
@@ -42416,14 +42459,6 @@
                 "required": ["rows", "fields"],
                 "type": "object"
             },
-            "Record_string.FieldId_": {
-                "properties": {},
-                "additionalProperties": {
-                    "type": "string"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
             "MergeFieldOrigin": {
                 "anyOf": [
                     {
@@ -42732,21 +42767,6 @@
                 "required": ["metricQuery", "id"],
                 "type": "object",
                 "description": "One side of a merge: a metric query."
-            },
-            "MergeJoinKeyPart": {
-                "properties": {
-                    "fieldIdBySourceId": {
-                        "$ref": "#/components/schemas/Record_string.FieldId_",
-                        "description": "The field each source joins on. Every source must have an entry."
-                    },
-                    "name": {
-                        "type": "string",
-                        "description": "Column name this key part takes in the merged result."
-                    }
-                },
-                "required": ["fieldIdBySourceId", "name"],
-                "type": "object",
-                "description": "One column of the join key. Sources name the same real-world key differently\n(`orders.order_date` vs `users.created_date`), so the mapping is explicit per\nsource rather than positional."
             },
             "MergeQuery": {
                 "properties": {
@@ -53371,7 +53391,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.156.0",
+        "version": "1.157.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

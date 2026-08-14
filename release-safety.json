@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "1.156.0",
-  "previousVersion": "1.155.0",
-  "releaseDate": "2026-08-14T04:07:24.821Z",
+  "version": "1.157.0",
+  "previousVersion": "1.156.0",
+  "releaseDate": "2026-08-14T05:01:47.664Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -11,17 +11,67 @@
     "files": []
   },
   "compatibility": {
-    "rollingUpdateSafe": true,
-    "recommendedStrategy": "RollingUpdate"
+    "rollingUpdateSafe": "unknown",
+    "recommendedStrategy": "Recreate"
   },
   "api": {
     "rest": {
       "checked": true,
-      "breaking": false,
-      "changes": [],
-      "breakingCount": 0,
-      "advisories": [],
-      "advisoryCount": 0
+      "breaking": true,
+      "changes": [
+        "GET /api/v1/dashboards/{dashboardUuidOrSlug}/promoteDiff — removed the required property `results/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/chartFieldId` from the response with the `200` status",
+        "GET /api/v1/dashboards/{dashboardUuidOrSlug}/promoteDiff — removed the required property `results/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/secondFieldId` from the response with the `200` status",
+        "GET /api/v1/dashboards/{dashboardUuidOrSlug}/promoteDiff — removed the required property `results/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/merge/allOf[#/components/schemas/SavedMergeQuery]/secondQuery` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/charts/{slug}/code — removed the required property `results/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/chartFieldId` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/charts/{slug}/code — removed the required property `results/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/secondFieldId` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/charts/{slug}/code — removed the required property `results/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/merge/allOf[#/components/schemas/SavedMergeQuery]/secondQuery` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/code/charts/{slug} — removed the required property `results/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/chartFieldId` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/code/charts/{slug} — removed the required property `results/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/secondFieldId` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/code/charts/{slug} — removed the required property `results/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/merge/allOf[#/components/schemas/SavedMergeQuery]/secondQuery` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/code/dashboards/{slug} — removed the required property `results/allOf[#/components/schemas/PromotionChanges]/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/chartFieldId` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/code/dashboards/{slug} — removed the required property `results/allOf[#/components/schemas/PromotionChanges]/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/secondFieldId` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/code/dashboards/{slug} — removed the required property `results/allOf[#/components/schemas/PromotionChanges]/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/merge/allOf[#/components/schemas/SavedMergeQuery]/secondQuery` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/code/sqlCharts/{slug} — removed the required property `results/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/chartFieldId` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/code/sqlCharts/{slug} — removed the required property `results/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/secondFieldId` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/code/sqlCharts/{slug} — removed the required property `results/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/merge/allOf[#/components/schemas/SavedMergeQuery]/secondQuery` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/dashboards/with-charts — added the new required request property `charts/items/anyOf[#/components/schemas/CreateChartInDashboard]/allOf[#/components/schemas/CreateChartBase]/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/fieldIdBySourceId`",
+        "POST /api/v1/projects/{projectUuid}/dashboards/with-charts — added the new required request property `charts/items/anyOf[#/components/schemas/CreateChartInDashboard]/allOf[#/components/schemas/CreateChartBase]/merge/allOf[#/components/schemas/SavedMergeQuery]/primarySourceId`",
+        "POST /api/v1/projects/{projectUuid}/dashboards/with-charts — added the new required request property `charts/items/anyOf[#/components/schemas/CreateChartInDashboard]/allOf[#/components/schemas/CreateChartBase]/merge/allOf[#/components/schemas/SavedMergeQuery]/sources`",
+        "POST /api/v1/projects/{projectUuid}/dashboards/with-charts — added the new required request property `charts/items/anyOf[#/components/schemas/CreateChartInSpace]/allOf[#/components/schemas/CreateChartBase]/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/fieldIdBySourceId`",
+        "POST /api/v1/projects/{projectUuid}/dashboards/with-charts — added the new required request property `charts/items/anyOf[#/components/schemas/CreateChartInSpace]/allOf[#/components/schemas/CreateChartBase]/merge/allOf[#/components/schemas/SavedMergeQuery]/primarySourceId`",
+        "POST /api/v1/projects/{projectUuid}/dashboards/with-charts — added the new required request property `charts/items/anyOf[#/components/schemas/CreateChartInSpace]/allOf[#/components/schemas/CreateChartBase]/merge/allOf[#/components/schemas/SavedMergeQuery]/sources`",
+        "POST /api/v1/projects/{projectUuid}/dashboards/{slug}/code — removed the required property `results/allOf[#/components/schemas/PromotionChanges]/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/chartFieldId` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/dashboards/{slug}/code — removed the required property `results/allOf[#/components/schemas/PromotionChanges]/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/secondFieldId` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/dashboards/{slug}/code — removed the required property `results/allOf[#/components/schemas/PromotionChanges]/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/merge/allOf[#/components/schemas/SavedMergeQuery]/secondQuery` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/sqlCharts/{slug}/code — removed the required property `results/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/chartFieldId` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/sqlCharts/{slug}/code — removed the required property `results/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/secondFieldId` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/sqlCharts/{slug}/code — removed the required property `results/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/merge/allOf[#/components/schemas/SavedMergeQuery]/secondQuery` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/sqlRunner/saved/{uuid}/promoteDiff — removed the required property `results/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/chartFieldId` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/sqlRunner/saved/{uuid}/promoteDiff — removed the required property `results/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/secondFieldId` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/sqlRunner/saved/{uuid}/promoteDiff — removed the required property `results/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/merge/allOf[#/components/schemas/SavedMergeQuery]/secondQuery` from the response with the `200` status",
+        "POST /api/v1/saved/{chartUuid}/promote — removed the required property `results/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/chartFieldId` from the response with the `200` status",
+        "POST /api/v1/saved/{chartUuid}/promote — removed the required property `results/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/secondFieldId` from the response with the `200` status",
+        "POST /api/v1/saved/{chartUuid}/promote — removed the required property `results/merge/allOf[#/components/schemas/SavedMergeQuery]/secondQuery` from the response with the `200` status",
+        "GET /api/v1/saved/{chartUuid}/promoteDiff — removed the required property `results/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/chartFieldId` from the response with the `200` status",
+        "GET /api/v1/saved/{chartUuid}/promoteDiff — removed the required property `results/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/secondFieldId` from the response with the `200` status",
+        "GET /api/v1/saved/{chartUuid}/promoteDiff — removed the required property `results/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/merge/allOf[#/components/schemas/SavedMergeQuery]/secondQuery` from the response with the `200` status",
+        "GET /api/v1/saved/{chartUuid}/version/{versionUuid} — removed the required property `results/chart/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/chartFieldId` from the response with the `200` status",
+        "GET /api/v1/saved/{chartUuid}/version/{versionUuid} — removed the required property `results/chart/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/secondFieldId` from the response with the `200` status",
+        "GET /api/v1/saved/{chartUuid}/version/{versionUuid} — removed the required property `results/chart/merge/allOf[#/components/schemas/SavedMergeQuery]/secondQuery` from the response with the `200` status",
+        "GET /api/v2/projects/{projectUuid}/saved/{chartUuidOrSlug} — removed the required property `results/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/chartFieldId` from the response with the `200` status",
+        "GET /api/v2/projects/{projectUuid}/saved/{chartUuidOrSlug} — removed the required property `results/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/secondFieldId` from the response with the `200` status",
+        "GET /api/v2/projects/{projectUuid}/saved/{chartUuidOrSlug} — removed the required property `results/merge/allOf[#/components/schemas/SavedMergeQuery]/secondQuery` from the response with the `200` status"
+      ],
+      "breakingCount": 42,
+      "advisories": [
+        "POST /api/v1/projects/{projectUuid}/dashboards/with-charts — removed the request property `charts/items/anyOf[#/components/schemas/CreateChartInDashboard]/allOf[#/components/schemas/CreateChartBase]/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/chartFieldId`",
+        "POST /api/v1/projects/{projectUuid}/dashboards/with-charts — removed the request property `charts/items/anyOf[#/components/schemas/CreateChartInDashboard]/allOf[#/components/schemas/CreateChartBase]/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/secondFieldId`",
+        "POST /api/v1/projects/{projectUuid}/dashboards/with-charts — removed the request property `charts/items/anyOf[#/components/schemas/CreateChartInDashboard]/allOf[#/components/schemas/CreateChartBase]/merge/allOf[#/components/schemas/SavedMergeQuery]/secondQuery`",
+        "POST /api/v1/projects/{projectUuid}/dashboards/with-charts — removed the request property `charts/items/anyOf[#/components/schemas/CreateChartInSpace]/allOf[#/components/schemas/CreateChartBase]/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/chartFieldId`",
+        "POST /api/v1/projects/{projectUuid}/dashboards/with-charts — removed the request property `charts/items/anyOf[#/components/schemas/CreateChartInSpace]/allOf[#/components/schemas/CreateChartBase]/merge/allOf[#/components/schemas/SavedMergeQuery]/joinKey/items/secondFieldId`",
+        "POST /api/v1/projects/{projectUuid}/dashboards/with-charts — removed the request property `charts/items/anyOf[#/components/schemas/CreateChartInSpace]/allOf[#/components/schemas/CreateChartBase]/merge/allOf[#/components/schemas/SavedMergeQuery]/secondQuery`"
+      ],
+      "advisoryCount": 6
     },
     "mcp": {
       "checked": true,

@@ -7294,6 +7294,64 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SavedMergeQuerySource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        kind: {
+                            dataType: 'enum',
+                            enums: ['chart'],
+                            required: true,
+                        },
+                        id: { dataType: 'string', required: true },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        metricQuery: { ref: 'MetricQuery', required: true },
+                        kind: {
+                            dataType: 'enum',
+                            enums: ['query'],
+                            required: true,
+                        },
+                        id: { dataType: 'string', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.FieldId_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { dataType: 'string' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MergeJoinKeyPart: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                fieldIdBySourceId: {
+                    ref: 'Record_string.FieldId_',
+                    required: true,
+                },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MergeJoinType: {
         dataType: 'refEnum',
         enums: ['full', 'left', 'inner'],
@@ -7328,23 +7386,18 @@ const models: TsoaRoute.Models = {
                 joinType: { ref: 'MergeJoinType', required: true },
                 joinKey: {
                     dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'MergeJoinKeyPart' },
+                    required: true,
+                },
+                sources: {
+                    dataType: 'array',
                     array: {
-                        dataType: 'nestedObjectLiteral',
-                        nestedProperties: {
-                            secondFieldId: { ref: 'FieldId', required: true },
-                            chartFieldId: { ref: 'FieldId', required: true },
-                            name: { dataType: 'string', required: true },
-                        },
+                        dataType: 'refAlias',
+                        ref: 'SavedMergeQuerySource',
                     },
                     required: true,
                 },
-                secondQuery: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        metricQuery: { ref: 'MetricQuery', required: true },
-                    },
-                    required: true,
-                },
+                primarySourceId: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -42112,16 +42165,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.FieldId_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            additionalProperties: { dataType: 'string' },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MergeFieldOrigin: {
         dataType: 'refAlias',
         type: {
@@ -42423,21 +42466,6 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 metricQuery: { ref: 'MetricQuery', required: true },
                 id: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    MergeJoinKeyPart: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                fieldIdBySourceId: {
-                    ref: 'Record_string.FieldId_',
-                    required: true,
-                },
-                name: { dataType: 'string', required: true },
             },
             validators: {},
         },

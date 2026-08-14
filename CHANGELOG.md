@@ -1,3 +1,10 @@
+# [1.157.0](https://github.com/lightdash/lightdash/compare/1.156.0...1.157.0) (2026-08-14)
+
+
+### Features
+
+* **merge-query:** clarify saved chart relationship ([#27394](https://github.com/lightdash/lightdash/issues/27394)) ([0cf5f3c](https://github.com/lightdash/lightdash/commit/0cf5f3c955f57f1f1f1d7a3c9a6622c676738bac))
+
 # [1.156.0](https://github.com/lightdash/lightdash/compare/1.155.0...1.156.0) (2026-08-14)
 
 
