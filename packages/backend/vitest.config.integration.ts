@@ -6,8 +6,7 @@ export default defineConfig({
     test: {
         name: 'integration-tests',
         include: [
-            'src/ee/**/*integration.test.ts',
-            'src/controllers/authentication/**/*integration.test.ts',
+            'src/**/*integration.test.ts',
         ],
         exclude: [
             'node_modules',
