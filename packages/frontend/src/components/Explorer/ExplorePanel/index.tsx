@@ -35,7 +35,10 @@ import {
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { MergeJoinBar } from '../../../features/mergeQuery/components/MergeJoinBar';
-import { MergeTabStrip } from '../../../features/mergeQuery/components/MergeTabStrip';
+import {
+    MergeQueryOptions,
+    MergeTabStrip,
+} from '../../../features/mergeQuery/components/MergeTabStrip';
 import { QueryBTree } from '../../../features/mergeQuery/components/QueryBTree';
 import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
 import { useSourceCodeEditor } from '../../../features/sourceCodeEditor';
@@ -237,12 +240,11 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                 <MergeJoinBar />
                 <MergeTabStrip />
 
-                {/* The breadcrumbs, warnings and menu all belong to the
-                    first query's explore; shown above the second query's
-                    picker they read as its header, which they are not. */}
+                {/* Query tabs replace the first query's explore header while
+                    merging; showing both repeats the same hierarchy. */}
                 <Group
                     justify="space-between"
-                    display={showQueryBTree ? 'none' : undefined}
+                    display={merge?.isMerging ? 'none' : undefined}
                 >
                     <Group gap="xs">
                         <PageBreadcrumbs size="md" items={breadcrumbs} />
@@ -275,95 +277,16 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                             </HoverCard>
                         )}
                     </Group>
-                    {explore.type === ExploreType.VIRTUAL &&
-                        (canEditVirtualView ||
-                            canDeleteVirtualView ||
-                            canViewContentAsCode) && (
-                            <Menu withArrow offset={-2}>
-                                <Menu.Target>
-                                    <ActionIcon
-                                        aria-label="Virtual view actions"
-                                        color="gray"
-                                        variant="transparent"
-                                    >
-                                        <MantineIcon icon={IconDots} />
-                                    </ActionIcon>
-                                </Menu.Target>
-                                <Menu.Dropdown>
-                                    {canEditVirtualView && (
-                                        <Menu.Item
-                                            leftSection={
-                                                <MantineIcon
-                                                    icon={IconPencil}
-                                                />
-                                            }
-                                            onClick={handleEditVirtualView}
-                                        >
-                                            <Text fz="xs" fw={500}>
-                                                Edit virtual view
-                                            </Text>
-                                        </Menu.Item>
-                                    )}
-                                    {canViewContentAsCode && (
-                                        <>
-                                            {canEditVirtualView && (
-                                                <Menu.Divider />
-                                            )}
-                                            <Menu.Label>
-                                                Content as code
-                                            </Menu.Label>
-                                            <Menu.Item
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconCode}
-                                                    />
-                                                }
-                                                onClick={
-                                                    virtualViewAsCodeModalHandlers.open
-                                                }
-                                            >
-                                                View as code
-                                            </Menu.Item>
-                                        </>
-                                    )}
-                                    {canDeleteVirtualView && (
-                                        <>
-                                            <Menu.Divider />
-                                            <Menu.Item
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconTrash}
-                                                    />
-                                                }
-                                                color="red"
-                                                onClick={
-                                                    handleDeleteVirtualView
-                                                }
-                                            >
-                                                <Text fz="xs" fw={500}>
-                                                    Delete
-                                                </Text>
-                                            </Menu.Item>
-                                        </>
-                                    )}
-                                </Menu.Dropdown>
-                            </Menu>
-                        )}
-                    {explore.type !== ExploreType.VIRTUAL &&
-                        isGitProject &&
-                        explore.ymlPath &&
-                        editYamlInUiFlag?.enabled && (
-                            <Can
-                                I="view"
-                                this={subject('SourceCode', {
-                                    organizationUuid:
-                                        user.data?.organizationUuid,
-                                    projectUuid,
-                                })}
-                            >
+                    <Group gap="xs">
+                        <MergeQueryOptions />
+                        {explore.type === ExploreType.VIRTUAL &&
+                            (canEditVirtualView ||
+                                canDeleteVirtualView ||
+                                canViewContentAsCode) && (
                                 <Menu withArrow offset={-2}>
                                     <Menu.Target>
                                         <ActionIcon
+                                            aria-label="Virtual view actions"
                                             color="gray"
                                             variant="transparent"
                                         >
@@ -371,20 +294,104 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                         </ActionIcon>
                                     </Menu.Target>
                                     <Menu.Dropdown>
-                                        <Menu.Item
-                                            leftSection={
-                                                <MantineIcon icon={IconCode} />
-                                            }
-                                            onClick={handleViewSourceCode}
-                                        >
-                                            <Text fz="xs" fw={500}>
-                                                View source code
-                                            </Text>
-                                        </Menu.Item>
+                                        {canEditVirtualView && (
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconPencil}
+                                                    />
+                                                }
+                                                onClick={handleEditVirtualView}
+                                            >
+                                                <Text fz="xs" fw={500}>
+                                                    Edit virtual view
+                                                </Text>
+                                            </Menu.Item>
+                                        )}
+                                        {canViewContentAsCode && (
+                                            <>
+                                                {canEditVirtualView && (
+                                                    <Menu.Divider />
+                                                )}
+                                                <Menu.Label>
+                                                    Content as code
+                                                </Menu.Label>
+                                                <Menu.Item
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconCode}
+                                                        />
+                                                    }
+                                                    onClick={
+                                                        virtualViewAsCodeModalHandlers.open
+                                                    }
+                                                >
+                                                    View as code
+                                                </Menu.Item>
+                                            </>
+                                        )}
+                                        {canDeleteVirtualView && (
+                                            <>
+                                                <Menu.Divider />
+                                                <Menu.Item
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconTrash}
+                                                        />
+                                                    }
+                                                    color="red"
+                                                    onClick={
+                                                        handleDeleteVirtualView
+                                                    }
+                                                >
+                                                    <Text fz="xs" fw={500}>
+                                                        Delete
+                                                    </Text>
+                                                </Menu.Item>
+                                            </>
+                                        )}
                                     </Menu.Dropdown>
                                 </Menu>
-                            </Can>
-                        )}
+                            )}
+                        {explore.type !== ExploreType.VIRTUAL &&
+                            isGitProject &&
+                            explore.ymlPath &&
+                            editYamlInUiFlag?.enabled && (
+                                <Can
+                                    I="view"
+                                    this={subject('SourceCode', {
+                                        organizationUuid:
+                                            user.data?.organizationUuid,
+                                        projectUuid,
+                                    })}
+                                >
+                                    <Menu withArrow offset={-2}>
+                                        <Menu.Target>
+                                            <ActionIcon
+                                                color="gray"
+                                                variant="transparent"
+                                            >
+                                                <MantineIcon icon={IconDots} />
+                                            </ActionIcon>
+                                        </Menu.Target>
+                                        <Menu.Dropdown>
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconCode}
+                                                    />
+                                                }
+                                                onClick={handleViewSourceCode}
+                                            >
+                                                <Text fz="xs" fw={500}>
+                                                    View source code
+                                                </Text>
+                                            </Menu.Item>
+                                        </Menu.Dropdown>
+                                    </Menu>
+                                </Can>
+                            )}
+                    </Group>
                 </Group>
 
                 {/* The tab strip swaps the field tree only: the second

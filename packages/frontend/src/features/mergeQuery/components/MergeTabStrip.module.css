@@ -5,11 +5,6 @@
     border-bottom: 1px solid var(--mantine-color-ldGray-3);
 }
 
-.tabs[data-solo='true'] {
-    min-height: 28px;
-    border-bottom: 0;
-}
-
 .tab {
     display: flex;
     align-items: center;
@@ -33,9 +28,7 @@
 }
 
 .options {
-    align-self: center;
-    margin-left: auto;
-    margin-right: 4px;
+    flex: none;
 }
 
 .dot {
