@@ -54,13 +54,19 @@ const UnderlyingDataModalContent: FC = () => {
         parameters,
         resolvedTimezone,
     } = useMetricQueryDataContext();
+    const source = underlyingDataConfig?.source;
+    const effectiveTableName = source?.tableName ?? tableName;
+    const effectiveMetricQuery = source?.metricQuery ?? metricQuery;
+    const effectiveQueryUuid = source?.queryUuid ?? queryUuid;
 
     const [sorts, setSorts] = useState<SortField[]>([]);
 
     const { user } = useApp();
     const { data: organization } = useOrganization();
 
-    const { data: explore } = useExplore(tableName, { refetchOnMount: false });
+    const { data: explore } = useExplore(effectiveTableName, {
+        refetchOnMount: false,
+    });
     const ability = useAbilityContext();
 
     const underlyingDataItemId = useMemo(
@@ -74,10 +80,10 @@ const UnderlyingDataModalContent: FC = () => {
 
     const nonBinCustomDimensions = useMemo(
         () =>
-            metricQuery?.customDimensions?.filter(
+            effectiveMetricQuery?.customDimensions?.filter(
                 (dimension) => !isCustomBinDimension(dimension),
             ) || [],
-        [metricQuery?.customDimensions],
+        [effectiveMetricQuery?.customDimensions],
     );
 
     const allFields = useMemo(
@@ -168,10 +174,10 @@ const UnderlyingDataModalContent: FC = () => {
 
         return combineUnderlyingDataFilters({
             filterParts,
-            exploreDimensionFilters: metricQuery?.filters?.dimensions,
+            exploreDimensionFilters: effectiveMetricQuery?.filters?.dimensions,
             allFields,
         });
-    }, [filterParts, metricQuery, allFields]);
+    }, [filterParts, effectiveMetricQuery, allFields]);
 
     const {
         error,
@@ -179,7 +185,7 @@ const UnderlyingDataModalContent: FC = () => {
         isInitialLoading,
     } = useUnderlyingDataResults(
         filters,
-        queryUuid,
+        effectiveQueryUuid,
         underlyingDataItemId,
         underlyingDataConfig?.dateZoom,
         parameters,
@@ -230,7 +236,7 @@ const UnderlyingDataModalContent: FC = () => {
                     projectUuid!,
                     {
                         context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
-                        underlyingDataSourceQueryUuid: queryUuid!,
+                        underlyingDataSourceQueryUuid: effectiveQueryUuid!,
                         underlyingDataItemId,
                         filters: convertDateFilters(filters),
                         dateZoom: underlyingDataConfig?.dateZoom,
@@ -251,7 +257,7 @@ const UnderlyingDataModalContent: FC = () => {
         [
             filters,
             projectUuid,
-            queryUuid,
+            effectiveQueryUuid,
             resultsData,
             underlyingDataConfig?.dateZoom,
             underlyingDataItemId,

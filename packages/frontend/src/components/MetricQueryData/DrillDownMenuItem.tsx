@@ -25,6 +25,7 @@ const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
     item,
     fieldValues,
     pivotReference,
+    source,
     trackingData,
 }) => {
     const { explore, metricQuery, openDrillDownModal } =
@@ -50,6 +51,7 @@ const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
             item,
             fieldValues,
             pivotReference,
+            source,
         });
         track({
             name: EventName.DRILL_BY_CLICKED,
@@ -64,6 +66,7 @@ const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
         item,
         openDrillDownModal,
         pivotReference,
+        source,
         track,
         trackingData.organizationId,
         trackingData.projectId,
@@ -74,9 +77,9 @@ const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
         item &&
         isField(item) &&
         isMetric(item) &&
-        explore &&
+        (source || explore) &&
         fieldValues &&
-        metricQuery
+        (source?.metricQuery || metricQuery)
     ) {
         return (
             <Menu.Item
