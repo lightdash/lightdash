@@ -81,6 +81,7 @@ import {
 } from '../SandboxRuntime';
 import {
     ALLOWED_TOOLS,
+    ASSISTANT_TEXT_TAIL_CHARS,
     CLAUDE_MODEL,
     CLAUDE_SKILLS_DIR,
     COMPILE_STRIPPED_ENV_VARS,
@@ -3611,6 +3612,15 @@ export class AiWritebackService extends BaseService {
             stderrTail = (stderrTail + chunk).slice(-STDERR_TAIL_BYTES);
         };
 
+        // The CLI's own verdict on the run, kept so the failure path can report
+        // *why* `claude -p` exited non-zero. The `result` event arrives and is
+        // parsed moments before the subprocess exit propagates, so on a failed
+        // run this is populated by the time the catch block reads it.
+        let agentResult: { isError: boolean | null; subtype: string | null } = {
+            isError: null,
+            subtype: null,
+        };
+
         const handleEvent = (event: unknown): void => {
             const interpreted = interpretAgentEvent(event);
             if (interpreted.type === 'result') {
@@ -3624,6 +3634,10 @@ export class AiWritebackService extends BaseService {
                     interpreted.durationApiMs !== null
                         ? interpreted.durationMs - interpreted.durationApiMs
                         : null;
+                agentResult = {
+                    isError: interpreted.isError,
+                    subtype: interpreted.subtype,
+                };
                 agentUsage = {
                     costUsd: interpreted.costUsd,
                     inputTokens: interpreted.inputTokens,
@@ -3650,6 +3664,8 @@ export class AiWritebackService extends BaseService {
                         event: 'ai_writeback.run.summary',
                         source,
                         sandboxId: sandbox.sandboxId,
+                        resultIsError: interpreted.isError,
+                        resultSubtype: interpreted.subtype,
                         costUsd: interpreted.costUsd,
                         durationMs: interpreted.durationMs,
                         durationApiMs: interpreted.durationApiMs,
@@ -3762,6 +3778,12 @@ export class AiWritebackService extends BaseService {
             const stderrSnippet = (errStderr || stderrTail).slice(
                 -STDERR_TAIL_BYTES,
             );
+            // On the dominant failure mode (agent gives up, CLI exits 1) stderr
+            // is empty and the only account of what happened is the CLI's own
+            // result classification plus the agent's closing message.
+            const assistantTextTail = assistantText
+                ? assistantText.slice(-ASSISTANT_TEXT_TAIL_CHARS)
+                : null;
             this.logger.error('AI writeback agent subprocess failed', {
                 event: 'ai_writeback.run.agent_failed',
                 sandboxId: sandbox.sandboxId,
@@ -3771,11 +3793,16 @@ export class AiWritebackService extends BaseService {
                 exitCode,
                 errorMessage: getErrorMessage(error),
                 stderrTail: stderrSnippet || null,
+                resultIsError: agentResult.isError,
+                resultSubtype: agentResult.subtype,
+                assistantTextTail,
+                toolCounts,
             });
             Sentry.captureException(error, {
                 tags: {
                     errorType: 'AiWritebackAgentSubprocessFailed',
                     timedOut: String(timedOut),
+                    resultSubtype: agentResult.subtype ?? 'unknown',
                 },
                 extra: {
                     sandboxId: sandbox.sandboxId,
@@ -3783,6 +3810,9 @@ export class AiWritebackService extends BaseService {
                     runTimeoutMs: RUN_TIMEOUT_MS,
                     exitCode,
                     stderrTail: stderrSnippet,
+                    resultIsError: agentResult.isError,
+                    resultSubtype: agentResult.subtype,
+                    assistantTextTail,
                     toolCounts,
                 },
             });

@@ -237,3 +237,10 @@ export const GATHER_REPO_CONTEXT_SANDBOX_PATH = '/tmp/gather-repo-context.sh';
 // Last N bytes of the agent's stderr kept for diagnostics on a non-zero exit /
 // timeout, so the Sentry payload carries the real error without inflating it.
 export const STDERR_TAIL_BYTES = 4096;
+
+// Last N characters of the agent's final assistant message kept for diagnostics
+// on a failed run. When the agent gives up it says why in prose ("I cannot find
+// a dbt project at ..."), and on that path the CLI writes nothing to stderr, so
+// this is the only human-readable explanation available. Clipped because the
+// message is model output over customer files — enough to diagnose, not a dump.
+export const ASSISTANT_TEXT_TAIL_CHARS = 2000;
