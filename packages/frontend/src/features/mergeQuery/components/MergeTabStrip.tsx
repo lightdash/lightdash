@@ -80,7 +80,7 @@ export const MergeTabStrip: FC = () => {
     }
 
     const labelA = exploreA?.label ?? 'Query A';
-    const labelB = exploreB?.label ?? 'Query B';
+    const labelB = exploreB?.label ?? 'Choose a table';
     const collide = labelA === labelB;
 
     return (

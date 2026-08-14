@@ -435,9 +435,9 @@ export const useMergeSetup = () => {
     // unreadable: a grain warning means nothing until there is a merge to
     // warn about.
     const setupStep = !queryB.exploreName
-        ? 'Pick a table for Query B'
+        ? 'Choose a table to continue'
         : queryB.metrics.length === 0
-          ? 'Pick at least one metric for Query B'
+          ? `Add at least one metric from ${exploreBLabel ?? 'the second table'}`
           : !effectiveParts.every(
                   (part) =>
                       part.fieldA &&

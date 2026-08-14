@@ -18,8 +18,8 @@ export const getMergeSetupProgress = ({
     if (!hasExplore) {
         return {
             step: 1,
-            title: 'Choose Query B',
-            description: 'Pick the table you want to compare.',
+            title: 'Choose a table',
+            description: 'Pick the data you want to combine with this query.',
         };
     }
     if (dimensionCount === 0 || metricCount === 0) {
