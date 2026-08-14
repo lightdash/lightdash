@@ -83,6 +83,24 @@ describe('SqlQueryComposer', () => {
         expect(composer.getPivotConfiguration()).toBe(PIVOT_CONFIGURATION);
     });
 
+    it('hoists leading scripting statements above the pivot query', () => {
+        const composer = new SqlQueryComposer({
+            ...baseArgs,
+            userSql: `DECLARE lookback_days INT64 DEFAULT 30;\n${USER_SQL} WHERE days > lookback_days;`,
+            pivotConfiguration: PIVOT_CONFIGURATION,
+        });
+
+        const sql = composer.getSql({ columnLimit: 100 });
+
+        expect(
+            sql.startsWith('DECLARE lookback_days INT64 DEFAULT 30;\nWITH'),
+        ).toBe(true);
+        expect(sql).not.toContain('(DECLARE');
+        expect(sql).toContain(
+            'original_query AS (SELECT category, region, revenue FROM sales WHERE days > lookback_days)',
+        );
+    });
+
     it('escapes active quote characters in raw SQL chart column references', () => {
         const dashboardFilters: DashboardFilters = {
             dimensions: [

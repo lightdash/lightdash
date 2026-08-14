@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     convertItemTypeToDimensionType,
     DimensionType,
     FilterOperator,
@@ -29,6 +30,7 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
+import { parseSqlScript } from './sqlScript';
 import {
     applyLimitToSqlQuery,
     sortDayOfWeekName,
@@ -48,6 +50,13 @@ const DEFAULT_PIVOT_ROW_LIMIT = 500;
  */
 export class PivotQueryBuilder {
     private readonly sql: string;
+
+    /**
+     * Leading scripting statements (e.g. BigQuery `DECLARE`/`SET`) lifted out of
+     * the user's SQL, so the rest can be wrapped in a CTE. Emitted above the
+     * generated query, where the declared variables stay in scope.
+     */
+    private readonly scriptPrelude: string | null;
 
     private readonly pivotConfiguration: PivotConfiguration;
 
@@ -81,7 +90,23 @@ export class PivotQueryBuilder {
         limit?: number,
         itemsMap?: ItemsMap,
     ) {
-        this.sql = sql;
+        const script = parseSqlScript(sql);
+        switch (script.kind) {
+            case 'statement':
+                this.sql = script.sql;
+                this.scriptPrelude = null;
+                break;
+            case 'hoistable':
+                this.sql = script.sql;
+                this.scriptPrelude = script.prelude;
+                break;
+            case 'unhoistable':
+                throw new ParameterError(
+                    'Charts can only be generated from SQL where every statement before the final one is a DECLARE or SET statement. Remove the other statements, or view the results as a table instead.',
+                );
+            default:
+                assertUnreachable(script, 'Unknown SQL script kind');
+        }
         this.pivotConfiguration = pivotConfiguration;
         this.limit = limit;
         this.warehouseSqlBuilder = warehouseSqlBuilder;
@@ -2222,6 +2247,8 @@ export class PivotQueryBuilder {
             finalSql = this.getSimpleQuerySQL(baseSql, groupByQuery, sortBy);
         }
 
-        return finalSql;
+        return this.scriptPrelude
+            ? `${this.scriptPrelude}\n${finalSql}`
+            : finalSql;
     }
 }

@@ -1,0 +1,122 @@
+/**
+ * Leading statements that can be hoisted above a generated query. Warehouses
+ * that support scripting (e.g. BigQuery) keep variables declared this way in
+ * scope for the statements that follow, so they can sit above a WITH clause.
+ */
+const HOISTABLE_STATEMENT_PATTERN = /^(declare|set)\s/i;
+
+const LINE_COMMENT_STARTS = ['--', '#'];
+
+const QUOTE_CHARS = ["'", '"', '`'];
+
+const TRIPLE_QUOTES = ["'''", '"""'];
+
+/** The first of `tokens` that `sql` starts with at `index`, if any. */
+const tokenAt = (
+    sql: string,
+    index: number,
+    tokens: readonly string[],
+): string | undefined => tokens.find((token) => sql.startsWith(token, index));
+
+/**
+ * Index just after the string/quoted identifier that starts at `start`, or the
+ * end of the SQL when it is never closed.
+ */
+const skipQuoted = (sql: string, start: number): number => {
+    const triple = tokenAt(sql, start, TRIPLE_QUOTES);
+    const quote = triple ?? sql[start];
+    let i = start + quote.length;
+    while (i < sql.length) {
+        if (sql[i] === '\\') {
+            i += 2;
+        } else if (sql.startsWith(quote, i)) {
+            // Doubled quotes are an escaped quote, not the end of the literal
+            if (!triple && sql.startsWith(quote, i + quote.length)) {
+                i += quote.length * 2;
+            } else {
+                return i + quote.length;
+            }
+        } else {
+            i += 1;
+        }
+    }
+    return sql.length;
+};
+
+/**
+ * Splits SQL into its statements at top-level semicolons, ignoring semicolons
+ * inside strings, quoted identifiers and comments.
+ */
+export const splitSqlStatements = (sql: string): string[] => {
+    const statements: string[] = [];
+    let start = 0;
+    let i = 0;
+    const pushStatement = (end: number) => {
+        const statement = sql.slice(start, end).trim();
+        if (statement !== '') {
+            statements.push(statement);
+        }
+    };
+    while (i < sql.length) {
+        if (tokenAt(sql, i, LINE_COMMENT_STARTS)) {
+            const newLine = sql.indexOf('\n', i);
+            i = newLine === -1 ? sql.length : newLine + 1;
+        } else if (sql.startsWith('/*', i)) {
+            const commentEnd = sql.indexOf('*/', i + 2);
+            i = commentEnd === -1 ? sql.length : commentEnd + 2;
+        } else if (
+            tokenAt(sql, i, TRIPLE_QUOTES) ||
+            QUOTE_CHARS.includes(sql[i])
+        ) {
+            i = skipQuoted(sql, i);
+        } else if (sql[i] === ';') {
+            pushStatement(i);
+            i += 1;
+            start = i;
+        } else {
+            i += 1;
+        }
+    }
+    pushStatement(sql.length);
+    return statements;
+};
+
+export type SqlScript =
+    /** A single statement — nothing to hoist. */
+    | { kind: 'statement'; sql: string }
+    /** Leading statements that can be hoisted above a generated query. */
+    | { kind: 'hoistable'; prelude: string; sql: string }
+    /** A script whose leading statements cannot be hoisted. */
+    | { kind: 'unhoistable' };
+
+/**
+ * Classifies SQL for generators that wrap it in a subquery or CTE. Scripts that
+ * only declare variables before their final statement can be supported by
+ * hoisting those declarations above the generated query.
+ *
+ * SQL that doesn't start with a hoistable statement is left alone, so anything
+ * that works today keeps its current behaviour.
+ */
+export const parseSqlScript = (sql: string): SqlScript => {
+    const statements = splitSqlStatements(sql);
+    const [firstStatement, ...rest] = statements;
+    if (
+        rest.length === 0 ||
+        !HOISTABLE_STATEMENT_PATTERN.test(firstStatement)
+    ) {
+        return { kind: 'statement', sql };
+    }
+    const prelude = statements.slice(0, -1);
+    if (
+        !prelude.every((statement) =>
+            HOISTABLE_STATEMENT_PATTERN.test(statement),
+        )
+    ) {
+        return { kind: 'unhoistable' };
+    }
+    return {
+        kind: 'hoistable',
+        prelude: `${prelude.join(';\n')};`,
+        sql: statements[statements.length - 1],
+    };
+};

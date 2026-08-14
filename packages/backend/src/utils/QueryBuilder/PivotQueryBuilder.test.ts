@@ -1948,6 +1948,51 @@ SELECT * FROM group_by_query LIMIT 50`);
         });
     });
 
+    describe('Scripting statements', () => {
+        const scriptPivotConfiguration = {
+            indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+            valuesColumns: [
+                {
+                    reference: 'event_id',
+                    aggregation: VizAggregationOptions.SUM,
+                },
+            ],
+            groupByColumns: undefined,
+            sortBy: undefined,
+        };
+
+        test('Should hoist leading DECLARE/SET statements above the CTEs', () => {
+            const builder = new PivotQueryBuilder(
+                `DECLARE lookback_days INT64 DEFAULT 30;
+                 SET lookback_days = 60;
+                 SELECT * FROM events WHERE days > lookback_days;`,
+                scriptPivotConfiguration,
+                mockWarehouseSqlBuilder,
+                50,
+            );
+
+            expect(builder.toSql())
+                .toBe(`DECLARE lookback_days INT64 DEFAULT 30;
+SET lookback_days = 60;
+WITH original_query AS (SELECT * FROM events WHERE days > lookback_days),
+group_by_query AS (SELECT "date", sum("event_id") AS "event_id_sum" FROM original_query group by "date")
+SELECT * FROM group_by_query LIMIT 50`);
+        });
+
+        test('Should throw a clear error when a leading statement cannot be hoisted', () => {
+            expect(
+                () =>
+                    new PivotQueryBuilder(
+                        `DECLARE x INT64 DEFAULT 1;
+                         CREATE TEMP TABLE t AS SELECT 1 AS a;
+                         SELECT * FROM t;`,
+                        scriptPivotConfiguration,
+                        mockWarehouseSqlBuilder,
+                    ),
+            ).toThrowError(/DECLARE or SET statement/);
+        });
+    });
+
     describe('Limit handling', () => {
         test('Should use default limit of 500 when no limit specified', () => {
             const pivotConfiguration = {
