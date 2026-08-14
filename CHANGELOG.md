@@ -1,3 +1,10 @@
+## [1.159.5](https://github.com/lightdash/lightdash/compare/1.159.4...1.159.5) (2026-08-14)
+
+
+### Bug Fixes
+
+* prefer coarser grain pre-aggregate in matcher tie-break ([#27397](https://github.com/lightdash/lightdash/issues/27397)) ([bd8c3f2](https://github.com/lightdash/lightdash/commit/bd8c3f2eff8aa2e864f9197ec8cbf2209531bcf5))
+
 ## [1.159.4](https://github.com/lightdash/lightdash/compare/1.159.3...1.159.4) (2026-08-14)
 
 
