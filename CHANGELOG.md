@@ -1,3 +1,10 @@
+## [1.157.2](https://github.com/lightdash/lightdash/compare/1.157.1...1.157.2) (2026-08-14)
+
+
+### Bug Fixes
+
+* **ai-writeback:** report why the agent subprocess exited non-zero ([#27399](https://github.com/lightdash/lightdash/issues/27399)) ([12dbe54](https://github.com/lightdash/lightdash/commit/12dbe54535312b77695c8f04641c09225175c525))
+
 ## [1.157.1](https://github.com/lightdash/lightdash/compare/1.157.0...1.157.1) (2026-08-14)
 
 
