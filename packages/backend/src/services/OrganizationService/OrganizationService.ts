@@ -23,6 +23,7 @@ import {
     OrganizationBrand,
     OrganizationBrandColor,
     OrganizationBrandFont,
+    projectAbilitySubject,
     OrganizationBrandLogo,
     OrganizationColorPalette,
     OrganizationColorPaletteWithIsActive,
@@ -650,9 +651,11 @@ export class OrganizationService extends BaseService {
         return projects.filter((project) =>
             auditedAbility.can(
                 'view',
-                subject('Project', {
+                projectAbilitySubject({
+                    ...project,
                     organizationUuid,
-                    projectUuid: project.projectUuid,
+                    upstreamProjectUuid:
+                        project.upstreamProjectUuid ?? undefined,
                 }),
             ),
         );

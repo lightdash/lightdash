@@ -13,6 +13,7 @@ import {
     assertUnreachable,
     buildMergeQueryFromSaved,
     buildWarehouseColumnTotals,
+    projectAbilitySubject,
     buildWarehouseRowTotals,
     CalculateSubtotalsFromQuery,
     CalculateTotalFromQuery,
@@ -4433,9 +4434,9 @@ export class AsyncQueryService extends ProjectService {
         const isForbidden =
             auditedAbility.cannot(
                 'view',
-                subject('Project', {
+                projectAbilitySubject({
+                    ...projectSummary,
                     organizationUuid,
-                    projectUuid: args.projectUuid,
                 }),
             ) &&
             auditedAbility.cannot(
