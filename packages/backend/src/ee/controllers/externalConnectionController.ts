@@ -12,6 +12,7 @@ import {
     type ApiTestExternalConnectionResponse,
     type CreateExternalConnection,
     type ExternalConnection,
+    type ExternalConnectionListItem,
     type ExternalFetchRequest,
     type ExternalFetchResponse,
     type UpdateExternalConnection,
@@ -47,7 +48,7 @@ type ApiExternalConnectionResponse = {
 
 type ApiExternalConnectionListResponse = {
     status: 'ok';
-    results: ExternalConnection[];
+    results: ExternalConnectionListItem[];
 };
 
 type ApiAppExternalConnectionListResponse = {
