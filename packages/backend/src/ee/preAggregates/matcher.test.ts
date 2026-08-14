@@ -101,6 +101,12 @@ const baseExplore = (): Explore => ({
                     timeInterval: TimeFrames.MONTH,
                     timeIntervalBaseDimensionName: 'order_date',
                 }),
+                order_date_quarter: makeDimension({
+                    name: 'order_date_quarter',
+                    type: DimensionType.DATE,
+                    timeInterval: TimeFrames.QUARTER,
+                    timeIntervalBaseDimensionName: 'order_date',
+                }),
                 created_at: makeDimension({
                     name: 'created_at',
                     type: DimensionType.TIMESTAMP,
@@ -1843,6 +1849,76 @@ describe('findMatch', () => {
         expect(result).toStrictEqual({
             hit: true,
             preAggregateName: 'orders_narrow_metrics',
+            miss: null,
+        });
+    });
+
+    it('prefers the coarsest matching granularity when dimensions count is equal', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_daily',
+                    dimensions: ['status'],
+                    metrics: ['order_count'],
+                    timeDimension: 'order_date',
+                    granularity: TimeFrames.DAY,
+                },
+                {
+                    name: 'orders_monthly',
+                    dimensions: ['status'],
+                    metrics: ['order_count'],
+                    timeDimension: 'order_date',
+                    granularity: TimeFrames.MONTH,
+                },
+            ],
+        };
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_order_date_quarter', 'orders_status'],
+                metrics: ['orders_order_count'],
+            }),
+            explore,
+        );
+
+        expect(result).toStrictEqual({
+            hit: true,
+            preAggregateName: 'orders_monthly',
+            miss: null,
+        });
+    });
+
+    it('prefers a def without time rollup over a time rollup when both match', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_daily',
+                    dimensions: ['status'],
+                    metrics: ['order_count'],
+                    timeDimension: 'order_date',
+                    granularity: TimeFrames.DAY,
+                },
+                {
+                    name: 'orders_by_status',
+                    dimensions: ['status'],
+                    metrics: ['order_count'],
+                },
+            ],
+        };
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_status'],
+                metrics: ['orders_order_count'],
+            }),
+            explore,
+        );
+
+        expect(result).toStrictEqual({
+            hit: true,
+            preAggregateName: 'orders_by_status',
             miss: null,
         });
     });
