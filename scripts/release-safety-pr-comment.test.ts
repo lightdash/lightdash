@@ -1,4 +1,5 @@
 import * as assert from 'assert';
+import * as fs from 'fs';
 import {
     COMMENT_MARKER,
     Marker,
@@ -152,6 +153,47 @@ test('raw v2 JSON is embedded for machines', () => {
     assert.match(body, /"schemaVersion": "2"/);
     assert.doesNotMatch(body, /"capabilities"/);
     assert.doesNotMatch(body, /How to unblock this pull request/);
+});
+
+const HEAD = '4146779f7a801f252b99ddfa68a5e8217d08fefb';
+const BASE = 'd92d59798a4f0207927eea6c1ac31eafb6b1090e';
+
+test('a passing verdict stamps the revision it describes', () => {
+    const body = renderPrComment(baseMarker(), { headSha: HEAD, baseSha: BASE });
+    assert.match(
+        body,
+        new RegExp(`<!-- release-safety-describes head:${HEAD} base:${BASE} gate:pass -->`),
+    );
+});
+
+test('a failed gate stamps gate:fail so it can never be short-circuited', () => {
+    const body = renderPrComment(baseMarker(), { headSha: HEAD, baseSha: BASE, gateFailed: true });
+    assert.match(body, /release-safety-describes .* gate:fail -->/);
+    assert.doesNotMatch(body, /gate:pass/);
+});
+
+test('the stamp is omitted when the revision is unknown', () => {
+    assert.doesNotMatch(renderPrComment(baseMarker()), /release-safety-describes/);
+    assert.doesNotMatch(
+        renderPrComment(baseMarker(), { headSha: HEAD }),
+        /release-safety-describes/,
+    );
+});
+
+test('the stamp matches the regex the workflow reads it with', () => {
+    const workflow = fs.readFileSync('.github/workflows/release-safety-pr.yml', 'utf-8');
+    const declared = workflow.match(
+        /\/<!-- release-safety-describes head:\(\[0-9a-f\]\{7,40\}\) base:\(\[0-9a-f\]\{7,40\}\) gate:\(pass\|fail\) -->\//,
+    );
+    assert.ok(declared, 'the workflow reader regex is not in the expected form');
+
+    const reader =
+        /<!-- release-safety-describes head:([0-9a-f]{7,40}) base:([0-9a-f]{7,40}) gate:(pass|fail) -->/;
+    const emitted = renderPrComment(baseMarker(), { headSha: HEAD, baseSha: BASE }).match(reader);
+    assert.ok(emitted, 'the rendered stamp does not match the reader regex');
+    assert.strictEqual(emitted[1], HEAD);
+    assert.strictEqual(emitted[2], BASE);
+    assert.strictEqual(emitted[3], 'pass');
 });
 
 if (failures.length > 0) {

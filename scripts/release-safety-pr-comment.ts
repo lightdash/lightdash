@@ -53,6 +53,20 @@ export interface RenderOpts {
      */
     restStatus?: 'ran' | 'skipped' | 'failed';
     declarationGateFailed?: boolean;
+    /**
+     * The revision this verdict describes. Stamped into the comment so a later
+     * `edited` event can tell whether the verdict on the page still applies, and
+     * skip recomputing it if so.
+     */
+    headSha?: string;
+    baseSha?: string;
+    /**
+     * Whether the release-safety gates failed for this revision. The stamp
+     * carries it because the check is required: a skipped job reports SKIPPED,
+     * which satisfies a required check, so short-circuiting a failed verdict
+     * would turn a red gate green. Only a passing verdict may be reused.
+     */
+    gateFailed?: boolean;
 }
 
 const SAFE_HEADLINE = '✅ **Safe to upgrade normally.** No downtime needed.';
@@ -210,9 +224,18 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
     // ---- assemble -----------------------------------------------------------
     const baseLine = opts.baseLabel ? `> Comparing against \`${opts.baseLabel}\`.\n` : '';
     const rawJson = JSON.stringify(marker, null, 2);
+    const describes =
+        opts.headSha && opts.baseSha
+            ? [
+                  `<!-- release-safety-describes head:${opts.headSha} base:${opts.baseSha} gate:${
+                      opts.gateFailed ? 'fail' : 'pass'
+                  } -->`,
+              ]
+            : [];
 
     return [
         COMMENT_MARKER,
+        ...describes,
         '## 🛡️ Upgrade safety for self-hosted customers',
         baseLine,
         head.map((l) => `- ${l}`).join('\n'),
@@ -254,6 +277,9 @@ function main(): void {
         baseLabel: arg('base'),
         restStatus: restStatus as RenderOpts['restStatus'],
         declarationGateFailed: process.argv.includes('--declaration-gate-failed'),
+        headSha: arg('head-sha'),
+        baseSha: arg('base-sha'),
+        gateFailed: process.argv.includes('--gate-failed'),
         draft: process.argv.includes('--draft'),
         linterBreaking: process.argv.includes('--linter-breaking')
             ? true
