@@ -1988,6 +1988,9 @@ export type AiWritebackCompletedEvent = BaseTrack & {
         numTurns: number | null;
         // Time (ms) spent in LLM API calls — the rest is local tool execution.
         durationApiMs: number | null;
+        repoContextBytes: number | null;
+        repoContextCapped: boolean | null;
+        repoContextFileCount: number | null;
     };
 };
 
@@ -2010,6 +2013,9 @@ export type AiWritebackFailedEvent = BaseTrack & {
         failureStage: AiWritebackFailureStage;
         errorMessage: string;
         totalDurationMs: number;
+        repoContextBytes: number | null;
+        repoContextCapped: boolean | null;
+        repoContextFileCount: number | null;
     };
 };
 

@@ -116,6 +116,7 @@ export type SetStage = (stage: AiWritebackFailureStage) => void;
  */
 export type CodingAgentSetup = {
     systemPrompt: string;
+    repoContext: RepoContext | null;
     /** Claude Code `--allowedTools` string for this mode. */
     allowedTools: string;
     /**
