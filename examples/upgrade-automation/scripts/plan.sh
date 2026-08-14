@@ -71,6 +71,7 @@ require_value freeze_label "${FREEZE_LABEL:-}"
 require_value github_token "${GH_TOKEN:-}"
 
 if [[ "$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label "$FREEZE_LABEL" --limit 1 --json number --jq 'length')" != "0" ]]; then
+    echo "an open $FREEZE_LABEL issue is disarming the planner; nothing to do"
     exit 0
 fi
 
@@ -101,6 +102,7 @@ mapfile -t candidates < <(
 )
 
 if [[ ${#candidates[@]} -eq 0 ]]; then
+    echo "no release newer than $current_public in the index; already up to date"
     exit 0
 fi
 
@@ -130,10 +132,18 @@ run_gate() {
 selected_version=
 selected_json=
 selected_green=false
+hold_reason=
 newest=${candidates[0]}
 
+gate_unusable() {
+    local target=$1
+    echo "the release-safety gate returned unusable output for $target" >&2
+    cat "$gate_error" >&2 || true
+}
+
 if ! run_gate "$newest"; then
-    exit 0
+    gate_unusable "$newest"
+    exit 1
 fi
 if [[ "$GATE_STATUS" == "0" ]] && [[ "$(jq -r '.safe' <<<"$GATE_JSON")" == "true" ]]; then
     selected_version=$newest
@@ -180,13 +190,16 @@ if [[ -z "$selected_version" ]]; then
     next_index=$((${#candidates[@]} - 1))
     next_version=${candidates[$next_index]}
     if ! run_gate "$next_version"; then
-        exit 0
-    fi
-    if ! jq -e '.verdict == false' <<<"$GATE_JSON" >/dev/null; then
-        exit 0
+        gate_unusable "$next_version"
+        exit 1
     fi
     selected_version=$next_version
     selected_json=$GATE_JSON
+    if jq -e '.verdict == false' <<<"$GATE_JSON" >/dev/null; then
+        hold_reason=red
+    else
+        hold_reason=unknown
+    fi
 fi
 
 mapped_version="${selected_version}${TAG_SUFFIX:-}"
@@ -196,6 +209,7 @@ if [[ ! "$mapped_version" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]; then
 fi
 if [[ -n "${REGISTRY_CHECK:-}" ]]; then
     if ! docker manifest inspect "${REGISTRY_CHECK}:${mapped_version}" >/dev/null 2>&1; then
+        echo "image ${REGISTRY_CHECK}:${mapped_version} is not published yet; retrying on a later run"
         exit 0
     fi
 fi
@@ -208,6 +222,7 @@ bump_file=${BUMP_TARGET%%#*}
 cp "$bump_file" "$bump_file_before"
 write_bump_value "$mapped_version"
 if cmp -s "$bump_file_before" "$bump_file"; then
+    echo "$bump_file already pins $mapped_version; nothing to commit"
     exit 0
 fi
 
@@ -234,7 +249,9 @@ fi
 jq -e '.data.createCommitOnBranch.commit.oid | type == "string" and length > 0' <<<"$commit_response" >/dev/null
 
 plain_reason='The release-safety gate found a green upgrade path.'
-if [[ "$selected_green" != "true" ]]; then
+if [[ "$hold_reason" == "unknown" ]]; then
+    plain_reason='The release-safety gate could not determine whether the next release hop is safe. This is not a known break: the safety data for that release is incomplete or inconclusive. This pull request is held for manual review and must not merge automatically.'
+elif [[ "$selected_green" != "true" ]]; then
     plain_reason='The next release hop is red. This pull request is held for manual review and must not merge automatically.'
 elif [[ "$(jq -r '.safe' <<<"$selected_json")" != "true" ]]; then
     plain_reason='This target is the required stop identified by the gate. Landing on the stop satisfies the staged upgrade path before a later release can be selected.'
@@ -268,7 +285,9 @@ This pull request was created by the self-hosted Lightdash upgrade automation. V
 EOF
 
 pr_json=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$upgrade_branch" --state open --json number,url --jq '.[0] // empty')
+pr_created=false
 if [[ -z "$pr_json" ]]; then
+    pr_created=true
     pr_url=$(gh pr create \
         --repo "$GITHUB_REPOSITORY" \
         --base "$default_branch" \
@@ -292,18 +311,22 @@ cat >"$summary_file" <<EOF
 ## Upgrade plan summary
 
 - Version: \`$current_mapped\` → \`$mapped_version\`
-- Gate: $([[ "$selected_green" == "true" ]] && printf 'green' || printf 'red')
+- Gate: $([[ "$selected_green" == "true" ]] && printf 'green' || printf '%s' "$hold_reason")
 - Registry check: $([[ -n "${REGISTRY_CHECK:-}" ]] && printf 'passed' || printf 'disabled')
 
 \`\`\`json
 $(jq . <<<"$selected_json")
 \`\`\`
 EOF
-gh pr comment "$pr_url" --body-file "$summary_file"
+if [[ "$pr_created" == "true" ]]; then
+    gh pr comment "$pr_url" --body-file "$summary_file"
+fi
 
 if [[ "$selected_green" == "true" && "${AUTO_MERGE:-false}" == "true" ]]; then
     gh pr merge "$pr_url" --auto --squash
-elif [[ "$selected_green" != "true" ]]; then
+elif [[ "$selected_green" != "true" && "$pr_created" == "true" ]]; then
     stops=$(jq -r '.requiredStops | if length == 0 then "none" else join(", ") end' <<<"$selected_json")
-    post_slack "[upgrade-hold] $pr_url | $current_public -> $selected_version | required stops: $stops | $plain_reason"
+    post_slack "[upgrade-hold] $pr_url | $current_public -> $selected_version | gate: $hold_reason | required stops: $stops | $plain_reason"
+elif [[ "$selected_green" != "true" ]]; then
+    echo "hold for $mapped_version already reported on $pr_url; not repeating the escalation"
 fi
