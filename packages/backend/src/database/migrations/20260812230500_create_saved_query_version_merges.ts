@@ -4,7 +4,7 @@ const SavedQueriesVersionsTableName = 'saved_queries_versions';
 const SavedQueryVersionMergesTableName = 'saved_queries_version_merges';
 
 /**
- * A chart version can merge its query with a second one.
+ * A chart version can merge its query with additional queries.
  *
  * Kept in its own table rather than as a column on saved_queries_versions,
  * following the same shape as the other per-version tables (fields, sorts,
@@ -31,13 +31,13 @@ export async function up(knex: Knex): Promise<void> {
             .inTable(SavedQueriesVersionsTableName)
             .onDelete('CASCADE');
 
-        // Column, not a key inside the payload, so old shapes can be found
-        // and migrated without scanning jsonb.
-        table.integer('schema_version').notNullable().defaultTo(1);
+        // Column, not a key inside the payload, so future shapes can be found
+        // and migrated without scanning jsonb. Version 1 never shipped; this
+        // table starts at the canonical sources[] representation.
+        table.integer('schema_version').notNullable().defaultTo(2);
 
-        // Holds the second query and the relationship only. The first query
-        // is the chart version itself; storing it again would create two
-        // sources of truth that drift on the next edit.
+        // Holds sources[] and their relationship. The chart query is referenced
+        // rather than copied, avoiding two sources of truth.
         table.jsonb('merge').notNullable();
 
         table

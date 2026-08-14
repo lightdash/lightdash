@@ -40,6 +40,7 @@ import {
     parseSavedMergeQuery,
     Project,
     ResolvedProjectColorPalette,
+    SAVED_MERGE_QUERY_SCHEMA_VERSION,
     SavedChartDAO,
     SessionUser,
     SortField,
@@ -282,7 +283,7 @@ const createSavedChartVersion = async (
         if (merge) {
             await trx('saved_queries_version_merges').insert({
                 saved_queries_version_id: version.saved_queries_version_id,
-                schema_version: 1,
+                schema_version: SAVED_MERGE_QUERY_SCHEMA_VERSION,
                 merge: JSON.stringify(merge),
             });
         }
@@ -1796,7 +1797,7 @@ export class SavedChartModel {
                 ).where('saved_queries_version_id', savedQueriesVersionId);
 
                 const mergeQuery = this.database('saved_queries_version_merges')
-                    .select(['merge'])
+                    .select(['schema_version', 'merge'])
                     .where('saved_queries_version_id', savedQueriesVersionId)
                     .first();
 
@@ -1824,10 +1825,13 @@ export class SavedChartModel {
                     mergeQuery,
                 ]);
 
-                // A payload written by an older shape leaves the chart working
-                // without its merge rather than failing the whole chart.
+                // An unknown future shape leaves the chart working without its
+                // merge rather than failing the whole chart.
                 const merge = mergeRow
-                    ? parseSavedMergeQuery(mergeRow.merge)
+                    ? parseSavedMergeQuery(
+                          mergeRow.schema_version,
+                          mergeRow.merge,
+                      )
                     : null;
 
                 // Filters out "null" fields

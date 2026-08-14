@@ -33,35 +33,13 @@ import {
     parseMergeState,
     serializeMergeState,
 } from './mergeUrlState';
+import { restoreSavedMerge } from './restoreSavedMerge';
 
 const EMPTY_QUERY_B: MergeQueryBState = {
     exploreName: null,
     dimensions: [],
     metrics: [],
 };
-
-/**
- * Turns a chart's stored merge back into editable state.
- *
- * Without this a saved merged chart opens looking unmerged, and saving it
- * again would drop the merge it arrived with.
- */
-const fromSavedMerge = (saved: SavedMergeQuery) => ({
-    focus: 'a' as MergeFocus,
-    queryB: {
-        exploreName: saved.secondQuery.metricQuery.exploreName,
-        dimensions: saved.secondQuery.metricQuery.dimensions,
-        metrics: saved.secondQuery.metricQuery.metrics,
-        additionalMetrics: saved.secondQuery.metricQuery.additionalMetrics,
-        customDimensions: saved.secondQuery.metricQuery.customDimensions,
-    },
-    joinParts: saved.joinKey.map((part) => ({
-        fieldA: part.chartFieldId,
-        fieldB: part.secondFieldId,
-    })),
-    joinType: saved.joinType,
-    filtersB: saved.secondQuery.metricQuery.filters ?? {},
-});
 
 /**
  * Merge state lives above the explorer page because the field picker and the
@@ -84,7 +62,7 @@ export const MergeProvider: FC<
     const [restored] = useState(
         () =>
             parseMergeState(searchParams.get(MERGE_URL_PARAM)) ??
-            (savedMerge ? fromSavedMerge(savedMerge) : null),
+            (savedMerge ? restoreSavedMerge(savedMerge) : null),
     );
 
     const [isMerging, setIsMerging] = useState(restored !== null);

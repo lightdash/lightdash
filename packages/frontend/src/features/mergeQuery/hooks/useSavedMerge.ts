@@ -1,22 +1,29 @@
 import { type MergeQuery, type SavedMergeQuery } from '@lightdash/common';
 import { useMemo } from 'react';
-import { SOURCE_A, SOURCE_B } from '../constants';
+import { SOURCE_A } from '../constants';
 import { useMergeSetup } from './useMergeSetup';
 
 export const toSavedMerge = (mergeQuery: MergeQuery): SavedMergeQuery => {
-    const secondQuery = mergeQuery.sources.find(
-        (source) => source.id === SOURCE_B,
-    );
-    if (!secondQuery) {
-        throw new Error('A saved merge requires Query B.');
+    if (!mergeQuery.sources.some((source) => source.id === SOURCE_A)) {
+        throw new Error('A saved merge requires the chart query.');
     }
-
     return {
-        secondQuery: { metricQuery: secondQuery.metricQuery },
+        primarySourceId: mergeQuery.sources[0].id,
+        sources: mergeQuery.sources.map((source) =>
+            source.id === SOURCE_A
+                ? {
+                      id: source.id,
+                      kind: 'chart' as const,
+                  }
+                : {
+                      id: source.id,
+                      kind: 'query' as const,
+                      metricQuery: source.metricQuery,
+                  },
+        ),
         joinKey: mergeQuery.joinKey.map((part) => ({
             name: part.name,
-            chartFieldId: part.fieldIdBySourceId[SOURCE_A],
-            secondFieldId: part.fieldIdBySourceId[SOURCE_B],
+            fieldIdBySourceId: part.fieldIdBySourceId,
         })),
         joinType: mergeQuery.joinType,
         tableCalculations: mergeQuery.tableCalculations,
