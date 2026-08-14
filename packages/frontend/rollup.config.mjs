@@ -116,7 +116,6 @@ const mainBuild = {
                 'import.meta.env.VITEST': JSON.stringify('false'),
                 'import.meta.env.BASE_URL': JSON.stringify('/'),
                 'import.meta.env.DEV': 'false',
-                'import.meta.env.VITE_SENTRY_SPOTLIGHT': 'undefined',
             },
         }),
         stripSvgrQuery(),

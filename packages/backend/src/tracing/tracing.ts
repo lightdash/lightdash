@@ -2,12 +2,12 @@
  * Tracing runs in one of two exclusive modes, selected by
  * LIGHTDASH_OTEL_TRACES_ENABLED:
  *
- * - OTel mode (Lightdash Cloud): spans are created via the OTel SDK and
- *   exported over OTLP (GCP Cloud Trace). Sentry does NOT receive or create
- *   spans — it is errors-only (see sentry.ts, which strips Sentry's
- *   span-emitting integrations in this mode).
- * - Sentry mode (self-hosted / local Spotlight dev): spans are created via
- *   Sentry's SDK exactly as before OTLP export existed.
+ * - OTel mode (Lightdash Cloud, and local dev): spans are created via the OTel
+ *   SDK and exported over OTLP — GCP Cloud Trace in Cloud, Maple local mode in
+ *   dev. Sentry does NOT receive or create spans — it is errors-only (see
+ *   sentry.ts, which strips Sentry's span-emitting integrations in this mode).
+ * - Sentry mode (self-hosted): spans are created via Sentry's SDK exactly as
+ *   before OTLP export existed.
  *
  * The modes must not run together: the previous dual export created two spans
  * per traceSpan call and oddly-parented traces.
