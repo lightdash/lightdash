@@ -697,6 +697,11 @@ export const useColumns = (): TableColumn[] => {
                     header: () => (
                         <TableHeaderLabelContainer
                             color={fieldColors.columnHeaderColor}
+                            className={
+                                mergeResults
+                                    ? provenanceStyles.header
+                                    : undefined
+                            }
                         >
                             {isField(item) ? (
                                 <>
