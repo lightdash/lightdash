@@ -1,6 +1,13 @@
 import { FeatureFlags } from '@lightdash/common';
-import { Box, Text, Tooltip, UnstyledButton } from '@mantine/core';
-import { IconPlus, IconX } from '@tabler/icons-react';
+import {
+    ActionIcon,
+    Box,
+    Menu,
+    Text,
+    Tooltip,
+    UnstyledButton,
+} from '@mantine/core';
+import { IconDots, IconGitMerge, IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useExplore } from '../../../hooks/useExplore';
@@ -12,10 +19,9 @@ import styles from './MergeTabStrip.module.css';
 /**
  * The merge entry point: a row of real tabs above the sidebar's field tree.
  *
- * Solo, the row is the current query's tab and a quiet "+ Add query" tab —
- * the affordance is structural, not a floating button. With a second query
- * the row becomes two tabs that swap the field tree between the queries, and
- * the add tab disappears, because a merge joins exactly two.
+ * Solo, merging lives in the query-options menu: it is an advanced escape
+ * hatch, not the default next step. With a second query the row becomes two
+ * tabs that swap the field tree between the queries.
  */
 export const MergeTabStrip: FC = () => {
     const { data: mergeFlag } = useServerFeatureFlag(FeatureFlags.MergeQueries);
@@ -92,16 +98,32 @@ export const MergeTabStrip: FC = () => {
                     )}
                 </UnstyledButton>
             ) : (
-                <UnstyledButton
-                    className={`${styles.tab} ${styles.add}`}
-                    onClick={merge.addQuery}
-                    data-testid="MergeTabStrip/AddQueryB"
-                >
-                    <MantineIcon icon={IconPlus} size={13} />
-                    <Text span size="sm">
-                        Add query
-                    </Text>
-                </UnstyledButton>
+                <Menu position="bottom-end" withinPortal shadow="subtle">
+                    <Menu.Target>
+                        <Tooltip label="Query options" withinPortal>
+                            <ActionIcon
+                                className={styles.options}
+                                variant="subtle"
+                                color="gray"
+                                size="sm"
+                                aria-label="Query options"
+                            >
+                                <MantineIcon icon={IconDots} size={15} />
+                            </ActionIcon>
+                        </Tooltip>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                        <Menu.Item
+                            leftSection={
+                                <MantineIcon icon={IconGitMerge} size={14} />
+                            }
+                            onClick={merge.addQuery}
+                            data-testid="MergeTabStrip/AddQueryB"
+                        >
+                            Merge another query
+                        </Menu.Item>
+                    </Menu.Dropdown>
+                </Menu>
             )}
         </Box>
     );
