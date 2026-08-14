@@ -42,7 +42,9 @@ import { useProject } from '../../../../hooks/useProject';
 import useDashboardContext from '../../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../../providers/Dashboard/useDashboardTileStatusContext';
 import { hasSavedFilterValueChanged } from '../../../dashboardFilters/FilterConfiguration/utils';
+import { useSchedulerFilterableTiles } from '../../hooks/useSchedulerFilterableTiles';
 import { getSchedulerFilterRequirements } from '../../utils/filterRequirements';
+import { useSchedulerFormContext } from './schedulerFormContext';
 
 const isValidFilterOperator = (value: unknown): value is FilterOperator =>
     Object.values(FilterOperator).includes(value as FilterOperator);
@@ -347,6 +349,9 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
 
     const tileNamesById = useDashboardTileStatusContext((c) => c.tileNamesById);
 
+    const form = useSchedulerFormContext();
+    const filterableTiles = useSchedulerFilterableTiles(dashboard);
+
     const { savedFiltersInDashboard, savedFiltersNotInDashboard } =
         useMemo(() => {
             const inDashboard: typeof savedFilters = [];
@@ -427,9 +432,17 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
     }
 
     // Same base as the submit gate in useSchedulerFormModal: the saved
-    // dashboard filters, not the live session filters.
+    // dashboard filters, not the live session filters, scoped to the tabs the
+    // delivery includes.
     const { unmetRequirements, filtersWithUnmetRequirements } =
-        getSchedulerFilterRequirements(dashboard?.filters, draftFilters);
+        getSchedulerFilterRequirements(
+            dashboard?.filters,
+            draftFilters,
+            filterableTiles && {
+                ...filterableTiles,
+                selectedTabs: form.values.selectedTabs ?? null,
+            },
+        );
     const unmetFilterIds = new Set(
         filtersWithUnmetRequirements.map((filter) => filter.id),
     );

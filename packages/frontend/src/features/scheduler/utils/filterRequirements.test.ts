@@ -1,10 +1,17 @@
 import {
+    DimensionType,
+    FieldType,
     FilterOperator,
+    type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardFilters,
+    type DashboardTile,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { getSchedulerFilterRequirements } from './filterRequirements';
+import {
+    getSchedulerFilterRequirements,
+    type SchedulerTabScope,
+} from './filterRequirements';
 
 const rule = (
     overrides: Partial<DashboardFilterRule> & Pick<DashboardFilterRule, 'id'>,
@@ -144,6 +151,124 @@ describe('getSchedulerFilterRequirements', () => {
         expect(
             getSchedulerFilterRequirements(undefined, [])
                 .filtersWithUnmetRequirements,
+        ).toEqual([]);
+    });
+});
+
+describe('getSchedulerFilterRequirements tab scoping', () => {
+    const tile = (uuid: string, tabUuid: string | undefined): DashboardTile =>
+        ({ uuid, tabUuid } as DashboardTile);
+
+    const field = (name: string): DashboardFilterableField =>
+        ({
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.STRING,
+            name,
+            table: 'orders',
+        } as unknown as DashboardFilterableField);
+
+    const tiles = [tile('tile-1', 'tab-1'), tile('tile-2', 'tab-2')];
+    // Both tiles can be filtered on both fields, so only tileTargets scope them
+    const filterableFieldsByTileUuid = {
+        'tile-1': [field('tab1'), field('tab2')],
+        'tile-2': [field('tab1'), field('tab2')],
+    };
+
+    const tabScope = (selectedTabs: string[] | null): SchedulerTabScope => ({
+        tiles,
+        selectedTabs,
+        filterableFieldsByTileUuid,
+    });
+
+    // One required filter per tab, each targeting only its own tab's tile
+    const tab1Filter = rule({
+        id: 'tab1',
+        required: true,
+        target: { fieldId: 'orders_tab1', tableName: 'orders' },
+        tileTargets: {
+            'tile-1': { fieldId: 'orders_tab1', tableName: 'orders' },
+            'tile-2': false,
+        },
+    });
+    const tab2Filter = rule({
+        id: 'tab2',
+        required: true,
+        target: { fieldId: 'orders_tab2', tableName: 'orders' },
+        tileTargets: {
+            'tile-1': false,
+            'tile-2': { fieldId: 'orders_tab2', tableName: 'orders' },
+        },
+    });
+    const filters = dashboardFilters([tab1Filter, tab2Filter]);
+
+    it('only flags requirements that apply to the selected tabs', () => {
+        expect(
+            getSchedulerFilterRequirements(
+                filters,
+                [],
+                tabScope(['tab-2']),
+            ).filtersWithUnmetRequirements.map((f) => f.id),
+        ).toEqual(['tab2']);
+    });
+
+    it('flags every requirement when all tabs are included', () => {
+        expect(
+            getSchedulerFilterRequirements(
+                filters,
+                [],
+                tabScope(null),
+            ).filtersWithUnmetRequirements.map((f) => f.id),
+        ).toEqual(['tab1', 'tab2']);
+    });
+
+    it('keeps requirements on filters that target no tiles in particular', () => {
+        const dashboardWideFilter = rule({
+            id: 'all',
+            required: true,
+            tileTargets: undefined,
+        });
+        expect(
+            getSchedulerFilterRequirements(
+                dashboardFilters([dashboardWideFilter]),
+                [],
+                tabScope(['tab-2']),
+            ).filtersWithUnmetRequirements.map((f) => f.id),
+        ).toEqual(['all']);
+    });
+
+    it('scopes nothing out while the tiles filterable fields are unknown', () => {
+        expect(
+            getSchedulerFilterRequirements(filters, [], {
+                tiles,
+                selectedTabs: ['tab-2'],
+                filterableFieldsByTileUuid: undefined,
+            }).filtersWithUnmetRequirements.map((f) => f.id),
+        ).toEqual(['tab1', 'tab2']);
+    });
+
+    it('drops a requirement group with no member on the selected tabs', () => {
+        const groupOnTab1 = [
+            rule({
+                id: 'a',
+                requiredGroupId: 'g1',
+                tileTargets: {
+                    'tile-1': { fieldId: 'orders_tab1', tableName: 'orders' },
+                },
+            }),
+            rule({
+                id: 'b',
+                requiredGroupId: 'g1',
+                tileTargets: {
+                    'tile-1': { fieldId: 'orders_tab2', tableName: 'orders' },
+                },
+            }),
+        ];
+        expect(
+            getSchedulerFilterRequirements(
+                dashboardFilters(groupOnTab1),
+                [],
+                tabScope(['tab-2']),
+            ).unmetRequirements,
         ).toEqual([]);
     });
 });
