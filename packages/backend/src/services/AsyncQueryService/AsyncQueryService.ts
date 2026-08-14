@@ -132,7 +132,11 @@ import {
     type WarehouseResults,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
-import { SshTunnel, warehouseSqlBuilderFromType } from '@lightdash/warehouses';
+import {
+    DuckdbWarehouseClient,
+    SshTunnel,
+    warehouseSqlBuilderFromType,
+} from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import { Readable, Writable } from 'stream';
 import { DownloadCsv } from '../../analytics/LightdashAnalytics';
@@ -159,6 +163,7 @@ import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { traceSpan } from '../../tracing/tracing';
 import { wrapSentryTransaction } from '../../utils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
+import { getJsonlSqlTable } from '../../utils/duckdb/duckdbSqlTables';
 import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
 import {
     processFieldsForExport,
@@ -925,20 +930,19 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
-    async getAsyncQueryResults({
-        account,
-        projectUuid,
-        queryUuid,
-        page = 1,
-        pageSize,
-    }: GetAsyncQueryResultsArgs): Promise<ApiGetAsyncQueryResults> {
-        assertIsAccountWithOrg(account);
-
-        const [{ organizationUuid }, queryHistory] = await Promise.all([
-            this.projectModel.getSummary(projectUuid),
-            this.queryHistoryModel.get(queryUuid, projectUuid, account),
-        ]);
-
+    /**
+     * The access check for reading a query's results by uuid: the account
+     * must be able to view the project, be the embed AI JWT creator of the
+     * query, or be able to view the query's explore. Note the query history
+     * row itself is already creator-scoped by QueryHistoryModel.get.
+     */
+    private throwIfCannotReadQueryHistory(
+        account: Account,
+        projectUuid: string,
+        organizationUuid: string,
+        queryHistory: QueryHistory,
+    ): void {
+        const { queryUuid } = queryHistory;
         const auditedAbility = this.createAuditedAbility(account);
         const canViewProject = auditedAbility.can(
             'view',
@@ -974,6 +978,28 @@ export class AsyncQueryService extends ProjectService {
         if (isForbidden) {
             throw new ForbiddenError();
         }
+    }
+
+    async getAsyncQueryResults({
+        account,
+        projectUuid,
+        queryUuid,
+        page = 1,
+        pageSize,
+    }: GetAsyncQueryResultsArgs): Promise<ApiGetAsyncQueryResults> {
+        assertIsAccountWithOrg(account);
+
+        const [{ organizationUuid }, queryHistory] = await Promise.all([
+            this.projectModel.getSummary(projectUuid),
+            this.queryHistoryModel.get(queryUuid, projectUuid, account),
+        ]);
+
+        this.throwIfCannotReadQueryHistory(
+            account,
+            projectUuid,
+            organizationUuid,
+            queryHistory,
+        );
 
         const {
             context,
@@ -6195,10 +6221,116 @@ export class AsyncQueryService extends ProjectService {
     }
 
     /**
+     * Replaces lightdash_query('<queryUuid>') references in DuckDB SQL with
+     * reads of the referenced query's results file. Each reference is
+     * authorized with the exact checks used when fetching that query's
+     * results by uuid: the creator-scoped QueryHistoryModel.get lookup plus
+     * throwIfCannotReadQueryHistory.
+     */
+    private async resolveQueryReferencesForDuckdbSql({
+        account,
+        projectUuid,
+        organizationUuid,
+        sql,
+    }: {
+        account: Account;
+        projectUuid: string;
+        organizationUuid: string;
+        sql: string;
+    }): Promise<{ sql: string; referencedQueryUuids: string[] }> {
+        const referencePattern =
+            /lightdash_query\(\s*'([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})'\s*\)/g;
+
+        const referencedQueryUuids = [
+            ...new Set(
+                Array.from(sql.matchAll(referencePattern), (match) =>
+                    match[1].toLowerCase(),
+                ),
+            ),
+        ];
+
+        if (referencedQueryUuids.length === 0) {
+            return { sql, referencedQueryUuids };
+        }
+
+        const tablesByQueryUuid = new Map<string, string>(
+            await Promise.all(
+                referencedQueryUuids.map(async (queryUuid) => {
+                    const queryHistory = await this.queryHistoryModel.get(
+                        queryUuid,
+                        projectUuid,
+                        account,
+                    );
+
+                    this.throwIfCannotReadQueryHistory(
+                        account,
+                        projectUuid,
+                        organizationUuid,
+                        queryHistory,
+                    );
+
+                    if (queryHistory.status !== QueryHistoryStatus.READY) {
+                        throw new ParameterError(
+                            `Results for query ${queryUuid} are not ready (status: ${queryHistory.status})`,
+                        );
+                    }
+
+                    if (
+                        queryHistory.resultsExpiresAt &&
+                        queryHistory.resultsExpiresAt < new Date()
+                    ) {
+                        throw new ResultsExpiredError();
+                    }
+
+                    if (!queryHistory.resultsFileName) {
+                        throw new NotFoundError(
+                            `Result file not found for query ${queryUuid}`,
+                        );
+                    }
+
+                    const storageClient =
+                        this.getResultsStorageClientForContext(
+                            queryHistory.context,
+                        );
+                    const bucket = storageClient.configuration?.bucket;
+                    if (!storageClient.isEnabled || !bucket) {
+                        throw new S3Error('S3 is not enabled');
+                    }
+
+                    const key = S3ResultsFileStorageClient.sanitizeFileExtension(
+                        queryHistory.resultsFileName,
+                    );
+                    const table = getJsonlSqlTable(
+                        `s3://${bucket}/${key}`,
+                        queryHistory.columns,
+                    );
+
+                    return [queryUuid, table] as const;
+                }),
+            ),
+        );
+
+        return {
+            sql: sql.replace(
+                referencePattern,
+                (_match, queryUuid: string) =>
+                    tablesByQueryUuid.get(queryUuid.toLowerCase())!,
+            ),
+            referencedQueryUuids,
+        };
+    }
+
+    /**
      * Runs raw SQL directly on the shared pre-aggregate DuckDB engine (the
      * one that serves managed materializations) and streams results through
      * the standard async query pipeline, so results are polled with
      * getAsyncQueryResults like any other async query.
+     *
+     * lightdash_query('<queryUuid>') references read the referenced query's
+     * results file, gated by the exact access checks of the results-by-uuid
+     * endpoint. Direct file access (read_parquet, read_json, ...) in the
+     * user SQL is rejected, so referenced results are the only data this
+     * endpoint can reach — which is why view-project access suffices.
      */
     async executeAsyncPreAggregateSqlQuery({
         account,
@@ -6214,8 +6346,8 @@ export class AsyncQueryService extends ProjectService {
         const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
-                'manage',
-                subject('SqlRunner', {
+                'view',
+                subject('Project', {
                     organizationUuid,
                     projectUuid,
                 }),
@@ -6223,6 +6355,23 @@ export class AsyncQueryService extends ProjectService {
         ) {
             throw new ForbiddenError();
         }
+
+        // Blocks read_parquet/read_json/... and file table paths in the raw
+        // user SQL; the only file reads in the executed SQL are the ones
+        // resolveQueryReferencesForDuckdbSql injects after authorizing them.
+        try {
+            DuckdbWarehouseClient.validateUserSqlFileAccess(sql);
+        } catch (e) {
+            throw new ParameterError(getErrorMessage(e));
+        }
+
+        const { sql: resolvedSql } =
+            await this.resolveQueryReferencesForDuckdbSql({
+                account,
+                projectUuid,
+                organizationUuid,
+                sql,
+            });
 
         // Throws NotImplementedError when pre-aggregate execution is unavailable
         const warehouseClient =
@@ -6239,7 +6388,7 @@ export class AsyncQueryService extends ProjectService {
         // Column discovery (LIMIT 1) also validates the SQL before anything is persisted
         const columns: { name: string; type: DimensionType }[] = [];
         const columnDiscoverySql = applyLimitToSqlQuery({
-            sqlQuery: sql,
+            sqlQuery: resolvedSql,
             limit: 1,
         });
         try {
@@ -6264,7 +6413,7 @@ export class AsyncQueryService extends ProjectService {
         }
 
         const composer = new SqlQueryComposer({
-            userSql: sql,
+            userSql: resolvedSql,
             columns,
             warehouseClient,
             pivotConfiguration: undefined,
