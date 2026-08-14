@@ -11,6 +11,7 @@ import {
     type ParametersValuesMap,
 } from '@lightdash/common';
 import { safeReplaceParameters } from './parameters';
+import { prepareSqlForWrapping } from './sqlScript';
 import {
     applyLimitToSqlQuery,
     extractOuterLimitOffsetFromSQL,
@@ -96,10 +97,10 @@ export class SqlQueryBuilder {
         return `SELECT\n${selectSQL}`;
     }
 
-    private fromToSql(): string {
-        if (this.from.sql) {
+    private fromToSql(sourceSql = this.from.sql): string {
+        if (sourceSql) {
             // strip any trailing semicolons, comments and outer limit/offset
-            let sanitizedSql = removeCommentsAndOuterLimitOffset(this.from.sql);
+            let sanitizedSql = removeCommentsAndOuterLimitOffset(sourceSql);
             sanitizedSql = removeTrailingSemicolon(sanitizedSql);
             return `FROM (\n${sanitizedSql}\n) AS ${this.quotedName(
                 this.from.name,
@@ -227,20 +228,28 @@ export class SqlQueryBuilder {
         // ORDER BY inside the subquery where Snowflake/BigQuery/Redshift
         // optimizers can drop it, making the outer LIMIT return arbitrary
         // rows (PROD-7880).
-        const sql =
-            this.from.sql && !this.hasFilters()
+        const hasFilters = this.hasFilters();
+        const script =
+            this.from.sql && hasFilters
+                ? prepareSqlForWrapping(this.from.sql)
+                : { prelude: null, sql: this.from.sql };
+        const querySql =
+            script.sql && !hasFilters
                 ? applyLimitToSqlQuery({
-                      sqlQuery: this.from.sql,
+                      sqlQuery: script.sql,
                       limit: this.limit,
                   })
                 : [
                       this.selectsToSql(),
-                      this.fromToSql(),
+                      this.fromToSql(script.sql),
                       this.filtersToSql(),
                       this.limitToSql(),
                   ]
                       .filter((l) => l !== undefined)
                       .join('\n');
+        const sql = script.prelude
+            ? `${script.prelude}\n${querySql}`
+            : querySql;
 
         const { replacedSql, references, missingReferences } =
             safeReplaceParameters({
