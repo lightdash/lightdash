@@ -1,3 +1,10 @@
+## [1.159.1](https://github.com/lightdash/lightdash/compare/1.159.0...1.159.1) (2026-08-14)
+
+
+### Bug Fixes
+
+* **upgrade-automation:** hold and escalate on an unknown verdict ([#27413](https://github.com/lightdash/lightdash/issues/27413)) ([3832554](https://github.com/lightdash/lightdash/commit/3832554b29552f10a31eba312af63f8ddda28d63)), closes [#27364](https://github.com/lightdash/lightdash/issues/27364)
+
 # [1.159.0](https://github.com/lightdash/lightdash/compare/1.158.2...1.159.0) (2026-08-14)
 
 
