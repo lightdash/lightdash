@@ -1,3 +1,10 @@
+## [1.160.3](https://github.com/lightdash/lightdash/compare/1.160.2...1.160.3) (2026-08-14)
+
+
+### Bug Fixes
+
+* **sql-runner:** support DECLARE/SET scripts in chart generation ([#27412](https://github.com/lightdash/lightdash/issues/27412)) ([46f6b65](https://github.com/lightdash/lightdash/commit/46f6b6567b9183ba9dcfec05312324e4bda3e821)), closes [/linear.app/lightdash/issue/PROD-10111/sql-runner-chart-generation-fails-with-unexpected-keyword-declare-for#agent-session-56439691](https://github.com//linear.app/lightdash/issue/PROD-10111/sql-runner-chart-generation-fails-with-unexpected-keyword-declare-for/issues/agent-session-56439691)
+
 ## [1.160.2](https://github.com/lightdash/lightdash/compare/1.160.1...1.160.2) (2026-08-14)
 
 
