@@ -67,7 +67,7 @@ import {
     formatTokenEstimate,
     MCP_TOOL_TOKEN_WARNING_THRESHOLD,
 } from '../utils/mcpToolTokenEstimates';
-import { AgentSettingsSection } from './AgentSettingsSection';
+import { AgentSettingsSubsection } from './AgentSettingsSubsection';
 import { AiAgentMcpServerToolsPanel } from './AiAgentMcpServerToolsPanel';
 import { AiMcpServerIcon } from './AiMcpServerIcon';
 import { GithubMcpConnectModal } from './GithubMcpConnectModal';
@@ -1427,11 +1427,9 @@ export const AiAgentMcpServersInput = ({
 
     return (
         <>
-            <AgentSettingsSection
-                id="mcp-servers"
-                icon={IconPlug}
+            <AgentSettingsSubsection
                 title="MCP servers"
-                description="External tool servers this agent can call."
+                description="External tool servers this agent can call. Adding or removing one applies immediately, without saving the page."
                 badge={<BetaBadge />}
                 action={
                     selectedMcpServers.length > 0 && (
@@ -1815,7 +1813,7 @@ export const AiAgentMcpServersInput = ({
                         </Stack>
                     )}
                 </Stack>
-            </AgentSettingsSection>
+            </AgentSettingsSubsection>
             <CreateMcpServerModal
                 opened={isCreateMcpServerModalOpen}
                 onClose={createMcpServerModalHandlers.close}
