@@ -220,6 +220,29 @@ export const sentryTraceToTraceparent = (
     return `00-${match[1]}-${match[2]}-${match[3] === '0' ? '00' : '01'}`;
 };
 
+export class LightdashTraceContextPropagator extends W3CTraceContextPropagator {
+    extract(
+        extractionContext: Context,
+        carrier: unknown,
+        getter: Parameters<W3CTraceContextPropagator['extract']>[2],
+    ): Context {
+        const first = (value: string | string[] | undefined) =>
+            Array.isArray(value) ? value[0] : value;
+        const sentryTrace = first(getter.get(carrier, 'sentry-trace'));
+        const traceparent = first(getter.get(carrier, 'traceparent'));
+
+        // Sentry's browser span is exported elsewhere, so it cannot parent OTLP.
+        if (
+            sentryTrace &&
+            traceparent === sentryTraceToTraceparent(sentryTrace)
+        ) {
+            return extractionContext;
+        }
+
+        return super.extract(extractionContext, carrier, getter);
+    }
+}
+
 const toOtelAttributes = (
     attributes: TraceSpanOptions['attributes'],
 ): Attributes => {
@@ -341,7 +364,7 @@ class OtelTracingStrategy implements TracingStrategy {
             metricReaders: [],
             textMapPropagator: new CompositePropagator({
                 propagators: [
-                    new W3CTraceContextPropagator(),
+                    new LightdashTraceContextPropagator(),
                     new W3CBaggagePropagator(),
                 ],
             }),
