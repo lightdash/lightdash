@@ -362,6 +362,8 @@ export const interpretAgentEvent = (event: unknown): AgentStreamEvent => {
         duration_ms?: number;
         duration_api_ms?: number;
         num_turns?: number;
+        is_error?: boolean;
+        subtype?: string;
         // Token counts live nested under `usage` on the result event; the rest
         // are top-level. Same shape data apps reads in ClaudeStreamProcessor.
         usage?: {
@@ -376,6 +378,8 @@ export const interpretAgentEvent = (event: unknown): AgentStreamEvent => {
         return {
             type: 'result',
             costUsd: typed.total_cost_usd ?? null,
+            isError: typed.is_error ?? null,
+            subtype: typed.subtype ?? null,
             durationMs: typed.duration_ms ?? null,
             durationApiMs: typed.duration_api_ms ?? null,
             numTurns: typed.num_turns ?? null,

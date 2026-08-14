@@ -267,6 +267,18 @@ export type AgentStreamEvent =
           type: 'result';
           /** Total agent wall-clock (ms) as reported by Claude Code. */
           durationMs: number | null;
+          /**
+           * Whether the CLI classified its own run as failed. When `claude -p`
+           * exits non-zero this is the only machine-readable statement of why —
+           * the subprocess writes nothing to stderr in that case.
+           */
+          isError: boolean | null;
+          /**
+           * The CLI's result classification: `success`, `error_max_turns`,
+           * `error_during_execution`, … Retained verbatim rather than mapped to
+           * an enum so a new upstream subtype reaches the logs unchanged.
+           */
+          subtype: string | null;
       } & AiWritebackUsage)
     | { type: 'ignored' };
 
