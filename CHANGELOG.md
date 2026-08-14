@@ -1,3 +1,10 @@
+## [1.157.5](https://github.com/lightdash/lightdash/compare/1.157.4...1.157.5) (2026-08-14)
+
+
+### Bug Fixes
+
+* **frontend:** expand data app connections table ([#27403](https://github.com/lightdash/lightdash/issues/27403)) ([69e3823](https://github.com/lightdash/lightdash/commit/69e38237df03999b478baffd44dc0c44272c03e6))
+
 ## [1.157.4](https://github.com/lightdash/lightdash/compare/1.157.3...1.157.4) (2026-08-14)
 
 
