@@ -15,7 +15,7 @@ import {
     type FilterExpression,
     type Filters,
 } from '@lightdash/common';
-import { Badge, Text, Tooltip } from '@mantine/core';
+import { Badge, Box, Text, Tooltip } from '@mantine/core';
 import {
     memo,
     useCallback,
@@ -278,9 +278,9 @@ const QueryAFiltersCard: FC = memo(() => {
             depth: number,
             key: string,
         ): ReactNode => (
-            <div key={key} style={{ paddingLeft: depth * 12 }}>
+            <Box key={key} style={{ paddingLeft: depth * 12 }}>
                 {renderRuleLabel(filterRule)}
-            </div>
+            </Box>
         );
 
         const renderExpression = (
@@ -299,7 +299,7 @@ const QueryAFiltersCard: FC = memo(() => {
 
             if (showParentheses && isLeafGroup) {
                 return [
-                    <div key={path} style={{ paddingLeft: depth * 12 }}>
+                    <Box key={path} style={{ paddingLeft: depth * 12 }}>
                         {expression.items.map((item, index) => {
                             if (isFilterExpression(item)) return null;
                             return (
@@ -321,18 +321,18 @@ const QueryAFiltersCard: FC = memo(() => {
                                 </span>
                             );
                         })}
-                    </div>,
+                    </Box>,
                 ];
             }
 
             if (showParentheses) {
                 lines.push(
-                    <div
+                    <Box
                         key={`${path}-start`}
                         style={{ paddingLeft: depth * 12 }}
                     >
                         (
-                    </div>,
+                    </Box>,
                 );
             }
 
@@ -371,12 +371,12 @@ const QueryAFiltersCard: FC = memo(() => {
 
             if (showParentheses) {
                 lines.push(
-                    <div
+                    <Box
                         key={`${path}-end`}
                         style={{ paddingLeft: depth * 12 }}
                     >
                         )
-                    </div>,
+                    </Box>,
                 );
             }
 
