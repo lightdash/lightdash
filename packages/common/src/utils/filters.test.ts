@@ -1,5 +1,6 @@
 import { DimensionType, FieldType } from '../types/field';
 import {
+    FilterGroupOperator,
     FilterOperator,
     UnitOfTime,
     type AndFilterGroup,
@@ -21,6 +22,7 @@ import {
     createFilterRuleFromField,
     createFilterRuleFromModelRequiredFilterRule,
     getDashboardFilterRulesForTileAndReferences,
+    getFilterExpression,
     getFilterRuleFromFieldWithDefaultValue,
     getUnmetFilterRequirements,
     isEmptyDashboardFilterRule,
@@ -59,6 +61,74 @@ import {
 vi.mock('uuid', () => ({
     v4: vi.fn(() => 'uuid'),
 }));
+
+describe('getFilterExpression', () => {
+    const rule = (id: string): FilterRule => ({
+        id,
+        target: { fieldId: id },
+        operator: FilterOperator.NOT_NULL,
+    });
+
+    test('preserves nested groups and combines filter types with AND', () => {
+        const firstRule = rule('first');
+        const secondRule = rule('second');
+        const thirdRule = rule('third');
+        const metricRule = rule('metric');
+        const filters: Filters = {
+            dimensions: {
+                id: 'dimensions',
+                and: [
+                    firstRule,
+                    {
+                        id: 'nested',
+                        or: [secondRule, thirdRule],
+                    },
+                ],
+            },
+            metrics: {
+                id: 'metrics',
+                and: [metricRule],
+            },
+        };
+
+        expect(getFilterExpression(filters)).toEqual({
+            operator: FilterGroupOperator.and,
+            items: [
+                firstRule,
+                {
+                    operator: FilterGroupOperator.or,
+                    items: [secondRule, thirdRule],
+                },
+                metricRule,
+            ],
+        });
+    });
+
+    test('omits excluded rules and empty groups', () => {
+        const includedRule = rule('included');
+        const filters: Filters = {
+            dimensions: {
+                id: 'dimensions',
+                and: [
+                    includedRule,
+                    {
+                        id: 'nested',
+                        or: [rule('excluded')],
+                    },
+                ],
+            },
+        };
+
+        expect(
+            getFilterExpression(filters, (candidateRule) =>
+                candidateRule.id.startsWith('included'),
+            ),
+        ).toEqual({
+            operator: FilterGroupOperator.and,
+            items: [includedRule],
+        });
+    });
+});
 
 describe('addDashboardFiltersToMetricQuery', () => {
     test('should override the chart AND filter group with dashboard filters', async () => {

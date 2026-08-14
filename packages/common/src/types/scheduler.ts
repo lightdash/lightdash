@@ -39,6 +39,7 @@ export type SchedulerGsheetsOptions = {
     gdriveOrganizationName: string;
     url: string;
     tabName?: string;
+    showFilters?: boolean;
 };
 export type SchedulerPdfOptions = {
     pagePerTab?: boolean;
