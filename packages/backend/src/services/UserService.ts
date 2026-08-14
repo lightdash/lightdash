@@ -1096,7 +1096,7 @@ export class UserService extends BaseService {
                 throw new DeactivatedAccountError();
             }
 
-            const organization = this.loginToOrganization(
+            const organization = await this.loginToOrganization(
                 openIdSession?.userUuid,
                 openIdUser.openId.issuerType,
             );
@@ -1634,7 +1634,7 @@ export class UserService extends BaseService {
             if (!user.isActive) {
                 throw new DeactivatedAccountError();
             }
-            const userOrganization = this.loginToOrganization(
+            const userOrganization = await this.loginToOrganization(
                 user.userUuid,
                 LocalIssuerTypes.EMAIL,
             );
@@ -1659,7 +1659,7 @@ export class UserService extends BaseService {
                 metadata: { loginProvider: 'password' },
                 context,
             });
-            return user;
+            return userWithOrganization;
         } catch (e) {
             if (e instanceof NotFoundError) {
                 emitFailure('Email and password not recognized');
@@ -2106,7 +2106,7 @@ export class UserService extends BaseService {
                 'You do not have permission to login with personal access tokens',
             );
         }
-        const organization = this.loginToOrganization(
+        const organization = await this.loginToOrganization(
             user.userUuid,
             LocalIssuerTypes.API_TOKEN,
         );
@@ -2392,6 +2392,11 @@ export class UserService extends BaseService {
             }
             throw error;
         }
+        const organization = await this.loginToOrganization(
+            sessionUser.userUuid,
+            LocalIssuerTypes.EMAIL_OTP,
+        );
+        sessionUser = { ...sessionUser, ...organization };
         await this.tryVerifyUserEmail(sessionUser, emailStatus.email, 'otp');
         await this.emailModel.deleteEmailOtp(
             sessionUser.userUuid,
@@ -2695,16 +2700,15 @@ export class UserService extends BaseService {
         userUuid: string,
         loginMethod: LoginOptionTypes,
     ): Promise<
-        Pick<
-            LightdashUser,
-            'organizationUuid' | 'organizationCreatedAt' | 'organizationName'
-        >
+        | Pick<
+              LightdashUser,
+              'organizationUuid' | 'organizationCreatedAt' | 'organizationName'
+          >
+        | undefined
     > {
         const organizations =
             await this.userModel.getOrganizationsForUser(userUuid);
-        if (organizations.length === 0) {
-            throw new NotFoundError('User not part of any organization');
-        } else if (organizations.length > 1) {
+        if (organizations.length > 1) {
             throw new ForbiddenError('User is part of multiple organizations');
         }
         // TODO check valid login methods allowed in org
