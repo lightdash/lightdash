@@ -1,3 +1,10 @@
+## [1.159.6](https://github.com/lightdash/lightdash/compare/1.159.5...1.159.6) (2026-08-14)
+
+
+### Bug Fixes
+
+* **release-safety:** write the describes-stamp, gated on the verdict ([#27426](https://github.com/lightdash/lightdash/issues/27426)) ([f0d4478](https://github.com/lightdash/lightdash/commit/f0d4478fa3e0617c8ab3243832a71f54cef14dbb))
+
 ## [1.159.5](https://github.com/lightdash/lightdash/compare/1.159.4...1.159.5) (2026-08-14)
 
 
