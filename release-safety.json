@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "1.157.6",
-  "previousVersion": "1.157.5",
-  "releaseDate": "2026-08-14T08:38:26.031Z",
+  "version": "1.158.0",
+  "previousVersion": "1.157.6",
+  "releaseDate": "2026-08-14T08:44:16.552Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260803094000_add_is_preview_to_jobs.ts",
-        "edition": "core",
-        "tables": [
-          "jobs"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

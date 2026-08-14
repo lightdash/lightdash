@@ -1,3 +1,10 @@
+# [1.158.0](https://github.com/lightdash/lightdash/compare/1.157.6...1.158.0) (2026-08-14)
+
+
+### Features
+
+* **analytics:** report repo-context size on writeback outcome events ([#27402](https://github.com/lightdash/lightdash/issues/27402)) ([821102d](https://github.com/lightdash/lightdash/commit/821102dda6d0210d488d76a601daab7e1a7a6f3c))
+
 ## [1.157.6](https://github.com/lightdash/lightdash/compare/1.157.5...1.157.6) (2026-08-14)
 
 
