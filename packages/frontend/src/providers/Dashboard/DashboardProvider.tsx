@@ -75,6 +75,7 @@ import DashboardContext from './context';
 import {
     getDashboardParameterOverrides,
     parseDashboardParametersUrl,
+    reconcileDashboardParameters,
     toDashboardParameters,
 } from './dashboardParametersUrl';
 import DashboardTileStatusProvider from './DashboardTileStatusProvider';
@@ -289,22 +290,23 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         {},
     );
     // parameters that are currently applied to the dashboard
-    const urlParameterValuesRef = useRef<ParametersValuesMap | null>(null);
     const hasInvalidUrlParametersRef = useRef(false);
-    if (urlParameterValuesRef.current === null) {
+    const [parameters, setParameters] = useState<DashboardParameters>(() => {
+        if (isEditMode) {
+            return {};
+        }
+
         try {
-            urlParameterValuesRef.current =
+            return toDashboardParameters(
                 parseDashboardParametersUrl(
                     new URLSearchParams(search).get('parameters'),
-                ) ?? {};
+                ) ?? {},
+            );
         } catch {
             hasInvalidUrlParametersRef.current = true;
-            urlParameterValuesRef.current = {};
+            return {};
         }
-    }
-    const [parameters, setParameters] = useState<DashboardParameters>(() =>
-        toDashboardParameters(urlParameterValuesRef.current ?? {}),
-    );
+    });
     const [parametersHaveChanged, setParametersHaveChanged] =
         useState<boolean>(false);
 
@@ -394,16 +396,15 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         [],
     );
 
-    // Set parameters to saved parameters when they are loaded, preserving any
-    // values restored from a shared URL.
     useEffect(() => {
-        if (savedParameters) {
-            setParameters({
-                ...savedParameters,
-                ...toDashboardParameters(urlParameterValuesRef.current ?? {}),
-            });
-        }
-    }, [savedParameters]);
+        setParameters((currentParameters) =>
+            reconcileDashboardParameters(
+                currentParameters,
+                savedParameters,
+                isEditMode,
+            ),
+        );
+    }, [isEditMode, savedParameters]);
 
     useEffect(() => {
         if (hasInvalidUrlParametersRef.current) {
@@ -670,7 +671,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     // Keep runtime parameter overrides in shared dashboard URLs. Saved defaults
     // are omitted so unchanged dashboards keep clean, stable URLs.
     useEffect(() => {
-        if (embed.mode === 'sdk') return;
+        if (embed.mode === 'sdk' || isEditMode) return;
 
         const currentParams = new URLSearchParams(search);
         const newParams = new URLSearchParams(search);
@@ -693,6 +694,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         }
     }, [
         embed.mode,
+        isEditMode,
         navigate,
         parameterValues,
         pathname,

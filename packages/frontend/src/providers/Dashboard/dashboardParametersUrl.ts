@@ -5,13 +5,16 @@ import {
 } from '@lightdash/common';
 import isEqual from 'lodash/isEqual';
 
-const isParameterValue = (value: unknown): value is ParameterValue =>
-    typeof value === 'string' ||
-    typeof value === 'number' ||
-    (Array.isArray(value) &&
-        value.every(
-            (item) => typeof item === 'string' || typeof item === 'number',
-        ));
+const isParameterValue = (value: unknown): value is ParameterValue => {
+    if (typeof value === 'string') return true;
+    if (typeof value === 'number') return Number.isFinite(value);
+    if (!Array.isArray(value)) return false;
+
+    return (
+        value.every((item) => typeof item === 'string') ||
+        value.every((item) => typeof item === 'number' && Number.isFinite(item))
+    );
+};
 
 export const parseDashboardParametersUrl = (
     value: string | null,
@@ -40,6 +43,13 @@ export const toDashboardParameters = (
             { parameterName: key, value },
         ]),
     );
+
+export const reconcileDashboardParameters = (
+    currentParameters: DashboardParameters,
+    savedParameters: DashboardParameters,
+    isEditMode: boolean,
+): DashboardParameters =>
+    isEditMode ? savedParameters : { ...savedParameters, ...currentParameters };
 
 export const getDashboardParameterOverrides = (
     values: ParametersValuesMap,
