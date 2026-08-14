@@ -1,3 +1,10 @@
+## [1.158.1](https://github.com/lightdash/lightdash/compare/1.158.0...1.158.1) (2026-08-14)
+
+
+### Bug Fixes
+
+* decide the onboarding redirect only on confirmed organization state ([#26688](https://github.com/lightdash/lightdash/issues/26688)) ([371baad](https://github.com/lightdash/lightdash/commit/371baad254fb256a3f0ed591264a8ba00fc1a7e2)), closes [#26689](https://github.com/lightdash/lightdash/issues/26689)
+
 # [1.158.0](https://github.com/lightdash/lightdash/compare/1.157.6...1.158.0) (2026-08-14)
 
 
