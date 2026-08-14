@@ -73,6 +73,16 @@ const PeriodOverPeriodComparisonModalContent: FC<{
         [allTimeDimensions, finestRank],
     );
 
+    const availableTimeDimensions = useMemo(
+        () =>
+            allTimeDimensions.filter(
+                (dim) =>
+                    getGranularityRank(dim.timeInterval as TimeFrames) ===
+                    finestRank,
+            ),
+        [allTimeDimensions, finestRank],
+    );
+
     const renderSelectOption: React.ComponentProps<
         typeof Select
     >['renderOption'] = ({ option }) => {
@@ -98,10 +108,13 @@ const PeriodOverPeriodComparisonModalContent: FC<{
     const [periodOffset, setPeriodOffset] = useState<number>(1);
 
     const selectedDimensionObj = useMemo(() => {
+        if (availableTimeDimensions.length === 1) {
+            return availableTimeDimensions[0];
+        }
         if (!selectedTimeDimensionId || !itemsMap) return null;
         const dim = itemsMap[selectedTimeDimensionId];
         return isDimension(dim) ? dim : null;
-    }, [selectedTimeDimensionId, itemsMap]);
+    }, [availableTimeDimensions, selectedTimeDimensionId, itemsMap]);
 
     const selectedGranularityLabel = useMemo(() => {
         if (!selectedDimensionObj?.timeInterval) return null;
@@ -207,21 +220,23 @@ const PeriodOverPeriodComparisonModalContent: FC<{
                         different time dimension or offset.
                     </Callout>
                 ) : null}
-                <Select
-                    label="Time dimension"
-                    placeholder={
-                        canConfigure
-                            ? 'Select time dimension'
-                            : 'Add a time dimension to enable comparison'
-                    }
-                    data={selectData}
-                    value={selectedTimeDimensionId}
-                    onChange={setSelectedTimeDimensionId}
-                    disabled={!canConfigure}
-                    renderOption={renderSelectOption}
-                    searchable
-                    clearable
-                />
+                {availableTimeDimensions.length !== 1 && (
+                    <Select
+                        label="Time dimension"
+                        placeholder={
+                            canConfigure
+                                ? 'Select time dimension'
+                                : 'Add a time dimension to enable comparison'
+                        }
+                        data={selectData}
+                        value={selectedTimeDimensionId}
+                        onChange={setSelectedTimeDimensionId}
+                        disabled={!canConfigure}
+                        renderOption={renderSelectOption}
+                        searchable
+                        clearable
+                    />
+                )}
 
                 <Group gap="xs" align="center">
                     <NumberInput
