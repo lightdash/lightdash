@@ -160,6 +160,15 @@ pnpm -F backend rollback-last
 3. **API**: TSOA generates OpenAPI specs from TypeScript controllers
 4. **Authentication**: CASL-based authorization with multiple auth providers
 
+## Release-safety declarations
+
+`Release-safety preview` is a required check on `main`. It protects self-hosted upgrades: `unknown` means we could not confirm the change is safe, while `breaking` means we know it is incompatible. Both hold the upgrade, for different reasons.
+
+- For migration breaks, follow the detailed [migration release-safety declarations](packages/backend/src/database/migrations/CLAUDE.md#release-safety-declarations).
+- For API or type breaks, changed, non-test TypeScript source under `packages/backend/src` or `packages/common/src` may declare `export const breaking = { reason: '<operator-facing reason>', requiredStop: false }`. It must be a top-level, unannotated object literal with exactly those fields: `reason` is a non-empty string literal, `requiredStop` is a boolean literal, and API-gate reasons must be at least 24 characters, use more than one word, and not be placeholder text.
+
+Never declare a break merely to make CI pass. Declaring a break advises every self-hosted customer to use the Recreate strategy. A release that ships as `breaking` or `unknown` stops the internal analytics instance upgrading; every later release inherits the block until someone moves the pin past it by hand. On 2026-08-14 that cost roughly six hours, during which the automation reported success on every run and said nothing.
+
 ## Merge Freeze — Holding `main` While a Release Is Cut
 
 `release.yml` fires on every push to `main`, so the release that goes out is whatever `main` contains at that moment. When something needs to reach a release on its own — a fix someone is waiting on — hold merges rather than asking people in Slack not to merge:

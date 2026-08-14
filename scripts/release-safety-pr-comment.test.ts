@@ -64,6 +64,17 @@ test('unknown verdict is rendered as unsafe for a ready PR', () => {
     );
     assert.match(body, /Couldn’t confirm it’s safe/);
     assert.match(body, /Double-check the old version/);
+    assert.match(body, /How to unblock this pull request/);
+    assert.match(body, /required check must pass before merge/);
+    assert.match(body, /Never declare a break merely to make CI pass/);
+    assert.match(body, /internal analytics instance upgrading/);
+});
+
+test('a declaration gate failure renders remediation for an otherwise green marker', () => {
+    const body = renderPrComment(baseMarker(), { declarationGateFailed: true });
+    assert.match(body, /How to unblock this pull request/);
+    assert.match(body, /migration break/);
+    assert.match(body, /API or type break/);
 });
 
 test('migration and enterprise counts use the v2 split', () => {
@@ -140,6 +151,7 @@ test('raw v2 JSON is embedded for machines', () => {
     assert.match(body, /Technical details \(raw JSON\)/);
     assert.match(body, /"schemaVersion": "2"/);
     assert.doesNotMatch(body, /"capabilities"/);
+    assert.doesNotMatch(body, /How to unblock this pull request/);
 });
 
 if (failures.length > 0) {
