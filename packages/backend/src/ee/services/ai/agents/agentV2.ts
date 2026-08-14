@@ -845,6 +845,7 @@ export const getAgentTools = (
                     totalResultCount: coverage.totalResultCount,
                     verifiedResultCount: coverage.verifiedResultCount,
                     topResultVerified: coverage.topResultVerified,
+                    verifiedOnly: coverage.verifiedOnly,
                 },
             });
         },

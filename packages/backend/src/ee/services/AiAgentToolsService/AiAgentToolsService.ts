@@ -1110,10 +1110,12 @@ export class AiAgentToolsService extends BaseService {
                     spaces.map((space) => [space.path, space]),
                 );
                 const searchQuery = args.searchQuery.label.toLowerCase();
+                const verifiedOnly = args.verifiedOnly === true;
                 const { content } = await this.searchService.findContent(
                     context.user,
                     context.projectUuid,
                     args.searchQuery.label,
+                    verifiedOnly,
                 );
 
                 const contentResults = content.flatMap(
@@ -1159,7 +1161,9 @@ export class AiAgentToolsService extends BaseService {
                     },
                 );
 
-                const spaceResults = spaces
+                // Spaces cannot be verified, so they are omitted from
+                // verified-only searches.
+                const spaceResults = (verifiedOnly ? [] : spaces)
                     .filter(
                         (space) =>
                             scopedSpaceUuids === null ||

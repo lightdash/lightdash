@@ -61,10 +61,24 @@ export class SearchService extends BaseService {
         this.appGenerateService = args.appGenerateService;
     }
 
+    // Verified matches are fetched through a dedicated capped query so they
+    // are never crowded out of the per-type result caps by unverified matches.
+    private static mergeReservedVerified<T extends { uuid: string }>(
+        allResults: T[],
+        verifiedResults: T[],
+    ): T[] {
+        const seenUuids = new Set(allResults.map((result) => result.uuid));
+        return [
+            ...allResults,
+            ...verifiedResults.filter((result) => !seenUuids.has(result.uuid)),
+        ];
+    }
+
     async findContent(
         user: SessionUser,
         projectUuid: string,
         query: string,
+        verifiedOnly: boolean,
     ): Promise<{
         content: (DashboardSearchResult | AllChartsSearchResult)[];
     }> {
@@ -85,18 +99,46 @@ export class SearchService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const dashboardSearchResults = await this.searchModel.searchDashboards(
-            projectUuid,
-            query,
-            undefined,
-            'OR',
-        );
+        const [
+            allDashboardResults,
+            verifiedDashboardResults,
+            allChartResults,
+            verifiedChartResults,
+        ] = await Promise.all([
+            verifiedOnly
+                ? []
+                : this.searchModel.searchDashboards(
+                      projectUuid,
+                      query,
+                      undefined,
+                      'OR',
+                  ),
+            this.searchModel.searchDashboards(
+                projectUuid,
+                query,
+                undefined,
+                'OR',
+                true,
+            ),
+            verifiedOnly
+                ? []
+                : this.searchModel.searchAllCharts(projectUuid, query, 'OR'),
+            this.searchModel.searchAllCharts(projectUuid, query, 'OR', true),
+        ]);
 
-        const chartSearchResults = await this.searchModel.searchAllCharts(
-            projectUuid,
-            query,
-            'OR',
-        );
+        const dashboardSearchResults = verifiedOnly
+            ? verifiedDashboardResults
+            : SearchService.mergeReservedVerified(
+                  allDashboardResults,
+                  verifiedDashboardResults,
+              );
+
+        const chartSearchResults = verifiedOnly
+            ? verifiedChartResults
+            : SearchService.mergeReservedVerified(
+                  allChartResults,
+                  verifiedChartResults,
+              );
 
         const allContent = [
             ...dashboardSearchResults,

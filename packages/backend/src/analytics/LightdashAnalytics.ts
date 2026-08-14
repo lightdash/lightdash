@@ -2893,6 +2893,7 @@ export type AiAgentFindContentCoverageEvent = BaseTrack & {
         totalResultCount: number;
         verifiedResultCount: number;
         topResultVerified: boolean;
+        verifiedOnly: boolean;
     };
 };
 

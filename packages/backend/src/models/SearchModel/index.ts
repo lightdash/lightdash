@@ -29,6 +29,7 @@ import {
     AppsTableName,
     AppVersionsTableName,
 } from '../../database/entities/apps';
+import { ContentVerificationTableName } from '../../database/entities/contentVerification';
 import {
     DashboardsTableName,
     DashboardTabsTableName,
@@ -137,6 +138,7 @@ export class SearchModel {
         query: string,
         filters?: SearchFilters,
         fullTextSearchOperator: 'OR' | 'AND' = 'AND',
+        verifiedOnly: boolean = false,
     ): Promise<DashboardSearchResult[]> {
         if (!shouldSearchForType(SearchItemType.DASHBOARD, filters?.type)) {
             return [];
@@ -332,6 +334,22 @@ export class SearchModel {
             },
             filters,
         );
+
+        // Applied inside the ranked subquery so verified items compete for
+        // the result cap among themselves, not against unverified matches.
+        if (verifiedOnly) {
+            subquery = subquery.whereExists(
+                this.database(ContentVerificationTableName)
+                    .select(this.database.raw('1'))
+                    .where(
+                        `${ContentVerificationTableName}.content_type`,
+                        ContentType.DASHBOARD,
+                    )
+                    .whereRaw(
+                        `${ContentVerificationTableName}.content_uuid = ${DashboardsTableName}.dashboard_uuid`,
+                    ),
+            );
+        }
 
         const dashboards = await this.database(DashboardsTableName)
             .select()
@@ -1158,6 +1176,7 @@ export class SearchModel {
         projectUuid: string,
         query: string,
         fullTextSearchOperator: 'OR' | 'AND' = 'AND',
+        verifiedOnly: boolean = false,
     ): Promise<Array<AllChartsSearchResult>> {
         const savedChartsSearchRankRawSql = getFullTextSearchRankCalcSql({
             database: this.database,
@@ -1344,6 +1363,33 @@ export class SearchModel {
             .whereNull(`${SavedSqlTableName}.deleted_at`)
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .whereRaw(savedSqlSearchFilterSql);
+
+        // Applied inside the ranked subqueries so verified items compete for
+        // the result cap among themselves, not against unverified matches.
+        if (verifiedOnly) {
+            savedChartsSubquery.whereExists(
+                this.database(ContentVerificationTableName)
+                    .select(this.database.raw('1'))
+                    .where(
+                        `${ContentVerificationTableName}.content_type`,
+                        ContentType.CHART,
+                    )
+                    .whereRaw(
+                        `${ContentVerificationTableName}.content_uuid = ${SavedChartsTableName}.saved_query_uuid`,
+                    ),
+            );
+            savedSqlSubquery.whereExists(
+                this.database(ContentVerificationTableName)
+                    .select(this.database.raw('1'))
+                    .where(
+                        `${ContentVerificationTableName}.content_type`,
+                        ContentType.CHART,
+                    )
+                    .whereRaw(
+                        `${ContentVerificationTableName}.content_uuid = ${SavedSqlTableName}.saved_sql_uuid`,
+                    ),
+            );
+        }
 
         // Type-safe union by ensuring both subqueries have identical column structure
         const unionQuery = this.database

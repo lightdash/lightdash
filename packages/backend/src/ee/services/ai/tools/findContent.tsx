@@ -38,6 +38,7 @@ type Dependencies = {
         totalResultCount: number;
         verifiedResultCount: number;
         topResultVerified: boolean;
+        verifiedOnly: boolean;
     }) => void;
 };
 
@@ -209,7 +210,10 @@ const isSpaceResult = (
 ): content is FindContentSpaceResult => content.contentType === 'space';
 
 const renderContent = (
-    args: Awaited<ReturnType<FindContentFn>> & { searchQuery: string },
+    args: Awaited<ReturnType<FindContentFn>> & {
+        searchQuery: string;
+        verifiedFallback: boolean;
+    },
     siteUrl: string,
     toolDescriptionMaxChars: number,
 ) => {
@@ -219,6 +223,9 @@ const renderContent = (
     );
     return (
         <searchresult searchQuery={args.searchQuery}>
+            {args.verifiedFallback
+                ? 'No verified content matched this query — showing unverified results instead. Verified content may still exist under other search terms.'
+                : null}
             {sortedContent.map((content) => {
                 if (isSpaceResult(content)) {
                     return renderSpace(content);
@@ -241,14 +248,32 @@ export const getFindContent = ({
         ...toolDefinition,
         execute: async (args) => {
             try {
+                const verifiedOnly = args.verifiedOnly === true;
                 const searchQueryResults = await Promise.all(
-                    args.searchQueries.map(async (searchQuery) => ({
-                        searchQuery: searchQuery.label,
-                        ...(await findContent({
+                    args.searchQueries.map(async (searchQuery) => {
+                        const verifiedResult = await findContent({
                             searchQuery,
                             spaceSlug: args.spaceSlug ?? null,
-                        })),
-                    })),
+                            verifiedOnly: args.verifiedOnly ?? null,
+                        });
+                        // A verified-only search with no matches falls back to
+                        // the unrestricted search so the model gets usable
+                        // results in one call, explicitly marked as unverified.
+                        const verifiedFallback =
+                            verifiedOnly && verifiedResult.content.length === 0;
+                        const result = verifiedFallback
+                            ? await findContent({
+                                  searchQuery,
+                                  spaceSlug: args.spaceSlug ?? null,
+                                  verifiedOnly: null,
+                              })
+                            : verifiedResult;
+                        return {
+                            searchQuery: searchQuery.label,
+                            verifiedFallback,
+                            ...result,
+                        };
+                    }),
                 );
 
                 for (const searchQueryResult of searchQueryResults) {
@@ -264,6 +289,7 @@ export const getFindContent = ({
                         totalResultCount,
                         verifiedResultCount,
                         topResultVerified,
+                        verifiedOnly,
                     });
                 }
 

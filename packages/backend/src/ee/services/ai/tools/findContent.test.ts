@@ -157,6 +157,7 @@ describe('getFindContent', () => {
         expect(mockFindContent).toHaveBeenCalledWith({
             searchQuery: { label: 'marketing' },
             spaceSlug: 'company/marketing',
+            verifiedOnly: null,
         });
     });
 
@@ -320,6 +321,7 @@ describe('getFindContent', () => {
             totalResultCount: 2,
             verifiedResultCount: 1,
             topResultVerified: true,
+            verifiedOnly: false,
         });
     });
 
@@ -336,7 +338,74 @@ describe('getFindContent', () => {
             totalResultCount: 1,
             verifiedResultCount: 0,
             topResultVerified: false,
+            verifiedOnly: false,
         });
+    });
+
+    it('forwards verifiedOnly to the search and reports it in coverage', async () => {
+        const trackCoverage = vi.fn();
+        const { tool, mockFindContent } = createTool(
+            [makeMockDashboard(0)],
+            trackCoverage,
+        );
+        await executeFindContent(tool, {
+            searchQueries: [{ label: 'revenue' }],
+            spaceSlug: null,
+            verifiedOnly: true,
+        });
+
+        expect(mockFindContent).toHaveBeenCalledWith({
+            searchQuery: { label: 'revenue' },
+            spaceSlug: null,
+            verifiedOnly: true,
+        });
+        expect(trackCoverage).toHaveBeenCalledWith(
+            expect.objectContaining({ verifiedOnly: true }),
+        );
+    });
+
+    it('falls back to unverified results when a verified-only search has no matches', async () => {
+        const mockFindContent = vi
+            .fn()
+            .mockResolvedValueOnce({ content: [] })
+            .mockResolvedValueOnce({ content: [makeMockDashboard(0)] });
+        const tool = getFindContent({
+            findContent: mockFindContent,
+            siteUrl: '',
+            toolDescriptionMaxChars: 600,
+            trackCoverage: vi.fn(),
+        });
+        const output = await executeFindContent(tool, {
+            searchQueries: [{ label: 'revenue' }],
+            spaceSlug: null,
+            verifiedOnly: true,
+        });
+
+        expect(output.metadata.status).toBe('success');
+        expect(mockFindContent).toHaveBeenCalledTimes(2);
+        expect(mockFindContent).toHaveBeenLastCalledWith({
+            searchQuery: { label: 'revenue' },
+            spaceSlug: null,
+            verifiedOnly: null,
+        });
+        expect(output.result).toContain(
+            'No verified content matched this query — showing unverified results instead.',
+        );
+        expect(output.result).toContain('<dashboard');
+    });
+
+    it('does not fall back when the verified-only search has matches', async () => {
+        const { tool, mockFindContent } = createTool([
+            makeMockDashboard(0, { verification: makeVerification() }),
+        ]);
+        const output = await executeFindContent(tool, {
+            searchQueries: [{ label: 'revenue' }],
+            spaceSlug: null,
+            verifiedOnly: true,
+        });
+
+        expect(mockFindContent).toHaveBeenCalledTimes(1);
+        expect(output.result).not.toContain('showing unverified results');
     });
 });
 
