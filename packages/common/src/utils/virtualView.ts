@@ -146,6 +146,7 @@ export const createTemporaryVirtualView = (
 ): Explore => {
     // Create a fake warehouseClient for compilation purposes
     const fakeWarehouseClient: WarehouseClient = {
+        getSessionTimezone: async () => null,
         credentials: {
             type: WarehouseTypes.BIGQUERY,
             project: '',
@@ -185,6 +186,10 @@ export const createTemporaryVirtualView = (
         parseError: (error) => error,
         escapeString: (value) => value,
         castToTimestamp: (date) => `CAST('${date.toISOString()}' AS TIMESTAMP)`,
+        castToDate: (date) =>
+            `CAST('${date.toISOString().slice(0, 10)}' AS DATE)`,
+        castToNaiveTimestamp: (date) =>
+            `CAST('${date.toISOString()}' AS TIMESTAMP)`,
         getIntervalSql: (value: number, unit: TimeIntervalUnit) =>
             `INTERVAL '${value} ${unit}'`,
         getTimestampDiffSeconds: (startTimestampSql, endTimestampSql) =>

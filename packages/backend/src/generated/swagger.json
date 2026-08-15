@@ -246,13 +246,110 @@
                     }
                 ]
             },
-            "ConditionalFormattingWithFilterOperator": {
-                "anyOf": [
+            "BaseFilterRule_FilterOperator.number-or-string-or-boolean_": {
+                "properties": {
+                    "includeNull": {
+                        "type": "boolean",
+                        "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule."
+                    },
+                    "values": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "boolean"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "description": "Values to filter by"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/FilterOperator",
+                        "description": "Filter operator"
+                    },
+                    "id": {
+                        "type": "string",
+                        "description": "Unique identifier for the filter rule"
+                    }
+                },
+                "required": ["operator", "id"],
+                "type": "object"
+            },
+            "ConditionalFormattingWithValues": {
+                "allOf": [
                     {
-                        "$ref": "#/components/schemas/ConditionalFormattingWithValues_number-or-string_"
+                        "$ref": "#/components/schemas/BaseFilterRule_FilterOperator.number-or-string-or-boolean_"
                     },
                     {
-                        "$ref": "#/components/schemas/ConditionalFormattingWithCompareTarget_number-or-string_"
+                        "properties": {
+                            "values": {
+                                "items": {
+                                    "anyOf": [
+                                        {
+                                            "type": "number",
+                                            "format": "double"
+                                        },
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "type": "boolean"
+                                        }
+                                    ]
+                                },
+                                "type": "array",
+                                "description": "Values to compare against"
+                            }
+                        },
+                        "required": ["values"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ConditionalFormattingWithCompareTarget": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/BaseFilterRule_FilterOperator.number-or-string-or-boolean_"
+                    },
+                    {
+                        "properties": {
+                            "values": {
+                                "items": {
+                                    "anyOf": [
+                                        {
+                                            "type": "number",
+                                            "format": "double"
+                                        },
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "type": "boolean"
+                                        }
+                                    ]
+                                },
+                                "type": "array",
+                                "description": "Values to compare against"
+                            },
+                            "compareTarget": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/FieldTarget"
+                                    }
+                                ],
+                                "nullable": true,
+                                "description": "Target field to compare against"
+                            }
+                        },
+                        "required": ["compareTarget"],
+                        "type": "object"
                     }
                 ]
             },
@@ -289,10 +386,23 @@
                     },
                     "rules": {
                         "items": {
-                            "$ref": "#/components/schemas/ConditionalFormattingWithFilterOperator"
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/ConditionalFormattingWithValues_number-or-string_"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ConditionalFormattingWithCompareTarget_number-or-string_"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ConditionalFormattingWithValues"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ConditionalFormattingWithCompareTarget"
+                                }
+                            ]
                         },
                         "type": "array",
-                        "description": "Rules for single-color conditional formatting"
+                        "description": "Rules for single-color conditional formatting.\nThe number|string members are redundant for TypeScript (absorbed by the\nboolean-capable defaults) but keep the pre-boolean schema components in\nthe generated OpenAPI anyOf, so the API change stays expand-only."
                     },
                     "darkColor": {
                         "type": "string",
@@ -5604,6 +5714,10 @@
                         },
                         "type": "array"
                     },
+                    "plainTextEmail": {
+                        "type": "boolean",
+                        "description": "Optional so files written before plain-text mode still upload."
+                    },
                     "includeLinks": {
                         "type": "boolean"
                     },
@@ -5910,6 +6024,10 @@
                         },
                         "type": "array"
                     },
+                    "plainTextEmail": {
+                        "type": "boolean",
+                        "description": "Optional so files written before plain-text mode still upload."
+                    },
                     "includeLinks": {
                         "type": "boolean"
                     },
@@ -6026,6 +6144,10 @@
                             "spreadsheetId"
                         ],
                         "type": "object"
+                    },
+                    "plainTextEmail": {
+                        "type": "boolean",
+                        "description": "Optional so files written before plain-text mode still upload."
                     },
                     "includeLinks": {
                         "type": "boolean"
@@ -7644,6 +7766,124 @@
                 ],
                 "type": "object"
             },
+            "SavedMergeQuerySource": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "kind": {
+                                "type": "string",
+                                "enum": ["chart"],
+                                "nullable": false
+                            },
+                            "id": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["kind", "id"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "metricQuery": {
+                                "$ref": "#/components/schemas/MetricQuery"
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": ["query"],
+                                "nullable": false
+                            },
+                            "id": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["metricQuery", "kind", "id"],
+                        "type": "object"
+                    }
+                ],
+                "description": "A persisted merge source.\n\nThe chart source is a reference: its metric query already lives on the chart\nversion. Every additional source owns its query. This keeps one source of\ntruth while allowing more sources without adding `thirdQuery`, `fourthQuery`,\nand so on."
+            },
+            "Record_string.FieldId_": {
+                "properties": {},
+                "additionalProperties": {
+                    "type": "string"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "MergeJoinKeyPart": {
+                "properties": {
+                    "fieldIdBySourceId": {
+                        "$ref": "#/components/schemas/Record_string.FieldId_",
+                        "description": "The field each source joins on. Every source must have an entry."
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Column name this key part takes in the merged result."
+                    }
+                },
+                "required": ["fieldIdBySourceId", "name"],
+                "type": "object",
+                "description": "One column of the join key. Sources name the same real-world key differently\n(`orders.order_date` vs `users.created_date`), so the mapping is explicit per\nsource rather than positional."
+            },
+            "MergeJoinType": {
+                "description": "How unmatched keys survive the merge. Mirrors the SQL join it compiles to.",
+                "enum": ["full", "left", "inner"],
+                "type": "string"
+            },
+            "MergeTableCalculation": {
+                "properties": {
+                    "sql": {
+                        "type": "string"
+                    },
+                    "displayName": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["sql", "displayName", "name"],
+                "type": "object",
+                "description": "A calculation over the *merged* result, which is the only place a row-wise\ncalculation across two queries can correctly live. References name a source\nand one of its fields, `${sourceId.fieldId}`, because the merged statement\nrenames columns to keep two sources from colliding."
+            },
+            "SavedMergeQuery": {
+                "properties": {
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeTableCalculation"
+                        },
+                        "type": "array"
+                    },
+                    "joinType": {
+                        "$ref": "#/components/schemas/MergeJoinType"
+                    },
+                    "joinKey": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeJoinKeyPart"
+                        },
+                        "type": "array"
+                    },
+                    "sources": {
+                        "items": {
+                            "$ref": "#/components/schemas/SavedMergeQuerySource"
+                        },
+                        "type": "array"
+                    },
+                    "primarySourceId": {
+                        "type": "string",
+                        "description": "Source whose rows a LEFT merge preserves."
+                    }
+                },
+                "required": [
+                    "tableCalculations",
+                    "joinType",
+                    "joinKey",
+                    "sources",
+                    "primarySourceId"
+                ],
+                "type": "object",
+                "description": "Canonical, scalable representation of a merge stored on a chart version."
+            },
             "ColorPaletteSource": {
                 "anyOf": [
                     {
@@ -7905,6 +8145,15 @@
                         "required": ["lastName", "firstName", "userUuid"],
                         "type": "object",
                         "nullable": true
+                    },
+                    "merge": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SavedMergeQuery"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Second query this chart's query is merged with, when it has one. Absent\non the overwhelming majority of charts."
                     },
                     "tableConfig": {
                         "properties": {
@@ -12048,11 +12297,28 @@
                 "type": "object",
                 "description": "WRITE shape — includes the secret."
             },
+            "ExternalConnectionListItem": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ExternalConnection"
+                    },
+                    {
+                        "properties": {
+                            "linkedDataAppCount": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["linkedDataAppCount"],
+                        "type": "object"
+                    }
+                ]
+            },
             "ApiExternalConnectionListResponse": {
                 "properties": {
                     "results": {
                         "items": {
-                            "$ref": "#/components/schemas/ExternalConnection"
+                            "$ref": "#/components/schemas/ExternalConnectionListItem"
                         },
                         "type": "array"
                     },
@@ -14117,6 +14383,15 @@
                         "$ref": "#/components/schemas/ChartConfig",
                         "description": "Visualization configuration for the chart"
                     },
+                    "merge": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SavedMergeQuery"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Second query this chart's query is merged with, when it has one. Absent\non the overwhelming majority of charts."
+                    },
                     "pivotConfig": {
                         "properties": {
                             "rows": {
@@ -15062,6 +15337,24 @@
                 "type": "object",
                 "description": "Make all properties in T optional"
             },
+            "Pick_SortField.fieldId-or-descending_": {
+                "properties": {
+                    "fieldId": {
+                        "type": "string",
+                        "description": "Field ID to sort by"
+                    },
+                    "descending": {
+                        "type": "boolean",
+                        "description": "Sort in descending order"
+                    }
+                },
+                "required": ["fieldId", "descending"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "PreAggregateSort": {
+                "$ref": "#/components/schemas/Pick_SortField.fieldId-or-descending_"
+            },
             "Record_string.string-Array_": {
                 "properties": {},
                 "additionalProperties": {
@@ -15117,6 +15410,15 @@
                         },
                         "type": "array"
                     },
+                    "sorts": {
+                        "items": {
+                            "$ref": "#/components/schemas/PreAggregateSort"
+                        },
+                        "type": "array"
+                    },
+                    "table": {
+                        "type": "string"
+                    },
                     "metrics": {
                         "items": {
                             "type": "string"
@@ -15138,6 +15440,9 @@
             },
             "PreAggregateSource": {
                 "properties": {
+                    "externalTable": {
+                        "type": "string"
+                    },
                     "preAggregateName": {
                         "type": "string"
                     },
@@ -16683,6 +16988,22 @@
                             },
                             "state": {
                                 "type": "string",
+                                "enum": ["unavailable"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["latestBuildInProgress", "state"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "latestBuildInProgress": {
+                                "type": "boolean",
+                                "enum": [false],
+                                "nullable": false
+                            },
+                            "state": {
+                                "type": "string",
                                 "enum": ["failed"],
                                 "nullable": false
                             }
@@ -16771,7 +17092,11 @@
             },
             "DataAppCreationExperience": {
                 "type": "string",
-                "enum": ["app_builder", "explorer_chart_config"]
+                "enum": [
+                    "app_builder",
+                    "explorer_chart_config",
+                    "chart_type_builder"
+                ]
             },
             "AppChartReference": {
                 "properties": {
@@ -18121,6 +18446,9 @@
             },
             "SchedulerGsheetsOptions": {
                 "properties": {
+                    "showFilters": {
+                        "type": "boolean"
+                    },
                     "tabName": {
                         "type": "string"
                     },
@@ -18170,6 +18498,10 @@
                     "projectUuid": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "plainTextEmail": {
+                        "type": "boolean",
+                        "description": "Email targets only: send a bare text/plain email (no HTML template, no\nLightdash branding) with the file attached. Slack and webhook targets are\nunaffected."
                     },
                     "includeLinks": {
                         "type": "boolean"
@@ -18262,6 +18594,7 @@
                     }
                 },
                 "required": [
+                    "plainTextEmail",
                     "includeLinks",
                     "enabled",
                     "options",
@@ -19425,102 +19758,6 @@
             "ApiAiRouterDecisionListResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiRouterDecision-Array_"
             },
-            "DashboardSummaryTone": {
-                "enum": ["friendly", "formal", "direct", "enthusiastic"],
-                "type": "string"
-            },
-            "DashboardSummary": {
-                "properties": {
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "summary": {
-                        "type": "string"
-                    },
-                    "audiences": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "tone": {
-                        "$ref": "#/components/schemas/DashboardSummaryTone"
-                    },
-                    "context": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "dashboardVersionId": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "dashboardUuid": {
-                        "type": "string"
-                    },
-                    "dashboardSummaryUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "createdAt",
-                    "summary",
-                    "audiences",
-                    "tone",
-                    "dashboardVersionId",
-                    "dashboardUuid",
-                    "dashboardSummaryUuid"
-                ],
-                "type": "object"
-            },
-            "ApiAiDashboardSummaryResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/DashboardSummary"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "Pick_DashboardSummary.context-or-tone-or-audiences_": {
-                "properties": {
-                    "context": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "tone": {
-                        "$ref": "#/components/schemas/DashboardSummaryTone"
-                    },
-                    "audiences": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["tone", "audiences"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "ApiAiGetDashboardSummaryResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/DashboardSummary"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
             "ApiAiGenerateCustomVizResponse": {
                 "properties": {
                     "results": {
@@ -20666,16 +20903,35 @@
                 "required": ["bearerToken"],
                 "type": "object"
             },
+            "AiMcpGithubConnectMode": {
+                "type": "string",
+                "enum": ["github_app", "pat"]
+            },
             "AiMcpGithubAvailability": {
                 "properties": {
+                    "hasGithubAppInstallation": {
+                        "type": "boolean"
+                    },
                     "alreadyConnected": {
                         "type": "boolean"
                     },
+                    "availableModes": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiMcpGithubConnectMode"
+                        },
+                        "type": "array"
+                    },
                     "available": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "deprecated": true
                     }
                 },
-                "required": ["alreadyConnected", "available"],
+                "required": [
+                    "hasGithubAppInstallation",
+                    "alreadyConnected",
+                    "availableModes",
+                    "available"
+                ],
                 "type": "object"
             },
             "ApiSuccess_AiMcpGithubAvailability_": {
@@ -26573,6 +26829,10 @@
                     "preAggExploreName": {
                         "type": "string"
                     },
+                    "externalTable": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "preAggregateName": {
                         "type": "string"
                     },
@@ -26594,6 +26854,7 @@
                     "materializationRole",
                     "sourceExploreName",
                     "preAggExploreName",
+                    "externalTable",
                     "preAggregateName",
                     "preAggregateDefinitionUuid"
                 ],
@@ -30979,6 +31240,77 @@
                 "type": "object",
                 "description": "The repositories the agent can read for a project, used by the chat input's\n`@`-mention repository picker. The organization installation authorizes only\nthe project's configured repository; additional repositories require the\nlinked user's own provider access."
             },
+            "AiOrganizationRuntimeSettings": {
+                "properties": {
+                    "visibleDataAppModels": {
+                        "items": {
+                            "$ref": "#/components/schemas/DataAppClaudeModel"
+                        },
+                        "type": "array"
+                    },
+                    "defaultAiAgentModelOptions": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiModelOption"
+                        },
+                        "type": "array"
+                    },
+                    "defaultAiAgentModelConfig": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiAgentModelConfig"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "aiAgentReviewsAvailable": {
+                        "type": "boolean"
+                    },
+                    "aiAgentReviewsEnabled": {
+                        "type": "boolean"
+                    },
+                    "aiAgentMemoryEnabled": {
+                        "type": "boolean"
+                    },
+                    "aiAgentsVisible": {
+                        "type": "boolean"
+                    },
+                    "isTrial": {
+                        "type": "boolean"
+                    },
+                    "isCopilotEnabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "visibleDataAppModels",
+                    "defaultAiAgentModelOptions",
+                    "defaultAiAgentModelConfig",
+                    "aiAgentReviewsAvailable",
+                    "aiAgentReviewsEnabled",
+                    "aiAgentMemoryEnabled",
+                    "aiAgentsVisible",
+                    "isTrial",
+                    "isCopilotEnabled"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_AiOrganizationRuntimeSettings_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiOrganizationRuntimeSettings"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiOrganizationRuntimeSettingsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiOrganizationRuntimeSettings_"
+            },
             "AiDeepResearchEntryPoint": {
                 "type": "string",
                 "enum": ["homepage", "ask_ai"]
@@ -30992,6 +31324,20 @@
                     "completed",
                     "cancelled",
                     "partially_completed"
+                ]
+            },
+            "AiDeepResearchTerminalReason": {
+                "type": "string",
+                "enum": [
+                    "user_cancellation",
+                    "permission_revoked",
+                    "tool_limit",
+                    "query_limit",
+                    "token_limit",
+                    "time_limit",
+                    "no_relevant_data",
+                    "provider_error",
+                    "internal_error"
                 ]
             },
             "AiDeepResearchLimits": {
@@ -31448,6 +31794,14 @@
                         "nullable": true,
                         "description": "The report narrative with compact <chart> references."
                     },
+                    "terminalReason": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiDeepResearchTerminalReason"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "status": {
                         "$ref": "#/components/schemas/AiDeepResearchRunStatus"
                     },
@@ -31456,6 +31810,10 @@
                     },
                     "entryPoint": {
                         "$ref": "#/components/schemas/AiDeepResearchEntryPoint"
+                    },
+                    "resumedFromRunUuid": {
+                        "type": "string",
+                        "nullable": true
                     },
                     "promptUuid": {
                         "type": "string"
@@ -31487,9 +31845,11 @@
                     "reportExpiredAt",
                     "reportExpiresAt",
                     "resultMarkdown",
+                    "terminalReason",
                     "status",
                     "prompt",
                     "entryPoint",
+                    "resumedFromRunUuid",
                     "promptUuid",
                     "aiThreadUuid",
                     "agentUuid",
@@ -31517,6 +31877,10 @@
             },
             "AiDeepResearchRequestBody": {
                 "properties": {
+                    "resumeFromRunUuid": {
+                        "type": "string",
+                        "description": "Resume unfinished work from a terminal run with preserved evidence."
+                    },
                     "entryPoint": {
                         "$ref": "#/components/schemas/AiDeepResearchEntryPoint",
                         "description": "Product surface that accepted the run."
@@ -31835,6 +32199,65 @@
                             "eventType": {
                                 "type": "string",
                                 "enum": ["progress"],
+                                "nullable": false
+                            },
+                            "aiDeepResearchRunUuid": {
+                                "type": "string"
+                            },
+                            "aiDeepResearchEventUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "createdAt",
+                            "payload",
+                            "eventType",
+                            "aiDeepResearchRunUuid",
+                            "aiDeepResearchEventUuid"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "createdAt": {
+                                "type": "string"
+                            },
+                            "payload": {
+                                "properties": {
+                                    "dropped": {
+                                        "items": {
+                                            "properties": {
+                                                "reason": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "malformed",
+                                                        "unknown_chart",
+                                                        "duplicate",
+                                                        "unverifiable"
+                                                    ]
+                                                },
+                                                "key": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": ["reason", "key"],
+                                            "type": "object"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "repaired": {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    }
+                                },
+                                "required": ["dropped", "repaired"],
+                                "type": "object"
+                            },
+                            "eventType": {
+                                "type": "string",
+                                "enum": ["report_adjusted"],
                                 "nullable": false
                             },
                             "aiDeepResearchRunUuid": {
@@ -38324,6 +38747,9 @@
                     "enabled": {
                         "type": "boolean"
                     },
+                    "plainTextEmail": {
+                        "type": "boolean"
+                    },
                     "message": {
                         "type": "string"
                     },
@@ -41482,8 +41908,51 @@
                 "type": "object",
                 "description": "Project-wide default settings that can be overridden at explore or field level"
             },
+            "AgentSqlScope": {
+                "properties": {
+                    "deniedCatalogs": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Catalogs/databases the agent may never read. Takes precedence."
+                    },
+                    "deniedSchemas": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Schemas the agent may never read. Takes precedence over the allow list.\n\nDenying is often the better fit: an allow list goes stale the moment a\nnew schema is created (the agent silently cannot see the new models),\nwhereas \"everything except the retired project\" keeps working as the\nwarehouse grows."
+                    },
+                    "catalogs": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Catalogs/databases the agent may read. Empty means any catalog."
+                    },
+                    "schemas": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Schemas the agent may read. Empty means every schema is allowed."
+                    }
+                },
+                "required": ["schemas"],
+                "type": "object",
+                "description": "Restricts which part of the warehouse the AI agent may read via raw SQL.\n\nNull (or an empty `schemas` list) means unrestricted — the agent can reach\nanything the project's warehouse connection can reach, which is the\nbehaviour for every project that has not configured a scope.\n\nThis is a correctness control rather than a security boundary: raw SQL\nalready requires `manage SqlRunner`, so the same data is reachable through\nthe SQL Runner regardless. It exists so an agent can be kept off schemas a\ncustomer knows are wrong to answer from, such as a retired dbt project\nliving in the same catalog as the current one."
+            },
             "Project": {
                 "properties": {
+                    "agentSqlScope": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AgentSqlScope"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "provisioningSource": {
                         "type": "string",
                         "nullable": true
@@ -41559,6 +42028,7 @@
                     }
                 },
                 "required": [
+                    "agentSqlScope",
                     "expiresAt",
                     "colorPaletteUuid",
                     "hasDefaultUserSpaces",
@@ -42009,6 +42479,389 @@
                 "required": ["rows", "fields"],
                 "type": "object"
             },
+            "MergeFieldOrigin": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "sourceFieldId": {
+                                "$ref": "#/components/schemas/FieldId"
+                            },
+                            "sourceId": {
+                                "type": "string"
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": ["source"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["sourceFieldId", "sourceId", "kind"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fieldIdBySourceId": {
+                                "$ref": "#/components/schemas/Record_string.FieldId_"
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": ["joinKey"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["fieldIdBySourceId", "kind"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "kind": {
+                                "type": "string",
+                                "enum": ["tableCalculation"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["kind"],
+                        "type": "object"
+                    }
+                ],
+                "description": "Where a merged field came from. Carried beside the fields rather than on\nthem, so every `Field` consumer downstream sees an ordinary field and only\nthe code that needs provenance — drilling into a cell, filtering a source —\nhas to know a merge happened."
+            },
+            "MergeTypedColumn": {
+                "properties": {
+                    "origin": {
+                        "$ref": "#/components/schemas/MergeFieldOrigin"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DimensionType"
+                    },
+                    "reference": {
+                        "$ref": "#/components/schemas/FieldId",
+                        "description": "Column name in the core's output — the merged field id."
+                    }
+                },
+                "required": ["origin", "type", "reference"],
+                "type": "object",
+                "description": "One column of the composable core, typed accurately enough to build a\nvirtual view over it: the stable field-id alias, the value's\n`DimensionType`, and where it came from. Merged metrics arrive downstream as\ntyped *columns* — re-aggregating them is explicit and user-owned, so the\norigin is carried for a surface to suggest metrics, never to re-sum."
+            },
+            "MergeTerminalWrapper": {
+                "properties": {
+                    "sourceLimitExceededSql": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Boolean SQL expression that is true when a source exceeded its cap."
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "orderBy": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "ORDER BY terms in output-alias space, already quoted for the dialect."
+                    }
+                },
+                "required": ["sourceLimitExceededSql", "limit", "orderBy"],
+                "type": "object",
+                "description": "The terminal stage of a merged statement, owned by the run path: sort,\nlimit, and truncation detection. Kept as data rather than SQL text so the\nrun path can attach it above whatever it stacked on the core (for example a\ndate spine), and so the composable core stays clean under `SELECT *`."
+            },
+            "Record_string.Record_string.string__": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/Record_string.string_"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "MergeQueryColumns": {
+                "properties": {
+                    "valueColumnBySourceColumn": {
+                        "$ref": "#/components/schemas/Record_string.Record_string.string__",
+                        "description": "Merged column name for each source column, keyed by source id."
+                    },
+                    "joinKeyColumns": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Join key columns, in join key order. Shared by every source."
+                    }
+                },
+                "required": ["valueColumnBySourceColumn", "joinKeyColumns"],
+                "type": "object",
+                "description": "Where each column of the merged result came from, so callers map results\nback to fields instead of re-deriving the naming rule."
+            },
+            "MergeQueryField": {
+                "properties": {
+                    "sourceFieldId": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The field it came from; null for join key columns."
+                    },
+                    "sourceId": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The query it came from; null for join key columns, which are shared."
+                    },
+                    "type": {
+                        "type": "string",
+                        "description": "Underlying value type, for formatting and sort behaviour."
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": ["dimension", "metric"],
+                        "description": "Whether it behaves as a dimension or a metric downstream."
+                    },
+                    "label": {
+                        "type": "string",
+                        "description": "Label to show, derived from the source field."
+                    },
+                    "column": {
+                        "type": "string",
+                        "description": "Column name in the merged result."
+                    }
+                },
+                "required": [
+                    "sourceFieldId",
+                    "sourceId",
+                    "type",
+                    "kind",
+                    "label",
+                    "column"
+                ],
+                "type": "object",
+                "description": "One column of the merged result, described well enough to be selected,\nsorted, formatted and charted like any other field.\n\nMerged columns are renamed to keep two sources from colliding, so the\nmapping back to the field a column came from cannot be recovered from its\nname — it has to be carried."
+            },
+            "Record_FieldId.MergeFieldOrigin_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/MergeFieldOrigin"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "MergeFieldOrigins": {
+                "$ref": "#/components/schemas/Record_FieldId.MergeFieldOrigin_",
+                "description": "Provenance of every merged field, by field id."
+            },
+            "MergeQueryErrorKind": {
+                "enum": [
+                    "too_few_sources",
+                    "too_many_sources",
+                    "duplicate_source_id",
+                    "empty_join_key",
+                    "join_key_coverage",
+                    "unknown_source_in_join_key",
+                    "fan_out",
+                    "join_key_not_selected",
+                    "join_key_type_mismatch",
+                    "join_key_granularity_mismatch",
+                    "unsupported_table_calculation",
+                    "duplicate_calculation_name",
+                    "unresolved_calculation_reference",
+                    "unresolved_column_type",
+                    "missing_parameters"
+                ],
+                "type": "string"
+            },
+            "MergeQueryError": {
+                "properties": {
+                    "message": {
+                        "type": "string"
+                    },
+                    "fieldIds": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldId"
+                        },
+                        "type": "array"
+                    },
+                    "sourceId": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The source at fault, or null for errors about the merge as a whole."
+                    },
+                    "kind": {
+                        "$ref": "#/components/schemas/MergeQueryErrorKind"
+                    }
+                },
+                "required": ["message", "fieldIds", "sourceId", "kind"],
+                "type": "object"
+            },
+            "ApiCompiledMergeQueryResults": {
+                "properties": {
+                    "errors": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeQueryError"
+                        },
+                        "type": "array"
+                    },
+                    "fieldIdByColumn": {
+                        "$ref": "#/components/schemas/Record_string.FieldId_",
+                        "description": "Field id for each column the statement returns. Warehouse aliases are\nshort and positional so they cannot breach an identifier length limit;\nidentity lives in `itemsMap`, and rows are rekeyed through this map\nbefore anything downstream sees them."
+                    },
+                    "parameterReferences": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "User parameters referenced by any source query."
+                    },
+                    "fieldOrigins": {
+                        "$ref": "#/components/schemas/MergeFieldOrigins",
+                        "description": "Provenance of each field in `itemsMap`."
+                    },
+                    "itemsMap": {
+                        "$ref": "#/components/schemas/ItemsMap",
+                        "description": "Every merged column as an ordinary field, keyed by field id, so results\nof a merge are consumed exactly like results of a query."
+                    },
+                    "fields": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeQueryField"
+                        },
+                        "type": "array",
+                        "description": "Selectable description of every merged column. Empty when sql is null."
+                    },
+                    "columns": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MergeQueryColumns"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "terminalWrapper": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MergeTerminalWrapper"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "The terminal stage `sql` attaches over the core."
+                    },
+                    "typedColumns": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeTypedColumn"
+                        },
+                        "type": "array",
+                        "nullable": true,
+                        "description": "The core's columns, in the order the statement returns them."
+                    },
+                    "coreSql": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The composable core: a self-contained single-statement SELECT with no\nORDER BY, no LIMIT and no guard column — valid under `SELECT *`, so it\ncan back a virtual view. `sql` is this core with the terminal wrapper\nattached."
+                    },
+                    "sql": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "errors",
+                    "fieldIdByColumn",
+                    "parameterReferences",
+                    "fieldOrigins",
+                    "itemsMap",
+                    "fields",
+                    "columns",
+                    "terminalWrapper",
+                    "typedColumns",
+                    "coreSql",
+                    "sql"
+                ],
+                "type": "object",
+                "description": "What the compile endpoint returns. `sql` is null exactly when `errors` is\nnon-empty: a merge that would produce wrong numbers is reported, not run."
+            },
+            "MergeQuerySource": {
+                "properties": {
+                    "metricQuery": {
+                        "$ref": "#/components/schemas/MetricQuery"
+                    },
+                    "id": {
+                        "type": "string",
+                        "description": "Stable id. Names the CTE, and the table its merged fields belong to."
+                    }
+                },
+                "required": ["metricQuery", "id"],
+                "type": "object",
+                "description": "One side of a merge: a metric query."
+            },
+            "MergeQuery": {
+                "properties": {
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeTableCalculation"
+                        },
+                        "type": "array",
+                        "description": "Calculations over the merged result. Applied last, after any pivot."
+                    },
+                    "joinType": {
+                        "$ref": "#/components/schemas/MergeJoinType"
+                    },
+                    "joinKey": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeJoinKeyPart"
+                        },
+                        "type": "array"
+                    },
+                    "sources": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeQuerySource"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "limit",
+                    "tableCalculations",
+                    "joinType",
+                    "joinKey",
+                    "sources"
+                ],
+                "type": "object"
+            },
+            "CompileMergeQueryRequest": {
+                "properties": {
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "mergeQuery": {
+                        "$ref": "#/components/schemas/MergeQuery"
+                    }
+                },
+                "required": ["mergeQuery"],
+                "type": "object",
+                "description": "Body of the compile endpoint: the spec plus the parameter values."
+            },
+            "RunMergeQueryRequest": {
+                "properties": {
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap",
+                        "description": "Parameter values for every source query, one map for the whole merge —\ntwo sides of one question should never disagree on a parameter."
+                    },
+                    "csvLimit": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Export row limit. Null means all rows within the organization's cell cap."
+                    },
+                    "pivotConfiguration": {
+                        "$ref": "#/components/schemas/PivotConfiguration"
+                    },
+                    "mergeQuery": {
+                        "$ref": "#/components/schemas/MergeQuery"
+                    }
+                },
+                "required": ["mergeQuery"],
+                "type": "object",
+                "description": "Body of the run endpoint. The pivot configuration is the same one every\nother query runs with: the merged rows are wrapped by the standard pivot\nstage, so the pipeline is join within an explore, then merge between\nexplores, then pivot."
+            },
             "DbtExposureType": {
                 "enum": [
                     "dashboard",
@@ -42399,7 +43252,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-pivotConfig-or-chartConfig-or-tableConfig-or-parameters_": {
+            "Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-pivotConfig-or-chartConfig-or-tableConfig-or-parameters-or-merge_": {
                 "properties": {
                     "name": {
                         "type": "string",
@@ -42444,6 +43297,15 @@
                         "$ref": "#/components/schemas/ParametersValuesMap",
                         "description": "Parameter values for the chart query"
                     },
+                    "merge": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SavedMergeQuery"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Second query this chart's query is merged with, when it has one. Absent\non the overwhelming majority of charts."
+                    },
                     "tableConfig": {
                         "properties": {
                             "columnOrder": {
@@ -42469,7 +43331,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "CreateChartBase": {
-                "$ref": "#/components/schemas/Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-pivotConfig-or-chartConfig-or-tableConfig-or-parameters_"
+                "$ref": "#/components/schemas/Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-pivotConfig-or-chartConfig-or-tableConfig-or-parameters-or-merge_"
             },
             "CreateChartInSpace": {
                 "allOf": [
@@ -42784,6 +43646,20 @@
                         "type": "string"
                     }
                 },
+                "type": "object"
+            },
+            "UpdateAgentSqlScope": {
+                "properties": {
+                    "agentSqlScope": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AgentSqlScope"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": ["agentSqlScope"],
                 "type": "object"
             },
             "UpdateQueryTimezoneSettings": {
@@ -44291,6 +45167,101 @@
                 },
                 "required": ["name"],
                 "type": "object"
+            },
+            "ContentAsCodeUpsertAction": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/PromotionAction.CREATE"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PromotionAction.UPDATE"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PromotionAction.NO_CHANGES"
+                    }
+                ]
+            },
+            "OrganizationDesignPackageImportResult": {
+                "properties": {
+                    "files": {
+                        "items": {
+                            "$ref": "#/components/schemas/ApiOrganizationDesignFile"
+                        },
+                        "type": "array"
+                    },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "isDefault": {
+                        "type": "boolean"
+                    },
+                    "extraInstructions": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Free-text override appended to the agent's effective skill at build\ntime, alongside any uploaded `instruction` markdown files. Empty\nstring is normalised to `null` server-side."
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "designUuid": {
+                        "type": "string"
+                    },
+                    "action": {
+                        "$ref": "#/components/schemas/ContentAsCodeUpsertAction"
+                    }
+                },
+                "required": [
+                    "files",
+                    "createdByUserUuid",
+                    "updatedAt",
+                    "createdAt",
+                    "isDefault",
+                    "extraInstructions",
+                    "description",
+                    "name",
+                    "slug",
+                    "organizationUuid",
+                    "designUuid",
+                    "action"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "ApiSuccess_OrganizationDesignPackageImportResult_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/OrganizationDesignPackageImportResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiOrganizationDesignPackageImportResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_OrganizationDesignPackageImportResult_"
             },
             "UpdateOrganizationDesignRequest": {
                 "properties": {
@@ -51659,6 +52630,14 @@
                         "required": ["order", "uuid"],
                         "type": "object",
                         "nullable": true
+                    },
+                    "template": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DataAppTemplate"
+                            }
+                        ],
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -51680,7 +52659,8 @@
                     "latestVersionNumber",
                     "latestVersionStatus",
                     "latestReadyVersionNumber",
-                    "pinnedList"
+                    "pinnedList",
+                    "template"
                 ],
                 "type": "object",
                 "additionalProperties": true
@@ -52431,7 +53411,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.115.0",
+        "version": "1.162.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -58591,6 +59571,44 @@
                 }
             }
         },
+        "/api/v1/projects/{projectUuid}/aiAgents/mcpServers/github/connect-app": {
+            "post": {
+                "operationId": "connectGithubMcpServerApp",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiMcpServerResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/aiAgents/mcpServers/{mcpServerUuid}/tools": {
             "get": {
                 "operationId": "listMcpServerTools",
@@ -64201,6 +65219,35 @@
                 ]
             }
         },
+        "/api/v1/aiAgents/settings": {
+            "get": {
+                "operationId": "getAiOrganizationRuntimeSettings",
+                "responses": {
+                    "200": {
+                        "description": "Retrieved AI organization runtime settings",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiOrganizationRuntimeSettingsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": []
+            }
+        },
         "/api/v1/ee/projects/{projectUuid}/ai-deep-research": {
             "post": {
                 "operationId": "createAiDeepResearchRun",
@@ -64827,7 +65874,7 @@
                         }
                     }
                 },
-                "description": "Queues distillation for one thread immediately, skipping the 6h idle wait\nand the every-3h sweep. Re-distills a thread that is already up to date.\nRequires permission to manage AI agents in the project.",
+                "description": "Queues distillation for one thread immediately, skipping the event\ndebounce and the backfill sweep. Re-distills a thread that is already up\nto date.\nRequires permission to manage AI agents in the project.",
                 "summary": "Distill thread",
                 "security": [],
                 "parameters": [
@@ -73753,6 +74800,130 @@
                 }
             }
         },
+        "/api/v1/projects/{projectUuid}/mergeQuery/compile": {
+            "post": {
+                "operationId": "CompileMergeQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/ApiCompiledMergeQueryResults"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Compile several queries into a single merged warehouse statement.\n\nReturns the statement and the fields it produces, without running it.\nUse it to validate a merge while it is being built: a merge that would\nproduce wrong numbers comes back with `errors` and a null `sql` — most\nimportantly the fan-out case, where a query still carries a dimension\nthat is neither joined on nor pivoted. Run a valid merge with\nPOST {projectUuid}/mergeQuery/run.",
+                "summary": "Compile merge query",
+                "tags": ["Exploring", "Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CompileMergeQueryRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/mergeQuery/run": {
+            "post": {
+                "operationId": "RunMergeQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/ApiExecuteAsyncMetricQueryResults"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Run a merge, returning a query uuid to page results from.\n\nThe merged statement is registered as an ordinary async query, so its\nresults are fetched, formatted, cancelled and downloaded through the\nsame endpoints as any other query — page them with\nGET /api/v2/projects/{projectUuid}/query/{queryUuid}.\n\nA merge that cannot be run is rejected here rather than returned:\ncompile it first to show the problem against the query that caused it.",
+                "summary": "Run merge query",
+                "tags": ["Exploring", "Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RunMergeQueryRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/projects/{projectUuid}/calculate-total": {
             "post": {
                 "operationId": "CalculateTotalFromQuery",
@@ -74948,6 +76119,112 @@
                 }
             }
         },
+        "/api/v1/projects/{projectUuid}/agentSqlScope": {
+            "get": {
+                "operationId": "getAgentSqlScope",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "allOf": [
+                                                {
+                                                    "$ref": "#/components/schemas/AgentSqlScope"
+                                                }
+                                            ],
+                                            "nullable": true
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the agent SQL scope for a project",
+                "summary": "Get agent SQL scope",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "updateAgentSqlScope",
+                "responses": {
+                    "200": {
+                        "description": "Updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Update the agent SQL scope for a project",
+                "summary": "Update agent SQL scope",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateAgentSqlScope"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/projects/{projectUuid}/queryTimezoneSettings": {
             "patch": {
                 "operationId": "updateQueryTimezoneSettings",
@@ -75892,6 +77169,40 @@
                 }
             }
         },
+        "/api/v1/org/designs/{designUuidOrSlug}/package": {
+            "get": {
+                "operationId": "DownloadOrganizationDesignPackage",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Download a complete organization theme as the canonical theme-as-code\ntar package.",
+                "summary": "Download theme package",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "designUuidOrSlug",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UuidOrSlug"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/org/designs/{designUuidOrSlug}": {
             "get": {
                 "operationId": "GetOrganizationDesign",
@@ -76019,6 +77330,38 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/org/designs/package": {
+            "put": {
+                "operationId": "ImportOrganizationDesignPackage",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationDesignPackageImportResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create or atomically replace an organization theme from a canonical\ntheme-as-code tar package. Send the uncompressed tar as the raw\n`application/x-tar` request body; the manifest slug selects the remote\ntheme.",
+                "summary": "Import theme package",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/org/designs/default": {
@@ -86060,6 +87403,15 @@
                         "required": false,
                         "schema": {
                             "type": "boolean"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "dataAppVizsFilter",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["exclude", "only"]
                         }
                     }
                 ]

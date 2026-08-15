@@ -9,30 +9,51 @@
  *
  * The module is split into a PURE core (`detectMigrations`, `buildMarker`) that is
  * trivially unit-testable, and a thin IO shell (`main`) that runs git, stamps the
- * time, and writes the file atomically. The shell FAILS LOUD: if anything throws it
- * exits non-zero and never writes a file that asserts safety.
+ * time, and writes the file atomically.
  */
 import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import { isReleaseVersion } from '../packages/cli/src/releaseSafety';
 import { aiRollingUpdateReview } from './ai-migration-review';
+import {
+    collectChangeDeclarations,
+    formatChangeDeclarationDiagnostic,
+} from './breaking-change-declarations';
+import type { BreakingChangeDeclaration } from './breaking-change-declarations';
 import { lintMigrations, renderFindings, SqlLintFinding } from './sql-migration-lint';
 import { compareVersions, findExpandFloor } from './expand-version';
 import { diffRestApi, SPEC_PATH } from './rest-api-diff';
 import { diffMcpTools } from './mcp-tools-diff';
+import type {
+    ApiSurface,
+    ReleaseSafetyMarker,
+    TriState,
+} from './release-safety-contract';
+import type { ConfigSurface } from './release-safety-config-diff';
+import { diffConfigBetweenRefs } from './release-safety-config-diff';
+import {
+    appendReleaseSafetyMarker,
+    CONFIGURE_RELEASE_SAFETY_BACKFILL_FLOOR_VERSION,
+    loadReleaseSafetyIndex,
+    writeReleaseSafetyIndex,
+} from './release-safety-index';
+import type { MigrationDetail } from './release-safety-migrations';
+import { readMigrationMetadata } from './release-safety-migrations';
 import {
     CarriedFloor,
-    CarriedFloorKind,
     carriedUpgradeFloor,
     DEFAULT_OVERRIDES_PATH,
     loadUpgradeOverrides,
     recordDerivedFloor,
     requiredStopsUpTo,
     resolveUpgrade,
+    UpgradeOverridesFile,
     UpgradeResolution,
 } from './upgrade-overrides';
 
-export const MARKER_SCHEMA_VERSION = '1';
+export const MARKER_SCHEMA_VERSION = '2' as const;
+export type { ApiSurface, ReleaseSafetyMarker, TriState };
 
 const MIGRATION_DIRS = [
     'packages/backend/src/database/migrations',
@@ -40,11 +61,12 @@ const MIGRATION_DIRS = [
 ] as const;
 
 const EE_MIGRATION_DIR = 'packages/backend/src/ee/database/migrations';
+const DECLARATION_DIRS = ['packages/backend', 'packages/common'] as const;
+const TYPESCRIPT_SOURCE = /^packages\/(backend|common)\/src\/.+\.tsx?$/;
+const TYPESCRIPT_TEST = /(^|\/)__tests__\/|\.(test|spec)\.tsx?$/;
 
 // Knex migration files are timestamped: YYYYMMDDHHMMSS_description.ts
 const MIGRATION_FILENAME_RE = /^\d{14}_.+\.(ts|js)$/;
-
-export type TriState = boolean | 'unknown';
 
 export interface GitChange {
     /** git --name-status code: A, M, D, R100, C75, ... */
@@ -61,64 +83,6 @@ export interface MigrationsResult {
     /** historical migrations deleted in this range — an anti-pattern, surfaced as a warning */
     deletedHistorical: string[];
 }
-
-export interface ApiSurface {
-    checked: boolean;
-    breaking: TriState;
-    changes: string[];
-}
-
-export interface ReleaseSafetyMarker {
-    schemaVersion: string;
-    version: string;
-    previousVersion: string | null;
-    releaseDate: string;
-    capabilities: string[];
-    migrations: {
-        present: TriState;
-        count: number;
-        files: string[];
-        ee: boolean;
-    };
-    compatibility: {
-        rollingUpdateSafe: TriState;
-        recommendedStrategy: 'Recreate' | 'RollingUpdate' | 'unknown';
-        notes: string;
-    };
-    api: {
-        rest: ApiSurface;
-        mcp: ApiSurface;
-    };
-    upgrade: {
-        minPreviousVersion: string | null;
-        /** Whether THIS release is itself a required stop (its own declaration). */
-        requiredStop: boolean;
-        note: string | null;
-        /**
-         * The release whose declaration established `minPreviousVersion`; null when
-         * there is no floor. Lets a consumer act without parsing `note`: when
-         * `kind === 'requiredStop'` this is the release to LAND on.
-         */
-        sourceVersion: string | null;
-        /**
-         * How `minPreviousVersion` was set: `'requiredStop'` (a mandatory waypoint),
-         * `'minPrevious'` (a floor — just start from >= it), `'default'`, or null.
-         */
-        kind: CarriedFloorKind;
-        /**
-         * Every required-stop release at or before this one, oldest-first. An
-         * operator upgrading to this release must land on each one newer than the
-         * version they are currently on.
-         */
-        requiredStops: string[];
-    };
-}
-
-const BLIND_SPOT_NOTE =
-    'This marker only reflects the checks listed in `capabilities`. It does NOT ' +
-    'detect code-only or config-only breaking changes (env defaults, removed Helm ' +
-    'values, serialization/protocol changes), which can also break old pods during ' +
-    'a rolling update.';
 
 /**
  * PURE. Classify a list of git changes (scoped to the migration dirs) into a
@@ -162,6 +126,11 @@ export interface BuildMarkerInput {
     releaseDate: string;
     /** null when migrations could not be determined (e.g. first release / no prev tag) */
     migrations: MigrationsResult | null;
+    migrationDetails?: MigrationDetail[];
+    migrationMetadataComplete?: boolean;
+    declarationMetadataComplete?: boolean;
+    declaredBreaks?: BreakingChangeDeclaration[];
+    config?: ConfigSurface | null;
     /**
      * Optional verdict from the gated AI migration review (P6). Applied only when
      * migrations.present === true. null means the review didn't run or degraded —
@@ -171,9 +140,8 @@ export interface BuildMarkerInput {
     /**
      * Optional result of the deterministic SQL-shape migration linter — the
      * non-LLM floor under the AI review. Applied only when migrations.present ===
-     * true. A "breaking" finding is AUTHORITATIVE (sets rollingUpdateSafe false
-     * and wins over the AI review); a clean run leaves the verdict for the AI /
-     * the honest "unknown" default. Adds "sql-lint" to capabilities when it ran.
+     * true. A "breaking" finding sets the deterministic unsafe floor; a
+     * definitive code-aware review may clear it as an expand/contract step.
      */
     sqlLint?: SqlLintSummary | null;
     /**
@@ -184,21 +152,18 @@ export interface BuildMarkerInput {
      */
     expandContractFloor?: string | null;
     /**
-     * Optional result of the REST API breaking-change diff (P2). Applied to
-     * api.rest and adds "rest" to capabilities only when checked === true. A
-     * null/unchecked result leaves the honest "not checked" stub.
+     * Optional result of the REST API breaking-change diff (P2). A null/unchecked
+     * result leaves the honest "not checked" stub.
      */
     restApi?: ApiSurface | null;
     /**
-     * Optional result of the MCP tool-surface breaking-change diff (P3). Applied
-     * to api.mcp and adds "mcp" to capabilities only when checked === true. A
+     * Optional result of the MCP tool-surface breaking-change diff (P3). A
      * null/unchecked result leaves the honest "not checked" stub.
      */
     mcpApi?: ApiSurface | null;
     /**
      * Optional resolved upgrade-path overrides (P4). Applied to the upgrade block
-     * and adds "upgrade" to capabilities only when consulted === true (i.e. a
-     * committed overrides file was present). null leaves the honest stub.
+     * when a committed overrides file was present. null leaves the honest stub.
      */
     upgrade?: UpgradeResolution | null;
     /**
@@ -220,7 +185,7 @@ export interface BuildMarkerInput {
 
 export interface AiReviewSummary {
     rollingUpdateSafe: TriState;
-    recommendedStrategy: ReleaseSafetyMarker['compatibility']['recommendedStrategy'];
+    recommendedStrategy: 'Recreate' | 'RollingUpdate' | 'unknown';
     summary: string;
 }
 
@@ -271,272 +236,119 @@ export function ownExpandContractFloor(input: {
  * (or unknown) release.
  */
 export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
-    const { version, previousVersion, releaseDate, migrations, aiReview, sqlLint, restApi } = input;
-
-    const present: TriState = migrations ? migrations.present : 'unknown';
-
-    // A deterministic detector flagged a breaking change on a NON-migration
-    // surface (the REST API via oasdiff, or the MCP tool surface via the snapshot
-    // diff). These can break an in-flight frontend / client mid-rollout, so they
-    // are a rolling-update concern the AI review validates — even on a release
-    // with no schema migration. (They populate api.* regardless; this gate only
-    // governs whether they bear on compatibility.rollingUpdateSafe.)
-    const restBreaking = Boolean(restApi?.checked && restApi.breaking === true);
-    const mcpBreaking = Boolean(input.mcpApi?.checked && input.mcpApi.breaking === true);
-    const nonMigrationHazard = restBreaking || mcpBreaking;
-
-    let rollingUpdateSafe: TriState;
-    let recommendedStrategy: ReleaseSafetyMarker['compatibility']['recommendedStrategy'];
-    let notes: string;
-
-    if (present === false && !nonMigrationHazard) {
-        // No schema migrations and nothing else flagged. Safe with respect to the
-        // checks that ran — see blind-spot note.
-        rollingUpdateSafe = true;
-        recommendedStrategy = 'RollingUpdate';
-        notes = `No database migrations detected in this release. ${BLIND_SPOT_NOTE}`;
-    } else if (present === false && nonMigrationHazard) {
-        // No migration, but a deterministic detector flagged a breaking REST/MCP
-        // change. Whether an in-flight frontend/client actually breaks mid-rollout
-        // depends on who calls it — that's the AI review's call below. Until it's
-        // verified, stay cautious rather than assert safe off "no migrations".
-        const which = [restBreaking ? 'REST API' : null, mcpBreaking ? 'MCP tool' : null]
-            .filter(Boolean)
-            .join(' and ');
-        rollingUpdateSafe = 'unknown';
-        recommendedStrategy = 'Recreate';
-        notes =
-            `No database migrations, but a deterministic check flagged a breaking ${which} change. ` +
-            `Whether an in-flight frontend or client breaks during a rolling update was not automatically ` +
-            `verified; prefer a Recreate strategy or a maintenance window. ${BLIND_SPOT_NOTE}`;
-    } else if (present === true) {
-        rollingUpdateSafe = 'unknown';
-        recommendedStrategy = 'Recreate';
-        notes =
-            'This release contains database migrations that are applied before the ' +
-            'app rolls out. Backward-compatibility with the previous running version ' +
-            'was not automatically verified; prefer a Recreate strategy or a ' +
-            `maintenance window. ${BLIND_SPOT_NOTE}`;
-    } else {
-        rollingUpdateSafe = 'unknown';
-        recommendedStrategy = 'Recreate';
-        notes =
-            'Migration status could not be determined (no previous release to diff ' +
-            `against). Treat as potentially unsafe. ${BLIND_SPOT_NOTE}`;
-    }
-
-    const capabilities = ['migrations'];
-
-    // Deterministic SQL-shape linter — the non-LLM FLOOR. Runs only for a
-    // migration-bearing release and sets a breaking BASELINE the AI can override
-    // below. It judges by operation shape, so its "breaking" can be a false
-    // positive: a drop/rename is actually safe when the previous release already
-    // stopped using the object (the "contract" step of an expand/contract). Only
-    // reading the old code — which the AI does — can tell, so the linter is a
-    // floor, not the last word. A clean run claims the capability but leaves the
-    // verdict open (no findings ≠ safe; the linter only knows common shapes).
-    const linterFlagged = Boolean(sqlLint?.ran && sqlLint.breaking && present === true);
-    if (sqlLint?.ran && present === true) {
-        capabilities.push('sql-lint');
-        if (sqlLint.breaking) {
-            rollingUpdateSafe = false;
-            recommendedStrategy = 'Recreate';
-            const detail = sqlLint.findings.length ? ` (${sqlLint.findings.join('; ')})` : '';
-            notes = `Migration linter detected breaking schema operations${detail}. ${BLIND_SPOT_NOTE}`;
-        }
-    }
-
-    // P6: the AI rolling-update review — the intelligent VALIDATION layer. Runs to
-    // validate whatever the deterministic detectors flagged: ALL migration-bearing
-    // releases (even when the linter flagged a shape — it can read the previous
-    // release's code and recognise an expand/contract, where a drop/rename is safe
-    // because the old code no longer references the object) AND no-migration
-    // releases where a REST/MCP break was flagged (it decides whether an in-flight
-    // frontend/client actually breaks). A DEFINITIVE AI verdict (high-confidence
-    // safe → true, or breaking → false) overrides the linter floor / cautious
-    // default; an inconclusive AI ("unknown") leaves it in place — so the AI can
-    // only ever make the marker MORE accurate, never downgrade a deterministic
-    // break to "unknown". It never applies on a first release or on a release with
-    // nothing flagged (no migration AND no API break).
-    // The floor THIS release contributes on its own — non-null only when the AI
-    // cleared a linter-flagged destructive change as the safe "contract" step of an
-    // expand/contract (verified the PREVIOUS release no longer uses the object).
-    // Computed via the shared helper so the IO shell persists the EXACT same value.
-    const ownFloor = ownExpandContractFloor({
-        migrations,
-        sqlLint,
-        aiReview,
-        expandContractFloor: input.expandContractFloor,
-        previousVersion,
-    });
-    if (aiReview && (present === true || nonMigrationHazard)) {
-        capabilities.push('ai-review');
-        if (aiReview.rollingUpdateSafe !== 'unknown') {
-            rollingUpdateSafe = aiReview.rollingUpdateSafe;
-            recommendedStrategy = aiReview.recommendedStrategy;
-            notes =
-                linterFlagged && aiReview.rollingUpdateSafe === true
-                    ? `AI rolling-update review CLEARED a deterministic linter flag — it verified the previous release (${previousVersion ?? 'unknown'}) no longer uses the changed object (expand/contract): ${aiReview.summary} Safe ONLY when upgrading from ${previousVersion ?? 'that release'} or later. ${BLIND_SPOT_NOTE}`
-                    : `AI rolling-update review: ${aiReview.summary} ${BLIND_SPOT_NOTE}`;
-        }
-    }
-
-    // P2: a deterministic REST API breaking-change diff (oasdiff). `checked: false`
-    // means the diff didn't run — leave the unchecked stub and don't claim the
-    // capability. Independent of the migration/rolling-update signal above:
-    // api.rest.breaking is about REST consumers, not mid-rollout pod safety.
-    let rest: ApiSurface = { checked: false, breaking: false, changes: [] };
-    if (restApi && restApi.checked) {
-        rest = restApi;
-        capabilities.push('rest');
-    }
-
-    // P3: deterministic MCP tool-surface diff. Same semantics as rest:
-    // `checked: false` means the diff didn't run — leave the unchecked stub and
-    // don't claim the capability. About MCP tool consumers, not pod safety.
-    let mcp: ApiSurface = { checked: false, breaking: false, changes: [] };
-    if (input.mcpApi && input.mcpApi.checked) {
-        mcp = input.mcpApi;
-        capabilities.push('mcp');
-    }
-
-    // P4: human-authored upgrade-path overrides. Applied (and the capability
-    // claimed) only when a committed overrides file was consulted; otherwise the
-    // honest null stub. A malformed file fails loud upstream — it never silently
-    // degrades here, because that would drop a maintainer's required-stop signal.
-    // Working floor object (the 3 core fields); the structured attribution
-    // (sourceVersion/kind/requiredStops) is derived once, after the fold, below.
-    let upgrade: {
-        minPreviousVersion: string | null;
-        requiredStop: boolean;
-        note: string | null;
-    } = {
-        minPreviousVersion: null,
-        requiredStop: false,
-        note: null,
+    const present: TriState = input.migrations
+        ? input.migrations.present
+        : 'unknown';
+    const uncheckedApi: ApiSurface = {
+        checked: false,
+        breaking: 'unknown',
+        changes: [],
+        breakingCount: 0,
+        advisories: [],
+        advisoryCount: 0,
     };
-    let upgradeKnown = false;
-    if (input.upgrade && input.upgrade.consulted) {
-        upgrade = {
-            minPreviousVersion: input.upgrade.minPreviousVersion,
-            requiredStop: input.upgrade.requiredStop,
-            note: input.upgrade.note,
-        };
-        upgradeKnown = true;
-    }
+    const rest = input.restApi?.checked ? input.restApi : uncheckedApi;
+    const mcp = input.mcpApi?.checked ? input.mcpApi : uncheckedApi;
+    const config: ConfigSurface = input.config?.checked
+        ? input.config
+        : { checked: false, breaking: 'unknown', changes: [] };
+    const declaredBreaks = input.declaredBreaks ?? [];
+    const metadataComplete =
+        (input.migrationMetadataComplete ?? true) &&
+        (input.declarationMetadataComplete ?? true);
+    const deterministicBreak =
+        config.breaking === true || declaredBreaks.length > 0;
+    const apiBreak = rest.breaking === true || mcp.breaking === true;
+    const linterFlagged = Boolean(
+        input.sqlLint?.ran && input.sqlLint.breaking && present === true,
+    );
+    const fullyChecked =
+        rest.checked && mcp.checked && config.checked && metadataComplete;
 
-    // Expand/contract floor: when the AI cleared a destructive change as the
-    // "contract" step, the "safe" verdict was only verified against previousVersion
-    // — upgrading from an EARLIER release (which may still use the object) is not
-    // verified. Record that as the minimum-previous-version floor so an operator
-    // skipping up from an older version is protected. previousVersion is a provably
-    // safe value (the release we actually checked); the author can lower it via the
-    // overrides file if the "expand" shipped earlier. A human-authored
-    // minPreviousVersion (from the overrides file) always wins.
-    if (ownFloor && upgrade.minPreviousVersion === null) {
-        // ownFloor already prefers the git-traced expand version (earliest release
-        // the app stopped using the object — provably safe and more permissive) and
-        // falls back to the conservative previousVersion (the single release the AI
-        // verified). A human-authored minPreviousVersion (set above) always wins.
-        const floor = ownFloor;
-        const traced = Boolean(input.expandContractFloor);
-        upgrade = {
-            minPreviousVersion: floor,
-            requiredStop: upgrade.requiredStop,
-            note: traced
-                ? `Auto-derived: git history shows the app stopped referencing the dropped object by ${floor}, so upgrades from ${floor} or later are safe. Set a different minPreviousVersion in release-safety.overrides.json to override.`
-                : `Auto-derived: the AI verified the change is safe via expand/contract from ${floor}. ` +
-                  `Upgrading from an earlier release is NOT verified — set a lower minPreviousVersion in ` +
-                  `release-safety.overrides.json if the app stopped using the object before then.`,
-        };
-        upgradeKnown = true;
-    }
-
-    // Forward-carry the high-water-mark floor across releases. A hazardous change
-    // declared in ANY release at or before this one — a minPreviousVersion floor,
-    // or a required stop — constrains how far back a DIRECT upgrade to this release
-    // may start. Take the most restrictive (highest) floor so a single marker is
-    // safe for a version-skip: an operator reading only this marker can't be told
-    // "safe from anywhere" when an in-between release dropped something their old
-    // pods still use. This only ever RAISES the floor (never lowers it): the
-    // per-release floor above can be undercut by an in-between hazard, never the
-    // reverse — so it can over-constrain (annoying) but never falsely free a skip.
-    const carried = input.carriedFloor;
+    let rollingUpdateSafe: TriState = 'unknown';
     if (
-        carried?.minPreviousVersion &&
-        (upgrade.minPreviousVersion === null ||
-            compareVersions(carried.minPreviousVersion, upgrade.minPreviousVersion) >
-                0)
+        present === false &&
+        fullyChecked &&
+        !apiBreak &&
+        !deterministicBreak
     ) {
-        const floor = carried.minPreviousVersion;
-        const src = carried.sourceVersion;
-        const carriedNote =
-            carried.kind === 'requiredStop'
-                ? `Release ${src} is a required stop — upgrade from ${floor} or later; an older version cannot skip directly past it.`
-                : `An earlier release${src ? ` (${src})` : ''} requires upgrading from ${floor} or later — a change on the path is not safe to skip past from an older version.`;
-        upgrade = {
-            minPreviousVersion: floor,
-            requiredStop: upgrade.requiredStop,
-            note: upgrade.note ? `${carriedNote} ${upgrade.note}` : carriedNote,
-        };
-        upgradeKnown = true;
+        rollingUpdateSafe = true;
+    }
+    if (linterFlagged || deterministicBreak) {
+        rollingUpdateSafe = false;
+    }
+    if (
+        input.aiReview &&
+        input.aiReview.rollingUpdateSafe !== 'unknown' &&
+        (present === true || apiBreak)
+    ) {
+        rollingUpdateSafe = input.aiReview.rollingUpdateSafe;
+    }
+    if (deterministicBreak) {
+        rollingUpdateSafe = false;
     }
 
-    // Attribute the FINAL floor to a source + kind, so a consumer can branch
-    // without parsing `note`. When the carried high-water mark won, reuse its
-    // attribution (it correctly identifies a required stop vs a min-previous floor
-    // vs the default). Otherwise the floor came from THIS release — its own
-    // expand/contract drop or a this-version human override — both anchored here as
-    // a min-previous floor.
-    let floorSource: string | null = null;
-    let floorKind: CarriedFloorKind = null;
-    if (upgrade.minPreviousVersion !== null) {
-        if (
-            input.carriedFloor &&
-            upgrade.minPreviousVersion === input.carriedFloor.minPreviousVersion
-        ) {
-            floorSource = input.carriedFloor.sourceVersion;
-            floorKind = input.carriedFloor.kind;
-        } else {
-            floorSource = version;
-            floorKind = 'minPrevious';
-        }
+    const ownFloor = ownExpandContractFloor({
+        migrations: input.migrations,
+        sqlLint: input.sqlLint,
+        aiReview: input.aiReview,
+        expandContractFloor: input.expandContractFloor,
+        previousVersion: input.previousVersion,
+    });
+    let minPreviousVersion = input.upgrade?.consulted
+        ? input.upgrade.minPreviousVersion
+        : null;
+    if (minPreviousVersion === null && ownFloor !== null) {
+        minPreviousVersion = ownFloor;
+    }
+    const carriedFloor = input.carriedFloor?.minPreviousVersion ?? null;
+    if (
+        carriedFloor !== null &&
+        (minPreviousVersion === null ||
+            compareVersions(carriedFloor, minPreviousVersion) > 0)
+    ) {
+        minPreviousVersion = carriedFloor;
     }
 
-    if (upgradeKnown) {
-        capabilities.push('upgrade');
-    }
+    const requiredStops = [
+        ...new Set([
+            ...(input.requiredStops ?? []),
+            ...(declaredBreaks.some(
+                (declaredBreak) => declaredBreak.requiredStop,
+            )
+                ? [input.version]
+                : []),
+        ]),
+    ].sort(compareVersions);
+    const migrationDetails = input.migrationDetails ?? [];
+    const coreCount = migrationDetails.filter(
+        (migration) => migration.edition === 'core',
+    ).length;
+    const eeCount = migrationDetails.filter(
+        (migration) => migration.edition === 'ee',
+    ).length;
 
     return {
         schemaVersion: MARKER_SCHEMA_VERSION,
-        version,
-        previousVersion: previousVersion || null,
-        releaseDate,
-        capabilities,
+        version: input.version,
+        previousVersion: input.previousVersion,
+        releaseDate: input.releaseDate,
         migrations: {
             present,
-            count: migrations ? migrations.count : 0,
-            files: migrations ? migrations.files : [],
-            ee: migrations ? migrations.ee : false,
+            count: input.migrations?.count ?? 0,
+            coreCount,
+            eeCount,
+            files: migrationDetails,
         },
         compatibility: {
             rollingUpdateSafe,
-            recommendedStrategy,
-            notes,
+            recommendedStrategy:
+                rollingUpdateSafe === true ? 'RollingUpdate' : 'Recreate',
         },
-        api: {
-            // P2: rest is populated by the oasdiff diff when it ran; otherwise the
-            // unchecked stub. `checked: false` means "unknown", not "no break".
-            rest,
-            // P3: mcp is populated by the tool-snapshot diff when it ran.
-            mcp,
-        },
-        upgrade: {
-            ...upgrade,
-            sourceVersion: floorSource,
-            kind: floorKind,
-            requiredStops: input.requiredStops ?? [],
-        },
+        api: { rest, mcp },
+        config,
+        upgrade: { minPreviousVersion, requiredStops },
+        declaredBreaks,
     };
 }
 
@@ -544,18 +356,25 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
 // IO shell
 // ---------------------------------------------------------------------------
 
-interface CliArgs {
+export interface CliArgs {
     version: string;
     previousVersion: string | null;
     lastTag: string | null;
+    toRef: string;
+    releaseDate: string | null;
     out: string;
+    index: string;
     overrides: string;
     restBaseSpec: string | null;
     restNewSpec: string | null;
     restFromTag: boolean;
+    restFromRefs: boolean;
+    backfilled: boolean;
+    mcpBaseSnapshot: string | null;
+    mcpNewSnapshot: string | null;
 }
 
-function parseArgs(argv: string[]): CliArgs {
+export function parseArgs(argv: string[]): CliArgs {
     const get = (name: string): string | undefined => {
         const i = argv.indexOf(`--${name}`);
         return i >= 0 ? argv[i + 1] : undefined;
@@ -568,21 +387,37 @@ function parseArgs(argv: string[]): CliArgs {
     const restBaseSpec = get('rest-base-spec') || null;
     const restNewSpec = get('rest-new-spec') || null;
     const restFromTag = argv.includes('--rest-from-tag');
+    const restFromRefs = argv.includes('--rest-from-refs');
+    const mcpBaseSnapshot = get('mcp-base-snapshot') || null;
+    const mcpNewSnapshot = get('mcp-new-snapshot') || null;
     if (Boolean(restBaseSpec) !== Boolean(restNewSpec)) {
         throw new Error('--rest-base-spec and --rest-new-spec must be given together');
     }
     if (restFromTag && restBaseSpec) {
         throw new Error('--rest-from-tag cannot be combined with --rest-base-spec/--rest-new-spec');
     }
+    if (restFromTag && restFromRefs) {
+        throw new Error('--rest-from-tag cannot be combined with --rest-from-refs');
+    }
+    if (Boolean(mcpBaseSnapshot) !== Boolean(mcpNewSnapshot)) {
+        throw new Error('--mcp-base-snapshot and --mcp-new-snapshot must be given together');
+    }
     return {
         version,
         previousVersion,
         lastTag: get('last-tag') || previousVersion,
+        toRef: get('to-ref') || 'HEAD',
+        releaseDate: get('release-date') || null,
         out: get('out') || 'release-safety.json',
+        index: get('index') || 'release-safety-index.json',
         overrides: get('overrides') || DEFAULT_OVERRIDES_PATH,
         restBaseSpec,
         restNewSpec,
         restFromTag,
+        restFromRefs,
+        backfilled: argv.includes('--backfilled'),
+        mcpBaseSnapshot,
+        mcpNewSnapshot,
     };
 }
 
@@ -605,6 +440,37 @@ function gitNameStatus(range: string, dirs: readonly string[]): GitChange[] {
     return changes;
 }
 
+function isResolvableGitRef(ref: string): boolean {
+    try {
+        execFileSync('git', ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], {
+            stdio: 'ignore',
+        });
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+export function declarationSourcePaths(changes: GitChange[]): string[] {
+    return changes
+        .filter(
+            (change) =>
+                /^[ACMR]/.test(change.status) &&
+                TYPESCRIPT_SOURCE.test(change.path) &&
+                !TYPESCRIPT_TEST.test(change.path),
+        )
+        .map((change) => change.path)
+        .sort();
+}
+
+function readFileAtRef(ref: string, filePath: string): string {
+    return execFileSync('git', ['show', `${ref}:${filePath}`], {
+        encoding: 'utf-8',
+        maxBuffer: 64 * 1024 * 1024,
+        stdio: ['ignore', 'pipe', 'pipe'],
+    });
+}
+
 /** IO: write JSON atomically (temp file + rename) so a crash never leaves a partial. */
 function writeAtomic(outPath: string, contents: string): void {
     const dir = path.dirname(path.resolve(outPath));
@@ -613,32 +479,89 @@ function writeAtomic(outPath: string, contents: string): void {
     fs.renameSync(tmp, outPath);
 }
 
-async function main(): Promise<void> {
-    const args = parseArgs(process.argv.slice(2));
+export async function generateReleaseSafety(
+    argv: string[],
+    suppliedOverrides?: UpgradeOverridesFile | null,
+): Promise<ReleaseSafetyMarker> {
+    const args = parseArgs(argv);
+    const overrides =
+        suppliedOverrides === undefined
+            ? loadUpgradeOverrides(args.overrides)
+            : suppliedOverrides;
     // Kill-switch: the marker is dark-launched. Unless RELEASE_SAFETY_MARKER_ENABLED
     // is "true", the generator still computes + prints the marker to stdout but
     // does NOT write the output file (so no GitHub release asset is published) and
     // skips the paid AI review (so a dark release spends nothing). The PR preview
     // workflow sets it true to write its throwaway temp file.
     const markerEnabled = process.env.RELEASE_SAFETY_MARKER_ENABLED === 'true';
-    const wantAiReview = process.argv.includes('--ai-review');
+    const wantAiReview = argv.includes('--ai-review');
 
     let migrations: MigrationsResult | null = null;
+    let migrationPaths: string[] = [];
+    let declarationPaths: string[] = [];
     if (args.lastTag) {
-        const range = `${args.lastTag}..HEAD`;
-        const changes = gitNameStatus(range, MIGRATION_DIRS);
-        migrations = detectMigrations(changes);
-        if (migrations.deletedHistorical.length > 0) {
+        const range = `${args.lastTag}..${args.toRef}`;
+        const unresolvableRefs = [args.lastTag, args.toRef].filter(
+            (ref) => !isResolvableGitRef(ref),
+        );
+        if (unresolvableRefs.length > 0) {
             console.warn(
-                `[release-safety] WARNING: historical migrations deleted in ${range}: ` +
-                    migrations.deletedHistorical.join(', '),
+                `[release-safety] WARNING: cannot resolve migration diff ref(s) ${unresolvableRefs.join(', ')}; emitting migrations.present="unknown"`,
             );
+        } else {
+            const changes = gitNameStatus(range, MIGRATION_DIRS);
+            declarationPaths = declarationSourcePaths(
+                gitNameStatus(range, DECLARATION_DIRS),
+            );
+            migrations = detectMigrations(changes);
+            migrationPaths = changes
+                .filter(
+                    (change) =>
+                        change.status.startsWith('A') &&
+                        MIGRATION_FILENAME_RE.test(path.basename(change.path)),
+                )
+                .map((change) => change.path)
+                .sort();
+            if (migrations.deletedHistorical.length > 0) {
+                console.warn(
+                    `[release-safety] WARNING: historical migrations deleted in ${range}: ` +
+                        migrations.deletedHistorical.join(', '),
+                );
+            }
         }
     } else {
         console.warn(
             '[release-safety] no previous tag/version; emitting migrations.present="unknown"',
         );
     }
+
+    const migrationMetadata = readMigrationMetadata({
+        paths: migrationPaths,
+        ref: args.toRef,
+        log: (message) =>
+            console.warn(`[release-safety-migrations] ${message}`),
+    });
+    const declarations = collectChangeDeclarations(
+        declarationPaths,
+        (filePath) => readFileAtRef(args.toRef, filePath),
+    );
+    const declarationDiagnostics = declarations.diagnostics.filter(
+        (diagnostic) => diagnostic.declaration !== 'classification',
+    );
+    for (const diagnostic of declarationDiagnostics) {
+        console.warn(
+            `[release-safety-declarations] ${formatChangeDeclarationDiagnostic(diagnostic)}`,
+        );
+    }
+
+    const config = args.lastTag
+        ? diffConfigBetweenRefs({
+              fromRef: args.lastTag,
+              toRef: args.toRef,
+              log: (message) =>
+                  console.warn(`[release-safety-config] ${message}`),
+          })
+        : { checked: false, breaking: 'unknown' as const, changes: [] };
 
     // Deterministic SQL-shape linter — the always-on floor. Runs (no flag, no
     // key) whenever the cheap detector found migrations. Its "breaking" is a
@@ -647,7 +570,11 @@ async function main(): Promise<void> {
     let sqlLint: SqlLintSummary | null = null;
     let lintFindings: SqlLintFinding[] = [];
     if (migrations?.present === true && args.lastTag) {
-        const r = lintMigrations({ lastTag: args.lastTag, log: (m) => console.warn(`[sql-lint] ${m}`) });
+        const r = lintMigrations({
+            lastTag: args.lastTag,
+            newRef: args.toRef,
+            log: (m) => console.warn(`[sql-lint] ${m}`),
+        });
         lintFindings = r.findings;
         sqlLint = { ran: r.ran, breaking: r.breaking, findings: renderFindings(r.findings) };
         console.warn(
@@ -687,6 +614,14 @@ async function main(): Promise<void> {
         });
     } else if (args.restFromTag) {
         console.warn('[release-safety] --rest-from-tag needs a previous tag; api.rest stays unchecked');
+    } else if (args.restFromRefs && args.lastTag) {
+        restApi = diffRestApi({
+            lastTag: args.lastTag,
+            newRef: args.toRef,
+            log: (m) => console.warn(`[rest-api-diff] ${m}`),
+        });
+    } else if (args.restFromRefs) {
+        console.warn('[release-safety] --rest-from-refs needs a previous tag; api.rest stays unchecked');
     } else {
         console.warn('[release-safety] no REST spec source given; api.rest stays unchecked');
     }
@@ -695,12 +630,20 @@ async function main(): Promise<void> {
     // Auto-runs when a previous tag exists; soft fail-safe (snapshot absent at a
     // ref → api.mcp unchecked), never fails the release.
     let mcpApi: ApiSurface | null = null;
-    if (args.lastTag) {
+    if (args.mcpBaseSnapshot && args.mcpNewSnapshot) {
         mcpApi = diffMcpTools({
-            lastTag: args.lastTag,
-            newRef: 'HEAD',
+            baseSnapshotPath: args.mcpBaseSnapshot,
+            newSnapshotPath: args.mcpNewSnapshot,
             log: (m) => console.warn(`[mcp-tools-diff] ${m}`),
         });
+    } else if (args.lastTag) {
+        mcpApi = diffMcpTools({
+            lastTag: args.lastTag,
+            newRef: args.toRef,
+            log: (m) => console.warn(`[mcp-tools-diff] ${m}`),
+        });
+    } else {
+        console.warn('[release-safety] no MCP snapshot source given; api.mcp stays unchecked');
     }
 
     // P6: gated AI rolling-update review — the VALIDATION layer over the
@@ -709,9 +652,8 @@ async function main(): Promise<void> {
     // recognise an expand/contract the linter can't), OR a REST/MCP break was
     // flagged (it decides whether an in-flight frontend/client actually breaks). It
     // is fed the deterministic breaking lists so it validates exactly what the
-    // detectors found. Any degrade leaves the verdict at the linter floor / cautious
-    // default — the review can only ever make the marker more accurate, never
-    // falsely safe, and never fails the release.
+    // detectors found. Any degrade leaves the verdict at the linter floor /
+    // cautious default and never fails the release.
     const restBreakingChanges =
         restApi?.checked && restApi.breaking === true ? restApi.changes : [];
     const mcpBreakingChanges =
@@ -731,6 +673,7 @@ async function main(): Promise<void> {
                 apiKey,
                 lastTag: args.lastTag,
                 version: args.version,
+                newRef: args.toRef,
                 // Hand the AI the deterministic linter's specific findings so it
                 // validates exactly what the linter flagged (confirm or clear via
                 // expand/contract), rather than re-deriving the shape from the files.
@@ -778,9 +721,7 @@ async function main(): Promise<void> {
     }
 
     // P4: human-authored upgrade-path overrides. A missing file is fine (mechanism
-    // unused); a present-but-malformed file throws here and FAILS the release —
-    // never silently drop a maintainer's declared required-stop.
-    const overrides = loadUpgradeOverrides(args.overrides);
+    // unused); a present-but-malformed file fails before this detector path runs.
     const upgrade = resolveUpgrade(overrides, args.version);
     // Forward-carried floor: the high-water mark of every floor / required stop
     // declared in any release at or before this one, so the marker is self-
@@ -793,8 +734,21 @@ async function main(): Promise<void> {
     const marker = buildMarker({
         version: args.version,
         previousVersion: args.previousVersion,
-        releaseDate: new Date().toISOString(),
+        releaseDate:
+            args.releaseDate ??
+            (args.backfilled
+                ? execFileSync(
+                      'git',
+                      ['log', '-1', '--format=%cI', args.toRef],
+                      { encoding: 'utf-8' },
+                  ).trim()
+                : new Date().toISOString()),
         migrations,
+        migrationDetails: migrationMetadata.migrations,
+        migrationMetadataComplete: migrationMetadata.complete,
+        declarationMetadataComplete: declarationDiagnostics.length === 0,
+        declaredBreaks: declarations.breaking,
+        config,
         aiReview,
         sqlLint,
         expandContractFloor,
@@ -835,12 +789,29 @@ async function main(): Promise<void> {
     if (markerEnabled) {
         writeAtomic(args.out, json);
         console.log(`[release-safety] wrote ${args.out}`);
+        if (isReleaseVersion(args.version)) {
+            const currentIndex = loadReleaseSafetyIndex(args.index);
+            const nextIndex = appendReleaseSafetyMarker({
+                index: currentIndex,
+                marker,
+                backfilled: args.backfilled,
+                backfillFloorVersion:
+                    CONFIGURE_RELEASE_SAFETY_BACKFILL_FLOOR_VERSION,
+            });
+            writeReleaseSafetyIndex(args.index, nextIndex);
+            console.log(`[release-safety] wrote ${args.index}`);
+        } else {
+            console.log(
+                `[release-safety] synthetic version ${args.version}; not updating the cumulative index`,
+            );
+        }
     } else {
         console.log(
             `[release-safety] marker disabled (RELEASE_SAFETY_MARKER_ENABLED != "true"); not writing ${args.out}`,
         );
     }
     console.log(json);
+    return marker;
 }
 
 // Only run the IO shell when executed directly (not when imported by tests).
@@ -849,11 +820,40 @@ const invokedDirectly =
     process.argv[1]?.endsWith('gen-release-safety.ts') === true;
 
 if (invokedDirectly) {
-    // Fail loud: never emit a falsely-safe marker.
-    main().catch((err) => {
+    const argv = process.argv.slice(2);
+    const overrides = loadUpgradeOverrides(parseArgs(argv).overrides);
+    generateReleaseSafety(argv, overrides).catch((err) => {
         console.error(
             `[release-safety] FAILED: ${err instanceof Error ? err.message : String(err)}`,
         );
-        process.exit(1);
+        const value = (name: string): string | undefined => {
+            const index = argv.indexOf(`--${name}`);
+            return index >= 0 ? argv[index + 1] : undefined;
+        };
+        const marker = buildMarker({
+            version: value('version') ?? 'unknown',
+            previousVersion: value('previous-version') ?? null,
+            releaseDate: value('release-date') ?? new Date().toISOString(),
+            migrations: null,
+            migrationDetails: [],
+            migrationMetadataComplete: false,
+            declarationMetadataComplete: false,
+            declaredBreaks: [],
+            config: null,
+            restApi: null,
+            mcpApi: null,
+        });
+        const json = `${JSON.stringify(marker, null, 2)}\n`;
+        if (process.env.RELEASE_SAFETY_MARKER_ENABLED === 'true') {
+            try {
+                writeAtomic(value('out') ?? 'release-safety.json', json);
+            } catch (writeError) {
+                console.error(
+                    `[release-safety] fallback write failed: ${writeError instanceof Error ? writeError.message : String(writeError)}`,
+                );
+            }
+        }
+        console.log(json);
+        process.exitCode = 1;
     });
 }

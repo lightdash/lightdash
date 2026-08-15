@@ -9,7 +9,6 @@ import {
     S3Client,
     S3ServiceException,
     type ObjectIdentifier,
-    type S3ClientConfig,
 } from '@aws-sdk/client-s3';
 import { subject } from '@casl/ability';
 import {
@@ -21,6 +20,7 @@ import {
     checkThemeLimits,
     DATA_APP_CLAUDE_MODELS,
     DATA_APP_VIZ_TEMPLATE,
+    DATA_REFERENCE_EXTRACTOR_VERSION,
     dataAppVizJsonSchema,
     dataAppVizSchema,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
@@ -31,6 +31,7 @@ import {
     ForbiddenError,
     formatPromptWithClarifications,
     getContentAsCodePathFromLtreePath,
+    getCustomSqlFieldKey,
     getEffectiveFieldAiHints,
     getErrorMessage,
     getVisibleDataAppClaudeModels,
@@ -48,6 +49,7 @@ import {
     TooManyRequestsError,
     validateDataAppCode,
     validateDataAppDependencies,
+    type Account,
     type AnonymousAccount,
     type ApiOrganizationDesign,
     type AppBuildFromSourceJobPayload,
@@ -72,6 +74,7 @@ import {
     type DashboardBlueprint,
     type DataAppActivityEvent,
     type DataAppActivityFilters,
+    type DataAppClaudeEffort,
     type DataAppClaudeModel,
     type DataAppCode,
     type DataAppCodeDownload,
@@ -123,7 +126,7 @@ import {
     type DataAppUploadRejectedEvent,
 } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
-import { resolveS3Credentials } from '../../../clients/Aws/S3BaseClient';
+import { createS3ClientFromConfig } from '../../../clients/Aws/S3BaseClient';
 import { LightdashConfig } from '../../../config/parseConfig';
 import {
     APP_VERSION_STAGE_ORDER,
@@ -144,10 +147,14 @@ import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../../models/ProjectParametersModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
 import { SpaceModel } from '../../../models/SpaceModel';
-import { mintPreviewToken } from '../../../routers/appPreviewToken';
+import {
+    mintPreviewToken,
+    verifyPreviewTokenClaims,
+} from '../../../routers/appPreviewToken';
 import { BaseService } from '../../../services/BaseService';
 import type { CoderService } from '../../../services/CoderService/CoderService';
 import type { DashboardService } from '../../../services/DashboardService/DashboardService';
+import { omittedThemeFontGuidance } from '../../../services/OrganizationDesignService/restrictedAppleFonts';
 import type { ProjectService } from '../../../services/ProjectService/ProjectService';
 import type { PromoteService } from '../../../services/PromoteService/PromoteService';
 import type { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
@@ -181,7 +188,11 @@ import {
     type SandboxHandle,
     type SandboxSpec,
 } from '../SandboxRuntime';
-import { assertCanViewApp as assertUserCanViewApp } from './appAuthz';
+import {
+    assertCanViewEmbeddedApp,
+    assertCanViewApp as assertUserCanViewApp,
+} from './appAuthz';
+import { getBundleServableChecker } from './appBundleStorage';
 import {
     buildManifest,
     contentTypeForPath,
@@ -210,6 +221,11 @@ import {
     buildClaudeCodeOtelEnv,
     claudeCodeOtelAllowedHosts,
 } from './claudeCodeOtelEnv';
+import {
+    jobClaudeEffort,
+    payloadClaudeEffort,
+    resolveClaudeEffort,
+} from './claudeEffort';
 import {
     addClaudeGenerationAttempt,
     addClaudeUsage,
@@ -482,6 +498,11 @@ export class AppGenerateService extends BaseService {
 
     // Lazily built from config on first use; memoized for the service lifetime.
     private sandboxManager: SandboxManager | undefined;
+
+    private readonly dataReferenceRefreshes = new Map<
+        string,
+        Promise<PersistedDataAppDataReferences | null>
+    >();
 
     constructor({
         lightdashConfig,
@@ -878,19 +899,8 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        const config: S3ClientConfig = {
-            region: s3Config.region,
-            endpoint: s3Config.endpoint || undefined,
-            forcePathStyle: s3Config.forcePathStyle ?? false,
-        };
-
-        const credentials = resolveS3Credentials(s3Config);
-        if (credentials) {
-            config.credentials = credentials;
-        }
-
         return {
-            client: new S3Client(config),
+            client: createS3ClientFromConfig(s3Config),
             bucket: s3Config.bucket,
         };
     }
@@ -1343,15 +1353,23 @@ export class AppGenerateService extends BaseService {
         return claudeModel;
     }
 
-    /**
-     * Reasoning-effort policy for the claude CLI: first builds run low —
-     * benchmarked ~40% faster with no quality-gate regressions — while
-     * iterations run high (the CLI default, now passed explicitly), since
-     * they make targeted edits to existing code where deeper reasoning
-     * matters more than blank-page latency.
-     */
-    private static resolveClaudeEffort(version: number): 'low' | 'high' {
-        return version === 1 ? 'low' : 'high';
+    /** Reads the app's own template for the pre-field effort fallback. A
+     *  failure here must not sink the telemetry event it feeds. */
+    private async getTemplateForEffort(
+        payload: AppGeneratePipelineJobPayload,
+    ): Promise<DataAppTemplate | null> {
+        try {
+            const app = await this.appModel.getApp(
+                payload.appUuid,
+                payload.projectUuid,
+            );
+            return app.template;
+        } catch (error) {
+            this.logger.warn(
+                `App ${payload.appUuid}: could not read template for effort telemetry: ${getErrorMessage(error)}`,
+            );
+            return null;
+        }
     }
 
     /**
@@ -1875,6 +1893,10 @@ export class AppGenerateService extends BaseService {
             await this.recordGenerationUsage(payload, generationUsage);
         }
 
+        const claudeEffort = await jobClaudeEffort(payload, () =>
+            this.getTemplateForEffort(payload),
+        );
+
         this.analytics.track({
             event: 'data_app.version.failed',
             userId: payload.userUuid,
@@ -1889,9 +1911,7 @@ export class AppGenerateService extends BaseService {
                 claudeModel,
                 claudeProvider: telemetry.claudeProvider,
                 schedulerWaitMs: telemetry.schedulerWaitMs,
-                claudeEffort: AppGenerateService.resolveClaudeEffort(
-                    payload.version,
-                ),
+                claudeEffort,
                 failureStage,
                 errorMessage: AppGenerateService.truncateEnd(
                     getErrorMessage(error),
@@ -2067,7 +2087,7 @@ export class AppGenerateService extends BaseService {
         version: number,
     ): Promise<number> {
         const start = performance.now();
-        const s3Key = `apps/${appUuid}/versions/${version}/source.tar`;
+        const s3Key = `${versionPrefix(appUuid, version)}source.tar`;
 
         const response = await s3Client.send(
             new GetObjectCommand({ Bucket: bucket, Key: s3Key }),
@@ -2115,7 +2135,7 @@ export class AppGenerateService extends BaseService {
         versionDeps: AppVersionDependencies,
     ): Promise<number> {
         const start = performance.now();
-        const depsPrefix = `apps/${appUuid}/versions/${version}/deps/`;
+        const depsPrefix = `${versionPrefix(appUuid, version)}deps/`;
 
         const [packageJsonBuf, lockfileBuf] = await Promise.all([
             readS3ObjectAsBuffer(s3Client, bucket, `${depsPrefix}package.json`),
@@ -3072,10 +3092,16 @@ export class AppGenerateService extends BaseService {
                 manifestLines.length > 0
                     ? `\n\nAvailable theme files:\n${manifestLines.join('\n')}`
                     : '\n\nNo CSS, font, or image files were copied for this theme.';
+            const omittedFontNote =
+                designCopy.omittedRestrictedFonts.length > 0
+                    ? `\n\n${omittedThemeFontGuidance(
+                          designCopy.omittedRestrictedFonts,
+                      )}`
+                    : '';
 
             sections.push(
                 `## Active organization theme: ${designCopy.designSnapshot.name}\n\n` +
-                    `Theme assets are loaded in \`/app/src/design/\` (${designCopy.designSnapshot.fileCount} file(s)). Follow the rules under "Organization themes" in the main skill — they override your defaults for colors, typography, and chart palette where applicable.${manifest}\n\nBefore saying a theme asset is unavailable, inspect \`/app/src/design/\` with Glob or Read.`,
+                    `Theme assets are loaded in \`/app/src/design/\` (${designCopy.filesCopied} file(s)). Follow the rules under "Organization themes" in the main skill — they override your defaults for colors, typography, and chart palette where applicable.${manifest}${omittedFontNote}\n\nBefore saying a theme asset is unavailable, inspect \`/app/src/design/\` with Glob or Read.`,
             );
         }
         if (designCopy.instructionMarkdown) {
@@ -3101,6 +3127,7 @@ export class AppGenerateService extends BaseService {
         continueSession: boolean,
         claudeCodeEnv: Record<string, string>,
         claudeModel: DataAppClaudeModel,
+        claudeEffort: DataAppClaudeEffort,
         // JSON Schema string for `--json-schema` structured output. When set,
         // the CLI validates the run's final output against it (retrying on
         // failure) and emits the parsed object on the result event. `null`
@@ -3140,9 +3167,7 @@ export class AppGenerateService extends BaseService {
             ? '--json-schema "$(cat /tmp/output-schema.json)" '
             : '';
 
-        const effortFlag = `--effort ${AppGenerateService.resolveClaudeEffort(
-            version,
-        )} `;
+        const effortFlag = `--effort ${claudeEffort} `;
 
         // When the sandbox was resumed from a previous iteration, use
         // --continue so Claude has the full conversation history of what
@@ -3302,9 +3327,7 @@ export class AppGenerateService extends BaseService {
             onTelemetry?.(telemetry);
             const durationMs = AppGenerateService.elapsed(start);
             this.logger.info(
-                `App ${appUuid}: Claude code generation completed (model=${claudeModel}, effort=${AppGenerateService.resolveClaudeEffort(
-                    version,
-                )}, exit=${result.exitCode}, toolCalls=${toolCallCount}, turns=${usage?.numTurns ?? 0}, outputTokens=${usage?.outputTokens ?? 0}, cacheReadTokens=${usage?.cacheReadInputTokens ?? 0}, ${durationMs}ms, attempt ${attempt}/${AppGenerateService.MAX_GENERATION_ATTEMPTS})`,
+                `App ${appUuid}: Claude code generation completed (model=${claudeModel}, effort=${claudeEffort}, exit=${result.exitCode}, toolCalls=${toolCallCount}, turns=${usage?.numTurns ?? 0}, outputTokens=${usage?.outputTokens ?? 0}, cacheReadTokens=${usage?.cacheReadInputTokens ?? 0}, ${durationMs}ms, attempt ${attempt}/${AppGenerateService.MAX_GENERATION_ATTEMPTS})`,
             );
             this.logger.info(
                 `App ${appUuid}: claude turn timeline (ttft=${timeToFirstTokenMs ?? 'n/a'}ms, turnsMs=[${turnDurationsMs.join(', ')}])`,
@@ -3569,6 +3592,7 @@ export class AppGenerateService extends BaseService {
         version: number,
         claudeCodeEnv: Record<string, string>,
         claudeModel: DataAppClaudeModel,
+        claudeEffort: DataAppClaudeEffort,
         onTelemetry?: (telemetry: DataAppBuildFixTelemetry) => void,
     ): Promise<{
         buildMs: number;
@@ -3671,6 +3695,7 @@ export class AppGenerateService extends BaseService {
                 true, // --continue: keep conversation context from generation
                 claudeCodeEnv,
                 claudeModel,
+                claudeEffort,
                 null, // build-fix run collects no structured schema
                 (telemetry) => {
                     onTelemetry?.({
@@ -3830,7 +3855,7 @@ export class AppGenerateService extends BaseService {
         sourceTar: Buffer,
     ): Promise<number> {
         const start = performance.now();
-        const s3Prefix = `apps/${appUuid}/versions/${version}`;
+        const s3Prefix = versionPrefix(appUuid, version);
 
         const [distResult] = await Promise.all([
             AppGenerateService.extractAndUploadToS3(
@@ -3843,14 +3868,14 @@ export class AppGenerateService extends BaseService {
                 .send(
                     new PutObjectCommand({
                         Bucket: bucket,
-                        Key: `${s3Prefix}/source.tar`,
+                        Key: `${s3Prefix}source.tar`,
                         Body: sourceTar,
                         ContentType: 'application/x-tar',
                     }),
                 )
                 .then(() => {
                     this.logger.debug(
-                        `App ${appUuid}: uploaded ${s3Prefix}/source.tar`,
+                        `App ${appUuid}: uploaded ${s3Prefix}source.tar`,
                     );
                 }),
         ]);
@@ -4238,6 +4263,7 @@ export class AppGenerateService extends BaseService {
         // to the default so we never run with `--model undefined`.
         const claudeModel: DataAppClaudeModel =
             payload.claudeModel ?? DEFAULT_DATA_APP_CLAUDE_MODEL;
+        const claudeEffort = payloadClaudeEffort(payload, pipelineApp.template);
         const claudeProvider: 'anthropic' | 'bedrock' =
             claudeCodeEnv.CLAUDE_CODE_USE_BEDROCK === '1'
                 ? 'bedrock'
@@ -4502,6 +4528,7 @@ export class AppGenerateService extends BaseService {
                     continueSession,
                     claudeCodeEnv,
                     claudeModel,
+                    claudeEffort,
                     // Data app vizs collect a validated schema as the run's
                     // structured output; other apps don't declare one.
                     isDataAppViz ? JSON.stringify(dataAppVizJsonSchema) : null,
@@ -4664,6 +4691,7 @@ export class AppGenerateService extends BaseService {
                     version,
                     claudeCodeEnv,
                     claudeModel,
+                    claudeEffort,
                     (telemetry) => {
                         durations.buildMs = telemetry.buildMs;
                         buildFixAttempts = telemetry.fixAttempts;
@@ -4854,7 +4882,7 @@ export class AppGenerateService extends BaseService {
                 claudeModel,
                 claudeProvider,
                 schedulerWaitMs,
-                claudeEffort: AppGenerateService.resolveClaudeEffort(version),
+                claudeEffort,
                 wasResumed,
                 totalDurationMs: totalMs,
                 sandboxMs: durations.sandboxMs,
@@ -5534,6 +5562,7 @@ export class AppGenerateService extends BaseService {
 
         const appUuid = preGeneratedAppUuid ?? uuidv4();
         const version = 1;
+        const claudeEffort = resolveClaudeEffort(version, template ?? null);
 
         // Resolve attachment types/filenames from the staged S3 objects so the
         // version resources can split image chips from file chips in the chat.
@@ -5677,7 +5706,7 @@ export class AppGenerateService extends BaseService {
                 fileCount: stagedFiles.filter((f) => !f.isImage).length,
                 template: template ?? null,
                 claudeModel,
-                claudeEffort: AppGenerateService.resolveClaudeEffort(version),
+                claudeEffort,
                 samplesRequested: sampleStats.requested,
                 samplesAvailable: sampleStats.available,
                 clarificationCount: clarifications?.length ?? 0,
@@ -5696,6 +5725,7 @@ export class AppGenerateService extends BaseService {
             template,
             fileIds: fileIds.length > 0 ? fileIds : undefined,
             isIteration: false,
+            claudeEffort,
             chartReferences:
                 chartReferences.length > 0 ? chartReferences : undefined,
             dashboardBlueprint: dashboardBlueprint ?? undefined,
@@ -5769,6 +5799,7 @@ export class AppGenerateService extends BaseService {
         }
 
         const newVersion = (latestVersion?.version ?? 0) + 1;
+        const claudeEffort = resolveClaudeEffort(newVersion, app.template);
         this.logger.info(
             `App ${appUuid}: iteration started (version=${newVersion}, model=${claudeModel}, promptLength=${prompt.length}, designUuidInput=${
                 designUuidInput === undefined
@@ -5880,8 +5911,7 @@ export class AppGenerateService extends BaseService {
                 imageCount: stagedFiles.filter((f) => f.isImage).length,
                 fileCount: stagedFiles.filter((f) => !f.isImage).length,
                 claudeModel,
-                claudeEffort:
-                    AppGenerateService.resolveClaudeEffort(newVersion),
+                claudeEffort,
                 themeChanged: isThemeChange,
                 designUuid: effectiveDesignUuid,
                 previousVersionStatus: latestVersion?.status ?? null,
@@ -5904,6 +5934,7 @@ export class AppGenerateService extends BaseService {
             ...(creationExperience ? { creationExperience } : {}),
             fileIds: fileIds.length > 0 ? fileIds : undefined,
             isIteration: true,
+            claudeEffort,
             chartReferences:
                 chartReferences.length > 0 ? chartReferences : undefined,
             dashboardBlueprint: dashboardBlueprint ?? undefined,
@@ -6089,6 +6120,8 @@ export class AppGenerateService extends BaseService {
             },
         });
 
+        const claudeEffort = resolveClaudeEffort(newVersion, app.template);
+
         await this.schedulerClient.appGeneratePipeline({
             appUuid,
             version: newVersion,
@@ -6098,6 +6131,7 @@ export class AppGenerateService extends BaseService {
             prompt: AppGenerateService.buildUpgradePrompt(body),
             isIteration: true,
             isUpgrade: true,
+            claudeEffort,
             designUuid: app.design_uuid,
         });
 
@@ -6292,8 +6326,8 @@ export class AppGenerateService extends BaseService {
         source: { appUuid: string; version: number },
         target: { appUuid: string; version: number },
     ): Promise<string[]> {
-        const sourcePrefix = `apps/${source.appUuid}/versions/${source.version}/`;
-        const destinationPrefix = `apps/${target.appUuid}/versions/${target.version}/`;
+        const sourcePrefix = versionPrefix(source.appUuid, source.version);
+        const destinationPrefix = versionPrefix(target.appUuid, target.version);
         const copiedKeys: string[] = [];
 
         let continuationToken: string | undefined;
@@ -6361,7 +6395,7 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        const sourceKey = `apps/${appUuid}/versions/${version}/source.tar`;
+        const sourceKey = `${versionPrefix(appUuid, version)}source.tar`;
         const response = await s3Client.send(
             new GetObjectCommand({ Bucket: bucket, Key: sourceKey }),
         );
@@ -7724,10 +7758,17 @@ export class AppGenerateService extends BaseService {
         return { data: data.map(AppGenerateService.mapDataAppViz), pagination };
     }
 
+    /**
+     * `version` answers with that version's own schema instead of the latest
+     * ready one, so a builder previewing an older version can configure the
+     * options that version declares. It resolves through the same guard as the
+     * preview token: whatever can be previewed can be configured.
+     */
     async getDataAppVisualization(
         user: SessionUser,
         projectUuid: string,
         dataAppVizUuid: string,
+        version?: number,
     ): Promise<DataAppViz> {
         await this.assertDataAppsEnabled(user);
         const dataAppViz = await this.appModel.findVisualizationApp(
@@ -7745,7 +7786,18 @@ export class AppGenerateService extends BaseService {
             organization_uuid: dataAppViz.organization_uuid,
             created_by_user_uuid: dataAppViz.created_by_user_uuid,
         });
-        return AppGenerateService.mapDataAppViz(dataAppViz);
+        if (version === undefined) {
+            return AppGenerateService.mapDataAppViz(dataAppViz);
+        }
+        const appVersion = await resolveRenderableDataAppVizVersion(
+            this.appModel,
+            dataAppViz.app_id,
+            version,
+        );
+        return AppGenerateService.mapDataAppViz({
+            ...dataAppViz,
+            viz_schema: appVersion.viz_schema,
+        });
     }
 
     /**
@@ -7827,6 +7879,16 @@ export class AppGenerateService extends BaseService {
         return dataAppViz;
     }
 
+    private resolveVizRenderMetadata(
+        appUuid: string,
+    ): Promise<DataAppVizRenderMetadata> {
+        return resolveDataAppVizRenderMetadata(
+            this.appModel,
+            appUuid,
+            getBundleServableChecker(this.lightdashConfig.appRuntime.s3),
+        );
+    }
+
     async getDataAppVizRenderMetadata(
         user: SessionUser,
         projectUuid: string,
@@ -7837,10 +7899,7 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             dataAppVizUuid,
         );
-        return resolveDataAppVizRenderMetadata(
-            this.appModel,
-            dataAppViz.app_id,
-        );
+        return this.resolveVizRenderMetadata(dataAppViz.app_id);
     }
 
     async getDataAppVizPreviewToken(
@@ -7888,10 +7947,7 @@ export class AppGenerateService extends BaseService {
             dataAppVizUuid,
             chartVersionUuid,
         );
-        return resolveDataAppVizRenderMetadata(
-            this.appModel,
-            dataAppViz.app_id,
-        );
+        return this.resolveVizRenderMetadata(dataAppViz.app_id);
     }
 
     async getChartDataAppVizPreviewToken(
@@ -8462,6 +8518,13 @@ export class AppGenerateService extends BaseService {
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
 
+        // Vizs are project-global chart content — space semantics don't apply.
+        if (app.template === DATA_APP_VIZ_TEMPLATE) {
+            throw new ParameterError(
+                'Custom chart types cannot be moved into spaces',
+            );
+        }
+
         if (checkForAccess) {
             // Manage on the source app (where it currently lives) — space
             // editors/admins of the source space can move it out.
@@ -8540,7 +8603,7 @@ export class AppGenerateService extends BaseService {
                                     /^dist\//,
                                     '',
                                 );
-                                const s3Key = `${s3Prefix}/${relativePath}`;
+                                const s3Key = `${s3Prefix}${relativePath}`;
                                 const contentType =
                                     AppGenerateService.getContentType(
                                         relativePath,
@@ -8624,9 +8687,9 @@ export class AppGenerateService extends BaseService {
      *   self-authorizes it (the project opted in via `allow_all_apps` or the
      *   `app_uuids` allowlist, enforced at account build); a mismatched appUuid
      *   is rejected outright.
-     * - dashboard-tile embed: the app must be referenced by a tile on a
-     *   dashboard in the embed's allowlist (or `allowAllDashboards`), mirroring
-     *   how embedded charts are gated by whitelisted dashboards.
+     * - dashboard-tile embed: the app must be referenced by a tile on the
+     *   dashboard named by the JWT, mirroring how embedded charts are pinned
+     *   to their dashboard.
      * The app must live in the embed's project — source-project apps (preview
      * environments) are out of scope and surface as a 404 to the frontend.
      */
@@ -8646,51 +8709,15 @@ export class AppGenerateService extends BaseService {
             throw new NotFoundError(`App not found: ${appUuid}`);
         }
 
-        const auditedAbility = this.createAuditedAbility(account);
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('DataApp', {
-                    organizationUuid: app.organization_uuid,
-                    projectUuid: app.project_uuid,
-                    metadata: { appUuid },
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'Insufficient permissions to access this data app',
-            );
-        }
-
-        if (account.access.content.type === 'dataApp') {
-            // A standalone data app JWT authorizes EXACTLY its named app
-            // (already gated at account build in
-            // EmbedService.getAccountFromJwt). Requesting any other app is
-            // denied — we must NOT fall through to the dashboard-allowlist gate,
-            // which could otherwise mint a token for an app that merely sits on
-            // an allowlisted dashboard, bypassing the per-app `app_uuids`
-            // allowlist.
-            if (account.access.content.appUuid !== appUuid) {
-                throw new ForbiddenError(
-                    'This embed is not authorized for this data app',
-                );
-            }
-        } else if (!account.embed.allowAllDashboards) {
-            const dashboardsWithApp =
-                await this.appModel.findDashboardsContainingApp(
-                    appUuid,
-                    projectUuid,
-                );
-            const allowedDashboards = new Set(account.embed.dashboardUuids);
-            const onAllowedDashboard = dashboardsWithApp.some((d) =>
-                allowedDashboards.has(d),
-            );
-            if (!onAllowedDashboard) {
-                throw new ForbiddenError(
-                    'Data app is not authorized by this embed',
-                );
-            }
-        }
+        await assertCanViewEmbeddedApp(
+            {
+                createAuditedAbility: (embeddedAccount) =>
+                    this.createAuditedAbility(embeddedAccount),
+                appModel: this.appModel,
+            },
+            account,
+            app,
+        );
 
         const latestReady = await this.appModel.getLatestReadyVersion(appUuid);
         if (!latestReady) {
@@ -9379,10 +9406,157 @@ export class AppGenerateService extends BaseService {
             })),
         );
         return {
+            extractorVersion: extracted.extractorVersion,
             references: extracted.references,
             parseErrors: extracted.parseErrors,
             stats: extracted.stats,
         };
+    }
+
+    private async refreshVersionDataReferences(
+        appUuid: string,
+        version: number,
+    ): Promise<PersistedDataAppDataReferences | null> {
+        try {
+            const { client, bucket } = this.getS3Client();
+            const sourceTar = await readS3ObjectAsBuffer(
+                client,
+                bucket,
+                `${versionPrefix(appUuid, version)}source.tar`,
+            );
+            const files = await AppGenerateService.extractTarFiles(sourceTar);
+            const dataReferences =
+                AppGenerateService.extractPersistedDataReferences(files);
+            await this.persistVersionDataReferences(
+                appUuid,
+                version,
+                dataReferences,
+            );
+            return dataReferences;
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: failed to refresh data references for version ${version}: ${getErrorMessage(error)}`,
+            );
+            return null;
+        }
+    }
+
+    async getVersionDataReferences(
+        appUuid: string,
+        version: number,
+    ): Promise<PersistedDataAppDataReferences | null> {
+        const versionRow = await this.appModel.getVersion(appUuid, version);
+        if (!versionRow || versionRow.status !== 'ready') return null;
+        if (
+            versionRow.data_references?.extractorVersion ===
+            DATA_REFERENCE_EXTRACTOR_VERSION
+        ) {
+            return versionRow.data_references;
+        }
+
+        const key = `${appUuid}:${version}`;
+        const existingRefresh = this.dataReferenceRefreshes.get(key);
+        if (existingRefresh) return existingRefresh;
+
+        const refresh = this.refreshVersionDataReferences(appUuid, version);
+        this.dataReferenceRefreshes.set(key, refresh);
+        try {
+            return await refresh;
+        } finally {
+            this.dataReferenceRefreshes.delete(key);
+        }
+    }
+
+    async getCustomSqlProvenance({
+        account,
+        projectUuid,
+        organizationUuid,
+        exploreName,
+        previewToken,
+    }: {
+        account: Account;
+        projectUuid: string;
+        organizationUuid: string;
+        exploreName: string;
+        previewToken: string;
+    }): Promise<{
+        tableCalculations: Set<string>;
+        customDimensions: Set<string>;
+        additionalMetrics: Set<string>;
+    }> {
+        const empty = () => ({
+            tableCalculations: new Set<string>(),
+            customDimensions: new Set<string>(),
+            additionalMetrics: new Set<string>(),
+        });
+        if (!account.isRegisteredUser() || !previewToken) return empty();
+
+        const verified = verifyPreviewTokenClaims(
+            previewToken,
+            this.lightdashConfig.lightdashSecrets,
+        );
+        if (!verified.ok) return empty();
+        const { payload } = verified;
+        if (
+            payload.userUuid !== account.user.id ||
+            payload.organizationUuid !== organizationUuid ||
+            payload.projectUuid !== projectUuid
+        ) {
+            return empty();
+        }
+
+        const app = await this.appModel.findApp(payload.appUuid, projectUuid);
+        if (!app || app.organization_uuid !== organizationUuid) return empty();
+        const spaceContext = app.space_uuid
+            ? await this.spacePermissionService.getSpaceAccessContext(
+                  account.user.id,
+                  app.space_uuid,
+              )
+            : {};
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('DataApp', {
+                    organizationUuid,
+                    projectUuid,
+                    ...spaceContext,
+                    createdByUserUuid: app.created_by_user_uuid,
+                }),
+            )
+        ) {
+            return empty();
+        }
+
+        const dataReferences = await this.getVersionDataReferences(
+            payload.appUuid,
+            payload.version,
+        );
+        if (!dataReferences) return empty();
+
+        const provenance = empty();
+        for (const reference of dataReferences.references) {
+            if (
+                reference.kind === 'query' &&
+                reference.explore === exploreName &&
+                reference.customSql
+            ) {
+                for (const sql of reference.customSql.tableCalculations) {
+                    provenance.tableCalculations.add(sql);
+                }
+                for (const field of reference.customSql.customDimensions) {
+                    provenance.customDimensions.add(
+                        getCustomSqlFieldKey(field),
+                    );
+                }
+                for (const metric of reference.customSql.additionalMetrics) {
+                    provenance.additionalMetrics.add(
+                        getCustomSqlFieldKey(metric),
+                    );
+                }
+            }
+        }
+        return provenance;
     }
 
     private async persistVersionDataReferences(

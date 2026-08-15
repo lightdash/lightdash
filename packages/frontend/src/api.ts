@@ -14,6 +14,7 @@ import { spanToTraceHeader, startSpan } from '@sentry/react';
 // restores fetch strands us with a stale reference. The global `fetch`
 // resolves at call time instead.
 import { EMBED_KEY, type InMemoryEmbed } from './ee/providers/Embed/types';
+import { recordServerBuildHash } from './features/buildHashHandshake/buildHashHandshake';
 import { getFromInMemoryStorage } from './utils/inMemoryStorage';
 
 // TODO: import from common or fix the instantiation of the request module
@@ -193,6 +194,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
         signal,
     })
         .then((r) => {
+            recordServerBuildHash(r);
             if (!r.ok) {
                 return r.json().then((d) => {
                     throw d;

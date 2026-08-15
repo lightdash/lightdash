@@ -74,6 +74,9 @@ export type FieldEntry = {
     aiHint: string;
     defaultTimeDimension: string | null;
     defaultTimeDimensionGranularity: string | null;
+    // Parameters referenced in the field's compiled SQL — the field returns
+    // different results depending on the values those parameters resolve to.
+    requiredParameters: string[];
     // Locality slices of the haystack, so callers can rank a match in the
     // field's own name/label above one buried in a description or hint.
     nameHaystack: string;
@@ -166,6 +169,7 @@ export const buildFieldIndex = (
                         defaultTimeDimensionGranularity:
                             defaultTimeDimensionFieldIds?.defaultTimeDimensionGranularity ??
                             null,
+                        requiredParameters: field.parameterReferences ?? [],
                         nameHaystack,
                         descHaystack,
                         hintHaystack,
@@ -357,7 +361,11 @@ const fieldLine = (f: FieldEntry): string => {
     const defaultTimeDimension = f.defaultTimeDimension
         ? ` default_time_dimension: ${f.defaultTimeDimension} default_time_dimension_granularity: ${f.defaultTimeDimensionGranularity}`
         : '';
-    return `  ${f.path}  [${f.kind} ${f.type}]${verified} ${f.label}${defaultTimeDimension}${desc}`;
+    const params =
+        f.requiredParameters.length > 0
+            ? ` ⚠params: ${f.requiredParameters.join(',')}`
+            : '';
+    return `  ${f.path}  [${f.kind} ${f.type}]${verified}${params} ${f.label}${defaultTimeDimension}${desc}`;
 };
 
 export const renderCandidateBlock = (candidates: FieldEntry[]): string => {

@@ -14,6 +14,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
 import { useColumnTotalsEnabledByDefault } from '../../../hooks/useAsyncCalculateTotal';
 import { useColumns } from '../../../hooks/useColumns';
 import { useExplore } from '../../../hooks/useExplore';
@@ -84,6 +85,8 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
             ? chartConfig.config.columns
             : undefined;
 
+    const mergeResults = useMergeSafe()?.mergeResults ?? null;
+
     // Get query state from new hook
     const {
         query,
@@ -112,6 +115,24 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
         useGroupedResultsAvailability();
 
     const resultsData = useMemo(() => {
+        // A configured merge is the explorer's result, so the table reads it
+        // instead of the query it was built from.
+        if (mergeResults) {
+            return {
+                rows: mergeResults.results.rows,
+                totalResults: mergeResults.results.totalResults,
+                isFetchingRows:
+                    mergeResults.results.isFetchingRows &&
+                    !mergeResults.results.error,
+                fetchMoreRows: mergeResults.results.fetchMoreRows,
+                status: mergeResults.results.error
+                    ? ('error' as const)
+                    : ('success' as const),
+                apiError: mergeResults.results.error ?? undefined,
+                queryStatus: mergeResults.results.queryStatus,
+            };
+        }
+
         const hasUnpivotedQuery = !!unpivotedQuery?.data?.queryUuid;
 
         // Check if we need unpivoted data (regardless of whether it's ready)
@@ -178,6 +199,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
 
         return result;
     }, [
+        mergeResults,
         unpivotedQuery,
         hasPivotConfig,
         unpivotedEnabled,
@@ -243,6 +265,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
     };
 
     const itemsMap = useMemo(() => {
+        if (mergeResults) return mergeResults.fields;
         return exploreData
             ? getItemMap(
                   exploreData,
@@ -251,7 +274,13 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
                   customDimensions,
               )
             : undefined;
-    }, [exploreData, additionalMetrics, tableCalculations, customDimensions]);
+    }, [
+        mergeResults,
+        exploreData,
+        additionalMetrics,
+        tableCalculations,
+        customDimensions,
+    ]);
 
     // Field helper functions for PivotTable
     const getField = useCallback(

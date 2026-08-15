@@ -8,20 +8,18 @@ const access = (
 ) =>
     canAccessDeepResearchSettings({
         isAiCopilotEnabledOrTrial: true,
-        isDeepResearchEnabled: true,
         canManageOrgAiAgent: true,
         hasAnyAiAgentAccess: true,
         ...overrides,
     });
 
 describe('canAccessDeepResearchSettings', () => {
-    it('allows organization AI admins when Deep Research is enabled', () => {
+    it('allows organization AI admins when AI Agents are available', () => {
         expect(access()).toBe(true);
     });
 
     it.each([
         'isAiCopilotEnabledOrTrial',
-        'isDeepResearchEnabled',
         'canManageOrgAiAgent',
         'hasAnyAiAgentAccess',
     ] as const)('denies access when %s is false', (gate) => {

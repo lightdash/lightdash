@@ -11,6 +11,7 @@ import {
     type AiWritebackSource,
     type ChartReference,
     type DashboardBlueprint,
+    type DataAppClaudeEffort,
     type DataAppClaudeModel,
     type DataAppCreationExperience,
     type DataAppTemplate,
@@ -81,6 +82,10 @@ export type AppGeneratePipelineJobPayload = TraceTaskBase & {
     // before the picker shipped — the pipeline falls back to
     // DEFAULT_DATA_APP_CLAUDE_MODEL in that case.
     claudeModel?: DataAppClaudeModel;
+    // Reasoning effort resolved at enqueue time, where the app's template is
+    // known. Absent on jobs enqueued before this field shipped — the pipeline
+    // resolves it from the app row instead.
+    claudeEffort?: DataAppClaudeEffort;
     // Theme (org design) resolved at enqueue time. `null` means no theme was
     // chosen and no org default exists — the worker skips the sandbox copy
     // and system-prompt augmentation entirely. Absent on jobs enqueued
@@ -127,10 +132,13 @@ export type AiAgentEditDbtProjectPipelineJobPayload = TraceTaskBase & {
 
 export type AiAgentMemoryDistillJobPayload = TraceTaskBase & {
     threadUuid: UUID;
-    sweptUpdatedAt: string;
-    // Manual trigger only: bypass the watermark skip so an already-distilled
-    // thread re-distills. Optional because jobs enqueued before this field
-    // existed are still in the queue.
+    // Sweep/manual watermark. Event jobs derive it from the latest successful
+    // turn.
+    sweptUpdatedAt?: string;
+    // Bypass the watermark skip so an already-distilled thread re-distills:
+    // manual trigger, and feedback events (feedback lands in the transcript
+    // without advancing the thread's activity watermark). Optional because
+    // jobs enqueued before this field existed are still in the queue.
     force?: boolean;
 };
 

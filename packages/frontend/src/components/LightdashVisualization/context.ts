@@ -2,6 +2,7 @@ import type {
     ApiErrorDetail,
     ChartConfig,
     ChartType,
+    DateZoom,
     EChartsSeries,
     ItemsMap,
     MetricQuery,
@@ -61,6 +62,8 @@ type VisualizationContext = {
     isTouchDevice: boolean;
     // Resolved timezone for formatting (undefined when EnableTimezoneSupport flag is off)
     resolvedTimezone?: string;
+    // Date-zoom granularity applied by the surface (dashboards); undefined elsewhere.
+    dateZoom?: DateZoom;
 };
 
 const Context = createContext<VisualizationContext | undefined>(undefined);

@@ -79,9 +79,7 @@ export const MemoryPromotionAction: FC<Props> = ({
         );
     }
 
-    const reviewsEnabled =
-        settings?.aiAgentReviewsEnabled === true &&
-        settings.aiAgentReviewsPausedByByok !== true;
+    const reviewsEnabled = settings?.aiAgentReviewsAvailable === true;
     const disabledReason =
         status !== 'active'
             ? 'Only active memories can be proposed.'

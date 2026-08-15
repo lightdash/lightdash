@@ -40,7 +40,6 @@ export * from './dashboardContext';
 export * from './aiAgentReviewClassifierTypes';
 export * from './documentTypes';
 export * from './filterExploreByTags';
-export * from './followUpTools';
 export * from './projectContext';
 export * from './requestTypes';
 export * from './schemas';
@@ -651,18 +650,37 @@ export type ApiStartAiMcpOAuthResponse = ApiSuccess<{
 export const GITHUB_MCP_SERVER_URL = 'https://api.githubcopilot.com/mcp/';
 export const GITHUB_MCP_SERVER_NAME = 'GitHub';
 
+// Hostname match rather than exact URL so trailing-slash or path variants
+// can't sidestep checks that gate GitHub MCP credentials.
+export const isGithubMcpServerUrl = (url: string): boolean => {
+    try {
+        return (
+            new URL(url).hostname === new URL(GITHUB_MCP_SERVER_URL).hostname
+        );
+    } catch {
+        return false;
+    }
+};
+
 export type ApiConnectGithubMcpServerBody = {
     personalAccessToken: string;
     credentialScope: AiMcpCredentialScope;
 };
 
+// 'github_app' mints a short-lived token per run and stores no long-lived
+// secret; 'pat' stores a user-provided token, gated by ai-mcp-github-pat.
+export type AiMcpGithubConnectMode = 'github_app' | 'pat';
+
 export type AiMcpGithubAvailability = {
-    // The org has a GitHub App installation AND the caller has permission to
-    // manage that integration (manage:GitIntegration).
+    /** @deprecated Use availableModes */
     available: boolean;
+    availableModes: AiMcpGithubConnectMode[];
     // A GitHub MCP server (matching GITHUB_MCP_SERVER_URL) already exists for
-    // this project.
+    // this project and is usable by the caller.
     alreadyConnected: boolean;
+    // The org has a Lightdash GitHub App installation. When false and no mode
+    // is available, the UI nudges the user to install the App.
+    hasGithubAppInstallation: boolean;
 };
 export type ApiAiMcpGithubAvailabilityResponse =
     ApiSuccess<AiMcpGithubAvailability>;

@@ -5,6 +5,7 @@ import {
     DownloadFileType,
     FieldReferenceError,
     FieldType,
+    FilterOperator,
     ForbiddenError,
     GoogleSheetsQuotaError,
     GoogleSheetsTransientError,
@@ -21,6 +22,7 @@ import {
     type CapturedQuery,
     type CreateSchedulerAndTargets,
     type DeliveryCaptureManifest,
+    type MetricQuery,
     type NotificationPayloadBase,
     type ReadyQueryResultsPage,
     type ScheduledDeliveryPayload,
@@ -1171,6 +1173,7 @@ describe('handleScheduledDelivery execution identity', () => {
         options: { formatted: true, limit: 'table' },
         enabled: true,
         includeLinks: true,
+        plainTextEmail: false,
         targets: [],
     } as SchedulerAndTargets;
 
@@ -1356,6 +1359,7 @@ const appScheduler = (
         options: { formatted: true, limit: 'table' },
         enabled: true,
         includeLinks: true,
+        plainTextEmail: false,
         targets: [],
         ...overrides,
     }) as CreateSchedulerAndTargets;
@@ -2095,7 +2099,7 @@ const gsheetsAppScheduler = (overrides: Record<string, unknown> = {}) => ({
     appName: 'Sales App',
     cron: '0 7 * * *',
     timezone: 'UTC',
-    options: { gdriveId: 'sheet-1' },
+    options: { gdriveId: 'sheet-1', showFilters: false },
     thresholds: undefined,
     filters: undefined,
     ...overrides,
@@ -2113,6 +2117,7 @@ describe('uploadGsheets — app branch', () => {
             rows: Record<string, unknown>[];
             fields: Record<string, unknown>;
             displayTimezone: string | null;
+            metricQuery?: MetricQuery;
         }>;
     } = {}) => {
         const scheduler = gsheetsAppScheduler();
@@ -2128,6 +2133,15 @@ describe('uploadGsheets — app branch', () => {
                     rows: [{ orders_id: 1, orders_status: 'complete' }],
                     fields: {},
                     displayTimezone: null,
+                    metricQuery: {
+                        exploreName: 'orders',
+                        dimensions: ['orders_id', 'orders_status'],
+                        metrics: [],
+                        filters: {},
+                        sorts: [],
+                        limit: 500,
+                        tableCalculations: [],
+                    },
                 })),
         );
 
@@ -2302,6 +2316,137 @@ describe('uploadGsheets — app branch', () => {
         expect(getRawAsyncQueryResults.mock.calls[0][0]).not.toHaveProperty(
             'maxRows',
         );
+    });
+
+    it('prepends the current query filters with their AND/OR relationships', async () => {
+        const { scheduler, run, appendCsvToSheet } = setup({
+            getRawAsyncQueryResults: async () => ({
+                rows: [{ orders_status: 'complete' }],
+                fields: {
+                    orders_status: {
+                        name: 'status',
+                        label: 'Order status',
+                        type: DimensionType.STRING,
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        fieldType: FieldType.DIMENSION,
+                        sql: '${TABLE}.status',
+                        hidden: false,
+                    },
+                    customers_id: {
+                        name: 'id',
+                        label: 'Customer id',
+                        type: DimensionType.NUMBER,
+                        table: 'customers',
+                        tableLabel: 'Customers',
+                        fieldType: FieldType.DIMENSION,
+                        sql: '${TABLE}.id',
+                        hidden: false,
+                    },
+                    customers_created_raw: {
+                        name: 'created_raw',
+                        label: 'Customers created raw',
+                        type: DimensionType.TIMESTAMP,
+                        table: 'customers',
+                        tableLabel: 'Customers',
+                        fieldType: FieldType.DIMENSION,
+                        sql: '${TABLE}.created_at',
+                        hidden: false,
+                    },
+                    customers_last_name: {
+                        name: 'last_name',
+                        label: 'Customers last name',
+                        type: DimensionType.STRING,
+                        table: 'customers',
+                        tableLabel: 'Customers',
+                        fieldType: FieldType.DIMENSION,
+                        sql: '${TABLE}.last_name',
+                        hidden: false,
+                    },
+                    orders_total_revenue: {
+                        name: 'total_revenue',
+                        label: 'Total revenue',
+                        type: DimensionType.NUMBER,
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        fieldType: FieldType.METRIC,
+                        sql: '${TABLE}.total_revenue',
+                        hidden: false,
+                    },
+                },
+                displayTimezone: null,
+                metricQuery: {
+                    exploreName: 'orders',
+                    dimensions: ['orders_status'],
+                    metrics: ['orders_total_revenue'],
+                    filters: {
+                        dimensions: {
+                            id: 'group-1',
+                            and: [
+                                {
+                                    id: 'filter-1',
+                                    target: { fieldId: 'customers_id' },
+                                    operator: FilterOperator.EQUALS,
+                                    values: [40],
+                                },
+                                {
+                                    id: 'group-2',
+                                    or: [
+                                        {
+                                            id: 'filter-2',
+                                            target: {
+                                                fieldId:
+                                                    'customers_created_raw',
+                                            },
+                                            operator: FilterOperator.NOT_NULL,
+                                        },
+                                        {
+                                            id: 'filter-3',
+                                            target: {
+                                                fieldId: 'customers_last_name',
+                                            },
+                                            operator: FilterOperator.NOT_NULL,
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        metrics: {
+                            id: 'group-3',
+                            and: [
+                                {
+                                    id: 'filter-4',
+                                    target: {
+                                        fieldId: 'orders_total_revenue',
+                                    },
+                                    operator: FilterOperator.GREATER_THAN,
+                                    values: [0],
+                                },
+                            ],
+                        },
+                    },
+                    sorts: [],
+                    limit: 500,
+                    tableCalculations: [],
+                },
+            }),
+        });
+        scheduler.options.showFilters = true;
+
+        await run();
+
+        expect(appendCsvToSheet.mock.calls[0][2]).toEqual([
+            ['Active filters'],
+            [
+                'Customer id is 40 AND ' +
+                    '(Customers created raw is not null OR ' +
+                    'Customers last name is not null) AND ' +
+                    'Total revenue is greater than 0',
+            ],
+            [],
+            ['orders_status'],
+            ['complete'],
+        ]);
     });
 
     it('sanitizes colons out of tab names, same as the chart/dashboard branches', async () => {

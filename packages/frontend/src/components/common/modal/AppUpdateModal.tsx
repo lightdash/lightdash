@@ -6,7 +6,7 @@ import {
     type ModalProps,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
-import { IconAppWindow } from '@tabler/icons-react';
+import { IconAppWindow, type Icon as IconType } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { z } from 'zod';
 import { useUpdateApp } from '../../../features/apps/hooks/useUpdateApp';
@@ -19,6 +19,9 @@ interface AppUpdateModalProps {
     uuid: string;
     initialName: string;
     initialDescription: string;
+    /** What the app is called to the user; chart types are apps too. */
+    resourceLabel?: string;
+    icon?: IconType;
     onConfirm?: () => void;
 }
 
@@ -34,10 +37,14 @@ const AppUpdateModal: FC<AppUpdateModalProps> = ({
     uuid,
     initialName,
     initialDescription,
+    resourceLabel = 'Data App',
+    icon = IconAppWindow,
     onConfirm,
     ...modalProps
 }) => {
-    const { mutateAsync, isLoading: isUpdating } = useUpdateApp();
+    const { mutateAsync, isLoading: isUpdating } = useUpdateApp({
+        resourceLabel,
+    });
 
     const form = useForm<FormState>({
         initialValues: {
@@ -68,9 +75,9 @@ const AppUpdateModal: FC<AppUpdateModalProps> = ({
 
     return (
         <MantineModal
-            title="Update Data App"
+            title={`Update ${resourceLabel}`}
             {...modalProps}
-            icon={IconAppWindow}
+            icon={icon}
             actions={
                 <Button
                     disabled={!form.isValid()}

@@ -626,6 +626,38 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         },
     },
     {
+        path: 'gallery',
+        lazy: async () => {
+            const ChartTypeGallery = await loadLazyRouteDefault(
+                './pages/ChartTypeGallery',
+                () => import('./pages/ChartTypeGallery'),
+            );
+            return { Component: ChartTypeGallery };
+        },
+    },
+    {
+        path: 'chart-types/new',
+        handle: { hideAILauncher: true },
+        lazy: async () => {
+            const ChartTypeBuilder = await loadLazyRouteDefault(
+                './pages/ChartTypeBuilder',
+                () => import('./pages/ChartTypeBuilder'),
+            );
+            return { Component: ChartTypeBuilder };
+        },
+    },
+    {
+        path: 'chart-types/:dataAppVizUuid',
+        handle: { hideAILauncher: true },
+        lazy: async () => {
+            const ChartTypeBuilder = await loadLazyRouteDefault(
+                './pages/ChartTypeBuilder',
+                () => import('./pages/ChartTypeBuilder'),
+            );
+            return { Component: ChartTypeBuilder };
+        },
+    },
+    {
         path: 'apps/generate',
         handle: { hideAILauncher: true },
         lazy: async () => {

@@ -82,6 +82,7 @@ const CLOUD_CREDENTIAL_ENVIRONMENT_VARIABLE_KEYS = [
 
 type DbtProcessEnvironmentArgs = {
     processEnvironment: NodeJS.ProcessEnv;
+    environmentVariableAllowlist: string[];
     projectEnvironment: Record<string, string>;
     targetPath: string;
 };
@@ -97,6 +98,7 @@ const inheritKeys = (
 
 export const getDbtProcessEnvironment = ({
     processEnvironment,
+    environmentVariableAllowlist,
     projectEnvironment,
     targetPath,
 }: DbtProcessEnvironmentArgs): Record<string, string> => ({
@@ -107,6 +109,7 @@ export const getDbtProcessEnvironment = ({
         processEnvironment,
         CLOUD_CREDENTIAL_ENVIRONMENT_VARIABLE_KEYS,
     ),
+    ...inheritKeys(processEnvironment, environmentVariableAllowlist),
     ...projectEnvironment,
     // Runtime plumbing sits above it: PATH decides which binary runs, and the
     // proxy and CA settings decide where dbt deps fetches from, so a project
@@ -145,5 +148,5 @@ export const getMissingEnvironmentVariableHint = (
 
     return `Your dbt project reads ${keys.join(
         ', ',
-    )} from the environment, which is not available during compilation. Set the values you need in your project's dbt environment variables.`;
+    )} from the environment, which is not available during compilation. Set the values in your project's dbt environment variables or ask an administrator to allow the machine environment variables with ALLOW_DBT_COMMANDS_ACCESS_TO_ENV_VARS.`;
 };

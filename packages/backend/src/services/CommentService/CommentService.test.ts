@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     ForbiddenError,
+    NotFoundError,
     OrganizationMemberRole,
     type DashboardDAO,
     type PossibleAbilities,
@@ -113,6 +114,8 @@ const dashboardModel = {
 const commentModel = {
     getComment: vi.fn(async () => makeCommentRow('owner-uuid')),
     deleteComment: vi.fn(async () => undefined),
+    resolveComment: vi.fn(async () => undefined),
+    unresolveComment: vi.fn(async () => undefined),
     createComment: vi.fn(async () => undefined),
     findCommentsForDashboard: vi.fn(async () => ({})),
     findUsersThatCommentedInDashboardTile: vi.fn(async () => []),
@@ -137,6 +140,7 @@ const spacePermissionService = {
 describe('CommentService', () => {
     let service: CommentService;
     let logBypassEventSpy: import('vitest').MockInstance;
+    let analyticsTrackSpy: import('vitest').MockInstance;
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -156,17 +160,68 @@ describe('CommentService', () => {
             service as any,
             'logBypassEvent',
         );
+        analyticsTrackSpy = vi.spyOn(analyticsMock, 'track');
+    });
+
+    describe('resolveComment', () => {
+        it.each([
+            [true, 'resolveComment'],
+            [false, 'unresolveComment'],
+        ] as const)(
+            'passes the canonical dashboard uuid when resolved is %s',
+            async (resolved, method) => {
+                await service.resolveComment(
+                    adminUser,
+                    'dashboard-slug',
+                    'comment-uuid',
+                    resolved,
+                );
+
+                expect(commentModel.getComment).toHaveBeenCalledWith(
+                    'dashboard-uuid',
+                    'comment-uuid',
+                );
+                expect(commentModel[method]).toHaveBeenCalledWith(
+                    'dashboard-uuid',
+                    'comment-uuid',
+                );
+            },
+        );
+
+        it('does not mutate or track when the comment is outside the dashboard', async () => {
+            commentModel.getComment.mockRejectedValueOnce(
+                new NotFoundError('Comment not found'),
+            );
+
+            await expect(
+                service.resolveComment(
+                    adminUser,
+                    'dashboard-uuid',
+                    'foreign-comment-uuid',
+                    true,
+                ),
+            ).rejects.toThrow(NotFoundError);
+
+            expect(commentModel.resolveComment).not.toHaveBeenCalled();
+            expect(commentModel.unresolveComment).not.toHaveBeenCalled();
+            expect(analyticsTrackSpy).not.toHaveBeenCalled();
+        });
     });
 
     describe('deleteComment', () => {
         it('allows admin to delete any comment without bypass event', async () => {
             await service.deleteComment(
                 adminUser,
-                'dashboard-uuid',
+                'dashboard-slug',
                 'comment-uuid',
             );
 
+            expect(commentModel.getComment).toHaveBeenCalledWith(
+                'dashboard-uuid',
+                'comment-uuid',
+            );
             expect(commentModel.deleteComment).toHaveBeenCalledWith(
+                'dashboard-uuid',
                 'comment-uuid',
             );
             expect(logBypassEventSpy).not.toHaveBeenCalled();
@@ -180,6 +235,7 @@ describe('CommentService', () => {
             );
 
             expect(commentModel.deleteComment).toHaveBeenCalledWith(
+                'dashboard-uuid',
                 'comment-uuid',
             );
             expect(logBypassEventSpy).toHaveBeenCalledWith(
@@ -218,6 +274,7 @@ describe('CommentService', () => {
 
             await expect(result).resolves.not.toThrow();
             expect(commentModel.deleteComment).toHaveBeenCalledWith(
+                'dashboard-uuid',
                 'comment-uuid',
             );
         });
@@ -234,6 +291,23 @@ describe('CommentService', () => {
             ).rejects.toThrow(ForbiddenError);
 
             expect(commentModel.deleteComment).not.toHaveBeenCalled();
+        });
+
+        it('does not mutate or track when the comment is outside the dashboard', async () => {
+            commentModel.getComment.mockRejectedValueOnce(
+                new NotFoundError('Comment not found'),
+            );
+
+            await expect(
+                service.deleteComment(
+                    adminUser,
+                    'dashboard-uuid',
+                    'foreign-comment-uuid',
+                ),
+            ).rejects.toThrow(NotFoundError);
+
+            expect(commentModel.deleteComment).not.toHaveBeenCalled();
+            expect(analyticsTrackSpy).not.toHaveBeenCalled();
         });
     });
 });

@@ -11,6 +11,7 @@ import {
     applyDashboardFiltersForTile,
     assertIsAccountWithOrg,
     assertUnreachable,
+    buildMergeQueryFromSaved,
     buildWarehouseColumnTotals,
     buildWarehouseRowTotals,
     CalculateSubtotalsFromQuery,
@@ -58,6 +59,7 @@ import {
     isCustomBinDimension,
     isCustomDimension,
     isDateItem,
+    isDimension,
     isExploreError,
     isField,
     isJwtUser,
@@ -67,7 +69,10 @@ import {
     ItemsMap,
     KnexPaginateArgs,
     KnexPaginatedData,
+    MERGE_TABLE_NAME,
+    MergeQuery,
     MetricQuery,
+    MissingConfigError,
     normalizeIndexColumns,
     NotFoundError,
     NotSupportedError,
@@ -86,6 +91,8 @@ import {
     S3Error,
     SchedulerFormat,
     SqlChart,
+    SupportedDbtAdapter,
+    TimeFrames,
     TrialExpiredError,
     UnexpectedServerError,
     UserAccessControls,
@@ -103,6 +110,7 @@ import {
     type CustomDimension,
     type ExecuteAsyncDashboardChartRequestParams,
     type ExecuteAsyncFieldValueSearchRequestParams,
+    type ExecuteAsyncMergeQueryRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
     type ExecuteAsyncQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
@@ -134,7 +142,11 @@ import type { INatsClient } from '../../clients/NatsClient';
 import { createLocalParquetUploadStream } from '../../clients/ResultsFileStorageClients/LocalParquetUploadStream';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
-import { getDuckdbRuntimeConfig } from '../../ee/services/AsyncQueryService/getDuckdbRuntimeConfig';
+import { isAgentScopedQueryContext } from '../../ee/services/ai/utils/scopedSqlContexts';
+import {
+    findSqlScopeViolations,
+    formatSqlScopeError,
+} from '../../ee/services/ai/utils/sqlScope';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
 import { getAppContext, getSchedulerContext } from '../../logging/winston';
@@ -147,11 +159,14 @@ import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { traceSpan } from '../../tracing/tracing';
 import { wrapSentryTransaction } from '../../utils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
+import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
 import {
     processFieldsForExport,
     streamJsonlData,
 } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import { updateExploreWithDateZoom } from '../../utils/QueryBuilder/dateZoom';
+import { MergeQueryComposer } from '../../utils/QueryBuilder/MergeQueryComposer';
+import { consumeMergeResultMetadata } from '../../utils/QueryBuilder/mergeQueryResults';
 import { safeReplaceParametersWithSqlBuilder } from '../../utils/QueryBuilder/parameters';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
@@ -208,6 +223,7 @@ import {
     type ExecuteAsyncDashboardChartQueryArgs,
     type ExecuteAsyncDashboardSqlChartArgs,
     type ExecuteAsyncFieldValueSearchArgs,
+    type ExecuteAsyncMergeQueryArgs,
     type ExecuteAsyncMetricQueryArgs,
     type ExecuteAsyncQueryReturn,
     type ExecuteAsyncSavedChartQueryArgs,
@@ -215,6 +231,7 @@ import {
     type ExecuteAsyncUnderlyingDataQueryArgs,
     type GetAsyncQueryResultsArgs,
     type PollingOptions,
+    type PreAggregateExecutionEngine,
     type PreAggregationRoute,
     type RunAsyncPreAggregateQueryArgs,
     type RunAsyncWarehouseQueryArgs,
@@ -249,6 +266,7 @@ type AsyncQueryExecutionPlan =
     | {
           target: 'pre_aggregate';
           preAggregateQuery: string;
+          preAggregateExecution: PreAggregateExecutionEngine;
           warehouseQuery: string;
           preAggregateResolved: true;
           preAggregateResolveReason?: undefined;
@@ -2039,7 +2057,7 @@ export class AsyncQueryService extends ProjectService {
         // "wrong image showing in pivot" reports.
         const passthroughCardinalityViolations = new Set<string>();
 
-        const writeAndTransformRowsIfPivot = pivotConfiguration
+        const transformRows = pivotConfiguration
             ? async (
                   rows: WarehouseResults['rows'],
                   fields: WarehouseResults['fields'],
@@ -2270,6 +2288,16 @@ export class AsyncQueryService extends ProjectService {
             throw new ParameterError(`Invalid data timezone: ${dataTimezone}`);
         }
 
+        let internalRowsRemoved = 0;
+        const writeAndTransformRows = async (
+            rows: WarehouseResults['rows'],
+            fields: WarehouseResults['fields'],
+        ) => {
+            const normalized = consumeMergeResultMetadata(rows, fields);
+            internalRowsRemoved += normalized.removedRows;
+            await transformRows(normalized.rows, normalized.fields);
+        };
+
         const warehouseResults = await traceSpan(
             {
                 op: 'db.query',
@@ -2282,7 +2310,7 @@ export class AsyncQueryService extends ProjectService {
                         tags: queryTags,
                         timezone: dataTimezone,
                     },
-                    write ? writeAndTransformRowsIfPivot : undefined,
+                    writeAndTransformRows,
                 ),
         );
 
@@ -2318,7 +2346,13 @@ export class AsyncQueryService extends ProjectService {
         }
 
         return {
-            warehouseResults,
+            warehouseResults: {
+                ...warehouseResults,
+                totalRows: Math.max(
+                    0,
+                    warehouseResults.totalRows - internalRowsRemoved,
+                ),
+            },
             columns,
             pivotDetails: pivotConfiguration
                 ? {
@@ -2392,11 +2426,12 @@ export class AsyncQueryService extends ProjectService {
 
         if (resolution.resolved) {
             this.logger.info(
-                `DuckDB pre-agg route selected for ${queryUuid}: ${preAggregationRoute.sourceExploreName}/${preAggregationRoute.preAggregateName}`,
+                `Pre-agg route selected for ${queryUuid} (${resolution.execution}): ${preAggregationRoute.sourceExploreName}/${preAggregationRoute.preAggregateName}`,
             );
             return {
                 target: 'pre_aggregate',
                 preAggregateQuery: resolution.query,
+                preAggregateExecution: resolution.execution,
                 warehouseQuery,
                 preAggregateResolved: true,
             };
@@ -2438,13 +2473,18 @@ export class AsyncQueryService extends ProjectService {
         originalColumns,
         preAggregateQuery,
         warehouseQuery,
+        preAggregateExecution,
         queryCreatedAt,
         displayTimezone,
         isPreviewProject,
     }: RunAsyncPreAggregateQueryArgs) {
         try {
+            // Managed pre-aggregates run on the DuckDB client override;
+            // external ones run on the normal project warehouse client.
             const duckDbWarehouseClient =
-                this.preAggregateStrategy.createExecutionWarehouseClient();
+                preAggregateExecution === 'duckdb'
+                    ? this.preAggregateStrategy.createExecutionWarehouseClient()
+                    : undefined;
 
             await this.runAsyncWarehouseQuery({
                 userUuid,
@@ -2464,26 +2504,35 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns,
                 queryCreatedAt,
                 displayTimezone,
-                warehouseClientOverride: duckDbWarehouseClient,
-                warehouseCredentialsTypeOverride:
-                    duckDbWarehouseClient.credentials.type,
+                rethrowOnError: true,
+                ...(duckDbWarehouseClient
+                    ? {
+                          warehouseClientOverride: duckDbWarehouseClient,
+                          warehouseCredentialsTypeOverride:
+                              duckDbWarehouseClient.credentials.type,
+                      }
+                    : {}),
             });
-        } catch (duckdbError) {
+        } catch (preAggregateError) {
             Sentry.getActiveSpan()?.setAttribute(
                 'lightdash.preAggregate.fallback',
                 true,
             );
             Sentry.getActiveSpan()?.setAttribute(
                 'lightdash.executionSource',
-                'warehouse_after_duckdb_fallback',
+                preAggregateExecution === 'duckdb'
+                    ? 'warehouse_after_duckdb_fallback'
+                    : 'warehouse_after_pre_aggregate_fallback',
             );
             this.logger.warn(
-                `DuckDB pre-agg execution failed for ${queryUuid}: ${getErrorMessage(
-                    duckdbError,
+                `Pre-agg execution (${preAggregateExecution}) failed for ${queryUuid}: ${getErrorMessage(
+                    preAggregateError,
                 )}. Falling back to warehouse`,
             );
             this.prometheusMetrics?.incrementPreAggregateFallback(
-                'duckdb_execution_error',
+                preAggregateExecution === 'duckdb'
+                    ? 'duckdb_execution_error'
+                    : 'external_execution_error',
             );
             await this.runAsyncWarehouseQuery({
                 userUuid,
@@ -2635,9 +2684,11 @@ export class AsyncQueryService extends ProjectService {
         displayTimezone,
         warehouseClientOverride,
         warehouseCredentialsTypeOverride,
+        rethrowOnError,
     }: RunAsyncWarehouseQueryArgs & {
         warehouseClientOverride?: WarehouseClient;
         warehouseCredentialsTypeOverride?: CreateWarehouseCredentials['type'];
+        rethrowOnError?: boolean;
     }) {
         type StreamMetrics = {
             totalBytesWritten: number;
@@ -3038,10 +3089,10 @@ export class AsyncQueryService extends ProjectService {
                 },
             );
 
-            // Override clients are used for fallback attempts such as DuckDB
-            // pre-aggregate execution. Keep the query history row non-terminal
-            // so polling clients can receive the warehouse retry result.
-            if (warehouseClientOverride) {
+            // Pre-aggregate attempts rethrow so the caller can fall back to the
+            // warehouse; keep the query history row non-terminal so polling
+            // clients receive the retry result.
+            if (warehouseClientOverride || rethrowOnError) {
                 throw e;
             }
 
@@ -3267,6 +3318,8 @@ export class AsyncQueryService extends ProjectService {
             originalColumns: query.originalColumns ?? undefined,
             queryCreatedAt: query.createdAt,
             preAggregateQuery: query.preAggregateCompiledSql,
+            // Default to duckdb for rows written before the column existed
+            preAggregateExecution: query.preAggregateExecution ?? 'duckdb',
             warehouseQuery: query.compiledSql,
             displayTimezone,
         };
@@ -3599,10 +3652,12 @@ export class AsyncQueryService extends ProjectService {
         pivotDimensions,
         userAttributeOverrides,
         materializationRole,
+        skipModelRequiredFilters,
         columnTimezone,
         dataTimezone,
         sessionTimezone,
         applyDateZoomToFilters,
+        context,
         preloadedUserAccessControls,
         preloadedProjectParameters,
         preloadedProjectTimezone,
@@ -3636,9 +3691,11 @@ export class AsyncQueryService extends ProjectService {
          * underlying-data path sets this (PROD-880).
          */
         applyDateZoomToFilters?: boolean;
+        skipModelRequiredFilters?: boolean;
         preloadedUserAccessControls?: UserAccessControls;
         preloadedProjectParameters?: DbProjectParameter[];
         preloadedProjectTimezone?: string;
+        context?: QueryExecutionContext;
     }): Promise<QueryComposer> {
         assertIsAccountWithOrg(account);
 
@@ -3708,12 +3765,14 @@ export class AsyncQueryService extends ProjectService {
                 parameters,
                 dateZoom,
                 pivotDimensions: pivotDimensions ?? metricQuery.pivotDimensions,
+                skipModelRequiredFilters,
                 useTimezoneAwareDateTrunc,
                 columnTimezone,
                 dataTimezone,
                 rebaseRawTimestampFilters,
                 applyDateZoomToFilters,
                 displayTimezone,
+                queryExecutionContext: context,
             },
         );
     }
@@ -3925,7 +3984,10 @@ export class AsyncQueryService extends ProjectService {
                         },
                     };
                     const trackQueryExecuted = (
-                        executionSource?: 'warehouse' | 'pre_aggregate_duckdb',
+                        executionSource?:
+                            | 'warehouse'
+                            | 'pre_aggregate_duckdb'
+                            | 'pre_aggregate_warehouse',
                     ) =>
                         this.analytics.trackAccount(account, {
                             event: 'query.executed',
@@ -4117,7 +4179,9 @@ export class AsyncQueryService extends ProjectService {
                     if (executionPlan.target === 'pre_aggregate') {
                         span.setAttribute(
                             'lightdash.executionSource',
-                            'pre_aggregate_duckdb',
+                            executionPlan.preAggregateExecution === 'duckdb'
+                                ? 'pre_aggregate_duckdb'
+                                : 'pre_aggregate_warehouse',
                         );
                     }
 
@@ -4152,11 +4216,16 @@ export class AsyncQueryService extends ProjectService {
                         } satisfies ExecuteAsyncQueryReturn;
                     }
 
-                    trackQueryExecuted(
-                        executionPlan.target === 'pre_aggregate'
-                            ? 'pre_aggregate_duckdb'
-                            : 'warehouse',
-                    );
+                    let executedSource: Parameters<
+                        typeof trackQueryExecuted
+                    >[0] = 'warehouse';
+                    if (executionPlan.target === 'pre_aggregate') {
+                        executedSource =
+                            executionPlan.preAggregateExecution === 'duckdb'
+                                ? 'pre_aggregate_duckdb'
+                                : 'pre_aggregate_warehouse';
+                    }
+                    trackQueryExecuted(executedSource);
 
                     const warehouseArgs: RunAsyncWarehouseQueryArgs = {
                         userUuid: account.user.id,
@@ -4185,6 +4254,8 @@ export class AsyncQueryService extends ProjectService {
                             {
                                 pre_aggregate_compiled_sql:
                                     executionPlan.preAggregateQuery,
+                                pre_aggregate_execution:
+                                    executionPlan.preAggregateExecution,
                             },
                             account,
                         );
@@ -4293,6 +4364,8 @@ export class AsyncQueryService extends ProjectService {
                                             executionPlan.preAggregateQuery,
                                         warehouseQuery:
                                             executionPlan.warehouseQuery,
+                                        preAggregateExecution:
+                                            executionPlan.preAggregateExecution,
                                     });
                                 case 'materialization':
                                 case 'warehouse':
@@ -4444,6 +4517,7 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
             exploreName: inputMetricQuery.exploreName,
             metricQuery: inputMetricQuery,
+            dataAppPreviewToken: args.dataAppPreviewToken,
         });
 
         return this.runAsyncMetricQueryWithoutPermissionCheck(
@@ -4573,6 +4647,10 @@ export class AsyncQueryService extends ProjectService {
             totalConfiguration,
             userAttributeOverrides,
             materializationRole,
+            context,
+            ...(context === QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
+                ? { skipModelRequiredFilters: true }
+                : {}),
             columnTimezone: getColumnTimezone(warehouseCredentials),
             dataTimezone: warehouseCredentials.dataTimezone,
             preloadedUserAccessControls,
@@ -5070,6 +5148,57 @@ export class AsyncQueryService extends ProjectService {
                 this.lightdashConfig.query,
                 savedChartOrganizationUuid,
             );
+
+        if (savedChart.merge) {
+            const mergeQuery = buildMergeQueryFromSaved(
+                metricQuery,
+                savedChart.merge,
+            );
+            const combinedParameters = {
+                ...savedChartParameters,
+                ...parameters,
+            };
+            let pivotConfiguration: PivotConfiguration | undefined;
+            if (pivotResults) {
+                const compiled = await this.compileMergeQuery({
+                    account,
+                    projectUuid,
+                    mergeQuery,
+                    parameters: combinedParameters,
+                });
+                const columnOrder = Object.values(compiled.fieldIdByColumn);
+                const dimensions = columnOrder.filter((fieldId) =>
+                    isDimension(compiled.itemsMap[fieldId]),
+                );
+                const mergedMetricQuery: MetricQuery = {
+                    exploreName: MERGE_TABLE_NAME,
+                    dimensions,
+                    metrics: columnOrder.filter(
+                        (fieldId) => !dimensions.includes(fieldId),
+                    ),
+                    filters: {},
+                    sorts: [],
+                    limit: mergeQuery.limit,
+                    tableCalculations: [],
+                };
+                pivotConfiguration = derivePivotConfigurationFromChart(
+                    savedChart,
+                    mergedMetricQuery,
+                    compiled.itemsMap,
+                );
+            }
+
+            return this.executeAsyncMergeQuery({
+                account,
+                projectUuid,
+                mergeQuery,
+                context,
+                invalidateCache,
+                parameters: combinedParameters,
+                pivotConfiguration,
+                csvLimit: limit,
+            });
+        }
 
         const limitedMetricQuery = applyMetricQueryLimit(
             metricQuery,
@@ -6035,6 +6164,27 @@ export class AsyncQueryService extends ProjectService {
         ) {
             throw new ForbiddenError();
         }
+
+        // Agent-run SQL is additionally constrained to the project's agent SQL
+        // scope. Both the AI agent and the MCP run_sql tool land here, so this
+        // is the one place a new agent SQL path cannot bypass. The human SQL
+        // Runner is deliberately not scoped.
+        if (isAgentScopedQueryContext(context)) {
+            const sqlScope =
+                await this.projectModel.getAgentSqlScope(projectUuid);
+            const violations = findSqlScopeViolations(sql, sqlScope);
+            if (violations.length > 0 && sqlScope) {
+                this.logger.warn('Blocked out-of-scope agent SQL', {
+                    projectUuid,
+                    context,
+                    references: violations.map((v) => v.reference),
+                });
+                throw new ForbiddenError(
+                    formatSqlScopeError(violations, sqlScope),
+                );
+            }
+        }
+
         // Combine default parameter values with request parameters first
         const combinedParameters = await this.combineParameters(
             projectUuid,
@@ -6091,6 +6241,173 @@ export class AsyncQueryService extends ProjectService {
             parameterReferences,
             usedParametersValues: usedParameters,
             resolvedTimezone: null,
+        };
+    }
+
+    /**
+     * Runs a merge as one statement on the org's own warehouse.
+     *
+     * The compile is the merge: both sides become CTEs of one statement in
+     * the warehouse's dialect, and that statement runs through the ordinary
+     * async tail — query history, paging, formatting, pivoting, caching and
+     * downloads all behave as for any other query. Nothing materialises to
+     * S3 and nothing runs anywhere but the project warehouse.
+     */
+    async executeAsyncMergeQuery({
+        account,
+        projectUuid,
+        mergeQuery,
+        context,
+        invalidateCache,
+        pivotConfiguration,
+        parameters,
+        csvLimit,
+    }: ExecuteAsyncMergeQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
+        assertIsAccountWithOrg(account);
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        let effectiveMergeQuery = mergeQuery;
+        let compiledMerge = await this.compileMergeQuery({
+            account,
+            projectUuid,
+            mergeQuery: effectiveMergeQuery,
+            parameters,
+        });
+        if (
+            compiledMerge.coreSql === null ||
+            compiledMerge.typedColumns === null ||
+            compiledMerge.terminalWrapper === null
+        ) {
+            throw new ParameterError(
+                `This merge cannot be run: ${compiledMerge.errors
+                    .map((error) => error.message)
+                    .join(' ')}`,
+                { errors: compiledMerge.errors },
+            );
+        }
+
+        if (csvLimit !== undefined) {
+            const { csvCellsLimit } = await resolveOrganizationExportLimits(
+                this.organizationSettingsModel,
+                this.lightdashConfig.query,
+                organizationUuid,
+            );
+            const columnCount = Object.keys(
+                compiledMerge.fieldIdByColumn,
+            ).length;
+            const cellLimitedRows = Math.floor(
+                csvCellsLimit / Math.max(columnCount, 1),
+            );
+            const exportLimit =
+                csvLimit === null
+                    ? cellLimitedRows
+                    : Math.min(csvLimit, cellLimitedRows);
+            effectiveMergeQuery = {
+                ...mergeQuery,
+                limit: exportLimit,
+                sources: mergeQuery.sources.map((source) => ({
+                    ...source,
+                    metricQuery: {
+                        ...source.metricQuery,
+                        limit: exportLimit,
+                    },
+                })),
+            };
+            compiledMerge = await this.compileMergeQuery({
+                account,
+                projectUuid,
+                mergeQuery: effectiveMergeQuery,
+                parameters,
+            });
+            if (
+                compiledMerge.coreSql === null ||
+                compiledMerge.typedColumns === null ||
+                compiledMerge.terminalWrapper === null
+            ) {
+                throw new ParameterError(
+                    `This merge cannot be exported: ${compiledMerge.errors
+                        .map((error) => error.message)
+                        .join(' ')}`,
+                    { errors: compiledMerge.errors },
+                );
+            }
+        }
+
+        // Only for composing SQL — quoting and the pivot stage need the
+        // dialect. The async runtime opens its own connection to execute.
+        const [warehouseCredentials, userAccessControls] = await Promise.all([
+            this.getWarehouseCredentials({
+                projectUuid,
+                userId: account.user.id,
+                isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
+            }),
+            this.getUserAttributes({ account }),
+        ]);
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+            warehouseCredentials,
+        );
+
+        let composer: MergeQueryComposer;
+        try {
+            composer = new MergeQueryComposer({
+                coreSql: compiledMerge.coreSql,
+                terminalWrapper: compiledMerge.terminalWrapper,
+                itemsMap: compiledMerge.itemsMap,
+                typedColumns: compiledMerge.typedColumns,
+                columnOrder: Object.values(compiledMerge.fieldIdByColumn),
+                limit: effectiveMergeQuery.limit,
+                warehouseClient,
+                pivotConfiguration,
+            });
+        } finally {
+            await sshTunnel.disconnect();
+        }
+
+        const baseQueryTags: RunQueryTags = {
+            ...this.getUserQueryTags(account),
+            ...AsyncQueryService.getSchedulerQueryTags(),
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            query_context: context,
+        };
+        const queryTags = AsyncQueryService.addUserAttributeQueryTags(
+            baseQueryTags,
+            userAccessControls,
+        );
+        const requestParameters: ExecuteAsyncMergeQueryRequestParams = {
+            context,
+            invalidateCache,
+            mergeQuery: effectiveMergeQuery,
+            parameters,
+            pivotConfiguration,
+        };
+        const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
+            {
+                account,
+                projectUuid,
+                organizationUuid,
+                context,
+                queryTags,
+                invalidateCache,
+                queryComposer: composer,
+                warehouseCredentials,
+                routingTarget: 'warehouse',
+            },
+            requestParameters,
+        );
+
+        return {
+            queryUuid,
+            cacheMetadata,
+            metricQuery: composer.getMetricQuery(),
+            fields: composer.getFields(),
+            warnings: composer.getWarnings(),
+            parameterReferences: composer.getParameterReferences(),
+            usedParametersValues: composer.getUsedParameters(),
+            resolvedTimezone: composer.getDisplayTimezone(),
         };
     }
 
@@ -6815,6 +7132,7 @@ export class AsyncQueryService extends ProjectService {
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         displayTimezone: string | null;
         truncated: boolean;
+        metricQuery: MetricQuery;
     }> {
         const queryHistory = await this.getAsyncQueryHistory({
             account,
@@ -6861,6 +7179,7 @@ export class AsyncQueryService extends ProjectService {
                 AsyncQueryService.getPivotDetailsFromQueryHistory(queryHistory),
             displayTimezone: queryHistory.metricQuery.timezone ?? null,
             truncated,
+            metricQuery: queryHistory.metricQuery,
         };
     }
 

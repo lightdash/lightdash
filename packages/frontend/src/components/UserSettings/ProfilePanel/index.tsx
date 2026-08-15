@@ -1,6 +1,7 @@
 import {
     FeatureFlags,
     getEmailSchema,
+    getUserNameSchema,
     isValidTimezone,
     type ApiError,
 } from '@lightdash/common';
@@ -31,8 +32,8 @@ import TimeZonePicker from '../../common/TimeZonePicker';
 import AvatarSettings from './AvatarSettings';
 
 const validationSchema = z.object({
-    firstName: z.string().nonempty(),
-    lastName: z.string().nonempty(),
+    firstName: getUserNameSchema(),
+    lastName: getUserNameSchema(),
     email: getEmailSchema().or(z.undefined()),
     timezone: z
         .string()

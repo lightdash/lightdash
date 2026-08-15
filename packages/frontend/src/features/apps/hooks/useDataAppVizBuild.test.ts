@@ -26,6 +26,11 @@ type GenerateHandlers = {
     onError: (error: unknown) => void;
 };
 
+type CancelHandlers = {
+    onSuccess: () => void;
+    onError: (error: unknown) => void;
+};
+
 /** The last `onDone` the hook handed the poller. */
 const finishBuild = (version: Partial<ApiAppVersionSummary>) => {
     const onDone = mockedPoller.mock.lastCall?.[3];
@@ -115,6 +120,7 @@ describe('useDataAppVizBuild', () => {
             result.current.send({
                 description: 'a donut of orders by status',
                 fileIds: [],
+                claudeModel: 'sonnet',
             }),
         );
 
@@ -124,18 +130,50 @@ describe('useDataAppVizBuild', () => {
         expect(result.current.isBuilding).toBe(true);
     });
 
-    it('attributes new builds to the Explorer chart configuration', () => {
+    it('attributes new builds to the chart type builder', () => {
         const { result } = setup();
 
         act(() =>
             result.current.send({
                 description: 'a donut of orders by status',
                 fileIds: [],
+                claudeModel: 'sonnet',
             }),
         );
 
         expect(generate.mock.lastCall?.[0]).toMatchObject({
-            creationExperience: 'explorer_chart_config',
+            creationExperience: 'chart_type_builder',
+        });
+    });
+
+    it('sends the picked model on both a new build and a revision', () => {
+        const { result, rerender } = setup();
+
+        act(() =>
+            result.current.send({
+                description: 'a donut of orders by status',
+                fileIds: [],
+                claudeModel: 'opus',
+            }),
+        );
+        expect(generate.mock.lastCall?.[0]).toMatchObject({
+            claudeModel: 'opus',
+        });
+
+        rerender({ dataAppVizUuid: 'viz-1' });
+        const handlers = generate.mock.lastCall?.[1] as GenerateHandlers;
+        act(() => handlers.onSuccess({ appUuid: 'viz-1', version: 1 }));
+        finishBuild(finishedVersion());
+
+        act(() =>
+            result.current.send({
+                description: 'make it horizontal',
+                fileIds: [],
+                claudeModel: 'haiku',
+            }),
+        );
+        expect(iterate.mock.lastCall?.[0]).toMatchObject({
+            claudeModel: 'haiku',
         });
     });
 
@@ -148,6 +186,7 @@ describe('useDataAppVizBuild', () => {
             result.current.send({
                 description: 'a donut',
                 fileIds: [],
+                claudeModel: 'sonnet',
             }),
         );
         const handlers = generate.mock.lastCall?.[1] as GenerateHandlers;
@@ -165,6 +204,7 @@ describe('useDataAppVizBuild', () => {
             result.current.send({
                 description: 'a donut',
                 fileIds: [],
+                claudeModel: 'sonnet',
             }),
         );
         const handlers = generate.mock.lastCall?.[1] as GenerateHandlers;
@@ -184,7 +224,13 @@ describe('useDataAppVizBuild', () => {
     it('does not replace a visualization picked while creation runs', () => {
         const { result, rerender, onCreated } = setup();
 
-        act(() => result.current.send({ description: 'a donut', fileIds: [] }));
+        act(() =>
+            result.current.send({
+                description: 'a donut',
+                fileIds: [],
+                claudeModel: 'sonnet',
+            }),
+        );
         const handlers = generate.mock.lastCall?.[1] as GenerateHandlers;
         act(() => handlers.onSuccess({ appUuid: 'viz-1', version: 1 }));
 
@@ -201,6 +247,7 @@ describe('useDataAppVizBuild', () => {
             result.current.send({
                 description: 'a donut',
                 fileIds: [],
+                claudeModel: 'sonnet',
             }),
         );
         const handlers = generate.mock.lastCall?.[1] as GenerateHandlers;
@@ -221,6 +268,7 @@ describe('useDataAppVizBuild', () => {
             result.current.send({
                 description: 'make the bars teal',
                 fileIds: [],
+                claudeModel: 'sonnet',
             }),
         );
 
@@ -228,7 +276,7 @@ describe('useDataAppVizBuild', () => {
         expect(iterate.mock.lastCall?.[0]).toMatchObject({
             projectUuid: 'project-1',
             appUuid: 'viz-1',
-            creationExperience: 'explorer_chart_config',
+            creationExperience: 'chart_type_builder',
         });
 
         const handlers = iterate.mock.lastCall?.[1] as GenerateHandlers;
@@ -246,6 +294,7 @@ describe('useDataAppVizBuild', () => {
             result.current.send({
                 description: 'make the bars teal',
                 fileIds: [],
+                claudeModel: 'sonnet',
             }),
         );
         const handlers = iterate.mock.lastCall?.[1] as GenerateHandlers;
@@ -255,6 +304,76 @@ describe('useDataAppVizBuild', () => {
         expect(result.current.discard).toBeNull();
     });
 
+    it('interrupts a draft without deleting its app', () => {
+        const { result } = setup();
+        let generateHandlers: GenerateHandlers | null = null;
+        let cancelSucceeded: (() => void) | null = null;
+        generate.mockImplementation((_params, handlers: GenerateHandlers) => {
+            generateHandlers = handlers;
+        });
+        cancelVersion.mockImplementation(
+            (_params, handlers: { onSuccess: () => void }) => {
+                cancelSucceeded = handlers.onSuccess;
+            },
+        );
+
+        act(() =>
+            result.current.send({
+                description: 'make a bar chart',
+                fileIds: [],
+                claudeModel: 'sonnet',
+            }),
+        );
+        act(() =>
+            generateHandlers?.onSuccess({ appUuid: 'viz-1', version: 1 }),
+        );
+        act(() => result.current.interrupt?.());
+
+        expect(cancelVersion).toHaveBeenCalledWith(
+            {
+                projectUuid: 'project-1',
+                appUuid: 'viz-1',
+                version: 1,
+            },
+            expect.anything(),
+        );
+        expect(deleteApp).not.toHaveBeenCalled();
+
+        act(() => cancelSucceeded?.());
+        expect(result.current.isBuilding).toBe(false);
+    });
+
+    it('keeps building and surfaces an interrupt failure', () => {
+        const { result } = setup();
+        let generateHandlers: GenerateHandlers | null = null;
+        let cancelFailed: ((error: unknown) => void) | null = null;
+        generate.mockImplementation((_params, handlers: GenerateHandlers) => {
+            generateHandlers = handlers;
+        });
+        cancelVersion.mockImplementation(
+            (_params, handlers: CancelHandlers) => {
+                cancelFailed = handlers.onError;
+            },
+        );
+
+        act(() =>
+            result.current.send({
+                description: 'make a bar chart',
+                fileIds: [],
+                claudeModel: 'sonnet',
+            }),
+        );
+        act(() =>
+            generateHandlers?.onSuccess({ appUuid: 'viz-1', version: 1 }),
+        );
+        act(() => result.current.interrupt?.());
+        act(() => cancelFailed?.(new Error('Request timed out')));
+
+        expect(result.current.isBuilding).toBe(true);
+        expect(result.current.cancelError).toBe('Request timed out');
+        expect(result.current.interrupt).not.toBeNull();
+    });
+
     it('cancels a revision without deleting its app', () => {
         const { result } = setup('viz-1');
 
@@ -262,6 +381,7 @@ describe('useDataAppVizBuild', () => {
             result.current.send({
                 description: 'make the bars teal',
                 fileIds: [],
+                claudeModel: 'sonnet',
             }),
         );
         const iterateHandlers = iterate.mock.lastCall?.[1] as GenerateHandlers;
@@ -292,6 +412,7 @@ describe('useDataAppVizBuild', () => {
             result.current.send({
                 description: 'make the bars teal',
                 fileIds: [],
+                claudeModel: 'sonnet',
             }),
         );
         const handlers = iterate.mock.lastCall?.[1] as GenerateHandlers;
@@ -312,6 +433,7 @@ describe('useDataAppVizBuild', () => {
             result.current.send({
                 description: 'a donut',
                 fileIds: [],
+                claudeModel: 'sonnet',
             }),
         );
         const handlers = generate.mock.lastCall?.[1] as GenerateHandlers;
@@ -320,6 +442,7 @@ describe('useDataAppVizBuild', () => {
             result.current.send({
                 description: 'actually a bar chart',
                 fileIds: [],
+                claudeModel: 'sonnet',
             }),
         );
 
@@ -329,7 +452,13 @@ describe('useDataAppVizBuild', () => {
     it('cancels a draft before deleting its app', () => {
         const { result } = setup();
 
-        act(() => result.current.send({ description: 'a donut', fileIds: [] }));
+        act(() =>
+            result.current.send({
+                description: 'a donut',
+                fileIds: [],
+                claudeModel: 'sonnet',
+            }),
+        );
         const generateHandlers = generate.mock
             .lastCall?.[1] as GenerateHandlers;
         act(() => generateHandlers.onSuccess({ appUuid: 'viz-1', version: 1 }));

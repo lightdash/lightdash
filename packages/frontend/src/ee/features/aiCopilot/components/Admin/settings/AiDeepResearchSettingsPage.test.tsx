@@ -49,7 +49,7 @@ const { mutationState, refetchSettings, settingsQuery, updateSettings } =
     }));
 
 vi.mock('../../../hooks/useAiOrganizationSettings', () => ({
-    useAiOrganizationSettings: () => ({
+    useAiOrganizationAdminSettings: () => ({
         ...settingsQuery.current,
         refetch: refetchSettings,
     }),

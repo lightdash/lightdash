@@ -1,5 +1,6 @@
 import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { APP_PREVIEW_TOKEN_REFRESH_INTERVAL_MS } from './previewTokenQueryOptions';
 import {
     useDataAppVizPreviewToken,
     useDataAppVizRenderMetadata,
@@ -17,7 +18,14 @@ type CapturedQuery = {
     queryKey: unknown[];
     queryFn: () => Promise<unknown>;
     enabled: boolean;
-    refetchInterval?: (data: unknown) => number | false;
+    refetchInterval?:
+        | number
+        | ((
+              data: unknown,
+              query?: { state: { error: unknown } },
+          ) => number | false);
+    refetchIntervalInBackground?: boolean;
+    refetchOnWindowFocus?: boolean;
     retry?: (
         failureCount: number,
         error: ReturnType<typeof apiError>,
@@ -64,12 +72,14 @@ describe('useDataAppVizRender', () => {
             method: 'GET',
             url: '/ee/projects/project-1/apps/visualizations/viz-1/charts/chart-1/render-metadata',
         });
-        expect(query.refetchInterval?.({ latestBuildInProgress: true })).toBe(
-            3000,
-        );
-        expect(query.refetchInterval?.({ latestBuildInProgress: false })).toBe(
-            false,
-        );
+        expect(
+            typeof query.refetchInterval === 'function' &&
+                query.refetchInterval({ latestBuildInProgress: true }),
+        ).toBe(3000);
+        expect(
+            typeof query.refetchInterval === 'function' &&
+                query.refetchInterval({ latestBuildInProgress: false }),
+        ).toBe(false);
     });
 
     it('passes the previewed chart version through to the registered route', async () => {
@@ -153,6 +163,15 @@ describe('useDataAppVizRender', () => {
         const tokenQuery = tokenResult.current as unknown as CapturedQuery;
 
         await expect(tokenQuery.queryFn()).resolves.toBe('token-7');
+        expect(tokenQuery.refetchInterval).toBeTypeOf('function');
+        expect(
+            typeof tokenQuery.refetchInterval === 'function' &&
+                tokenQuery.refetchInterval(undefined, {
+                    state: { error: null },
+                }),
+        ).toBe(APP_PREVIEW_TOKEN_REFRESH_INTERVAL_MS);
+        expect(tokenQuery.refetchIntervalInBackground).toBe(true);
+        expect(tokenQuery.refetchOnWindowFocus).toBe(true);
         expect(tokenQuery.queryKey).toEqual([
             'data-app-viz-preview-token',
             'project-1',

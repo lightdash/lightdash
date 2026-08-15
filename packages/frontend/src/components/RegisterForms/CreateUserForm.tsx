@@ -1,6 +1,7 @@
 import {
     getEmailSchema,
     getPasswordSchema,
+    getUserNameSchema,
     type CreateUserArgs,
 } from '@lightdash/common';
 import {
@@ -25,6 +26,8 @@ type Props = {
 };
 
 const validationSchema = z.object({
+    firstName: getUserNameSchema(),
+    lastName: getUserNameSchema(),
     email: getEmailSchema(),
     password: getPasswordSchema(),
 });

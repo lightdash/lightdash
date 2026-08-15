@@ -1008,6 +1008,145 @@ describe('AiAgentMemoryService', () => {
         expect(forced.distillCall).toHaveBeenCalledOnce();
     });
 
+    it('distills an event-triggered job only through the latest successful turn', async () => {
+        const completedActivity = new Date('2026-07-22T04:00:00.000Z');
+        const latestActivity = new Date('2026-07-22T05:00:00.000Z');
+        const completedTurn = distillableThread(completedActivity).turns[0];
+        const unfinishedTurn = {
+            ...completedTurn,
+            promptUuid: 'prompt-2',
+            createdAt: latestActivity,
+            userText: 'Unfinished follow-up',
+            assistantText: null,
+            respondedAt: null,
+        };
+        const {
+            service,
+            findThreadForDistill,
+            upsertThreadDistill,
+            distillCall,
+        } = build();
+        findThreadForDistill.mockResolvedValue(
+            distillableThread(latestActivity, {
+                distilledUpTo: null,
+                turns: [completedTurn, unfinishedTurn],
+            }),
+        );
+        distillCall.mockResolvedValue({
+            result: { type: 'no_op', reason: 'no_positive_evidence' },
+        });
+
+        await expect(
+            service.distillThread({
+                organizationUuid: 'org-enabled',
+                projectUuid: 'project-enabled',
+                userUuid: 'current-user',
+                threadUuid: 'thread-enabled',
+            }),
+        ).resolves.toBe('no_op');
+
+        expect(upsertThreadDistill).toHaveBeenCalledWith(
+            expect.objectContaining({ distilledUpTo: completedActivity }),
+        );
+        expect(distillCall).toHaveBeenCalledWith(
+            expect.objectContaining({
+                thread: expect.objectContaining({ turns: [completedTurn] }),
+            }),
+        );
+        expect(distillCall.mock.calls[0][0].transcript).not.toContain(
+            'Unfinished follow-up',
+        );
+    });
+
+    it('does not move the event watermark past an unfinished follow-up', async () => {
+        const completedActivity = new Date('2026-07-22T04:00:00.000Z');
+        const latestActivity = new Date('2026-07-22T05:00:00.000Z');
+        const completedTurn = distillableThread(completedActivity).turns[0];
+        const {
+            service,
+            findThreadForDistill,
+            upsertThreadDistill,
+            distillCall,
+        } = build();
+        findThreadForDistill.mockResolvedValue(
+            distillableThread(latestActivity, {
+                distilledUpTo: completedActivity,
+                turns: [
+                    completedTurn,
+                    {
+                        ...completedTurn,
+                        promptUuid: 'prompt-2',
+                        createdAt: latestActivity,
+                        userText: 'Unfinished follow-up',
+                        assistantText: null,
+                        respondedAt: null,
+                    },
+                ],
+            }),
+        );
+
+        await expect(
+            service.distillThread({
+                organizationUuid: 'org-enabled',
+                projectUuid: 'project-enabled',
+                userUuid: 'current-user',
+                threadUuid: 'thread-enabled',
+            }),
+        ).resolves.toBe('skipped');
+        expect(distillCall).not.toHaveBeenCalled();
+        expect(upsertThreadDistill).not.toHaveBeenCalled();
+    });
+
+    it('re-distills on a forced feedback event even though the watermark has not moved', async () => {
+        const completedActivity = new Date('2026-07-22T04:00:00.000Z');
+        const latestActivity = new Date('2026-07-22T05:00:00.000Z');
+        const completedTurn = distillableThread(completedActivity).turns[0];
+        const {
+            service,
+            findThreadForDistill,
+            upsertThreadDistill,
+            distillCall,
+        } = build();
+        findThreadForDistill.mockResolvedValue(
+            distillableThread(latestActivity, {
+                distilledUpTo: completedActivity,
+                turns: [
+                    completedTurn,
+                    {
+                        ...completedTurn,
+                        promptUuid: 'prompt-2',
+                        createdAt: latestActivity,
+                        userText: 'Unfinished follow-up',
+                        assistantText: null,
+                        respondedAt: null,
+                    },
+                ],
+            }),
+        );
+        distillCall.mockResolvedValue({
+            result: { type: 'no_op', reason: 'no_positive_evidence' },
+        });
+
+        await expect(
+            service.distillThread({
+                organizationUuid: 'org-enabled',
+                projectUuid: 'project-enabled',
+                userUuid: 'current-user',
+                threadUuid: 'thread-enabled',
+                force: true,
+            }),
+        ).resolves.toBe('no_op');
+
+        expect(distillCall).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                thread: expect.objectContaining({ turns: [completedTurn] }),
+            }),
+        );
+        expect(upsertThreadDistill).toHaveBeenCalledWith(
+            expect.objectContaining({ distilledUpTo: completedActivity }),
+        );
+    });
+
     it('forcing does not override the inactive-memory guard', async () => {
         const activity = new Date('2026-07-22T05:00:00.000Z');
         const {

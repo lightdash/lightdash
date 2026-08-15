@@ -86,6 +86,10 @@ export type ExternalConnection = {
     updatedAt: Date;
 };
 
+export type ExternalConnectionListItem = ExternalConnection & {
+    linkedDataAppCount: number;
+};
+
 /** WRITE shape — includes the secret. */
 export type CreateExternalConnection = {
     name: string;

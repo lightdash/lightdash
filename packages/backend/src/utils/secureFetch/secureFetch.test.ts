@@ -80,6 +80,14 @@ describe('secureFetch blocks private/internal resolved IPs', () => {
             'IPv4 192.0.2.1 reserved (TEST-NET)',
             { address: '192.0.2.1', family: 4 },
         ],
+        [
+            'IPv4 192.88.99.1 deprecated 6to4 relay',
+            { address: '192.88.99.1', family: 4 },
+        ],
+        [
+            'IPv4 198.18/15 benchmarking range',
+            { address: '198.18.0.1', family: 4 },
+        ],
         ['IPv6 ::1 loopback', { address: '::1', family: 6 }],
         ['IPv6 fc00::/7 unique-local', { address: 'fc00::1', family: 6 }],
         ['IPv6 fe80::/10 link-local', { address: 'fe80::1', family: 6 }],
@@ -95,6 +103,10 @@ describe('secureFetch blocks private/internal resolved IPs', () => {
         [
             'IPv6 NAT64 64:ff9b::7f00:1 (maps to 127.0.0.1)',
             { address: '64:ff9b::7f00:1', family: 6 },
+        ],
+        [
+            'IPv6 2001::/23 special-purpose range',
+            { address: '2001:2::1', family: 6 },
         ],
     ];
 

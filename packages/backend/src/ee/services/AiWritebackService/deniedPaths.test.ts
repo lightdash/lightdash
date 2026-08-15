@@ -61,4 +61,52 @@ describe('findDeniedCommitPaths', () => {
         const mixed = ['README.md', '.env', 'src/app.ts', 'Jenkinsfile'];
         expect(findDeniedCommitPaths(mixed)).toEqual(['.env', 'Jenkinsfile']);
     });
+
+    it('denies environment filenames with trailing whitespace', () => {
+        const paths = ['config/.env ', 'config/.env\u00a0'];
+        expect(findDeniedCommitPaths(paths)).toEqual(paths);
+    });
+
+    it('denies names whose segments carry surrounding whitespace', () => {
+        // Each pattern anchors on `^` or `/`, so whitespace hugging a separator
+        // hides the name from it — at the repo root and, more importantly, at
+        // any nesting level, which is where the agent actually writes.
+        const paths = [
+            ' credentials',
+            'ci/ Jenkinsfile',
+            'ci/ .npmrc',
+            'a/b/ id_rsa',
+            '\u00a0credentials',
+            '.github/workflows /deploy.yml',
+        ];
+        expect(findDeniedCommitPaths(paths)).toEqual(paths);
+    });
+
+    it('allows interior spaces in ordinary directory and file names', () => {
+        const paths = ['my docs/notes.md', 'models/env.sql'];
+        expect(findDeniedCommitPaths(paths)).toEqual([]);
+    });
+
+    it('denies Jenkinsfile variants with dot suffixes', () => {
+        const paths = ['Jenkinsfile.groovy', 'ci/Jenkinsfile.production'];
+        expect(findDeniedCommitPaths(paths)).toEqual(paths);
+    });
+
+    it('denies credentials filenames with extensions', () => {
+        const paths = [
+            'credentials.json',
+            'config/credentials.local.json',
+            'config/credentials.',
+        ];
+        expect(findDeniedCommitPaths(paths)).toEqual(paths);
+    });
+
+    it('allows names that only contain denied path terms', () => {
+        const paths = [
+            'models/environment.sql',
+            'docs/credentials-setup.md',
+            'docs/Jenkinsfile-setup.md',
+        ];
+        expect(findDeniedCommitPaths(paths)).toEqual([]);
+    });
 });

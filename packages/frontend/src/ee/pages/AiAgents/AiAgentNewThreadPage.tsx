@@ -1,4 +1,3 @@
-import { FeatureFlags } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -16,7 +15,6 @@ import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useOutletContext, useParams, useSearchParams } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { AiAgentNewThreadMcpConnections } from '../../features/aiCopilot/components/AiAgentNewThreadMcpConnections';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import {
@@ -35,6 +33,7 @@ import { emitEmbedAiAgentThreadChange } from '../../features/aiCopilot/hooks/emb
 import { useAiAgentModelSelection } from '../../features/aiCopilot/hooks/useAiAgentModelSelection';
 import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
 import { useStartDeepResearchForThreadMutation } from '../../features/aiCopilot/hooks/useDeepResearch';
+import { useDeepResearchAccess } from '../../features/aiCopilot/hooks/useDeepResearchAccess';
 import { usePinnedContext } from '../../features/aiCopilot/hooks/usePinnedContext';
 import {
     useCreateAgentThreadMutation,
@@ -68,7 +67,7 @@ const AiAgentNewThreadPage: FC = () => {
     const { agent, agents, navigateFromAgentChat } =
         useOutletContext<AgentContext>();
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
-    const deepResearchFlag = useServerFeatureFlag(FeatureFlags.AiDeepResearch);
+    const canStartDeepResearch = useDeepResearchAccess(projectUuid);
     const [sqlModeOverride, setSqlModeOverride] = useState<boolean>();
     const sqlMode = sqlModeOverride ?? agent.enableSqlMode;
     const dispatch = useAiAgentStoreDispatch();
@@ -205,7 +204,7 @@ const AiAgentNewThreadPage: FC = () => {
 
     const onStartDeepResearch = useCallback(
         async ({ question }: StartDeepResearchArgs) => {
-            if (!agentUuid || !isPinnedContextReady) {
+            if (!agentUuid || !isPinnedContextReady || !canStartDeepResearch) {
                 return;
             }
             setPendingPrompt('');
@@ -226,6 +225,7 @@ const AiAgentNewThreadPage: FC = () => {
         },
         [
             agentUuid,
+            canStartDeepResearch,
             contextInput,
             createAgentThread,
             isPinnedContextReady,
@@ -357,7 +357,7 @@ const AiAgentNewThreadPage: FC = () => {
                         key={composerSeedKey}
                         onSubmit={onSubmit}
                         onStartDeepResearch={
-                            deepResearchFlag.data?.enabled
+                            canStartDeepResearch
                                 ? onStartDeepResearch
                                 : undefined
                         }

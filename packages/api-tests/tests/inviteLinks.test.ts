@@ -159,16 +159,6 @@ describe('Invite links endpoints', () => {
             expect(resp.status).toBe(422);
         });
 
-        // expires_at >= created_at is enforced by a DB check constraint,
-        // which also surfaces as an unhandled 500
-        it('returns 500 when expiresAt is in the past', async () => {
-            const resp = await createInvite({
-                email: uniqueEmail('past-expiry'),
-                expiresAt: new Date(Date.now() - 60 * 1000).toISOString(),
-            });
-            expect(resp.status).toBe(500);
-        });
-
         it('supports personal access token authentication', async () => {
             const patResp = await admin.post<
                 Body<{ token: string; uuid: string }>

@@ -86,6 +86,8 @@ export type InlineError = {
 export type PreAggregateSource = {
     sourceExploreName: string;
     preAggregateName: string;
+    // Present ⇒ external pre-aggregate: served from this table on the project warehouse
+    externalTable?: string;
 };
 
 export type Explore = {

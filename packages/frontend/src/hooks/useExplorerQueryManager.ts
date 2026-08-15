@@ -19,6 +19,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
+import { useMergeSafe } from '../features/mergeQuery/context/useMerge';
 import { useQueryExecutor } from '../providers/Explorer/useQueryExecutor';
 import { buildQueryArgs } from './explorer/buildQueryArgs';
 import { useExploreByProjectUuid } from './useExplore';
@@ -137,11 +138,18 @@ export const useExplorerQueryManager = ({
         [dispatch],
     );
 
+    // A merge replaces the query it was built from, so once one has run there
+    // is nothing left for this query to render and re-running it is a second
+    // warehouse query for a result nobody sees. It stays enabled while the
+    // merge is being built, because until then its results are what is on
+    // screen.
+    const hasMergedResults = !!useMergeSafe()?.mergeResults;
+
     // Main query executor - creates TanStack Query subscriptions
     const [mainQueryExecutor] = useQueryExecutor(
         validQueryArgs,
         missingRequiredParameters,
-        true,
+        !hasMergedResults,
         queryUuidHistory,
         setQueryUuidHistory,
     );

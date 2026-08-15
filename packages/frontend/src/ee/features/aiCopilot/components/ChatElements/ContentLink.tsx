@@ -277,6 +277,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
                     target="_blank"
                     rel="noreferrer"
                     title={title}
+                    inherit
                 >
                     {children}
                 </Anchor>

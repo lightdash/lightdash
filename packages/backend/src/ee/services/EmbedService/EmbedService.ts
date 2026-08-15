@@ -112,6 +112,7 @@ import { SubtotalsCalculator } from '../../../utils/SubtotalsCalculator';
 import { EmbedDashboardViewed, EmbedQueryViewed } from '../../analytics';
 import { EmbedModel } from '../../models/EmbedModel';
 import { ExternalConnectionModel } from '../../models/ExternalConnectionModel';
+import { getBundleServableChecker } from '../AppGenerateService/appBundleStorage';
 import {
     resolveDataAppVisualizationForRender,
     resolveDataAppVizRenderMetadata,
@@ -1856,6 +1857,7 @@ export class EmbedService extends BaseService {
         return resolveDataAppVizRenderMetadata(
             this.appModel,
             dataAppViz.app_id,
+            getBundleServableChecker(this.lightdashConfig.appRuntime.s3),
         );
     }
 
@@ -2358,6 +2360,7 @@ export class EmbedService extends BaseService {
         tableName: fallbackTableName,
         fieldId: fallbackFieldId,
         timezone: sessionTimezoneParam,
+        parameters,
     }: {
         account: AnonymousAccount;
         projectUuid: string;
@@ -2369,6 +2372,7 @@ export class EmbedService extends BaseService {
         tableName?: string;
         fieldId?: string;
         timezone?: string;
+        parameters?: ParametersValuesMap;
     }): Promise<FieldValueSearchResult> {
         const { dashboardUuids, allowAllDashboards, user } =
             await this.embedModel.get(projectUuid);
@@ -2460,6 +2464,18 @@ export class EmbedService extends BaseService {
                 organizationUuid: dashboard.organizationUuid,
             });
 
+        const acceptedUserParameters =
+            isParameterInteractivityEnabled(account.access.parameters) &&
+            parameters
+                ? parameters
+                : {};
+        const combinedParameters = await this.projectService.combineParameters(
+            projectUuid,
+            explore,
+            acceptedUserParameters,
+            getDashboardParametersValuesMap(dashboard),
+        );
+
         const useTimezoneAwareDateTrunc =
             await this.projectService.isTimezoneSupportEnabled({
                 userUuid: user?.userUuid ?? account.user.id,
@@ -2495,6 +2511,7 @@ export class EmbedService extends BaseService {
             account,
             timezone,
             useTimezoneAwareDateTrunc,
+            combinedParameters,
         });
 
         return {

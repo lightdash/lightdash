@@ -8,6 +8,7 @@ import {
     getMetricOverridesWithPopInheritance,
     isCustomDimension,
     isDimension,
+    MERGE_TABLE_NAME,
     isField,
     isMetric,
     isNumericItem,
@@ -28,7 +29,7 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import { Group, Skeleton, Tooltip } from '@mantine/core';
-import { IconExclamationCircle } from '@tabler/icons-react';
+import { IconExclamationCircle, IconKey } from '@tabler/icons-react';
 import { type CellContext } from '@tanstack/react-table';
 import omit from 'lodash/omit';
 import { useMemo } from 'react';
@@ -64,6 +65,9 @@ import {
     selectTableName,
     useExplorerSelector,
 } from '../features/explorer/store';
+import provenanceStyles from '../features/mergeQuery/components/MergeColumnProvenance.module.css';
+import { useMergeSafe } from '../features/mergeQuery/context/useMerge';
+import { getMergeFieldProvenance } from '../features/mergeQuery/utils/getMergeFieldProvenance';
 import { getFieldColors } from '../utils/fieldColors';
 import { TableCellBar } from './TableCellBar';
 import {
@@ -488,7 +492,7 @@ export const useColumns = (): TableColumn[] => {
     const metricOverrides = useExplorerSelector(selectMetricOverrides);
 
     const {
-        activeFields,
+        activeFields: exploreActiveFields,
         query,
         queryResults,
         unpivotedQueryResults,
@@ -496,8 +500,34 @@ export const useColumns = (): TableColumn[] => {
         validQueryArgs,
         projectUuid,
     } = useExplorerQuery();
-    const resultsMetricQuery = query.data?.metricQuery;
-    const resultsFields = query.data?.fields;
+
+    // A merged result has no explore behind it, so its fields cannot be
+    // recovered from one. They arrive already described, and every one of them
+    // is active — a merge returns exactly the columns it was asked for.
+    const mergeResults = useMergeSafe()?.mergeResults ?? null;
+    const mergeSourceLabels = useMemo(() => {
+        if (!mergeResults) return {};
+
+        return Object.entries(mergeResults.fieldOrigins).reduce<
+            Record<string, string>
+        >((labels, [fieldId, origin]) => {
+            const item = mergeResults.fields[fieldId];
+            if (origin.kind === 'source' && isField(item)) {
+                labels[origin.sourceId] = item.tableLabel;
+            }
+            return labels;
+        }, {});
+    }, [mergeResults]);
+    const activeFields = useMemo(
+        () =>
+            mergeResults
+                ? new Set(mergeResults.columnOrder)
+                : exploreActiveFields,
+        [mergeResults, exploreActiveFields],
+    );
+    const resultsMetricQuery =
+        mergeResults?.metricQuery ?? query.data?.metricQuery;
+    const resultsFields = mergeResults?.fields ?? query.data?.fields;
 
     const parameters = useExplorerSelector(selectParameters);
     // Format temporal cells in the flag-gated resolved timezone (null when
@@ -513,7 +543,9 @@ export const useColumns = (): TableColumn[] => {
     // Split itemsMap into base map (rarely changes) and override layer (frequently changes)
     // This prevents full recalculation when only metricOverrides change
     const baseItemsMap = useMemo<ItemsMap | undefined>(() => {
-        if (!exploreData || hasNoActiveFields) return;
+        if (hasNoActiveFields) return;
+        if (mergeResults) return mergeResults.fields;
+        if (!exploreData) return;
 
         const baseFields = getItemMap(
             exploreData,
@@ -528,6 +560,7 @@ export const useColumns = (): TableColumn[] => {
         };
     }, [
         hasNoActiveFields,
+        mergeResults,
         resultsFields,
         exploreData,
         additionalMetrics,
@@ -628,7 +661,10 @@ export const useColumns = (): TableColumn[] => {
             isInitialQueryReady &&
             !!sourceQueryUuid &&
             hasMetricFields &&
-            totalsEnabledByDefault,
+            totalsEnabledByDefault &&
+            // Totals are recomputed from the metric query behind the source
+            // query, which a merged result does not have.
+            !mergeResults,
         invalidateCache: validQueryArgs?.invalidateCache,
     });
 
@@ -659,6 +695,15 @@ export const useColumns = (): TableColumn[] => {
                           ),
                       }
                     : undefined;
+            const mergeOrigin = mergeResults?.fieldOrigins[fieldId];
+            // A merged result's dimensions are the join key; mark them so the
+            // shared columns read apart from each side's own.
+            const isMergeJoinKey =
+                !!mergeResults &&
+                isField(item) &&
+                item.table === MERGE_TABLE_NAME &&
+                isDimension(item);
+            const showTablePrefix = hasJoins || !!mergeResults;
             const column: TableColumn = columnHelper.accessor(
                 (row) => row[fieldId],
                 {
@@ -669,9 +714,34 @@ export const useColumns = (): TableColumn[] => {
                         >
                             {isField(item) ? (
                                 <>
-                                    {hasJoins && (
+                                    {isMergeJoinKey && (
+                                        <MantineIcon
+                                            icon={IconKey}
+                                            size="sm"
+                                            color="gray.6"
+                                        />
+                                    )}
+                                    {showTablePrefix && !isMergeJoinKey && (
                                         <TableHeaderRegularLabel>
-                                            {item.tableLabel}{' '}
+                                            {mergeOrigin?.kind === 'source' ? (
+                                                <span
+                                                    className={
+                                                        provenanceStyles.source
+                                                    }
+                                                >
+                                                    <span
+                                                        className={
+                                                            provenanceStyles.dot
+                                                        }
+                                                        data-side={
+                                                            mergeOrigin.sourceId
+                                                        }
+                                                    />
+                                                    {item.tableLabel}
+                                                </span>
+                                            ) : (
+                                                item.tableLabel
+                                            )}{' '}
                                         </TableHeaderRegularLabel>
                                     )}
 
@@ -736,6 +806,12 @@ export const useColumns = (): TableColumn[] => {
                         frozen: false,
                         bgColor: fieldColors.bg,
                         totalValue,
+                        headerContext: mergeOrigin
+                            ? getMergeFieldProvenance(
+                                  mergeOrigin,
+                                  mergeSourceLabels,
+                              )
+                            : undefined,
                         sort: isFieldSorted
                             ? {
                                   sortIndex,
@@ -801,5 +877,7 @@ export const useColumns = (): TableColumn[] => {
         exploreData,
         parameters,
         timezone,
+        mergeResults,
+        mergeSourceLabels,
     ]);
 };

@@ -40,6 +40,7 @@ import { GithubAppService } from './GithubAppService/GithubAppService';
 import { GitIntegrationService } from './GitIntegrationService/GitIntegrationService';
 import { GitlabAppService } from './GitlabAppService/GitlabAppService';
 import { GroupsService } from './GroupService';
+import { HeadlessBrowserService } from './HeadlessBrowserService';
 import { HealthService } from './HealthService/HealthService';
 import { LicenseService } from './LicenseService/LicenseService';
 import { LightdashAnalyticsService } from './LightdashAnalyticsService/LightdashAnalyticsService';
@@ -103,6 +104,7 @@ interface ServiceManifest {
     gitlabAppService: GitlabAppService;
     gdriveService: GdriveService;
     groupService: GroupsService;
+    headlessBrowserService: HeadlessBrowserService;
     healthService: HealthService;
     licenseService: LicenseService;
     notificationService: NotificationsService;
@@ -449,6 +451,7 @@ export class ServiceRepository
                 new DownloadFileService({
                     lightdashConfig: this.context.lightdashConfig,
                     downloadFileModel: this.models.getDownloadFileModel(),
+                    projectModel: this.models.getProjectModel(),
                 }),
         );
     }
@@ -561,6 +564,17 @@ export class ServiceRepository
                     groupsModel: this.models.getGroupsModel(),
                     projectModel: this.models.getProjectModel(),
                     featureFlagService: this.getFeatureFlagService(),
+                }),
+        );
+    }
+
+    public getHeadlessBrowserService(): HeadlessBrowserService {
+        return this.getService(
+            'headlessBrowserService',
+            () =>
+                new HeadlessBrowserService({
+                    headlessBrowserLoginGrantModel:
+                        this.models.getHeadlessBrowserLoginGrantModel(),
                 }),
         );
     }
@@ -857,6 +871,13 @@ export class ServiceRepository
                         this.providers.appGenerateService
                             ? this.getAppGenerateService<AppGenerateService>()
                             : undefined,
+                    // Core has no data apps. EE replaces this provider with a
+                    // capability resolver backed by AppGenerateService.
+                    getDataAppCustomSqlProvenance: async () => ({
+                        tableCalculations: new Set(),
+                        customDimensions: new Set(),
+                        additionalMetrics: new Set(),
+                    }),
                 }),
         );
     }
@@ -934,6 +955,11 @@ export class ServiceRepository
                     spacePermissionService: this.getSpacePermissionService(),
                     organizationSettingsModel:
                         this.models.getOrganizationSettingsModel(),
+                    getDataAppCustomSqlProvenance: async () => ({
+                        tableCalculations: new Set(),
+                        customDimensions: new Set(),
+                        additionalMetrics: new Set(),
+                    }),
                 }),
         );
     }
@@ -1102,6 +1128,8 @@ export class ServiceRepository
                     slackAuthenticationModel:
                         this.models.getSlackAuthenticationModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    headlessBrowserLoginGrantModel:
+                        this.models.getHeadlessBrowserLoginGrantModel(),
                 }),
         );
     }

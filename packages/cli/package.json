@@ -1,11 +1,14 @@
 {
   "name": "@lightdash/cli",
-  "version": "1.115.0",
+  "version": "1.162.1",
   "description": "Lightdash CLI tool",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/lightdash/lightdash.git"
+  },
+  "engines": {
+    "node": ">=24"
   },
   "bin": {
     "lightdash": "dist/index.js"
@@ -59,6 +62,7 @@
     "ora": "5.4.1",
     "p-limit": "3.1.0",
     "parse-node-version": "2.0.0",
+    "tar-stream": "3.1.8",
     "unique-names-generator": "4.7.1",
     "uuid": "11.1.1",
     "yaml": "2.8.3"
@@ -72,6 +76,7 @@
     "@types/node-fetch": "2.6.13",
     "@types/nunjucks": "3.2.1",
     "@types/parse-node-version": "1.0.0",
+    "@types/tar-stream": "3.1.4",
     "@types/uuid": "10.0.0",
     "@vercel/ncc": "0.38.4",
     "@yao-pkg/pkg": "6.7.0",

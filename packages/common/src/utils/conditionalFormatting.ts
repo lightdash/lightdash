@@ -32,7 +32,31 @@ import {
 } from '../types/field';
 import { FilterOperator, type FieldTarget } from '../types/filter';
 import assertUnreachable from './assertUnreachable';
-import { getItemId, isNumericItem, isStringDimension } from './item';
+import {
+    getItemId,
+    isBooleanItem,
+    isNumericItem,
+    isStringDimension,
+} from './item';
+
+// Coerces warehouse boolean representations ('true'/'false' strings) to real
+// booleans; leaves anything else (incl. null) untouched so equality fails
+// rather than treating null as false
+const parseBooleanValue = (value: unknown): unknown => {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+        if (normalized === 'true') return true;
+        if (normalized === 'false') return false;
+    }
+    return value;
+};
+
+const parseValueForField = (field: ItemsMap[string], value: unknown) => {
+    if (isNumericItem(field)) return Number(value);
+    if (isBooleanItem(field)) return parseBooleanValue(value);
+    return value;
+};
 
 export const createConditionalFormattingRuleWithValues =
     (): ConditionalFormattingWithFilterOperator => ({
@@ -130,7 +154,7 @@ export const hasMatchingConditionalRules = (
 ) => {
     if (!config) return false;
 
-    const parsedValue = isNumericItem(field) ? Number(value) : value;
+    const parsedValue = parseValueForField(field, value);
     const convertedValue = convertFormattedValue(parsedValue, field);
 
     const currentFieldId = getItemId(field);
@@ -155,9 +179,10 @@ export const hasMatchingConditionalRules = (
 
                 compareField = rowField.field;
 
-                const parsedCompareValue = isNumericItem(compareField)
-                    ? Number(rowField.value)
-                    : rowField.value;
+                const parsedCompareValue = parseValueForField(
+                    compareField,
+                    rowField.value,
+                );
                 convertedCompareValue = convertFormattedValue(
                     parsedCompareValue,
                     compareField,
@@ -542,6 +567,7 @@ export const getConditionalFormattingConfig = ({
         !field ||
         (!isNumericItem(field) &&
             !isStringDimension(field) &&
+            !isBooleanItem(field) &&
             !isCalculationTypeUndefined)
     )
         return undefined;

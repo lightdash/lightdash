@@ -7,6 +7,7 @@ import {
     AiWritebackAttribution,
     ProjectContextEntry,
     WarehouseTypes,
+    type AgentSqlScope,
     type AiDeepResearchActivity,
     type AiDeepResearchExecutionContextSnapshot,
     type AiDeepResearchPhase,
@@ -51,6 +52,7 @@ import {
     GetExploreFn,
     GetKnowledgeDocumentContentFn,
     GetProjectInfoFn,
+    GetProjectParameterDefinitionsFn,
     GetPromptFn,
     GetPullRequestDiffFn,
     GetSavedChartFn,
@@ -159,6 +161,7 @@ export type AiAgentExecutionConfig =
           budget: AiDeepResearchBudget;
           canUseRawSql: boolean;
           initialTokenUsage: number;
+          resumeContext?: string;
           onStepUsage?: (
               usage: AiDeepResearchStepUsage,
           ) => void | Promise<void>;
@@ -257,6 +260,7 @@ export type AiAgentArgs = AnyAiModel & {
     getDashboardChartsPageSize: number;
     maxQueryLimit: number;
     runSqlMaxLimit: number;
+    sqlScope?: AgentSqlScope | null;
     /** Rows of a query result written into model context; the query keeps the rest. */
     maxContextRows: number;
     siteUrl: string;
@@ -284,6 +288,7 @@ export type PerformanceMetrics = {
 
 export type AiAgentDependencies = {
     listExplores: ListExploresFn;
+    getProjectParameterDefinitions: GetProjectParameterDefinitionsFn;
     // The whole cached project_context document.
     getProjectContextDocument: () => Promise<ProjectContextEntry[]>;
     getAiAgentMemoryContextEntries: () => Promise<MemorySearchEntry[]>;

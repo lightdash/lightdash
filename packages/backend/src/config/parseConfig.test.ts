@@ -54,6 +54,25 @@ describe('Query phase metrics config', () => {
     });
 });
 
+describe('database probe config', () => {
+    it('uses the readiness TTL default and leaves the Knex timeout unset', () => {
+        expect(parseConfig().database).toMatchObject({
+            acquireConnectionTimeout: undefined,
+            readinessProbeTtlMs: 10_000,
+        });
+    });
+
+    it('parses readiness and connection acquisition overrides', () => {
+        process.env.PGACQUIRECONNECTIONTIMEOUT = '2500';
+        process.env.READINESS_PROBE_TTL_MS = '5000';
+
+        expect(parseConfig().database).toMatchObject({
+            acquireConnectionTimeout: 2500,
+            readinessProbeTtlMs: 5000,
+        });
+    });
+});
+
 describe('MotherDuck instance cache config', () => {
     afterEach(() => {
         vi.restoreAllMocks();
@@ -1370,6 +1389,48 @@ describe('scheduler poll interval', () => {
         const config = parseConfig();
 
         expect(config.scheduler.pollInterval).toBe(2500);
+    });
+});
+
+describe('scheduler migration quiesce', () => {
+    const environmentVariables = [
+        'SCHEDULER_QUIESCE_POLL_INTERVAL',
+        'SCHEDULER_QUIESCE_GRACE_PERIOD',
+        'SCHEDULER_RESUME_JITTER',
+        'SCHEDULER_RESUME_RAMP_PERIOD',
+    ] as const;
+
+    afterEach(() => {
+        environmentVariables.forEach((name) => {
+            delete process.env[name];
+        });
+    });
+
+    test('uses bounded grace and ramp defaults', () => {
+        const config = parseConfig();
+
+        expect(config.scheduler.quiesce).toEqual({
+            pollInterval: 2_000,
+            gracePeriod: 180_000,
+            resumeJitter: 60_000,
+            resumeRampPeriod: 180_000,
+        });
+    });
+
+    test('parses migration quiesce timings from the environment', () => {
+        process.env.SCHEDULER_QUIESCE_POLL_INTERVAL = '3000';
+        process.env.SCHEDULER_QUIESCE_GRACE_PERIOD = '240000';
+        process.env.SCHEDULER_RESUME_JITTER = '90000';
+        process.env.SCHEDULER_RESUME_RAMP_PERIOD = '300000';
+
+        const config = parseConfig();
+
+        expect(config.scheduler.quiesce).toEqual({
+            pollInterval: 3_000,
+            gracePeriod: 240_000,
+            resumeJitter: 90_000,
+            resumeRampPeriod: 300_000,
+        });
     });
 });
 

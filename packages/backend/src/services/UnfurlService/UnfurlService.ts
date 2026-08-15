@@ -66,13 +66,13 @@ import Logger from '../../logging/logger';
 import { AppModel } from '../../models/AppModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
+import { HeadlessBrowserLoginGrantModel } from '../../models/HeadlessBrowserLoginGrantModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { ShareModel } from '../../models/ShareModel';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { SlackUnfurlImageModel } from '../../models/SlackUnfurlImageModel';
-import { getAuthenticationToken } from '../../routers/headlessBrowser';
 import { traceSpan } from '../../tracing/tracing';
 import { validatePublicHttpUrl } from '../../utils/ssrfProtection';
 import { BaseService } from '../BaseService';
@@ -340,6 +340,7 @@ type UnfurlServiceArguments = {
     analytics: LightdashAnalytics;
     slackAuthenticationModel: SlackAuthenticationModel;
     spacePermissionService: SpacePermissionService;
+    headlessBrowserLoginGrantModel: HeadlessBrowserLoginGrantModel;
 };
 
 export class UnfurlService extends BaseService {
@@ -371,6 +372,8 @@ export class UnfurlService extends BaseService {
 
     spacePermissionService: SpacePermissionService;
 
+    headlessBrowserLoginGrantModel: HeadlessBrowserLoginGrantModel;
+
     private readonly screenshotTimeoutMs: number;
 
     constructor({
@@ -388,6 +391,7 @@ export class UnfurlService extends BaseService {
         analytics,
         slackAuthenticationModel,
         spacePermissionService,
+        headlessBrowserLoginGrantModel,
     }: UnfurlServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -404,6 +408,7 @@ export class UnfurlService extends BaseService {
         this.analytics = analytics;
         this.slackAuthenticationModel = slackAuthenticationModel;
         this.spacePermissionService = spacePermissionService;
+        this.headlessBrowserLoginGrantModel = headlessBrowserLoginGrantModel;
         this.screenshotTimeoutMs =
             lightdashConfig.headlessBrowser.screenshotTimeoutMs;
     }
@@ -2652,10 +2657,13 @@ export class UnfurlService extends BaseService {
 
     private async getUserCookie(userUuid: string): Promise<string> {
         this.logger.debug(`Getting cookie for user ${userUuid}`);
-        const token = getAuthenticationToken(userUuid);
+        const token =
+            await this.headlessBrowserLoginGrantModel.createLoginGrant(
+                userUuid,
+            );
         // Use internal URL for the request (could be the same as the site URL)
         const internalUrl = new URL(
-            `/api/v1/headless-browser/login/${userUuid}`,
+            '/api/v1/headless-browser/login',
             this.lightdashConfig.headlessBrowser.internalLightdashHost,
         );
 

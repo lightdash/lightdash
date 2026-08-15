@@ -39,6 +39,8 @@ const getEventLabel = (event: AiDeepResearchEvent): string => {
             return 'Cancellation requested';
         case 'progress':
             return getActivityLabel(event.payload.progress.activity);
+        case 'report_adjusted':
+            return 'Report adjusted to preserve valid evidence';
         default:
             return assertUnreachable(event, 'Unknown research event');
     }
@@ -112,6 +114,10 @@ export const toDeepResearchRegistration = (
     agentUuid: run.agentUuid,
     threadUuid: args.threadUuid,
     promptUuid: run.promptUuid,
+    resumeFromRunUuid:
+        run.status === 'partially_completed' || run.status === 'failed'
+            ? run.aiDeepResearchRunUuid
+            : undefined,
     userUuid: args.userUuid,
     question: run.prompt,
     createdAt: run.createdAt,
@@ -155,6 +161,7 @@ export const adaptDeepResearchRun = ({
         threadUuid: registration.threadUuid,
         question: registration.question,
         status: run.status,
+        terminalReason: run.terminalReason,
         phase: getPhaseLabel(
             latestProgress?.phase ?? null,
             latestProgress?.activity ?? null,

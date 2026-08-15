@@ -98,6 +98,10 @@ import {
 } from '../database/entities/groupMemberships';
 import { GroupTable, GroupTableName } from '../database/entities/groups';
 import {
+    HeadlessBrowserLoginGrantsTableName,
+    HeadlessBrowserLoginGrantTable,
+} from '../database/entities/headlessBrowserLoginGrants';
+import {
     InviteLinkTable,
     InviteLinkTableName,
 } from '../database/entities/inviteLinks';
@@ -458,10 +462,6 @@ import {
     AiRouterTableName,
 } from '../ee/database/entities/aiRouter';
 import {
-    DashboardSummariesTable,
-    DashboardSummariesTableName,
-} from '../ee/database/entities/dashboardSummaries';
-import {
     AppExternalConnectionsTable,
     AppExternalConnectionsTableName,
     ExternalConnectionRateCountersTable,
@@ -608,6 +608,7 @@ declare module 'knex/types/tables' {
         [ValidationTableName]: ValidationTable;
         [GroupTableName]: GroupTable;
         [GroupMembershipTableName]: GroupMembershipTable;
+        [HeadlessBrowserLoginGrantsTableName]: HeadlessBrowserLoginGrantTable;
         [SshKeyPairTableName]: SshKeyPairTable;
         [UserAttributesTable]: UserAttributeTable;
         [OrganizationMemberUserAttributesTable]: OrganizationMemberUserAttributeTable;
@@ -673,7 +674,6 @@ declare module 'knex/types/tables' {
         [NotificationsTableName]: NotificationsTable;
         [AiReviewNotificationLogTableName]: AiReviewNotificationLogTable;
         [AiReviewNotificationSettingsTableName]: AiReviewNotificationSettingsTable;
-        [DashboardSummariesTableName]: DashboardSummariesTable;
         [CatalogTableName]: CatalogTable;
         [SlackChannelProjectMappingsTableName]: SlackChannelProjectMappingsTable;
         [WarehouseAvailableTablesTableName]: WarehouseAvailableTablesTable;

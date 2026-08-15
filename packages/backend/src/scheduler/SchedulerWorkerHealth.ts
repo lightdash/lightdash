@@ -158,6 +158,31 @@ export class SchedulerWorkerHealth {
         return result;
     }
 
+    isHealthyWhileQuiesced(now: number = Date.now()): HealthCheckResult {
+        if (this.poolDeadAt !== null) {
+            return {
+                ok: false,
+                reason: `worker pool terminated: ${
+                    this.poolDeadReason ?? 'unknown'
+                }`,
+            };
+        }
+
+        if (
+            this.lastPgReachableAt !== null &&
+            now - this.lastPgReachableAt > PG_REACHABLE_STALENESS_MS
+        ) {
+            return {
+                ok: false,
+                reason: `postgres unreachable for ${Math.round(
+                    (now - this.lastPgReachableAt) / 1000,
+                )}s`,
+            };
+        }
+
+        return { ok: true };
+    }
+
     private computeHealth(now: number): HealthCheckResult {
         // Terminated pool wins over every other signal: DB reachability, a
         // reconnected LISTEN client, even in-flight bookkeeping. This is the

@@ -3,10 +3,12 @@ import {
     isDashboardScheduler,
     SchedulerFormat,
     type Dashboard,
+    type DashboardFilterRule,
     type ParameterDefinitions,
     type ParametersValuesMap,
     type SchedulerAndTargets,
     type SchedulerAppState,
+    type UnmetFilterRequirement,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -62,6 +64,8 @@ type Props = {
     currentParameterValues?: ParametersValuesMap;
     availableParameters?: ParameterDefinitions;
     loading: boolean;
+    unmetFilterRequirements: UnmetFilterRequirement[];
+    filtersWithUnmetRequirements: DashboardFilterRule[];
 };
 
 export const SchedulerDataFormatSection: FC<Props> = ({
@@ -75,6 +79,8 @@ export const SchedulerDataFormatSection: FC<Props> = ({
     currentParameterValues,
     availableParameters,
     loading,
+    unmetFilterRequirements,
+    filtersWithUnmetRequirements,
 }) => {
     const form = useSchedulerFormContext();
     const health = useHealth();
@@ -426,6 +432,10 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                                     schedulerFilters,
                                 );
                             }}
+                            unmetRequirements={unmetFilterRequirements}
+                            filtersWithUnmetRequirements={
+                                filtersWithUnmetRequirements
+                            }
                         />
                     </Stack>
 

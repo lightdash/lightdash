@@ -3,6 +3,7 @@ import {
     AnyType,
     ApiError,
     getErrorMessage,
+    LightdashBuildHashHeader,
     LightdashError,
     LightdashMode,
     LightdashVersionHeader,
@@ -36,6 +37,7 @@ import { createEventStreamWriter } from './analytics/eventStream/createEventStre
 import { EventStreamSink } from './analytics/eventStream/EventStreamSink';
 import { eventStreamRegistry } from './analytics/eventStream/registry';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
+import { getFrontendBuildHash } from './buildHash';
 import {
     ClientProviderMap,
     ClientRepository,
@@ -58,6 +60,7 @@ import {
 import { databricksPassportStrategy } from './controllers/authentication/strategies/databricksStrategy';
 import { slackPassportStrategy } from './controllers/authentication/strategies/slackStrategy';
 import { snowflakePassportStrategy } from './controllers/authentication/strategies/snowflakeStrategy';
+import { MigrationLeaseManager } from './database/migrationLease';
 import { errorHandler, scimErrorHandler } from './errors';
 import { buildExpressSessionOptions } from './expressSessionOptions';
 import { RegisterRoutes } from './generated/routes';
@@ -79,11 +82,13 @@ import {
     oauthAuthorizationServerHandler,
     oauthProtectedResourceHandler,
 } from './routers/oauthRouter';
+import { createProbeRouter } from './routers/probeRouter';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import { SchedulerWorkerHealth } from './scheduler/SchedulerWorkerHealth';
 import { createOrganizationNameResolver } from './sentry/organizationNameResolver';
 import { InstanceConfigurationService } from './services/InstanceConfigurationService/InstanceConfigurationService';
 import { createCorsOptionsDelegate } from './services/OrganizationSettingsService/CorsPolicy';
+import { ReadinessService } from './services/ReadinessService/ReadinessService';
 import {
     OperationContext,
     ServiceProviderMap,
@@ -345,6 +350,19 @@ export default class App {
             qs.parse(str, { arrayLimit: 1000 }),
         );
 
+        expressApp.use(
+            '/api/v1',
+            createProbeRouter(
+                new ReadinessService({
+                    migrationModel: this.models.getMigrationModel(),
+                    migrationRunLedger: new MigrationLeaseManager({
+                        database: this.database,
+                    }),
+                    ttlMs: this.lightdashConfig.database.readinessProbeTtlMs,
+                }),
+            ),
+        );
+
         // Slack must be initialized before our own middleware / routes, which cause the slack app to fail
         this.initSlack(expressApp).catch((e) => {
             Logger.error('Error starting slack bot', e);
@@ -537,7 +555,6 @@ export default class App {
             'https://apis.google.com',
             'https://accounts.google.com',
             'https://vega.github.io',
-            'https://cdn.jsdelivr.net/npm/monaco-editor@0.43.0/',
             'https://*.lightdash.cloud',
             ...this.lightdashConfig.security.contentSecurityPolicy
                 .allowedDomains,
@@ -631,10 +648,15 @@ export default class App {
             next();
         });
 
+        const frontendBuildHash = getFrontendBuildHash();
+
         expressApp.use((req, res, next) => {
             // Permissions-Policy header that is not yet supported by helmet. More details here: https://github.com/helmetjs/helmet/issues/234
             res.setHeader('Permissions-Policy', 'camera=(), microphone=()');
             res.setHeader(LightdashVersionHeader, VERSION);
+            if (frontendBuildHash) {
+                res.setHeader(LightdashBuildHashHeader, frontendBuildHash);
+            }
             next();
         });
 
@@ -1102,9 +1124,9 @@ export default class App {
         await MotherduckInstanceCache.closeAll('shutdown');
         await this.prometheusMetrics.stop();
         await shutdownOtelTracing();
-        if (this.schedulerWorker && this.schedulerWorker.runner) {
+        if (this.schedulerWorker) {
             try {
-                await this.schedulerWorker.runner.stop();
+                await this.schedulerWorker.stop();
                 Logger.info('Stopped scheduler worker');
             } catch (e) {
                 Logger.error('Error stopping scheduler worker', e);

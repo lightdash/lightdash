@@ -1,7 +1,7 @@
 import { type FieldId, type MetricType } from './field';
 import { type MetricFilterRule } from './filter';
 import { type KnexPaginatedData } from './knex-paginate';
-import { type MetricQuery } from './metricQuery';
+import { type MetricQuery, type SortField } from './metricQuery';
 import { type ResultColumns } from './results';
 import { type PreAggregateMaterializationTrigger } from './scheduler';
 import { type TimeFrames } from './timeFrames';
@@ -40,10 +40,17 @@ export type PreAggregateMaterializationRole = {
     attributes: UserAttributeValueMap;
 };
 
+export type PreAggregateSort = Pick<SortField, 'fieldId' | 'descending'>;
+
 export type PreAggregateDef = {
     name: string;
     dimensions: string[];
     metrics: string[];
+    // Qualified warehouse table identifier. Present ⇒ external pre-aggregate:
+    // never materialized, served from the project warehouse.
+    table?: string;
+    // Omitted sorts all dimensions automatically; [] disables sorting; entries use canonical field IDs.
+    sorts?: PreAggregateSort[];
     filters?: MetricFilterRule[];
     // Parser validation enforces that timeDimension and granularity are provided together
     timeDimension?: string;
@@ -260,6 +267,7 @@ export const computePreAggregateWarnings = (
 export type PreAggregateMaterializationSummary = {
     preAggregateDefinitionUuid: string;
     preAggregateName: string;
+    externalTable: string | null;
     preAggExploreName: string;
     sourceExploreName: string;
     materializationRole: PreAggregateMaterializationRole | null;

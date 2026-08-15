@@ -1,6 +1,5 @@
 export {
     hasRecentChunkReload,
-    installChunkLoadErrorHandler,
     isChunkLoadError,
     isChunkLoadErrorObject,
     RouteChunkLoadError,

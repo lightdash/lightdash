@@ -8,19 +8,19 @@ Content as code has two separate scopes. A project command never includes organi
 
 ### Project resources
 
-| Resource | Default download | Include explicitly | Location |
-|----------|------------------|--------------------|----------|
-| Spaces and access | Yes | `--spaces-only` for only spaces | `spaces/**/*.space.yml` |
-| Charts | Yes | `--charts <slugs...>` to filter | `charts/**/*.yml` |
-| SQL charts | Yes, with charts | Selected through `--charts` | `charts/**/*.sql.yml` |
-| Dashboards | Yes | `--dashboards <slugs...>` to filter | `dashboards/**/*.yml` |
-| Virtual views | No | `--include-virtual-views` or `--include-all` | `virtual-views/*.yml` |
-| AI agents | No | `--include-agents` or `--include-all` | `ai-agents/**/*.yml` |
-| Alerts | No | `--include-alerts` or `--include-all` | `alerts/**/*.yml` |
-| Scheduled deliveries | No | `--include-scheduled-deliveries` or `--include-all` | `scheduled-deliveries/**/*.yml` |
-| Google Sheets syncs | No | `--include-google-sheets` or `--include-all` | `google-sheets/**/*.yml` |
-| External connections | No | `--include-external-connections`, `--external-connections <slugs...>`, or `--include-all` | `external-connections/*.yml` |
-| Data apps | No | `--apps <refs...>` to select, `--include-apps`/`--include-all` for all, `--apps-only` | `apps/<app-folder>/` |
+| Resource             | Default download | Include explicitly                                                                        | Location                        |
+| -------------------- | ---------------- | ----------------------------------------------------------------------------------------- | ------------------------------- |
+| Spaces and access    | Yes              | `--spaces-only` for only spaces                                                           | `spaces/**/*.space.yml`         |
+| Charts               | Yes              | `--charts <slugs...>` to filter                                                           | `charts/**/*.yml`               |
+| SQL charts           | Yes, with charts | Selected through `--charts`                                                               | `charts/**/*.sql.yml`           |
+| Dashboards           | Yes              | `--dashboards <slugs...>` to filter                                                       | `dashboards/**/*.yml`           |
+| Virtual views        | No               | `--include-virtual-views` or `--include-all`                                              | `virtual-views/*.yml`           |
+| AI agents            | No               | `--include-agents` or `--include-all`                                                     | `ai-agents/**/*.yml`            |
+| Alerts               | No               | `--include-alerts` or `--include-all`                                                     | `alerts/**/*.yml`               |
+| Scheduled deliveries | No               | `--include-scheduled-deliveries` or `--include-all`                                       | `scheduled-deliveries/**/*.yml` |
+| Google Sheets syncs  | No               | `--include-google-sheets` or `--include-all`                                              | `google-sheets/**/*.yml`        |
+| External connections | No               | `--include-external-connections`, `--external-connections <slugs...>`, or `--include-all` | `external-connections/*.yml`    |
+| Data apps            | No               | `--apps <refs...>` to select, `--include-apps`/`--include-all` for all, `--apps-only`     | `apps/<app-folder>/`            |
 
 `--include-all` requests every optional project resource available to the caller. Data apps are multi-file bundles rather than YAML resources and are opt-in for both download and upload — see [Data Apps](#data-apps-enterprise) for the selection flags and how they combine.
 
@@ -32,21 +32,24 @@ Downloads reuse an existing managed path when the document at that path has the 
 
 `lightdash download --organization` downloads all supported resources for the authenticated user's organization:
 
-| Resource | Identity | Location |
-|----------|----------|----------|
-| Custom roles | Role name | `custom-roles/*.yml` |
-| Users | Case-insensitive email | `users/*.yml` |
-| Groups and memberships | Group name | `groups/*.yml` |
+| Resource               | Identity               | Location             |
+| ---------------------- | ---------------------- | -------------------- |
+| Custom roles           | Role name              | `custom-roles/*.yml` |
+| Users                  | Case-insensitive email | `users/*.yml`        |
+| Groups and memberships | Group name             | `groups/*.yml`       |
+| Data App themes        | Immutable theme slug   | `themes/<slug>/`     |
 
 Organization upload applies resources in dependency order:
 
 ```text
-custom roles → users → groups
+custom roles → users → groups → themes
 ```
 
-If custom roles fail, dependent users and groups are skipped. If users fail, dependent groups are skipped. User invitation emails are not sent unless `lightdash upload --organization --send-invites` is used intentionally.
+Theme packages are preflighted locally before any organization mutation; remote theme imports run after the three document phases. If custom roles fail, dependent users and groups are skipped and themes do not start. If users fail, dependent groups and themes do not start. User invitation emails are not sent unless `lightdash upload --organization --send-invites` is used intentionally.
 
 Organization documents use their resource folders to determine their type and do not require a `contentType` property. Do not add one merely to make them look like project documents.
+
+Themes are strict multi-file packages rather than organization documents. Before editing or synchronizing `themes/`, read [Data App Themes](./data-app-themes-reference.md). There is no theme-only selector: organization download fetches every theme, and organization upload processes every valid local theme after custom roles, users, and groups.
 
 ## Data Apps (Enterprise)
 
@@ -63,7 +66,7 @@ lightdash download --apps revenue-explorer --path ./lightdash
 lightdash upload --apps revenue-explorer --path ./lightdash
 ```
 
-**Never combine `--apps <refs...>` with `--include-apps` to "scope" a download.** `--include-apps` is not a gate that enables `--apps`; it always requests the full project app listing. `lightdash download --apps <uuid> --include-apps` downloads every app in the project *plus* the listed reference — the opposite of a single-app download.
+**Never combine `--apps <refs...>` with `--include-apps` to "scope" a download.** `--include-apps` is not a gate that enables `--apps`; it always requests the full project app listing. `lightdash download --apps <uuid> --include-apps` downloads every app in the project _plus_ the listed reference — the opposite of a single-app download.
 
 Upload-only flags:
 
@@ -82,19 +85,19 @@ Each connection is one document in `external-connections/<slug>.yml`:
 
 ```yaml
 allowedContentTypes:
-  - application/json
+    - application/json
 allowedMethods:
-  - GET
-  - POST
+    - GET
+    - POST
 allowedPathPrefixes:
-  - /v1/
+    - /v1/
 apiKeyLocation: header # header | query; only for authType api_key
 apiKeyName: Authorization
 authType: api_key # none | api_key | bearer_token | google_service_account
 contentType: external_connection
 customHeaders: null # static non-secret headers, e.g. anthropic-version
 instructions: | # freeform usage guidance injected into app generation
-  Use /v1/charges for payments. Paginate with starting_after.
+    Use /v1/charges for payments. Paginate with starting_after.
 name: Stripe API
 oauthScopes: null # only for authType google_service_account
 origin: https://api.stripe.com # https, bare host, no path
@@ -127,8 +130,8 @@ The app↔connection link (the `alias` an app's `externalFetch('<alias>', …)` 
 
 ```yaml
 externalConnections:
-  - alias: stripe
-    connectionSlug: stripe-api
+    - alias: stripe
+      connectionSlug: stripe-api
 ```
 
 Semantics on app upload:
@@ -155,8 +158,9 @@ To wire a data app to a new API, an agent can author the config directly instead
 Content as code does not manage:
 
 - dbt or Lightdash semantic-layer models, metrics, dimensions, or joins; use `lightdash deploy`;
-- warehouse credentials, secrets, or external-service authentication — external connection *configs* are managed, but their secrets travel only through environment variables at upload time (see [External Connections](#external-connections-enterprise));
+- warehouse credentials, secrets, or external-service authentication — external connection _configs_ are managed, but their secrets travel only through environment variables at upload time (see [External Connections](#external-connections-enterprise));
 - general project and organization settings outside the registered resources;
+- theme deletion or default-theme selection; use the Lightdash UI;
 - every data app when the project contains more than the configured apps limit;
 - resources that the authenticated user cannot read or that are unavailable on the server edition.
 
@@ -203,7 +207,7 @@ Follow this sequence for agent-driven changes:
 
 1. Check for uncommitted content-as-code changes or choose a fresh download path; do not overwrite work that has not been reviewed.
 2. Run `lightdash config get-project` and confirm the intended target.
-3. Download `--include-all`; also download `--organization` when users, groups, roles, or space access are involved.
+3. Download `--include-all`; also download `--organization` when users, groups, roles, themes, or space access are involved.
 4. Inspect structured document fields rather than inferring resource identity or dependencies from filenames. For example, match charts using the top-level `tableName`, not arbitrary text occurrences.
 5. Preserve resource identities, slugs, filenames, folder conventions, and unknown fields unless the requested change requires modifying them. Slugs are portable references but are not guaranteed to be unique in every existing project.
 6. Make the smallest coherent edit across every affected resource. Update dashboard chart references, scheduled content, space definitions, and access together when applicable.
@@ -230,7 +234,7 @@ If data apps should also be uploaded, add `--include-apps` for all app folders o
 lightdash upload --path ./lightdash --include-apps
 ```
 
-The first command ensures custom roles, users, and groups exist before project space access is reconciled. The project upload handles the project YAML files found on disk; data-app bundles require an explicit app flag (see [Data Apps](#data-apps-enterprise)).
+The first command synchronizes custom roles, users, groups, and organization Data App themes before project space access is reconciled. The project upload handles the project YAML files found on disk; data-app bundles require an explicit app flag (see [Data Apps](#data-apps-enterprise)).
 
 For an access-only change:
 

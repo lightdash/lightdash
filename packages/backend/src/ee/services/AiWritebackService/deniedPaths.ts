@@ -29,7 +29,7 @@ const SECRET_PATH_PATTERNS: RegExp[] = [
     /(^|\/)id_ed25519(\.pub)?$/i,
     /(^|\/)\.npmrc$/i,
     /(^|\/)\.pypirc$/i,
-    /(^|\/)credentials$/i,
+    /(^|\/)credentials(\.[^/]*)?$/i,
     /\.keyfile(\.json)?$/i,
 ];
 
@@ -42,7 +42,7 @@ const CI_PATH_PATTERNS: RegExp[] = [
     /(^|\/)\.github\/workflows\//i,
     /(^|\/)\.github\/actions\//i,
     /(^|\/)\.gitlab-ci\.ya?ml$/i,
-    /(^|\/)Jenkinsfile$/i,
+    /(^|\/)Jenkinsfile(\.[^/]*)?$/i,
     /(^|\/)\.circleci\//i,
     /(^|\/)azure-pipelines\.ya?ml$/i,
     /(^|\/)bitbucket-pipelines\.ya?ml$/i,
@@ -75,6 +75,21 @@ export class DeniedPathError extends ForbiddenError {
  * Return the subset of `paths` that a coding-agent commit must not touch.
  */
 export const findDeniedCommitPaths = (paths: string[]): string[] =>
-    paths.filter((path) =>
-        DENIED_PATH_PATTERNS.some((pattern) => pattern.test(path)),
-    );
+    paths.filter((path) => {
+        // The patterns anchor each name on `^` or `/`, so whitespace hugging a
+        // path separator hides a name from them. Trim every segment, not just
+        // the ends of the whole path — the agent writes into directories, so a
+        // nested name is the common case, not the edge one.
+        //
+        // This only ever widens what matches. The patterns still require a dot
+        // or a segment boundary, so ordinary files stay allowed:
+        // `credentials-setup.md`, `environment.sql`, and directories with
+        // interior spaces like `my docs/notes.md` are all untouched.
+        const normalizedPath = path
+            .split('/')
+            .map((segment) => segment.trim())
+            .join('/');
+        return DENIED_PATH_PATTERNS.some((pattern) =>
+            pattern.test(normalizedPath),
+        );
+    });

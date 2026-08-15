@@ -41,7 +41,6 @@ import { AiWritebackRunModel } from './models/AiWritebackRunModel';
 import { AiWritebackThreadModel } from './models/AiWritebackThreadModel';
 import { CommercialFeatureFlagModel } from './models/CommercialFeatureFlagModel';
 import { CommercialSlackAuthenticationModel } from './models/CommercialSlackAuthenticationModel';
-import { DashboardSummaryModel } from './models/DashboardSummaryModel';
 import { EmbedModel } from './models/EmbedModel';
 import { ExternalConnectionModel } from './models/ExternalConnectionModel';
 import { HomepageRecommendedActionSkipsModel } from './models/HomepageRecommendedActionSkipsModel';
@@ -80,6 +79,7 @@ import { WritebackPreviewService } from './services/AiWritebackService/Writeback
 import { AppGenerateService } from './services/AppGenerateService/AppGenerateService';
 import { PreAggregateStrategy } from './services/AsyncQueryService/PreAggregateStrategy';
 import { PreAggregationDuckDbClient } from './services/AsyncQueryService/PreAggregationDuckDbClient';
+import { PreAggregationExternalResolver } from './services/AsyncQueryService/PreAggregationExternalResolver';
 import { CommercialCacheService } from './services/CommercialCacheService';
 import { CommercialSlackIntegrationService } from './services/CommercialSlackIntegrationService';
 import { EmbedService } from './services/EmbedService/EmbedService';
@@ -239,7 +239,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel<AiOrganizationSettingsModel>(),
                         projectModel: models.getProjectModel(),
-                        featureFlagModel: models.getFeatureFlagModel(),
                         schedulerClient:
                             clients.getSchedulerClient() as CommercialSchedulerClient,
                         asyncQueryService: repository.getAsyncQueryService(),
@@ -418,11 +417,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AiService({
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
-                    dashboardModel: models.getDashboardModel(),
-                    dashboardSummaryModel: models.getDashboardSummaryModel(),
-                    savedChartModel: models.getSavedChartModel(),
                     projectService: repository.getProjectService(),
-                    asyncQueryService: repository.getAsyncQueryService(),
                     featureFlagService: repository.getFeatureFlagService(),
                     openAi: new OpenAi(
                         context.lightdashConfig.ai.copilot.providers.openai,
@@ -446,6 +441,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     builtInSkills: BuiltInSkills,
                     lightdashConfig: context.lightdashConfig,
                     projectModel: models.getProjectModel(),
+                    projectParametersModel: models.getProjectParametersModel(),
                     projectService: repository.getProjectService(),
                     jobModel: models.getJobModel(),
                     userAttributesModel: models.getUserAttributesModel(),
@@ -863,6 +859,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     // silent no-op in EE builds.
                     getAppGenerateService: () =>
                         repository.getAppGenerateService<AppGenerateService>(),
+                    getDataAppCustomSqlProvenance: (args) =>
+                        repository
+                            .getAppGenerateService<AppGenerateService>()
+                            .getCustomSqlProvenance(args),
                     getAiAgentService: () =>
                         repository.getAiAgentService<AiAgentService>(),
                     onProjectCreated: ({
@@ -1010,6 +1010,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                       }
                                     : undefined,
                             }),
+                        preAggregationExternalResolver:
+                            new PreAggregationExternalResolver({
+                                lightdashConfig: context.lightdashConfig,
+                                projectModel: models.getProjectModel(),
+                            }),
                         preAggregateDailyStatsModel:
                             models.getPreAggregateDailyStatsModel(),
                         preAggregateResultsStorageClient:
@@ -1027,6 +1032,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getSpacePermissionService(),
                     organizationSettingsModel:
                         models.getOrganizationSettingsModel(),
+                    getDataAppCustomSqlProvenance: (args) =>
+                        repository
+                            .getAppGenerateService<AppGenerateService>()
+                            .getCustomSqlProvenance(args),
                 }),
             cacheService: ({ models, context, clients }) =>
                 new CommercialCacheService({
@@ -1097,11 +1106,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectModel: models.getProjectModel(),
                     projectService: repository.getProjectService(),
                     schedulerClient: clients.getSchedulerClient(),
-                    exploreEnhancer: (explores) =>
+                    exploreEnhancer: (explores, { startOfWeek }) =>
                         enhanceExploresForPreAggregates({
                             explores,
                             enabled:
                                 context.lightdashConfig.preAggregates.enabled,
+                            startOfWeek,
                         }),
                 }),
         },
@@ -1150,8 +1160,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             embedModel: ({ database }) => new EmbedModel({ database }),
             mcpContextModel: ({ database }) => new McpContextModel(database),
-            dashboardSummaryModel: ({ database }) =>
-                new DashboardSummaryModel({ database }),
             slackAuthenticationModel: ({ database }) =>
                 new CommercialSlackAuthenticationModel({ database }),
             serviceAccountModel: ({ database }) =>

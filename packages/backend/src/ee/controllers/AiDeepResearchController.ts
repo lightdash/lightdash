@@ -65,6 +65,9 @@ export class AiDeepResearchController extends BaseController {
                 aiThreadUuid: body.threadUuid,
                 promptUuid: body.promptUuid,
                 entryPoint: body.entryPoint,
+                ...(body.resumeFromRunUuid
+                    ? { resumeFromRunUuid: body.resumeFromRunUuid }
+                    : {}),
             }),
         };
     }

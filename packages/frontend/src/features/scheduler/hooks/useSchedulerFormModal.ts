@@ -6,6 +6,7 @@ import {
     type ApiError,
     type CreateSchedulerAndTargets,
     type CreateSchedulerAndTargetsWithoutIds,
+    type DashboardFilterableField,
     type ItemsMap,
     type ParametersValuesMap,
     type SchedulerAndTargets,
@@ -55,6 +56,7 @@ export interface UseSchedulerFormModalProps {
     itemsMap?: ItemsMap;
     currentParameterValues?: ParametersValuesMap;
     initialFormValues?: Partial<SchedulerFormValues>;
+    filterableFieldsByTileUuid?: Record<string, DashboardFilterableField[]>;
 }
 
 export const useSchedulerFormModal = ({
@@ -68,6 +70,7 @@ export const useSchedulerFormModal = ({
     itemsMap,
     currentParameterValues,
     initialFormValues,
+    filterableFieldsByTileUuid,
 }: UseSchedulerFormModalProps) => {
     const isEditMode = !!schedulerUuid;
 
@@ -144,6 +147,20 @@ export const useSchedulerFormModal = ({
     const isDashboardTabsAvailable =
         dashboard?.tabs !== undefined && dashboard.tabs.length > 1;
 
+    // Required filters that only apply to tabs left out of the delivery must
+    // not block it, so requirements are scoped to the selected tabs.
+    const filterableTiles = useMemo(
+        () =>
+            dashboard
+                ? {
+                      tiles: dashboard.tiles,
+                      tabUuids: dashboard.tabs.map((tab) => tab.uuid),
+                      filterableFieldsByTileUuid,
+                  }
+                : undefined,
+        [dashboard, filterableFieldsByTileUuid],
+    );
+
     // Use the explicitly passed parameter values
     const dashboardParameterValues = currentParameterValues || {};
 
@@ -160,13 +177,20 @@ export const useSchedulerFormModal = ({
                         : null;
                 },
             },
-            dashboardFilters: (value) => {
+            dashboardFilters: (value, values) => {
                 if (!value) {
                     // Dashboard filters are undefined/null for charts
                     return null;
                 }
                 const { unmetRequirements, filtersWithUnmetRequirements } =
-                    getSchedulerFilterRequirements(dashboard?.filters, value);
+                    getSchedulerFilterRequirements(
+                        dashboard?.filters,
+                        value,
+                        filterableTiles && {
+                            ...filterableTiles,
+                            selectedTabs: values.selectedTabs ?? null,
+                        },
+                    );
 
                 if (filtersWithUnmetRequirements.length > 0) {
                     return unmetRequirements.every(
@@ -196,7 +220,7 @@ export const useSchedulerFormModal = ({
                     ? 'Instructions are required'
                     : null,
         }),
-        [dashboard?.filters],
+        [dashboard?.filters, filterableTiles],
     );
 
     const form = useSchedulerForm({
@@ -250,6 +274,10 @@ export const useSchedulerFormModal = ({
     } = getSchedulerFilterRequirements(
         dashboard?.filters,
         form.values.dashboardFilters,
+        filterableTiles && {
+            ...filterableTiles,
+            selectedTabs: form.values.selectedTabs ?? null,
+        },
     );
     const hasOnlyUnmetGroupRequirements =
         unmetRequirements.length > 0 &&
@@ -461,6 +489,7 @@ export const useSchedulerFormModal = ({
         isThresholdAlertWithNoFields,
         numericMetrics,
         isDashboardTabsAvailable,
+        unmetRequirements,
         requiredFiltersWithoutValues,
         hasOnlyUnmetGroupRequirements,
     };

@@ -1,0 +1,48 @@
+name: Lightdash upgrade freeze
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Freeze or unfreeze automated Lightdash upgrades
+        required: true
+        type: choice
+        options:
+          - freeze
+          - unfreeze
+      reason:
+        description: Optional reason for the change
+        required: false
+        type: string
+
+permissions:
+  issues: write
+
+concurrency:
+  group: lightdash-upgrade-${{ github.repository }}-plan
+  cancel-in-progress: false
+
+env:
+  LIGHTDASH_FREEZE_LABEL: upgrade-freeze
+
+jobs:
+  toggle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout upgrade automation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init lightdash-upgrade-automation
+          git -C lightdash-upgrade-automation remote add origin https://github.com/lightdash/lightdash.git
+          git -C lightdash-upgrade-automation fetch --depth=1 origin REPLACE_WITH_LIGHTDASH_COMMIT_SHA
+          git -C lightdash-upgrade-automation checkout --detach FETCH_HEAD
+      - name: Toggle upgrade freeze
+        shell: bash
+        env:
+          ACTION: ${{ inputs.action }}
+          REASON: ${{ inputs.reason }}
+          ACTOR_LOGIN: ${{ github.actor }}
+          FREEZE_LABEL: ${{ env.LIGHTDASH_FREEZE_LABEL }}
+          GH_TOKEN: ${{ github.token }}
+        run: lightdash-upgrade-automation/examples/upgrade-automation/scripts/freeze-toggle.sh

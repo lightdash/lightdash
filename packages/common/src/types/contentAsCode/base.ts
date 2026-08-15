@@ -33,6 +33,7 @@ export type ContentAsCodeResourceKind =
     | 'custom_role'
     | 'user'
     | 'group'
+    | 'theme'
     | 'external_connection';
 
 export type ContentAsCodeIdentity = {

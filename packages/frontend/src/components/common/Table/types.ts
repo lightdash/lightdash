@@ -62,6 +62,7 @@ export type TableColumn = ColumnDef<ResultRow, ResultRow[0]> & {
         draggable?: boolean;
         item?: Field | TableCalculation | CustomDimension;
         labelOverride?: string;
+        headerContext?: string;
         pivotReference?: PivotReference;
         bgColor?: string;
         sort?: Sort;

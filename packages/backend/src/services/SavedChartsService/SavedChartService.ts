@@ -2079,6 +2079,7 @@ export class SavedChartService
                         : scheduler.targets.map(getSchedulerTargetType),
                 timeZone: getTimezoneLabel(scheduler.timezone),
                 includeLinks: scheduler.includeLinks,
+                plainTextEmail: scheduler.plainTextEmail,
             },
         };
         this.analytics.track(createSchedulerEventData);

@@ -1,0 +1,35 @@
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 0 16px;
+    height: 52px;
+    background: var(--mantine-color-background-0);
+    border-bottom: 1px solid var(--mantine-color-ldGray-2);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 30;
+}
+
+.side {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.divider {
+    width: 1px;
+    height: 22px;
+    background: var(--mantine-color-ldGray-2);
+    flex-shrink: 0;
+}
+
+.name {
+    max-width: 280px;
+}
+
+.provenance {
+    max-width: 260px;
+}

@@ -385,6 +385,13 @@ const getMockedAsyncQueryService = (
             })),
         } as unknown as OrganizationSettingsModel,
         ...overrides,
+        getDataAppCustomSqlProvenance:
+            overrides.getDataAppCustomSqlProvenance ??
+            (async () => ({
+                tableCalculations: new Set(),
+                customDimensions: new Set(),
+                additionalMetrics: new Set(),
+            })),
         userOAuthGrantsModel:
             overrides.userOAuthGrantsModel ?? ({} as UserOAuthGrantsModel),
     });
@@ -1335,6 +1342,7 @@ describe('AsyncQueryService', () => {
             const mockStrategy = makeMockStrategy({
                 resolved: true,
                 query: 'SELECT * FROM duckdb_preagg',
+                execution: 'duckdb',
             });
             const service = getMockedAsyncQueryService({
                 ...lightdashConfigMock,
@@ -1411,6 +1419,7 @@ describe('AsyncQueryService', () => {
                 projectUuid,
                 {
                     pre_aggregate_compiled_sql: 'SELECT * FROM duckdb_preagg',
+                    pre_aggregate_execution: 'duckdb',
                 },
                 sessionAccount,
             );
@@ -1568,6 +1577,30 @@ describe('AsyncQueryService', () => {
     });
 
     describe('executeAsyncMetricQuery', () => {
+        test('forwards the Data App preview token to custom SQL authorization', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const assertCustomSqlAuthorizedForQuery = vi
+                .spyOn(service as AnyType, 'assertCustomSqlAuthorizedForQuery')
+                .mockResolvedValue(undefined);
+            (service as AnyType).runAsyncMetricQueryWithoutPermissionCheck = vi
+                .fn()
+                .mockResolvedValue({ queryUuid: 'query-uuid' });
+
+            await service.executeAsyncMetricQuery({
+                account: sessionAccount,
+                projectUuid,
+                metricQuery: metricQueryMock,
+                context: QueryExecutionContext.EXPLORE,
+                dataAppPreviewToken: 'signed-preview-token',
+            });
+
+            expect(assertCustomSqlAuthorizedForQuery).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    dataAppPreviewToken: 'signed-preview-token',
+                }),
+            );
+        });
+
         test('tags warehouse queries with the originating data app from the request context', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             service.getExploreWithUserAccessControls = vi
@@ -1634,6 +1667,7 @@ describe('AsyncQueryService', () => {
                 ...makeMockStrategy({
                     resolved: true,
                     query: 'SELECT * FROM duckdb_preagg',
+                    execution: 'duckdb',
                 }),
                 getRoutingDecision: ({ explore }) => {
                     if (
@@ -1814,6 +1848,7 @@ describe('AsyncQueryService', () => {
             columns: null,
             originalColumns: null,
             preAggregateCompiledSql: null,
+            preAggregateExecution: null,
             processingStartedAt: null,
         });
 
@@ -1900,6 +1935,7 @@ describe('AsyncQueryService', () => {
                 columns: null,
                 originalColumns: null,
                 preAggregateCompiledSql: null,
+                preAggregateExecution: null,
                 processingStartedAt: null,
             });
 
@@ -2141,6 +2177,7 @@ describe('AsyncQueryService', () => {
                 columns: expectedColumns,
                 originalColumns: mockOriginalColumns,
                 preAggregateCompiledSql: null,
+                preAggregateExecution: null,
                 processingStartedAt: null,
             };
 
@@ -2272,6 +2309,7 @@ describe('AsyncQueryService', () => {
                 columns: expectedColumns,
                 originalColumns: {},
                 preAggregateCompiledSql: null,
+                preAggregateExecution: null,
                 processingStartedAt: null,
             };
 
@@ -2358,6 +2396,7 @@ describe('AsyncQueryService', () => {
                 columns: expectedColumns,
                 originalColumns: {},
                 preAggregateCompiledSql: null,
+                preAggregateExecution: null,
                 processingStartedAt: null,
                 ...overrides,
             }) as QueryHistory;
@@ -2676,6 +2715,7 @@ describe('AsyncQueryService', () => {
             columns: null,
             originalColumns: null,
             preAggregateCompiledSql: null,
+            preAggregateExecution: null,
             processingStartedAt: null,
         });
 
@@ -2850,6 +2890,7 @@ describe('AsyncQueryService', () => {
         columns: null,
         originalColumns: null,
         preAggregateCompiledSql: null,
+        preAggregateExecution: null,
         processingStartedAt: null,
     });
 
@@ -3388,6 +3429,63 @@ describe('AsyncQueryService', () => {
             expect(executedSql).toContain("'EMEA', 'APAC'");
             expect(executedSql).toContain('materialize@acme.com');
             expect(executedSql).not.toContain('viewer-region');
+        });
+
+        it('does not apply model required filters to materialization queries', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const materializationExplore: Explore = {
+                ...validExplore,
+                tables: {
+                    ...validExplore.tables,
+                    a: {
+                        ...validExplore.tables.a,
+                        requiredFilters: [
+                            {
+                                id: 'required-dimension',
+                                target: { fieldRef: 'dim1' },
+                                operator: FilterOperator.EQUALS,
+                                values: ['restricted'],
+                                required: true,
+                            },
+                        ],
+                        dimensions: {
+                            ...validExplore.tables.a.dimensions,
+                            dim1: {
+                                ...validExplore.tables.a.dimensions.dim1,
+                                sql: '${TABLE}.dim1',
+                                compiledSql: '"a".dim1',
+                            },
+                        },
+                    },
+                },
+            };
+
+            vi.spyOn(projectModel, 'getExploreFromCache').mockResolvedValue(
+                materializationExplore,
+            );
+            const executeAsyncQuery = vi.fn().mockResolvedValue({
+                queryUuid: 'queryUuid',
+                cacheMetadata: {
+                    cacheHit: false,
+                },
+            });
+            service['executeAsyncQuery'] = executeAsyncQuery;
+
+            await service.executeAsyncMetricQuery({
+                account: sessionAccount,
+                projectUuid,
+                metricQuery: {
+                    ...metricQueryMock,
+                    tableCalculations: [],
+                },
+                context: QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+            });
+
+            const [executeArgs] = executeAsyncQuery.mock.calls[0];
+            const executedSql = executeArgs.queryComposer.getSql({
+                columnLimit: lightdashConfigMock.pivotTable.maxColumnLimit,
+            });
+            expect(executedSql).not.toContain('restricted');
         });
 
         it('fails closed when materializationRole is supplied outside materialization context', async () => {

@@ -1,10 +1,12 @@
 import {
     AgentToolOutput,
+    AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
     AnyType,
     assertUnreachable,
     Explore,
     type AiDeepResearchBudget,
     type AiDeepResearchExecutionContextSnapshot,
+    type ParameterDefinitions,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
@@ -166,6 +168,68 @@ export const DEEP_RESEARCH_WORKER_TOOL_NAMES = new Set([
     'searchFieldValues',
     'searchSemanticLayer',
 ]);
+
+export const DEEP_RESEARCH_COORDINATOR_TOOL_NAMES = new Set([
+    'analyzeFieldImpact',
+    'describeWarehouseTable',
+    'discoverFields',
+    'findContent',
+    'generateVisualization',
+    'getDashboardCharts',
+    'getKnowledgeDocumentContent',
+    'getMetadata',
+    'getProjectInfo',
+    'grepFields',
+    'listContent',
+    'listKnowledgeDocuments',
+    'listProjects',
+    'listWarehouseTables',
+    'loadProjectContext',
+    'readContent',
+    'readPinnedThread',
+    'resolveUrl',
+    'runContentQuery',
+    'runSavedChart',
+    'runSql',
+    'searchFieldValues',
+    'searchSemanticLayer',
+]);
+
+const getTrustedDeepResearchMcpToolNames = (
+    args: AiAgentArgs,
+    mcpToolSetup: AgentMcpToolSetup,
+): Set<string> => {
+    const expectedUrl = new URL(
+        `/api/v1/mcp/projects/${args.agentSettings.projectUuid}`,
+        args.siteUrl,
+    );
+    const trustedServerUuids = new Set(
+        (args.mcpServers ?? [])
+            .filter((server) => {
+                try {
+                    const serverUrl = new URL(server.url);
+                    return (
+                        serverUrl.origin === expectedUrl.origin &&
+                        serverUrl.pathname.replace(/\/$/, '') ===
+                            expectedUrl.pathname.replace(/\/$/, '')
+                    );
+                } catch {
+                    return false;
+                }
+            })
+            .map((server) => server.uuid),
+    );
+
+    return new Set(
+        Object.entries(mcpToolSetup.mcpToolNameToServerUuid)
+            .filter(
+                ([toolName, serverUuid]) =>
+                    trustedServerUuids.has(serverUuid) &&
+                    isDeepResearchWarehouseMcpTool(toolName),
+            )
+            .map(([toolName]) => toolName),
+    );
+};
 
 const PERSIST_TIMEOUT_MS = 10_000;
 
@@ -506,6 +570,12 @@ const buildStopWhenPromptInterrupted =
  * discussing the fix. No-op if the forced tool isn't in the registered set.
  */
 export const buildForcedFirstStep = (args: AiAgentArgs, tools: ToolSet) => {
+    if (
+        args.execution?.mode === 'deep_research' &&
+        args.execution.research?.role === 'worker'
+    ) {
+        return undefined;
+    }
     if (!args.forceToolHints) return undefined;
     const forcedTool = args.toolHints[0];
     if (!forcedTool || !(forcedTool in tools)) return undefined;
@@ -519,6 +589,23 @@ export const getStepBudgetOverride = (
     execution: AiAgentArgs['execution'],
     stepNumber: number,
 ) => {
+    if (
+        execution.mode === 'deep_research' &&
+        execution.research?.role === 'worker'
+    ) {
+        if (stepNumber < Math.max(0, execution.maxSteps - 1)) {
+            return undefined;
+        }
+        return {
+            message: `This is your final step. Submit the best findings packet available now with ${AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME}, even if the evidence is incomplete or inconclusive. Do not run another query.`,
+            activeTools: [AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME],
+            toolChoice: {
+                type: 'tool' as const,
+                toolName: AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
+            },
+        };
+    }
+
     if (
         execution.mode !== 'standard' ||
         stepNumber < Math.max(0, execution.maxSteps - AGENT_WRAP_UP_STEPS)
@@ -537,7 +624,7 @@ export const getStepBudgetOverride = (
     return { message: AGENT_WRAP_UP_INSTRUCTION };
 };
 
-const buildPrepareStep = ({
+export const buildPrepareStep = ({
     args,
     dependencies,
     tools,
@@ -555,7 +642,12 @@ const buildPrepareStep = ({
     invalidToolCallIds: ReadonlySet<string>;
 }) => {
     const forcedFirstStep = buildForcedFirstStep(args, tools);
-    let retryCapPersisted = false;
+    const retryMarkersPersisted = new Set<string>();
+    const retryMarkerScope =
+        args.execution.mode === 'deep_research'
+            ? (args.execution.parentToolCallId ??
+              `deep-research:${args.execution.runUuid}:coordinator`)
+            : args.promptUuid;
 
     return async ({
         stepNumber,
@@ -583,6 +675,7 @@ const buildPrepareStep = ({
             messages,
             Object.keys(tools),
             invalidToolCallIds,
+            args.execution.mode,
         );
         if (retryOverride) {
             activeTools = activeTools
@@ -598,14 +691,14 @@ const buildPrepareStep = ({
                 'Prepare Step',
                 `Query retry cap tripped for prompt UUID: ${args.promptUuid}`,
             );
-            // Once per prompt: leave a debugging trail that the query tools
-            // were removed this turn (the cap stays tripped on later steps).
-            if (!retryCapPersisted) {
-                retryCapPersisted = true;
+            // Persist each distinct recovery/cap state once so the original
+            // failure, chosen retry round, and terminal outcome are traceable.
+            if (!retryMarkersPersisted.has(retryOverride.markerKey)) {
+                retryMarkersPersisted.add(retryOverride.markerKey);
                 void dependencies
                     .storeToolCallError({
                         promptUuid: args.promptUuid,
-                        toolCallId: `${QUERY_RETRY_CAP_TOOL_NAME}-${args.promptUuid}`,
+                        toolCallId: `${QUERY_RETRY_CAP_TOOL_NAME}-${retryOverride.markerKey}-${retryMarkerScope}`,
                         toolName: QUERY_RETRY_CAP_TOOL_NAME,
                         errorMessage: retryOverride.nudge,
                         rawArgs: null,
@@ -619,10 +712,15 @@ const buildPrepareStep = ({
             }
         }
 
-        const steers = await dependencies.consumePromptSteers({
-            promptUuid: args.promptUuid,
-            stepNumber,
-        });
+        const isDeepResearchWorker =
+            args.execution.mode === 'deep_research' &&
+            args.execution.research?.role === 'worker';
+        const steers = isDeepResearchWorker
+            ? []
+            : await dependencies.consumePromptSteers({
+                  promptUuid: args.promptUuid,
+                  stepNumber,
+              });
         if (steers.length > 0) {
             logger(
                 'Prepare Step',
@@ -673,6 +771,7 @@ export const getAgentTools = (
     availableExplores: Explore[],
     mcpToolSetup: AgentMcpToolSetup,
     verifiedFieldUsage: Map<string, number>,
+    projectParameterDefinitions: ParameterDefinitions,
 ): ToolSet => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger(
@@ -724,7 +823,7 @@ export const getAgentTools = (
     // Companion to grepFields: rich detail for the explores/fields the agent
     // selected (joined tables, required filters, filter types, hints).
     const getMetadata = args.enableGrepFields
-        ? getGetMetadata({ availableExplores })
+        ? getGetMetadata({ availableExplores, projectParameterDefinitions })
         : null;
 
     const findContent = getFindContent({
@@ -779,6 +878,7 @@ export const getAgentTools = (
         maxContextRows: args.maxContextRows,
         exposeQueryUuid: args.execution.mode === 'deep_research',
         enableDataAccess: args.enableDataAccess,
+        projectParameterDefinitions,
     });
 
     const runSavedChart = getRunSavedChart({
@@ -805,6 +905,7 @@ export const getAgentTools = (
               createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
               maxQueryLimit: args.runSqlMaxLimit,
               enableDataAccess: args.enableDataAccess,
+              sqlScope: args.sqlScope,
               autoApproveSql: args.autoApproveSql,
               autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
               useSlackStreamCard: args.useSlackStreamCard,
@@ -1074,11 +1175,22 @@ export const getAgentTools = (
         args.execution.mode === 'deep_research'
             ? args.execution.research
             : undefined;
+    const trustedDeepResearchMcpToolNames = research
+        ? getTrustedDeepResearchMcpToolNames(args, mcpToolSetup)
+        : new Set<string>();
     const getResearchTools = (): ToolSet | null => {
         switch (research?.role) {
             case 'coordinator':
                 return {
-                    ...mergedTools,
+                    ...Object.fromEntries(
+                        Object.entries(mergedTools).filter(
+                            ([toolName]) =>
+                                DEEP_RESEARCH_COORDINATOR_TOOL_NAMES.has(
+                                    toolName,
+                                ) ||
+                                trustedDeepResearchMcpToolNames.has(toolName),
+                        ),
+                    ),
                     delegateResearchTask: getDelegateResearchTask({
                         runTask: research.runTask,
                     }),
@@ -1089,7 +1201,7 @@ export const getAgentTools = (
                         Object.entries(mergedTools).filter(
                             ([toolName]) =>
                                 DEEP_RESEARCH_WORKER_TOOL_NAMES.has(toolName) ||
-                                isDeepResearchWarehouseMcpTool(toolName),
+                                trustedDeepResearchMcpToolNames.has(toolName),
                         ),
                     ),
                     submitWorkerFindings: getSubmitWorkerFindings({
@@ -1215,6 +1327,31 @@ export const buildAgentMessages = ({
     ...messageHistory,
 ];
 
+export const scopeAgentConversation = ({
+    execution,
+    messageHistory,
+    compactionSummary,
+    memoryBlock,
+}: {
+    execution: AiAgentArgs['execution'];
+    messageHistory: ModelMessage[];
+    compactionSummary: string | null;
+    memoryBlock: string | null;
+}) =>
+    execution.mode === 'deep_research' && execution.research?.role === 'worker'
+        ? {
+              messageHistory: [
+                  {
+                      role: 'user' as const,
+                      content:
+                          'Carry out the isolated task packet in your system instructions.',
+                  },
+              ],
+              compactionSummary: null,
+              memoryBlock: null,
+          }
+        : { messageHistory, compactionSummary, memoryBlock };
+
 export const getDeepResearchBudgetInstruction = (
     budget: AiDeepResearchBudget,
 ): string =>
@@ -1234,7 +1371,7 @@ export const getPromptMcpServers = (
         ),
     }));
 
-const getAgentMessages = (
+export const getAgentMessages = (
     args: AiAgentArgs,
     availableExplores: Explore[],
     mcpToolSetup: AgentMcpToolSetup,
@@ -1245,13 +1382,25 @@ const getAgentMessages = (
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger('Agent Messages', 'Getting agent messages.');
 
-    const messageHistory = args.enableGrepFields
-        ? withPreGrepCandidates(
-              withToolHints(args.messageHistory, args.toolHints),
-              availableExplores,
-              verifiedFieldUsage,
-          )
-        : withToolHints(args.messageHistory, args.toolHints);
+    const scopedConversation = scopeAgentConversation({
+        execution: args.execution,
+        messageHistory: args.messageHistory,
+        compactionSummary: args.compactionSummary,
+        memoryBlock,
+    });
+    const isDeepResearchWorker =
+        args.execution.mode === 'deep_research' &&
+        args.execution.research?.role === 'worker';
+    let { messageHistory } = scopedConversation;
+    if (!isDeepResearchWorker) {
+        messageHistory = args.enableGrepFields
+            ? withPreGrepCandidates(
+                  withToolHints(messageHistory, args.toolHints),
+                  availableExplores,
+                  verifiedFieldUsage,
+              )
+            : withToolHints(messageHistory, args.toolHints);
+    }
 
     // Project context is loaded on demand via the loadProjectContext tool; the
     // system prompt only advertises that it exists (when enabled + non-empty).
@@ -1264,6 +1413,9 @@ const getAgentMessages = (
         const budgetInstruction = getDeepResearchBudgetInstruction(
             args.execution.budget,
         );
+        const resumeInstruction = args.execution.resumeContext
+            ? `A previous Deep Research run already completed the evidence below. Continue only unfinished work; do not repeat these successful queries unless you need a genuinely different slice.\n\n${args.execution.resumeContext}`
+            : null;
         const { research } = args.execution;
         switch (research?.role) {
             case 'coordinator':
@@ -1271,14 +1423,20 @@ const getAgentMessages = (
                     AI_DEEP_RESEARCH_INSTRUCTIONS,
                     getAiDeepResearchCoordinatorInstructions(),
                     budgetInstruction,
+                    resumeInstruction,
                 ];
             case 'worker':
                 return [
                     getAiDeepResearchWorkerInstructions(research.task),
                     budgetInstruction,
+                    resumeInstruction,
                 ];
             case undefined:
-                return [AI_DEEP_RESEARCH_INSTRUCTIONS, budgetInstruction];
+                return [
+                    AI_DEEP_RESEARCH_INSTRUCTIONS,
+                    budgetInstruction,
+                    resumeInstruction,
+                ];
             default:
                 return assertUnreachable(research, 'Unknown research role');
         }
@@ -1312,6 +1470,7 @@ const getAgentMessages = (
         canRunSql: args.canRunSql,
         warehouseType: args.warehouseType,
         warehouseSchema: args.warehouseSchema,
+        sqlScope: args.sqlScope,
         runSqlMaxLimit: args.runSqlMaxLimit,
         unauthenticatedMcpServerNames: getUnauthenticatedMcpServerNames(
             args,
@@ -1321,9 +1480,9 @@ const getAgentMessages = (
     });
     const messages = buildAgentMessages({
         systemPrompt,
-        compactionSummary: args.compactionSummary,
+        compactionSummary: scopedConversation.compactionSummary,
         messageHistory,
-        memoryBlock,
+        memoryBlock: scopedConversation.memoryBlock,
     });
 
     logger('Agent Messages', `Retrieved ${messages.length} messages.`);
@@ -1392,10 +1551,12 @@ export const generateAgentResponse = async ({
     );
 
     try {
-        const [availableExplores, memoryBlock] = await Promise.all([
-            dependencies.listExplores(),
-            getMemoryBlock(args, dependencies),
-        ]);
+        const [availableExplores, memoryBlock, projectParameterDefinitions] =
+            await Promise.all([
+                dependencies.listExplores(),
+                getMemoryBlock(args, dependencies),
+                dependencies.getProjectParameterDefinitions(),
+            ]);
         // Verified-chart usage powers verified-first ranking in grep discovery;
         // degrade to an empty map if it can't be fetched.
         const verifiedFieldUsage = args.enableGrepFields
@@ -1410,6 +1571,7 @@ export const generateAgentResponse = async ({
                 availableExplores,
                 mcpToolSetup,
                 verifiedFieldUsage,
+                projectParameterDefinitions,
             ),
             dependencies.updateProgress,
             args.execution.mode === 'deep_research',
@@ -1645,18 +1807,25 @@ export const generateAgentResponse = async ({
         // would otherwise be stored as a blank response with no explanation
         // for the user. Structured deep-research phases are exempt: their
         // deliverable is a forced submission tool call, so ending on it with
-        // no trailing text is a success, not an empty response.
+        // no trailing text is a success, not an empty response. Interrupted
+        // prompts are exempt too: the user stopped the generation, so an
+        // empty response is expected and must not surface as an error.
         const isStructuredResearchPhase =
             args.execution.mode === 'deep_research' &&
             args.execution.research !== undefined;
         if (!result.text.trim() && !isStructuredResearchPhase) {
-            if (result.steps.length >= args.execution.maxSteps) {
-                throw new AiAgentStepCapReachedError(result.steps.length);
-            }
-            throw new AiAgentEmptyResponseError(
-                result.finishReason,
-                result.steps.length,
+            const interrupted = await dependencies.isPromptInterrupted(
+                args.promptUuid,
             );
+            if (!interrupted) {
+                if (result.steps.length >= args.execution.maxSteps) {
+                    throw new AiAgentStepCapReachedError(result.steps.length);
+                }
+                throw new AiAgentEmptyResponseError(
+                    result.finishReason,
+                    result.steps.length,
+                );
+            }
         }
 
         if (args.execution.mode !== 'deep_research') {
@@ -1743,10 +1912,12 @@ export const streamAgentResponse = async ({
     };
 
     try {
-        const [availableExplores, memoryBlock] = await Promise.all([
-            dependencies.listExplores(),
-            getMemoryBlock(args, dependencies),
-        ]);
+        const [availableExplores, memoryBlock, projectParameterDefinitions] =
+            await Promise.all([
+                dependencies.listExplores(),
+                getMemoryBlock(args, dependencies),
+                dependencies.getProjectParameterDefinitions(),
+            ]);
         const verifiedFieldUsage = args.enableGrepFields
             ? await dependencies
                   .getVerifiedFieldUsage()
@@ -1758,6 +1929,7 @@ export const streamAgentResponse = async ({
             availableExplores,
             mcpToolSetup,
             verifiedFieldUsage,
+            projectParameterDefinitions,
         );
         await persistDeepResearchExecutionContext(args, tools, mcpToolSetup);
         const messages = getAgentMessages(
@@ -2057,7 +2229,14 @@ export const streamAgentResponse = async ({
                 // or an error message — a blank response with no error renders
                 // as an empty chat bubble with no explanation. trim() matters:
                 // steps with empty text still join into "\n" strings.
-                if (!completeResponse.trim()) {
+                // Interrupted prompts are exempt: the user stopped the
+                // generation, so an empty response is expected and persisted
+                // as-is instead of surfacing as an error.
+                const isEmptyResponse = !completeResponse.trim();
+                const interrupted = isEmptyResponse
+                    ? await dependencies.isPromptInterrupted(args.promptUuid)
+                    : false;
+                if (isEmptyResponse && !interrupted) {
                     const emptyResponseError = stepCapReached
                         ? new AiAgentStepCapReachedError(steps.length)
                         : new AiAgentEmptyResponseError(

@@ -3,6 +3,7 @@ import {
     AiWritebackAttribution,
     Explore,
     WarehouseTypes,
+    type AgentSqlScope,
 } from '@lightdash/common';
 import { SystemModelMessage } from 'ai';
 import moment from 'moment';
@@ -11,7 +12,7 @@ import {
     AiAgentDeepResearchRunContext,
     AiAgentRequestingUser,
 } from '../types/aiAgent';
-import { xmlBuilder } from '../xmlBuilder';
+import { escapeXmlText, xmlBuilder } from '../xmlBuilder';
 import { renderAvailableExplores } from './availableExplores';
 import { getAiWritebackSection } from './systemV2AiWriteback';
 import { getCodingAgentSection } from './systemV2CodingAgent';
@@ -30,12 +31,6 @@ import { getSchedulingToolsSection } from './systemV2SchedulingTools';
 import { SEARCH_SEMANTIC_LAYER_SECTION } from './systemV2SearchSemanticLayer';
 import { renderAvailableSkills } from './systemV2Skills';
 import { SYSTEM_PROMPT_TEMPLATE } from './systemV2Template';
-
-const escapeXmlText = (value: string): string =>
-    value
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;');
 
 export const getSystemPromptV2 = (args: {
     availableExplores: Explore[];
@@ -68,6 +63,7 @@ export const getSystemPromptV2 = (args: {
     canRunSql?: boolean;
     warehouseType?: WarehouseTypes | null;
     warehouseSchema?: string | null;
+    sqlScope?: AgentSqlScope | null;
     // runSql's own max, quoted in its prompt section.
     runSqlMaxLimit?: number;
     unauthenticatedMcpServerNames?: string[];
@@ -93,6 +89,7 @@ export const getSystemPromptV2 = (args: {
         canRunSql = false,
         warehouseType = null,
         warehouseSchema = null,
+        sqlScope = null,
         runSqlMaxLimit,
         unauthenticatedMcpServerNames = [],
         mcpServers = [],
@@ -109,11 +106,15 @@ export const getSystemPromptV2 = (args: {
     const renderKnowledgeDocument = (doc: AiAgentDocumentContext): string => {
         const { summary } = doc;
         const children: string[] = [
-            xmlBuilder('description', null, summary.description),
+            xmlBuilder('description', null, escapeXmlText(summary.description)),
         ];
         if (summary.definedTerms.length > 0) {
             children.push(
-                xmlBuilder('defines', null, summary.definedTerms.join(', ')),
+                xmlBuilder(
+                    'defines',
+                    null,
+                    escapeXmlText(summary.definedTerms.join(', ')),
+                ),
             );
         }
         if (summary.relatedExploreNames.length > 0) {
@@ -121,15 +122,19 @@ export const getSystemPromptV2 = (args: {
                 xmlBuilder(
                     'applies_to_explores',
                     null,
-                    summary.relatedExploreNames.join(', '),
+                    escapeXmlText(summary.relatedExploreNames.join(', ')),
                 ),
             );
         }
         if (summary.useWhen) {
-            children.push(xmlBuilder('use_when', null, summary.useWhen));
+            children.push(
+                xmlBuilder('use_when', null, escapeXmlText(summary.useWhen)),
+            );
         }
         if (summary.warning) {
-            children.push(xmlBuilder('warning', null, summary.warning));
+            children.push(
+                xmlBuilder('warning', null, escapeXmlText(summary.warning)),
+            );
         }
         const fullContent = doc.content ?? '';
         const hasFullContent =
@@ -254,6 +259,7 @@ export const getSystemPromptV2 = (args: {
                 ? getRunSqlSection({
                       warehouseType,
                       warehouseSchema,
+                      sqlScope,
                       runSqlMaxLimit,
                   })
                 : '',

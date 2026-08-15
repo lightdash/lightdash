@@ -79,6 +79,7 @@ import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTableName } from '../../database/entities/users';
 import KnexPaginate from '../../database/pagination';
 import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAccounts';
+import { validateSchedulerWebhookTargets } from '../../utils/schedulerWebhookValidation';
 
 type SelectScheduler = SchedulerDb & {
     created_by_name: string | null;
@@ -149,6 +150,7 @@ export class SchedulerModel {
             notificationFrequency:
                 scheduler.notification_frequency ?? undefined,
             includeLinks: scheduler.include_links,
+            plainTextEmail: scheduler.plain_text_email,
             projectUuid: scheduler.project_uuid ?? undefined,
             projectName: scheduler.project_name ?? undefined,
         };
@@ -233,6 +235,7 @@ export class SchedulerModel {
             enabled: true,
             notification_frequency: newScheduler.notificationFrequency || null,
             include_links: newScheduler.includeLinks !== false,
+            plain_text_email: newScheduler.plainTextEmail === true,
         };
 
         if (isDashboardCreateScheduler(newScheduler)) {
@@ -1157,6 +1160,8 @@ export class SchedulerModel {
     async createScheduler(
         newScheduler: CreateSchedulerAndTargets,
     ): Promise<SchedulerAndTargets> {
+        await validateSchedulerWebhookTargets(newScheduler.targets);
+
         const schedulerUuid = await this.database.transaction(async (trx) => {
             const { projectUuid, slug } = await SchedulerModel.getCreateSlug(
                 trx,
@@ -1238,6 +1243,8 @@ export class SchedulerModel {
     async updateScheduler(
         scheduler: UpdateSchedulerAndTargets,
     ): Promise<SchedulerAndTargets> {
+        await validateSchedulerWebhookTargets(scheduler.targets);
+
         await this.database.transaction(async (trx) => {
             await trx(SchedulerTableName)
                 .update({
@@ -1265,6 +1272,7 @@ export class SchedulerModel {
                             ? (scheduler.selectedTabs as string[])
                             : null,
                     include_links: scheduler.includeLinks !== false,
+                    plain_text_email: scheduler.plainTextEmail === true,
                 })
                 .where('scheduler_uuid', scheduler.schedulerUuid);
 

@@ -27,7 +27,6 @@ jobs:
         with:
           token: ${{ secrets.CI_GITHUB_TOKEN }}
           persist-credentials: false
-          fetch-depth: 0
           ref: ${{ github.event.release.tag_name }}
 
       # ========================================
@@ -36,7 +35,7 @@ jobs:
       - name: Set version and timestamp
         id: version
         run: |
-          VERSION="${{ github.event.release.tag_name || inputs.tag }}"
+          VERSION="${{ github.event.release.tag_name }}"
           TIMESTAMP=$(date +%Y.%m.%d-%H.%M.%S)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
@@ -196,13 +195,6 @@ jobs:
       - name: Check for CLI-related changes
         id: check
         run: |
-          # For manual triggers, always build
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "Manual trigger - building binaries"
-            echo "should_build=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
           # Get the current and previous tags
           CURRENT_TAG="${{ github.event.release.tag_name }}"
           PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -A1 "^${CURRENT_TAG}$" | tail -1)
@@ -243,11 +235,6 @@ jobs:
         with:
           ref: ${{ github.event.release.tag_name }}
 
-      - name: Setup Socket Firewall
-        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
-        with:
-          mode: firewall-free
-
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
@@ -275,7 +262,7 @@ jobs:
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
         # Force reinstall so pnpm includes optional DuckDB native bindings
         # needed to build both macOS pkg targets from a single runner.
-        run: sfw pnpm install --filter @lightdash/cli --filter @lightdash/common --filter @lightdash/warehouses --frozen-lockfile --prefer-offline --prod=false --force
+        run: pnpm install --filter @lightdash/cli --filter @lightdash/common --filter @lightdash/warehouses --frozen-lockfile --prefer-offline --prod=false --force --network-concurrency=16
 
       - name: Cache common build
         id: cache-common

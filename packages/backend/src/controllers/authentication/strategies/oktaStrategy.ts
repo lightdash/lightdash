@@ -234,6 +234,32 @@ export class OpenIDClientOktaStrategy extends Strategy {
                 );
 
                 if (openIdUser) {
+                    // Per-org Okta: the strategy was selected from the login
+                    // hint's domain, so re-check the IdP-asserted email domain
+                    // is one this org's method is allowed to route before
+                    // trusting the identity.
+                    if (organizationUuid) {
+                        const isAllowed = await req.services
+                            .getOrganizationSsoService()
+                            .isEmailDomainAllowedForOrgSso(
+                                openIdUser.openId.email,
+                                organizationUuid,
+                                OrganizationSsoProvider.OKTA,
+                            );
+                        if (!isAllowed) {
+                            Logger.error(
+                                `Authentication failed: OpenID email domain is not allowed for the authenticating SSO method (org ${organizationUuid}, provider ${OrganizationSsoProvider.OKTA}).`,
+                            );
+                            return this.fail(
+                                {
+                                    message:
+                                        'Authentication failed: email domain is not allowed for this login method.',
+                                },
+                                401,
+                            );
+                        }
+                    }
+
                     const user = await req.services
                         .getUserService()
                         .loginWithOpenId(

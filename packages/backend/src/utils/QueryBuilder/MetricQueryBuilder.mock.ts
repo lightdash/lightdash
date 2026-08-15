@@ -27,6 +27,7 @@ import {
 } from '@lightdash/common';
 
 export const warehouseClientMock: WarehouseClient = {
+    getSessionTimezone: async () => null,
     credentials: {
         type: WarehouseTypes.POSTGRES,
     } as CreateWarehouseCredentials,
@@ -121,6 +122,9 @@ export const warehouseClientMock: WarehouseClient = {
             .replace(/\/\*[\s\S]*?\*\//g, '');
     },
     castToTimestamp: (date) => `CAST('${date.toISOString()}' AS TIMESTAMP)`,
+    castToDate: (date) => `CAST('${date.toISOString().slice(0, 10)}' AS DATE)`,
+    castToNaiveTimestamp: (date) =>
+        `CAST('${date.toISOString()}' AS TIMESTAMP)`,
     getIntervalSql: (value, unit: TimeIntervalUnit) =>
         `INTERVAL '${value} ${unit}'`,
     getTimestampDiffSeconds: (startTimestampSql, endTimestampSql) =>
@@ -135,6 +139,7 @@ export const warehouseClientMock: WarehouseClient = {
 };
 
 export const bigqueryClientMock: WarehouseClient = {
+    getSessionTimezone: async () => null,
     credentials: {
         type: WarehouseTypes.BIGQUERY,
     } as CreateWarehouseCredentials,
@@ -203,6 +208,9 @@ export const bigqueryClientMock: WarehouseClient = {
     },
     escapeString: (value) => value,
     castToTimestamp: (date) => `TIMESTAMP('${date.toISOString()}')`,
+    castToDate: (date) => `DATE '${date.toISOString().slice(0, 10)}'`,
+    castToNaiveTimestamp: (date) =>
+        `DATETIME '${date.toISOString().slice(0, 19).replace('T', ' ')}'`,
     getIntervalSql: (value, unit: TimeIntervalUnit) =>
         `INTERVAL ${value} ${unit}`,
     getTimestampDiffSeconds: (startTimestampSql, endTimestampSql) =>

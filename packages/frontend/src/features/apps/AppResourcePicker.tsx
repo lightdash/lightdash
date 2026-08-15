@@ -200,12 +200,12 @@ const MODEL_OPTIONS: ModelOption[] = [
     {
         value: 'opus',
         label: 'Opus',
-        tagline: 'Highest quality. Best for complex apps. Slowest.',
+        tagline: 'Highest quality. Best for complex builds. Slowest.',
     },
     {
         value: 'sonnet',
         label: 'Sonnet',
-        tagline: 'Balanced quality and speed. Good fit for most apps.',
+        tagline: 'Balanced quality and speed. Good fit for most work.',
         isDefault: true,
     },
     {

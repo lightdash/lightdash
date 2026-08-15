@@ -255,6 +255,15 @@ export class TrinoSqlBuilder extends WarehouseBaseSqlBuilder {
         );
     }
 
+    castToTimestamp(date: Date): string {
+        // Trino rejects zone-suffixed strings cast to plain TIMESTAMP
+        return `TIMESTAMP '${date.toISOString().slice(0, 23).replace('T', ' ')}'`;
+    }
+
+    castToDate(date: Date): string {
+        return `DATE '${date.toISOString().slice(0, 10)}'`;
+    }
+
     getIntervalSql(value: number, unit: TimeIntervalUnit): string {
         // Trino uses INTERVAL with quoted value and separate unit keyword
         const unitStr = TrinoSqlBuilder.intervalUnitsSingular[unit];

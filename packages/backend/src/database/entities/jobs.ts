@@ -14,6 +14,7 @@ export type DbJobs = {
     job_uuid: string;
     project_uuid: string | undefined;
     user_uuid: string | undefined;
+    is_preview: boolean;
     created_at: Date;
     updated_at: Date;
     job_status: JobStatusType;
@@ -23,7 +24,12 @@ export type DbJobs = {
 
 type CreateJob = Pick<
     DbJobs,
-    'project_uuid' | 'job_uuid' | 'job_status' | 'job_type' | 'user_uuid'
+    | 'project_uuid'
+    | 'job_uuid'
+    | 'job_status'
+    | 'job_type'
+    | 'user_uuid'
+    | 'is_preview'
 >;
 
 type UpdateJob = Partial<

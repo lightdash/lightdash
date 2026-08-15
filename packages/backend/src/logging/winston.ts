@@ -1,8 +1,11 @@
 import {
     LightdashAppUuidHeader,
+    LightdashBuildHashHeader,
+    LightdashCliVersionHeader,
     LightdashMode,
     LightdashRequestMethodHeader,
     LightdashSdkVersionHeader,
+    LightdashSignedDownloadHeader,
     LightdashVersionHeader,
     SessionUser,
 } from '@lightdash/common';
@@ -287,6 +290,31 @@ declare global {
 export const sanitizeRequestUrl = (url: string): string =>
     url.replace(/([?&]downloadToken=)[^&#\s]*/gi, '$1[REDACTED]');
 
+const safeRequestHeaderNames = new Set([
+    'content-length',
+    'content-type',
+    'host',
+    'user-agent',
+    'x-amzn-trace-id',
+    'x-request-id',
+    LightdashAppUuidHeader.toLowerCase(),
+    LightdashBuildHashHeader.toLowerCase(),
+    LightdashCliVersionHeader.toLowerCase(),
+    LightdashRequestMethodHeader.toLowerCase(),
+    LightdashSdkVersionHeader.toLowerCase(),
+    LightdashSignedDownloadHeader.toLowerCase(),
+    LightdashVersionHeader.toLowerCase(),
+]);
+
+const filterRequestHeaders = (
+    headers: express.Request['headers'],
+): express.Request['headers'] =>
+    Object.fromEntries(
+        Object.entries(headers).filter(([name]) =>
+            safeRequestHeaderNames.has(name.toLowerCase()),
+        ),
+    );
+
 export const expressWinstonMiddleware: express.RequestHandler =
     expressWinston.logger({
         winstonInstance: winstonLogger,
@@ -309,15 +337,12 @@ export const expressWinstonMiddleware: express.RequestHandler =
         requestWhitelist: ['url', 'headers', 'method'],
         requestFilter: (req, propertyName) => {
             if (propertyName === 'url') return sanitizeRequestUrl(req.url);
+            if (propertyName === 'headers') {
+                return filterRequestHeaders(req.headers);
+            }
             return (req as unknown as Record<string, unknown>)[propertyName];
         },
         responseWhitelist: ['statusCode'],
-        headerBlacklist: [
-            'cookie',
-            'authorization',
-            'connection',
-            'accept-encoding',
-        ],
     });
 
 // Logs the request before the response is sent
@@ -333,7 +358,6 @@ export const expressWinstonPreResponseMiddleware: express.RequestHandler = (
             req: {
                 method: req.method,
                 url: sanitizeRequestUrl(req.url),
-                headers: req.headers,
             },
             includesResponse: false,
             userUuid: req.user?.userUuid,

@@ -3,6 +3,7 @@ import {
     AiResultType,
     convertAiTableCalcsSchemaToTableCalcs,
     filterAggregationCustomMetrics,
+    getReferencedExploreParameterDefinitions,
     getSlackAiEchartsConfig,
     getTotalFilterRules,
     getValidAiQueryLimit,
@@ -10,6 +11,8 @@ import {
     runQueryToolDefinition,
     toolRunQueryArgsSchemaTransformed,
     type Explore,
+    type ParameterDefinitions,
+    type ParametersValuesMap,
     type ToolRunQueryArgsTransformed,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -45,6 +48,7 @@ import {
     validateGroupByFields,
     validateMetricDimensionFilterPlacement,
     validatePeriodComparisons,
+    validateQueryParameters,
     validateSelectedFieldsExistence,
     validateSortFieldsAreSelected,
     validateTableCalculations,
@@ -61,6 +65,53 @@ type Dependencies = {
     /** Deep Research report charts must cite the execution they came from. */
     exposeQueryUuid: boolean;
     enableDataAccess: boolean;
+    // Project-level parameter definitions; model-level ones come from the explore.
+    projectParameterDefinitions: ParameterDefinitions;
+};
+
+// The parameter state a query actually ran with — explicit vs
+// default-resolved vs unset-with-no-default — so results never hide it.
+export const summarizeAppliedParameters = (
+    explore: Explore,
+    projectParameterDefinitions: ParameterDefinitions,
+    provided: ParametersValuesMap | null,
+): string => {
+    const definitions = getReferencedExploreParameterDefinitions(
+        explore,
+        projectParameterDefinitions,
+    );
+    const referenced = Object.keys(definitions);
+    if (referenced.length === 0) return '';
+    const applied = Object.fromEntries(
+        referenced.flatMap((name) => {
+            const value = provided?.[name];
+            return value !== undefined ? [[name, value] as const] : [];
+        }),
+    );
+    const defaulted = Object.fromEntries(
+        referenced.flatMap((name) => {
+            if (provided?.[name] !== undefined) return [];
+            const value = definitions[name].default;
+            return value !== undefined ? [[name, value] as const] : [];
+        }),
+    );
+    const unset = referenced.filter(
+        (name) =>
+            provided?.[name] === undefined &&
+            definitions[name].default === undefined,
+    );
+    const parts = [
+        Object.keys(applied).length > 0
+            ? `set explicitly: ${JSON.stringify(applied)}`
+            : null,
+        Object.keys(defaulted).length > 0
+            ? `resolved to defaults: ${JSON.stringify(defaulted)}`
+            : null,
+        unset.length > 0 ? `unset with no default: ${unset.join(', ')}` : null,
+    ].filter((part): part is string => part !== null);
+    return parts.length > 0
+        ? ` Parameter values this query ran with — ${parts.join('; ')}.`
+        : '';
 };
 
 const toolDefinition = runQueryToolDefinition.for('agent');
@@ -180,6 +231,7 @@ export const getRunQuery = ({
     maxContextRows,
     exposeQueryUuid,
     enableDataAccess,
+    projectParameterDefinitions,
 }: Dependencies) =>
     tool({
         ...toolDefinition,
@@ -195,6 +247,11 @@ export const getRunQuery = ({
                 );
 
                 validateRunQueryTool(queryTool, explore);
+                validateQueryParameters(
+                    queryTool.queryConfig.parameters,
+                    explore,
+                    projectParameterDefinitions,
+                );
 
                 const prompt = await getPrompt();
 
@@ -278,11 +335,20 @@ export const getRunQuery = ({
                 const queryResults = await runAsyncQuery(
                     metricQuery,
                     populatedCustomMetrics,
+                    queryTool.queryConfig.parameters ?? undefined,
                 );
 
                 if (queryResults.rows.length === 0) {
+                    // A wrong parameter state is a common cause of empty
+                    // results — surface what the query actually ran with.
                     return {
-                        result: NO_RESULTS_RETRY_PROMPT,
+                        result:
+                            NO_RESULTS_RETRY_PROMPT +
+                            summarizeAppliedParameters(
+                                explore,
+                                projectParameterDefinitions,
+                                queryTool.queryConfig.parameters,
+                            ),
                         metadata: { status: 'success' },
                     };
                 }
@@ -332,12 +398,18 @@ export const getRunQuery = ({
                     }
                 }
 
-                const resultSummary = getQueryResultSummary({
-                    rowCount: queryResults.rows.length,
-                    requestedLimit,
-                    effectiveLimit,
-                    maxLimit,
-                });
+                const resultSummary =
+                    getQueryResultSummary({
+                        rowCount: queryResults.rows.length,
+                        requestedLimit,
+                        effectiveLimit,
+                        maxLimit,
+                    }) +
+                    summarizeAppliedParameters(
+                        explore,
+                        projectParameterDefinitions,
+                        queryTool.queryConfig.parameters,
+                    );
 
                 // The queryUuid otherwise lives only in metadata, which never
                 // reaches the model — leaving it unable to cite the execution

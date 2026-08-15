@@ -9,6 +9,7 @@ import {
     lightdashVariablePattern,
     MetricType,
     PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER,
+    preAggregateMaterialization,
     PreAggregateMetricRepresentationKind,
     preAggregateUtils,
     SupportedDbtAdapter,
@@ -21,14 +22,17 @@ import {
     type FieldId,
     type PreAggregateDef,
     type TimeFrames,
+    type WeekDay,
 } from '@lightdash/common';
-import { assertDimensionEligibleForDirectMaterialization } from './eligibility';
-import {
+import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
+
+const {
+    assertDimensionEligibleForDirectMaterialization,
     getDimensionsByReference,
     getMetricReferenceForDef,
     getSelectedDimension,
     selectPreAggregateMetrics,
-} from './shared';
+} = preAggregateMaterialization;
 
 const isFinerGranularity = (
     candidateGranularity: TimeFrames,
@@ -64,6 +68,7 @@ const getMetricAggregateSql = (
 const getAverageMetricAggregateSql = (
     tableName: string,
     fieldId: FieldId,
+    servingAdapter: SupportedDbtAdapter,
 ): string => {
     const sumColumnReference = `${tableName}.${getPreAggregateMetricComponentColumnName(
         fieldId,
@@ -74,18 +79,22 @@ const getAverageMetricAggregateSql = (
         'count',
     )}`;
 
+    const floatType =
+        warehouseSqlBuilderFromType(servingAdapter).getFloatingType();
     // Force floating-point division because both components are numeric aggregates.
-    return `CAST(SUM(${sumColumnReference}) AS DOUBLE) / CAST(NULLIF(SUM(${countColumnReference}), 0) AS DOUBLE)`;
+    return `CAST(SUM(${sumColumnReference}) AS ${floatType}) / CAST(NULLIF(SUM(${countColumnReference}), 0) AS ${floatType})`;
 };
 
 const getMetricSqlForPreAggregateExplore = ({
     metricType,
     tableName,
     fieldId,
+    servingAdapter,
 }: {
     metricType: MetricType;
     tableName: string;
     fieldId: FieldId;
+    servingAdapter: SupportedDbtAdapter;
 }): { sql: string; compiledSql: string } => {
     const representation =
         preAggregateUtils.getMetricRepresentation(metricType);
@@ -95,6 +104,7 @@ const getMetricSqlForPreAggregateExplore = ({
             const compiledSql = getAverageMetricAggregateSql(
                 tableName,
                 fieldId,
+                servingAdapter,
             );
             return {
                 sql: compiledSql,
@@ -128,6 +138,7 @@ const getNumberMetricSqlForPreAggregateExplore = ({
     metric,
     metricsByReference,
     cache,
+    servingAdapter,
 }: {
     sourceExplore: Explore;
     metric: CompiledMetric;
@@ -135,6 +146,7 @@ const getNumberMetricSqlForPreAggregateExplore = ({
         typeof preAggregateUtils.getMetricsByReference
     >;
     cache: Map<FieldId, string>;
+    servingAdapter: SupportedDbtAdapter;
 }): string => {
     const metricFieldId = getItemId(metric);
     const cachedSql = cache.get(metricFieldId);
@@ -163,6 +175,7 @@ const getNumberMetricSqlForPreAggregateExplore = ({
                     metric: metricLookup.metric,
                     metricsByReference,
                     cache,
+                    servingAdapter,
                 })})`;
             }
 
@@ -171,6 +184,7 @@ const getNumberMetricSqlForPreAggregateExplore = ({
                     metricType: metricLookup.metric.type,
                     tableName: sourceExplore.baseTable,
                     fieldId: metricLookup.fieldId,
+                    servingAdapter,
                 }).compiledSql
             })`;
         },
@@ -227,10 +241,14 @@ const buildDimensionSql = ({
     sourceExplore,
     dimension,
     preAggregateDef,
+    servingAdapter,
+    startOfWeek,
 }: {
     sourceExplore: Explore;
     dimension: CompiledDimension;
     preAggregateDef: PreAggregateDef;
+    servingAdapter: SupportedDbtAdapter;
+    startOfWeek: WeekDay | null;
 }): string => {
     const dimensionBaseName = preAggregateUtils.getDimensionBaseName(dimension);
     const materializedBaseColumnName = getMaterializedDimensionColumnName({
@@ -259,10 +277,11 @@ const buildDimensionSql = ({
     }
 
     return getSqlForTruncatedDate(
-        SupportedDbtAdapter.DUCKDB,
+        servingAdapter,
         dimension.timeInterval,
         timeDimensionReference,
         getBaseDimensionType(sourceExplore, dimension),
+        startOfWeek,
     );
 };
 
@@ -363,7 +382,16 @@ const getEmptyTable = (
 export const buildPreAggregateExplore = (
     sourceExplore: Explore,
     preAggregateDef: PreAggregateDef,
+    startOfWeek: WeekDay | null,
 ): Explore => {
+    // Managed pre-aggregates serve via DuckDB; external ones serve from the
+    // customer table on the project warehouse, so SQL is compiled in its dialect.
+    const servingAdapter = preAggregateDef.table
+        ? sourceExplore.targetDatabase
+        : SupportedDbtAdapter.DUCKDB;
+    const sqlTable =
+        preAggregateDef.table ?? PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER;
+
     const includedDimensions = getIncludedDimensions(
         sourceExplore,
         preAggregateDef,
@@ -390,10 +418,7 @@ export const buildPreAggregateExplore = (
                 `Pre-aggregate "${preAggregateDef.name}" references unknown table "${tableName}"`,
             );
         }
-        acc[tableName] = getEmptyTable(
-            sourceTable,
-            PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER,
-        );
+        acc[tableName] = getEmptyTable(sourceTable, sqlTable);
         return acc;
     }, {});
 
@@ -402,6 +427,8 @@ export const buildPreAggregateExplore = (
             sourceExplore,
             dimension,
             preAggregateDef,
+            servingAdapter,
+            startOfWeek,
         });
 
         tables[dimension.table].dimensions[dimension.name] = {
@@ -417,6 +444,7 @@ export const buildPreAggregateExplore = (
             metricType: metric.type,
             tableName: sourceExplore.baseTable,
             fieldId,
+            servingAdapter,
         });
 
         tables[metric.table].metrics[metric.name] = {
@@ -435,6 +463,7 @@ export const buildPreAggregateExplore = (
             metric,
             metricsByReference,
             cache: numberMetricSqlCache,
+            servingAdapter,
         });
 
         tables[metric.table].metrics[metric.name] = {
@@ -455,6 +484,9 @@ export const buildPreAggregateExplore = (
         preAggregateSource: {
             sourceExploreName: sourceExplore.name,
             preAggregateName: preAggregateDef.name,
+            ...(preAggregateDef.table
+                ? { externalTable: preAggregateDef.table }
+                : {}),
         },
         joinedTables: [],
         tables,

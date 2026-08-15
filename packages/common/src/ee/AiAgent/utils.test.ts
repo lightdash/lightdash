@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { getMcpToolBaseName, parseAiArtifactChartConfig } from './utils';
+import { AiResultType } from './types';
+import {
+    getMcpToolBaseName,
+    parseAiArtifactChartConfig,
+    parseVizConfig,
+} from './utils';
 
 describe('getMcpToolBaseName', () => {
     it('matches the namespaced runtime tool name', () => {
@@ -57,5 +62,117 @@ describe('parseAiArtifactChartConfig', () => {
 
     it('rejects invalid configs', () => {
         expect(parseAiArtifactChartConfig({ source: 'sql' })).toBeNull();
+    });
+});
+
+// Persisted legacy viz configs still carry followUpTools even though the
+// schemas no longer declare it. They must keep parsing to the same type.
+describe('parseVizConfig with legacy persisted configs', () => {
+    const metadata = {
+        title: 'Revenue',
+        description: 'Revenue',
+        customMetrics: null,
+        tableCalculations: null,
+        filters: null,
+    };
+
+    it('parses a legacy bar config carrying followUpTools', () => {
+        const parsed = parseVizConfig({
+            ...metadata,
+            followUpTools: ['generate_table', 'generate_time_series_viz'],
+            vizConfig: {
+                exploreName: 'orders',
+                xDimension: 'orders_status',
+                yMetrics: ['orders_revenue'],
+                sorts: [],
+                limit: 500,
+                breakdownByDimension: null,
+                stackBars: null,
+                xAxisType: 'category',
+                xAxisLabel: null,
+                yAxisLabel: null,
+            },
+        });
+
+        expect(parsed?.type).toBe(AiResultType.VERTICAL_BAR_RESULT);
+        expect(parsed?.vizTool).not.toHaveProperty('followUpTools');
+    });
+
+    it('parses a legacy time series config carrying followUpTools', () => {
+        const parsed = parseVizConfig({
+            ...metadata,
+            followUpTools: ['table', 'vertical_bar'],
+            vizConfig: {
+                exploreName: 'orders',
+                xDimension: 'orders_created_month',
+                yMetrics: ['orders_revenue'],
+                sorts: [],
+                breakdownByDimension: null,
+                lineType: 'line',
+                limit: 500,
+                xAxisLabel: 'Month',
+                yAxisLabel: 'Revenue',
+            },
+        });
+
+        expect(parsed?.type).toBe(AiResultType.TIME_SERIES_RESULT);
+        expect(parsed?.vizTool).not.toHaveProperty('followUpTools');
+    });
+
+    it('parses a legacy table config carrying followUpTools', () => {
+        const parsed = parseVizConfig({
+            ...metadata,
+            followUpTools: ['generate_bar_viz'],
+            vizConfig: {
+                exploreName: 'orders',
+                metrics: ['orders_revenue'],
+                dimensions: ['orders_status'],
+                sorts: [],
+                limit: 500,
+            },
+        });
+
+        expect(parsed?.type).toBe(AiResultType.TABLE_RESULT);
+        expect(parsed?.vizTool).not.toHaveProperty('followUpTools');
+    });
+});
+
+describe('parseVizConfig parameters', () => {
+    const runQueryConfig = {
+        title: 'Add to cart events',
+        description: 'Filtered events',
+        queryConfig: {
+            exploreName: 'events',
+            dimensions: ['events_filtered_event'],
+            metrics: ['events_count'],
+            sorts: [],
+            limit: 500,
+            customMetrics: null,
+            tableCalculations: null,
+            filters: null,
+        },
+        chartConfig: null,
+    };
+
+    it('surfaces stored parameter values from a runQuery artifact', () => {
+        const parsed = parseVizConfig({
+            ...runQueryConfig,
+            queryConfig: {
+                ...runQueryConfig.queryConfig,
+                parameters: { 'events.event_status': 'add_to_cart' },
+            },
+        });
+
+        expect(parsed?.type).toBe(AiResultType.QUERY_RESULT);
+        expect(parsed?.parameters).toEqual({
+            'events.event_status': 'add_to_cart',
+        });
+    });
+
+    it('returns null parameters for artifacts persisted without them', () => {
+        const parsed = parseVizConfig(runQueryConfig);
+
+        expect(parsed?.type).toBe(AiResultType.QUERY_RESULT);
+        expect(parsed?.parameters).toBeNull();
     });
 });

@@ -38,12 +38,11 @@ import type {
     ApiAiAgentThreadWorkstreamsResponse,
     ApiAiAgentUserMemoriesResponse,
     ApiAiAgentVerifiedArtifactsResponse,
-    ApiAiDashboardSummaryResponse,
     ApiAiGenerateChartMetadataResponse,
     ApiAiGenerateCustomDimensionResponse,
     ApiAiGenerateFormulaTableCalculationResponse,
     ApiAiGenerateTableCalculationResponse,
-    ApiAiGetDashboardSummaryResponse,
+    ApiAiOrganizationRuntimeSettingsResponse,
     ApiAiOrganizationSettingsResponse,
     ApiAiReviewNotificationSettingsResponse,
     ApiAiRouterDecisionCommitResponse,
@@ -201,6 +200,7 @@ import type {
     ApiGroupListResponse,
 } from './groups';
 import { type ApiImpersonationOrganizationSettingsResponse } from './impersonationOrganizationSettings';
+import { type ApiCompiledMergeQueryResults } from './mergeQuery';
 import { type MetricQuery, type QueryWarning } from './metricQuery';
 import type {
     ApiMetricsExplorerQueryResults,
@@ -513,6 +513,7 @@ export enum LightdashMode {
 
 export type HealthState = {
     healthy: boolean;
+    requiresMigration: boolean;
     license?: {
         hasLicenseKey: boolean;
         valid: boolean;
@@ -791,6 +792,7 @@ export type CreateProject = Omit<
     | 'colorPaletteUuid'
     | 'expiresAt'
     | 'provisioningSource'
+    | 'agentSqlScope'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
     copyWarehouseConnectionFromUpstreamProject?: boolean;
@@ -829,6 +831,7 @@ export type UpdateProject = Omit<
     | 'hasDefaultUserSpaces'
     | 'colorPaletteUuid'
     | 'expiresAt'
+    | 'agentSqlScope'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
 };
@@ -1082,6 +1085,7 @@ type ApiResults =
     | ApiQueryResults
     | ApiSqlQueryResults
     | ApiCompiledQueryResults
+    | ApiCompiledMergeQueryResults
     | ApiFormulaValidationResults
     | ApiExploresResults
     | ApiExploreResults
@@ -1192,8 +1196,6 @@ type ApiResults =
     | ApiSuccessEmpty
     | ApiCreateProjectResults
     | ApiDeployExploresResults
-    | ApiAiDashboardSummaryResponse['results']
-    | ApiAiGetDashboardSummaryResponse['results']
     | ApiAiGenerateChartMetadataResponse['results']
     | ApiAiGenerateCustomDimensionResponse['results']
     | ApiAiGenerateFormulaTableCalculationResponse['results']
@@ -1308,6 +1310,7 @@ type ApiResults =
     | ApiAgentSuggestionsResponse['results']
     | ApiAppendInstructionResponse['results']
     | ApiAiOrganizationSettingsResponse['results']
+    | ApiAiOrganizationRuntimeSettingsResponse['results']
     | ApiUpdateAiOrganizationSettingsResponse['results']
     | ApiAiReviewNotificationSettingsResponse['results']
     | ApiAiRouterResponse['results']

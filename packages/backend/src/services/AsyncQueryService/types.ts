@@ -1,11 +1,13 @@
 import {
     Account,
     DownloadFileType,
+    MergeQuery,
     MetricQuery,
     PersistentDownloadFileAccessMode,
     PivotConfig,
     PivotConfiguration,
     type AndFilterGroup,
+    type ApiExecuteAsyncMetricQueryResults,
     type CacheMetadata,
     type ConditionalFormattingConfig,
     type DashboardFilters,
@@ -85,6 +87,7 @@ export type ExecuteAsyncFieldValueSearchArgs = CommonAsyncQueryArgs & {
 
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     metricQuery: MetricQuery;
+    dataAppPreviewToken?: string;
     dateZoom?: DateZoom;
     pivotConfiguration?: PivotConfiguration;
     materializationRole?: UserAccessControls;
@@ -151,16 +154,29 @@ export type UnboundedRerunFromQueryHistoryResult =
 
 export type PreAggregationRouteMode = 'required' | 'opportunistic';
 
+// duckdb = managed materialization via the DuckDB client override;
+// project_warehouse = external pre-aggregate on the normal project client
+export type PreAggregateExecutionEngine = 'duckdb' | 'project_warehouse';
+
 export type PreAggregationRoute = {
     sourceExploreName: string;
     preAggregateName: string;
     mode: PreAggregationRouteMode;
+    // Present ⇒ external pre-aggregate served from this table on the project warehouse
+    externalTable?: string;
 };
 
 export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
     sql: string;
     limit?: number;
     pivotConfiguration?: PivotConfiguration;
+};
+
+export type ExecuteAsyncMergeQueryArgs = CommonAsyncQueryArgs & {
+    mergeQuery: MergeQuery;
+    /** Standard pivot stage over the merged rows. */
+    pivotConfiguration?: PivotConfiguration;
+    csvLimit?: number | null;
 };
 
 export type ExecuteAsyncDashboardSqlChartCommonArgs = CommonAsyncQueryArgs & {
@@ -252,4 +268,5 @@ export type RunAsyncPreAggregateQueryArgs = Omit<
 > & {
     preAggregateQuery: string;
     warehouseQuery: string;
+    preAggregateExecution: PreAggregateExecutionEngine;
 };

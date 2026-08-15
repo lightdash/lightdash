@@ -59,6 +59,7 @@ export class ContentController extends BaseController {
         @Query() sortBy?: ContentArgs['sortBy'],
         @Query() sortDirection?: ContentArgs['sortDirection'],
         @Query() includePersonalDataApps?: boolean,
+        @Query() dataAppVizsFilter?: 'exclude' | 'only',
     ): Promise<ApiContentResponse> {
         const { user } = getAccountApiAccessContext(req.account!);
         this.setStatus(200);
@@ -73,6 +74,7 @@ export class ContentController extends BaseController {
                     contentTypes,
                     search,
                     includePersonalDataApps,
+                    dataAppVizsFilter,
                 },
                 {
                     sortBy,

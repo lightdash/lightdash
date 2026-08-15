@@ -22,7 +22,7 @@ vi.mock('../../clients/DockerHub/DockerHub', () => ({
 
 const migrationModel = {
     getMigrationStatus: vi.fn(() => ({
-        isComplete: true,
+        status: 0,
         currentVersion: 'example',
     })),
 };
@@ -197,15 +197,15 @@ describe('health', () => {
             expect(migrationModel.getMigrationStatus).toHaveBeenCalledTimes(1);
         });
 
-        it('does not check migration status when skipMigrationCheck is true', async () => {
+        it('accepts skipMigrationCheck as a no-op', async () => {
             const result = await healthService.getHealthState(undefined, {
                 skipMigrationCheck: true,
             });
             expect(result).toEqual(BaseResponse);
-            expect(migrationModel.getMigrationStatus).not.toHaveBeenCalled();
+            expect(migrationModel.getMigrationStatus).toHaveBeenCalledTimes(1);
         });
 
-        it('throws when the DB is unmigrated and the check runs', async () => {
+        it('reports when the database requires migration', async () => {
             (
                 migrationModel.getMigrationStatus as import('vitest').Mock
             ).mockImplementationOnce(() => ({
@@ -214,7 +214,10 @@ describe('health', () => {
             }));
             await expect(
                 healthService.getHealthState(undefined),
-            ).rejects.toThrow('Database has not been migrated yet');
+            ).resolves.toEqual({
+                ...BaseResponse,
+                requiresMigration: true,
+            });
         });
     });
 

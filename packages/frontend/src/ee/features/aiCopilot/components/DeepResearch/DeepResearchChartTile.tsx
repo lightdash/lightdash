@@ -1,7 +1,7 @@
 import {
-    getGroupByDimensions,
-    getWebAiChartConfig,
     type AiDeepResearchChartData,
+    isApiError,
+    isWarehouseResourceLimitError,
     type ToolRunQueryArgs,
 } from '@lightdash/common';
 import { Anchor, Box, Group } from '@mantine/core';
@@ -11,18 +11,28 @@ import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader'
 import InlineErrorState from '../../../../../components/common/InlineErrorState';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
-import { getOpenInExploreUrl } from '../../../../../utils/getOpenInExploreUrl';
 import { useDeepResearchChartLiveQuery } from '../../hooks/useDeepResearch';
 import AgentVisualizationFilters from '../ChatElements/AgentVisualizationFilters';
 import { AiVisualizationRenderer } from '../ChatElements/AiVisualizationRenderer';
 import { shouldDisplayVisualizationFilters } from '../ChatElements/AiVisualizationRenderer.utils';
 import styles from './DeepResearchReport.module.css';
+import {
+    buildDeepResearchVizConfig,
+    useDeepResearchOpenInExploreUrl,
+} from './useDeepResearchExploreUrl';
 
 type Props = {
     chartKey: string;
     chart: AiDeepResearchChartData;
     projectUuid: string;
     runUuid: string;
+    withExploreLink?: boolean;
+};
+
+const getErrorMessage = (error: unknown): string => {
+    if (isApiError(error)) return error.error.message;
+    if (error instanceof Error) return error.message;
+    return '';
 };
 
 export const DeepResearchChartTile = ({
@@ -30,6 +40,7 @@ export const DeepResearchChartTile = ({
     chart,
     projectUuid,
     runUuid,
+    withExploreLink = true,
 }: Props) => {
     const liveQuery = useDeepResearchChartLiveQuery({
         projectUuid,
@@ -42,59 +53,23 @@ export const DeepResearchChartTile = ({
         chart.title,
     );
 
-    const visualizationConfig = useMemo<ToolRunQueryArgs>(() => {
-        const metricQuery = chart.metricQuery;
-        return {
-            title: chart.title,
-            description: '',
-            queryConfig: {
-                exploreName: metricQuery.exploreName,
-                dimensions: metricQuery.dimensions,
-                metrics: metricQuery.metrics,
-                sorts: metricQuery.sorts.map((sort) => ({
-                    ...sort,
-                    nullsFirst: sort.nullsFirst ?? null,
-                })),
-                limit: metricQuery.limit,
-                customMetrics: null,
-                tableCalculations: null,
-                filters: null,
-            },
-            chartConfig: chart.chartConfig,
-        };
-    }, [chart]);
+    const visualizationConfig = useMemo<ToolRunQueryArgs>(
+        () => buildDeepResearchVizConfig(chart),
+        [chart],
+    );
 
     const liveError = liveQuery.error ?? liveResults.error;
+    const isResourceLimitError = isWarehouseResourceLimitError(
+        getErrorMessage(liveError),
+    );
     const isLoadingLive = liveQuery.isFetching || liveResults.isFetchingRows;
     const appliedFilters = chart.metricQuery.filters;
     const displayFilterPills =
         shouldDisplayVisualizationFilters(appliedFilters);
-    const openInExploreUrl = useMemo(() => {
-        const webChartConfig = getWebAiChartConfig({
-            vizConfig: visualizationConfig,
-            metricQuery: chart.metricQuery,
-            fieldsMap: chart.fields,
-            overrideChartType: chart.chartConfig.defaultVizType,
-        });
-        if (!webChartConfig.echartsConfig) {
-            return null;
-        }
-
-        const { pathname, search } = getOpenInExploreUrl({
-            metricQuery: chart.metricQuery,
-            projectUuid,
-            columnOrder: [
-                ...chart.metricQuery.dimensions,
-                ...chart.metricQuery.metrics,
-                ...chart.metricQuery.tableCalculations.map(
-                    (calculation) => calculation.name,
-                ),
-            ],
-            pivotColumns: getGroupByDimensions(webChartConfig),
-            chartConfig: webChartConfig.echartsConfig,
-        });
-        return `${pathname}?${search}`;
-    }, [chart, projectUuid, visualizationConfig]);
+    const openInExploreUrl = useDeepResearchOpenInExploreUrl(
+        chart,
+        projectUuid,
+    );
 
     return (
         <Box
@@ -102,7 +77,7 @@ export const DeepResearchChartTile = ({
             className={styles.chartTile}
             aria-label={chart.title}
         >
-            {openInExploreUrl ? (
+            {withExploreLink && openInExploreUrl ? (
                 <Group
                     className={styles.chartActions}
                     justify="flex-end"
@@ -126,13 +101,21 @@ export const DeepResearchChartTile = ({
             <Box>
                 {liveError ? (
                     <InlineErrorState
-                        message="The live data for this chart could not be loaded."
-                        onRetry={() => {
-                            void liveQuery.refetch();
-                            if (liveResults.error) {
-                                void liveResults.refetchRows();
-                            }
-                        }}
+                        message={
+                            isResourceLimitError
+                                ? 'This chart exceeds the warehouse query limit. Open it in Explore to narrow the query.'
+                                : 'The live data for this chart could not be loaded.'
+                        }
+                        onRetry={
+                            isResourceLimitError
+                                ? undefined
+                                : () => {
+                                      void liveQuery.refetch();
+                                      if (liveResults.error) {
+                                          void liveResults.refetchRows();
+                                      }
+                                  }
+                        }
                     />
                 ) : isLoadingLive || !liveQuery.data ? (
                     <EmptyStateLoader title="Loading live chart data" />

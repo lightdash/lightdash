@@ -4,6 +4,7 @@ import {
     dataAppVizSchema,
     getEffectiveOptionValues,
     getVisibleDataAppClaudeModels,
+    resolveDefaultDataAppClaudeModel,
     resolveDefaultVisibleDataAppClaudeModel,
     type DataAppVizConfigOption,
     type DataAppVizOptionValue,
@@ -315,6 +316,18 @@ describe('getVisibleDataAppClaudeModels', () => {
         expect(
             getVisibleDataAppClaudeModels({ opus: true, sonnet: false }),
         ).toEqual(['opus', 'haiku']);
+    });
+});
+
+describe('resolveDefaultDataAppClaudeModel', () => {
+    it('selects from an already-resolved model list', () => {
+        expect(resolveDefaultDataAppClaudeModel(['opus', 'haiku'])).toBe(
+            'haiku',
+        );
+    });
+
+    it('returns null when the resolved model list is empty', () => {
+        expect(resolveDefaultDataAppClaudeModel([])).toBeNull();
     });
 });
 

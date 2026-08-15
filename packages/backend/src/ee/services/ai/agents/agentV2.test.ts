@@ -1,5 +1,11 @@
 import { type AnyType } from '@lightdash/common';
-import { APICallError, generateText, type ModelMessage } from 'ai';
+import {
+    APICallError,
+    generateText,
+    streamText,
+    type ModelMessage,
+    type ToolSet,
+} from 'ai';
 import {
     registerAiUsageTracker,
     type AiUsageEvent,
@@ -9,19 +15,29 @@ import type {
     AiAgentDependencies,
     AiDeepResearchExecutionRole,
 } from '../types/aiAgent';
-import { PROVIDER_BILLING_MESSAGE } from '../utils/errorMessages';
+import {
+    AiAgentEmptyResponseError,
+    AiAgentStepCapReachedError,
+    EMPTY_RESPONSE_MESSAGE,
+    PROVIDER_BILLING_MESSAGE,
+    STEP_CAP_REACHED_MESSAGE,
+} from '../utils/errorMessages';
 import {
     buildAgentMessages,
     buildDeepResearchExecutionContextSnapshot,
     buildForcedFirstStep,
+    buildPrepareStep,
     generateAgentResponse,
+    getAgentMessages,
     getAgentTools,
     getDeepResearchBudgetInstruction,
     getPromptMcpServers,
     getStepBudgetOverride,
     normalizeToolOutput,
     recordAgentStepUsage,
+    scopeAgentConversation,
     storeInvalidAgentToolCall,
+    streamAgentResponse,
     withEarlyToolProgress,
     type AgentMcpToolSetup,
 } from './agentV2';
@@ -29,12 +45,14 @@ import {
 vi.mock('ai', async (importOriginal) => ({
     ...(await importOriginal<typeof import('ai')>()),
     generateText: vi.fn(),
+    streamText: vi.fn(),
 }));
 
 const buildAgentDependencies = (updatePrompt: ReturnType<typeof vi.fn>) =>
     new Proxy(
         {
             listExplores: vi.fn().mockResolvedValue([]),
+            getProjectParameterDefinitions: vi.fn().mockResolvedValue({}),
             updatePrompt,
             perf: new Proxy({}, { get: () => vi.fn() }),
         },
@@ -135,6 +153,185 @@ describe('generateAgentResponse error persistence', () => {
             promptUuid: 'prompt-1',
             errorMessage: PROVIDER_BILLING_MESSAGE,
         });
+    });
+});
+
+describe('empty finishes and interrupts', () => {
+    const emptyGenerateResult = {
+        text: '',
+        steps: [{}],
+        usage: { totalTokens: 10 },
+        finishReason: 'tool-calls',
+    };
+
+    const buildInterruptibleDependencies = (interrupted: boolean) => {
+        const updatePrompt = vi.fn().mockResolvedValue(undefined);
+        const dependencies = buildAgentDependencies(updatePrompt);
+        const isPromptInterrupted = vi.fn().mockResolvedValue(interrupted);
+        Object.assign(dependencies, { isPromptInterrupted });
+        return { updatePrompt, dependencies };
+    };
+
+    it('generate: persists an empty response instead of an error when the prompt was interrupted', async () => {
+        const { updatePrompt, dependencies } =
+            buildInterruptibleDependencies(true);
+        vi.mocked(generateText).mockResolvedValueOnce(
+            emptyGenerateResult as AnyType,
+        );
+
+        await expect(
+            generateAgentResponse({
+                args: buildAgentArgs(),
+                dependencies,
+                mcpToolSetup: mcpToolSetup(),
+            }),
+        ).resolves.toBe('');
+
+        expect(updatePrompt).toHaveBeenCalledWith(
+            expect.objectContaining({ promptUuid: 'prompt-1', response: '' }),
+        );
+        expect(updatePrompt).not.toHaveBeenCalledWith(
+            expect.objectContaining({ errorMessage: expect.any(String) }),
+        );
+    });
+
+    it('generate: still persists the empty-response error when not interrupted', async () => {
+        const { updatePrompt, dependencies } =
+            buildInterruptibleDependencies(false);
+        vi.mocked(generateText).mockResolvedValueOnce(
+            emptyGenerateResult as AnyType,
+        );
+
+        await expect(
+            generateAgentResponse({
+                args: buildAgentArgs(),
+                dependencies,
+                mcpToolSetup: mcpToolSetup(),
+            }),
+        ).rejects.toBeInstanceOf(AiAgentEmptyResponseError);
+
+        expect(updatePrompt).toHaveBeenCalledWith({
+            promptUuid: 'prompt-1',
+            errorMessage: EMPTY_RESPONSE_MESSAGE,
+        });
+    });
+
+    const runStreamOnFinish = async (
+        interrupted: boolean,
+        execution?: Record<string, unknown>,
+    ) => {
+        const { updatePrompt, dependencies } =
+            buildInterruptibleDependencies(interrupted);
+        let capturedOptions: AnyType;
+        vi.mocked(streamText).mockImplementationOnce(((options: AnyType) => {
+            capturedOptions = options;
+            return {} as AnyType;
+        }) as AnyType);
+
+        await streamAgentResponse({
+            args: buildAgentArgs(execution) as AnyType,
+            dependencies,
+            mcpToolSetup: mcpToolSetup(),
+        });
+        await capturedOptions.onFinish({
+            usage: { totalTokens: 10 },
+            totalUsage: { totalTokens: 10 },
+            steps: [{ text: '' }],
+            reasoning: [],
+            finishReason: 'tool-calls',
+        });
+        return updatePrompt;
+    };
+
+    it('stream: persists an empty response instead of an error when the prompt was interrupted', async () => {
+        const updatePrompt = await runStreamOnFinish(true);
+
+        expect(updatePrompt).toHaveBeenCalledWith(
+            expect.objectContaining({ promptUuid: 'prompt-1', response: '' }),
+        );
+        expect(updatePrompt).not.toHaveBeenCalledWith(
+            expect.objectContaining({ errorMessage: expect.any(String) }),
+        );
+    });
+
+    it('stream: still persists the empty-response error when not interrupted', async () => {
+        const updatePrompt = await runStreamOnFinish(false);
+
+        expect(updatePrompt).toHaveBeenCalledWith(
+            expect.objectContaining({
+                promptUuid: 'prompt-1',
+                errorMessage: EMPTY_RESPONSE_MESSAGE,
+            }),
+        );
+    });
+
+    it('generate: still throws the step-cap error at the cap when not interrupted', async () => {
+        const { updatePrompt, dependencies } =
+            buildInterruptibleDependencies(false);
+        vi.mocked(generateText).mockResolvedValueOnce(
+            emptyGenerateResult as AnyType,
+        );
+
+        await expect(
+            generateAgentResponse({
+                args: buildAgentArgs({ mode: 'standard', maxSteps: 1 }),
+                dependencies,
+                mcpToolSetup: mcpToolSetup(),
+            }),
+        ).rejects.toBeInstanceOf(AiAgentStepCapReachedError);
+
+        expect(updatePrompt).toHaveBeenCalledWith({
+            promptUuid: 'prompt-1',
+            errorMessage: STEP_CAP_REACHED_MESSAGE,
+        });
+    });
+
+    it('generate: an interrupt at the step cap still persists an empty response', async () => {
+        const { updatePrompt, dependencies } =
+            buildInterruptibleDependencies(true);
+        vi.mocked(generateText).mockResolvedValueOnce(
+            emptyGenerateResult as AnyType,
+        );
+
+        await expect(
+            generateAgentResponse({
+                args: buildAgentArgs({ mode: 'standard', maxSteps: 1 }),
+                dependencies,
+                mcpToolSetup: mcpToolSetup(),
+            }),
+        ).resolves.toBe('');
+
+        expect(updatePrompt).not.toHaveBeenCalledWith(
+            expect.objectContaining({ errorMessage: expect.any(String) }),
+        );
+    });
+
+    it('stream: still persists the step-cap error at the cap when not interrupted', async () => {
+        const updatePrompt = await runStreamOnFinish(false, {
+            mode: 'standard',
+            maxSteps: 1,
+        });
+
+        expect(updatePrompt).toHaveBeenCalledWith(
+            expect.objectContaining({
+                promptUuid: 'prompt-1',
+                errorMessage: STEP_CAP_REACHED_MESSAGE,
+            }),
+        );
+    });
+
+    it('stream: an interrupt at the step cap still persists an empty response', async () => {
+        const updatePrompt = await runStreamOnFinish(true, {
+            mode: 'standard',
+            maxSteps: 1,
+        });
+
+        expect(updatePrompt).toHaveBeenCalledWith(
+            expect.objectContaining({ promptUuid: 'prompt-1', response: '' }),
+        );
+        expect(updatePrompt).not.toHaveBeenCalledWith(
+            expect.objectContaining({ errorMessage: expect.any(String) }),
+        );
     });
 });
 
@@ -486,6 +683,94 @@ describe('getStepBudgetOverride', () => {
             ),
         ).toBeUndefined();
     });
+
+    it('reserves a worker final step for findings submission', () => {
+        const execution = {
+            mode: 'deep_research',
+            runUuid: 'run-1',
+            phase: 'investigating',
+            maxSteps: 5,
+            budget: {
+                maxTokens: 10_000,
+                maxToolCalls: 20,
+                maxWarehouseQueries: 10,
+                maxResultRows: 1_000,
+                maxSteps: 5,
+                deadlineMs: 600_000,
+            },
+            canUseRawSql: true,
+            initialTokenUsage: 0,
+            research: {
+                role: 'worker',
+                task: { id: 'task-1', question: 'Why?', focus: 'Orders' },
+                onFindings: vi.fn(),
+            },
+        } as const;
+
+        expect(getStepBudgetOverride(execution, 3)).toBeUndefined();
+        expect(getStepBudgetOverride(execution, 4)).toEqual({
+            message: expect.stringContaining('Submit the best findings packet'),
+            activeTools: ['submitWorkerFindings'],
+            toolChoice: {
+                type: 'tool',
+                toolName: 'submitWorkerFindings',
+            },
+        });
+    });
+});
+
+describe('buildPrepareStep worker isolation', () => {
+    it('does not consume or inject prompt-wide steers for a worker', async () => {
+        const args = buildAgentArgs({
+            mode: 'deep_research',
+            runUuid: 'run-1',
+            phase: 'investigating',
+            maxSteps: 5,
+            budget: {
+                maxTokens: 10_000,
+                maxToolCalls: 20,
+                maxWarehouseQueries: 10,
+                maxResultRows: 1_000,
+                maxSteps: 5,
+                deadlineMs: 600_000,
+            },
+            canUseRawSql: true,
+            initialTokenUsage: 0,
+            research: {
+                role: 'worker',
+                task: { id: 'task-1', question: 'Why?', focus: 'Orders' },
+                onFindings: vi.fn(),
+            },
+        });
+        const consumePromptSteers = vi
+            .fn()
+            .mockResolvedValue([{ message: 'Coordinator-only guidance' }]);
+        const prepareStep = buildPrepareStep({
+            args,
+            dependencies: {
+                ...buildAgentDependencies(vi.fn()),
+                consumePromptSteers,
+            },
+            tools: { submitWorkerFindings: {} as never },
+            mcpToolNames: [],
+            logger: vi.fn(),
+            invalidToolCallIds: new Set(),
+        });
+
+        const result = await prepareStep({ stepNumber: 4, messages: [] });
+
+        expect(consumePromptSteers).not.toHaveBeenCalled();
+        expect(JSON.stringify(result)).not.toContain(
+            'Coordinator-only guidance',
+        );
+        expect(result).toMatchObject({
+            activeTools: ['submitWorkerFindings'],
+            toolChoice: {
+                type: 'tool',
+                toolName: 'submitWorkerFindings',
+            },
+        });
+    });
 });
 
 describe('buildDeepResearchExecutionContextSnapshot', () => {
@@ -769,7 +1054,14 @@ describe('getAgentTools workstream tool gate', () => {
         canCreateDashboards?: boolean;
     }) =>
         Object.keys(
-            getAgentTools(buildArgs(flags), depsStub(), [], mcpStub, new Map()),
+            getAgentTools(
+                buildArgs(flags),
+                depsStub(),
+                [],
+                mcpStub,
+                new Map(),
+                {},
+            ),
         );
 
     it('exposes listWorkstreams + closePullRequest when AI writeback is enabled (coding agent off)', () => {
@@ -840,6 +1132,7 @@ describe('getAgentTools workstream tool gate', () => {
                 tools: { mcp_linear__search_issues: {} as never },
             },
             new Map(),
+            {},
         );
 
         expect(Object.keys(tools)).toEqual(
@@ -928,25 +1221,56 @@ describe('getAgentTools workstream tool gate', () => {
     const getResearchTools = (
         research: AiDeepResearchExecutionRole,
         canUseRawSql = true,
-    ) =>
-        Object.keys(
+        includeSpoofedMcp = false,
+    ) => {
+        const args = buildResearchArgs(research, canUseRawSql);
+        args.agentSettings.projectUuid = 'project-1';
+        args.mcpServers = [
+            {
+                uuid: 'lightdash-mcp',
+                url: 'http://localhost/api/v1/mcp/projects/project-1',
+            },
+            ...(includeSpoofedMcp
+                ? [
+                      {
+                          uuid: 'external-mcp',
+                          url: 'https://untrusted.example/mcp',
+                      },
+                  ]
+                : []),
+        ] as AiAgentArgs['mcpServers'];
+        const researchMcpTools: ToolSet = {
+            mcp_github__create_issue: {} as never,
+            mcp_lightdash__run_metric_query: {} as never,
+            mcp_lightdash__run_sql: {} as never,
+        };
+        const researchMcpToolServers: Record<string, string> = {
+            mcp_github__create_issue: 'github-mcp',
+            mcp_lightdash__run_metric_query: 'lightdash-mcp',
+            mcp_lightdash__run_sql: 'lightdash-mcp',
+        };
+        if (includeSpoofedMcp) {
+            researchMcpTools.mcp_external__run_sql = {} as never;
+            researchMcpToolServers.mcp_external__run_sql = 'external-mcp';
+        }
+
+        return Object.keys(
             getAgentTools(
-                buildResearchArgs(research, canUseRawSql),
+                args,
                 depsStub(),
                 [],
                 {
                     ...mcpStub,
-                    tools: {
-                        mcp_github__create_issue: {} as never,
-                        mcp_lightdash__run_metric_query: {} as never,
-                        mcp_lightdash__run_sql: {} as never,
-                    },
+                    tools: researchMcpTools,
+                    mcpToolNameToServerUuid: researchMcpToolServers,
                 },
                 new Map(),
+                {},
             ),
         );
+    };
 
-    it('adds delegation while preserving inherited built-in and MCP tools for the coordinator', () => {
+    it('limits the coordinator to read-only research tools', () => {
         const names = getResearchTools({
             role: 'coordinator',
             runTask: vi.fn(),
@@ -955,13 +1279,18 @@ describe('getAgentTools workstream tool gate', () => {
         expect(names).toEqual(
             expect.arrayContaining([
                 'delegateResearchTask',
-                'editDbtProject',
+                'findContent',
                 'generateVisualization',
-                'loadMcpTools',
-                'mcp_github__create_issue',
                 'mcp_lightdash__run_sql',
             ]),
         );
+        expect(names).not.toContain('createContent');
+        expect(names).not.toContain('createScheduledDelivery');
+        expect(names).not.toContain('editDbtProject');
+        expect(names).not.toContain('editRepo');
+        expect(names).not.toContain('loadMcpTools');
+        expect(names).not.toContain('mcp_github__create_issue');
+        expect(names).not.toContain('updateUserName');
     });
 
     it('removes native and MCP raw SQL when Deep Research SQL is disabled', () => {
@@ -973,6 +1302,17 @@ describe('getAgentTools workstream tool gate', () => {
         expect(names).not.toContain('runSql');
         expect(names).not.toContain('mcp_lightdash__run_sql');
         expect(names).toContain('mcp_lightdash__run_metric_query');
+    });
+
+    it('rejects warehouse-named tools from untrusted MCP servers', () => {
+        const names = getResearchTools(
+            { role: 'coordinator', runTask: vi.fn() },
+            true,
+            true,
+        );
+
+        expect(names).toContain('mcp_lightdash__run_sql');
+        expect(names).not.toContain('mcp_external__run_sql');
     });
 
     // Workers are not given attached MCP servers at all (see
@@ -1048,5 +1388,143 @@ describe('buildAgentMessages', () => {
 
         expect(messages).toHaveLength(2);
         expect(messages[1]).toEqual({ role: 'user', content: 'Question' });
+    });
+});
+
+describe('scopeAgentConversation', () => {
+    const history: ModelMessage[] = [
+        { role: 'user', content: 'Original user question' },
+        { role: 'assistant', content: 'Coordinator investigation' },
+    ];
+
+    it('removes rebuilt thread, compaction, and memory context from workers', () => {
+        expect(
+            scopeAgentConversation({
+                execution: {
+                    mode: 'deep_research',
+                    runUuid: 'run-1',
+                    phase: 'investigating',
+                    maxSteps: 5,
+                    budget: {
+                        maxTokens: 10_000,
+                        maxToolCalls: 20,
+                        maxWarehouseQueries: 10,
+                        maxResultRows: 1_000,
+                        maxSteps: 5,
+                        deadlineMs: 600_000,
+                    },
+                    canUseRawSql: true,
+                    initialTokenUsage: 0,
+                    research: {
+                        role: 'worker',
+                        task: {
+                            id: 'task-1',
+                            question: 'Why?',
+                            focus: 'Orders',
+                        },
+                        onFindings: vi.fn(),
+                    },
+                },
+                messageHistory: history,
+                compactionSummary: 'Coordinator summary',
+                memoryBlock: 'Agent memory',
+            }),
+        ).toEqual({
+            messageHistory: [
+                {
+                    role: 'user',
+                    content:
+                        'Carry out the isolated task packet in your system instructions.',
+                },
+            ],
+            compactionSummary: null,
+            memoryBlock: null,
+        });
+    });
+
+    it('builds a worker prompt with a conversation kickoff and no coordinator text', () => {
+        const args = buildAgentArgs({
+            mode: 'deep_research',
+            runUuid: 'run-1',
+            phase: 'investigating',
+            maxSteps: 5,
+            budget: {
+                maxTokens: 10_000,
+                maxToolCalls: 20,
+                maxWarehouseQueries: 10,
+                maxResultRows: 1_000,
+                maxSteps: 5,
+                deadlineMs: 600_000,
+            },
+            canUseRawSql: true,
+            initialTokenUsage: 0,
+            research: {
+                role: 'worker',
+                task: { id: 'task-1', question: 'Why?', focus: 'Orders' },
+                onFindings: vi.fn(),
+            },
+        });
+        args.messageHistory = history;
+        args.compactionSummary = 'Coordinator summary';
+        args.toolHints = ['runSql'];
+        args.forceToolHints = true;
+        args.enableGrepFields = true;
+        const messages = getAgentMessages(
+            args,
+            [],
+            mcpToolSetup(),
+            {},
+            new Map(),
+            'Agent memory',
+        );
+
+        expect(messages[0].role).toBe('system');
+        expect(messages.slice(1)).toEqual([
+            {
+                role: 'user',
+                content:
+                    'Carry out the isolated task packet in your system instructions.',
+            },
+        ]);
+        expect(JSON.stringify(messages)).not.toContain('Coordinator');
+        expect(JSON.stringify(messages)).not.toContain(
+            'Original user question',
+        );
+        expect(JSON.stringify(messages)).not.toContain('Agent memory');
+        expect(messages[1].content).not.toContain('runSql');
+        expect(
+            buildForcedFirstStep(args, { runSql: {} as never }),
+        ).toBeUndefined();
+    });
+
+    it('preserves coordinator conversation context', () => {
+        expect(
+            scopeAgentConversation({
+                execution: {
+                    mode: 'deep_research',
+                    runUuid: 'run-1',
+                    phase: 'planning',
+                    maxSteps: 16,
+                    budget: {
+                        maxTokens: 10_000,
+                        maxToolCalls: 20,
+                        maxWarehouseQueries: 10,
+                        maxResultRows: 1_000,
+                        maxSteps: 16,
+                        deadlineMs: 600_000,
+                    },
+                    canUseRawSql: true,
+                    initialTokenUsage: 0,
+                    research: { role: 'coordinator', runTask: vi.fn() },
+                },
+                messageHistory: history,
+                compactionSummary: 'Coordinator summary',
+                memoryBlock: 'Agent memory',
+            }),
+        ).toEqual({
+            messageHistory: history,
+            compactionSummary: 'Coordinator summary',
+            memoryBlock: 'Agent memory',
+        });
     });
 });

@@ -1,0 +1,19 @@
+name: Upgrade automation tests
+
+on:
+  pull_request:
+    paths:
+      - 'examples/upgrade-automation/**'
+      - '.github/workflows/upgrade-automation-tests.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify-script:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - run: bash examples/upgrade-automation/scripts/common.test.sh
+      - run: bash examples/upgrade-automation/scripts/verify.test.sh
+      - run: bash examples/upgrade-automation/scripts/plan.test.sh

@@ -1,6 +1,7 @@
 import {
     type ApiError,
     type CreateSchedulerAndTargetsWithoutIds,
+    type DashboardFilterableField,
     type ItemsMap,
     type ParameterDefinitions,
     type ParametersValuesMap,
@@ -67,6 +68,7 @@ interface Props {
     capturedQueryCount?: number;
     currentParameterValues?: ParametersValuesMap;
     availableParameters?: ParameterDefinitions;
+    filterableFieldsByTileUuid?: Record<string, DashboardFilterableField[]>;
     /** undefined = create mode, string = edit mode */
     schedulerUuidToEdit: string | undefined;
     /** Create-mode only: pre-fills the new delivery. */
@@ -87,6 +89,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
     capturedQueryCount,
     currentParameterValues,
     availableParameters,
+    filterableFieldsByTileUuid,
     onClose,
     onBack,
 }) => {
@@ -108,6 +111,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
         isThresholdAlertWithNoFields,
         numericMetrics,
         isDashboardTabsAvailable,
+        unmetRequirements,
         requiredFiltersWithoutValues,
         hasOnlyUnmetGroupRequirements,
     } = useSchedulerFormModal({
@@ -121,6 +125,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
         itemsMap,
         currentParameterValues,
         initialFormValues,
+        filterableFieldsByTileUuid,
     });
 
     // The AI agent selector filters by the delivered content's space. For
@@ -205,6 +210,10 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
                         currentParameterValues={currentParameterValues}
                         availableParameters={availableParameters}
                         loading={isMutating || isLoading}
+                        unmetFilterRequirements={unmetRequirements}
+                        filtersWithUnmetRequirements={
+                            requiredFiltersWithoutValues
+                        }
                     />
                 );
             case 'message':

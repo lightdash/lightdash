@@ -1,27 +1,15 @@
-/* One column: the type, its settings, then the build session under them. */
+.typeCard {
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+    background: var(--mantine-color-ldGray-0);
+    border: 1px solid var(--mantine-color-ldGray-1);
+    border-radius: var(--mantine-radius-md);
+}
+
 .panel {
     display: flex;
     flex-direction: column;
     gap: var(--mantine-spacing-md);
     /* The config sidebar is padded `16px 16px 0` — no bottom, because its
-       forms normally scroll. Filling the panel means we reach that edge. */
+       forms normally scroll. */
     padding-bottom: var(--mantine-spacing-md);
 }
-
-/* A selected type has settings worth scrolling and versions worth keeping in
-   reach, so the dock holds the panel's bottom edge and the settings take the
-   rest. */
-.panelDocked {
-    height: 100%;
-    min-height: 0;
-}
-
-.panelDocked .settings {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-}
-
-/* Nothing selected is the composer and little else. Filling the panel would
-   only push it away from the picker it belongs to, so the column ends where
-   its content ends. */

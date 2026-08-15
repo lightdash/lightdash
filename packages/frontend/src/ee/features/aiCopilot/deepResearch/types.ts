@@ -1,3 +1,5 @@
+import { type AiDeepResearchTerminalReason } from '@lightdash/common';
+
 export type DeepResearchRunStatus =
     | 'queued'
     | 'running'
@@ -21,6 +23,7 @@ export type DeepResearchRunView = {
     threadUuid: string;
     question: string;
     status: DeepResearchRunStatus;
+    terminalReason: AiDeepResearchTerminalReason | null;
     phase: string | null;
     startedAt: string | null;
     completedAt: string | null;
@@ -49,12 +52,26 @@ export type DeepResearchRunView = {
     errorMessage: string | null;
 };
 
+export type DeepResearchReportView = Pick<
+    DeepResearchRunView,
+    | 'uuid'
+    | 'projectUuid'
+    | 'agentUuid'
+    | 'threadUuid'
+    | 'question'
+    | 'completedAt'
+    | 'sourceCount'
+    | 'resultMarkdown'
+    | 'isReportExpired'
+>;
+
 export type DeepResearchRunRegistration = {
     runUuid: string;
     projectUuid: string;
     agentUuid: string;
     threadUuid: string;
     promptUuid: string;
+    resumeFromRunUuid?: string;
     userUuid: string;
     question: string;
     createdAt: string;
@@ -64,4 +81,5 @@ export type DeepResearchRunRegistration = {
 
 export type StartDeepResearchArgs = {
     question: string;
+    resumeFromRunUuid?: string;
 };

@@ -1,13 +1,11 @@
 import { subject } from '@casl/ability';
 import {
     ChartKind,
-    DEFAULT_DATA_APP_CLAUDE_MODEL,
+    DATA_APP_VIZ_TEMPLATE,
     FeatureFlags,
-    getVisibleDataAppClaudeModels,
     isApiError,
     isAppVersionInProgress,
     MAX_APP_FILES_PER_VERSION,
-    resolveDefaultVisibleDataAppClaudeModel,
     type ApiAppVersionSummary,
     type AppChartReference,
     type AppClarification,
@@ -54,7 +52,6 @@ import {
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-    forwardRef,
     useCallback,
     useEffect,
     useMemo,
@@ -84,10 +81,7 @@ import {
 import { getChartIcon } from '../components/common/ResourceIcon/utils';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import { ReasoningHistoryRow } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/LiveActivityCard';
-import { useAiOrganizationSettings } from '../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
-import AppIframePreview, {
-    type AppIframePreviewHandle,
-} from '../features/apps/AppIframePreview';
+import { type AppIframePreviewHandle } from '../features/apps/AppIframePreview';
 import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import {
     AttachButton,
@@ -107,6 +101,7 @@ import ChatMessageContent from '../features/apps/ChatMessageContent';
 import AppBuilderSidebarToggle from '../features/apps/components/AppBuilderSidebarToggle';
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
+import AppPreview from '../features/apps/components/AppPreview';
 import DataAppVizResultCard from '../features/apps/components/DataAppVizResultCard';
 import DataAppVizTestPanel from '../features/apps/components/DataAppVizTestPanel';
 import LoadingDots from '../features/apps/components/LoadingDots';
@@ -114,16 +109,11 @@ import RecentAppSuggestions from '../features/apps/components/RecentAppSuggestio
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppFileUpload } from '../features/apps/hooks/useAppFileUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
-import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
-import type {
-    ExternalRequestEvent,
-    QueryEvent,
-    SdkManifest,
-} from '../features/apps/hooks/useAppSdkBridge';
 import { useAppThumbnailUpload } from '../features/apps/hooks/useAppThumbnail';
 import { useBuildNotification } from '../features/apps/hooks/useBuildNotification';
 import { useCancelAppVersion } from '../features/apps/hooks/useCancelAppVersion';
 import { useClarifyApp } from '../features/apps/hooks/useClarifyApp';
+import { useDataAppModelSelection } from '../features/apps/hooks/useDataAppModelSelection';
 import { useGenerateApp } from '../features/apps/hooks/useGenerateApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useIterateApp } from '../features/apps/hooks/useIterateApp';
@@ -134,7 +124,6 @@ import {
     useTrackedAppQueries,
 } from '../features/apps/hooks/useTrackedAppQueries';
 import { useTrackedExternalRequests } from '../features/apps/hooks/useTrackedExternalRequests';
-import { usePreviewOrigin } from '../features/apps/previewOrigin';
 import { getTemplate } from '../features/apps/templates';
 import {
     getAppFileValidationError,
@@ -198,125 +187,6 @@ const AppResourceImage: FC<{
     if (!data?.imageUrl) return null;
     return <Image src={data.imageUrl} className={className} alt="Attached" />;
 };
-
-type AppPreviewProps = {
-    projectUuid: string;
-    appUuid: string;
-    version: number;
-    /** Bumping this re-mounts the iframe URL to force a reload (and a
-     *  re-run of the app's metric queries). Same version → identical app
-     *  bundle, but the new query string defeats any caching and flushes
-     *  whatever in-iframe state was running. */
-    refreshKey: number;
-    /** When true, the iframe's metric queries are sent with `invalidateCache`
-     *  so the warehouse results cache is bypassed. Latched on by the preview
-     *  refresh button so a manual refresh always re-runs against the warehouse. */
-    invalidateCache?: boolean;
-    onQueryEvent?: (event: QueryEvent) => void;
-    onExternalRequestEvent?: (event: ExternalRequestEvent) => void;
-    inspectorEnabled?: boolean;
-    onElementSelected?: (event: { label: string }) => void;
-    onInspectorAvailabilityChange?: (available: boolean) => void;
-    onScreenshotAvailabilityChange?: (available: boolean) => void;
-    onInspectorCancelled?: () => void;
-    lineageEnabled?: boolean;
-    onLineageAvailabilityChange?: (available: boolean) => void;
-    onLineageSelected?: (event: { queryUuid: string }) => void;
-    lineageHighlightQueryUuid?: string | null;
-    onLineageCancelled?: () => void;
-    dataAppVizContext?: DataAppVizContext;
-    onSdkManifest?: (manifest: SdkManifest) => void;
-};
-
-const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
-    (
-        {
-            projectUuid,
-            appUuid,
-            version,
-            refreshKey,
-            invalidateCache,
-            onQueryEvent,
-            onExternalRequestEvent,
-            inspectorEnabled,
-            onElementSelected,
-            onInspectorAvailabilityChange,
-            onScreenshotAvailabilityChange,
-            onInspectorCancelled,
-            lineageEnabled,
-            onLineageAvailabilityChange,
-            onLineageSelected,
-            lineageHighlightQueryUuid,
-            onLineageCancelled,
-            dataAppVizContext,
-            onSdkManifest,
-        },
-        ref,
-    ) => {
-        const {
-            data: token,
-            isLoading,
-            error,
-        } = useAppPreviewToken(projectUuid, appUuid, version);
-
-        const previewOrigin = usePreviewOrigin();
-        const previewUrl = token
-            ? `${previewOrigin}/api/apps/${appUuid}/versions/${version}/t/${token}/?r=${refreshKey}#transport=postMessage&projectUuid=${projectUuid}`
-            : undefined;
-
-        if (isLoading) {
-            return (
-                <Group gap="sm" p="md" justify="center">
-                    <Loader size="sm" />
-                    <Text size="sm" c="dimmed">
-                        Loading preview...
-                    </Text>
-                </Group>
-            );
-        }
-
-        if (error) {
-            return (
-                <Text c="red" p="md" size="sm">
-                    Failed to load preview:{' '}
-                    {error instanceof Error ? error.message : 'Unknown error'}
-                </Text>
-            );
-        }
-
-        if (!previewUrl) return null;
-
-        return (
-            <AppIframePreview
-                ref={ref}
-                src={previewUrl}
-                expectedPreviewOrigin={previewOrigin}
-                projectUuid={projectUuid}
-                appUuid={appUuid}
-                identityKey={appUuid}
-                invalidateCache={invalidateCache}
-                onQueryEvent={onQueryEvent}
-                onExternalRequestEvent={onExternalRequestEvent}
-                inspectorEnabled={inspectorEnabled}
-                onElementSelected={onElementSelected}
-                onInspectorAvailabilityChange={onInspectorAvailabilityChange}
-                onScreenshotAvailabilityChange={onScreenshotAvailabilityChange}
-                onInspectorCancelled={onInspectorCancelled}
-                lineageEnabled={lineageEnabled}
-                onLineageAvailabilityChange={onLineageAvailabilityChange}
-                onLineageSelected={onLineageSelected}
-                lineageHighlightQueryUuid={lineageHighlightQueryUuid}
-                onLineageCancelled={onLineageCancelled}
-                capabilities={{ gsheetExport: true }}
-                dataAppVizContext={dataAppVizContext}
-                urlStateSync
-                onSdkManifest={onSdkManifest}
-            />
-        );
-    },
-);
-
-AppPreview.displayName = 'AppPreview';
 
 const TemplateChip: FC<{ template: DataAppTemplate }> = ({ template }) => {
     const t = getTemplate(template);
@@ -555,20 +425,6 @@ const AppGenerate: FC = () => {
     //             wizard no longer asks any questions of its own.
     const [selectedTemplate, setSelectedTemplate] =
         useState<DataAppTemplate | null>(null);
-    // Claude model used for the next submit. By default, derived from the
-    // most recent version's persisted `resources.claudeModel` so reopening
-    // an app pre-selects whatever model it was last built with. The user's
-    // explicit pick (tracked in `modelOverride` below) wins until they
-    // navigate to a different app. Per-version persistence happens
-    // server-side on `AppVersionResources.claudeModel`.
-    //
-    // Keyed by appUuid (mirrors the `pin` lifecycle) so the override
-    // self-invalidates when the user navigates — no useEffect+setState
-    // chain (lightdash frontend rule).
-    const [modelOverride, setModelOverride] = useState<{
-        appUuid: string | null; // null = override set from the new-app page
-        model: DataAppClaudeModel;
-    } | null>(null);
     const [themeChipOverride, setThemeChipOverride] = useState<{
         appUuid: string | null; // null = override set from the new-app page
         designUuid: string | null;
@@ -1059,71 +915,16 @@ const AppGenerate: FC = () => {
         if (allVersions.length === 0) return null;
         return [...allVersions].sort((a, b) => b.version - a.version)[0];
     }, [allVersions]);
-    const latestVersionModel: DataAppClaudeModel | null =
-        latestVersion?.resources?.claudeModel ?? null;
 
-    // Org-admin-controlled visibility of Data App Claude models. Until the
-    // query resolves, "loading" and "unrestricted" are indistinguishable — so
-    // the picker is disabled rather than showing every model, which would let
-    // the user pick one the server then rejects on submit.
     const {
-        data: aiOrganizationSettings,
-        isLoading: isModelVisibilityLoading,
-    } = useAiOrganizationSettings();
-    const dataAppModelVisibility =
-        aiOrganizationSettings?.dataAppModelVisibility ?? null;
-    const visibleModels = useMemo(
-        () => getVisibleDataAppClaudeModels(dataAppModelVisibility),
-        [dataAppModelVisibility],
-    );
-
-    // Effective model for the picker / next submit:
-    // user's explicit pick (if it's for this app) > latest version's model
-    // > default. Pure derivation; no useEffect+setState chain.
-    //
-    // A `null` appUuid on the override means the pick was made from the
-    // new-app page (no activeAppUuid yet). It keeps matching even after
-    // `activeAppUuid` materialises to the newly created app's UUID, so the
-    // trigger button doesn't briefly flash the default model between submit
-    // and the first version fetch. The route mount boundary
-    // (/apps/generate → /apps/:appUuid) drops local state on real
-    // navigation, which keeps this from leaking across apps.
-    //
-    // Any candidate hidden by org settings is skipped — e.g. a persisted
-    // version built with a model since disabled by an admin falls through to
-    // the next candidate rather than resurrecting a hidden model.
-    const selectedModel: DataAppClaudeModel = useMemo(() => {
-        const fallback =
-            resolveDefaultVisibleDataAppClaudeModel(dataAppModelVisibility) ??
-            DEFAULT_DATA_APP_CLAUDE_MODEL;
-        if (modelOverride) {
-            const overrideAppUuid = modelOverride.appUuid;
-            if (
-                (overrideAppUuid === null ||
-                    overrideAppUuid === activeAppUuid) &&
-                visibleModels.includes(modelOverride.model)
-            ) {
-                return modelOverride.model;
-            }
-        }
-        if (latestVersionModel && visibleModels.includes(latestVersionModel)) {
-            return latestVersionModel;
-        }
-        return fallback;
-    }, [
-        modelOverride,
-        activeAppUuid,
-        latestVersionModel,
+        selectedModel,
         visibleModels,
-        dataAppModelVisibility,
-    ]);
-
-    const handleModelChange = useCallback(
-        (model: DataAppClaudeModel) => {
-            setModelOverride({ appUuid: activeAppUuid ?? null, model });
-        },
-        [activeAppUuid],
-    );
+        isLoading: isModelVisibilityLoading,
+        setModel: handleModelChange,
+    } = useDataAppModelSelection({
+        appUuid: activeAppUuid ?? null,
+        latestVersionModel: latestVersion?.resources?.claudeModel ?? null,
+    });
 
     // Theme (org design) picker state. New apps pre-populate with the org's
     // default theme so the visible selection matches what the backend would
@@ -1494,6 +1295,21 @@ const AppGenerate: FC = () => {
                     description="This data app doesn't exist or has been deleted."
                 />
             </Box>
+        );
+    }
+
+    // Chart types have their own builder; use the canonical uuid so slug
+    // deep links land on the uuid route.
+    if (
+        urlAppUuid &&
+        appPersistedTemplate === DATA_APP_VIZ_TEMPLATE &&
+        activeAppUuid
+    ) {
+        return (
+            <Navigate
+                to={`/projects/${projectUuid}/chart-types/${activeAppUuid}`}
+                replace
+            />
         );
     }
 

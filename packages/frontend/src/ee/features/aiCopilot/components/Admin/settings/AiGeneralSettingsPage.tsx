@@ -27,7 +27,7 @@ import {
 } from '../../../hooks/useAiAgentModelSelection';
 import {
     resolveAiAgentMemoryEnabled,
-    useAiOrganizationSettings,
+    useAiOrganizationAdminSettings,
     useUpdateAiOrganizationSettings,
 } from '../../../hooks/useAiOrganizationSettings';
 import {
@@ -40,7 +40,7 @@ import { ReviewNotificationsSettings } from './ReviewNotificationsSettings';
 
 export const AiGeneralSettingsPage = () => {
     const { data: settings, isInitialLoading: isSettingsLoading } =
-        useAiOrganizationSettings();
+        useAiOrganizationAdminSettings();
     const { mutate: updateSettings, isLoading: isUpdatingSettings } =
         useUpdateAiOrganizationSettings();
 

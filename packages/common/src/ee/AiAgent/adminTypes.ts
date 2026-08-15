@@ -1,6 +1,6 @@
 import type { ApiSuccess, KnexPaginatedData } from '../..';
 import type { AiDeepResearchLimits } from '../aiDeepResearch/types';
-import type { DataAppModelVisibility } from '../apps/types';
+import type { DataAppClaudeModel, DataAppModelVisibility } from '../apps/types';
 import type {
     AiAgentEvaluationRunSummary,
     AiAgentMemoryScope,
@@ -365,6 +365,21 @@ export type UpdateAiOrganizationSettings = {
 export type ApiAiOrganizationSettingsResponse = ApiSuccess<
     AiOrganizationSettings & ComputedAiOrganizationSettings
 >;
+
+export type AiOrganizationRuntimeSettings = {
+    isCopilotEnabled: boolean;
+    isTrial: boolean;
+    aiAgentsVisible: boolean;
+    aiAgentMemoryEnabled: boolean;
+    aiAgentReviewsEnabled: boolean;
+    aiAgentReviewsAvailable: boolean;
+    defaultAiAgentModelConfig: AiAgentModelConfig | null;
+    defaultAiAgentModelOptions: AiModelOption[];
+    visibleDataAppModels: DataAppClaudeModel[];
+};
+
+export type ApiAiOrganizationRuntimeSettingsResponse =
+    ApiSuccess<AiOrganizationRuntimeSettings>;
 
 export type ApiUpdateAiOrganizationSettingsResponse =
     ApiSuccess<AiOrganizationSettings>;

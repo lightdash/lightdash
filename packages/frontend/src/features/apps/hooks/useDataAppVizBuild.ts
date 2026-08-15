@@ -2,6 +2,7 @@ import {
     DATA_APP_VIZ_TEMPLATE,
     getErrorMessage,
     type ApiAppVersionSummary,
+    type DataAppClaudeModel,
     type DataAppVizFieldMapping,
     type ItemsMap,
 } from '@lightdash/common';
@@ -31,6 +32,7 @@ type Args = {
 export type VizBuildRequest = {
     description: string;
     fileIds: string[];
+    claudeModel: DataAppClaudeModel;
 };
 
 /** The app claimed by a build before it has a renderable version. */
@@ -60,6 +62,10 @@ export type DataAppVizBuildState = {
      */
     claimedVersion: number | null;
     isBuilding: boolean;
+    /** The active build has been asked to stop and cancellation is pending. */
+    isCancelling: boolean;
+    /** Why the last cancellation attempt failed. */
+    cancelError: string | null;
     /** The request in flight, so the log can show it immediately. */
     pendingPrompt: string | null;
     /** Why the last attempt failed, for the log's error row. */
@@ -67,6 +73,8 @@ export type DataAppVizBuildState = {
     send: (request: VizBuildRequest) => void;
     /** Re-send the request that failed; null when there is nothing to retry. */
     retry: (() => void) | null;
+    /** Cancels the active version but preserves its app for a follow-up. */
+    interrupt: (() => void) | null;
     /** Cancels a revision without deleting its app. */
     cancel: (() => void) | null;
     /** Cancels the build and deletes its draft app. */
@@ -74,14 +82,14 @@ export type DataAppVizBuildState = {
 };
 
 /**
- * Build the chart's visualization from its own query: generate one when none
- * is selected, ask the selected one to change when there is.
+ * Build a chart type visualization: generate one when none is selected, ask
+ * the selected one to change when there is.
  *
- * The chart needs no rewiring when the build lands: the poller writes into the
- * same query key the renderer reads, so it picks up the new version by itself,
- * and the bindings are reconciled against the contract at render.
+ * Charts need no rewiring when the build lands: the poller writes into the
+ * same query key the renderer reads, so they pick up the new version by
+ * themselves, and the bindings are reconciled against the contract at render.
  *
- * Nothing is sent for the space: an Explorer-authored viz is personal, exactly
+ * Nothing is sent for the space: a builder-authored viz is personal, exactly
  * as one created in the generator is, and is filed into a space afterwards.
  */
 export const useDataAppVizBuild = ({
@@ -98,9 +106,11 @@ export const useDataAppVizBuild = ({
         message: string;
         request: VizBuildRequest | null;
     } | null>(null);
+    const [cancelError, setCancelError] = useState<string | null>(null);
     const { mutate: generateApp } = useGenerateApp();
     const { mutate: iterateApp } = useIterateApp();
-    const { mutate: cancelVersion } = useCancelAppVersion();
+    const { mutate: cancelVersion, isLoading: isCancelling } =
+        useCancelAppVersion();
     const { mutate: deleteApp } = useDeleteApp();
 
     const handleDone = useCallback(
@@ -145,6 +155,7 @@ export const useDataAppVizBuild = ({
         (request: VizBuildRequest) => {
             if (!projectUuid || building !== null) return;
             setFailed(null);
+            setCancelError(null);
             setInFlight(request);
             const prompt = request.description;
             const files =
@@ -160,9 +171,10 @@ export const useDataAppVizBuild = ({
                         projectUuid,
                         prompt,
                         template: DATA_APP_VIZ_TEMPLATE,
-                        creationExperience: 'explorer_chart_config',
+                        creationExperience: 'chart_type_builder',
                         appUuid: draftAppUuid,
                         fileIds: files,
+                        claudeModel: request.claudeModel,
                     },
                     {
                         onSuccess: ({ appUuid, version }) => {
@@ -184,8 +196,9 @@ export const useDataAppVizBuild = ({
                     projectUuid,
                     appUuid: dataAppVizUuid,
                     prompt,
-                    creationExperience: 'explorer_chart_config',
+                    creationExperience: 'chart_type_builder',
                     fileIds: files,
+                    claudeModel: request.claudeModel,
                 },
                 {
                     onSuccess: ({ version }) =>
@@ -211,6 +224,28 @@ export const useDataAppVizBuild = ({
 
     const failedRequest = failed?.request ?? null;
     const draft = building?.isNew ? building : null;
+    const cancelPreservingApp =
+        projectUuid && building
+            ? () => {
+                  setCancelError(null);
+                  cancelVersion(
+                      {
+                          projectUuid,
+                          appUuid: building.appUuid,
+                          version: building.version,
+                      },
+                      {
+                          onSuccess: () => {
+                              setBuilding(null);
+                              setInFlight(null);
+                              setFailed(null);
+                          },
+                          onError: (error) =>
+                              setCancelError(getErrorMessage(error)),
+                      },
+                  );
+              }
+            : null;
 
     return {
         draftAppUuid,
@@ -222,32 +257,18 @@ export const useDataAppVizBuild = ({
         // lands or the send fails — the mutation's own loading flag covers
         // only the submit itself.
         isBuilding: inFlight !== null,
+        isCancelling,
+        cancelError,
         pendingPrompt: inFlight?.description ?? null,
         error: failed?.message ?? null,
         send,
         retry: failedRequest ? () => send(failedRequest) : null,
-        cancel:
-            projectUuid && building && !building.isNew
-                ? () => {
-                      cancelVersion(
-                          {
-                              projectUuid,
-                              appUuid: building.appUuid,
-                              version: building.version,
-                          },
-                          {
-                              onSuccess: () => {
-                                  setBuilding(null);
-                                  setInFlight(null);
-                                  setFailed(null);
-                              },
-                          },
-                      );
-                  }
-                : null,
+        interrupt: cancelPreservingApp,
+        cancel: building && !building.isNew ? cancelPreservingApp : null,
         discard:
             projectUuid && draft
                 ? () => {
+                      setCancelError(null);
                       // Cancel before delete to avoid orphaned sandbox work.
                       cancelVersion(
                           {

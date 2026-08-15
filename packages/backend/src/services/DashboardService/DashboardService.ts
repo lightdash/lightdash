@@ -2301,6 +2301,7 @@ export class DashboardService
                         : 0,
                 timeZone: scheduler.timezone,
                 includeLinks: scheduler.includeLinks,
+                plainTextEmail: scheduler.plainTextEmail,
             },
         };
         this.analytics.track(createSchedulerData);

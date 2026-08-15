@@ -10,7 +10,6 @@ import {
     useComputedColorScheme,
 } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
-import { Editor } from '@monaco-editor/react';
 import {
     IconClock,
     IconCornerDownLeft,
@@ -19,6 +18,7 @@ import {
 import dayjs from 'dayjs';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { Editor } from '../../../components/MonacoEditor';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSql } from '../store/sqlRunnerSlice';

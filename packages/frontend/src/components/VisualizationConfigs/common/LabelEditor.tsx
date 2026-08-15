@@ -1,12 +1,5 @@
 import { Input, Paper, Text, useMantineColorScheme } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import {
-    Editor,
-    type BeforeMount,
-    type EditorProps,
-    type Monaco,
-    type OnMount,
-} from '@monaco-editor/react';
 import { type IDisposable, type languages } from 'monaco-editor';
 import {
     useCallback,
@@ -19,6 +12,13 @@ import {
 } from 'react';
 import { useDeepCompareEffect } from 'react-use';
 import { getLightdashMonacoTheme } from '../../../features/sqlRunner/utils/monaco';
+import {
+    Editor,
+    type BeforeMount,
+    type EditorProps,
+    type Monaco,
+    type OnMount,
+} from '../../MonacoEditor';
 import '../../../styles/monaco.css';
 import styles from './LabelEditor.module.css';
 

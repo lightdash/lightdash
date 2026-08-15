@@ -1,5 +1,7 @@
 import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ReactElement } from 'react';
+import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { deepResearchRunFixture } from '../../deepResearch/fixtures';
@@ -15,6 +17,9 @@ vi.mock('../../hooks/useDeepResearch', () => ({
     }),
     useTrackDeepResearchReportEngagement: () => trackReportEngagement,
 }));
+
+const renderRunCard = (card: ReactElement) =>
+    renderWithProviders(<MemoryRouter>{card}</MemoryRouter>);
 
 describe('DeepResearchRunCard', () => {
     beforeEach(() => {
@@ -32,7 +37,7 @@ describe('DeepResearchRunCard', () => {
     ] as const)(
         'renders the %s active state with one beta label and without fake progress',
         (status, label) => {
-            renderWithProviders(
+            renderRunCard(
                 <DeepResearchRunCard
                     run={{
                         ...deepResearchRunFixture,
@@ -57,7 +62,7 @@ describe('DeepResearchRunCard', () => {
 
     it('updates elapsed time once per second without milliseconds', async () => {
         vi.useFakeTimers();
-        renderWithProviders(
+        renderRunCard(
             <DeepResearchRunCard
                 run={{
                     ...deepResearchRunFixture,
@@ -80,7 +85,7 @@ describe('DeepResearchRunCard', () => {
 
     it('cancels an active run and exposes safe activity', async () => {
         const user = userEvent.setup();
-        renderWithProviders(
+        renderRunCard(
             <DeepResearchRunCard
                 run={{
                     ...deepResearchRunFixture,
@@ -111,7 +116,7 @@ describe('DeepResearchRunCard', () => {
     ] as const)(
         'renders the %s terminal state without a stop action',
         (status, label) => {
-            renderWithProviders(
+            renderRunCard(
                 <DeepResearchRunCard
                     run={{
                         ...deepResearchRunFixture,
@@ -151,8 +156,39 @@ describe('DeepResearchRunCard', () => {
         },
     );
 
+    it('shows how to refine a question when no relevant data was found', () => {
+        renderRunCard(
+            <DeepResearchRunCard
+                run={{
+                    ...deepResearchRunFixture,
+                    status: 'failed',
+                    terminalReason: 'no_relevant_data',
+                    resultMarkdown: null,
+                    errorMessage:
+                        'Deep Research could not find relevant data for this question.',
+                }}
+                projectUuid="project-1"
+            />,
+        );
+
+        expect(screen.getByText('No relevant data')).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Deep Research could not find relevant data for this question.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Try refining your question or choosing data that covers the topic.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByText(/completed queries and findings are saved/i),
+        ).not.toBeInTheDocument();
+    });
+
     it('preserves partial findings and offers the report', () => {
-        renderWithProviders(
+        renderRunCard(
             <DeepResearchRunCard
                 run={{
                     ...deepResearchRunFixture,
@@ -170,14 +206,14 @@ describe('DeepResearchRunCard', () => {
         ).toBeInTheDocument();
         expect(screen.getByText('Research summary')).toBeInTheDocument();
         expect(
-            screen.getByRole('button', { name: 'View full report' }),
+            screen.getByRole('link', { name: 'View full report' }),
         ).toBeInTheDocument();
     });
 
     it('replaces expired report content with a stable rerun action', async () => {
         const user = userEvent.setup();
         const onRunAgain = vi.fn();
-        renderWithProviders(
+        renderRunCard(
             <DeepResearchRunCard
                 run={{
                     ...deepResearchRunFixture,
@@ -213,7 +249,7 @@ describe('DeepResearchRunCard', () => {
 
     it('tracks explicitly opening the full report', async () => {
         const user = userEvent.setup();
-        renderWithProviders(
+        renderRunCard(
             <DeepResearchRunCard
                 run={deepResearchRunFixture}
                 projectUuid="project-1"
@@ -221,9 +257,15 @@ describe('DeepResearchRunCard', () => {
         );
 
         await user.click(
-            screen.getByRole('button', { name: 'View full report' }),
+            screen.getByRole('link', { name: 'View full report' }),
         );
 
+        expect(
+            screen.getByRole('link', { name: 'View full report' }),
+        ).toHaveAttribute(
+            'href',
+            `/projects/${deepResearchRunFixture.projectUuid}/ai-agents/deep-research/${deepResearchRunFixture.uuid}`,
+        );
         expect(trackReportEngagement).toHaveBeenCalledWith('opened', {
             aiDeepResearchRunUuid: deepResearchRunFixture.uuid,
             projectUuid: deepResearchRunFixture.projectUuid,
@@ -236,7 +278,7 @@ describe('DeepResearchRunCard', () => {
     });
 
     it('renders the research summary as Markdown', () => {
-        renderWithProviders(
+        renderRunCard(
             <DeepResearchRunCard
                 run={{
                     ...deepResearchRunFixture,
@@ -282,11 +324,28 @@ The full report continues here.`,
         ).not.toBeInTheDocument();
     });
 
+    it('does not render remote images in the research summary preview', () => {
+        renderRunCard(
+            <DeepResearchRunCard
+                run={{
+                    ...deepResearchRunFixture,
+                    status: 'completed',
+                    resultMarkdown:
+                        '# Summary\n\n![secret](https://attacker.example/collect)',
+                }}
+                projectUuid="project-1"
+            />,
+        );
+
+        expect(screen.queryByRole('img')).not.toBeInTheDocument();
+        expect(document.body.innerHTML).not.toContain('attacker.example');
+    });
+
     it('offers reconnection and continue-without-source recovery', async () => {
         const user = userEvent.setup();
         const onReconnect = vi.fn();
         const onContinue = vi.fn();
-        renderWithProviders(
+        renderRunCard(
             <DeepResearchRunCard
                 run={{
                     ...deepResearchRunFixture,
@@ -318,7 +377,7 @@ The full report continues here.`,
     it('offers a permission action without discarding findings', async () => {
         const user = userEvent.setup();
         const onReviewPermissions = vi.fn();
-        renderWithProviders(
+        renderRunCard(
             <DeepResearchRunCard
                 run={{
                     ...deepResearchRunFixture,
@@ -341,10 +400,10 @@ The full report continues here.`,
         expect(onReviewPermissions).toHaveBeenCalledOnce();
     });
 
-    it('offers to run failed research again when the thread is idle', async () => {
+    it('explains that starting over does not reuse previous queries', async () => {
         const user = userEvent.setup();
         const onRunAgain = vi.fn();
-        renderWithProviders(
+        renderRunCard(
             <DeepResearchRunCard
                 run={{
                     ...deepResearchRunFixture,
@@ -357,9 +416,13 @@ The full report continues here.`,
             />,
         );
 
-        await user.click(
-            screen.getByRole('button', { name: 'Run research again' }),
-        );
+        expect(
+            screen.getByText(
+                "Starting over creates a new research run. Previous queries won't be reused.",
+            ),
+        ).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Start over' }));
         expect(onRunAgain).toHaveBeenCalledOnce();
     });
 });

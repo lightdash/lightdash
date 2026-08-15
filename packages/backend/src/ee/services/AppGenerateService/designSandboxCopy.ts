@@ -5,15 +5,21 @@ import {
 } from '@lightdash/common';
 import type { Logger } from 'winston';
 import type { OrganizationDesignModel } from '../../../models/OrganizationDesignModel';
-import { designS3Key } from '../../../services/OrganizationDesignService/OrganizationDesignService';
+import {
+    designS3Key,
+    getEffectiveOrganizationDesignFiles,
+} from '../../../services/OrganizationDesignService/OrganizationDesignService';
+import {
+    inspectThemeFileForBundling,
+    type RestrictedAppleFontMatch,
+} from '../../../services/OrganizationDesignService/restrictedAppleFonts';
 import { type SandboxHandle } from '../SandboxRuntime';
 import { readS3ObjectAsBuffer } from './s3Utils';
 
 /**
  * Sandbox layout the agent sees when a theme is applied. Subdirectories are
- * always present (even if empty) so the agent can write `@font-face` blocks
- * pointing at `/app/src/design/fonts/` without checking that the directory
- * exists.
+ * always present (even if empty) so the agent can use any accepted web fonts
+ * without checking that the directory exists.
  */
 const DESIGN_DIR = '/app/src/design';
 const KIND_DIRS: Record<OrganizationDesignFileKind, string | null> = {
@@ -29,6 +35,7 @@ export type DesignSandboxCopyResult = {
     cssEntrypoints: string[];
     imagePaths: string[];
     fontPaths: string[];
+    omittedRestrictedFonts: RestrictedAppleFontMatch[];
     instructionMarkdown: string;
     designSnapshot: AppVersionDesignSnapshot | null;
 };
@@ -38,6 +45,7 @@ const EMPTY_RESULT: DesignSandboxCopyResult = {
     cssEntrypoints: [],
     imagePaths: [],
     fontPaths: [],
+    omittedRestrictedFonts: [],
     instructionMarkdown: '',
     designSnapshot: null,
 };
@@ -103,11 +111,13 @@ export async function copyDesignIntoSandbox(args: {
     const cssEntrypoints: string[] = [];
     const imagePaths: string[] = [];
     const fontPaths: string[] = [];
+    const omittedRestrictedFonts: RestrictedAppleFontMatch[] = [];
     const instructionParts: string[] = [];
     let filesCopied = 0;
+    const effectiveFiles = getEffectiveOrganizationDesignFiles(design.files);
 
     /* eslint-disable no-await-in-loop */
-    for (const file of design.files) {
+    for (const file of effectiveFiles.values()) {
         const key = designS3Key(
             organizationUuid,
             design.designUuid,
@@ -116,30 +126,43 @@ export async function copyDesignIntoSandbox(args: {
         );
         const buffer = await readS3ObjectAsBuffer(s3Client, bucket, key);
 
-        if (file.kind === 'instruction') {
-            // Instruction markdown stays out of the source tree — it's
-            // concatenated into /app/effective-skill.md so the agent reads
-            // it once at boot, not as part of the file scan.
-            instructionParts.push(buffer.toString('utf8'));
-            filesCopied += 1;
-        } else {
-            const dir = KIND_DIRS[file.kind];
-            if (!dir) {
-                // Shouldn't happen — kind validation upstream guarantees one
-                // of the four kinds. Be defensive in case of future schema
-                // additions.
-                logger.warn(
-                    `Theme ${design.designUuid}: skipping unknown kind=${file.kind} filename=${file.filename}`,
-                );
-            } else {
-                const sandboxPath = `${dir}/${file.filename}`;
-                await sandbox.files.write(sandboxPath, buffer);
+        const decision = await inspectThemeFileForBundling({
+            file,
+            body: buffer,
+            designUuid: design.designUuid,
+            logger,
+        });
+        if (decision.status === 'omit') {
+            omittedRestrictedFonts.push(decision.match);
+        }
 
-                if (file.kind === 'css') cssEntrypoints.push(sandboxPath);
-                else if (file.kind === 'image') imagePaths.push(sandboxPath);
-                else if (file.kind === 'font') fontPaths.push(sandboxPath);
-
+        if (decision.status === 'include') {
+            if (file.kind === 'instruction') {
+                // Instruction markdown stays out of the source tree — it's
+                // concatenated into /app/effective-skill.md so the agent reads
+                // it once at boot, not as part of the file scan.
+                instructionParts.push(buffer.toString('utf8'));
                 filesCopied += 1;
+            } else {
+                const dir = KIND_DIRS[file.kind];
+                if (!dir) {
+                    // Shouldn't happen — kind validation upstream guarantees
+                    // one of the four kinds. Be defensive in case of future
+                    // schema additions.
+                    logger.warn(
+                        `Theme ${design.designUuid}: skipping unknown kind=${file.kind} filename=${file.filename}`,
+                    );
+                } else {
+                    const sandboxPath = `${dir}/${file.filename}`;
+                    await sandbox.files.write(sandboxPath, buffer);
+
+                    if (file.kind === 'css') cssEntrypoints.push(sandboxPath);
+                    else if (file.kind === 'image')
+                        imagePaths.push(sandboxPath);
+                    else if (file.kind === 'font') fontPaths.push(sandboxPath);
+
+                    filesCopied += 1;
+                }
             }
         }
     }
@@ -155,7 +178,7 @@ export async function copyDesignIntoSandbox(args: {
     const instructionMarkdown = instructionParts.join('\n\n---\n\n');
 
     logger.info(
-        `Theme ${design.designUuid}: copied ${filesCopied} file(s) into sandbox (css=${cssEntrypoints.length}, fonts=${fontPaths.length}, images=${imagePaths.length}, instruction-bytes=${instructionMarkdown.length})`,
+        `Theme ${design.designUuid}: copied ${filesCopied} file(s) into sandbox (css=${cssEntrypoints.length}, fonts=${fontPaths.length}, omitted-restricted-fonts=${omittedRestrictedFonts.length}, images=${imagePaths.length}, instruction-bytes=${instructionMarkdown.length})`,
     );
 
     return {
@@ -163,6 +186,7 @@ export async function copyDesignIntoSandbox(args: {
         cssEntrypoints,
         imagePaths,
         fontPaths,
+        omittedRestrictedFonts,
         instructionMarkdown,
         designSnapshot: {
             designUuid: design.designUuid,

@@ -142,6 +142,7 @@ export * from './types/job';
 export * from './types/knex-paginate';
 export * from './types/lightdashModel';
 export * from './types/lightdashProjectConfig';
+export * from './types/mergeQuery';
 export * from './types/metricQuery';
 export * from './types/metricsExplorer';
 export * from './types/notifications';
@@ -208,6 +209,7 @@ export {
     WarehouseTypes,
 } from './types/projects';
 export type {
+    AgentSqlScope,
     ApiEnsurePlaygroundProjectResponse,
     ApiGetProjectGroupAccesses,
     ApiProjectResponse,
@@ -290,6 +292,7 @@ export type {
     TrinoCredentials,
     UpdateProjectDbtSource,
     UpdateProjectDetails,
+    UpdateAgentSqlScope,
     UpdateQueryTimezoneSettings,
     UpdateSchedulerSettings,
     WarehouseCredentials,
@@ -348,6 +351,7 @@ export * from './utils/dependencyGraph';
 export * from './utils/email';
 export * from './utils/exportTabs';
 export * from './utils/fields';
+export * from './utils/filterLabels';
 export * from './utils/filters';
 export * from './utils/formatting';
 export * from './utils/github';
@@ -356,6 +360,7 @@ export * from './utils/i18n/dashboardAsCode';
 export * from './utils/i18n/merge';
 export * from './utils/i18n/types';
 export * from './utils/item';
+export * from './utils/mergeQueryItems';
 export * from './utils/loadLightdashProjectConfig';
 export * from './utils/lightdashSqlVariables';
 export * from './utils/metricsExplorer';
@@ -380,6 +385,7 @@ export * from './utils/timeFrames';
 export * from './utils/resolveQueryTimezone';
 export * from './utils/virtualView';
 export * from './utils/warehouse';
+export * from './utils/warehouseResourceLimits';
 export * from './visualizations/BigNumberDataModel';
 export * from './visualizations/CartesianChartDataModel';
 export * from './visualizations/helpers/getCartesianAxisFormatterConfig';
@@ -409,6 +415,13 @@ export const validateEmail = (email: string): boolean => {
         /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
     return re.test(String(email).toLowerCase());
 };
+
+export const validateUserName = (name: string): boolean => !/[<>]/u.test(name);
+
+export const getUserNameSchema = () =>
+    z.string().trim().min(1, { message: 'Required' }).refine(validateUserName, {
+        message: 'Name cannot contain < or >',
+    });
 
 export const getEmailSchema = () =>
     z

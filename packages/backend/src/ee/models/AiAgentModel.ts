@@ -1,5 +1,6 @@
 import {
     AgentToolOutput,
+    AI_WRITEBACK_PENDING_GRACE_MS,
     AiAgentAdminConversationsSummary,
     AiAgentAdminEvalFilters,
     AiAgentAdminEvalPrompt,
@@ -65,7 +66,9 @@ import {
     generateSlug,
     isAiAgentMcpToolName,
     isAiAgentToolName,
+    isAiWritebackRunInProgress,
     isThreadPrompt,
+    isToolEditDbtProjectResult,
     KnexPaginateArgs,
     KnexPaginatedData,
     NotFoundError,
@@ -87,6 +90,7 @@ import {
     type AiAgentIntegration,
     type AiChartRuntimeOverrides,
     type AiDashboardRuntimeOverrides,
+    type ToolEditDbtProjectOutput,
     type VerifiedContentListItem,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -128,6 +132,7 @@ import {
     AiThreadTableName,
     AiWebAppPromptTableName,
     AiWebAppThreadTableName,
+    AiWritebackRunTableName,
     DbAiAgentToolCall,
     DbAiAgentToolResult,
     DbAiPrompt,
@@ -141,6 +146,7 @@ import {
     DbAiThreadCompaction,
     DbAiThreadShare,
     DbAiWebAppPrompt,
+    DbAiWritebackRun,
     type AiSqlApprovalDecision,
 } from '../database/entities/ai';
 import {
@@ -193,6 +199,7 @@ import {
 } from '../database/entities/aiEvals';
 import { type SqlApprovalDecision } from '../services/ai/tools/sqlApprovals';
 import { AiAgentReviewClassifierModel } from './AiAgentReviewClassifierModel';
+import { claimAiPromptExecutionMode } from './claimAiPromptExecutionMode';
 
 export type AiPromptResponseState = {
     respondedAt: string | null;
@@ -368,6 +375,70 @@ const toAiPromptSteer = (row: AiPromptSteerRow): AiPromptSteer => ({
     consumedAt: row.consumed_at?.toISOString() ?? null,
     consumedStep: row.consumed_step,
 });
+
+const getWritebackResultKey = (promptUuid: string, toolCallId: string) =>
+    JSON.stringify([promptUuid, toolCallId]);
+
+type EditDbtProjectToolResult = AiAgentToolResult & {
+    toolType: 'built-in';
+    toolName: 'editDbtProject';
+    metadata: ToolEditDbtProjectOutput['metadata'];
+};
+
+type PendingEditDbtProjectToolResult = EditDbtProjectToolResult & {
+    metadata: Extract<
+        ToolEditDbtProjectOutput['metadata'],
+        { status: 'pending' }
+    >;
+};
+
+type TerminalEditDbtProjectResult = {
+    result: string;
+    metadata: Exclude<
+        ToolEditDbtProjectOutput['metadata'],
+        { status: 'pending' }
+    >;
+};
+
+const isEditDbtProjectToolResult = (
+    result: AiAgentToolResult,
+): result is EditDbtProjectToolResult => isToolEditDbtProjectResult(result);
+
+const isPendingEditDbtProjectToolResult = (
+    result: AiAgentToolResult,
+): result is PendingEditDbtProjectToolResult =>
+    isEditDbtProjectToolResult(result) && result.metadata.status === 'pending';
+
+const getTerminalWritebackFallback = (
+    run: DbAiWritebackRun,
+): TerminalEditDbtProjectResult | null => {
+    switch (run.status) {
+        case 'ready':
+            return {
+                result: run.pr_url
+                    ? 'The writeback finished and opened a pull request.'
+                    : 'The writeback finished without opening a pull request.',
+                metadata: {
+                    status: 'success',
+                    prUrl: run.pr_url,
+                },
+            };
+        case 'cancelled':
+            return {
+                result: 'The writeback was cancelled.',
+                metadata: { status: 'error', errorCode: 'unknown' },
+            };
+        case 'error':
+            return {
+                result:
+                    run.error_message ??
+                    'The writeback stopped unexpectedly before it finished.',
+                metadata: { status: 'error', errorCode: 'unknown' },
+            };
+        default:
+            return null;
+    }
+};
 
 export class AiAgentModel {
     // Cap stored raw args of invalid tool calls (they can be arbitrarily large)
@@ -4960,6 +5031,17 @@ export class AiAgentModel {
         return rows.length > 0;
     }
 
+    async claimPromptExecutionMode(
+        promptUuid: string,
+        executionMode: 'standard' | 'deep_research',
+    ): Promise<boolean> {
+        return claimAiPromptExecutionMode(
+            this.database,
+            promptUuid,
+            executionMode,
+        );
+    }
+
     async failPendingPrompts(
         promptUuids: string[],
         errorMessage: string,
@@ -5016,6 +5098,14 @@ export class AiAgentModel {
             .first();
 
         return row !== undefined;
+    }
+
+    // An interrupt targets one in-flight generation; a retry must start
+    // clean or the stale row would stop it after its first step, forever.
+    async deleteAiPromptInterrupt(promptUuid: string): Promise<void> {
+        await this.database(AiPromptInterruptTableName)
+            .where('ai_prompt_uuid', promptUuid)
+            .delete();
     }
 
     async createAiPromptSteer(data: {
@@ -6588,6 +6678,159 @@ export class AiAgentModel {
         }
     }
 
+    private async resolvePendingWritebackToolResults(
+        promptUuid: string,
+        results: AiAgentToolResult[],
+    ): Promise<AiAgentToolResult[]> {
+        const pendingResults = results.filter(
+            isPendingEditDbtProjectToolResult,
+        );
+        if (pendingResults.length === 0) {
+            return results;
+        }
+
+        const threadScope = await this.database(AiPromptTableName)
+            .innerJoin(
+                AiThreadTableName,
+                `${AiPromptTableName}.ai_thread_uuid`,
+                `${AiThreadTableName}.ai_thread_uuid`,
+            )
+            .select<Pick<DbAiThread, 'organization_uuid' | 'project_uuid'>>(
+                `${AiThreadTableName}.organization_uuid`,
+                `${AiThreadTableName}.project_uuid`,
+            )
+            .where(`${AiPromptTableName}.ai_prompt_uuid`, promptUuid)
+            .first();
+        if (!threadScope) {
+            return results;
+        }
+
+        const runRows = await this.database(AiWritebackRunTableName)
+            .select<DbAiWritebackRun[]>('*')
+            .where('organization_uuid', threadScope.organization_uuid)
+            .where('project_uuid', threadScope.project_uuid)
+            .whereIn(
+                'ai_writeback_run_uuid',
+                pendingResults.map(
+                    (result) => result.metadata.aiWritebackRunUuid,
+                ),
+            );
+        const terminalRuns = runRows.filter(
+            (run) => !isAiWritebackRunInProgress(run.status),
+        );
+        if (terminalRuns.length === 0) {
+            return results;
+        }
+
+        const linkedRuns = terminalRuns.filter(
+            (
+                run,
+            ): run is DbAiWritebackRun & {
+                prompt_uuid: string;
+                tool_call_id: string;
+            } => run.prompt_uuid !== null && run.tool_call_id !== null,
+        );
+        const canonicalRows =
+            linkedRuns.length === 0
+                ? []
+                : await this.database(AiAgentToolResultTableName)
+                      .innerJoin(
+                          AiPromptTableName,
+                          `${AiAgentToolResultTableName}.ai_prompt_uuid`,
+                          `${AiPromptTableName}.ai_prompt_uuid`,
+                      )
+                      .innerJoin(
+                          AiThreadTableName,
+                          `${AiPromptTableName}.ai_thread_uuid`,
+                          `${AiThreadTableName}.ai_thread_uuid`,
+                      )
+                      .select<DbAiAgentToolResult[]>(
+                          `${AiAgentToolResultTableName}.ai_agent_tool_result_uuid`,
+                          `${AiAgentToolResultTableName}.ai_prompt_uuid`,
+                          `${AiAgentToolResultTableName}.tool_call_id`,
+                          `${AiAgentToolResultTableName}.tool_name`,
+                          `${AiAgentToolResultTableName}.result`,
+                          `${AiAgentToolResultTableName}.metadata`,
+                          `${AiAgentToolResultTableName}.created_at`,
+                      )
+                      .where(
+                          `${AiThreadTableName}.organization_uuid`,
+                          threadScope.organization_uuid,
+                      )
+                      .where(
+                          `${AiThreadTableName}.project_uuid`,
+                          threadScope.project_uuid,
+                      )
+                      .where((query) => {
+                          linkedRuns.forEach((run) => {
+                              void query.orWhere((linkedResultQuery) => {
+                                  void linkedResultQuery
+                                      .where(
+                                          `${AiAgentToolResultTableName}.ai_prompt_uuid`,
+                                          run.prompt_uuid,
+                                      )
+                                      .where(
+                                          `${AiAgentToolResultTableName}.tool_call_id`,
+                                          run.tool_call_id,
+                                      );
+                              });
+                          });
+                      });
+        const terminalRunsByUuid = new Map(
+            terminalRuns.map((run) => [run.ai_writeback_run_uuid, run]),
+        );
+        const canonicalResultsByKey = new Map(
+            canonicalRows.map((row) => [
+                getWritebackResultKey(row.ai_prompt_uuid, row.tool_call_id),
+                this.parseToolResult(row),
+            ]),
+        );
+
+        return results.map((result) => {
+            if (!isPendingEditDbtProjectToolResult(result)) {
+                return result;
+            }
+
+            const run = terminalRunsByUuid.get(
+                result.metadata.aiWritebackRunUuid,
+            );
+            if (!run || run.tool_call_id !== result.toolCallId) {
+                return result;
+            }
+
+            const canonicalResult =
+                run.prompt_uuid && run.tool_call_id
+                    ? canonicalResultsByKey.get(
+                          getWritebackResultKey(
+                              run.prompt_uuid,
+                              run.tool_call_id,
+                          ),
+                      )
+                    : undefined;
+            if (
+                canonicalResult &&
+                isEditDbtProjectToolResult(canonicalResult) &&
+                canonicalResult.metadata.status !== 'pending'
+            ) {
+                return {
+                    ...result,
+                    result: canonicalResult.result,
+                    metadata: canonicalResult.metadata,
+                };
+            }
+
+            if (
+                result.createdAt.getTime() + AI_WRITEBACK_PENDING_GRACE_MS >
+                Date.now()
+            ) {
+                return result;
+            }
+
+            const fallback = getTerminalWritebackFallback(run);
+            return fallback ? { ...result, ...fallback } : result;
+        });
+    }
+
     async getToolCallsAndResultsForPrompt(
         promptUuid: string,
         options: { includeSubagentToolCalls?: boolean } = {},
@@ -6650,7 +6893,7 @@ export class AiAgentModel {
         }
         const rows = await query;
 
-        return rows
+        const toolCallsAndResults = rows
             .filter(
                 (row) =>
                     (row.result !== null || row.approval_decision !== null) &&
@@ -6679,6 +6922,23 @@ export class AiAgentModel {
                     approvalDecision: row.approval_decision,
                 };
             });
+        const resolvedResults = await this.resolvePendingWritebackToolResults(
+            promptUuid,
+            toolCallsAndResults.flatMap(({ toolResult }) =>
+                toolResult ? [toolResult] : [],
+            ),
+        );
+        const resolvedResultsByUuid = new Map(
+            resolvedResults.map((result) => [result.uuid, result]),
+        );
+
+        return toolCallsAndResults.map((entry) => ({
+            ...entry,
+            toolResult: entry.toolResult
+                ? (resolvedResultsByUuid.get(entry.toolResult.uuid) ??
+                  entry.toolResult)
+                : null,
+        }));
     }
 
     // A runSql call the agent suspended on awaiting approval: it has no result
@@ -6899,9 +7159,14 @@ export class AiAgentModel {
             .where('ai_prompt_uuid', promptUuid)
             .orderBy('created_at', 'asc');
 
-        return rows
+        const parsedResults = rows
             .filter((row) => isParseableToolName(row.tool_name))
             .map((row) => this.parseToolResult(row));
+
+        return this.resolvePendingWritebackToolResults(
+            promptUuid,
+            parsedResults,
+        );
     }
 
     async createToolResults(
@@ -8397,13 +8662,24 @@ export class AiAgentModel {
                     )
                     .where('ai_prompt_uuid', sourcePromptUuid);
 
-                const toolResultUpdates = toolResults.map((toolResult) => ({
-                    ai_prompt_uuid: newPromptUuid,
-                    tool_call_id: toolResult.tool_call_id,
-                    tool_name: toolResult.tool_name,
-                    result: toolResult.result,
-                    metadata: toolResult.metadata,
-                }));
+                const toolResultUpdates = toolResults.map((toolResult) => {
+                    const preservePendingStartedAt =
+                        toolResult.tool_name === 'editDbtProject' &&
+                        toolResult.metadata !== null &&
+                        'status' in toolResult.metadata &&
+                        toolResult.metadata.status === 'pending';
+
+                    return {
+                        ai_prompt_uuid: newPromptUuid,
+                        tool_call_id: toolResult.tool_call_id,
+                        tool_name: toolResult.tool_name,
+                        result: toolResult.result,
+                        metadata: toolResult.metadata,
+                        ...(preservePendingStartedAt
+                            ? { created_at: toolResult.created_at }
+                            : {}),
+                    };
+                });
 
                 await Promise.all([
                     toolCallUpdates.length > 0 &&

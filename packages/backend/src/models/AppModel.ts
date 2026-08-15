@@ -1250,6 +1250,15 @@ export class AppModel {
             })
             .where(`${AppsTableName}.created_by_user_uuid`, userUuid)
             .whereNull(`${AppsTableName}.deleted_at`)
+            // Vizs (custom chart types) are not offered on app surfaces.
+            .where((templateFilter) => {
+                void templateFilter
+                    .whereNot(
+                        `${AppsTableName}.template`,
+                        DATA_APP_VIZ_TEMPLATE,
+                    )
+                    .orWhereNull(`${AppsTableName}.template`);
+            })
             .modify((queryBuilder) => {
                 if (options.excludePreviewProjects ?? true) {
                     void queryBuilder.whereNot(
@@ -1533,15 +1542,16 @@ export class AppModel {
     }
 
     /**
-     * Returns the UUIDs of dashboards in `projectUuid` whose latest version
-     * contains a tile referencing `appUuid`. Old versions are intentionally
-     * ignored: if a dashboard once contained the app but no longer does,
-     * embedding that dashboard must not implicitly authorize the app.
+     * Returns candidate dashboard UUIDs whose latest version contains a tile
+     * referencing `appUuid`. Old versions are intentionally ignored.
      */
     async findDashboardsContainingApp(
         appUuid: string,
         projectUuid: string,
+        dashboardUuids: string[],
     ): Promise<string[]> {
+        if (dashboardUuids.length === 0) return [];
+
         const latestVersionsCte = 'latest_dashboard_versions';
         const rows = await this.database
             .with(latestVersionsCte, (qb) => {
@@ -1571,6 +1581,10 @@ export class AppModel {
                         `${DashboardVersionsTableName}.dashboard_id`,
                     )
                     .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                    .whereIn(
+                        `${DashboardsTableName}.dashboard_uuid`,
+                        dashboardUuids,
+                    )
                     .whereNull(`${DashboardsTableName}.deleted_at`)
                     .groupBy(`${DashboardsTableName}.dashboard_uuid`);
             })

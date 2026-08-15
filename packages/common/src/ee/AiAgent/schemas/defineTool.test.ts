@@ -187,6 +187,7 @@ describe('defineTool', () => {
         expect(structuredMcpToolNames).toEqual([
             'find_explores',
             'find_fields',
+            'get_context',
             'get_metadata',
             'get_query_result',
             'grep_fields',

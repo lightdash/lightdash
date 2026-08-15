@@ -1,4 +1,8 @@
-import { assertUnreachable, type ExternalConnection } from '@lightdash/common';
+import {
+    assertUnreachable,
+    type ExternalConnection,
+    type ExternalConnectionListItem,
+} from '@lightdash/common';
 import { ActionIcon, Badge, Menu, Paper, Table, Text } from '@mantine/core';
 import { IconDots, IconPencil, IconTrash } from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
@@ -6,7 +10,7 @@ import tableStyles from '../../../hooks/styles/tableStyles.module.css';
 import MantineIcon from '../../common/MantineIcon';
 
 type Props = {
-    connections: ExternalConnection[];
+    connections: ExternalConnectionListItem[];
     setConnectionToEdit: Dispatch<
         SetStateAction<ExternalConnection | undefined>
     >;
@@ -31,7 +35,7 @@ const authLabel = (type: ExternalConnection['type']): string => {
 };
 
 const ConnectionRow: FC<
-    { connection: ExternalConnection } & Pick<
+    { connection: ExternalConnectionListItem } & Pick<
         Props,
         'setConnectionToEdit' | 'setConnectionToDelete'
     >
@@ -53,6 +57,11 @@ const ConnectionRow: FC<
         <Table.Td>
             <Text fz="sm" c="ldGray.6">
                 {connection.allowedMethods.join(', ')}
+            </Text>
+        </Table.Td>
+        <Table.Td>
+            <Text fz="sm" c="ldGray.6">
+                {connection.linkedDataAppCount}
             </Text>
         </Table.Td>
         <Table.Td>
@@ -114,6 +123,7 @@ export const ConnectionsTable: FC<Props> = ({
                         <Table.Th>Origin</Table.Th>
                         <Table.Th>Auth</Table.Th>
                         <Table.Th>Methods</Table.Th>
+                        <Table.Th>Linked apps</Table.Th>
                         <Table.Th>Builder linking</Table.Th>
                         <Table.Th></Table.Th>
                     </Table.Tr>

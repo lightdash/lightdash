@@ -350,7 +350,7 @@ export const AiAgentKnowledgeFilesSection = ({
                                 />
                             }
                             gap="xs"
-                            titleProps={{ order: 5 }}
+                            titleProps={{ order: 6 }}
                             title="No knowledge document yet"
                         >
                             <FileButton

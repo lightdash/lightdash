@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     type AiAgentSummary,
     type AiPromptContext,
     type AiPromptContextInput,
@@ -25,7 +24,6 @@ import {
 } from 'react';
 import { createPath, useLocation, useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
-import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
 import { findRetryableDeepResearchRun } from '../../deepResearch/deepResearchRegistry';
 import { runDeepResearchAgain } from '../../deepResearch/runAgain';
@@ -40,6 +38,7 @@ import {
     useStartDeepResearchMutation,
     useTrackDeepResearchFollowUp,
 } from '../../hooks/useDeepResearch';
+import { useDeepResearchAccess } from '../../hooks/useDeepResearchAccess';
 import { usePendingThreadRefetch } from '../../hooks/usePendingThreadRefetch';
 import { usePinnedContext } from '../../hooks/usePinnedContext';
 import {
@@ -145,7 +144,7 @@ const NewThreadPanel: FC<{
     const { addItem: addDockItem } = useLauncherDock(projectUuid);
     const isAuto = isLauncherAutoAgent(agent);
     const concreteAgent = getConcreteLauncherAgent(agent);
-    const deepResearchFlag = useServerFeatureFlag(FeatureFlags.AiDeepResearch);
+    const canStartDeepResearch = useDeepResearchAccess(projectUuid);
 
     const {
         contextInput,
@@ -239,7 +238,11 @@ const NewThreadPanel: FC<{
 
     const handleStartDeepResearch = useCallback(
         async ({ question }: StartDeepResearchArgs) => {
-            if (!concreteAgent || !isPinnedContextReady) {
+            if (
+                !concreteAgent ||
+                !isPinnedContextReady ||
+                !canStartDeepResearch
+            ) {
                 return;
             }
             const thread = await createAgentThread({
@@ -258,6 +261,7 @@ const NewThreadPanel: FC<{
         },
         [
             concreteAgent,
+            canStartDeepResearch,
             contextInputWithPageContext,
             createAgentThread,
             isPinnedContextReady,
@@ -389,7 +393,7 @@ const NewThreadPanel: FC<{
                     defaultValue={composerSeed ?? undefined}
                     onSubmit={handleSubmit}
                     onStartDeepResearch={
-                        concreteAgent && deepResearchFlag.data?.enabled
+                        concreteAgent && canStartDeepResearch
                             ? handleStartDeepResearch
                             : undefined
                     }
@@ -399,6 +403,7 @@ const NewThreadPanel: FC<{
                     projectUuid={projectUuid}
                     agentUuid={concreteAgent?.uuid}
                     fullWidth
+                    showDeepResearchBelowComposer
                     sqlMode={sqlModeAvailable && !isAuto ? sqlMode : undefined}
                     onSqlModeChange={
                         sqlModeAvailable && !isAuto
@@ -464,7 +469,7 @@ const ExistingThreadPanel: FC<{
     style?: CSSProperties;
 }> = ({ projectUuid, agent, agents, threadId, style }) => {
     const { user } = useApp();
-    const deepResearchFlag = useServerFeatureFlag(FeatureFlags.AiDeepResearch);
+    const canStartDeepResearch = useDeepResearchAccess(projectUuid);
     const navigate = useNavigate();
     const location = useLocation();
     const {
@@ -576,6 +581,9 @@ const ExistingThreadPanel: FC<{
     const handleStartDeepResearch = async ({
         question,
     }: StartDeepResearchArgs) => {
+        if (!canStartDeepResearch) {
+            return;
+        }
         const retryableRun = findRetryableDeepResearchRun({
             projectUuid,
             agentUuid: agent.uuid,
@@ -600,8 +608,12 @@ const ExistingThreadPanel: FC<{
 
     const handleRunDeepResearchAgain = async (
         registration: DeepResearchRunRegistration,
-    ) =>
-        runDeepResearchAgain({
+    ) => {
+        if (!canStartDeepResearch) {
+            return;
+        }
+
+        return runDeepResearchAgain({
             registration,
             createPrompt: (question) =>
                 createAgentThreadMessage({
@@ -611,6 +623,7 @@ const ExistingThreadPanel: FC<{
                 }),
             startRun: startDeepResearch.mutateAsync,
         });
+    };
 
     const headerTitle =
         thread?.title || thread?.firstMessage?.message || agent.name;
@@ -663,7 +676,9 @@ const ExistingThreadPanel: FC<{
                     agentUuid={agent.uuid}
                     renderArtifactsInline
                     onDashboardLinkClick={handleDashboardLinkClick}
-                    canRetryDeepResearch={!isInputDisabled && !isBusy}
+                    canRetryDeepResearch={
+                        canStartDeepResearch && !isInputDisabled && !isBusy
+                    }
                     onRunDeepResearchAgain={(registration) => {
                         void handleRunDeepResearchAgain(registration).catch(
                             () => undefined,
@@ -676,7 +691,7 @@ const ExistingThreadPanel: FC<{
                         loading={isBusy}
                         onSubmit={handleSubmit}
                         onStartDeepResearch={
-                            deepResearchFlag.data?.enabled
+                            canStartDeepResearch
                                 ? handleStartDeepResearch
                                 : undefined
                         }

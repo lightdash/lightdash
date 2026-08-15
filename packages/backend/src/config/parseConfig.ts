@@ -1427,10 +1427,15 @@ export type LightdashConfig = {
     queryPhaseMetrics: {
         projectUuids: string[];
     };
+    dbt: {
+        environmentVariableAllowlist: string[];
+    };
     database: {
         connectionUri: string | undefined;
         maxConnections: number | undefined;
         minConnections: number | undefined;
+        acquireConnectionTimeout: number | undefined;
+        readinessProbeTtlMs: number;
         allowMissingMigrations: boolean;
     };
     allowMultiOrgs: boolean;
@@ -1485,6 +1490,12 @@ export type LightdashConfig = {
         jobTimeout: number;
         screenshotTimeout?: number;
         tasks: Array<SchedulerTaskName>;
+        quiesce: {
+            pollInterval: number;
+            gracePeriod: number;
+            resumeJitter: number;
+            resumeRampPeriod: number;
+        };
         queryHistory: {
             cleanup: {
                 enabled: boolean;
@@ -2735,6 +2746,12 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable('PGMAXCONNECTIONS'),
             minConnections:
                 getIntegerFromEnvironmentVariable('PGMINCONNECTIONS'),
+            acquireConnectionTimeout: getIntegerFromEnvironmentVariable(
+                'PGACQUIRECONNECTIONTIMEOUT',
+            ),
+            readinessProbeTtlMs:
+                getIntegerFromEnvironmentVariable('READINESS_PROBE_TTL_MS') ??
+                10_000,
             allowMissingMigrations:
                 process.env.ALLOW_MISSING_MIGRATIONS === 'true',
         },
@@ -2920,6 +2937,11 @@ export const parseConfig = (): LightdashConfig => {
                 'QUERY_PHASE_METRICS_PROJECT_UUIDS',
             ),
         },
+        dbt: {
+            environmentVariableAllowlist: getArrayFromCommaSeparatedList(
+                'ALLOW_DBT_COMMANDS_ACCESS_TO_ENV_VARS',
+            ),
+        },
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
         maxPayloadSize: process.env.LIGHTDASH_MAX_PAYLOAD || '5mb',
         query: {
@@ -3049,6 +3071,24 @@ export const parseConfig = (): LightdashConfig => {
                 ? parseInt(process.env.SCHEDULER_SCREENSHOT_TIMEOUT, 10)
                 : undefined,
             tasks: parseAndSanitizeSchedulerTasks(),
+            quiesce: {
+                pollInterval:
+                    getIntegerFromEnvironmentVariable(
+                        'SCHEDULER_QUIESCE_POLL_INTERVAL',
+                    ) ?? 2_000,
+                gracePeriod:
+                    getIntegerFromEnvironmentVariable(
+                        'SCHEDULER_QUIESCE_GRACE_PERIOD',
+                    ) ?? 180_000,
+                resumeJitter:
+                    getIntegerFromEnvironmentVariable(
+                        'SCHEDULER_RESUME_JITTER',
+                    ) ?? 60_000,
+                resumeRampPeriod:
+                    getIntegerFromEnvironmentVariable(
+                        'SCHEDULER_RESUME_RAMP_PERIOD',
+                    ) ?? 180_000,
+            },
             queryHistory: {
                 cleanup: {
                     enabled:

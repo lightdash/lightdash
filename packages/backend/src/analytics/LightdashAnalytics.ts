@@ -44,6 +44,7 @@ import {
     type AiWritebackFailureStage,
     type AiWritebackWorkstream,
     type AppVersionDependencyEntry,
+    type DataAppClaudeEffort,
     type DataAppClaudeModel,
     type DataAppCreationExperience,
     type DataAppTemplate,
@@ -66,6 +67,10 @@ import { type PersistentDownloadFileSource } from '../services/PersistentDownloa
 import { VERSION } from '../version';
 import type { AiUsageEvent } from './aiUsage';
 import type { EventStreamSink } from './eventStream/EventStreamSink';
+import type {
+    UpgradeEventName,
+    UpgradeEventProperties,
+} from './upgradeTelemetryEvents';
 
 type Identify = {
     userId: string;
@@ -415,7 +420,10 @@ type QueryExecutionEvent = BaseTrack & {
     );
 };
 
-type QueryExecutionSource = 'warehouse' | 'pre_aggregate_duckdb';
+type QueryExecutionSource =
+    | 'warehouse'
+    | 'pre_aggregate_duckdb'
+    | 'pre_aggregate_warehouse';
 
 type QueryReadyEvent = BaseTrack & {
     event: 'query.ready';
@@ -1500,6 +1508,7 @@ export type SchedulerUpsertEvent = BaseTrack & {
         }>;
         timeZone: string | undefined;
         includeLinks: boolean;
+        plainTextEmail: boolean;
     };
 };
 export type SchedulerTimezoneUpdateEvent = BaseTrack & {
@@ -1599,9 +1608,6 @@ export type SchedulerNotificationJobEvent = BaseTrack & {
         error?: string;
     };
 };
-
-/** Reasoning-effort level passed via --effort to the claude CLI. */
-export type DataAppClaudeEffort = 'low' | 'high';
 
 export type DataAppCreatedEvent = BaseTrack & {
     event: 'data_app.created';
@@ -1982,6 +1988,9 @@ export type AiWritebackCompletedEvent = BaseTrack & {
         numTurns: number | null;
         // Time (ms) spent in LLM API calls — the rest is local tool execution.
         durationApiMs: number | null;
+        repoContextBytes: number | null;
+        repoContextCapped: boolean | null;
+        repoContextFileCount: number | null;
     };
 };
 
@@ -2004,6 +2013,9 @@ export type AiWritebackFailedEvent = BaseTrack & {
         failureStage: AiWritebackFailureStage;
         errorMessage: string;
         totalDurationMs: number;
+        repoContextBytes: number | null;
+        repoContextCapped: boolean | null;
+        repoContextFileCount: number | null;
     };
 };
 
@@ -2189,6 +2201,16 @@ export type AiDeepResearchRunCompletedEvent = BaseTrack & {
     userId: string;
     properties: AiDeepResearchRunDimensions & {
         status: AiDeepResearchTerminalStatus;
+        /**
+         * Stable cohorting field for reliability reporting. A partial run is
+         * useful only when it produced a report; otherwise it is an empty
+         * failure from the user's perspective.
+         */
+        completionClass:
+            | 'strict_success'
+            | 'useful_partial'
+            | 'empty_failure'
+            | 'cancelled';
         terminalReason: AiDeepResearchTerminalReason | null;
         durationMs: number | null;
         inputTokens: number | null;
@@ -2203,7 +2225,23 @@ export type AiDeepResearchRunCompletedEvent = BaseTrack & {
         warehouseQueryCount: number | null;
         findingsCount: number | null;
         hasReport: boolean;
+        reportOutcome: 'report' | 'empty';
         chartCount: number | null;
+        reportStructureValid: boolean;
+        reportEvidenceGrounded: boolean;
+        reportReproducible: boolean;
+        reportQualityClass: 'strong' | 'partial' | 'none';
+        failureCategory:
+            | 'none'
+            | 'user'
+            | 'budget'
+            | 'provider'
+            | 'data'
+            | 'internal';
+        warehouseLimitPreventedCount: number | null;
+        warehouseLimitRetryCount: number | null;
+        warehouseLimitRecoveredCount: number | null;
+        warehouseLimitUnrecoveredCount: number | null;
     };
 };
 
@@ -2568,7 +2606,11 @@ export type AiAgentGithubMcpConnectedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         mcpServerId: string;
-        method: 'one_click' | 'one_click_reconnect';
+        method:
+            | 'one_click'
+            | 'one_click_reconnect'
+            | 'one_click_app'
+            | 'one_click_app_reconnect';
     };
 };
 
@@ -3209,6 +3251,12 @@ export type PromptFetchedEvent = BaseTrack & {
 
 export type FeatureFlagCheckProcessType = 'api' | 'scheduler' | null;
 
+type UpgradeTelemetryAnalyticsEvent = BaseTrack & {
+    event: UpgradeEventName;
+    anonymousId: string;
+    properties: UpgradeEventProperties;
+};
+
 export type FeatureFlagCheckedAggregatedEvent = BaseTrack & {
     event: 'feature_flag.checked_aggregated';
     properties: {
@@ -3396,6 +3444,7 @@ type TypedEvent =
     | PersistentFileGenerationCompletedEvent
     | PersistentFileUrlRequestedEvent
     | PersistentFileUrlRespondedEvent
+    | UpgradeTelemetryAnalyticsEvent
     | AiUsageEvent;
 
 type UntypedEvent<T extends BaseTrack> = Omit<BaseTrack, 'event'> &

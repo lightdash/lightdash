@@ -49,6 +49,7 @@ const toolInput = {
         metrics: metricQueryMock.metrics,
         sorts: [],
         limit: null,
+        parameters: null,
         customMetrics: null,
         tableCalculations: null,
         filters: null,
@@ -77,6 +78,7 @@ const executeTool = async (
     const queryTool = getRunQuery({
         updateProgress: vi.fn().mockResolvedValue(undefined),
         runAsyncQuery,
+        projectParameterDefinitions: {},
         getPrompt: vi.fn().mockResolvedValue(prompt),
         sendFile: vi.fn().mockResolvedValue(undefined),
         createOrUpdateArtifact: vi.fn().mockResolvedValue(undefined),
@@ -200,5 +202,205 @@ describe('getRunQuery query UUID visibility', () => {
         );
 
         expect(output.result).toContain('11111111-1111-4111-8111-111111111111');
+    });
+});
+
+describe('getRunQuery parameters', () => {
+    const parameterizedExplore = {
+        ...validExplore,
+        tables: {
+            ...validExplore.tables,
+            a: {
+                ...validExplore.tables.a,
+                parameters: {
+                    metric: {
+                        label: 'Metric',
+                        options: ['revenue', 'active_users'],
+                        default: 'revenue',
+                    },
+                },
+                dimensions: {
+                    ...validExplore.tables.a.dimensions,
+                    dim1: {
+                        ...validExplore.tables.a.dimensions.dim1,
+                        parameterReferences: ['a.metric'],
+                    },
+                },
+            },
+        },
+    };
+
+    const makeQueryResults = () => ({
+        queryUuid: '11111111-1111-4111-8111-111111111111',
+        rows: [{ a_dim1: 'one', a_met1: 1 }],
+        cacheMetadata: { cacheHit: false },
+        fields: {},
+    });
+
+    const executeWithParameters = async (
+        parameters: Record<string, string | number | string[]> | null,
+        runAsyncQuery: RunAsyncQueryFn,
+    ) => {
+        const queryTool = getRunQuery({
+            updateProgress: vi.fn().mockResolvedValue(undefined),
+            runAsyncQuery,
+            projectParameterDefinitions: {},
+            getPrompt: vi.fn().mockResolvedValue(makePrompt()),
+            sendFile: vi.fn().mockResolvedValue(undefined),
+            createOrUpdateArtifact: vi.fn().mockResolvedValue(undefined),
+            maxLimit: 500,
+            maxContextRows: Number.POSITIVE_INFINITY,
+            exposeQueryUuid: false,
+            enableDataAccess: true,
+        });
+        const output = await queryTool.execute!(
+            {
+                ...toolInput,
+                queryConfig: { ...toolInput.queryConfig, parameters },
+            },
+            {
+                messages: [],
+                toolCallId: 'tool-call-1',
+                experimental_context: new AgentContext([parameterizedExplore]),
+            },
+        );
+        if (Symbol.asyncIterator in output) {
+            throw new Error('Expected a non-streaming tool result');
+        }
+        return output;
+    };
+
+    it('passes parameter values through to query execution', async () => {
+        const runAsyncQuery: RunAsyncQueryFn = vi
+            .fn()
+            .mockResolvedValue(makeQueryResults());
+
+        const output = await executeWithParameters(
+            { 'a.metric': 'active_users' },
+            runAsyncQuery,
+        );
+
+        expect(runAsyncQuery).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.anything(),
+            { 'a.metric': 'active_users' },
+        );
+        expect(output.result).toContain(
+            'set explicitly: {"a.metric":"active_users"}',
+        );
+    });
+
+    it('reports default-resolved values when the agent sets nothing', async () => {
+        const runAsyncQuery: RunAsyncQueryFn = vi
+            .fn()
+            .mockResolvedValue(makeQueryResults());
+
+        const output = await executeWithParameters(null, runAsyncQuery);
+
+        expect(runAsyncQuery).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.anything(),
+            undefined,
+        );
+        expect(output.result).toContain(
+            'resolved to defaults: {"a.metric":"revenue"}',
+        );
+    });
+
+    it('rejects unknown parameter names without running the query', async () => {
+        const runAsyncQuery: RunAsyncQueryFn = vi
+            .fn()
+            .mockResolvedValue(makeQueryResults());
+
+        const output = await executeWithParameters(
+            { nonsense: 'x' },
+            runAsyncQuery,
+        );
+
+        expect(runAsyncQuery).not.toHaveBeenCalled();
+        expect(output.metadata.status).toBe('error');
+        expect(output.result).toContain('unknown parameter "nonsense"');
+        expect(output.result).toContain('a.metric');
+    });
+
+    it('rejects values outside the declared options', async () => {
+        const runAsyncQuery: RunAsyncQueryFn = vi
+            .fn()
+            .mockResolvedValue(makeQueryResults());
+
+        const output = await executeWithParameters(
+            { 'a.metric': 'nope' },
+            runAsyncQuery,
+        );
+
+        expect(runAsyncQuery).not.toHaveBeenCalled();
+        expect(output.metadata.status).toBe('error');
+        expect(output.result).toContain(
+            'Allowed options: revenue, active_users',
+        );
+    });
+
+    it('reports referenced parameters that are unset with no default', async () => {
+        const noDefaultExplore = {
+            ...parameterizedExplore,
+            tables: {
+                ...parameterizedExplore.tables,
+                a: {
+                    ...parameterizedExplore.tables.a,
+                    parameters: {
+                        metric: {
+                            label: 'Metric',
+                            options: ['revenue', 'active_users'],
+                        },
+                    },
+                },
+            },
+        };
+        const runAsyncQuery: RunAsyncQueryFn = vi
+            .fn()
+            .mockResolvedValue(makeQueryResults());
+        const queryTool = getRunQuery({
+            updateProgress: vi.fn().mockResolvedValue(undefined),
+            runAsyncQuery,
+            projectParameterDefinitions: {},
+            getPrompt: vi.fn().mockResolvedValue(makePrompt()),
+            sendFile: vi.fn().mockResolvedValue(undefined),
+            createOrUpdateArtifact: vi.fn().mockResolvedValue(undefined),
+            maxLimit: 500,
+            maxContextRows: Number.POSITIVE_INFINITY,
+            exposeQueryUuid: false,
+            enableDataAccess: true,
+        });
+        const output = await queryTool.execute!(
+            {
+                ...toolInput,
+                queryConfig: { ...toolInput.queryConfig, parameters: null },
+            },
+            {
+                messages: [],
+                toolCallId: 'tool-call-1',
+                experimental_context: new AgentContext([noDefaultExplore]),
+            },
+        );
+        if (Symbol.asyncIterator in output) {
+            throw new Error('Expected a non-streaming tool result');
+        }
+
+        expect(output.result).toContain('unset with no default: a.metric');
+    });
+
+    it('rejects a list for a single-value parameter', async () => {
+        const runAsyncQuery: RunAsyncQueryFn = vi
+            .fn()
+            .mockResolvedValue(makeQueryResults());
+
+        const output = await executeWithParameters(
+            { 'a.metric': ['revenue', 'active_users'] },
+            runAsyncQuery,
+        );
+
+        expect(runAsyncQuery).not.toHaveBeenCalled();
+        expect(output.metadata.status).toBe('error');
+        expect(output.result).toContain('single value');
     });
 });

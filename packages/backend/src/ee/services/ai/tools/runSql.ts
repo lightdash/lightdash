@@ -21,6 +21,11 @@ import type {
     WaitForSqlApprovalFn,
 } from '../types/aiAgentDependencies';
 import { serializeData } from '../utils/serializeData';
+import {
+    findSqlScopeViolations,
+    formatSqlScopeError,
+    type SqlScope,
+} from '../utils/sqlScope';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { renderBlocks, type SectionState } from './slackSqlAggregate';
 
@@ -38,6 +43,7 @@ type Dependencies = {
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxQueryLimit: number;
     enableDataAccess: boolean;
+    sqlScope?: SqlScope | null;
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
     useSlackStreamCard?: boolean;
@@ -99,6 +105,7 @@ export const getRunSql = ({
     createOrUpdateArtifact,
     maxQueryLimit,
     enableDataAccess,
+    sqlScope = null,
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
     useSlackStreamCard = false,
@@ -183,6 +190,14 @@ export const getRunSql = ({
 
             // Pre-section errors (bad SQL shape) — no Slack message exists
             // yet, just return the error to the agent.
+            const scopeViolations = findSqlScopeViolations(sql, sqlScope);
+            if (scopeViolations.length > 0 && sqlScope) {
+                return persistResumeResult({
+                    result: formatSqlScopeError(scopeViolations, sqlScope),
+                    metadata: { status: 'error' },
+                });
+            }
+
             try {
                 validateSelectOnly(sql);
             } catch (e) {

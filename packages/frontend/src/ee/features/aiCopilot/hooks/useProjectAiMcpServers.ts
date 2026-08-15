@@ -93,6 +93,16 @@ const connectGithubMcpServer = async (
         body: JSON.stringify(body),
     });
 
+const connectGithubMcpServerApp = async (
+    projectUuid: string,
+): Promise<ApiAiMcpServerResponse['results']> =>
+    lightdashApi<ApiAiMcpServerResponse['results']>({
+        version: 'v1',
+        url: `/projects/${projectUuid}/aiAgents/mcpServers/github/connect-app`,
+        method: 'POST',
+        body: JSON.stringify({}),
+    });
+
 const listAgentAiMcpServerTools = async (
     projectUuid: string,
     agentUuid: string,
@@ -437,6 +447,33 @@ export const useConnectGithubMcpServerMutation = (projectUuid: string) => {
         ApiConnectGithubMcpServerBody
     >({
         mutationFn: (body) => connectGithubMcpServer(projectUuid, body),
+        onSuccess: async (result) => {
+            showToastSuccess({
+                title: 'GitHub connected',
+                subtitle: `${result.name} is ready to use with your agents.`,
+            });
+            await queryClient.invalidateQueries({
+                queryKey: [PROJECT_AI_MCP_SERVERS_KEY, projectUuid],
+            });
+            await queryClient.invalidateQueries({
+                queryKey: [GITHUB_MCP_AVAILABILITY_KEY, projectUuid],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to connect GitHub',
+                apiError: error,
+            });
+        },
+    });
+};
+
+export const useConnectGithubMcpServerAppMutation = (projectUuid: string) => {
+    const queryClient = useQueryClient();
+    const { showToastApiError, showToastSuccess } = useToaster();
+
+    return useMutation<ApiAiMcpServerResponse['results'], ApiError, void>({
+        mutationFn: () => connectGithubMcpServerApp(projectUuid),
         onSuccess: async (result) => {
             showToastSuccess({
                 title: 'GitHub connected',

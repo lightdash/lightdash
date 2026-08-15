@@ -261,6 +261,31 @@ export const MODEL_PRESETS: {
     ],
     bedrock: [
         {
+            name: 'claude-sonnet-5',
+            provider: 'bedrock',
+            modelId: 'anthropic.claude-sonnet-5',
+            displayName: 'Claude Sonnet 5',
+            description: 'Newest Sonnet model balancing speed and intelligence',
+            contextWindowTokens: 200000,
+            supportsReasoning: true,
+            reasoningStyle: 'adaptive',
+            callOptions: {},
+            providerOptions: undefined,
+        },
+        {
+            name: 'claude-opus-5',
+            provider: 'bedrock',
+            modelId: 'anthropic.claude-opus-5',
+            displayName: 'Claude Opus 5',
+            description:
+                'Most intelligent Opus model for complex agentic coding and enterprise work',
+            contextWindowTokens: 200000,
+            supportsReasoning: true,
+            reasoningStyle: 'adaptive',
+            callOptions: {},
+            providerOptions: undefined,
+        },
+        {
             name: 'claude-opus-4-5',
             provider: 'bedrock',
             modelId: 'anthropic.claude-opus-4-5-20251101-v1:0',

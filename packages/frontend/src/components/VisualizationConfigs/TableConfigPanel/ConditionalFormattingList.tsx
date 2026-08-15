@@ -1,6 +1,7 @@
 import {
     createConditionalFormattingConfigWithSingleColor,
     getItemId,
+    isBooleanItem,
     isFilterableItem,
     isNumericItem,
     isStringDimension,
@@ -46,7 +47,9 @@ const ConditionalFormattingList = ({}) => {
             .filter((field) => activeFields.has(getItemId(field)))
             .filter(
                 (field) =>
-                    (isNumericItem(field) || isStringDimension(field)) &&
+                    (isNumericItem(field) ||
+                        isStringDimension(field) ||
+                        isBooleanItem(field)) &&
                     isFilterableItem(field),
             ) as FilterableItem[];
     }, [itemsMap, activeFields]);

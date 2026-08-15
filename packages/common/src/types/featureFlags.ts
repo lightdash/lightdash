@@ -123,18 +123,13 @@ export enum FeatureFlags {
     EnableDataAppCustomDependencies = 'enable-data-app-custom-dependencies',
 
     /**
-     * Enable AI Dashboard Summary feature (generates summaries of dashboard
-     * contents using the AI Copilot).
-     */
-    AiDashboardSummary = 'ai-dashboard-summary',
-
-    /**
      * Enable Autopilot project health agent.
      */
     AiAutopilot = 'ai-autopilot',
 
     /**
-     * Enable long-running, read-only Deep Research investigations from AI chat.
+     * Legacy no-op retained so existing self-hosted feature flag configuration
+     * remains valid. Deep Research now follows AI Copilot availability.
      */
     AiDeepResearch = 'ai-deep-research',
 
@@ -289,6 +284,17 @@ export enum FeatureFlags {
     OrgAiProviderApiKeys = 'org-ai-provider-api-keys',
 
     /**
+     * Allow storing long-lived GitHub personal access tokens as GitHub MCP
+     * credentials (guided connect flow and generic bearer endpoints targeting
+     * the hosted GitHub MCP URL). Off by default — orgs should authenticate
+     * via the Lightdash GitHub App, which mints a short-lived installation
+     * token per run and stores no long-lived secret. When off, previously
+     * stored PATs are also ignored at runtime. Enable
+     * per-org only as a stopgap for orgs that cannot install the GitHub App.
+     */
+    AiMcpGithubPat = 'ai-mcp-github-pat',
+
+    /**
      * Gate the whole new onboarding experience as one unit: email-only
      * signup (register collects only an email; ownership proven via email
      * OTP), the full-page organization setup experience shown after
@@ -309,6 +315,11 @@ export enum FeatureFlags {
      * default; enable per-org.
      */
     EmailWhitelabel = 'email-whitelabel',
+
+    /* Merge two or more queries into one warehouse statement from the
+       explorer. Gated because it compiles novel SQL shapes (multi-CTE joins,
+       conditional-aggregation widening) that no other path exercises. */
+    MergeQueries = 'merge-queries',
 }
 
 export type FeatureFlag = {

@@ -283,28 +283,19 @@ export const ParameterInput: FC<ParameterInputProps> = ({
               )
             : optionsData;
 
-        const regularItems = [...baseItems] // Create a copy to avoid mutating Redux state
-            .sort((a, b) => {
-                const aLabel = isLightdashParameterOption(a)
-                    ? a.label
-                    : formatDisplayValue(String(a));
-                const bLabel = isLightdashParameterOption(b)
-                    ? b.label
-                    : formatDisplayValue(String(b));
-                return aLabel.localeCompare(bLabel);
-            })
-            .map((option) => {
-                if (isLightdashParameterOption(option)) {
-                    return {
-                        value: String(option.value),
-                        label: option.label,
-                    };
-                }
+        // Static options keep the order they were authored in YAML
+        const regularItems = baseItems.map((option) => {
+            if (isLightdashParameterOption(option)) {
                 return {
-                    value: String(option),
-                    label: formatDisplayValue(String(option)),
+                    value: String(option.value),
+                    label: option.label,
                 };
-            });
+            }
+            return {
+                value: String(option),
+                label: formatDisplayValue(String(option)),
+            };
+        });
 
         const fetchedItems =
             fetchedResults.length > 0

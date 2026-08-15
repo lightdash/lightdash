@@ -1283,6 +1283,26 @@ was tested against that exact source tree.
 
 S3 credentials are configured through the existing `S3_*` environment variables used by the app runtime config.
 
+### S3 bucket permissions
+
+Beyond the object-level permissions the build pipeline needs (`s3:GetObject`, `s3:PutObject`,
+`s3:DeleteObject`, `s3:ListBucket` for prefix listing during copy and cleanup), grant
+**`s3:ListBucket` on the bucket itself** to whichever identity the backend resolves.
+
+Without it, S3 answers `403 AccessDenied` instead of `404 NotFound` when an object is missing.
+The render-metadata bundle check (`getBundleServableChecker`) treats anything other than a
+confirmed missing object as servable, so a 403 makes it fail open: a version whose bundle has
+been purged still reports `ready`, and the iframe frames the preview route's error rather than
+showing "Preview unavailable".
+
+Nothing breaks, so the symptom to watch for is the log line rather than an outage:
+
+```
+Could not verify app bundle for app=<uuid> version=<n>, assuming servable: AccessDenied (403)
+```
+
+It is logged at `warn`, once per render-metadata request.
+
 ---
 
 ## Key Files

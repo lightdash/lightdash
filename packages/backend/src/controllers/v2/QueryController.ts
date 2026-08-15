@@ -14,6 +14,7 @@ import {
     isExecuteAsyncDashboardSqlChartByUuidParams,
     isExecuteAsyncSqlChartByUuidParams,
     isJwtUser,
+    LightdashAppPreviewTokenHeader,
     LightdashSignedDownloadHeader,
     PersistentDownloadFileAccessMode,
     QueryExecutionContext,
@@ -184,6 +185,12 @@ export class QueryController extends BaseController {
     ): Promise<ApiSuccess<ApiExecuteAsyncMetricQueryResults>> {
         this.setStatus(200);
         const context = body.context ?? getContextFromHeader(req);
+        const previewTokenHeader =
+            req.headers[LightdashAppPreviewTokenHeader.toLowerCase()];
+        const dataAppPreviewToken =
+            typeof previewTokenHeader === 'string'
+                ? previewTokenHeader
+                : undefined;
 
         const metricQuery: MetricQuery = {
             exploreName: body.query.exploreName,
@@ -214,6 +221,7 @@ export class QueryController extends BaseController {
                 parameters: body.parameters,
                 pivotConfiguration: body.pivotConfiguration,
                 dashboardFilters: body.dashboardFilters,
+                dataAppPreviewToken,
             });
 
         return {
