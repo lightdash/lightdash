@@ -60,6 +60,7 @@ import {
     DateZoom,
     DbtExposure,
     DbtExposureType,
+    DbtManifest,
     DbtManifestVersion,
     DbtProjectConfig,
     DbtProjectEnvironmentVariable,
@@ -265,8 +266,10 @@ import { uniq } from 'lodash';
 import fetch from 'node-fetch';
 import { Readable } from 'stream';
 import { URL } from 'url';
+import { promisify } from 'util';
 import { v4 as uuidv4 } from 'uuid';
 import { Worker } from 'worker_threads';
+import { gzip } from 'zlib';
 import {
     LightdashAnalytics,
     MetricQueryExecutionProperties,
@@ -350,7 +353,10 @@ import {
 import { UserService } from '../UserService';
 import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
 import { getAvailableParameterDefinitions } from './parameters';
+import { projectMergedManifest } from './projectMergedManifest';
 import { applyCurrentGithubInstallationId } from './resolveGithubInstallationId';
+
+const gzipAsync = promisify(gzip);
 
 type RefreshTokenRotationSource =
     | { kind: 'project'; projectUuid: string }
@@ -2495,6 +2501,36 @@ export class ProjectService extends BaseService {
         return project;
     }
 
+    async getMergedManifest(
+        account: Account,
+        projectUuid: string,
+    ): Promise<Buffer> {
+        const project =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('DeployProject', {
+                    projectUuid,
+                    organizationUuid: project.organizationUuid,
+                    upstreamProjectUuid: project.upstreamProjectUuid,
+                    type: project.type,
+                    createdByUserUuid: project.createdByUserUuid,
+                    metadata: {
+                        projectUuid,
+                        projectName: project.name,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User does not have permission to deploy to this project',
+            );
+        }
+        return this.projectModel.getMergedManifest(projectUuid);
+    }
+
     private async getUpstreamProjectUuid(
         projectUuid: string,
         account: Account,
@@ -4601,6 +4637,46 @@ export class ProjectService extends BaseService {
         );
     }
 
+    private static formatCrossSourceModelNameCollisionsError(
+        collisions: CrossSourceModelNameCollision[],
+    ): string {
+        const MAX_COLLISIONS_IN_ERROR = 10;
+        const shown = collisions.slice(0, MAX_COLLISIONS_IN_ERROR);
+        const remainder = collisions.length - shown.length;
+        const details = shown
+            .map(
+                ({ modelName, sourceNames }) =>
+                    `model "${modelName}" is defined in sources ${sourceNames
+                        .map((sourceName) => `"${sourceName}"`)
+                        .join(' and ')}`,
+            )
+            .join('; ');
+        return (
+            `Merging dbt sources found ${collisions.length} model name collision${
+                collisions.length === 1 ? '' : 's'
+            }: ${details}${remainder > 0 ? `; and ${remainder} more` : ''}. ` +
+            `Rename or remove the duplicate(s) before deploying.`
+        );
+    }
+
+    private async persistMergedManifest(
+        projectUuid: string,
+        manifest: DbtManifest,
+    ): Promise<void> {
+        try {
+            const compressedManifest = await gzipAsync(
+                JSON.stringify(projectMergedManifest(manifest)),
+            );
+            await this.projectModel.upsertMergedManifest(
+                projectUuid,
+                compressedManifest,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `Failed to persist merged dbt manifest for project ${projectUuid}: ${getErrorMessage(error)}`,
+            );
+        }
+}
     /**
      * Merge the primary source's manifest with every additional source's manifest
      * into one combined manifest, then return a MANIFEST adapter over it so a single
@@ -4779,6 +4855,8 @@ export class ProjectService extends BaseService {
                       ),
                   ),
               );
+
+        await this.persistMergedManifest(projectUuid, mergedManifest);
 
         return projectAdapterFromConfig(
             {

@@ -117,6 +117,8 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { Readable } from 'stream';
+import { pipeline } from 'stream/promises';
 import { getContextFromHeader } from '../analytics/LightdashAnalytics';
 import { toSessionUser } from '../auth/account';
 import type { DbTagUpdate } from '../database/entities/tags';
@@ -154,6 +156,26 @@ export class ProjectController extends BaseController {
                 .getProjectService()
                 .getProject(projectUuid, req.account!),
         };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/dbt/manifest')
+    @OperationId('GetMergedDbtManifest')
+    async getMergedManifest(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<void> {
+        assertRegisteredAccount(req.account);
+        const body = await this.services
+            .getProjectService()
+            .getMergedManifest(req.account, projectUuid);
+        const res = req.res!;
+        res.status(200);
+        res.setHeader('Content-Encoding', 'gzip');
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Cache-Control', 'no-store');
+        await pipeline(Readable.from(body), res);
     }
 
     /**

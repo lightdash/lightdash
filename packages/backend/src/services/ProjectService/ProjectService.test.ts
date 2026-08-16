@@ -51,6 +51,7 @@ import {
 } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import { Readable } from 'stream';
+import { gunzipSync } from 'zlib';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
@@ -244,6 +245,10 @@ const projectModel = {
     ),
     updateResultsCacheSettings: vi.fn(async () => undefined),
     getEffectiveResultsCacheTtlSeconds: vi.fn(async () => 86400),
+    upsertMergedManifest: vi.fn<ProjectModel['upsertMergedManifest']>(
+        async () => undefined,
+    ),
+    getMergedManifest: vi.fn(async () => Buffer.from('merged-manifest')),
 };
 const organizationWarehouseCredentialsModel = {
     getByUuidWithSensitiveData:
@@ -755,6 +760,67 @@ describe('ProjectService', () => {
                 instanceDefaultTtlSeconds:
                     lightdashConfigMock.results.cacheStateTimeSeconds,
             });
+        });
+    });
+
+    describe('getMergedManifest', () => {
+        const accountWithDeployPermission = {
+            ...buildAccount(),
+            user: {
+                ...buildAccount().user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'DeployProject', action: 'manage' },
+                ]),
+            },
+        } as RegisteredAccount;
+
+        test('returns the stored artifact to an authorized CLI account', async () => {
+            const storedManifest = Buffer.from('stored-manifest');
+            projectModel.getMergedManifest.mockResolvedValueOnce(
+                storedManifest,
+            );
+
+            await expect(
+                service.getMergedManifest(
+                    accountWithDeployPermission,
+                    projectWithSensitiveFields.projectUuid,
+                ),
+            ).resolves.toEqual(storedManifest);
+        });
+
+        test('rejects an account without deploy permission', async () => {
+            const forbiddenAccount = {
+                ...buildAccount(),
+                user: {
+                    ...buildAccount().user,
+                    ability: new Ability<PossibleAbilities>([]),
+                },
+            } as RegisteredAccount;
+
+            await expect(
+                service.getMergedManifest(
+                    forbiddenAccount,
+                    projectWithSensitiveFields.projectUuid,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(projectModel.getMergedManifest).not.toHaveBeenCalled();
+        });
+
+        test('reports when the project has no persisted manifest', async () => {
+            projectModel.getMergedManifest.mockRejectedValueOnce(
+                new NotFoundError(
+                    'No merged dbt manifest has been persisted for this project',
+                ),
+            );
+
+            await expect(
+                service.getMergedManifest(
+                    accountWithDeployPermission,
+                    projectWithSensitiveFields.projectUuid,
+                ),
+            ).rejects.toThrow(
+                'No merged dbt manifest has been persisted for this project',
+            );
         });
     });
 
@@ -4726,9 +4792,16 @@ type ProjectServiceInternals = {
         args: BuildMergedManifestAdapterArgs,
     ) => Promise<ProjectAdapter>;
     buildSourceAdapter: (...args: unknown[]) => Promise<ProjectAdapter>;
+    logger: { warn: (...args: unknown[]) => void };
 };
 
 describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firewall)', () => {
+    beforeEach(() => {
+        projectModel.upsertMergedManifest
+            .mockReset()
+            .mockResolvedValue(undefined);
+    });
+
     const primaryAdapter = {
         id: 'primary-adapter',
     } as unknown as ProjectAdapter;
@@ -4871,7 +4944,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         updatedAt: new Date('2026-08-16T00:00:00.000Z'),
     });
 
-    const buildMergedAdapter = async (
+    const buildMergedAdapterWithService = (
         primaryManifest: DbtManifest,
         sourceManifest: DbtManifest,
         selectedModelIds: {
@@ -4886,7 +4959,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             buildAdapterWithManifest(sourceManifest, selectedModelIds.source),
         );
 
-        return projectService.buildMergedManifestAdapter({
+        const adapter = projectService.buildMergedManifestAdapter({
             projectUuid: 'project-uuid',
             organizationUuid: 'org-uuid',
             primary: {
@@ -4899,7 +4972,22 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             sources: [buildSource('source-b')],
             manifestFetchAdapters: [],
         });
+        return { projectService, adapter };
     };
+
+    const buildMergedAdapter = async (
+        primaryManifest: DbtManifest,
+        sourceManifest: DbtManifest,
+        selectedModelIds: {
+            primary?: string[];
+            source?: string[];
+        } = {},
+    ) =>
+        buildMergedAdapterWithService(
+            primaryManifest,
+            sourceManifest,
+            selectedModelIds,
+        ).adapter;
 
     it('returns the deduplicated union when both sources select models', async () => {
         const primaryManifest = buildManifest([
@@ -5295,6 +5383,67 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         );
     });
 
+    it('persists the projected merged manifest for a multi-source deploy', async () => {
+        const primaryManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_a.orders',
+                name: 'orders',
+                packageName: 'pkg_a',
+            },
+        ]);
+        const sourceManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_b.customers',
+                name: 'customers',
+                packageName: 'pkg_b',
+            },
+        ]);
+
+        await buildMergedAdapter(primaryManifest, sourceManifest);
+
+        expect(projectModel.upsertMergedManifest).toHaveBeenCalledTimes(1);
+        const [, compressedManifest] = vi.mocked(
+            projectModel.upsertMergedManifest,
+        ).mock.calls[0];
+        const persisted = JSON.parse(
+            gunzipSync(compressedManifest).toString('utf8'),
+        ) as DbtManifest;
+        expect(Object.keys(persisted.nodes)).toEqual([
+            'model.pkg_a.orders',
+            'model.pkg_b.customers',
+        ]);
+    });
+
+    it('continues the deploy and logs a warning when persistence fails', async () => {
+        const primaryManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_a.orders',
+                name: 'orders',
+                packageName: 'pkg_a',
+            },
+        ]);
+        const sourceManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_b.customers',
+                name: 'customers',
+                packageName: 'pkg_b',
+            },
+        ]);
+        projectModel.upsertMergedManifest.mockRejectedValueOnce(
+            new Error('database unavailable'),
+        );
+        const { projectService, adapter } = buildMergedAdapterWithService(
+            primaryManifest,
+            sourceManifest,
+        );
+        const warn = vi.spyOn(projectService.logger, 'warn');
+
+        await expect(adapter).resolves.toBeDefined();
+        expect(warn).toHaveBeenCalledWith(
+            'Failed to persist merged dbt manifest for project project-uuid: database unavailable',
+        );
+    });
+
     it('flag OFF returns the primary adapter by identity and never queries getSources', async () => {
         const { projectService, getSources } = buildServiceWithMocks(false, [
             { name: 'jaffle-2' },
@@ -5313,6 +5462,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
 
         expect(result).toBe(primaryAdapter);
         expect(getSources).toHaveBeenCalledTimes(1);
+        expect(projectModel.upsertMergedManifest).not.toHaveBeenCalled();
     });
 
     it('flag ON with >=1 source delegates to buildMergedManifestAdapter instead of returning the primary adapter', async () => {
