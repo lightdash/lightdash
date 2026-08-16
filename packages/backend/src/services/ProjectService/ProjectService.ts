@@ -2297,6 +2297,7 @@ export class ProjectService extends BaseService {
         requestMethod?: string | null;
         projectConfigDefaults?: ProjectDefaults;
         cliVersion?: string | null;
+        complete?: boolean;
     }) {
         const {
             userUuid,
@@ -2307,9 +2308,8 @@ export class ProjectService extends BaseService {
             requestMethod,
             projectConfigDefaults,
             cliVersion,
+            complete,
         } = args;
-        // We delete the explores when saving to cache which cascades to the catalog
-        // So we need to get the current tagged catalog items before deleting the explores (to do a best effort re-tag) and icons
         const prevCatalogItemsWithTags =
             await this.catalogModel.getCatalogItemsWithTags(projectUuid, {
                 onlyTagged: true, // We only need the tagged catalog items
@@ -2341,7 +2341,11 @@ export class ProjectService extends BaseService {
         }
 
         const { cachedExploreUuids } =
-            await this.projectModel.saveExploresToCache(projectUuid, explores);
+            await this.projectModel.saveExploresToCache(
+                projectUuid,
+                explores,
+                complete,
+            );
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
@@ -2357,10 +2361,15 @@ export class ProjectService extends BaseService {
             const newNames = explores.map((explore) => explore.name);
             const previousNameSet = new Set(previousExploreNames ?? []);
             const newNameSet = new Set(newNames);
-            const removed = (previousExploreNames ?? []).filter(
-                (name) => !newNameSet.has(name),
-            );
+            const removed = complete
+                ? (previousExploreNames ?? []).filter(
+                      (name) => !newNameSet.has(name),
+                  )
+                : [];
             const added = newNames.filter((name) => !previousNameSet.has(name));
+            const resultingExploreCount = complete
+                ? newNameSet.size
+                : new Set([...(previousExploreNames ?? []), ...newNames]).size;
 
             this.logger.info('compile.completed', {
                 projectUuid,
@@ -2371,7 +2380,7 @@ export class ProjectService extends BaseService {
                 cliVersion: cliVersion ?? null,
                 // null distinguishes "fetch failed" from "no previous explores"
                 previousExploreCount: previousExploreNames?.length ?? null,
-                newExploreCount: newNames.length,
+                newExploreCount: resultingExploreCount,
                 addedExploreCount:
                     previousExploreNames === null ? null : added.length,
                 removedExploreCount:
@@ -3167,6 +3176,7 @@ export class ProjectService extends BaseService {
                             requestMethod: method,
                             projectConfigDefaults:
                                 lightdashProjectConfig.defaults,
+                            complete: true,
                         });
                     }
                     return newProjectUuid;
@@ -3221,6 +3231,7 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         explores: (Explore | ExploreError)[],
         cliVersion?: string | null,
+        complete?: boolean,
     ): Promise<ApiDeployExploresResults> {
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
@@ -3265,6 +3276,7 @@ export class ProjectService extends BaseService {
             jobUuid: null,
             requestMethod: 'cli',
             cliVersion,
+            complete,
         });
 
         await this.schedulerClient.generateValidation({
@@ -3859,6 +3871,7 @@ export class ProjectService extends BaseService {
                                 requestMethod: method,
                                 projectConfigDefaults:
                                     lightdashProjectConfig.defaults,
+                                complete: true,
                             });
                             timings.cacheExplores.end = performance.now();
                         } finally {
@@ -8294,6 +8307,7 @@ export class ProjectService extends BaseService {
                             requestMethod,
                             projectConfigDefaults:
                                 lightdashProjectConfig.defaults,
+                            complete: true,
                         });
                         timings.cacheExplores.end = performance.now();
 
@@ -11411,6 +11425,7 @@ export class ProjectService extends BaseService {
             jobUuid: null,
             requestMethod: 'api',
             projectConfigDefaults: project.projectDefaults,
+            complete: true,
         });
 
         Logger.info(`Schedule validation:`, {
