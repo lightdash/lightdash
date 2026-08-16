@@ -37,6 +37,18 @@ const source = {
     projectSubPath: '/',
 };
 
+const primarySource = {
+    projectDbtSourceUuid: 'primary-source-uuid',
+    name: 'dbt_project',
+    isPrimary: true,
+    precedence: 0,
+    hasCredentialError: false,
+    type: DbtProjectType.GITHUB,
+    repository: 'org/primary',
+    branch: 'main',
+    projectSubPath: '/',
+};
+
 const connection = {
     type: DbtProjectType.GITHUB,
     environment: [],
@@ -69,8 +81,8 @@ const routeApi = (sourceName?: string) => {
                 }
                 return Promise.resolve(
                     sourceName === undefined
-                        ? []
-                        : [{ ...source, name: sourceName }],
+                        ? [primarySource]
+                        : [primarySource, { ...source, name: sourceName }],
                 );
             }
             if (
@@ -85,6 +97,16 @@ const routeApi = (sourceName?: string) => {
                     });
                 }
                 return Promise.resolve({ ...source, name: sourceName });
+            }
+            if (
+                url ===
+                    '/projects/project-uuid/dbt-sources/primary-source-uuid' &&
+                method === 'PATCH'
+            ) {
+                return Promise.resolve({
+                    ...primarySource,
+                    name: 'core_analytics',
+                });
             }
             if (url === '/github/config') {
                 return Promise.resolve({
@@ -271,6 +293,52 @@ describe('DbtSourcesPanel', () => {
         expect(repository).toHaveAttribute(
             'placeholder',
             'Select a repository',
+        );
+    });
+
+    it('shows and renames the primary source with an explore-name warning', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(<DbtSourcesPanel projectUuid="project-uuid" />);
+
+        expect(await screen.findByText('dbt_project')).toBeInTheDocument();
+        await user.click(
+            screen.getByRole('button', { name: 'Actions for dbt_project' }),
+        );
+        await user.click(await screen.findByRole('menuitem', { name: 'Edit' }));
+
+        const dialog = await screen.findByRole('dialog');
+        expect(
+            within(dialog).getByText(
+                'Renaming this source changes qualified explore names on the next deploy.',
+            ),
+        ).toBeInTheDocument();
+
+        const nameInput = within(dialog).getByRole('textbox', { name: 'Name' });
+        await user.clear(nameInput);
+        await user.type(nameInput, 'core-analytics');
+        await user.click(
+            within(dialog).getByRole('button', { name: 'Save changes' }),
+        );
+        expect(
+            within(dialog).getByText(
+                'Use only letters, numbers, and underscores',
+            ),
+        ).toBeInTheDocument();
+
+        await user.clear(nameInput);
+        await user.type(nameInput, 'core_analytics');
+        await user.click(
+            within(dialog).getByRole('button', { name: 'Save changes' }),
+        );
+
+        await waitFor(() =>
+            expect(mockApi).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    url: '/projects/project-uuid/dbt-sources/primary-source-uuid',
+                    method: 'PATCH',
+                    body: JSON.stringify({ name: 'core_analytics' }),
+                }),
+            ),
         );
     });
 });
