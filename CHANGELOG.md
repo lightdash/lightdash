@@ -1,3 +1,10 @@
+# [1.163.0](https://github.com/lightdash/lightdash/compare/1.162.6...1.163.0) (2026-08-16)
+
+
+### Features
+
+* **merge-query:** add selected field actions ([#27423](https://github.com/lightdash/lightdash/issues/27423)) ([0092da7](https://github.com/lightdash/lightdash/commit/0092da7e356d004075ee4f4afdc1b1fb30bf10dd))
+
 ## [1.162.6](https://github.com/lightdash/lightdash/compare/1.162.5...1.162.6) (2026-08-16)
 
 
