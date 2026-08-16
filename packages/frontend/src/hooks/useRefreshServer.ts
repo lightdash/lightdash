@@ -58,6 +58,27 @@ export const jobStatusLabel = (status: JobStatusType, jobType?: JobType) => {
     }
 };
 
+export const getJobCompletionToast = (
+    job: Job,
+): { variant: 'success' | 'warning'; title: string } => {
+    if (
+        job.jobType === JobType.COMPILE_PROJECT &&
+        job.jobResults?.errorCount !== undefined &&
+        job.jobResults.errorCount > 0 &&
+        job.jobResults.total !== undefined
+    ) {
+        return {
+            variant: 'warning',
+            title: `Synced: ${job.jobResults.errorCount} of ${job.jobResults.total} tables have errors`,
+        };
+    }
+
+    return {
+        variant: 'success',
+        title: jobStatusLabel(job.jobStatus, job.jobType),
+    };
+};
+
 export const runningStepsInfo = (steps: JobStep[]) => {
     const runningStep = steps.find((step) => {
         return step.stepStatus === 'RUNNING';
