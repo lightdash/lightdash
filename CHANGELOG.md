@@ -1,3 +1,11 @@
+## [1.162.6](https://github.com/lightdash/lightdash/compare/1.162.5...1.162.6) (2026-08-16)
+
+
+### Bug Fixes
+
+* **merge-query:** align result column headers ([#27422](https://github.com/lightdash/lightdash/issues/27422)) ([72082d1](https://github.com/lightdash/lightdash/commit/72082d1fd6e8de2e08c0be3fb0cbaa8532953c2f))
+* stop the upgrade-safety comment from inventing a database change ([#27446](https://github.com/lightdash/lightdash/issues/27446)) ([84cffe8](https://github.com/lightdash/lightdash/commit/84cffe8ab70cfb49301af4d3d1e41a47212a204e))
+
 ## [1.162.5](https://github.com/lightdash/lightdash/compare/1.162.4...1.162.5) (2026-08-16)
 
 
