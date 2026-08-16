@@ -148,6 +148,79 @@ describe('ProjectModel', () => {
         expect(result).toEqual(expectedTablesConfiguration);
         expect(tracker.history.select).toHaveLength(1);
     });
+    describe('getExploreFromCache', () => {
+        const createQualifiedExplore = (name: string) => ({
+            ...exploreWithMetricFilters,
+            name,
+            label: name,
+            baseTable: name,
+            tables: {
+                [name]: {
+                    ...exploreWithMetricFilters.tables.payments,
+                    name,
+                    originalName: 'orders',
+                },
+            },
+        });
+
+        test('returns a structured error when an explore was split', async () => {
+            const sourceAExplore = createQualifiedExplore('sourceA__orders');
+            const sourceBExplore = createQualifiedExplore('sourceB__orders');
+            const findExploresFromCache = vi
+                .spyOn(model, 'findExploresFromCache')
+                .mockResolvedValueOnce({})
+                .mockResolvedValueOnce({
+                    [sourceAExplore.name]: sourceAExplore,
+                    [sourceBExplore.name]: sourceBExplore,
+                });
+
+            await expect(
+                model.getExploreFromCache(projectUuid, 'orders'),
+            ).rejects.toMatchObject({
+                name: 'ExploreSplitError',
+                statusCode: 404,
+                data: {
+                    exploreName: 'orders',
+                    candidateExploreNames: [
+                        'sourceA__orders',
+                        'sourceB__orders',
+                    ],
+                },
+            });
+            expect(findExploresFromCache).toHaveBeenCalledTimes(2);
+        });
+
+        test('keeps the plain not found error when no split candidates exist', async () => {
+            const findExploresFromCache = vi
+                .spyOn(model, 'findExploresFromCache')
+                .mockResolvedValueOnce({})
+                .mockResolvedValueOnce({
+                    payments: exploreWithMetricFilters,
+                });
+
+            await expect(
+                model.getExploreFromCache(projectUuid, 'orders'),
+            ).rejects.toEqual(
+                new NotFoundError('Explore "orders" does not exist.'),
+            );
+            expect(findExploresFromCache).toHaveBeenCalledTimes(2);
+        });
+
+        test('keeps the plain not found error for one original-name match', async () => {
+            const sourceAExplore = createQualifiedExplore('sourceA__orders');
+            vi.spyOn(model, 'findExploresFromCache')
+                .mockResolvedValueOnce({})
+                .mockResolvedValueOnce({
+                    [sourceAExplore.name]: sourceAExplore,
+                });
+
+            await expect(
+                model.getExploreFromCache(projectUuid, 'orders'),
+            ).rejects.toEqual(
+                new NotFoundError('Explore "orders" does not exist.'),
+            );
+        });
+    });
     test('should update project tables configuration', async () => {
         tracker.on
             .update(

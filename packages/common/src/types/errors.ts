@@ -303,13 +303,29 @@ export class DbtError extends LightdashError {
 }
 
 export class NotFoundError extends LightdashError {
-    constructor(message: string) {
+    constructor(message: string, data: Record<string, AnyType> = {}) {
         super({
             message,
             name: 'NotFoundError',
             statusCode: 404,
-            data: {},
+            data,
         });
+    }
+}
+
+export class ExploreSplitError extends NotFoundError {
+    constructor(exploreName: string, candidateExploreNames: string[]) {
+        const quotedCandidates = candidateExploreNames.map(
+            (candidate) => `"${candidate}"`,
+        );
+        const candidateList = `${quotedCandidates
+            .slice(0, -1)
+            .join(', ')} and ${quotedCandidates.at(-1)}`;
+        super(
+            `Explore "${exploreName}" was split into ${candidateList}. Pick one.`,
+            { exploreName, candidateExploreNames },
+        );
+        this.name = 'ExploreSplitError';
     }
 }
 

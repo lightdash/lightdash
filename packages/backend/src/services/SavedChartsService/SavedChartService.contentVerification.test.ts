@@ -4,7 +4,9 @@ import {
     ContentType,
     CustomDimensionType,
     DimensionType,
+    ExploreSplitError,
     ForbiddenError,
+    NotFoundError,
     OrganizationMemberRole,
     PossibleAbilities,
 } from '@lightdash/common';
@@ -138,6 +140,12 @@ const projectModel = {
         projectUuid: 'project-uuid',
     })),
 };
+const analyticsModel = {
+    addChartViewEvent: vi.fn(async () => undefined),
+};
+const spaceModel = {
+    getSpaceSummary: vi.fn(async () => ({ uuid: 'space-uuid' })),
+};
 
 vi.spyOn(analyticsMock, 'track');
 
@@ -147,8 +155,8 @@ describe('SavedChartService - Content Verification', () => {
         lightdashConfig: lightdashConfigMock,
         projectModel: projectModel as unknown as ProjectModel,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
-        spaceModel: {} as unknown as SpaceModel,
-        analyticsModel: {} as unknown as AnalyticsModel,
+        spaceModel: spaceModel as unknown as SpaceModel,
+        analyticsModel: analyticsModel as unknown as AnalyticsModel,
         pinnedListModel: {} as unknown as PinnedListModel,
         schedulerModel: {} as unknown as SchedulerModel,
         schedulerService: {} as unknown as SchedulerService,
@@ -168,6 +176,49 @@ describe('SavedChartService - Content Verification', () => {
 
     afterEach(() => {
         vi.clearAllMocks();
+    });
+
+    it('returns split candidates when a saved chart uses an original explore name', async () => {
+        vi.mocked(projectModel.getExploreFromCache).mockRejectedValueOnce(
+            new ExploreSplitError('test_table', [
+                'sourceA__test_table',
+                'sourceB__test_table',
+            ]),
+        );
+
+        await expect(
+            service.get(
+                'chart-uuid',
+                fromSession(adminUser, 'session-cookie'),
+                { projectUuid: 'project-uuid' },
+            ),
+        ).rejects.toMatchObject({
+            name: 'ExploreSplitError',
+            data: {
+                exploreName: 'test_table',
+                candidateExploreNames: [
+                    'sourceA__test_table',
+                    'sourceB__test_table',
+                ],
+            },
+        });
+    });
+
+    it('keeps saved chart loading unchanged for a plain missing explore', async () => {
+        vi.mocked(projectModel.getExploreFromCache).mockRejectedValueOnce(
+            new NotFoundError('Explore "test_table" does not exist.'),
+        );
+
+        await expect(
+            service.get(
+                'chart-uuid',
+                fromSession(adminUser, 'session-cookie'),
+                { projectUuid: 'project-uuid' },
+            ),
+        ).resolves.toMatchObject({
+            uuid: 'chart-uuid',
+            tableName: 'test_table',
+        });
     });
 
     it('duplicates a chart from its original slug base', async () => {

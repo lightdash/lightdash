@@ -1,11 +1,16 @@
 import { type ApiErrorDetail } from '@lightdash/common';
-import { Text } from '@mantine/core';
+import { Code, Stack, Text } from '@mantine/core';
 import {
     IconAlertCircle,
     IconLock,
     IconMoodPuzzled,
 } from '@tabler/icons-react';
-import React, { useMemo, type ComponentProps, type FC } from 'react';
+import React, {
+    useMemo,
+    type ComponentProps,
+    type FC,
+    type ReactNode,
+} from 'react';
 import CodeBlock from '../CodeBlock/CodeBlock';
 import SuboptimalState from '../SuboptimalState/SuboptimalState';
 
@@ -18,7 +23,8 @@ const DEFAULT_ERROR_PROPS: ComponentProps<typeof SuboptimalState> = {
 const ErrorState: FC<{
     error?: ApiErrorDetail | null;
     hasMarginTop?: boolean;
-}> = ({ error, hasMarginTop = true }) => {
+    action?: ReactNode;
+}> = ({ error, hasMarginTop = true, action }) => {
     const props = useMemo<ComponentProps<typeof SuboptimalState>>(() => {
         if (!error) {
             return DEFAULT_ERROR_PROPS;
@@ -44,6 +50,14 @@ const ErrorState: FC<{
                     )}
                 </>
             );
+            const candidateExploreNames = Array.isArray(
+                error.data?.candidateExploreNames,
+            )
+                ? error.data.candidateExploreNames.filter(
+                      (candidate): candidate is string =>
+                          typeof candidate === 'string',
+                  )
+                : [];
             switch (error.name) {
                 case 'ForbiddenError':
                     return {
@@ -63,6 +77,20 @@ const ErrorState: FC<{
                         title: 'Not found',
                         description,
                     };
+                case 'ExploreSplitError':
+                    return {
+                        icon: IconMoodPuzzled,
+                        title: 'Explore was split',
+                        description: (
+                            <Stack gap="xs" align="center">
+                                <Text maw={400}>{error.message}</Text>
+                                {candidateExploreNames.map((candidate) => (
+                                    <Code key={candidate}>{candidate}</Code>
+                                ))}
+                            </Stack>
+                        ),
+                        action,
+                    };
                 default:
                     return {
                         ...DEFAULT_ERROR_PROPS,
@@ -72,7 +100,7 @@ const ErrorState: FC<{
         } catch {
             return DEFAULT_ERROR_PROPS;
         }
-    }, [error]);
+    }, [action, error]);
 
     return (
         <SuboptimalState mt={hasMarginTop ? '20px' : undefined} {...props} />

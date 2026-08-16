@@ -1,7 +1,10 @@
+import { Button } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { lazy, memo, Suspense, useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
 import ErrorState from '../components/common/ErrorState';
+import ChangeChartExploreModal from '../components/common/modal/ChangeChartExploreModal';
 import Page from '../components/common/Page/Page';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import Explorer from '../components/Explorer';
@@ -65,6 +68,8 @@ const SavedExplorer = () => {
         uuidOrSlug: savedQueryUuid,
         projectUuid,
     });
+    const [isChangeExploreModalOpen, changeExploreModalHandlers] =
+        useDisclosure(false);
 
     useEffect(() => {
         // If the saved explore is part of a dashboard, set the dashboard chart info
@@ -108,7 +113,45 @@ const SavedExplorer = () => {
 
     // Check for error first
     if (error) {
-        return <ErrorState error={error.error} />;
+        const exploreName = error.error.data?.exploreName;
+        const candidateExploreNames = Array.isArray(
+            error.error.data?.candidateExploreNames,
+        )
+            ? error.error.data.candidateExploreNames.filter(
+                  (candidate): candidate is string =>
+                      typeof candidate === 'string',
+              )
+            : [];
+        const isSplitExploreError =
+            error.error.name === 'ExploreSplitError' &&
+            typeof exploreName === 'string' &&
+            candidateExploreNames.length >= 2;
+
+        return (
+            <>
+                <ErrorState
+                    error={error.error}
+                    action={
+                        isSplitExploreError ? (
+                            <Button onClick={changeExploreModalHandlers.open}>
+                                Change explore
+                            </Button>
+                        ) : undefined
+                    }
+                />
+                {isSplitExploreError && projectUuid && savedQueryUuid && (
+                    <ChangeChartExploreModal
+                        opened={isChangeExploreModalOpen}
+                        onClose={changeExploreModalHandlers.close}
+                        projectUuid={projectUuid}
+                        chartUuid={savedQueryUuid}
+                        currentExploreName={exploreName}
+                        candidateExploreNames={candidateExploreNames}
+                        hasUnsavedChanges={false}
+                    />
+                )}
+            </>
+        );
     }
 
     // Early return if no data yet

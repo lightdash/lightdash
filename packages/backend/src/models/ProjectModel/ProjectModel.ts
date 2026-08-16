@@ -16,8 +16,10 @@ import {
     DuckdbConnectionType,
     Explore,
     ExploreError,
+    ExploreSplitError,
     ExploreType,
     generateSlug,
+    getExploreSplitCandidates,
     getLtreePathFromSlug,
     GroupType,
     IdContentMapping,
@@ -1593,9 +1595,30 @@ export class ProjectModel {
         );
         const cachedExplore = cachedExplores[exploreName];
         if (cachedExplore === undefined) {
+            const candidateExploreNames = await this.findExploreSplitCandidates(
+                projectUuid,
+                exploreName,
+            );
+            if (candidateExploreNames.length >= 2) {
+                throw new ExploreSplitError(exploreName, candidateExploreNames);
+            }
             throw new NotFoundError(`Explore "${exploreName}" does not exist.`);
         }
         return cachedExplore;
+    }
+
+    async findExploreSplitCandidates(
+        projectUuid: string,
+        exploreName: string,
+    ): Promise<string[]> {
+        const allCachedExplores = await this.findExploresFromCache(
+            projectUuid,
+            'name',
+        );
+        return getExploreSplitCandidates(
+            exploreName,
+            Object.values(allCachedExplores),
+        );
     }
 
     async findExploreByTableName(

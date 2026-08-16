@@ -205,6 +205,9 @@ const projectModel = {
         queryTimezone: null,
     })),
     findExploresFromCache: vi.fn(async () => allExplores),
+    findExploreSplitCandidates: vi.fn<
+        ProjectModel['findExploreSplitCandidates']
+    >(async () => []),
     getAllExploreSummaries: vi.fn(async () =>
         allExplores.map(exploreToSummaryWithAttributes),
     ),
@@ -2789,6 +2792,43 @@ describe('ProjectService', () => {
     });
 
     describe('getExplore', () => {
+        test('returns split candidates when the requested explore name was qualified', async () => {
+            vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce(
+                [],
+            );
+            vi.mocked(
+                projectModel.findExploreSplitCandidates,
+            ).mockResolvedValueOnce(['sourceA__orders', 'sourceB__orders']);
+
+            await expect(
+                service.getExplore(account, projectUuid, 'orders'),
+            ).rejects.toMatchObject({
+                name: 'ExploreSplitError',
+                data: {
+                    exploreName: 'orders',
+                    candidateExploreNames: [
+                        'sourceA__orders',
+                        'sourceB__orders',
+                    ],
+                },
+            });
+        });
+
+        test('keeps the plain not found error when the explore was not split', async () => {
+            vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce(
+                [],
+            );
+            vi.mocked(
+                projectModel.findExploreSplitCandidates,
+            ).mockResolvedValueOnce([]);
+
+            await expect(
+                service.getExplore(account, projectUuid, 'orders'),
+            ).rejects.toEqual(
+                new NotFoundError('Explore "orders" does not exist.'),
+            );
+        });
+
         test('should allow developer users to get a pre-aggregate explore', async () => {
             const serviceWithPreAggregatesEnabled = getMockedProjectService({
                 ...lightdashConfigMock,

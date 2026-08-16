@@ -148,6 +148,19 @@ export const isExploreError = (
     explore: Explore | ExploreError,
 ): explore is ExploreError => 'errors' in explore;
 
+export const getExploreSplitCandidates = (
+    exploreName: string,
+    explores: (Explore | ExploreError)[],
+): string[] => {
+    const candidates = explores.flatMap((explore) => {
+        if (isExploreError(explore)) return [];
+        const baseTable = explore.tables[explore.baseTable];
+        return baseTable?.originalName === exploreName ? [explore.name] : [];
+    });
+
+    return [...new Set(candidates)].sort();
+};
+
 type SummaryExploreFields =
     | 'name'
     | 'label'
