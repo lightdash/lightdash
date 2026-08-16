@@ -579,6 +579,10 @@ program
         'Path or http(s) URL to an additional dbt manifest.json. Models present in this file but missing from the preview manifest are merged in so the preview shows the full project. The preview-generated manifest always wins on conflicts.',
     )
     .option(
+        '--no-combine',
+        'Skip combining the preview manifest with the manifest served by Lightdash',
+    )
+    .option(
         '--table-configuration <prod|all>',
         `If set to 'prod' it will copy the table configuration from prod project`,
         'all',
@@ -715,6 +719,10 @@ program
     .option(
         '--combine-manifest <path-or-url>',
         'Path or http(s) URL to an additional dbt manifest.json. Models present in this file but missing from the preview manifest are merged in so the preview shows the full project. The preview-generated manifest always wins on conflicts.',
+    )
+    .option(
+        '--no-combine',
+        'Skip combining the preview manifest with the manifest served by Lightdash',
     )
     .option(
         '--table-configuration <prod|all>',

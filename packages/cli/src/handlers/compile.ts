@@ -15,6 +15,7 @@ import {
     InlineErrorType,
     isExploreError,
     isSupportedDbtAdapter,
+    LightdashError,
     LightdashProjectConfig,
     ParseError,
     preAggregatePostProcessor,
@@ -41,6 +42,7 @@ import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
 import { loadLightdashModels } from '../lightdash/loader';
 import { detectProjectType } from '../lightdash/projectType';
 import * as styles from '../styles';
+import { lightdashRawApi } from './dbt/apiClient';
 import { DbtCompileOptions, maybeCompileModelsAndJoins } from './dbt/compile';
 import { tryGetDbtVersion } from './dbt/getDbtVersion';
 import getWarehouseClient from './dbt/getWarehouseClient';
@@ -57,6 +59,8 @@ export type CompileHandlerOptions = DbtCompileOptions & {
     disableTimestampConversion?: boolean;
     validateWarehouseColumns?: boolean;
     partialCompilation?: boolean;
+    combineManifestProjectUuid?: string;
+    combine?: boolean;
 };
 
 export type CompileProjectResult = {
@@ -370,13 +374,42 @@ export const compileProject = async (
             getCompiledModels(projectManifestModels, compiledModelIds)
                 .length === projectManifestModels.length;
         let effectiveCompiledModelIds = compiledModelIds;
+        let additionalManifest: DbtManifest | undefined;
+        let combineSource: string | undefined;
         if (options.combineManifest) {
-            const externalManifest = await loadCombineManifest(
+            additionalManifest = await loadCombineManifest(
                 options.combineManifest,
             );
+            combineSource = `external manifest from ${options.combineManifest}`;
+        } else if (
+            options.combine !== false &&
+            options.combineManifestProjectUuid
+        ) {
+            try {
+                const response = await lightdashRawApi({
+                    method: 'GET',
+                    url: `/api/v1/projects/${options.combineManifestProjectUuid}/dbt/manifest`,
+                    body: undefined,
+                });
+                additionalManifest = (await response.json()) as DbtManifest;
+                combineSource = 'manifest from the server';
+            } catch (error) {
+                if (
+                    !(error instanceof LightdashError) ||
+                    error.statusCode !== 404
+                ) {
+                    console.error(
+                        styles.warning(
+                            `Could not fetch the server manifest; continuing with the preview manifest: ${getErrorMessage(error)}`,
+                        ),
+                    );
+                }
+            }
+        }
+        if (additionalManifest && combineSource) {
             const { manifest: merged, addedModelIds } = combineManifests(
                 manifest,
-                externalManifest,
+                additionalManifest,
             );
             manifest = merged;
             if (
@@ -390,7 +423,7 @@ export const compileProject = async (
             }
             console.info(
                 styles.info(
-                    `Combined external manifest from ${options.combineManifest}: added ${addedModelIds.length} model(s) not present in the preview manifest`,
+                    `Combined ${combineSource}: added ${addedModelIds.length} model(s) not present in the preview manifest`,
                 ),
             );
         }
