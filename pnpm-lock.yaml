@@ -1126,8 +1126,8 @@ importers:
         specifier: 5.1.1
         version: 5.1.1(encoding@0.1.13)(rollup@4.60.2)(supports-color@9.1.0)
       '@shopify/react-web-worker':
-        specifier: 5.0.13
-        version: 5.0.13(@babel/core@7.28.4(supports-color@9.1.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(webpack-virtual-modules@0.5.0)
+        specifier: 5.1.6
+        version: 5.1.6(@babel/core@7.28.4(supports-color@9.1.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(webpack-virtual-modules@0.6.2)
       '@tabler/icons-react':
         specifier: 2.47.0
         version: 2.47.0(react@19.2.0)
@@ -6352,34 +6352,34 @@ packages:
   '@shikijs/vscode-textmate@10.0.2':
     resolution: {integrity: sha512-83yeghZ2xxin3Nj8z1NMd/NCuca+gsYXswywDy5bHvwlWL8tpTQmzGeUuHd9FC3E/SBEMvzJRwWEOz5gGes9Qg==}
 
-  '@shopify/react-hooks@3.0.5':
-    resolution: {integrity: sha512-FzTkzFELTkfU0ErcURY2eAPRwFP3MkyeAl09STIbvfNLkNcFIG9i3869KAdFrSwRsR7WZ3PdWkWFcLAuRJPvpg==}
-    engines: {node: ^14.17.0 || >=16.0.0}
+  '@shopify/react-hooks@4.1.2':
+    resolution: {integrity: sha512-F5WWZ7t2qd0i+ALCFbdQ6v5TG+6jUZ/N/dTWLd7w56uteO2H6a91KfwUWClffPVfch0qqlHG84F8t4pOMj8/Gg==}
+    engines: {node: '>=18.12.0'}
     deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
     peerDependencies:
-      react: '>=16.8.0 <19.0.0'
+      react: '>=18.0.0 <19.0.0'
 
-  '@shopify/react-web-worker@5.0.13':
-    resolution: {integrity: sha512-HspNuLNDOPQhtPYes+i6MzFtiyAQicoBl8iYlpRefUwk1mW631LKbcyr/8RWsgZl6g80PByy9bn0OzD9CwN5PA==}
-    engines: {node: ^14.17.0 || >=16.0.0}
+  '@shopify/react-web-worker@5.1.6':
+    resolution: {integrity: sha512-qyqQt4VedxL9KuhdmkRE2OVmuiMarMwM1cvjhYDKImz0yFw423/Dj+eZMYJ23aTIYtCt7aeqzk1QiVFk2SrLAA==}
+    engines: {node: '>=18.12.0'}
     deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
     peerDependencies:
-      react: '>=16.8.0 <19.0.0'
+      react: '>=18.0.0 <19.0.0'
       react-dom: '>=16.8.0 <19.0.0'
 
-  '@shopify/useful-types@5.1.2':
-    resolution: {integrity: sha512-EjwIljAYHT1pfIxdMFp6ytJvCUmKXa5NWsvG7zXFX5EnLs7wYp66M/QCuoyJjI0Lq+5ZVyrJXJqqeBiXQVVs0w==}
-    engines: {node: ^14.17.0 || >=16.0.0}
+  '@shopify/useful-types@5.3.0':
+    resolution: {integrity: sha512-8BlaedSqR7ssQAhCsa88K+l2eIImSBlTLlnf7/dlqSlMSEqGVUf+O8oPsnyy9Oh3aDMt+rD4Q5JPOo984Cbz7Q==}
+    engines: {node: '>=18.12.0'}
     deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
 
-  '@shopify/web-worker@6.0.5':
-    resolution: {integrity: sha512-vM5diGhV3lVx6SQyl6jhXQEap+CzCqbSTG/rmCmX4HLifmnRpSGRBC3z0HpsUA6FYlLkk8VYqHkm1yGRHEe9BA==}
-    engines: {node: ^14.17.0 || >=16.0.0}
+  '@shopify/web-worker@6.4.0':
+    resolution: {integrity: sha512-RvY1mgRyAqawFiYBvsBkek2pVK4GVpV9mmhWFCZXwx01usxXd2HMhKNTFeRYhSp29uoUcfBlKZAwCwQzt826tg==}
+    engines: {node: '>=18.12.0'}
     deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
     peerDependencies:
       '@babel/core': ^7.0.0
       webpack: ^5.38.0
-      webpack-virtual-modules: ^0.4.3 || ^0.5.0
+      webpack-virtual-modules: ^0.4.3 || ^0.5.0 || ^0.6.0
     peerDependenciesMeta:
       '@babel/core':
         optional: true
@@ -10431,9 +10431,6 @@ packages:
 
   fastest-stable-stringify@2.0.2:
     resolution: {integrity: sha512-bijHueCGd0LqqNK9b5oCMHc0MluJAx0cwqASgbWMvkO01lCYgIhacVRLcaDz3QnyYIRNJRDwMb41VuT6pHJ91Q==}
-
-  fastq@1.11.0:
-    resolution: {integrity: sha512-7Eczs8gIPDrVzT+EksYBcupqMyxSHXXrHOLRRxU2/DicV8789MRBRR8+Hc2uWzUupOs4YS4JzBmBxjjCVBxD/g==}
 
   fastq@1.20.1:
     resolution: {integrity: sha512-GGToxJ/w1x32s/D2EKND7kTil4n8OVk/9mycTc4VDza13lOvpUZTGX3mFSCtV9ksdGBVzvsyAVLM6mHFThxXxw==}
@@ -16611,9 +16608,6 @@ packages:
     resolution: {integrity: sha512-VwddBukDzu71offAQR975unBIGqfKZpM+8ZX6ySk8nYhVoo5CYaZyzt3YBvYtRtO+aoGlqxPg/B87NGVZ/fu6g==}
     engines: {node: '>=12'}
 
-  webpack-virtual-modules@0.5.0:
-    resolution: {integrity: sha512-kyDivFZ7ZM0BVOUteVbDFhlRt7Ah/CSPwJdi8hBpkK7QLumUqdLtVfm/PX/hkcnrvr0i77fO5+TjZ94Pe+C9iw==}
-
   webpack-virtual-modules@0.6.2:
     resolution: {integrity: sha512-66/V2i5hQanC51vBQKPH4aI8NMAcBW59FVBs+rC7eGHupMyfn34q7rZIE+ETlJ+XTevqfUhVVBgSUNSW2flEUQ==}
 
@@ -20876,7 +20870,7 @@ snapshots:
   '@nodelib/fs.walk@1.2.8':
     dependencies:
       '@nodelib/fs.scandir': 2.1.5
-      fastq: 1.11.0
+      fastq: 1.20.1
 
   '@npmcli/fs@2.1.2':
     dependencies:
@@ -21986,7 +21980,7 @@ snapshots:
   '@rolldown/plugin-babel@0.2.3(@babel/core@7.28.4(supports-color@9.1.0))(@babel/runtime@7.28.6)(rolldown@1.2.3)(vite@8.0.5(@emnapi/core@1.9.2)(@emnapi/runtime@1.11.1)(@types/node@24.13.2)(esbuild@0.27.7)(jiti@2.6.1)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3))':
     dependencies:
       '@babel/core': 7.28.4(supports-color@9.1.0)
-      picomatch: 4.0.4
+      picomatch: 4.0.5
       rolldown: 1.2.3
     optionalDependencies:
       '@babel/runtime': 7.28.6
@@ -21996,7 +21990,7 @@ snapshots:
   '@rolldown/plugin-babel@0.2.3(@babel/core@8.0.1)(@babel/runtime@7.28.6)(rolldown@1.2.3)(vite@8.0.5(@emnapi/core@1.9.2)(@emnapi/runtime@1.11.1)(@types/node@24.13.2)(esbuild@0.27.7)(jiti@2.6.1)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3))':
     dependencies:
       '@babel/core': 8.0.1
-      picomatch: 4.0.4
+      picomatch: 4.0.5
       rolldown: 1.2.3
     optionalDependencies:
       '@babel/runtime': 7.28.6
@@ -22006,7 +22000,7 @@ snapshots:
   '@rolldown/plugin-babel@0.2.3(@babel/core@8.0.1)(@babel/runtime@7.28.6)(rolldown@1.2.3)(vite@8.0.5(@emnapi/core@1.9.2)(@emnapi/runtime@1.11.1)(@types/node@24.13.2)(esbuild@0.28.2)(jiti@2.6.1)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.9.0))':
     dependencies:
       '@babel/core': 8.0.1
-      picomatch: 4.0.4
+      picomatch: 4.0.5
       rolldown: 1.2.3
     optionalDependencies:
       '@babel/runtime': 7.28.6
@@ -22015,7 +22009,7 @@ snapshots:
   '@rolldown/plugin-babel@0.2.3(@babel/core@8.0.1)(@babel/runtime@7.28.6)(rolldown@1.2.3)(vite@8.2.1(@types/node@24.13.2)(esbuild@0.28.2)(jiti@2.6.1)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.9.0))':
     dependencies:
       '@babel/core': 8.0.1
-      picomatch: 4.0.4
+      picomatch: 4.0.5
       rolldown: 1.2.3
     optionalDependencies:
       '@babel/runtime': 7.28.6
@@ -22411,15 +22405,15 @@ snapshots:
 
   '@shikijs/vscode-textmate@10.0.2': {}
 
-  '@shopify/react-hooks@3.0.5(react@19.2.0)':
+  '@shopify/react-hooks@4.1.2(react@19.2.0)':
     dependencies:
       react: 19.2.0
 
-  '@shopify/react-web-worker@5.0.13(@babel/core@7.28.4(supports-color@9.1.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(webpack-virtual-modules@0.5.0)':
+  '@shopify/react-web-worker@5.1.6(@babel/core@7.28.4(supports-color@9.1.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(webpack-virtual-modules@0.6.2)':
     dependencies:
-      '@shopify/react-hooks': 3.0.5(react@19.2.0)
-      '@shopify/useful-types': 5.1.2
-      '@shopify/web-worker': 6.0.5(@babel/core@7.28.4(supports-color@9.1.0))(webpack-virtual-modules@0.5.0)
+      '@shopify/react-hooks': 4.1.2(react@19.2.0)
+      '@shopify/useful-types': 5.3.0
+      '@shopify/web-worker': 6.4.0(@babel/core@7.28.4(supports-color@9.1.0))(webpack-virtual-modules@0.6.2)
       react: 19.2.0
       react-dom: 19.2.0(react@19.2.0)
     transitivePeerDependencies:
@@ -22427,14 +22421,14 @@ snapshots:
       - webpack
       - webpack-virtual-modules
 
-  '@shopify/useful-types@5.1.2': {}
+  '@shopify/useful-types@5.3.0': {}
 
-  '@shopify/web-worker@6.0.5(@babel/core@7.28.4(supports-color@9.1.0))(webpack-virtual-modules@0.5.0)':
+  '@shopify/web-worker@6.4.0(@babel/core@7.28.4(supports-color@9.1.0))(webpack-virtual-modules@0.6.2)':
     dependencies:
       '@remote-ui/rpc': 1.4.3
     optionalDependencies:
       '@babel/core': 7.28.4(supports-color@9.1.0)
-      webpack-virtual-modules: 0.5.0
+      webpack-virtual-modules: 0.6.2
 
   '@sidvind/better-ajv-errors@7.0.0(ajv@8.18.0)':
     dependencies:
@@ -27691,10 +27685,6 @@ snapshots:
 
   fastest-stable-stringify@2.0.2: {}
 
-  fastq@1.11.0:
-    dependencies:
-      reusify: 1.0.4
-
   fastq@1.20.1:
     dependencies:
       reusify: 1.0.4
@@ -27726,6 +27716,10 @@ snapshots:
   fdir@6.5.0(picomatch@4.0.4):
     optionalDependencies:
       picomatch: 4.0.4
+
+  fdir@6.5.0(picomatch@4.0.5):
+    optionalDependencies:
+      picomatch: 4.0.5
 
   fecha@4.2.3: {}
 
@@ -34135,8 +34129,8 @@ snapshots:
 
   tinyglobby@0.2.17:
     dependencies:
-      fdir: 6.5.0(picomatch@4.0.4)
-      picomatch: 4.0.4
+      fdir: 6.5.0(picomatch@4.0.5)
+      picomatch: 4.0.5
 
   tinypool@2.1.0: {}
 
@@ -35044,11 +35038,11 @@ snapshots:
   vite@7.3.5(@types/node@22.13.1)(jiti@2.6.1)(lightningcss@1.33.0)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.9.0):
     dependencies:
       esbuild: 0.27.7
-      fdir: 6.5.0(picomatch@4.0.4)
-      picomatch: 4.0.4
+      fdir: 6.5.0(picomatch@4.0.5)
+      picomatch: 4.0.5
       postcss: 8.5.23
       rollup: 4.60.2
-      tinyglobby: 0.2.15
+      tinyglobby: 0.2.17
     optionalDependencies:
       '@types/node': 22.13.1
       fsevents: 2.3.3
@@ -35062,11 +35056,11 @@ snapshots:
   vite@7.3.5(@types/node@24.13.2)(jiti@2.6.1)(lightningcss@1.33.0)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3):
     dependencies:
       esbuild: 0.27.7
-      fdir: 6.5.0(picomatch@4.0.4)
-      picomatch: 4.0.4
+      fdir: 6.5.0(picomatch@4.0.5)
+      picomatch: 4.0.5
       postcss: 8.5.23
       rollup: 4.60.2
-      tinyglobby: 0.2.15
+      tinyglobby: 0.2.17
     optionalDependencies:
       '@types/node': 24.13.2
       fsevents: 2.3.3
@@ -35080,11 +35074,11 @@ snapshots:
   vite@7.3.5(@types/node@24.13.2)(jiti@2.6.1)(lightningcss@1.33.0)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3):
     dependencies:
       esbuild: 0.27.7
-      fdir: 6.5.0(picomatch@4.0.4)
-      picomatch: 4.0.4
+      fdir: 6.5.0(picomatch@4.0.5)
+      picomatch: 4.0.5
       postcss: 8.5.23
       rollup: 4.60.2
-      tinyglobby: 0.2.15
+      tinyglobby: 0.2.17
     optionalDependencies:
       '@types/node': 24.13.2
       fsevents: 2.3.3
@@ -35098,11 +35092,11 @@ snapshots:
   vite@7.3.5(@types/node@24.13.2)(jiti@2.6.1)(lightningcss@1.33.0)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.9.0):
     dependencies:
       esbuild: 0.27.7
-      fdir: 6.5.0(picomatch@4.0.4)
-      picomatch: 4.0.4
+      fdir: 6.5.0(picomatch@4.0.5)
+      picomatch: 4.0.5
       postcss: 8.5.23
       rollup: 4.60.2
-      tinyglobby: 0.2.15
+      tinyglobby: 0.2.17
     optionalDependencies:
       '@types/node': 24.13.2
       fsevents: 2.3.3
@@ -35184,11 +35178,11 @@ snapshots:
       magic-string: 0.30.21
       obug: 2.1.1
       pathe: 2.0.3
-      picomatch: 4.0.4
+      picomatch: 4.0.5
       std-env: 4.0.0
       tinybench: 2.9.0
       tinyexec: 1.0.4
-      tinyglobby: 0.2.15
+      tinyglobby: 0.2.17
       tinyrainbow: 3.1.0
       vite: 7.3.5(@types/node@22.13.1)(jiti@2.6.1)(lightningcss@1.33.0)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.9.0)
       why-is-node-running: 2.3.0
@@ -35213,11 +35207,11 @@ snapshots:
       magic-string: 0.30.21
       obug: 2.1.1
       pathe: 2.0.3
-      picomatch: 4.0.4
+      picomatch: 4.0.5
       std-env: 4.0.0
       tinybench: 2.9.0
       tinyexec: 1.0.4
-      tinyglobby: 0.2.15
+      tinyglobby: 0.2.17
       tinyrainbow: 3.1.0
       vite: 7.3.5(@types/node@24.13.2)(jiti@2.6.1)(lightningcss@1.33.0)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3)
       why-is-node-running: 2.3.0
@@ -35242,11 +35236,11 @@ snapshots:
       magic-string: 0.30.21
       obug: 2.1.1
       pathe: 2.0.3
-      picomatch: 4.0.4
+      picomatch: 4.0.5
       std-env: 4.0.0
       tinybench: 2.9.0
       tinyexec: 1.0.4
-      tinyglobby: 0.2.15
+      tinyglobby: 0.2.17
       tinyrainbow: 3.1.0
       vite: 8.0.5(@emnapi/core@1.9.2)(@emnapi/runtime@1.11.1)(@types/node@24.13.2)(esbuild@0.27.7)(jiti@2.6.1)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3)
       why-is-node-running: 2.3.0
@@ -35271,11 +35265,11 @@ snapshots:
       magic-string: 0.30.21
       obug: 2.1.1
       pathe: 2.0.3
-      picomatch: 4.0.4
+      picomatch: 4.0.5
       std-env: 4.0.0
       tinybench: 2.9.0
       tinyexec: 1.0.4
-      tinyglobby: 0.2.15
+      tinyglobby: 0.2.17
       tinyrainbow: 3.1.0
       vite: 7.3.5(@types/node@24.13.2)(jiti@2.6.1)(lightningcss@1.33.0)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3)
       why-is-node-running: 2.3.0
@@ -35300,11 +35294,11 @@ snapshots:
       magic-string: 0.30.21
       obug: 2.1.1
       pathe: 2.0.3
-      picomatch: 4.0.4
+      picomatch: 4.0.5
       std-env: 4.0.0
       tinybench: 2.9.0
       tinyexec: 1.0.4
-      tinyglobby: 0.2.15
+      tinyglobby: 0.2.17
       tinyrainbow: 3.1.0
       vite: 7.3.5(@types/node@24.13.2)(jiti@2.6.1)(lightningcss@1.33.0)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3)
       why-is-node-running: 2.3.0
@@ -35329,11 +35323,11 @@ snapshots:
       magic-string: 0.30.21
       obug: 2.1.1
       pathe: 2.0.3
-      picomatch: 4.0.4
+      picomatch: 4.0.5
       std-env: 4.0.0
       tinybench: 2.9.0
       tinyexec: 1.0.4
-      tinyglobby: 0.2.15
+      tinyglobby: 0.2.17
       tinyrainbow: 3.1.0
       vite: 7.3.5(@types/node@24.13.2)(jiti@2.6.1)(lightningcss@1.33.0)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.9.0)
       why-is-node-running: 2.3.0
@@ -35389,9 +35383,6 @@ snapshots:
   webidl-conversions@3.0.1: {}
 
   webidl-conversions@7.0.0: {}
-
-  webpack-virtual-modules@0.5.0:
-    optional: true
 
   webpack-virtual-modules@0.6.2: {}
 
