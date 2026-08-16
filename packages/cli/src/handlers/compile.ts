@@ -97,6 +97,50 @@ export const stripWarehouseColumnErrors = (
         : exploreWithoutWarnings;
 };
 
+type SourceAnnotatedDbtNode = DbtManifest['nodes'][string] & {
+    lightdash_source_name?: unknown;
+};
+
+const getManifestModelIds = (manifest: DbtManifest): string[] =>
+    Object.entries(manifest.nodes)
+        .filter(([, node]) => node.resource_type === 'model')
+        .map(([uniqueId]) => uniqueId);
+
+const getCompiledManifestModelIds = (manifest: DbtManifest): string[] =>
+    Object.entries(manifest.nodes)
+        .filter(
+            ([, node]) =>
+                node.resource_type === 'model' &&
+                (node as SourceAnnotatedDbtNode & { compiled?: boolean })
+                    .compiled === true,
+        )
+        .map(([uniqueId]) => uniqueId);
+
+const combinePreviewManifests = (
+    localManifest: DbtManifest,
+    externalManifest: DbtManifest,
+) => {
+    const { manifest, addedModelIds } = combineManifests(
+        localManifest,
+        externalManifest,
+    );
+    const nodes = { ...manifest.nodes };
+
+    Object.keys(localManifest.nodes).forEach((uniqueId) => {
+        const externalNode = externalManifest.nodes[uniqueId] as
+            | SourceAnnotatedDbtNode
+            | undefined;
+        if (typeof externalNode?.lightdash_source_name === 'string') {
+            nodes[uniqueId] = {
+                ...nodes[uniqueId],
+                lightdash_source_name: externalNode.lightdash_source_name,
+            } as DbtManifest['nodes'][string];
+        }
+    });
+
+    return { manifest: { ...manifest, nodes }, addedModelIds };
+};
+
 const getDisplayableDiagnostics = (
     explore: Explore,
     allowPartialCompilation: boolean,
@@ -400,6 +444,7 @@ export const compileProject = async (
         let effectiveCompiledModelIds = compiledModelIds;
         let additionalManifest: DbtManifest | undefined;
         let combineSource: string | undefined;
+        let isAutomaticServerManifest = false;
         if (options.combineManifest) {
             additionalManifest = await loadCombineManifest(
                 options.combineManifest,
@@ -417,6 +462,7 @@ export const compileProject = async (
                 });
                 additionalManifest = (await response.json()) as DbtManifest;
                 combineSource = 'manifest from the server';
+                isAutomaticServerManifest = true;
             } catch (error) {
                 if (
                     !(error instanceof LightdashError) ||
@@ -431,25 +477,48 @@ export const compileProject = async (
             }
         }
         if (additionalManifest && combineSource) {
-            const { manifest: merged, addedModelIds } = combineManifests(
-                manifest,
-                additionalManifest,
+            const localModelIds = new Set(getManifestModelIds(manifest));
+            const externalModelIds = getManifestModelIds(additionalManifest);
+            const localSourceExists = externalModelIds.some((uniqueId) =>
+                localModelIds.has(uniqueId),
             );
-            manifest = merged;
-            if (
-                effectiveCompiledModelIds !== undefined &&
-                addedModelIds.length > 0
-            ) {
-                effectiveCompiledModelIds = [
-                    ...effectiveCompiledModelIds,
-                    ...addedModelIds,
-                ];
+
+            if (isAutomaticServerManifest && !localSourceExists) {
+                console.info(
+                    styles.info(
+                        `Skipped combining ${combineSource}: the local dbt project is not a source of this Lightdash project`,
+                    ),
+                );
+            } else {
+                const compiledExternalModelIds =
+                    getCompiledManifestModelIds(additionalManifest);
+                const { manifest: merged, addedModelIds } =
+                    combinePreviewManifests(manifest, additionalManifest);
+                manifest = merged;
+                if (
+                    effectiveCompiledModelIds !== undefined &&
+                    addedModelIds.length > 0
+                ) {
+                    effectiveCompiledModelIds = [
+                        ...effectiveCompiledModelIds,
+                        ...addedModelIds,
+                    ];
+                }
+
+                let combineResult: string;
+                if (addedModelIds.length > 0) {
+                    combineResult = `added ${addedModelIds.length} model(s) not present in the preview manifest`;
+                } else if (compiledExternalModelIds.length === 0) {
+                    combineResult =
+                        'added 0 model(s) because the manifest contains no compiled models';
+                } else {
+                    combineResult =
+                        'added 0 model(s) because all compiled models already exist in the preview manifest';
+                }
+                console.info(
+                    styles.info(`Combined ${combineSource}: ${combineResult}`),
+                );
             }
-            console.info(
-                styles.info(
-                    `Combined ${combineSource}: added ${addedModelIds.length} model(s) not present in the preview manifest`,
-                ),
-            );
         }
         const manifestVersion = getDbtManifestVersion(manifest);
         const manifestModels = getModelsFromManifest(manifest);
