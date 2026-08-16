@@ -1,3 +1,10 @@
+## [1.162.4](https://github.com/lightdash/lightdash/compare/1.162.3...1.162.4) (2026-08-16)
+
+
+### Bug Fixes
+
+* refuse ambiguous explore write-back ([#27440](https://github.com/lightdash/lightdash/issues/27440)) ([2925321](https://github.com/lightdash/lightdash/commit/292532107fe5a588b256484bf408e17805a6026d))
+
 ## [1.162.3](https://github.com/lightdash/lightdash/compare/1.162.2...1.162.3) (2026-08-16)
 
 
