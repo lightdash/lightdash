@@ -64,7 +64,12 @@ const projectModelNode = (
 };
 
 export const projectMergedManifest = (manifest: DbtManifest): DbtManifest => ({
-    ...manifest,
+    metadata: manifest.metadata,
+    metrics: manifest.metrics,
+    docs: manifest.docs,
+    sources: manifest.sources,
+    macros: manifest.macros,
+    semantic_models: manifest.semantic_models,
     nodes: Object.fromEntries(
         Object.entries(manifest.nodes).map(([uniqueId, node]) => [
             uniqueId,

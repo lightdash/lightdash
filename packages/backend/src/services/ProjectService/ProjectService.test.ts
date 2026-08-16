@@ -661,6 +661,7 @@ describe('ProjectService', () => {
                     projectWithSensitiveFields.projectUuid,
                 ),
             ).resolves.toEqual(storedManifest);
+            expect(projectModel.getWithSensitiveFields).not.toHaveBeenCalled();
         });
 
         test('rejects an account without deploy permission', async () => {

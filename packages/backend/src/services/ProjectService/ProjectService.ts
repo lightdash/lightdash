@@ -2502,8 +2502,7 @@ export class ProjectService extends BaseService {
         account: Account,
         projectUuid: string,
     ): Promise<Buffer> {
-        const project =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const project = await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
