@@ -129,4 +129,54 @@ describe('projectMergedManifest', () => {
             await compile(manifest),
         );
     });
+
+    test('drops top-level sections the merge does not carry', () => {
+        const manifestWithExtraSections = {
+            ...manifest,
+            exposures: { 'exposure.test.orders': { name: 'orders' } },
+            parent_map: { 'model.test.orders': [] },
+            child_map: { 'model.test.orders': [] },
+            selectors: {},
+            disabled: {},
+        } as unknown as DbtManifest;
+
+        const serialized = JSON.parse(
+            JSON.stringify(projectMergedManifest(manifestWithExtraSections)),
+        ) as Record<string, unknown>;
+
+        expect(Object.keys(serialized).sort()).toEqual([
+            'docs',
+            'macros',
+            'metadata',
+            'metrics',
+            'nodes',
+            'semantic_models',
+            'sources',
+        ]);
+    });
+
+    test('keeps optional sections absent when the merge omits them', () => {
+        const manifestWithoutOptionalSections = { ...manifest } as Record<
+            string,
+            unknown
+        >;
+        delete manifestWithoutOptionalSections.sources;
+        delete manifestWithoutOptionalSections.macros;
+        delete manifestWithoutOptionalSections.semantic_models;
+
+        const serialized = JSON.parse(
+            JSON.stringify(
+                projectMergedManifest(
+                    manifestWithoutOptionalSections as unknown as DbtManifest,
+                ),
+            ),
+        ) as Record<string, unknown>;
+
+        expect(Object.keys(serialized).sort()).toEqual([
+            'docs',
+            'metadata',
+            'metrics',
+            'nodes',
+        ]);
+    });
 });
