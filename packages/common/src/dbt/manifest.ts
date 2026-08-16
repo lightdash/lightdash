@@ -11,9 +11,10 @@ export type CombineManifestsResult = {
 };
 
 /**
- * One dbt source feeding the multi-source merge. `precedence` orders sources
- * (lower wins on key collision; the primary source is precedence 0); `name`
- * tie-breaks equal precedence and labels collisions in the report.
+ * One dbt source feeding the multi-source merge. `precedence` orders the fold;
+ * the lowest source supplies manifest metadata and wins docs/macros unions.
+ * Model collisions fail separately rather than being resolved by precedence.
+ * `name` tie-breaks equal precedence and labels collision reports.
  */
 export type ManifestSource = {
     name: string;

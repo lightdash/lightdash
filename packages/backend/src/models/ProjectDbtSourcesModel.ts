@@ -26,9 +26,10 @@ type ProjectDbtSourcesModelArguments = {
 /**
  * Data access for `project_dbt_sources` — the additional dbt sources connected
  * to a project beyond its primary `projects.dbt_connection` (PROD-7484). Rows
- * are returned ordered by precedence so the merge fold is deterministic. The
- * primary source is not stored here; a project with no rows runs the
- * single-source path unchanged (N=0 short-circuit).
+ * are returned ordered by precedence for both the sources list and merge fold.
+ * The lowest precedence supplies manifest metadata and wins docs/macros unions;
+ * model collisions fail separately. The primary source is not stored here; a
+ * project with no rows runs the single-source path unchanged (N=0 short-circuit).
  */
 export class ProjectDbtSourcesModel {
     private readonly database: Knex;

@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AlreadyExistsError,
     ApiCreateProjectDbtSource,
     ApiUpdateProjectDbtSource,
     DbtProjectConfig,
@@ -176,14 +177,16 @@ export class ProjectDbtSourcesService extends BaseService {
         projectUuid: string,
     ): Promise<ProjectDbtSourceSummary[]> {
         await this.checkProjectAccess(account, projectUuid, 'view');
-        const project = await this.projectModel.get(projectUuid);
-        const sources =
-            await this.projectDbtSourcesModel.getSources(projectUuid);
+        const [project, identity, sources] = await Promise.all([
+            this.projectModel.get(projectUuid),
+            this.projectModel.getDbtSourceIdentity(projectUuid),
+            this.projectDbtSourcesModel.getSources(projectUuid),
+        ]);
         // The primary source is the project's own dbt_connection (precedence 0),
         // synthesised here rather than stored as a row.
         const primary: ProjectDbtSourceSummary = {
-            projectDbtSourceUuid: project.projectUuid,
-            name: 'Project dbt connection',
+            projectDbtSourceUuid: identity.dbtSourceUuid,
+            name: identity.dbtSourceName,
             isPrimary: true,
             precedence: 0,
             type: project.dbtConnection.type,
@@ -220,6 +223,13 @@ export class ProjectDbtSourcesService extends BaseService {
             projectUuid,
             data.warehouseLocation,
         );
+        const identity =
+            await this.projectModel.getDbtSourceIdentity(projectUuid);
+        if (data.name === identity.dbtSourceName) {
+            throw new AlreadyExistsError(
+                `A dbt source named "${identity.dbtSourceName}" already exists on this project`,
+            );
+        }
         const existing =
             await this.projectDbtSourcesModel.getSources(projectUuid);
         // Append after the highest existing precedence (primary is 0).
@@ -306,6 +316,15 @@ export class ProjectDbtSourcesService extends BaseService {
             throw new ForbiddenError(
                 'This dbt source does not belong to the project',
             );
+        }
+        if (data.name !== undefined) {
+            const identity =
+                await this.projectModel.getDbtSourceIdentity(projectUuid);
+            if (data.name === identity.dbtSourceName) {
+                throw new AlreadyExistsError(
+                    `A dbt source named "${identity.dbtSourceName}" already exists on this project`,
+                );
+            }
         }
         // GitHub-only for now, matching createProjectDbtSource.
         if (

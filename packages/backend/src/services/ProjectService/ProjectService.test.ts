@@ -190,6 +190,10 @@ const projectModel = {
     get: vi.fn(async () => projectWithSensitiveFields),
     getAllByOrganizationUuid: vi.fn<ProjectModel['getAllByOrganizationUuid']>(),
     getSummary: vi.fn(async () => projectSummary),
+    getDbtSourceIdentity: vi.fn(async () => ({
+        dbtSourceUuid: 'primary-source-uuid',
+        dbtSourceName: 'dbt_project',
+    })),
     getTablesConfiguration: vi.fn(async () => tablesConfiguration),
     updateTablesConfiguration: vi.fn(),
     getExploreFromCache: vi.fn(async () => validExplore),
@@ -4635,36 +4639,57 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
 
     const buildManifest = (
         models: Array<{ uniqueId: string; name: string; packageName: string }>,
-    ): DbtManifest => ({
-        nodes: Object.fromEntries(
-            models.map(({ uniqueId, name, packageName }) => [
-                uniqueId,
-                {
-                    unique_id: uniqueId,
-                    name,
-                    package_name: packageName,
-                    resource_type: 'model',
-                    compiled: true,
-                    database: 'analytics',
-                    schema: 'public',
-                    config: {
-                        materialized: 'table',
-                        snowflake_warehouse: '',
+    ): DbtManifest => {
+        const seedPackageName = models[0]?.packageName ?? 'fixtures';
+        return {
+            nodes: Object.fromEntries([
+                ...models.map(({ uniqueId, name, packageName }) => [
+                    uniqueId,
+                    {
+                        unique_id: uniqueId,
+                        name,
+                        package_name: packageName,
+                        resource_type: 'model',
+                        compiled: true,
+                        database: 'analytics',
+                        schema: 'public',
+                        config: {
+                            materialized: 'table',
+                            snowflake_warehouse: '',
+                        },
+                        meta: {},
+                        columns: {},
                     },
-                    meta: {},
-                    columns: {},
-                },
+                ]),
+                [
+                    `seed.${seedPackageName}.country_codes`,
+                    {
+                        unique_id: `seed.${seedPackageName}.country_codes`,
+                        name: `country_codes_${seedPackageName}`,
+                        package_name: seedPackageName,
+                        resource_type: 'seed',
+                        compiled: true,
+                        database: 'analytics',
+                        schema: 'public',
+                        config: {
+                            materialized: 'seed',
+                            snowflake_warehouse: '',
+                        },
+                        meta: {},
+                        columns: {},
+                    },
+                ],
             ]),
-        ),
-        metadata: {
-            dbt_schema_version:
-                'https://schemas.getdbt.com/dbt/manifest/v12.json',
-            generated_at: '2026-08-16T00:00:00.000Z',
-            adapter_type: 'postgres',
-        },
-        metrics: {},
-        docs: {},
-    });
+            metadata: {
+                dbt_schema_version:
+                    'https://schemas.getdbt.com/dbt/manifest/v12.json',
+                generated_at: '2026-08-16T00:00:00.000Z',
+                adapter_type: 'postgres',
+            },
+            metrics: {},
+            docs: {},
+        };
+    };
 
     const buildAdapterWithManifest = (
         manifest: DbtManifest,
@@ -4916,7 +4941,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         await expect(
             buildMergedAdapter(primaryManifest, sourceManifest),
         ).rejects.toThrow(
-            'Merging dbt sources found 1 model name collision: model "orders" is defined in sources "primary" and "source-b". Rename or remove the duplicate(s) before deploying.',
+            'Merging dbt sources found 1 model name collision: model "orders" is defined in sources "dbt_project" and "source-b". Rename or remove the duplicate(s) before deploying.',
         );
     });
 
@@ -5083,7 +5108,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             'buildMergedManifestAdapter',
         ).mockRejectedValue(
             new ParameterError(
-                'Merging dbt sources found 1 naming collision: nodes "model.dup" is defined in both "primary" and "jaffle-2". Rename or remove the duplicate(s) before deploying.',
+                'Merging dbt sources found 1 naming collision: nodes "model.dup" is defined in both "dbt_project" and "jaffle-2". Rename or remove the duplicate(s) before deploying.',
             ),
         );
 

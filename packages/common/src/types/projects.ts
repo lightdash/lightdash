@@ -1050,6 +1050,8 @@ export type ProjectDbtSource = {
     updatedAt: Date;
 };
 
+export const DEFAULT_PROJECT_DBT_SOURCE_NAME = 'dbt_project';
+
 export type CreateProjectDbtSource = {
     name: string;
     isPrimary: boolean;

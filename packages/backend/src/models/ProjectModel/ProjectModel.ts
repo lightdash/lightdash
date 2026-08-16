@@ -390,6 +390,26 @@ export class ProjectModel {
         return projects[0].project_uuid;
     }
 
+    async getDbtSourceIdentity(projectUuid: string): Promise<{
+        dbtSourceUuid: string;
+        dbtSourceName: string;
+    }> {
+        const [project] = await this.database(ProjectTableName)
+            .select('dbt_source_uuid', 'dbt_source_name')
+            .where('project_uuid', projectUuid);
+
+        if (!project) {
+            throw new NotFoundError(
+                `Cannot find project with id: ${projectUuid}`,
+            );
+        }
+
+        return {
+            dbtSourceUuid: project.dbt_source_uuid,
+            dbtSourceName: project.dbt_source_name,
+        };
+    }
+
     async getAllByOrganizationUuid(
         organizationUuid: string,
     ): Promise<OrganizationProject[]> {

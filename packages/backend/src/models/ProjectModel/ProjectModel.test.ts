@@ -103,6 +103,30 @@ describe('ProjectModel', () => {
         expect(project).toEqual(expectedProject);
         expect(tracker.history.select).toHaveLength(1);
     });
+    test('should get the primary dbt source identity', async () => {
+        tracker.on
+            .select(queryMatcher(ProjectTableName, [projectUuid]))
+            .response([
+                {
+                    dbt_source_uuid: 'dbt-source-uuid',
+                    dbt_source_name: 'dbt_project',
+                },
+            ]);
+
+        await expect(model.getDbtSourceIdentity(projectUuid)).resolves.toEqual({
+            dbtSourceUuid: 'dbt-source-uuid',
+            dbtSourceName: 'dbt_project',
+        });
+    });
+    test('should throw when getting the dbt source identity for a missing project', async () => {
+        tracker.on
+            .select(queryMatcher(ProjectTableName, [projectUuid]))
+            .response([]);
+
+        await expect(
+            model.getDbtSourceIdentity(projectUuid),
+        ).rejects.toBeInstanceOf(NotFoundError);
+    });
     test('should get project tables configuration', async () => {
         tracker.on
             .select(queryMatcher(ProjectTableName, [projectUuid]))
