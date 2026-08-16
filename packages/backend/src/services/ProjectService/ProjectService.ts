@@ -3784,7 +3784,7 @@ export class ProjectService extends BaseService {
             // Source git clones built only to read manifests for the merge.
             const manifestFetchAdapters: ProjectAdapter[] = [];
             if (updatedProject.dbtConnection.type !== DbtProjectType.NONE) {
-                await this.jobModel.tryJobStep(
+                const compileResult = await this.jobModel.tryJobStep(
                     job.jobUuid,
                     JobStepType.COMPILING,
                     async () => {
@@ -3871,18 +3871,26 @@ export class ProjectService extends BaseService {
                             );
                             timings.parameters.end = performance.now();
                             timings.cacheExplores.start = performance.now();
-                            await this.saveExploresToCacheAndIndexCatalog({
-                                userUuid: user.userUuid,
-                                projectUuid,
-                                explores,
-                                compilationSource,
-                                jobUuid: job.jobUuid,
-                                requestMethod: method,
-                                projectConfigDefaults:
-                                    lightdashProjectConfig.defaults,
-                                complete: true,
-                            });
+                            const indexCatalogJobUuid =
+                                await this.saveExploresToCacheAndIndexCatalog({
+                                    userUuid: user.userUuid,
+                                    projectUuid,
+                                    explores,
+                                    compilationSource,
+                                    jobUuid: job.jobUuid,
+                                    requestMethod: method,
+                                    projectConfigDefaults:
+                                        lightdashProjectConfig.defaults,
+                                    complete: true,
+                                });
                             timings.cacheExplores.end = performance.now();
+
+                            return {
+                                indexCatalogJobUuid,
+                                errorCount:
+                                    explores.filter(isExploreError).length,
+                                total: explores.length,
+                            };
                         } finally {
                             await compileAdapter.destroy();
                             await sshTunnel.disconnect();
@@ -3903,14 +3911,18 @@ export class ProjectService extends BaseService {
                         }
                     },
                 );
+                await this.jobModel.update(job.jobUuid, {
+                    jobStatus: JobStatusType.DONE,
+                    jobResults: compileResult,
+                });
+            } else {
+                await this.jobModel.update(job.jobUuid, {
+                    jobStatus: JobStatusType.DONE,
+                    jobResults: {
+                        projectUuid,
+                    },
+                });
             }
-
-            await this.jobModel.update(job.jobUuid, {
-                jobStatus: JobStatusType.DONE,
-                jobResults: {
-                    projectUuid,
-                },
-            });
             const projectWithWarehouse = {
                 ...updatedProject,
                 warehouseConnection: updatedProject.warehouseConnection,
@@ -8561,7 +8573,7 @@ export class ProjectService extends BaseService {
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.RUNNING,
                 });
-                const indexCatalogJobUuid = await this.jobModel.tryJobStep(
+                const compileResult = await this.jobModel.tryJobStep(
                     job.jobUuid,
                     JobStepType.COMPILING,
                     async () => {
@@ -8615,28 +8627,31 @@ export class ProjectService extends BaseService {
                         );
                         timings.parameters.end = performance.now();
                         timings.cacheExplores.start = performance.now();
-                        const result = this.saveExploresToCacheAndIndexCatalog({
-                            userUuid: user.userUuid,
-                            projectUuid,
-                            explores,
-                            compilationSource: 'refresh_dbt',
-                            jobUuid: job.jobUuid,
-                            requestMethod,
-                            projectConfigDefaults:
-                                lightdashProjectConfig.defaults,
-                            complete: true,
-                        });
+                        const indexCatalogJobUuid =
+                            await this.saveExploresToCacheAndIndexCatalog({
+                                userUuid: user.userUuid,
+                                projectUuid,
+                                explores,
+                                compilationSource: 'refresh_dbt',
+                                jobUuid: job.jobUuid,
+                                requestMethod,
+                                projectConfigDefaults:
+                                    lightdashProjectConfig.defaults,
+                                complete: true,
+                            });
                         timings.cacheExplores.end = performance.now();
 
-                        return result;
+                        return {
+                            indexCatalogJobUuid,
+                            errorCount: explores.filter(isExploreError).length,
+                            total: explores.length,
+                        };
                     },
                 );
 
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.DONE,
-                    jobResults: {
-                        indexCatalogJobUuid,
-                    },
+                    jobResults: compileResult,
                 });
             } catch (e) {
                 await this.jobModel.update(job.jobUuid, {

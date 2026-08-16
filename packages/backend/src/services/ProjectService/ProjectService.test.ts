@@ -3139,7 +3139,14 @@ describe('ProjectService', () => {
                 },
                 'refreshTablesAndProjectConfig',
             ).mockResolvedValueOnce({
-                explores: [],
+                explores: [
+                    validExplore,
+                    {
+                        name: 'invalid_orders',
+                        label: 'Invalid orders',
+                        errors: [],
+                    },
+                ],
                 lightdashProjectConfig: {
                     spotlight: {
                         categories: {
@@ -3191,7 +3198,11 @@ describe('ProjectService', () => {
             );
             expect(jobModel.update).toHaveBeenCalledWith(compileJobUuid, {
                 jobStatus: JobStatusType.DONE,
-                jobResults: { indexCatalogJobUuid: { jobId: 'catalog-job-1' } },
+                jobResults: {
+                    indexCatalogJobUuid: { jobId: 'catalog-job-1' },
+                    errorCount: 1,
+                    total: 2,
+                },
             });
         });
 
@@ -3220,6 +3231,85 @@ describe('ProjectService', () => {
             ).rejects.toThrowError(ForbiddenError);
 
             expect(tagsModel.replaceYamlTags).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('testAndCompileProject', () => {
+        test('records explore errors for settings-page deploys', async () => {
+            const compileJobUuid = 'settings-compile-job-uuid';
+            const invalidExplore = {
+                name: 'invalid_orders',
+                label: 'Invalid orders',
+                errors: [],
+            };
+            const adapter = {
+                compileAllExplores: vi.fn(async () => [
+                    validExplore,
+                    invalidExplore,
+                ]),
+                getLightdashProjectConfig: vi.fn(async () => ({
+                    spotlight: { categories: {} },
+                    parameters: {},
+                    table_groups: {},
+                })),
+                destroy: vi.fn(async () => undefined),
+            } as unknown as ProjectAdapter;
+            const sshTunnel = {
+                disconnect: vi.fn(async () => undefined),
+            };
+
+            projectModel.getWithSensitiveFields.mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                warehouseConnection: warehouseClientMock.credentials,
+            });
+
+            vi.spyOn(
+                service as unknown as {
+                    testProjectAdapter: () => Promise<unknown>;
+                },
+                'testProjectAdapter',
+            ).mockResolvedValueOnce({
+                adapter,
+                sshTunnel,
+                warehouseCredentials: warehouseClientMock.credentials,
+                cachedWarehouse: {
+                    warehouseCatalog: undefined,
+                    onWarehouseCatalogChange: vi.fn(),
+                },
+                dbtVersionOption: DefaultSupportedDbtVersion,
+            });
+            vi.spyOn(
+                service as unknown as {
+                    getProjectContextFromAdapter: () => Promise<undefined>;
+                },
+                'getProjectContextFromAdapter',
+            ).mockResolvedValueOnce(undefined);
+            vi.spyOn(
+                service,
+                'saveExploresToCacheAndIndexCatalog',
+            ).mockResolvedValueOnce('catalog-job-1');
+
+            await service.testAndCompileProject(
+                {
+                    ...user,
+                    organizationUuid: 'organizationUuid',
+                    organizationName: 'Organization',
+                    organizationCreatedAt: new Date(),
+                },
+                projectUuid,
+                RequestMethod.WEB_APP,
+                compileJobUuid,
+                'project_connection_form',
+            );
+
+            expect(jobModel.update).toHaveBeenCalledWith(compileJobUuid, {
+                jobStatus: JobStatusType.DONE,
+                jobResults: {
+                    indexCatalogJobUuid: 'catalog-job-1',
+                    errorCount: 1,
+                    total: 2,
+                },
+            });
         });
     });
 
