@@ -36,6 +36,7 @@ export type DbtGitProjectAdapterArgs = {
     dbtVersion: SupportedDbtVersions;
     selector?: string;
     analytics?: LightdashAnalytics;
+    gitPackageTokenProvider?: () => Promise<string>;
 };
 
 const stripTokensFromUrls = (raw: string) => {
@@ -104,6 +105,7 @@ export class DbtGitProjectAdapter
         dbtVersion,
         selector,
         analytics,
+        gitPackageTokenProvider,
     }: DbtGitProjectAdapterArgs) {
         const localRepositoryDir = fs.mkdtempSync('/tmp/git_');
         const projectDir = path.join(
@@ -121,6 +123,7 @@ export class DbtGitProjectAdapter
             dbtVersion,
             selector,
             analytics,
+            gitPackageTokenProvider,
         });
         this.projectDirectorySubPath = projectDirectorySubPath;
         this.localRepositoryDir = localRepositoryDir;

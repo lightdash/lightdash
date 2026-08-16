@@ -22,6 +22,7 @@ import path from 'path';
 import Logger from '../logging/logger';
 import { traceSpan } from '../tracing/tracing';
 import { DbtClient } from '../types';
+import { withDbtGitConfig } from './dbtGitConfig';
 import {
     getDbtProcessEnvironment,
     getMissingEnvironmentVariableHint,
@@ -36,6 +37,7 @@ type DbtCliArgs = {
     target?: string;
     dbtVersion: SupportedDbtVersions;
     selector?: string;
+    gitPackageTokenProvider?: () => Promise<string>;
 };
 
 enum DbtCommands {
@@ -69,6 +71,8 @@ export class DbtCliClient implements DbtClient {
 
     selector?: string;
 
+    gitPackageTokenProvider?: () => Promise<string>;
+
     constructor({
         dbtProjectDirectory,
         dbtProfilesDirectory,
@@ -78,6 +82,7 @@ export class DbtCliClient implements DbtClient {
         target,
         dbtVersion,
         selector,
+        gitPackageTokenProvider,
     }: DbtCliArgs) {
         this.dbtProjectDirectory = dbtProjectDirectory;
         this.dbtProfilesDirectory = dbtProfilesDirectory;
@@ -88,6 +93,7 @@ export class DbtCliClient implements DbtClient {
         this.targetDirectory = undefined;
         this.dbtVersion = dbtVersion;
         this.selector = selector;
+        this.gitPackageTokenProvider = gitPackageTokenProvider;
     }
 
     getSelector(): string | undefined {
@@ -162,7 +168,10 @@ export class DbtCliClient implements DbtClient {
         }
     }
 
-    private async _runDbtCommand(...command: string[]): Promise<{
+    private async _runDbtCommandWithGitConfig(
+        gitConfigPath: string | undefined,
+        ...command: string[]
+    ): Promise<{
         logs: DbtLog[];
         stdout: string;
     }> {
@@ -202,6 +211,7 @@ export class DbtCliClient implements DbtClient {
                         this.environmentVariableAllowlist,
                     projectEnvironment: this.environment,
                     targetPath,
+                    gitConfigPath,
                 }),
             });
             return {
@@ -237,6 +247,13 @@ export class DbtCliClient implements DbtClient {
         }
     }
 
+    private async _runDbtCommand(...command: string[]): Promise<{
+        logs: DbtLog[];
+        stdout: string;
+    }> {
+        return this._runDbtCommandWithGitConfig(undefined, ...command);
+    }
+
     async installDeps(): Promise<void> {
         return traceSpan(
             {
@@ -245,7 +262,22 @@ export class DbtCliClient implements DbtClient {
             },
             async () => {
                 const startTime = Date.now();
-                await this._runDbtCommand('deps');
+                if (this.gitPackageTokenProvider) {
+                    const token = await this.gitPackageTokenProvider();
+                    await withDbtGitConfig(
+                        {
+                            token,
+                            repositoryDirectory: this.dbtProjectDirectory,
+                        },
+                        (gitConfigPath) =>
+                            this._runDbtCommandWithGitConfig(
+                                gitConfigPath,
+                                'deps',
+                            ),
+                    );
+                } else {
+                    await this._runDbtCommand('deps');
+                }
                 Logger.info(
                     `dbt deps completed in ${Date.now() - startTime}ms`,
                 );

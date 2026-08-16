@@ -85,6 +85,7 @@ type DbtProcessEnvironmentArgs = {
     environmentVariableAllowlist: string[];
     projectEnvironment: Record<string, string>;
     targetPath: string;
+    gitConfigPath?: string;
 };
 
 const inheritKeys = (
@@ -101,6 +102,7 @@ export const getDbtProcessEnvironment = ({
     environmentVariableAllowlist,
     projectEnvironment,
     targetPath,
+    gitConfigPath,
 }: DbtProcessEnvironmentArgs): Record<string, string> => ({
     // Ambient cloud credentials sit below the project, because profiles.ts
     // injects the warehouse's own AWS_* keys through projectEnvironment and
@@ -115,6 +117,15 @@ export const getDbtProcessEnvironment = ({
     // proxy and CA settings decide where dbt deps fetches from, so a project
     // cannot redirect either.
     ...inheritKeys(processEnvironment, RUNTIME_ENVIRONMENT_VARIABLE_KEYS),
+    ...(gitConfigPath
+        ? {
+              GIT_CONFIG_GLOBAL: gitConfigPath,
+              GIT_CONFIG_NOSYSTEM: '1',
+              GIT_TERMINAL_PROMPT: '0',
+              GIT_ASKPASS: '',
+              SSH_ASKPASS: '',
+          }
+        : {}),
     DBT_PARTIAL_PARSE: 'false', // Disable dbt from storing manifest and doing partial parses. https://docs.getdbt.com/reference/parsing#partial-parsing
     DBT_SEND_ANONYMOUS_USAGE_STATS: 'false', // Disable sending usage stats. https://docs.getdbt.com/reference/global-configs/usage-stats
     DBT_TARGET_PATH: targetPath,
