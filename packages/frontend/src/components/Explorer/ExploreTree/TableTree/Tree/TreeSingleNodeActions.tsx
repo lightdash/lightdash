@@ -14,6 +14,7 @@ import {
     type AdditionalMetric,
     type CustomDimension,
     type Dimension,
+    type FilterableField,
     type Metric,
 } from '@lightdash/common';
 import { Box, Menu, type MenuProps, ActionIcon, Tooltip } from '@mantine/core';
@@ -52,6 +53,8 @@ type Props = {
     isOpened: MenuProps['opened'];
     onMenuChange: MenuProps['onChange'];
     onViewDescription: () => void;
+    onAddFilter?: (field: FilterableField) => void;
+    basicActionsOnly?: boolean;
 };
 
 const TreeSingleNodeActions: FC<Props> = ({
@@ -62,6 +65,8 @@ const TreeSingleNodeActions: FC<Props> = ({
     onMenuChange,
     hasDescription,
     onViewDescription,
+    onAddFilter,
+    basicActionsOnly = false,
 }) => {
     const projectUuid = useProjectUuid();
     const cannotAuthorCustomSql = useCannotAuthorCustomSql(projectUuid);
@@ -148,14 +153,20 @@ const TreeSingleNodeActions: FC<Props> = ({
                             track({
                                 name: EventName.ADD_FILTER_CLICKED,
                             });
-                            addFilter(item, undefined);
+                            if (onAddFilter) {
+                                onAddFilter(item);
+                            } else {
+                                addFilter(item, undefined);
+                            }
                         }}
                     >
                         Add filter
                     </Menu.Item>
                 ) : null}
 
-                {isMetric(item) && isAggregateMetricType(item.type) ? (
+                {!basicActionsOnly &&
+                isMetric(item) &&
+                isAggregateMetricType(item.type) ? (
                     <Menu.Item
                         component="button"
                         leftSection={<MantineIcon icon={IconCopy} />}
@@ -177,7 +188,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                     </Menu.Item>
                 ) : null}
 
-                {isAdditionalMetric(item) ? (
+                {!basicActionsOnly && isAdditionalMetric(item) ? (
                     <>
                         <Menu.Item
                             component="button"
@@ -291,7 +302,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                     </Menu.Item>
                 )}
 
-                {isCustomDimension(item) && (
+                {!basicActionsOnly && isCustomDimension(item) && (
                     <>
                         {!(
                             isCustomSqlDimension(item) && cannotAuthorCustomSql
@@ -408,7 +419,8 @@ const TreeSingleNodeActions: FC<Props> = ({
                     </>
                 )}
 
-                {customMetrics.length > 0 &&
+                {!basicActionsOnly &&
+                customMetrics.length > 0 &&
                 (isDimension(item) || isCustomSqlDimension(item)) ? (
                     <>
                         <Menu.Divider />
@@ -449,7 +461,8 @@ const TreeSingleNodeActions: FC<Props> = ({
                     </>
                 ) : null}
 
-                {isDimension(item) &&
+                {!basicActionsOnly &&
+                isDimension(item) &&
                 (item.type === DimensionType.NUMBER ||
                     (item.type === DimensionType.STRING &&
                         isCustomGroupBinsEnabled)) ? (
@@ -495,7 +508,11 @@ const TreeSingleNodeActions: FC<Props> = ({
                         label="View options"
                         disabled={isOpened}
                     >
-                        <ActionIcon color="gray" variant="transparent">
+                        <ActionIcon
+                            aria-label="View options"
+                            color="gray"
+                            variant="transparent"
+                        >
                             <MantineIcon
                                 icon={IconDots}
                                 color={isOpened ? 'black' : undefined}

@@ -3,7 +3,9 @@ import {
     isCustomDimension,
     isDimension,
     isMetric,
+    getTotalFilterRules,
     type Explore,
+    type FilterableField,
 } from '@lightdash/common';
 import { ActionIcon, Box, Text, UnstyledButton } from '@mantine/core';
 import { IconChevronDown, IconChevronRight, IconX } from '@tabler/icons-react';
@@ -21,10 +23,15 @@ import SelectedFieldsSection, {
     type SelectedField,
 } from '../../../components/Explorer/ExploreTree/SelectedFieldsSection';
 import { ItemDetailProvider } from '../../../components/Explorer/ExploreTree/TableTree/ItemDetailProvider';
-import { selectMetricQuery, useExplorerSelector } from '../../explorer/store';
+import {
+    selectFilters,
+    selectMetricQuery,
+    useExplorerSelector,
+} from '../../explorer/store';
 import { PRIMARY_SOURCE_ID } from '../constants';
 import { useMerge } from '../context/useMerge';
 import { useMergeSetup } from '../hooks/useMergeSetup';
+import { useMergeSourceFilter } from '../hooks/useMergeSourceFilter';
 import styles from './MergeQuerySidebar.module.css';
 import { MergeSourceTree } from './MergeSourceTree';
 
@@ -93,7 +100,9 @@ export const MergeQuerySidebar: FC<{
     const additionalSource = merge.additionalSources[0];
     const additionalSourceId = additionalSource?.id;
     const metricQuery = useExplorerSelector(selectMetricQuery);
+    const primaryFilters = useExplorerSelector(selectFilters);
     const mergeSetup = useMergeSetup();
+    const addSourceFilter = useMergeSourceFilter();
     const [openSourceId, setOpenSourceId] = useState<string | null>(
         merge.focus.kind === 'source' ? merge.focus.sourceId : null,
     );
@@ -118,6 +127,29 @@ export const MergeQuerySidebar: FC<{
     const additionalLabel = additionalSource?.exploreName
         ? (mergeSetup.additionalExploreLabel ?? 'Combined data')
         : 'Choose data to combine';
+    const filteredFieldIds = useMemo<Record<string, Set<string>>>(
+        () => ({
+            [PRIMARY_SOURCE_ID]: new Set(
+                getTotalFilterRules(primaryFilters).flatMap((rule) =>
+                    'fieldId' in rule.target ? [rule.target.fieldId] : [],
+                ),
+            ),
+            ...(additionalSourceId
+                ? {
+                      [additionalSourceId]: new Set(
+                          getTotalFilterRules(
+                              additionalSource?.filters ?? {},
+                          ).flatMap((rule) =>
+                              'fieldId' in rule.target
+                                  ? [rule.target.fieldId]
+                                  : [],
+                          ),
+                      ),
+                  }
+                : {}),
+        }),
+        [additionalSource?.filters, additionalSourceId, primaryFilters],
+    );
     const selectedFields = useMemo<SelectedField[]>(() => {
         const primaryLabel = mergeSetup.primaryExploreLabel ?? 'First data';
         const additionalSourceLabel =
@@ -147,7 +179,12 @@ export const MergeQuerySidebar: FC<{
                         : primaryLabel,
                     isDimension: metricQuery.dimensions.includes(fieldId),
                     onDeselect: onPrimaryFieldChange,
-                    hideActions: true,
+                    onAddFilter: (field: FilterableField) =>
+                        addSourceFilter(PRIMARY_SOURCE_ID, field),
+                    isFiltered:
+                        filteredFieldIds[PRIMARY_SOURCE_ID]?.has(fieldId) ??
+                        false,
+                    basicActionsOnly: true,
                 },
             ];
         });
@@ -182,7 +219,14 @@ export const MergeQuerySidebar: FC<{
                             id,
                             isDimension,
                         ),
-                    hideActions: true,
+                    onAddFilter: (field: FilterableField) =>
+                        additionalSourceId &&
+                        addSourceFilter(additionalSourceId, field),
+                    isFiltered:
+                        (additionalSourceId
+                            ? filteredFieldIds[additionalSourceId]?.has(fieldId)
+                            : false) ?? false,
+                    basicActionsOnly: true,
                 },
             ];
         });
@@ -191,6 +235,8 @@ export const MergeQuerySidebar: FC<{
     }, [
         additionalSource,
         additionalSourceId,
+        addSourceFilter,
+        filteredFieldIds,
         merge,
         mergeSetup,
         metricQuery,
