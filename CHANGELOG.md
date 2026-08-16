@@ -1,3 +1,10 @@
+## [1.162.5](https://github.com/lightdash/lightdash/compare/1.162.4...1.162.5) (2026-08-16)
+
+
+### Bug Fixes
+
+* **merge-query:** preserve fields when changing table ([#27421](https://github.com/lightdash/lightdash/issues/27421)) ([7e009e0](https://github.com/lightdash/lightdash/commit/7e009e0cef3ea8b75516809443b4b7cf9a5b78b6))
+
 ## [1.162.4](https://github.com/lightdash/lightdash/compare/1.162.3...1.162.4) (2026-08-16)
 
 
