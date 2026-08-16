@@ -171,12 +171,16 @@ describe('ProjectModel', () => {
         test('returns a structured error when an explore was split', async () => {
             const sourceAExplore = createQualifiedExplore('sourceA__orders');
             const sourceBExplore = createQualifiedExplore('sourceB__orders');
+            const bystanderExplore = createQualifiedExplore(
+                'orders_with_custom_dims',
+            );
             const findExploresFromCache = vi
                 .spyOn(model, 'findExploresFromCache')
                 .mockResolvedValueOnce({})
                 .mockResolvedValueOnce({
                     [sourceAExplore.name]: sourceAExplore,
                     [sourceBExplore.name]: sourceBExplore,
+                    [bystanderExplore.name]: bystanderExplore,
                 });
 
             await expect(
