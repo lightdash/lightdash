@@ -1,10 +1,12 @@
 import { Ability } from '@casl/ability';
 import {
     ConflictError,
+    convertExplores,
     CustomDimensionType,
     CustomSqlQueryForbiddenError,
     DbtProjectType,
     DbtVersionOptionLatest,
+    DEFAULT_SPOTLIGHT_CONFIG,
     DefaultSupportedDbtVersion,
     defineUserAbility,
     DimensionType,
@@ -15,6 +17,7 @@ import {
     FilterOperator,
     ForbiddenError,
     getCustomSqlFieldKey,
+    getModelsFromManifest,
     JobStatusType,
     JobStepType,
     JobType,
@@ -4653,12 +4656,20 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                         compiled: true,
                         database: 'analytics',
                         schema: 'public',
+                        alias: name,
+                        relation_name: `analytics.public.${name}`,
                         config: {
                             materialized: 'table',
                             snowflake_warehouse: '',
                         },
                         meta: {},
-                        columns: {},
+                        columns: {
+                            id: {
+                                name: 'id',
+                                data_type: DimensionType.NUMBER,
+                                meta: {},
+                            },
+                        },
                     },
                 ]),
                 [
@@ -4922,7 +4933,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         );
     });
 
-    it('rejects cross-source bare model name collisions before returning a merged adapter', async () => {
+    it('deploys cross-source bare model name collisions as qualified explores', async () => {
         const primaryManifest = buildManifest([
             {
                 uniqueId: 'model.pkg_a.orders',
@@ -4938,10 +4949,57 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             },
         ]);
 
+        const adapter = await buildMergedAdapter(
+            primaryManifest,
+            sourceManifest,
+        );
+        const { manifest } = await adapter.getDbtManifest();
+        const explores = await convertExplores(
+            getModelsFromManifest(manifest),
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+        );
+
+        expect(
+            explores
+                .map(({ name }) => name)
+                .filter((name) => name.endsWith('orders'))
+                .sort(),
+        ).toEqual(['dbt_project__orders', 'source-b__orders']);
+    });
+
+    it('still rejects the same model unique_id from two sources', async () => {
+        const primaryManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_a.customers',
+                name: 'customers',
+                packageName: 'pkg_a',
+            },
+            {
+                uniqueId: 'model.shared.orders',
+                name: 'orders',
+                packageName: 'shared',
+            },
+        ]);
+        const sourceManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_b.payments',
+                name: 'payments',
+                packageName: 'pkg_b',
+            },
+            {
+                uniqueId: 'model.shared.orders',
+                name: 'orders',
+                packageName: 'shared',
+            },
+        ]);
+
         await expect(
             buildMergedAdapter(primaryManifest, sourceManifest),
         ).rejects.toThrow(
-            'Merging dbt sources found 1 model name collision: model "orders" is defined in sources "dbt_project" and "source-b". Rename or remove the duplicate(s) before deploying.',
+            'Merging dbt sources found 1 naming collision: nodes "model.shared.orders" is defined in both "dbt_project" and "source-b". Rename or remove the duplicate(s) before deploying.',
         );
     });
 

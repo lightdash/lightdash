@@ -102,7 +102,6 @@ import {
     getMergeSourceTableLabel,
     getMetricOverridesWithPopInheritance,
     getMetrics,
-    getModelsFromManifest,
     getParameterReferences,
     getPreAggregateExploreName,
     getTimezoneLabel,
@@ -456,11 +455,6 @@ const isValidDbtCloudWebhookSignature = (
 };
 
 const WINDOW_CLAUSE_PATTERN = /\bover\s*\(/i;
-
-type CrossSourceModelNameCollision = {
-    modelName: string;
-    sourceNames: string[];
-};
 
 export class ProjectService extends BaseService {
     static CREATE_PROJECT_JOB_ENQUEUE_GRACE_MS = 15 * 60 * 1000;
@@ -4520,10 +4514,9 @@ export class ProjectService extends BaseService {
     }
 
     /**
-     * Formats a `ParameterError` message naming every colliding key so the user
-     * can tell exactly what to rename or remove — capped so a near-duplicate
-     * source pair (which can produce thousands of collisions) doesn't blow up
-     * the error message.
+     * Formats collisions where two sources use the same manifest unique_id.
+     * Qualification cannot recover these because the merge must drop one entry
+     * before explore compilation, leaving refs to that identifier ambiguous.
      */
     private static formatManifestCollisionsError(
         collisions: ManifestCollision[],
@@ -4545,38 +4538,14 @@ export class ProjectService extends BaseService {
         );
     }
 
-    private static formatCrossSourceModelNameCollisionsError(
-        collisions: CrossSourceModelNameCollision[],
-    ): string {
-        const MAX_COLLISIONS_IN_ERROR = 10;
-        const shown = collisions.slice(0, MAX_COLLISIONS_IN_ERROR);
-        const remainder = collisions.length - shown.length;
-        const details = shown
-            .map(
-                ({ modelName, sourceNames }) =>
-                    `model "${modelName}" is defined in sources ${sourceNames
-                        .map((sourceName) => `"${sourceName}"`)
-                        .join(' and ')}`,
-            )
-            .join('; ');
-        return (
-            `Merging dbt sources found ${collisions.length} model name collision${
-                collisions.length === 1 ? '' : 's'
-            }: ${details}${remainder > 0 ? `; and ${remainder} more` : ''}. ` +
-            `Rename or remove the duplicate(s) before deploying.`
-        );
-    }
-
     /**
      * Merge the primary source's manifest with every additional source's manifest
      * into one combined manifest, then return a MANIFEST adapter over it so a single
      * compile produces the union of all sources' explores with cross-source refs
-     * resolved. Source adapters (git clones) are pushed onto `manifestFetchAdapters`
-     * for the caller to destroy. A name collision fails the whole deploy by name,
-     * matching every other per-source failure above (broken clone, broken
-     * manifest, broken credentials) — silently letting one source's definition
-     * win would otherwise produce a green deploy that is quietly missing a
-     * sibling's model.
+     * resolved. Bare model-name collisions are qualified during compilation.
+     * Identical manifest unique_ids still fail because qualification happens after
+     * merging, when one of those entries has already been dropped. Source adapters
+     * are pushed onto `manifestFetchAdapters` for the caller to destroy.
      */
     private async buildMergedManifestAdapter({
         projectUuid,
@@ -4713,32 +4682,6 @@ export class ProjectService extends BaseService {
             );
             throw new ParameterError(
                 ProjectService.formatManifestCollisionsError(collisions),
-            );
-        }
-
-        const sourceNamesByModelName = new Map<string, string[]>();
-        manifestSources.forEach(({ name: sourceName, manifest }) => {
-            const modelNames = new Set(
-                getModelsFromManifest(manifest).map((model) => model.name),
-            );
-            modelNames.forEach((modelName) => {
-                const sourceNames = sourceNamesByModelName.get(modelName) ?? [];
-                sourceNames.push(sourceName);
-                sourceNamesByModelName.set(modelName, sourceNames);
-            });
-        });
-        const modelNameCollisions = Array.from(sourceNamesByModelName)
-            .filter(([, sourceNames]) => sourceNames.length > 1)
-            .map(([modelName, sourceNames]) => ({ modelName, sourceNames }));
-        if (modelNameCollisions.length > 0) {
-            this.logger.warn(
-                `Merged ${manifestSources.length} dbt sources for project ${projectUuid} with ${modelNameCollisions.length} model name collision(s)`,
-                { projectUuid, modelNameCollisions },
-            );
-            throw new ParameterError(
-                ProjectService.formatCrossSourceModelNameCollisionsError(
-                    modelNameCollisions,
-                ),
             );
         }
 
