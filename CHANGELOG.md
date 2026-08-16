@@ -1,3 +1,10 @@
+## [1.162.3](https://github.com/lightdash/lightdash/compare/1.162.2...1.162.3) (2026-08-16)
+
+
+### Bug Fixes
+
+* reject duplicate dbt model names across sources ([#27439](https://github.com/lightdash/lightdash/issues/27439)) ([30090a6](https://github.com/lightdash/lightdash/commit/30090a63f649ed4493b866c2022b40017c47cd60))
+
 ## [1.162.2](https://github.com/lightdash/lightdash/compare/1.162.1...1.162.2) (2026-08-16)
 
 
