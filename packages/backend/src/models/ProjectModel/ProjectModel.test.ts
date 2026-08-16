@@ -34,6 +34,7 @@ import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { OrganizationMembershipsTableName } from '../../database/entities/organizationMemberships';
 import { ProjectGroupAccessTableName } from '../../database/entities/projectGroupAccess';
 import { ProjectMembershipsTableName } from '../../database/entities/projectMemberships';
+import { ProjectMergedManifestsTableName } from '../../database/entities/projectMergedManifests';
 import {
     CachedExploresTableName,
     CachedExploreTableName,
@@ -125,6 +126,57 @@ describe('ProjectModel', () => {
         );
 
         expect(tracker.history.update).toHaveLength(1);
+    });
+
+    describe('merged manifest', () => {
+        test('inserts and atomically replaces the project artifact', async () => {
+            const firstManifest = Buffer.from('first');
+            const secondManifest = Buffer.from('second');
+            tracker.on
+                .insert(({ sql }) =>
+                    sql.includes(ProjectMergedManifestsTableName),
+                )
+                .response([]);
+
+            await model.upsertMergedManifest(projectUuid, firstManifest);
+            await model.upsertMergedManifest(projectUuid, secondManifest);
+
+            expect(tracker.history.insert).toHaveLength(2);
+            expect(tracker.history.insert[0].sql).toContain(
+                'on conflict ("project_uuid") do update',
+            );
+            expect(tracker.history.insert[0].bindings).toEqual(
+                expect.arrayContaining([projectUuid, firstManifest]),
+            );
+            expect(tracker.history.insert[1].bindings).toEqual(
+                expect.arrayContaining([projectUuid, secondManifest]),
+            );
+        });
+
+        test('returns the stored gzip bytes', async () => {
+            const storedManifest = Buffer.from('stored');
+            tracker.on
+                .select(({ sql }) =>
+                    sql.includes(ProjectMergedManifestsTableName),
+                )
+                .response([{ manifest: storedManifest }]);
+
+            await expect(model.getMergedManifest(projectUuid)).resolves.toEqual(
+                storedManifest,
+            );
+        });
+
+        test('reports when the project has no stored manifest', async () => {
+            tracker.on
+                .select(({ sql }) =>
+                    sql.includes(ProjectMergedManifestsTableName),
+                )
+                .response([]);
+
+            await expect(model.getMergedManifest(projectUuid)).rejects.toThrow(
+                'No merged dbt manifest has been persisted for this project',
+            );
+        });
     });
 
     test('invalidates the previous MotherDuck connection after a credential update', async () => {
