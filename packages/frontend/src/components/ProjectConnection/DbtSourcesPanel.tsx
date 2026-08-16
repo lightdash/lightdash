@@ -49,6 +49,22 @@ import { FormProvider, useForm, type Form } from './formContext';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
 import { ProjectFormProvider } from './ProjectFormProvider';
 
+const PROJECT_DBT_SOURCE_NAME_PATTERN = /^[a-zA-Z0-9_]+$/;
+const PROJECT_DBT_SOURCE_NAME_MAX_LENGTH = 64;
+
+const validateDbtSourceName = (value: string): string | null => {
+    const name = value.trim();
+    if (!name) return 'Name is required';
+    if (!PROJECT_DBT_SOURCE_NAME_PATTERN.test(name)) {
+        return 'Use only letters, numbers, and underscores';
+    }
+    if (name.length > PROJECT_DBT_SOURCE_NAME_MAX_LENGTH) {
+        return 'Name must be 64 characters or fewer';
+    }
+    if (name.includes('__')) return 'Name cannot contain "__"';
+    return null;
+};
+
 /**
  * The git-backed identity of a source as a single line — `repo · branch ·
  * subfolder`. Falls back to the connection type for non-git sources (also
@@ -204,7 +220,7 @@ const AddDbtSourceModal: FC<{
             dbtVersion: DefaultSupportedDbtVersion,
         },
         validate: {
-            name: (value) => (value.trim() ? null : 'Name is required'),
+            name: validateDbtSourceName,
             dbt: dbtFormValidators,
         },
         validateInputOnBlur: true,
@@ -268,7 +284,10 @@ const EditDbtSourceModalInner: FC<{
             dbtVersion: DefaultSupportedDbtVersion,
         },
         validate: {
-            name: (value) => (value.trim() ? null : 'Name is required'),
+            name: (value) =>
+                value.trim() === source.name
+                    ? null
+                    : validateDbtSourceName(value),
             dbt: dbtFormValidators,
         },
         validateInputOnBlur: true,
@@ -277,11 +296,12 @@ const EditDbtSourceModalInner: FC<{
     const handleSubmit = () => {
         const { hasErrors } = form.validate();
         if (hasErrors) return;
+        const name = form.values.name.trim();
         updateMutation.mutate(
             {
                 projectDbtSourceUuid: source.projectDbtSourceUuid,
                 data: {
-                    name: form.values.name.trim(),
+                    ...(name === source.name ? {} : { name }),
                     dbtConnection: form.values.dbt,
                     warehouseLocation: toApiLocation(
                         form.values.warehouseLocation,
