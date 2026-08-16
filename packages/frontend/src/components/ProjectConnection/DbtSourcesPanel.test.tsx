@@ -238,4 +238,39 @@ describe('DbtSourcesPanel', () => {
             expect.objectContaining({ method: 'PATCH' }),
         );
     });
+
+    it('marks the access token as optional for public repositories', async () => {
+        const { dialog, user } = await openAddSourceModal();
+
+        await user.click(
+            within(dialog).getByRole('textbox', {
+                name: 'Authorization method',
+            }),
+        );
+        await user.click(
+            await screen.findByRole('option', {
+                name: 'Personal Access Token',
+            }),
+        );
+
+        expect(
+            within(dialog).getByLabelText(/Personal access token/),
+        ).not.toBeRequired();
+        expect(
+            within(dialog).getByText('Required for private repositories'),
+        ).toBeInTheDocument();
+    });
+
+    it('starts app authentication with no repository selected', async () => {
+        const { dialog } = await openAddSourceModal();
+        const repository = await within(dialog).findByRole('textbox', {
+            name: 'Repository',
+        });
+
+        expect(repository).toHaveValue('');
+        expect(repository).toHaveAttribute(
+            'placeholder',
+            'Select a repository',
+        );
+    });
 });

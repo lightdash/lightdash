@@ -50,9 +50,10 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
             throw new Error(error);
         }
 
-        const remoteRepositoryUrl = `https://lightdash:${githubPersonalAccessToken}@${
-            hostDomain || DEFAULT_GITHUB_HOST_DOMAIN
-        }/${githubRepository}.git`;
+        const githubHostDomain = hostDomain || DEFAULT_GITHUB_HOST_DOMAIN;
+        const remoteRepositoryUrl = githubPersonalAccessToken
+            ? `https://lightdash:${githubPersonalAccessToken}@${githubHostDomain}/${githubRepository}.git`
+            : `https://${githubHostDomain}/${githubRepository}.git`;
         super({
             warehouseClient,
             remoteRepositoryUrl,
