@@ -49,6 +49,7 @@ const manifest = {
             },
             compiled: true,
             depends_on: { nodes: [], macros: [] },
+            lightdash_source_name: 'primary',
             unrendered_config: { meta: { hidden: true } },
             raw_code: 'select 1',
             compiled_code: 'select 1',
@@ -109,6 +110,7 @@ describe('projectMergedManifest', () => {
             },
             compiled: true,
             depends_on: { nodes: [], macros: [] },
+            lightdash_source_name: 'primary',
         });
         expect(projectedColumn).not.toHaveProperty('config');
         expect(projected.nodes['test.test.orders_not_null']).toEqual(

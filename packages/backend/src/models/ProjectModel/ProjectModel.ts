@@ -271,6 +271,12 @@ export class ProjectModel {
         return artifact.manifest;
     }
 
+    async deleteMergedManifest(projectUuid: string): Promise<void> {
+        await ProjectMergedManifestsTable(this.database)
+            .where('project_uuid', projectUuid)
+            .delete();
+    }
+
     static mergeMissingDbtConfigSecrets(
         incompleteConfig: DbtProjectConfig,
         completeConfig: DbtProjectConfig,

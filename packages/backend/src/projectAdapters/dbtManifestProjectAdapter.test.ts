@@ -87,6 +87,24 @@ describe('DbtManifestProjectAdapter', () => {
         expect(manifestResult.manifest.docs).toEqual(validManifestData.docs);
     });
 
+    it('preserves an explicitly empty model selection', async () => {
+        const emptySelectionAdapter = new DbtManifestProjectAdapter({
+            warehouseClient: mockWarehouseClient,
+            cachedWarehouse: {
+                warehouseCatalog: undefined,
+                onWarehouseCatalogChange: vi.fn(),
+            },
+            dbtVersion: SupportedDbtVersions.V1_8,
+            manifest: mockManifestString,
+            selectedModelIds: [],
+        });
+
+        const manifestResult =
+            await emptySelectionAdapter.dbtClient.getDbtManifest();
+
+        expect(manifestResult.selectedModelIds).toEqual([]);
+    });
+
     it('should throw error when manifest is invalid JSON', async () => {
         const invalidManifestAdapter = new DbtManifestProjectAdapter({
             warehouseClient: mockWarehouseClient,

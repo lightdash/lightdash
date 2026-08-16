@@ -16,6 +16,7 @@ import {
     FeatureFlags,
     FilterOperator,
     ForbiddenError,
+    getCompiledModels,
     getCustomSqlFieldKey,
     getDbtManifestVersion,
     getModelsFromManifest,
@@ -245,6 +246,9 @@ const projectModel = {
     ),
     updateResultsCacheSettings: vi.fn(async () => undefined),
     getEffectiveResultsCacheTtlSeconds: vi.fn(async () => 86400),
+    deleteMergedManifest: vi.fn<ProjectModel['deleteMergedManifest']>(
+        async () => undefined,
+    ),
     upsertMergedManifest: vi.fn<ProjectModel['upsertMergedManifest']>(
         async () => undefined,
     ),
@@ -4798,6 +4802,9 @@ type ProjectServiceInternals = {
 
 describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firewall)', () => {
     beforeEach(() => {
+        projectModel.deleteMergedManifest
+            .mockReset()
+            .mockResolvedValue(undefined);
         projectModel.upsertMergedManifest
             .mockReset()
             .mockResolvedValue(undefined);
@@ -4847,47 +4854,63 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
     };
 
     const buildManifest = (
-        models: Array<{ uniqueId: string; name: string; packageName: string }>,
+        models: Array<{
+            uniqueId: string;
+            name: string;
+            packageName: string;
+            compiled?: boolean;
+            materialized?: string;
+        }>,
     ): DbtManifest => {
         const seedPackageName = models[0]?.packageName ?? 'fixtures';
         return {
             nodes: Object.fromEntries([
-                ...models.map(({ uniqueId, name, packageName }) => [
-                    uniqueId,
-                    {
-                        unique_id: uniqueId,
+                ...models.map((model) => {
+                    const {
+                        uniqueId,
                         name,
-                        package_name: packageName,
-                        resource_type: 'model',
-                        compiled: true,
-                        database: 'analytics',
-                        schema: 'public',
-                        alias: name,
-                        checksum: { name: '', checksum: '' },
-                        fqn: [packageName, name],
-                        language: 'sql',
-                        path: `models/${name}.sql`,
-                        raw_code: `select * from ${name}`,
-                        description: '',
-                        tags: [],
-                        depends_on: { nodes: [] },
-                        patch_path: null,
-                        original_file_path: `models/${name}.sql`,
-                        relation_name: `analytics.public.${name}`,
-                        config: {
-                            materialized: 'table',
-                            snowflake_warehouse: '',
-                        },
-                        meta: {},
-                        columns: {
-                            id: {
-                                name: 'id',
-                                data_type: DimensionType.NUMBER,
-                                meta: {},
+                        packageName,
+                        materialized = 'table',
+                    } = model;
+                    return [
+                        uniqueId,
+                        {
+                            unique_id: uniqueId,
+                            name,
+                            package_name: packageName,
+                            resource_type: 'model',
+                            ...('compiled' in model
+                                ? { compiled: model.compiled }
+                                : { compiled: true }),
+                            database: 'analytics',
+                            schema: 'public',
+                            alias: name,
+                            checksum: { name: '', checksum: '' },
+                            fqn: [packageName, name],
+                            language: 'sql',
+                            path: `models/${name}.sql`,
+                            raw_code: `select * from ${name}`,
+                            description: '',
+                            tags: [],
+                            depends_on: { nodes: [] },
+                            patch_path: null,
+                            original_file_path: `models/${name}.sql`,
+                            relation_name: `analytics.public.${name}`,
+                            config: {
+                                materialized,
+                                snowflake_warehouse: '',
+                            },
+                            meta: {},
+                            columns: {
+                                id: {
+                                    name: 'id',
+                                    data_type: DimensionType.NUMBER,
+                                    meta: {},
+                                },
                             },
                         },
-                    },
-                ]),
+                    ];
+                }),
                 [
                     `seed.${seedPackageName}.country_codes`,
                     {
@@ -5415,6 +5438,125 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         ]);
     });
 
+    it('persists exactly the model selection compiled by the merged adapter', async () => {
+        const primaryManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_a.orders',
+                name: 'orders',
+                packageName: 'pkg_a',
+                compiled: undefined,
+            },
+            {
+                uniqueId: 'model.pkg_a.helper',
+                name: 'helper',
+                packageName: 'pkg_a',
+                compiled: undefined,
+            },
+            {
+                uniqueId: 'model.pkg_a.ephemeral',
+                name: 'ephemeral',
+                packageName: 'pkg_a',
+                compiled: undefined,
+                materialized: 'ephemeral',
+            },
+        ]);
+        primaryManifest.nodes['seed.pkg_a.countries'] = {
+            unique_id: 'seed.pkg_a.countries',
+            name: 'countries',
+            package_name: 'pkg_a',
+            resource_type: 'seed',
+            database: 'analytics',
+            schema: 'public',
+            config: { materialized: 'seed' },
+            meta: {},
+            columns: {},
+        } as unknown as DbtManifest['nodes'][string];
+        const sourceManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_b.customers',
+                name: 'customers',
+                packageName: 'pkg_b',
+                compiled: undefined,
+            },
+            {
+                uniqueId: 'model.pkg_b.helper',
+                name: 'source_helper',
+                packageName: 'pkg_b',
+                compiled: undefined,
+            },
+        ]);
+
+        await buildMergedAdapterWithService(primaryManifest, sourceManifest, {
+            primary: ['model.pkg_a.orders'],
+            source: ['model.pkg_b.customers'],
+        }).adapter;
+
+        const [, compressedManifest] = vi.mocked(
+            projectModel.upsertMergedManifest,
+        ).mock.calls[0];
+        const persisted = JSON.parse(
+            gunzipSync(compressedManifest).toString('utf8'),
+        ) as DbtManifest;
+        const compiledNodes = getCompiledModels(
+            getModelsFromManifest(persisted),
+        ).map((node) => node.unique_id);
+
+        expect(compiledNodes).toEqual([
+            'model.pkg_a.orders',
+            'seed.pkg_a.countries',
+            'model.pkg_b.customers',
+        ]);
+        expect(persisted.nodes['model.pkg_a.helper']).toHaveProperty(
+            'compiled',
+            false,
+        );
+        expect(persisted.nodes['model.pkg_a.ephemeral']).toHaveProperty(
+            'compiled',
+            false,
+        );
+        expect(persisted.nodes['model.pkg_b.helper']).toHaveProperty(
+            'compiled',
+            false,
+        );
+        expect(persisted.nodes['seed.pkg_a.countries']).not.toHaveProperty(
+            'compiled',
+        );
+    });
+
+    it('preserves an explicitly empty model selection in the merged adapter', async () => {
+        const primaryManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_a.orders',
+                name: 'orders',
+                packageName: 'pkg_a',
+                compiled: undefined,
+            },
+        ]);
+        const sourceManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_b.customers',
+                name: 'customers',
+                packageName: 'pkg_b',
+                compiled: undefined,
+            },
+        ]);
+
+        const mergedAdapter = await buildMergedAdapterWithService(
+            primaryManifest,
+            sourceManifest,
+            { primary: [], source: [] },
+        ).adapter;
+        const mergedManifestResult = await mergedAdapter.getDbtManifest();
+
+        expect(mergedManifestResult.selectedModelIds).toEqual([]);
+        expect(
+            mergedManifestResult.manifest.nodes['model.pkg_a.orders'],
+        ).toHaveProperty('compiled', false);
+        expect(
+            mergedManifestResult.manifest.nodes['model.pkg_b.customers'],
+        ).toHaveProperty('compiled', false);
+    });
+
     it('continues the deploy and logs a warning when persistence fails', async () => {
         const primaryManifest = buildManifest([
             {
@@ -5454,6 +5596,9 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
 
         expect(result).toBe(primaryAdapter);
         expect(getSources).not.toHaveBeenCalled();
+        expect(projectModel.deleteMergedManifest).toHaveBeenCalledWith(
+            'project-uuid',
+        );
     });
 
     it('flag ON with zero sources (N=0) returns the primary adapter by identity', async () => {
@@ -5463,6 +5608,9 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
 
         expect(result).toBe(primaryAdapter);
         expect(getSources).toHaveBeenCalledTimes(1);
+        expect(projectModel.deleteMergedManifest).toHaveBeenCalledWith(
+            'project-uuid',
+        );
         expect(projectModel.upsertMergedManifest).not.toHaveBeenCalled();
     });
 

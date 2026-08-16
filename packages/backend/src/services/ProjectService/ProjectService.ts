@@ -356,6 +356,29 @@ import { getAvailableParameterDefinitions } from './parameters';
 import { projectMergedManifest } from './projectMergedManifest';
 import { applyCurrentGithubInstallationId } from './resolveGithubInstallationId';
 
+const manifestWithCompilationSelection = (
+    manifest: DbtManifest,
+    selectedModelIds?: string[],
+): DbtManifest => {
+    const compiledModelIds = new Set(
+        getCompiledModels(getModelsFromManifest(manifest), selectedModelIds)
+            .filter((node) => node.resource_type === 'model')
+            .map((node) => node.unique_id),
+    );
+
+    return {
+        ...manifest,
+        nodes: Object.fromEntries(
+            Object.entries(manifest.nodes).map(([uniqueId, node]) => [
+                uniqueId,
+                node.resource_type === 'model'
+                    ? { ...node, compiled: compiledModelIds.has(uniqueId) }
+                    : node,
+            ]),
+        ) as DbtManifest['nodes'],
+    };
+};
+
 const gzipAsync = promisify(gzip);
 
 type RefreshTokenRotationSource =
@@ -4714,7 +4737,7 @@ export class ProjectService extends BaseService {
         manifestFetchAdapters.push(primary.adapter);
         const [
             {
-                manifest: primaryManifest,
+                manifest: rawPrimaryManifest,
                 selectedModelIds: primarySelectedModelIds,
             },
             identity,
@@ -4722,6 +4745,10 @@ export class ProjectService extends BaseService {
             primary.adapter.getDbtManifest(),
             this.projectModel.getDbtSourceIdentity(projectUuid),
         ]);
+        const primaryManifest = manifestWithCompilationSelection(
+            rawPrimaryManifest,
+            primarySelectedModelIds,
+        );
 
         // A credential error fails the whole deploy by name, matching every
         // other per-source failure below (broken clone, broken manifest) — a
@@ -4780,13 +4807,18 @@ export class ProjectService extends BaseService {
                 // destroys this clone even if the fetch below throws.
                 manifestFetchAdapters.push(sourceAdapter);
                 try {
-                    const { manifest, selectedModelIds } =
-                        await sourceAdapter.getDbtManifest();
+                    const {
+                        manifest,
+                        selectedModelIds: sourceSelectedModelIds,
+                    } = await sourceAdapter.getDbtManifest();
                     return {
                         name: source.name,
                         precedence: source.precedence,
-                        manifest,
-                        selectedModelIds,
+                        manifest: manifestWithCompilationSelection(
+                            manifest,
+                            sourceSelectedModelIds,
+                        ),
+                        selectedModelIds: sourceSelectedModelIds,
                     };
                 } catch (e) {
                     throw new ParameterError(
@@ -4914,12 +4946,14 @@ export class ProjectService extends BaseService {
                 user: { userUuid, organizationUuid },
             });
         if (!multiDbtSourcesEnabled) {
+            await this.projectModel.deleteMergedManifest(projectUuid);
             onDbtSourceCount?.(1);
             return primary.adapter;
         }
         const sources =
             await this.projectDbtSourcesModel.getSources(projectUuid);
         if (sources.length === 0) {
+            await this.projectModel.deleteMergedManifest(projectUuid);
             onDbtSourceCount?.(1);
             return primary.adapter;
         }

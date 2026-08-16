@@ -299,6 +299,19 @@ describe('ProjectModel', () => {
                 'No merged dbt manifest has been persisted for this project',
             );
         });
+
+        test('deletes the stored manifest for a project', async () => {
+            tracker.on
+                .delete(({ sql }) =>
+                    sql.includes(ProjectMergedManifestsTableName),
+                )
+                .response(1);
+
+            await model.deleteMergedManifest(projectUuid);
+
+            expect(tracker.history.delete).toHaveLength(1);
+            expect(tracker.history.delete[0].bindings).toEqual([projectUuid]);
+        });
     });
 
     test('invalidates the previous MotherDuck connection after a credential update', async () => {
