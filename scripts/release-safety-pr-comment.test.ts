@@ -78,6 +78,24 @@ test('a declaration gate failure renders remediation for an otherwise green mark
     assert.match(body, /API or type break/);
 });
 
+test('a failed gate never leaves a green headline above a red check', () => {
+    for (const opts of [{ declarationGateFailed: true }, { gateFailed: true }]) {
+        const body = renderPrComment(baseMarker(), opts);
+        assert.doesNotMatch(body, /✅ \*\*Safe to upgrade normally/);
+        assert.match(body, /A required check failed/);
+        // The verdict itself is unchanged, and the reader is told so.
+        assert.match(body, /The upgrade itself looks safe/);
+        assert.match(body, /How to unblock this pull request/);
+    }
+});
+
+test('a green marker with no failed gate keeps its safe headline', () => {
+    const body = renderPrComment(baseMarker());
+    assert.match(body, /✅ \*\*Safe to upgrade normally/);
+    assert.doesNotMatch(body, /A required check failed/);
+    assert.doesNotMatch(body, /How to unblock this pull request/);
+});
+
 test('migration and enterprise counts use the v2 split', () => {
     const body = renderPrComment(
         baseMarker({
