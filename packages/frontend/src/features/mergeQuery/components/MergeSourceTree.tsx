@@ -44,14 +44,30 @@ export const MergeSourceTree: FC<{
 
     if (isChoosingExplore) {
         return (
-            <Box h="100%" mih={0} style={{ overflow: 'hidden' }}>
-                <BasePanel
-                    onExploreClick={(selectedExplore) => {
-                        merge.setSourceExplore(source.id, selectedExplore.name);
-                        setIsChoosingExplore(false);
-                    }}
-                />
-            </Box>
+            <Stack gap="xs" h="100%" mih={0}>
+                <Button
+                    variant="subtle"
+                    size="compact-xs"
+                    w="fit-content"
+                    leftSection={<MantineIcon icon={IconArrowLeft} size={13} />}
+                    onClick={() => setIsChoosingExplore(false)}
+                >
+                    Back to fields
+                </Button>
+                <Box style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                    <BasePanel
+                        onExploreClick={(selectedExplore) => {
+                            if (selectedExplore.name !== source.exploreName) {
+                                merge.setSourceExplore(
+                                    source.id,
+                                    selectedExplore.name,
+                                );
+                            }
+                            setIsChoosingExplore(false);
+                        }}
+                    />
+                </Box>
+            </Stack>
         );
     }
 
