@@ -1,3 +1,10 @@
+## [1.162.2](https://github.com/lightdash/lightdash/compare/1.162.1...1.162.2) (2026-08-16)
+
+
+### Bug Fixes
+
+* preserve unselected explores on selective deploy ([#27441](https://github.com/lightdash/lightdash/issues/27441)) ([afdcea0](https://github.com/lightdash/lightdash/commit/afdcea09bb8b44883a4056683b105a167062b74f))
+
 ## [1.162.1](https://github.com/lightdash/lightdash/compare/1.162.0...1.162.1) (2026-08-14)
 
 

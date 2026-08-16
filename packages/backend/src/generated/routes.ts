@@ -95788,6 +95788,7 @@ export function RegisterRoutes(app: Router) {
             dataType: 'array',
             array: { dataType: 'refAlias', ref: 'AnyType' },
         },
+        complete: { in: 'query', name: 'complete', dataType: 'boolean' },
     };
     app.put(
         '/api/v1/projects/:projectUuid/explores',
