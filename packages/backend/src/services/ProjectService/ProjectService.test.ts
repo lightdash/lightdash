@@ -5026,6 +5026,29 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         );
     });
 
+    it('identifies a shared dbt project name when models and seeds collide', async () => {
+        const primaryManifest = buildManifest([
+            {
+                uniqueId: 'model.shared.orders',
+                name: 'orders',
+                packageName: 'shared',
+            },
+        ]);
+        const sourceManifest = buildManifest([
+            {
+                uniqueId: 'model.shared.orders',
+                name: 'orders',
+                packageName: 'shared',
+            },
+        ]);
+
+        await expect(
+            buildMergedAdapter(primaryManifest, sourceManifest),
+        ).rejects.toThrow(
+            'The dbt sources "dbt_project" and "source-b" use the same dbt project name "shared". Change the name: value in one repository\'s dbt_project.yml and deploy again.',
+        );
+    });
+
     it('allows duplicate bare model names from different packages within one source', async () => {
         const primaryManifest = buildManifest([
             {

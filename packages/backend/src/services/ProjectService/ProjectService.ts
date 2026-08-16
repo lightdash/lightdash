@@ -4533,19 +4533,17 @@ export class ProjectService extends BaseService {
                     }"`,
             )
             .join('; ');
-        const modelPackageNames = collisions.map((collision) =>
-            collision.section === 'nodes'
-                ? collision.key.match(/^model\.([^.]+)\./)?.[1]
-                : undefined,
+        const packageNames = collisions.map(
+            (collision) => collision.key.match(/^[^.]+\.([^.]+)\./)?.[1],
         );
         const sharedPackageNames = [
-            ...new Set(modelPackageNames.filter((name) => name !== undefined)),
+            ...new Set(packageNames.filter((name) => name !== undefined)),
         ].sort();
-        const allCollisionsIdentifyModelPackages =
-            modelPackageNames.length > 0 &&
-            modelPackageNames.every((name) => name !== undefined);
+        const allCollisionsIdentifyPackages =
+            packageNames.length > 0 &&
+            packageNames.every((name) => name !== undefined);
 
-        if (allCollisionsIdentifyModelPackages) {
+        if (allCollisionsIdentifyPackages) {
             const formatQuotedList = (values: string[]) => {
                 const shownValues = values.slice(0, MAX_COLLISIONS_IN_ERROR);
                 const quotedValues = shownValues.map((value) => `"${value}"`);
