@@ -1,5 +1,28 @@
 import { execFileSync } from 'node:child_process';
 
+/** Knex migration files are timestamped: YYYYMMDDHHMMSS_description.ts */
+const MIGRATION_FILENAME_RE = /^\d{14}_.+\.(ts|js)$/;
+
+/** Same shape the declaration scan uses to spot a test. */
+const TEST_FILE_RE = /(^|\/)__tests__\/|\.(test|spec)\.(ts|js)$/;
+
+/**
+ * PURE. Is this path a migration the release-safety tooling should act on?
+ *
+ * A test that carries its migration's timestamp is not one. It exports no
+ * `up`/`down`, it changes no schema, and the repo already colocates such tests
+ * (`migrations/__tests__/<timestamp>_<name>.test.ts`). Counting one inflates the
+ * shipped marker, feeds a non-migration to the code-aware review, and fails the
+ * linter with advice — "export a down function" — that cannot be followed.
+ *
+ * Callers still scope the diff to the migration directories; this decides what
+ * counts as a migration inside them.
+ */
+export function isMigrationPath(filePath: string): boolean {
+    if (TEST_FILE_RE.test(filePath)) return false;
+    return MIGRATION_FILENAME_RE.test(filePath.split('/').pop() ?? '');
+}
+
 export interface MigrationHeaviness {
     locksTable: boolean | 'unknown';
     rewritesTable: boolean | 'unknown';

@@ -434,6 +434,19 @@ export async function down(knex) { await knex.raw('DROP INDEX CONCURRENTLY IF EX
     assert.ok(!enforcementRules(source, 'warning').includes('concurrent-index-invalid-retry'));
 });
 
+test('changed migration paths exclude tests colocated with migrations', () => {
+    const root = 'packages/backend/src/database/migrations';
+    const paths = changedMigrationPathsFromNameStatus(
+        [
+            `A\t${root}/20260101000000_added.ts`,
+            `A\t${root}/__tests__/20260101000000_added.test.ts`,
+            `A\t${root}/20260101000005_added.spec.ts`,
+        ].join('\n'),
+        () => true,
+    );
+    assert.deepStrictEqual(paths, [`${root}/20260101000000_added.ts`]);
+});
+
 test('changed migration paths include existing A M R C destinations and exclude deletes', () => {
     const root = 'packages/backend/src/database/migrations';
     const paths = changedMigrationPathsFromNameStatus(

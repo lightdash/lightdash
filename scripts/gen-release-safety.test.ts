@@ -121,6 +121,16 @@ test('detectMigrations counts only added timestamped files and splits EE', () =>
     ]);
 });
 
+test('detectMigrations ignores tests colocated with migrations', () => {
+    const result = detectMigrations([
+        change('A', `${core}/20260810000000_core.ts`),
+        change('A', `${core}/__tests__/20260810000000_core.test.ts`),
+        change('A', `${core}/20260810000002_core.spec.ts`),
+    ]);
+    assert.strictEqual(result.count, 1);
+    assert.deepStrictEqual(result.files, ['20260810000000_core.ts']);
+});
+
 test('detectMigrations surfaces deleted history without counting it', () => {
     const result = detectMigrations([
         change('D', `${core}/20200101000000_old.ts`),

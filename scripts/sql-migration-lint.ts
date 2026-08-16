@@ -42,6 +42,7 @@ import {
     hollowBreakingReasonMessage,
     isSubstantiveBreakingReason,
 } from './breaking-change-gate-policy';
+import { isMigrationPath } from './release-safety-migrations';
 
 export interface SqlLintFinding {
     file: string;
@@ -296,7 +297,6 @@ const MIGRATION_DIRS = [
     'packages/backend/src/database/migrations',
     'packages/backend/src/ee/database/migrations',
 ];
-const MIGRATION_FILENAME_RE = /^\d{14}_.+\.(ts|js)$/;
 
 interface RawCall {
     index: number;
@@ -852,7 +852,7 @@ export function changedMigrationPathsFromNameStatus(
         const path = fields[fields.length - 1];
         if (
             MIGRATION_DIRS.some((directory) => path.startsWith(`${directory}/`)) &&
-            MIGRATION_FILENAME_RE.test(path.split('/').pop() ?? '') &&
+            isMigrationPath(path) &&
             exists(path)
         ) {
             paths.push(path);

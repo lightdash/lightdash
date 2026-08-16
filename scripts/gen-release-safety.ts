@@ -39,7 +39,7 @@ import {
     writeReleaseSafetyIndex,
 } from './release-safety-index';
 import type { MigrationDetail } from './release-safety-migrations';
-import { readMigrationMetadata } from './release-safety-migrations';
+import { isMigrationPath, readMigrationMetadata } from './release-safety-migrations';
 import {
     CarriedFloor,
     carriedUpgradeFloor,
@@ -64,9 +64,6 @@ const EE_MIGRATION_DIR = 'packages/backend/src/ee/database/migrations';
 const DECLARATION_DIRS = ['packages/backend', 'packages/common'] as const;
 const TYPESCRIPT_SOURCE = /^packages\/(backend|common)\/src\/.+\.tsx?$/;
 const TYPESCRIPT_TEST = /(^|\/)__tests__\/|\.(test|spec)\.tsx?$/;
-
-// Knex migration files are timestamped: YYYYMMDDHHMMSS_description.ts
-const MIGRATION_FILENAME_RE = /^\d{14}_.+\.(ts|js)$/;
 
 export interface GitChange {
     /** git --name-status code: A, M, D, R100, C75, ... */
@@ -94,8 +91,7 @@ export function detectMigrations(changes: GitChange[]): MigrationsResult {
     const deletedHistorical: string[] = [];
 
     for (const change of changes) {
-        const base = path.basename(change.path);
-        if (!MIGRATION_FILENAME_RE.test(base)) continue;
+        if (!isMigrationPath(change.path)) continue;
         const code = change.status.charAt(0);
         if (code === 'A') {
             added.push(change.path);
@@ -518,7 +514,7 @@ export async function generateReleaseSafety(
                 .filter(
                     (change) =>
                         change.status.startsWith('A') &&
-                        MIGRATION_FILENAME_RE.test(path.basename(change.path)),
+                        isMigrationPath(change.path),
                 )
                 .map((change) => change.path)
                 .sort();
