@@ -76,6 +76,7 @@ export * from './constants/sqlRunner';
 export { default as DbtSchemaEditor } from './dbt/DbtSchemaEditor/DbtSchemaEditor';
 export * from './dbt/manifest';
 export * from './dbt/metricFlow';
+export * from './dbt/projectMergedManifest';
 export * from './dbt/validation';
 export * from './ee';
 export * from './preAggregates';

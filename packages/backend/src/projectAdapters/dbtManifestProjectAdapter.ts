@@ -14,8 +14,11 @@ import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 class ManifestDbtClient implements DbtClient {
     private readonly manifest: string;
 
-    constructor(manifest: string) {
+    private readonly selectedModelIds: string[] | undefined;
+
+    constructor(manifest: string, selectedModelIds?: string[]) {
         this.manifest = manifest;
+        this.selectedModelIds = selectedModelIds;
     }
 
     // eslint-disable-next-line class-methods-use-this
@@ -32,6 +35,9 @@ class ManifestDbtClient implements DbtClient {
         }
         const rawManifest = {
             manifest: JSON.parse(this.manifest),
+            ...(this.selectedModelIds !== undefined
+                ? { selectedModelIds: this.selectedModelIds }
+                : {}),
         };
 
         if (isDbtRpcManifestResults(rawManifest)) {
@@ -58,6 +64,7 @@ type DbtManifestProjectAdapterArgs = {
     // from. Used by the multiple-dbt-sources merge to point the merged manifest
     // adapter at the primary source's checkout so its project config is kept.
     dbtProjectDir?: string;
+    selectedModelIds?: string[];
 };
 
 export class DbtManifestProjectAdapter extends DbtBaseProjectAdapter {
@@ -68,9 +75,13 @@ export class DbtManifestProjectAdapter extends DbtBaseProjectAdapter {
         analytics,
         manifest,
         dbtProjectDir,
+        selectedModelIds,
     }: DbtManifestProjectAdapterArgs) {
         // Create a dummy dbt client since we don't need it for manifest-based compilation
-        const manifestDbtClient = new ManifestDbtClient(manifest);
+        const manifestDbtClient = new ManifestDbtClient(
+            manifest,
+            selectedModelIds,
+        );
 
         super(
             manifestDbtClient,

@@ -89,6 +89,7 @@ import {
     getAvailableFilterFieldIds,
     getAvailableParametersFromTables,
     getColumnTimezone,
+    getCompiledModels,
     getCustomSqlFieldKey,
     getDashboardFieldTarget,
     getDashboardFilterRulesForTables,
@@ -347,6 +348,29 @@ import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
 import { getAvailableParameterDefinitions } from './parameters';
 import { projectMergedManifest } from './projectMergedManifest';
 import { applyCurrentGithubInstallationId } from './resolveGithubInstallationId';
+
+const manifestWithCompilationSelection = (
+    manifest: DbtManifest,
+    selectedModelIds?: string[],
+): DbtManifest => {
+    const compiledModelIds = new Set(
+        getCompiledModels(getModelsFromManifest(manifest), selectedModelIds)
+            .filter((node) => node.resource_type === 'model')
+            .map((node) => node.unique_id),
+    );
+
+    return {
+        ...manifest,
+        nodes: Object.fromEntries(
+            Object.entries(manifest.nodes).map(([uniqueId, node]) => [
+                uniqueId,
+                node.resource_type === 'model'
+                    ? { ...node, compiled: compiledModelIds.has(uniqueId) }
+                    : node,
+            ]),
+        ) as DbtManifest['nodes'],
+    };
+};
 
 const gzipAsync = promisify(gzip);
 
@@ -4645,8 +4669,12 @@ export class ProjectService extends BaseService {
         // The primary git adapter is only read for its manifest here; the merged
         // MANIFEST adapter is what compiles, so destroy the primary clone in finally.
         manifestFetchAdapters.push(primary.adapter);
-        const { manifest: primaryManifest } =
+        const { manifest: rawPrimaryManifest, selectedModelIds } =
             await primary.adapter.getDbtManifest();
+        const primaryManifest = manifestWithCompilationSelection(
+            rawPrimaryManifest,
+            selectedModelIds,
+        );
 
         // A credential error fails the whole deploy by name, matching every
         // other per-source failure below (broken clone, broken manifest) — a
@@ -4704,11 +4732,17 @@ export class ProjectService extends BaseService {
                 // destroys this clone even if the fetch below throws.
                 manifestFetchAdapters.push(sourceAdapter);
                 try {
-                    const { manifest } = await sourceAdapter.getDbtManifest();
+                    const {
+                        manifest,
+                        selectedModelIds: sourceSelectedModelIds,
+                    } = await sourceAdapter.getDbtManifest();
                     return {
                         name: source.name,
                         precedence: source.precedence,
-                        manifest,
+                        manifest: manifestWithCompilationSelection(
+                            manifest,
+                            sourceSelectedModelIds,
+                        ),
                     };
                 } catch (e) {
                     throw new ParameterError(
@@ -4769,6 +4803,14 @@ export class ProjectService extends BaseService {
 
         await this.persistMergedManifest(projectUuid, mergedManifest);
 
+        const mergedSelectedModelIds = Object.values(mergedManifest.nodes)
+            .filter(
+                (node) =>
+                    node.resource_type === 'model' &&
+                    (node as DbtRawModelNode).compiled === true,
+            )
+            .map((node) => node.unique_id);
+
         return projectAdapterFromConfig(
             {
                 type: DbtProjectType.MANIFEST,
@@ -4785,6 +4827,7 @@ export class ProjectService extends BaseService {
             // primary clone is alive until the caller destroys manifestFetchAdapters
             // after compile, so the merged adapter can read these during compile.
             primary.adapter.dbtProjectDir,
+            mergedSelectedModelIds,
         );
     }
 
@@ -4823,12 +4866,14 @@ export class ProjectService extends BaseService {
                 user: { userUuid, organizationUuid },
             });
         if (!multiDbtSourcesEnabled) {
+            await this.projectModel.deleteMergedManifest(projectUuid);
             onDbtSourceCount?.(1);
             return primary.adapter;
         }
         const sources =
             await this.projectDbtSourcesModel.getSources(projectUuid);
         if (sources.length === 0) {
+            await this.projectModel.deleteMergedManifest(projectUuid);
             onDbtSourceCount?.(1);
             return primary.adapter;
         }
