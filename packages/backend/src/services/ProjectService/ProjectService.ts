@@ -4591,8 +4591,10 @@ export class ProjectService extends BaseService {
         // The primary git adapter is only read for its manifest here; the merged
         // MANIFEST adapter is what compiles, so destroy the primary clone in finally.
         manifestFetchAdapters.push(primary.adapter);
-        const { manifest: primaryManifest } =
-            await primary.adapter.getDbtManifest();
+        const [{ manifest: primaryManifest }, identity] = await Promise.all([
+            primary.adapter.getDbtManifest(),
+            this.projectModel.getDbtSourceIdentity(projectUuid),
+        ]);
 
         // A credential error fails the whole deploy by name, matching every
         // other per-source failure below (broken clone, broken manifest) — a
@@ -4667,7 +4669,11 @@ export class ProjectService extends BaseService {
         );
 
         const manifestSources: ManifestSource[] = [
-            { name: 'primary', precedence: 0, manifest: primaryManifest },
+            {
+                name: identity.dbtSourceName,
+                precedence: 0,
+                manifest: primaryManifest,
+            },
             ...built.map((b) => ({
                 name: b.name,
                 precedence: b.precedence,
