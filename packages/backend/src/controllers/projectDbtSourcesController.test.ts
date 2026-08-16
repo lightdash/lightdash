@@ -1,4 +1,3 @@
-import { ParameterError } from '@lightdash/common';
 import type express from 'express';
 import { buildAccount } from '../auth/account/account.mock';
 import { ProjectDbtSourcesController } from './projectDbtSourcesController';
@@ -20,24 +19,44 @@ describe('ProjectDbtSourcesController source name validation', () => {
         vi.clearAllMocks();
     });
 
-    it.each(['my source!', 'a'.repeat(65)])(
+    it.each([
+        [
+            'my source!',
+            'Names must contain only letters, numbers, and underscores.',
+        ],
+        ['a'.repeat(300), 'Names must be 64 characters or fewer.'],
+        [
+            'sales__orders',
+            'source names become part of qualified explore names and "__" is the separator.',
+        ],
+    ])(
         'rejects invalid source name %s on create before calling the service',
-        async (name) => {
+        async (name, message) => {
             await expect(
                 controller.createProjectDbtSource(
                     '11111111-1111-4111-8111-111111111111',
                     { name, dbtConnection: {} as never },
                     request,
                 ),
-            ).rejects.toThrow(ParameterError);
+            ).rejects.toThrow(message);
 
             expect(createProjectDbtSource).not.toHaveBeenCalled();
         },
     );
 
-    it.each(['my source!', 'a'.repeat(65)])(
+    it.each([
+        [
+            'my source!',
+            'Names must contain only letters, numbers, and underscores.',
+        ],
+        ['a'.repeat(300), 'Names must be 64 characters or fewer.'],
+        [
+            'sales__orders',
+            'source names become part of qualified explore names and "__" is the separator.',
+        ],
+    ])(
         'rejects invalid source name %s on update before calling the service',
-        async (name) => {
+        async (name, message) => {
             await expect(
                 controller.updateProjectDbtSource(
                     '11111111-1111-4111-8111-111111111111',
@@ -45,7 +64,7 @@ describe('ProjectDbtSourcesController source name validation', () => {
                     { name },
                     request,
                 ),
-            ).rejects.toThrow(ParameterError);
+            ).rejects.toThrow(message);
 
             expect(updateProjectDbtSource).not.toHaveBeenCalled();
         },

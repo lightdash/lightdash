@@ -43,6 +43,11 @@ export const validateProjectDbtSourceName = (name: string): void => {
             `Dbt source "${name}" has invalid name. Names must be 64 characters or fewer.`,
         );
     }
+    if (name.includes('__')) {
+        throw new ParameterError(
+            `Dbt source "${name}" has invalid name because source names become part of qualified explore names and "__" is the separator.`,
+        );
+    }
 };
 
 /**

@@ -194,7 +194,11 @@ describe('ProjectDbtSourcesService', () => {
                 'my source!',
                 'Names must contain only letters, numbers, and underscores.',
             ],
-            ['a'.repeat(65), 'Names must be 64 characters or fewer.'],
+            ['a'.repeat(300), 'Names must be 64 characters or fewer.'],
+            [
+                'sales__orders',
+                'source names become part of qualified explore names and "__" is the separator.',
+            ],
         ])('rejects invalid source name %s', async (name, message) => {
             const service = getService();
 
@@ -308,30 +312,35 @@ describe('ProjectDbtSourcesService', () => {
             expect(projectDbtSourcesModel.updateSource).not.toHaveBeenCalled();
         });
 
-        it.each(['my source!', 'a'.repeat(65)])(
-            'rejects invalid source name %s',
-            async (name) => {
-                projectDbtSourcesModel.getSource.mockResolvedValue({
-                    projectDbtSourceUuid: sourceUuid,
+        it.each([
+            [
+                'my source!',
+                'Names must contain only letters, numbers, and underscores.',
+            ],
+            ['a'.repeat(300), 'Names must be 64 characters or fewer.'],
+            [
+                'sales__orders',
+                'source names become part of qualified explore names and "__" is the separator.',
+            ],
+        ])('rejects invalid source name %s', async (name, message) => {
+            projectDbtSourcesModel.getSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                projectUuid,
+                dbtConnection: githubConnection,
+            } as never);
+            const service = getService();
+
+            await expect(
+                service.updateProjectDbtSource(
+                    adminAccount,
                     projectUuid,
-                    dbtConnection: githubConnection,
-                } as never);
-                const service = getService();
+                    sourceUuid,
+                    { name },
+                ),
+            ).rejects.toThrow(message);
 
-                await expect(
-                    service.updateProjectDbtSource(
-                        adminAccount,
-                        projectUuid,
-                        sourceUuid,
-                        { name },
-                    ),
-                ).rejects.toThrow(ParameterError);
-
-                expect(
-                    projectDbtSourcesModel.updateSource,
-                ).not.toHaveBeenCalled();
-            },
-        );
+            expect(projectDbtSourcesModel.updateSource).not.toHaveBeenCalled();
+        });
 
         it('rejects unsafe dbt environment variables', async () => {
             projectDbtSourcesModel.getSource.mockResolvedValue({
