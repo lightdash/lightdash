@@ -32,11 +32,13 @@ import {
     type ChartSummary,
     type CreateProject,
     type CreateWarehouseCredentials,
+    type DbtManifest,
     type DownloadFile,
     type Explore,
     type Job,
     type PossibleAbilities,
     type Project,
+    type ProjectDbtSource,
     type RegisteredAccount,
     type UpdateProject,
     type UserWarehouseCredentialsWithSecrets,
@@ -177,6 +179,7 @@ vi.mock('@lightdash/warehouses', () => ({
     exchangeDatabricksOAuthCredentials: vi.fn(),
     refreshDatabricksOAuthToken: vi.fn(),
     DATABRICKS_DEFAULT_OAUTH_CLIENT_ID: 'default-client-id',
+    warehouseClientFromCredentials: vi.fn(() => warehouseClientMock),
 }));
 
 const projectModel = {
@@ -4450,6 +4453,14 @@ type ResolveCompileAdapterArgs = {
     manifestFetchAdapters: ProjectAdapter[];
 };
 
+type BuildMergedManifestAdapterArgs = {
+    projectUuid: string;
+    organizationUuid: string | undefined;
+    primary: ResolveCompileAdapterArgs['primary'];
+    sources: ProjectDbtSource[];
+    manifestFetchAdapters: ProjectAdapter[];
+};
+
 // resolveCompileAdapter/buildMergedManifestAdapter/featureFlagModel/
 // projectDbtSourcesModel are private members; this narrow view exposes only
 // what these tests need to call/override, avoiding `any`.
@@ -4459,7 +4470,10 @@ type ProjectServiceInternals = {
     resolveCompileAdapter: (
         args: ResolveCompileAdapterArgs,
     ) => Promise<ProjectAdapter>;
-    buildMergedManifestAdapter: (args: unknown) => Promise<ProjectAdapter>;
+    buildMergedManifestAdapter: (
+        args: BuildMergedManifestAdapterArgs,
+    ) => Promise<ProjectAdapter>;
+    buildSourceAdapter: (...args: unknown[]) => Promise<ProjectAdapter>;
 };
 
 describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firewall)', () => {
@@ -4468,7 +4482,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
     } as unknown as ProjectAdapter;
     const primary = {
         adapter: primaryAdapter,
-        warehouseCredentials: {} as CreateWarehouseCredentials,
+        warehouseCredentials: warehouseClientMock.credentials,
         cachedWarehouse: { warehouseCatalog: {}, warehouseTables: {} },
         dbtVersionOption: DbtVersionOptionLatest.LATEST,
     };
@@ -4505,6 +4519,149 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         projectService.projectDbtSourcesModel = { getSources };
         return { projectService, getSources };
     };
+
+    const buildManifest = (
+        models: Array<{ uniqueId: string; name: string; packageName: string }>,
+    ): DbtManifest => ({
+        nodes: Object.fromEntries(
+            models.map(({ uniqueId, name, packageName }) => [
+                uniqueId,
+                {
+                    unique_id: uniqueId,
+                    name,
+                    package_name: packageName,
+                    resource_type: 'model',
+                    compiled: true,
+                    database: 'analytics',
+                    schema: 'public',
+                    config: {
+                        materialized: 'table',
+                        snowflake_warehouse: '',
+                    },
+                    meta: {},
+                    columns: {},
+                },
+            ]),
+        ),
+        metadata: {
+            dbt_schema_version:
+                'https://schemas.getdbt.com/dbt/manifest/v12.json',
+            generated_at: '2026-08-16T00:00:00.000Z',
+            adapter_type: 'postgres',
+        },
+        metrics: {},
+        docs: {},
+    });
+
+    const buildAdapterWithManifest = (manifest: DbtManifest) =>
+        ({
+            getDbtManifest: vi.fn(async () => ({ manifest })),
+        }) as unknown as ProjectAdapter;
+
+    const buildSource = (name: string): ProjectDbtSource => ({
+        projectDbtSourceUuid: `${name}-uuid`,
+        projectUuid: 'project-uuid',
+        name,
+        isPrimary: false,
+        precedence: 1,
+        dbtConnection: { type: DbtProjectType.NONE },
+        hasCredentialError: false,
+        createdAt: new Date('2026-08-16T00:00:00.000Z'),
+        updatedAt: new Date('2026-08-16T00:00:00.000Z'),
+    });
+
+    const buildMergedAdapter = async (
+        primaryManifest: DbtManifest,
+        sourceManifest: DbtManifest,
+    ) => {
+        const projectService = getMockedProjectService(
+            lightdashConfigMock,
+        ) as unknown as ProjectServiceInternals;
+        vi.spyOn(projectService, 'buildSourceAdapter').mockResolvedValue(
+            buildAdapterWithManifest(sourceManifest),
+        );
+
+        return projectService.buildMergedManifestAdapter({
+            projectUuid: 'project-uuid',
+            organizationUuid: 'org-uuid',
+            primary: {
+                ...primary,
+                adapter: buildAdapterWithManifest(primaryManifest),
+            },
+            sources: [buildSource('source-b')],
+            manifestFetchAdapters: [],
+        });
+    };
+
+    it('rejects cross-source bare model name collisions before returning a merged adapter', async () => {
+        const primaryManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_a.orders',
+                name: 'orders',
+                packageName: 'pkg_a',
+            },
+        ]);
+        const sourceManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_b.orders',
+                name: 'orders',
+                packageName: 'pkg_b',
+            },
+        ]);
+
+        await expect(
+            buildMergedAdapter(primaryManifest, sourceManifest),
+        ).rejects.toThrow(
+            'Merging dbt sources found 1 model name collision: model "orders" is defined in sources "primary" and "source-b". Rename or remove the duplicate(s) before deploying.',
+        );
+    });
+
+    it('allows duplicate bare model names from different packages within one source', async () => {
+        const primaryManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_a.orders',
+                name: 'orders',
+                packageName: 'pkg_a',
+            },
+            {
+                uniqueId: 'model.pkg_b.orders',
+                name: 'orders',
+                packageName: 'pkg_b',
+            },
+        ]);
+        const sourceManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_c.customers',
+                name: 'customers',
+                packageName: 'pkg_c',
+            },
+        ]);
+
+        await expect(
+            buildMergedAdapter(primaryManifest, sourceManifest),
+        ).resolves.toBeDefined();
+    });
+
+    it('allows multiple sources with distinct bare model names', async () => {
+        const primaryManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_a.orders',
+                name: 'orders',
+                packageName: 'pkg_a',
+            },
+        ]);
+        const sourceManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_b.customers',
+                name: 'customers',
+                packageName: 'pkg_b',
+            },
+        ]);
+
+        await expect(
+            buildMergedAdapter(primaryManifest, sourceManifest),
+        ).resolves.toBeDefined();
+    });
 
     it('flag OFF returns the primary adapter by identity and never queries getSources', async () => {
         const { projectService, getSources } = buildServiceWithMocks(false, [
