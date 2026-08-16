@@ -75,6 +75,7 @@ import {
     EnsurePlaygroundProjectResults,
     Explore,
     ExploreError,
+    ExploreSplitError,
     ExploreType,
     FeatureFlags,
     Field,
@@ -8839,6 +8840,17 @@ export class ProjectService extends BaseService {
                 const explore = exploresMap[exploreName];
 
                 if (!explore) {
+                    const candidateExploreNames =
+                        await this.projectModel.findExploreSplitCandidates(
+                            projectUuid,
+                            exploreName,
+                        );
+                    if (candidateExploreNames.length >= 2) {
+                        throw new ExploreSplitError(
+                            exploreName,
+                            candidateExploreNames,
+                        );
+                    }
                     throw new NotFoundError(
                         `Explore "${exploreName}" does not exist.`,
                     );
