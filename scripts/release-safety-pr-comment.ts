@@ -110,15 +110,26 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
         );
     } else if (rollingUpdateSafe === 'unknown') {
         head.push('❓ **Couldn’t confirm it’s safe.** Treat it as needing care on upgrade until checked.');
-        // An API break with no migration lands here too, so name what actually
-        // changed — telling the author "this changes the database" when it doesn't
-        // sends them looking for a migration that isn't there.
-        const subject = apiDriven ? 'This changes the API' : 'This changes the database';
-        head.push(
-            opts.draft
-                ? `${subject}. Mark the PR ready for review and an automated, code-aware check will look at whether the old version still uses what changed — it may clear it as safe.`
-                : `${subject} and we couldn’t automatically confirm the old version keeps working through the upgrade.`,
-        );
+        // Name what actually drove the verdict. An API break with no migration
+        // lands here, and so does a PR that changes neither — a check that
+        // couldn't run leaves the verdict unknown on its own. Telling that second
+        // author "this changes the database" sends them looking for a migration
+        // that isn't there, and the code-aware review they're pointed at only
+        // runs on a migration or an API break, so it would never clear them.
+        if (apiDriven || migrationsPresent === true) {
+            const subject = apiDriven ? 'This changes the API' : 'This changes the database';
+            head.push(
+                opts.draft
+                    ? `${subject}. Mark the PR ready for review and an automated, code-aware check will look at whether the old version still uses what changed — it may clear it as safe.`
+                    : `${subject} and we couldn’t automatically confirm the old version keeps working through the upgrade.`,
+            );
+        } else {
+            head.push(
+                migrationsPresent === false
+                    ? 'No database changes here. One of the checks below didn’t complete, so we can’t confirm this either way — the table says which one.'
+                    : 'We couldn’t tell what this release changes, because one of the checks below didn’t complete — the table says which one.',
+            );
+        }
     } else if (clearedAsSafeDrop) {
         head.push(SAFE_HEADLINE);
         head.push('This removes something from the database, but the app already stopped using it in an earlier release, so the old version keeps working fine through the upgrade.');

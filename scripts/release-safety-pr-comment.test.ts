@@ -147,6 +147,68 @@ test('failed REST generation replaces a false-safe headline', () => {
     assert.match(body, /REST API check didn’t run/);
 });
 
+const unknownMarker = (overrides: Partial<Marker> = {}): Marker =>
+    baseMarker({
+        compatibility: {
+            rollingUpdateSafe: 'unknown',
+            recommendedStrategy: 'Recreate',
+        },
+        ...overrides,
+    });
+
+test('an unknown verdict with no migrations never claims a database change', () => {
+    const marker = unknownMarker();
+    marker.api.rest = { checked: false, breaking: 'unknown', changes: [] };
+    const body = renderPrComment(marker, { draft: true, restStatus: 'failed' });
+    assert.doesNotMatch(body, /This changes the database/);
+    assert.match(body, /No database changes here/);
+    assert.match(body, /didn’t complete/);
+    assert.match(body, /Database changes \| none/);
+    // The REST check didn't run, so the comment must not claim the API is clean
+    // either — only that the database is.
+    assert.doesNotMatch(body, /changes the database or the API/);
+    // The code-aware review only runs on a migration or an API break, so marking
+    // this PR ready for review would not clear it.
+    assert.doesNotMatch(body, /Mark the PR ready for review/);
+});
+
+test('an unknown verdict with an indeterminate migration state says so', () => {
+    const marker = unknownMarker();
+    marker.migrations.present = 'unknown';
+    const body = renderPrComment(marker, { draft: true });
+    assert.doesNotMatch(body, /This changes the database/);
+    assert.match(body, /We couldn’t tell what this release changes/);
+});
+
+test('an unknown verdict with migrations still names the database', () => {
+    const body = renderPrComment(
+        unknownMarker({
+            migrations: {
+                present: true,
+                count: 1,
+                coreCount: 1,
+                eeCount: 0,
+                files: [],
+            },
+        }),
+        { draft: true },
+    );
+    assert.match(body, /This changes the database/);
+    assert.match(body, /Mark the PR ready for review/);
+});
+
+test('an unknown verdict driven by an API break still names the API', () => {
+    const marker = unknownMarker();
+    marker.api.rest = {
+        checked: true,
+        breaking: true,
+        changes: ['GET /legacy removed'],
+    };
+    const body = renderPrComment(marker, { draft: false });
+    assert.match(body, /This changes the API/);
+    assert.doesNotMatch(body, /This changes the database/);
+});
+
 test('raw v2 JSON is embedded for machines', () => {
     const body = renderPrComment(baseMarker());
     assert.match(body, /Technical details \(raw JSON\)/);
