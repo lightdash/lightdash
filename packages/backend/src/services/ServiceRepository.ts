@@ -464,6 +464,8 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     savedChartModel: this.models.getSavedChartModel(),
                     projectModel: this.models.getProjectModel(),
+                    projectDbtSourcesModel:
+                        this.models.getProjectDbtSourcesModel(),
                     spaceModel: this.models.getSpaceModel(),
                     githubAppInstallationsModel:
                         this.models.getGithubAppInstallationsModel(),

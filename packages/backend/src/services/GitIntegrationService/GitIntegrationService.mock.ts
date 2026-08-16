@@ -15,13 +15,30 @@ export const PROJECT_MODEL = {
     get: vi.fn(() =>
         Promise.resolve({
             projectUuid: 'projectUuid',
+            name: 'Project',
             dbtVersion: SupportedDbtVersions.V1_9,
+            dbtConnection: {
+                type: 'github',
+                repository: 'owner/repo',
+                branch: 'main',
+                project_sub_path: 'path',
+            },
         }),
     ),
 };
+export const PROJECT_DBT_SOURCES_MODEL = {
+    getSources: vi.fn().mockResolvedValue([]),
+};
 export const SAVED_CHART_MODEL = {};
 export const SPACE_MODEL = {};
-export const GITHUB_APP_MODEL = {};
+export const GITHUB_APP_MODEL = {
+    getInstallationId: vi.fn().mockResolvedValue('installation-id'),
+    getAuth: vi.fn().mockResolvedValue({
+        token: 'token',
+        refreshToken: 'refresh-token',
+    }),
+    updateAuth: vi.fn(),
+};
 
 // Mock schema file with comments, different multi-line strings, different types of quotes, different types of arrays
 export const SCHEMA_YML = `
