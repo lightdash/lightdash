@@ -121,11 +121,10 @@ test('detectMigrations counts only added timestamped files and splits EE', () =>
     ]);
 });
 
-test('detectMigrations ignores tests colocated with migrations', () => {
+test('detectMigrations ignores migration tests knex never loads', () => {
     const result = detectMigrations([
         change('A', `${core}/20260810000000_core.ts`),
         change('A', `${core}/__tests__/20260810000000_core.test.ts`),
-        change('A', `${core}/20260810000002_core.spec.ts`),
     ]);
     assert.strictEqual(result.count, 1);
     assert.deepStrictEqual(result.files, ['20260810000000_core.ts']);

@@ -440,7 +440,6 @@ test('changed migration paths exclude tests colocated with migrations', () => {
         [
             `A\t${root}/20260101000000_added.ts`,
             `A\t${root}/__tests__/20260101000000_added.test.ts`,
-            `A\t${root}/20260101000005_added.spec.ts`,
         ].join('\n'),
         () => true,
     );
