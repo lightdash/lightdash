@@ -122,9 +122,73 @@ const getCompiledManifestModelIds = (manifest: DbtManifest): string[] =>
         )
         .map(([uniqueId]) => uniqueId);
 
+const inferLocalSourceName = (
+    localManifest: DbtManifest,
+    servedManifest: DbtManifest,
+): string | undefined => {
+    const sourceNames = new Set(
+        getManifestModelIds(localManifest).flatMap((uniqueId) => {
+            const servedNode = servedManifest.nodes[uniqueId] as
+                | SourceAnnotatedDbtNode
+                | undefined;
+            return servedNode?.resource_type === 'model' &&
+                typeof servedNode.lightdash_source_name === 'string'
+                ? [servedNode.lightdash_source_name]
+                : [];
+        }),
+    );
+
+    if (sourceNames.size > 1) {
+        throw new ParseError(
+            `Cannot automatically combine manifest from the server: overlapping local models match multiple Lightdash sources (${[...sourceNames].sort().join(', ')})`,
+        );
+    }
+
+    return sourceNames.values().next().value;
+};
+
+const withoutModelsFromSource = (
+    manifest: DbtManifest,
+    sourceName: string,
+): DbtManifest => ({
+    ...manifest,
+    nodes: Object.fromEntries(
+        Object.entries(manifest.nodes).filter(([, node]) => {
+            const sourceAnnotatedNode = node as SourceAnnotatedDbtNode;
+            return !(
+                node.resource_type === 'model' &&
+                sourceAnnotatedNode.lightdash_source_name === sourceName
+            );
+        }),
+    ),
+});
+
+const withoutUnselectedOverlappingModels = (
+    localManifest: DbtManifest,
+    servedManifest: DbtManifest,
+    sourceName: string,
+    selectedModelIds: Set<string>,
+): DbtManifest => ({
+    ...localManifest,
+    nodes: Object.fromEntries(
+        Object.entries(localManifest.nodes).filter(([uniqueId, localNode]) => {
+            const servedNode = servedManifest.nodes[uniqueId] as
+                | SourceAnnotatedDbtNode
+                | undefined;
+            return !(
+                localNode.resource_type === 'model' &&
+                !selectedModelIds.has(uniqueId) &&
+                servedNode?.resource_type === 'model' &&
+                servedNode.lightdash_source_name === sourceName
+            );
+        }),
+    ),
+});
+
 const combinePreviewManifests = (
     localManifest: DbtManifest,
     externalManifest: DbtManifest,
+    localSourceName?: string,
 ) => {
     const { manifest, addedModelIds } = combineManifests(
         localManifest,
@@ -132,14 +196,18 @@ const combinePreviewManifests = (
     );
     const nodes = { ...manifest.nodes };
 
-    Object.keys(localManifest.nodes).forEach((uniqueId) => {
+    Object.entries(localManifest.nodes).forEach(([uniqueId, localNode]) => {
         const externalNode = externalManifest.nodes[uniqueId] as
             | SourceAnnotatedDbtNode
             | undefined;
-        if (typeof externalNode?.lightdash_source_name === 'string') {
+        const sourceName =
+            localNode.resource_type === 'model' && localSourceName !== undefined
+                ? localSourceName
+                : externalNode?.lightdash_source_name;
+        if (typeof sourceName === 'string') {
             nodes[uniqueId] = {
                 ...nodes[uniqueId],
-                lightdash_source_name: externalNode.lightdash_source_name,
+                lightdash_source_name: sourceName,
             } as DbtManifest['nodes'][string];
         }
     });
@@ -497,23 +565,49 @@ export const compileProject = async (
             }
         }
         if (additionalManifest && combineSource) {
-            const localModelIds = new Set(getManifestModelIds(manifest));
-            const externalModelIds = getManifestModelIds(additionalManifest);
-            const localSourceExists = externalModelIds.some((uniqueId) =>
-                localModelIds.has(uniqueId),
-            );
+            const localSourceName = isAutomaticServerManifest
+                ? inferLocalSourceName(manifest, additionalManifest)
+                : undefined;
 
-            if (isAutomaticServerManifest && !localSourceExists) {
+            if (isAutomaticServerManifest && localSourceName === undefined) {
                 console.info(
                     styles.info(
                         `Skipped combining ${combineSource}: the local dbt project is not a source of this Lightdash project`,
                     ),
                 );
             } else {
+                const localManifest =
+                    isAutomaticServerManifest &&
+                    !isProjectComplete &&
+                    localSourceName !== undefined
+                        ? withoutUnselectedOverlappingModels(
+                              manifest,
+                              additionalManifest,
+                              localSourceName,
+                              new Set(
+                                  originallySelectedModelIds ??
+                                      compiledModelIds ??
+                                      [],
+                              ),
+                          )
+                        : manifest;
+                const externalManifest =
+                    isAutomaticServerManifest &&
+                    isProjectComplete &&
+                    localSourceName !== undefined
+                        ? withoutModelsFromSource(
+                              additionalManifest,
+                              localSourceName,
+                          )
+                        : additionalManifest;
                 const compiledExternalModelIds =
                     getCompiledManifestModelIds(additionalManifest);
                 const { manifest: merged, addedModelIds } =
-                    combinePreviewManifests(manifest, additionalManifest);
+                    combinePreviewManifests(
+                        localManifest,
+                        externalManifest,
+                        localSourceName,
+                    );
                 manifest = merged;
                 if (isAutomaticServerManifest) {
                     addedModelIds.forEach((modelId) => {
