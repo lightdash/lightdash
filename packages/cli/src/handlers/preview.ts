@@ -49,6 +49,8 @@ type PreviewHandlerOptions = DbtCompileOptions & {
     disableTimestampConversion?: boolean;
     validateWarehouseColumns: boolean;
     partialCompilation?: boolean;
+    combine?: boolean;
+    combineManifestProjectUuid?: string;
 };
 
 type StopPreviewHandlerOptions = {
@@ -207,6 +209,7 @@ export const previewHandler = async (
     let contentCopySkipReason: string | undefined;
 
     const config = await getConfig();
+    options.combineManifestProjectUuid = config.context?.project;
 
     // Validate upstream project before attempting to copy permissions or content
     let upstreamProjectValid = false;
@@ -483,6 +486,7 @@ export const startPreviewHandler = async (
 
     const projectName = options.name;
     const config = await getConfig();
+    options.combineManifestProjectUuid = config.context?.project;
 
     // Log current source project info if copying content
     if (!options.skipCopyContent && config.context?.project) {
