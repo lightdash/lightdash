@@ -441,9 +441,15 @@ export const compileProject = async (
                 isAutomaticServerManifest = true;
             } catch (error) {
                 if (
-                    !(error instanceof LightdashError) ||
-                    error.statusCode !== 404
+                    error instanceof LightdashError &&
+                    error.statusCode === 404
                 ) {
+                    console.info(
+                        styles.info(
+                            'No server manifest found; continuing with the preview manifest',
+                        ),
+                    );
+                } else {
                     console.error(
                         styles.warning(
                             `Could not fetch the server manifest; continuing with the preview manifest: ${getErrorMessage(error)}`,
