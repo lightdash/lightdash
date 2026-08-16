@@ -4483,6 +4483,7 @@ export class ProjectService extends BaseService {
      */
     private async buildSourceAdapter(
         dbtConnection: DbtProjectConfig,
+        dbtSourceName: string,
         organizationUuid: string | undefined,
         shared: {
             warehouseCredentials: CreateWarehouseCredentials;
@@ -4502,6 +4503,8 @@ export class ProjectService extends BaseService {
             shared.dbtVersionOption,
             this.lightdashConfig.dbt.environmentVariableAllowlist,
             this.analytics,
+            undefined,
+            dbtSourceName,
         );
     }
 
@@ -4636,6 +4639,7 @@ export class ProjectService extends BaseService {
                 try {
                     sourceAdapter = await this.buildSourceAdapter(
                         source.dbtConnection,
+                        source.name,
                         organizationUuid,
                         shared,
                     );

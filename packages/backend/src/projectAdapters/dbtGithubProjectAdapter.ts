@@ -27,6 +27,7 @@ type DbtGithubProjectAdapterArgs = {
     dbtVersion: SupportedDbtVersions;
     selector?: string;
     analytics?: LightdashAnalytics;
+    dbtSourceName?: string;
 };
 
 export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
@@ -46,15 +47,27 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
         dbtVersion,
         selector,
         analytics,
+        dbtSourceName,
     }: DbtGithubProjectAdapterArgs) {
-        const [isValid, error] = validateGithubToken(githubPersonalAccessToken);
-        if (!isValid) {
-            throw new Error(error);
+        if (githubPersonalAccessToken) {
+            const [isValid, error] = validateGithubToken(
+                githubPersonalAccessToken,
+            );
+            if (!isValid) {
+                throw new Error(error);
+            }
         }
 
         const remoteRepositoryUrl = `https://lightdash:${githubPersonalAccessToken}@${
             hostDomain || DEFAULT_GITHUB_HOST_DOMAIN
         }/${githubRepository}.git`;
+        let gitPackageTokenProvider: (() => Promise<string>) | undefined;
+        if (githubInstallationId) {
+            gitPackageTokenProvider = () =>
+                getInstallationToken(githubInstallationId);
+        } else if (githubPersonalAccessToken) {
+            gitPackageTokenProvider = async () => githubPersonalAccessToken;
+        }
         super({
             warehouseClient,
             remoteRepositoryUrl,
@@ -69,9 +82,9 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
             dbtVersion,
             selector,
             analytics,
-            gitPackageTokenProvider: githubInstallationId
-                ? () => getInstallationToken(githubInstallationId)
-                : async () => githubPersonalAccessToken,
+            gitPackageHost: hostDomain || DEFAULT_GITHUB_HOST_DOMAIN,
+            gitPackageTokenProvider,
+            dbtSourceName,
         });
     }
 }

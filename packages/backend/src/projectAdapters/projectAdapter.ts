@@ -31,6 +31,7 @@ export const projectAdapterFromConfig = async (
     // project_context.yml from (the multiple-dbt-sources merge passes the
     // primary source's checkout here). Ignored by every other adapter type.
     manifestProjectDir?: string,
+    dbtSourceName?: string,
 ): Promise<ProjectAdapter> => {
     Logger.debug(
         `Initialize warehouse client of type ${warehouseCredentials.type}`,
@@ -56,6 +57,7 @@ export const projectAdapterFromConfig = async (
                 dbtVersion,
 
                 selector: config.selector,
+                dbtSourceName,
             });
         case DbtProjectType.NONE:
             return new DbtNoneCredentialsProjectAdapter({
@@ -122,6 +124,7 @@ export const projectAdapterFromConfig = async (
                 dbtVersion,
 
                 selector: config.selector,
+                dbtSourceName,
             });
         case DbtProjectType.GITLAB:
             return new DbtGitlabProjectAdapter({

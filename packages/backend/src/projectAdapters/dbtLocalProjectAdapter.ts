@@ -18,6 +18,8 @@ type DbtLocalProjectAdapterArgs = {
     selector?: string;
     analytics?: LightdashAnalytics;
     gitPackageTokenProvider?: () => Promise<string>;
+    gitPackageHost?: string;
+    dbtSourceName?: string;
 };
 
 export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
@@ -34,6 +36,8 @@ export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
         dbtVersion,
         selector,
         gitPackageTokenProvider,
+        gitPackageHost,
+        dbtSourceName,
     }: DbtLocalProjectAdapterArgs) {
         const dbtClient = new DbtCliClient({
             dbtProjectDirectory: projectDir,
@@ -45,6 +49,8 @@ export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
             dbtVersion,
             selector,
             gitPackageTokenProvider,
+            gitPackageHost,
+            dbtSourceName,
         });
         super(
             dbtClient,

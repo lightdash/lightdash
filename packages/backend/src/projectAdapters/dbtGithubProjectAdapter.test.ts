@@ -141,4 +141,111 @@ describe('DbtGithubProjectAdapter package authentication', () => {
         }
         await expect(fs.access(configPath)).rejects.toThrow();
     });
+
+    it('does not install a git config when no package credential is available', async () => {
+        execaMock.mockImplementation(
+            async (
+                _command: string,
+                _args: string[],
+                options: { env: Record<string, string> },
+            ) => {
+                expect(options.env).not.toHaveProperty('GIT_CONFIG_GLOBAL');
+                expect(options.env).not.toHaveProperty('GIT_CONFIG_NOSYSTEM');
+                return {
+                    all: 'success message',
+                    stdout: '',
+                } as never;
+            },
+        );
+        adapter = new DbtGithubProjectAdapter({
+            warehouseClient: vi.fn() as unknown as WarehouseClient,
+            githubPersonalAccessToken: '',
+            githubRepository: 'lightdash/public-dbt-package',
+            githubBranch: 'main',
+            projectDirectorySubPath: '',
+            warehouseCredentials,
+            targetName: undefined,
+            environment: undefined,
+            environmentVariableAllowlist: [],
+            cachedWarehouse,
+            dbtVersion: SupportedDbtVersions.V1_10,
+        });
+
+        await adapter.dbtClient.installDeps?.();
+
+        expect(getInstallationToken).not.toHaveBeenCalled();
+    });
+
+    it('uses the configured GitHub host for package URL rewrites', async () => {
+        const token = 'github_pat_enterprise-package-token';
+        execaMock.mockImplementation(
+            async (
+                _command: string,
+                _args: string[],
+                options: { env: Record<string, string> },
+            ) => {
+                const config = await fs.readFile(
+                    options.env.GIT_CONFIG_GLOBAL,
+                    'utf8',
+                );
+                expect(config).toContain(
+                    `x-access-token:${token}@github.example.com/`,
+                );
+                expect(config).toContain(
+                    'insteadOf = https://github.example.com/',
+                );
+                expect(config).not.toContain('@github.com/');
+                return {
+                    all: 'success message',
+                    stdout: '',
+                } as never;
+            },
+        );
+        adapter = new DbtGithubProjectAdapter({
+            warehouseClient: vi.fn() as unknown as WarehouseClient,
+            githubPersonalAccessToken: token,
+            githubRepository: 'lightdash/private-dbt-package',
+            githubBranch: 'main',
+            projectDirectorySubPath: '',
+            warehouseCredentials,
+            hostDomain: 'github.example.com',
+            targetName: undefined,
+            environment: undefined,
+            environmentVariableAllowlist: [],
+            cachedWarehouse,
+            dbtVersion: SupportedDbtVersions.V1_10,
+        });
+
+        await adapter.dbtClient.installDeps?.();
+    });
+
+    it('uses the Lightdash source name in dependency access errors', async () => {
+        execaMock.mockRejectedValueOnce({
+            all: JSON.stringify({
+                code: 'E006',
+                info: {
+                    level: 'error',
+                    msg: "Git Error: remote: Repository not found. fatal: repository 'https://github.com/lightdash/private-dbt-package.git/' not found",
+                },
+            }),
+        });
+        adapter = new DbtGithubProjectAdapter({
+            warehouseClient: vi.fn() as unknown as WarehouseClient,
+            githubPersonalAccessToken: 'ghp_clone_token',
+            githubRepository: 'lightdash/analytics-repository',
+            githubBranch: 'main',
+            projectDirectorySubPath: '',
+            warehouseCredentials,
+            targetName: undefined,
+            environment: undefined,
+            environmentVariableAllowlist: [],
+            cachedWarehouse,
+            dbtVersion: SupportedDbtVersions.V1_10,
+            dbtSourceName: 'finance',
+        });
+
+        await expect(adapter.dbtClient.installDeps?.()).rejects.toThrow(
+            'for source "finance": access was denied',
+        );
+    });
 });

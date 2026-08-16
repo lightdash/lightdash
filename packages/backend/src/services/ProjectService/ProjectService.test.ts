@@ -4593,6 +4593,33 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         });
     };
 
+    it('passes the Lightdash source name to additional source adapters', async () => {
+        const projectService = getMockedProjectService(
+            lightdashConfigMock,
+        ) as unknown as ProjectServiceInternals;
+        const buildSourceAdapter = vi
+            .spyOn(projectService, 'buildSourceAdapter')
+            .mockResolvedValue(buildAdapterWithManifest(buildManifest([])));
+
+        await projectService.buildMergedManifestAdapter({
+            projectUuid: 'project-uuid',
+            organizationUuid: 'org-uuid',
+            primary: {
+                ...primary,
+                adapter: buildAdapterWithManifest(buildManifest([])),
+            },
+            sources: [buildSource('finance')],
+            manifestFetchAdapters: [],
+        });
+
+        expect(buildSourceAdapter).toHaveBeenCalledWith(
+            expect.anything(),
+            'finance',
+            'org-uuid',
+            expect.anything(),
+        );
+    });
+
     it('rejects cross-source bare model name collisions before returning a merged adapter', async () => {
         const primaryManifest = buildManifest([
             {

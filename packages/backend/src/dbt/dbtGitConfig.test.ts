@@ -1,3 +1,4 @@
+import execa from 'execa';
 import * as fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
@@ -22,6 +23,7 @@ describe('withDbtGitConfig', () => {
         await withDbtGitConfig(
             {
                 token,
+                host: 'github.com',
                 repositoryDirectory,
             },
             async (configPath) => {
@@ -41,6 +43,46 @@ describe('withDbtGitConfig', () => {
                 expect(
                     path.relative(repositoryDirectory, configDirectory),
                 ).toMatch(/^\.\./);
+            },
+        );
+    });
+
+    it('does not rewrite userinfo-bearing DBT_ENV_SECRET package URLs', async () => {
+        const token = 'github-installation-token';
+        const host = 'github.example.com';
+
+        await withDbtGitConfig(
+            {
+                token,
+                host,
+                repositoryDirectory,
+            },
+            async (configPath) => {
+                const env = {
+                    ...process.env,
+                    GIT_CONFIG_GLOBAL: configPath,
+                    GIT_CONFIG_NOSYSTEM: '1',
+                };
+                const ordinaryUrl = `https://${host}/org/package.git`;
+                const dbtEnvironmentSecretUrl = `https://dbt-environment-secret@${host}/org/package.git`;
+
+                const ordinaryResult = await execa(
+                    'git',
+                    ['ls-remote', '--get-url', ordinaryUrl],
+                    { env },
+                );
+                const dbtEnvironmentSecretResult = await execa(
+                    'git',
+                    ['ls-remote', '--get-url', dbtEnvironmentSecretUrl],
+                    { env },
+                );
+
+                expect(ordinaryResult.stdout).toBe(
+                    `https://x-access-token:${token}@${host}/org/package.git`,
+                );
+                expect(dbtEnvironmentSecretResult.stdout).toBe(
+                    dbtEnvironmentSecretUrl,
+                );
             },
         );
     });

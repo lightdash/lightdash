@@ -38,6 +38,8 @@ type DbtCliArgs = {
     dbtVersion: SupportedDbtVersions;
     selector?: string;
     gitPackageTokenProvider?: () => Promise<string>;
+    gitPackageHost?: string;
+    dbtSourceName?: string;
 };
 
 enum DbtCommands {
@@ -73,6 +75,10 @@ export class DbtCliClient implements DbtClient {
 
     gitPackageTokenProvider?: () => Promise<string>;
 
+    gitPackageHost?: string;
+
+    dbtSourceName: string;
+
     constructor({
         dbtProjectDirectory,
         dbtProfilesDirectory,
@@ -83,6 +89,8 @@ export class DbtCliClient implements DbtClient {
         dbtVersion,
         selector,
         gitPackageTokenProvider,
+        gitPackageHost,
+        dbtSourceName = 'dbt_project',
     }: DbtCliArgs) {
         this.dbtProjectDirectory = dbtProjectDirectory;
         this.dbtProfilesDirectory = dbtProfilesDirectory;
@@ -94,6 +102,8 @@ export class DbtCliClient implements DbtClient {
         this.dbtVersion = dbtVersion;
         this.selector = selector;
         this.gitPackageTokenProvider = gitPackageTokenProvider;
+        this.gitPackageHost = gitPackageHost;
+        this.dbtSourceName = dbtSourceName;
     }
 
     getSelector(): string | undefined {
@@ -170,6 +180,7 @@ export class DbtCliClient implements DbtClient {
 
     private async _runDbtCommandWithGitConfig(
         gitConfigPath: string | undefined,
+        secretsToRedact: string[],
         ...command: string[]
     ): Promise<{
         logs: DbtLog[];
@@ -214,15 +225,23 @@ export class DbtCliClient implements DbtClient {
                     gitConfigPath,
                 }),
             });
+            const sanitizedOutput = secretsToRedact.reduce(
+                (output, secret) => output?.replaceAll(secret, '*****'),
+                dbtProcess.all,
+            );
             return {
-                logs: DbtCliClient.parseDbtJsonLogs(dbtProcess.all),
+                logs: DbtCliClient.parseDbtJsonLogs(sanitizedOutput),
                 stdout: dbtProcess.stdout,
             };
         } catch (e) {
+            const sanitizedError = secretsToRedact.reduce(
+                (message, secret) => message.replaceAll(secret, '*****'),
+                getErrorMessage(e),
+            );
             Logger.error(
                 `Error running dbt command with version ${
                     this.dbtVersion
-                }: ${getErrorMessage(e)}`,
+                }: ${sanitizedError}`,
             );
             // TODO parse ExecaError
             const execaError = e as Partial<ExecaError>;
@@ -231,16 +250,19 @@ export class DbtCliClient implements DbtClient {
                 'all' in execaError &&
                 typeof execaError.all === 'string'
             ) {
-                const missingVariablesHint = getMissingEnvironmentVariableHint(
+                const sanitizedOutput = secretsToRedact.reduce(
+                    (output, secret) => output.replaceAll(secret, '*****'),
                     execaError.all,
                 );
+                const missingVariablesHint =
+                    getMissingEnvironmentVariableHint(sanitizedOutput);
                 throw new DbtError(
                     `Failed to run "${dbtExec} ${command.join(
                         ' ',
                     )}" with dbt version "${this.dbtVersion}"${
                         missingVariablesHint ? `. ${missingVariablesHint}` : ''
                     }`,
-                    DbtCliClient.parseDbtJsonLogs(execaError.all),
+                    DbtCliClient.parseDbtJsonLogs(sanitizedOutput),
                 );
             }
             throw e;
@@ -251,7 +273,7 @@ export class DbtCliClient implements DbtClient {
         logs: DbtLog[];
         stdout: string;
     }> {
-        return this._runDbtCommandWithGitConfig(undefined, ...command);
+        return this._runDbtCommandWithGitConfig(undefined, [], ...command);
     }
 
     async installDeps(): Promise<void> {
@@ -262,21 +284,60 @@ export class DbtCliClient implements DbtClient {
             },
             async () => {
                 const startTime = Date.now();
-                if (this.gitPackageTokenProvider) {
-                    const token = await this.gitPackageTokenProvider();
-                    await withDbtGitConfig(
-                        {
-                            token,
-                            repositoryDirectory: this.dbtProjectDirectory,
-                        },
-                        (gitConfigPath) =>
-                            this._runDbtCommandWithGitConfig(
-                                gitConfigPath,
-                                'deps',
-                            ),
-                    );
-                } else {
-                    await this._runDbtCommand('deps');
+                let usedGitPackageToken = false;
+                try {
+                    if (this.gitPackageTokenProvider) {
+                        const token = await this.gitPackageTokenProvider();
+                        if (!this.gitPackageHost) {
+                            throw new Error(
+                                'Git package host is required when a token provider is configured',
+                            );
+                        }
+                        usedGitPackageToken = true;
+                        await withDbtGitConfig(
+                            {
+                                token,
+                                host: this.gitPackageHost,
+                                repositoryDirectory: this.dbtProjectDirectory,
+                            },
+                            (gitConfigPath) =>
+                                this._runDbtCommandWithGitConfig(
+                                    gitConfigPath,
+                                    [token],
+                                    'deps',
+                                ),
+                        );
+                    } else {
+                        await this._runDbtCommand('deps');
+                    }
+                } catch (error) {
+                    if (usedGitPackageToken && error instanceof DbtError) {
+                        const messages =
+                            error.logs?.map((log) => log.info.msg).join('\n') ??
+                            '';
+                        const repositoryMatch = messages.match(
+                            /github\.com[/:]([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+?)(?:\.git)?(?:\/|['"\s]|$)/i,
+                        );
+                        const accessWasDenied =
+                            /repository not found|authentication failed|permission denied|access denied|could not read username|terminal prompts disabled/i.test(
+                                messages,
+                            );
+                        if (!accessWasDenied) {
+                            throw error;
+                        }
+                        if (repositoryMatch) {
+                            const [, owner, repository] = repositoryMatch;
+                            throw new DbtError(
+                                `Could not download the dbt package "${repository}" from https://github.com/${owner}/${repository} for source "${this.dbtSourceName}": access was denied. Check that the Lightdash GitHub App has access to that repository.`,
+                                error.logs,
+                            );
+                        }
+                        throw new DbtError(
+                            `Could not download dbt packages for source "${this.dbtSourceName}". Check that the Lightdash GitHub App has access to every package repository.`,
+                            error.logs,
+                        );
+                    }
+                    throw error;
                 }
                 Logger.info(
                     `dbt deps completed in ${Date.now() - startTime}ms`,

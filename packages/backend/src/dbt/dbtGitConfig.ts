@@ -4,6 +4,7 @@ import path from 'path';
 
 type DbtGitConfigArgs = {
     token: string;
+    host: string;
     repositoryDirectory: string;
 };
 
@@ -20,7 +21,7 @@ const isWithinDirectory = (parent: string, child: string): boolean => {
 };
 
 export const withDbtGitConfig = async <T>(
-    { token, repositoryDirectory }: DbtGitConfigArgs,
+    { token, host, repositoryDirectory }: DbtGitConfigArgs,
     run: (configPath: string) => Promise<T>,
 ): Promise<T> => {
     const configDirectory = await fs.mkdtemp(
@@ -38,10 +39,10 @@ export const withDbtGitConfig = async <T>(
         const configPath = path.join(configDirectory, 'config');
         await fs.writeFile(
             configPath,
-            `[url "https://x-access-token:${token}@github.com/"]\n` +
-                `    insteadOf = https://github.com/\n` +
-                `    insteadOf = git@github.com:\n` +
-                `    insteadOf = ssh://git@github.com/\n` +
+            `[url "https://x-access-token:${token}@${host}/"]\n` +
+                `    insteadOf = https://${host}/\n` +
+                `    insteadOf = git@${host}:\n` +
+                `    insteadOf = ssh://git@${host}/\n` +
                 `[credential]\n` +
                 `    helper =\n`,
             { mode: 0o600 },

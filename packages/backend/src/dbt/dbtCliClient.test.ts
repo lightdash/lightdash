@@ -112,6 +112,7 @@ describe('DbtCliClient environment', () => {
     const cliArgs = {
         ...cliArgsWithoutVersion,
         dbtVersion: SupportedDbtVersions.V1_10,
+        gitPackageHost: 'github.com',
     };
 
     beforeEach(() => {
@@ -125,6 +126,25 @@ describe('DbtCliClient environment', () => {
     afterEach(() => {
         vi.unstubAllEnvs();
     });
+
+    const dbtErrorLog = (message: string) =>
+        JSON.stringify({
+            code: 'E006',
+            info: {
+                category: '',
+                code: 'E006',
+                extra: {},
+                invocation_id: 'invocation-id',
+                level: 'error',
+                log_version: 2,
+                msg: message,
+                name: 'MainReportVersion',
+                pid: 1,
+                thread_name: 'MainThread',
+                ts: '2026-08-16T00:00:00.000Z',
+                type: 'log_line',
+            },
+        });
 
     it('does not extend the backend environment', async () => {
         await new DbtCliClient(cliArgs).installDeps();
@@ -232,5 +252,81 @@ describe('DbtCliClient environment', () => {
             recursive: true,
             force: true,
         });
+    });
+
+    it('names an inaccessible package repository without exposing credentials', async () => {
+        execaMock.mockImplementationOnce(async () => {
+            throw {
+                all: dbtErrorLog(
+                    "Git Error: remote: Repository not found. fatal: repository 'https://installation-token@github.com/lightdash/private-dbt-package.git/' not found",
+                ),
+            };
+        });
+
+        const error = await new DbtCliClient({
+            ...cliArgs,
+            dbtSourceName: 'finance',
+            gitPackageTokenProvider: async () => 'installation-token',
+        })
+            .installDeps()
+            .catch((caught: unknown) => caught);
+
+        expect(error).toBeInstanceOf(DbtError);
+        expect(error).toHaveProperty(
+            'message',
+            'Could not download the dbt package "private-dbt-package" from https://github.com/lightdash/private-dbt-package for source "finance": access was denied. Check that the Lightdash GitHub App has access to that repository.',
+        );
+        expect(JSON.stringify(error)).not.toContain('installation-token');
+    });
+
+    it('preserves the original dependency error when no token provider was used', async () => {
+        execaMock.mockImplementationOnce(async () => {
+            throw {
+                all: dbtErrorLog('Dependency installation failed'),
+            };
+        });
+
+        const error = await new DbtCliClient({
+            ...cliArgs,
+            dbtSourceName: 'finance',
+        })
+            .installDeps()
+            .catch((caught: unknown) => caught);
+
+        expect(error).toBeInstanceOf(DbtError);
+        expect(error).toHaveProperty(
+            'message',
+            'Failed to run "dbt1.10 deps" with dbt version "v1.10"',
+        );
+        expect(error).toHaveProperty(
+            'logs.0.info.msg',
+            'Dependency installation failed',
+        );
+    });
+
+    it('preserves a token-backed dependency error that is not an authentication failure', async () => {
+        execaMock.mockImplementationOnce(async () => {
+            throw {
+                all: dbtErrorLog('packages.yml could not be parsed'),
+            };
+        });
+
+        const error = await new DbtCliClient({
+            ...cliArgs,
+            dbtSourceName: 'finance',
+            gitPackageTokenProvider: async () => 'installation-token',
+        })
+            .installDeps()
+            .catch((caught: unknown) => caught);
+
+        expect(error).toBeInstanceOf(DbtError);
+        expect(error).toHaveProperty(
+            'message',
+            'Failed to run "dbt1.10 deps" with dbt version "v1.10"',
+        );
+        expect(error).toHaveProperty(
+            'logs.0.info.msg',
+            'packages.yml could not be parsed',
+        );
     });
 });
