@@ -1,3 +1,10 @@
+## [1.163.2](https://github.com/lightdash/lightdash/compare/1.163.1...1.163.2) (2026-08-16)
+
+
+### Bug Fixes
+
+* stop the release-safety tooling from treating tests as migrations ([#27449](https://github.com/lightdash/lightdash/issues/27449)) ([f285119](https://github.com/lightdash/lightdash/commit/f2851199cd5d8e792c51cafa8c389d8075c3bf8b))
+
 ## [1.163.1](https://github.com/lightdash/lightdash/compare/1.163.0...1.163.1) (2026-08-16)
 
 
