@@ -91,7 +91,12 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
     const clearedAsSafeDrop = lintFlagged && rollingUpdateSafe === true;
     // The risk comes from an API change (no DB migration) rather than the schema.
     const apiDriven = (restBreaking || mcpBreaking) && migrationsPresent !== true;
-    const needsUnblock = rollingUpdateSafe !== true || opts.declarationGateFailed === true;
+    // Any failed gate needs remediation text, or the downgraded headline below
+    // names a problem the comment never explains.
+    const needsUnblock =
+        rollingUpdateSafe !== true ||
+        opts.declarationGateFailed === true ||
+        opts.gateFailed === true;
 
     // ---- the answer, in one line + a plain "why" ----------------------------
     const head: string[] = [];
@@ -155,6 +160,18 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
             head[safe] = '❓ **Couldn’t confirm it’s safe.** Part of the check didn’t run.';
         }
         head.push('⚠️ **The REST API check didn’t run** — its OpenAPI specs couldn’t be generated, so a change that breaks scripts or integrations wouldn’t have been spotted here.');
+    }
+
+    // A failed gate is not a verdict about the upgrade: the declaration gate can
+    // fail while the marker is green, and that separation is deliberate. The
+    // headline is still the line people read, and "Safe to upgrade normally" above
+    // a red required check reads as a contradiction — the author trusts one of the
+    // two and ignores the other. Keep both facts, and lead with the blocking one.
+    if (opts.gateFailed === true || opts.declarationGateFailed === true) {
+        const safe = head.indexOf(SAFE_HEADLINE);
+        if (safe >= 0) {
+            head[safe] = '⚠️ **A required check failed.** The upgrade itself looks safe — this is about the check, not the release.';
+        }
     }
 
     // ---- what we looked at (plain, no internal tool names) ------------------
