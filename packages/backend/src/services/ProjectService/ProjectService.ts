@@ -4500,9 +4500,8 @@ export class ProjectService extends BaseService {
     }
 
     /**
-     * Formats collisions where two sources use the same manifest unique_id.
-     * Qualification cannot recover these because the merge must drop one entry
-     * before explore compilation, leaving refs to that identifier ambiguous.
+     * Formats collisions where two sources use the same manifest unique_id,
+     * identifying shared dbt project names when model ids reveal them.
      */
     private static formatManifestCollisionsError(
         collisions: ManifestCollision[],
@@ -4513,9 +4512,61 @@ export class ProjectService extends BaseService {
         const details = shown
             .map(
                 (c) =>
-                    `${c.section} "${c.key}" is defined in both "${c.winningSource}" and "${c.supersededSource}"`,
+                    `${c.section === 'nodes' ? 'Model' : 'Entry'} "${
+                        c.key
+                    }" is defined in both "${c.winningSource}" and "${
+                        c.supersededSource
+                    }"`,
             )
             .join('; ');
+        const modelPackageNames = collisions.map((collision) =>
+            collision.section === 'nodes'
+                ? collision.key.match(/^model\.([^.]+)\./)?.[1]
+                : undefined,
+        );
+        const sharedPackageNames = [
+            ...new Set(modelPackageNames.filter((name) => name !== undefined)),
+        ].sort();
+        const allCollisionsIdentifyModelPackages =
+            modelPackageNames.length > 0 &&
+            modelPackageNames.every((name) => name !== undefined);
+
+        if (allCollisionsIdentifyModelPackages) {
+            const formatQuotedList = (values: string[]) => {
+                const shownValues = values.slice(0, MAX_COLLISIONS_IN_ERROR);
+                const quotedValues = shownValues.map((value) => `"${value}"`);
+                const formattedValues =
+                    quotedValues.length <= 2
+                        ? quotedValues.join(' and ')
+                        : `${quotedValues.slice(0, -1).join(', ')}, and ${
+                              quotedValues.at(-1) ?? ''
+                          }`;
+                const omittedValues = values.length - shownValues.length;
+                return omittedValues > 0
+                    ? `${formattedValues} and ${omittedValues} more`
+                    : formattedValues;
+            };
+            const sourceNames = [
+                ...new Set(
+                    collisions.flatMap((collision) => [
+                        collision.winningSource,
+                        collision.supersededSource,
+                    ]),
+                ),
+            ].sort();
+
+            return (
+                `The dbt sources ${formatQuotedList(
+                    sourceNames,
+                )} use the same dbt project name${
+                    sharedPackageNames.length === 1 ? '' : 's'
+                } ${formatQuotedList(
+                    sharedPackageNames,
+                )}. Change the name: value in one repository's dbt_project.yml and deploy again. ` +
+                `${details}${remainder > 0 ? `; and ${remainder} more` : ''}.`
+            );
+        }
+
         return (
             `Merging dbt sources found ${collisions.length} naming collision${
                 collisions.length === 1 ? '' : 's'

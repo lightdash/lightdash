@@ -16,6 +16,7 @@ import {
     FilterOperator,
     ForbiddenError,
     getCustomSqlFieldKey,
+    getDbtManifestVersion,
     getModelsFromManifest,
     JobStatusType,
     JobStepType,
@@ -81,6 +82,7 @@ import { UserModel } from '../../models/UserModel';
 import { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
+import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import type { ProjectAdapter } from '../../types';
 import { metricQueryWithLimit } from '../../utils/csvLimitUtils';
@@ -4544,6 +4546,16 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                         database: 'analytics',
                         schema: 'public',
                         alias: name,
+                        checksum: { name: '', checksum: '' },
+                        fqn: [packageName, name],
+                        language: 'sql',
+                        path: `models/${name}.sql`,
+                        raw_code: `select * from ${name}`,
+                        description: '',
+                        tags: [],
+                        depends_on: { nodes: [] },
+                        patch_path: null,
+                        original_file_path: `models/${name}.sql`,
                         relation_name: `analytics.public.${name}`,
                         config: {
                             materialized: 'table',
@@ -4580,7 +4592,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             ]),
             metadata: {
                 dbt_schema_version:
-                    'https://schemas.getdbt.com/dbt/manifest/v12.json',
+                    'https://schemas.getdbt.com/dbt/manifest/v11.json',
                 generated_at: '2026-08-16T00:00:00.000Z',
                 adapter_type: 'postgres',
             },
@@ -4643,6 +4655,11 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 name: 'orders',
                 packageName: 'pkg_b',
             },
+            {
+                uniqueId: 'model.pkg_b.orders_with_custom_dims',
+                name: 'orders_with_custom_dims',
+                packageName: 'pkg_b',
+            },
         ]);
 
         const adapter = await buildMergedAdapter(
@@ -4650,20 +4667,26 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             sourceManifest,
         );
         const { manifest } = await adapter.getDbtManifest();
+        const [validModels, validationErrors] =
+            DbtBaseProjectAdapter._validateDbtModel(
+                SupportedDbtAdapter.POSTGRES,
+                getModelsFromManifest(manifest),
+                getDbtManifestVersion(manifest),
+            );
+        expect(validationErrors).toEqual([]);
         const explores = await convertExplores(
-            getModelsFromManifest(manifest),
+            validModels,
             false,
             SupportedDbtAdapter.POSTGRES,
             warehouseClientMock,
             { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
         );
 
-        expect(
-            explores
-                .map(({ name }) => name)
-                .filter((name) => name.endsWith('orders'))
-                .sort(),
-        ).toEqual(['dbt_project__orders', 'source-b__orders']);
+        expect(explores.map(({ name }) => name).sort()).toEqual([
+            'dbt_project__orders',
+            'orders_with_custom_dims',
+            'source-b__orders',
+        ]);
     });
 
     it('still rejects the same model unique_id from two sources', async () => {
@@ -4695,7 +4718,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         await expect(
             buildMergedAdapter(primaryManifest, sourceManifest),
         ).rejects.toThrow(
-            'Merging dbt sources found 1 naming collision: nodes "model.shared.orders" is defined in both "dbt_project" and "source-b". Rename or remove the duplicate(s) before deploying.',
+            'The dbt sources "dbt_project" and "source-b" use the same dbt project name "shared". Change the name: value in one repository\'s dbt_project.yml and deploy again. Model "model.shared.orders" is defined in both "dbt_project" and "source-b".',
         );
     });
 
@@ -4793,7 +4816,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             'buildMergedManifestAdapter',
         ).mockRejectedValue(
             new ParameterError(
-                'Merging dbt sources found 1 naming collision: nodes "model.dup" is defined in both "dbt_project" and "jaffle-2". Rename or remove the duplicate(s) before deploying.',
+                'The dbt sources "dbt_project" and "jaffle-2" use the same dbt project name "shared". Change the name: value in one repository\'s dbt_project.yml and deploy again.',
             ),
         );
 
