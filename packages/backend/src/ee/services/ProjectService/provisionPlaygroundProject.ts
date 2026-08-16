@@ -157,6 +157,7 @@ export const provisionPlaygroundProject = async ({
                     await projectModel.saveExploresToCache(
                         playground.projectUuid,
                         explores,
+                        true,
                     );
                     trackSkipped(
                         'playground_already_exists',
@@ -229,6 +230,7 @@ export const provisionPlaygroundProject = async ({
                     await projectModel.saveExploresToCache(
                         projectUuid,
                         explores,
+                        true,
                     );
                 } catch (error) {
                     await projectModel

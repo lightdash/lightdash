@@ -22,6 +22,7 @@ import {
     Path,
     Post,
     Put,
+    Query,
     Request,
     Response,
     Route,
@@ -57,6 +58,7 @@ export class ExploreController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
         @Body() body: AnyType[], // tsoa doesn't seem to work with explores from CLI
+        @Query() complete?: boolean,
     ): Promise<ApiSetExploresResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -67,6 +69,7 @@ export class ExploreController extends BaseController {
                 projectUuid,
                 body,
                 req.header(LightdashCliVersionHeader),
+                complete,
             );
 
         return {

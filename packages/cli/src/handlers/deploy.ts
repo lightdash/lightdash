@@ -26,7 +26,7 @@ import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
 import { CliProjectType, detectProjectType } from '../lightdash/projectType';
 import * as styles from '../styles';
 import {
-    compile,
+    compileProject,
     hasBlockingCompileError,
     stripWarehouseColumnErrors,
 } from './compile';
@@ -72,6 +72,7 @@ type DeployHandlerOptions = DbtCompileOptions & {
 
 type DeployArgs = DeployHandlerOptions & {
     projectUuid: string;
+    complete?: boolean;
 };
 
 const logDeployWarnings = (
@@ -276,6 +277,7 @@ const deployBatched = async (
                     body: JSON.stringify({
                         explores: batch,
                         batchNumber: batchIndex,
+                        complete: options.complete === true,
                     }),
                 }) as Promise<{ batchNumber: number; exploreCount: number }>,
             batchIndex + 1,
@@ -441,7 +443,7 @@ export const deploy = async (
             const deployResponse = await lightdashApi<ApiDeployExploresResults>(
                 {
                     method: 'PUT',
-                    url: `/api/v1/projects/${options.projectUuid}/explores`,
+                    url: `/api/v1/projects/${options.projectUuid}/explores?complete=${options.complete === true}`,
                     body: deployPayload,
                 },
             );
@@ -696,7 +698,7 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
             );
     }
 
-    const explores = await compile(options);
+    const { explores, isProjectComplete } = await compileProject(options);
 
     let projectUuid: string;
 
@@ -726,7 +728,11 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         );
     }
 
-    await deploy(explores, { ...options, projectUuid });
+    await deploy(explores, {
+        ...options,
+        projectUuid,
+        complete: isProjectComplete,
+    });
 
     const serverUrl = config.context?.serverUrl?.replace(/\/$/, '');
     let displayUrl = options.create

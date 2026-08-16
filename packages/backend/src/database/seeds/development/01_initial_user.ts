@@ -290,6 +290,7 @@ export async function seed(knex: Knex): Promise<void> {
         await projectModel.saveExploresToCache(
             SEED_PROJECT.project_uuid,
             explores,
+            true,
         );
 
         // Index catalog after saving explores to cache

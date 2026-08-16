@@ -723,6 +723,7 @@ export type ApiStartDeploySessionResponse = {
 export type ApiAddDeployBatchRequest = {
     explores: (Explore | ExploreError)[];
     batchNumber: number;
+    complete?: boolean;
 };
 
 export type ApiAddDeployBatchResponse = {

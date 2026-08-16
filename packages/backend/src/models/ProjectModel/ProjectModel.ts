@@ -65,6 +65,7 @@ import {
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
 import { Knex } from 'knex';
+import chunk from 'lodash/chunk';
 import isEqual from 'lodash/isEqual';
 import NodeCache from 'node-cache';
 import { DatabaseError } from 'pg';
@@ -1648,6 +1649,7 @@ export class ProjectModel {
     async saveExploresToCache(
         projectUuid: string,
         explores: (Explore | ExploreError)[],
+        complete = false,
     ) {
         return wrapSentryTransaction(
             'ProjectModel.saveExploresToCache',
@@ -1658,24 +1660,40 @@ export class ProjectModel {
                         trx,
                         projectUuid,
                     );
-                    // Get custom explores/virtual views before deleting them
-                    const virtualViews = await trx(CachedExploreTableName)
-                        .select('explore')
-                        .where('project_uuid', projectUuid)
-                        .whereRaw("explore->>'type' = ?", [
+                    const cachedExploresQuery = trx(CachedExploreTableName)
+                        .select<{ explore: Explore | ExploreError }[]>(
+                            'explore',
+                        )
+                        .where('project_uuid', projectUuid);
+                    if (complete) {
+                        cachedExploresQuery.whereRaw("explore->>'type' = ?", [
                             ExploreType.VIRTUAL,
                         ]);
-
-                    // Delete previous individually cached explores
-                    await trx(CachedExploreTableName)
-                        .where('project_uuid', projectUuid)
-                        .delete();
+                    }
+                    const cachedExplores = await cachedExploresQuery;
+                    const virtualViews = cachedExplores.filter(
+                        ({ explore }) => explore.type === ExploreType.VIRTUAL,
+                    );
+                    const virtualViewsByName = new Map(
+                        virtualViews.map(({ explore }) => [
+                            explore.name,
+                            explore,
+                        ]),
+                    );
 
                     // NOTE: virtual views with the same name as explores will override the explore.
                     // This isn't new behavior, but it's still a bit of a bug. However, it's
                     // not clear what a better approach would be at the moment.
                     const exploresMap = new Map(
-                        explores.map((e) => [e.name, e]),
+                        complete
+                            ? []
+                            : cachedExplores.map(({ explore }) => [
+                                  explore.name,
+                                  explore,
+                              ]),
+                    );
+                    explores.forEach((explore) =>
+                        exploresMap.set(explore.name, explore),
                     );
                     virtualViews.forEach((e) =>
                         exploresMap.set(e.explore.name, e.explore),
@@ -1686,18 +1704,47 @@ export class ProjectModel {
                         throw new ParameterError('No explores to save');
                     }
 
-                    // Cache explores individually
-                    const individualCachedExplores = await trx
-                        .batchInsert<DbCachedExplore>(
-                            CachedExploreTableName,
-                            uniqueExplores.map((explore) => ({
-                                project_uuid: projectUuid,
-                                name: explore.name,
-                                table_names: Object.keys(explore.tables || {}),
-                                explore: JSON.stringify(explore),
-                            })),
-                        )
-                        .returning('cached_explore_uuid');
+                    const exploresToSave = complete
+                        ? uniqueExplores
+                        : Array.from(
+                              new Map(
+                                  explores.map((explore) => [
+                                      explore.name,
+                                      explore,
+                                  ]),
+                              ).values(),
+                          ).map(
+                              (explore) =>
+                                  virtualViewsByName.get(explore.name) ??
+                                  explore,
+                          );
+
+                    if (complete) {
+                        await trx(CachedExploreTableName)
+                            .where('project_uuid', projectUuid)
+                            .delete();
+                    }
+
+                    const rowsToSave = exploresToSave.map((explore) => ({
+                        project_uuid: projectUuid,
+                        name: explore.name,
+                        table_names: Object.keys(explore.tables || {}),
+                        explore: JSON.stringify(explore),
+                    }));
+                    const savedExploreBatches = await Promise.all(
+                        chunk(rowsToSave, 1000).map((rows) => {
+                            const insertQuery = trx<DbCachedExplore>(
+                                CachedExploreTableName,
+                            ).insert(rows);
+                            return complete
+                                ? insertQuery.returning('cached_explore_uuid')
+                                : insertQuery
+                                      .onConflict(['name', 'project_uuid'])
+                                      .merge(['table_names', 'explore'])
+                                      .returning('cached_explore_uuid');
+                        }),
+                    );
+                    const individualCachedExplores = savedExploreBatches.flat();
 
                     // Cache explores together
                     await trx(CachedExploresTableName)
