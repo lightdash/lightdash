@@ -1338,6 +1338,139 @@ describe('spotlight config', () => {
     });
 });
 
+describe('merged manifest model qualification', () => {
+    const buildMergedModel = ({
+        sourceName,
+        packageName,
+        name,
+        joins = [],
+    }: {
+        sourceName: string;
+        packageName: string;
+        name: string;
+        joins?: DbtModelNode['meta']['joins'];
+    }): DbtModelNode => ({
+        ...model,
+        unique_id: `model.${packageName}.${name}`,
+        package_name: packageName,
+        name,
+        alias: name,
+        relation_name: `${sourceName}.${name}`,
+        lightdash_source_name: sourceName,
+        columns: {
+            id: {
+                name: 'id',
+                data_type: DimensionType.NUMBER,
+                meta: {},
+            },
+        },
+        meta: { joins },
+    });
+
+    it('qualifies every side of a cross-source collision and leaves other explores bare', async () => {
+        const explores = await convertExplores(
+            [
+                buildMergedModel({
+                    sourceName: 'analytics',
+                    packageName: 'pkg_a',
+                    name: 'orders',
+                }),
+                buildMergedModel({
+                    sourceName: 'finance',
+                    packageName: 'pkg_b',
+                    name: 'orders',
+                }),
+                buildMergedModel({
+                    sourceName: 'analytics',
+                    packageName: 'pkg_a',
+                    name: 'customers',
+                }),
+            ],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+        );
+
+        expect(explores.map(({ name }) => name).sort()).toEqual([
+            'analytics__orders',
+            'customers',
+            'finance__orders',
+        ]);
+    });
+
+    it('resolves a bare join and sql_on reference to the colliding model from the same source', async () => {
+        const explores = await convertExplores(
+            [
+                buildMergedModel({
+                    sourceName: 'analytics',
+                    packageName: 'pkg_a',
+                    name: 'customers',
+                    joins: [
+                        {
+                            join: 'orders',
+                            sql_on: '${customers.id} = ${orders.id}',
+                        },
+                    ],
+                }),
+                buildMergedModel({
+                    sourceName: 'analytics',
+                    packageName: 'pkg_a',
+                    name: 'orders',
+                }),
+                buildMergedModel({
+                    sourceName: 'finance',
+                    packageName: 'pkg_b',
+                    name: 'orders',
+                }),
+            ],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+        );
+
+        const customers = explores.find(
+            (explore) => explore.name === 'customers',
+        ) as Explore;
+        expect(customers.joinedTables).toHaveLength(1);
+        expect(customers.tables.orders.sqlTable).toBe('analytics.orders');
+        expect(customers.joinedTables[0].compiledSqlOn).toBe(
+            '("customers".id) = ("orders".id)',
+        );
+    });
+
+    it('rejects a qualified name that collides with a genuine model name', async () => {
+        await expect(
+            convertExplores(
+                [
+                    buildMergedModel({
+                        sourceName: 'analytics',
+                        packageName: 'pkg_a',
+                        name: 'orders',
+                    }),
+                    buildMergedModel({
+                        sourceName: 'finance',
+                        packageName: 'pkg_b',
+                        name: 'orders',
+                    }),
+                    buildMergedModel({
+                        sourceName: 'warehouse',
+                        packageName: 'pkg_c',
+                        name: 'analytics__orders',
+                    }),
+                ],
+                false,
+                SupportedDbtAdapter.POSTGRES,
+                warehouseClientMock,
+                { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+            ),
+        ).rejects.toThrow(
+            'Merged dbt model name "analytics__orders" is ambiguous after qualification: model "orders" from source "analytics" (model.pkg_a.orders) and model "analytics__orders" from source "warehouse" (model.pkg_c.analytics__orders). Rename the source or model before deploying.',
+        );
+    });
+});
+
 describe('explore-scoped additional dimensions', () => {
     const MODEL_WITH_EXPLORE_SCOPED_DIMENSIONS: DbtModelNode & {
         relation_name: string;

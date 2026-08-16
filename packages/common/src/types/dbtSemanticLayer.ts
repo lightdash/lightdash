@@ -144,6 +144,7 @@ export type DbtSemanticMetricType =
 export type DbtSemanticMetric = {
     name: string;
     unique_id: string;
+    lightdash_source_name?: string;
     type: DbtSemanticMetricType;
     type_params: DbtSemanticMetricTypeParams;
     label?: string | null;

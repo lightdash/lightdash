@@ -1,5 +1,6 @@
 import merge from 'lodash/merge';
 import partition from 'lodash/partition';
+import { qualifyMergedManifestNames } from '../dbt/qualifiedName';
 import {
     buildModelGraph,
     convertColumnMetric,
@@ -1120,7 +1121,74 @@ export const convertExplores = async (
         allowPartialCompilation,
         postProcessors,
     } = options ?? {};
-    const tableLineage = translateDbtModelsToTableLineage(models);
+    const resolvedNamesByUniqueId = qualifyMergedManifestNames(
+        models.map((model) => ({
+            uniqueId: model.unique_id,
+            name: model.name,
+            sourceName: model.lightdash_source_name,
+        })),
+        'model',
+    );
+    const modelsBySourceAndName = new Map<string, DbtModelNode>();
+    models.forEach((model) => {
+        if (model.lightdash_source_name !== undefined) {
+            modelsBySourceAndName.set(
+                `${model.lightdash_source_name}\u0000${model.name}`,
+                model,
+            );
+        }
+    });
+    const resolveJoins = (
+        model: DbtModelNode,
+        joins: DbtModelNode['meta']['joins'],
+    ): DbtModelNode['meta']['joins'] =>
+        joins?.map((join) => {
+            if (model.lightdash_source_name === undefined) {
+                return join;
+            }
+            const joinedModel = modelsBySourceAndName.get(
+                `${model.lightdash_source_name}\u0000${join.join}`,
+            );
+            const resolvedJoinName = joinedModel
+                ? resolvedNamesByUniqueId.get(joinedModel.unique_id)
+                : undefined;
+            if (!resolvedJoinName || resolvedJoinName === join.join) {
+                return join;
+            }
+            return {
+                ...join,
+                join: resolvedJoinName,
+                alias: join.alias ?? join.join,
+            };
+        });
+    const resolvedModels = models.map((model) => {
+        const resolvedName =
+            resolvedNamesByUniqueId.get(model.unique_id) ?? model.name;
+        const metaJoins = resolveJoins(model, model.meta.joins);
+        const configMetaJoins = resolveJoins(model, model.config?.meta?.joins);
+        return {
+            ...model,
+            name: resolvedName,
+            meta:
+                metaJoins === model.meta.joins
+                    ? model.meta
+                    : { ...model.meta, joins: metaJoins },
+            config:
+                configMetaJoins === model.config?.meta?.joins
+                    ? model.config
+                    : {
+                          ...model.config,
+                          meta: {
+                              ...model.config?.meta,
+                              joins: configMetaJoins,
+                          },
+                      },
+        };
+    });
+    const originalNamesByUniqueId = new Map(
+        models.map((model) => [model.unique_id, model.name]),
+    );
+    const tableLineage = translateDbtModelsToTableLineage(resolvedModels);
     const additionalTimeIntervals = resolveAdditionalTimeIntervals(
         lightdashProjectConfig.defaults?.additional_time_intervals,
         lightdashProjectConfig.custom_granularities,
@@ -1128,7 +1196,7 @@ export const convertExplores = async (
     const granularityLabels = resolveGranularityLabels(
         lightdashProjectConfig.defaults?.granularity_labels,
     );
-    const [tables, exploreErrors] = models.reduce(
+    const [tables, exploreErrors] = resolvedModels.reduce(
         ([accTables, accErrors], model) => {
             // Config block takes priority, then meta block
             const meta = merge({}, model.meta, model.config?.meta);
@@ -1160,6 +1228,14 @@ export const convertExplores = async (
                 // add lineage
                 const tableWithLineage: Table = {
                     ...table,
+                    ...(originalNamesByUniqueId.get(model.unique_id) !==
+                    model.name
+                        ? {
+                              originalName: originalNamesByUniqueId.get(
+                                  model.unique_id,
+                              ),
+                          }
+                        : {}),
                     ...tableLineage[model.name],
                 };
 
@@ -1195,7 +1271,7 @@ export const convertExplores = async (
         (prev, table) => ({ ...prev, [table.name]: table }),
         {},
     );
-    const validModels = models.filter(
+    const validModels = resolvedModels.filter(
         (model) =>
             tableLookup[model.name] !== undefined &&
             // Seeds are compiled as tables (for join resolution) but should

@@ -9,6 +9,7 @@ import {
     type DbtSemanticModel,
 } from '../types/dbtSemanticLayer';
 import { MetricType } from '../types/field';
+import { qualifyMergedManifestNames } from './qualifiedName';
 
 /**
  * Translation for dbt's MetricFlow semantic layer as it appears in the dbt
@@ -262,6 +263,17 @@ export const translateMetricFlowMetrics = ({
     > = {};
     let translatedCount = 0;
     let skippedCount = 0;
+    const semanticMetrics = Object.values(metrics).filter(isSemanticMetric);
+    const resolvedMetricNamesByUniqueId = qualifyMergedManifestNames(
+        semanticMetrics.map((metric) => ({
+            uniqueId: metric.unique_id,
+            name: metric.name,
+            sourceName: metric.lightdash_source_name,
+        })),
+        'metric',
+    );
+    const getMetricName = (metric: DbtSemanticMetric): string =>
+        resolvedMetricNamesByUniqueId.get(metric.unique_id) ?? metric.name;
 
     // Index measures by name and remember which semantic model owns each one.
     const measureIndex = new Map<
@@ -280,9 +292,25 @@ export const translateMetricFlowMetrics = ({
     // these are owned by the metrics pass — translating the bare measure would
     // silently drop metric-level config such as filters.
     const metricDefsByName = new Map<string, DbtSemanticMetric>();
-    Object.values(metrics)
-        .filter(isSemanticMetric)
-        .forEach((metric) => metricDefsByName.set(metric.name, metric));
+    const metricDefsBySourceAndName = new Map<string, DbtSemanticMetric>();
+    semanticMetrics.forEach((metric) => {
+        metricDefsByName.set(metric.name, metric);
+        if (metric.lightdash_source_name !== undefined) {
+            metricDefsBySourceAndName.set(
+                `${metric.lightdash_source_name}\u0000${metric.name}`,
+                metric,
+            );
+        }
+    });
+    const resolveMetricDefinition = (
+        parentMetric: DbtSemanticMetric,
+        metricName: string,
+    ): DbtSemanticMetric | undefined =>
+        (parentMetric.lightdash_source_name !== undefined
+            ? metricDefsBySourceAndName.get(
+                  `${parentMetric.lightdash_source_name}\u0000${metricName}`,
+              )
+            : undefined) ?? metricDefsByName.get(metricName);
 
     // Which model each successfully translated metric landed on — ratio and
     // derived metrics reference their inputs through this.
@@ -494,7 +522,7 @@ export const translateMetricFlowMetrics = ({
             return;
         }
 
-        addMetric(built.modelName, metric.name, built.definition);
+        addMetric(built.modelName, getMetricName(metric), built.definition);
         translatedCount += 1;
     });
 
@@ -561,20 +589,27 @@ export const translateMetricFlowMetrics = ({
         }
 
         if (extraFilters.length === 0) {
-            const modelName = modelByTranslatedMetric.get(input.name);
+            const inputMetric = resolveMetricDefinition(
+                parentMetric,
+                input.name,
+            );
+            const inputMetricName = inputMetric
+                ? getMetricName(inputMetric)
+                : input.name;
+            const modelName = modelByTranslatedMetric.get(inputMetricName);
             if (!modelName) {
                 return {
                     error: `input metric "${input.name}" was not translated to a Lightdash metric`,
                 };
             }
             return {
-                value: { ref: `\${${input.name}}`, modelName },
+                value: { ref: `\${${inputMetricName}}`, modelName },
             };
         }
 
         // Filtered input: rebuild the input metric's measure with the filter
         // baked in. Only simple inputs (or bare create_metric measures) work.
-        const inputDef = metricDefsByName.get(input.name);
+        const inputDef = resolveMetricDefinition(parentMetric, input.name);
         let resolved: {
             semanticModel: DbtSemanticModel;
             measure: DbtSemanticMeasure;
@@ -623,7 +658,7 @@ export const translateMetricFlowMetrics = ({
             return { error: `input metric "${input.name}": ${built.error}` };
         }
 
-        const helperName = `${parentMetric.name}_${helperSuffix}`;
+        const helperName = `${getMetricName(parentMetric)}_${helperSuffix}`;
         if (
             modelByTranslatedMetric.has(helperName) ||
             metricsByModel[built.modelName]?.[helperName]
@@ -676,7 +711,7 @@ export const translateMetricFlowMetrics = ({
                 );
             }
         });
-        addMetric(modelName, metric.name, {
+        addMetric(modelName, getMetricName(metric), {
             type: MetricType.NUMBER,
             sql,
             label: metric.label ?? undefined,

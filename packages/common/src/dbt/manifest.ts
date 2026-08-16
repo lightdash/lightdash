@@ -4,6 +4,7 @@ import {
     type DbtNode,
     type DbtRawModelNode,
 } from '../types/dbt';
+import { type DbtSemanticMetric } from '../types/dbtSemanticLayer';
 
 export type CombineManifestsResult = {
     manifest: DbtManifest;
@@ -67,6 +68,7 @@ const mergeSection = <T>(
     pick: (manifest: DbtManifest) => Record<string, T> | undefined,
     section: ManifestCollisionSection | null,
     collisions: ManifestCollision[],
+    annotateValue?: (value: T, sourceName: string) => T,
 ): Record<string, T> => {
     const merged: Record<string, T> = {};
     const winningSourceByKey: Record<string, string> = {};
@@ -84,7 +86,9 @@ const mergeSection = <T>(
                     });
                 }
             } else {
-                merged[key] = value;
+                merged[key] = annotateValue
+                    ? annotateValue(value, source.name)
+                    : value;
                 winningSourceByKey[key] = source.name;
             }
         });
@@ -114,8 +118,9 @@ const mergeSection = <T>(
  * flag drives explore creation, so this is returned for CLI parity, where it is
  * appended to the locally-compiled model id list.
  */
-export const combineManifestSources = (
+const mergeManifestSources = (
     sources: ManifestSource[],
+    annotateSources: boolean,
 ): CombineManifestSourcesResult => {
     if (sources.length === 0) {
         throw new Error('combineManifestSources requires at least one source');
@@ -126,18 +131,31 @@ export const combineManifestSources = (
     );
     const primary = orderedSources[0];
     const collisions: ManifestCollision[] = [];
+    const shouldAnnotateSources = annotateSources && sources.length > 1;
 
     const mergedNodes = mergeSection<DbtNode>(
         orderedSources,
         (manifest) => manifest.nodes,
         'nodes',
         collisions,
+        shouldAnnotateSources
+            ? (node, sourceName) =>
+                  node.resource_type === 'model'
+                      ? { ...node, lightdash_source_name: sourceName }
+                      : node
+            : undefined,
     );
-    const mergedMetrics = mergeSection(
+    const mergedMetrics = mergeSection<DbtSemanticMetric>(
         orderedSources,
         (manifest) => manifest.metrics,
         'metrics',
         collisions,
+        shouldAnnotateSources
+            ? (metric, sourceName) => ({
+                  ...metric,
+                  lightdash_source_name: sourceName,
+              })
+            : undefined,
     );
     const mergedDocs = mergeSection(
         orderedSources,
@@ -212,6 +230,10 @@ export const combineManifestSources = (
     return { manifest, addedModelIds, collisions };
 };
 
+export const combineManifestSources = (
+    sources: ManifestSource[],
+): CombineManifestSourcesResult => mergeManifestSources(sources, true);
+
 /**
  * Merge model nodes from `external` into `primary`. Thin two-manifest wrapper
  * over {@link combineManifestSources} (primary = precedence 0, external = 1),
@@ -227,9 +249,12 @@ export const combineManifests = (
     primary: DbtManifest,
     external: DbtManifest,
 ): CombineManifestsResult => {
-    const { manifest, addedModelIds } = combineManifestSources([
-        { name: 'primary', precedence: 0, manifest: primary },
-        { name: 'external', precedence: 1, manifest: external },
-    ]);
+    const { manifest, addedModelIds } = mergeManifestSources(
+        [
+            { name: 'primary', precedence: 0, manifest: primary },
+            { name: 'external', precedence: 1, manifest: external },
+        ],
+        false,
+    );
     return { manifest, addedModelIds };
 };
