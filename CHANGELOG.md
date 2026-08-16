@@ -1,3 +1,10 @@
+## [1.163.1](https://github.com/lightdash/lightdash/compare/1.163.0...1.163.1) (2026-08-16)
+
+
+### Bug Fixes
+
+* show a failed gate in the upgrade-safety headline ([#27450](https://github.com/lightdash/lightdash/issues/27450)) ([748a1b8](https://github.com/lightdash/lightdash/commit/748a1b86ecda87316f1fe099b3b7d51261c8a210))
+
 # [1.163.0](https://github.com/lightdash/lightdash/compare/1.162.6...1.163.0) (2026-08-16)
 
 
