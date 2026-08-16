@@ -64,6 +64,10 @@ describe('loadCombineManifest', () => {
         });
         mockedFetch.mockResolvedValue({
             ok: true,
+            headers: {
+                get: (name: string) =>
+                    name === 'content-type' ? 'application/json' : null,
+            },
             text: async () => JSON.stringify(manifest),
         });
 
@@ -83,6 +87,9 @@ describe('loadCombineManifest', () => {
             ok: false,
             status: 404,
             statusText: 'Not Found',
+            headers: {
+                get: () => 'application/json',
+            },
             text: async () => '',
         });
 
@@ -90,6 +97,105 @@ describe('loadCombineManifest', () => {
             loadCombineManifest('https://example.com/manifest.json'),
         ).rejects.toThrow(
             'Could not load manifest from https://example.com/manifest.json',
+        );
+    });
+
+    test('reports the Lightdash dev app fallback as a missing manifest', async () => {
+        mockedFetch.mockResolvedValue({
+            ok: false,
+            status: 500,
+            statusText: 'Internal Server Error',
+            headers: {
+                get: (name: string) => {
+                    if (name === 'content-type') {
+                        return 'application/json; charset=utf-8';
+                    }
+                    if (name === 'lightdash-version') return '1.163.2';
+                    return null;
+                },
+            },
+            text: async () =>
+                JSON.stringify({
+                    status: 'error',
+                    error: {
+                        statusCode: 500,
+                        name: 'UnexpectedServerError',
+                        message: 'Something went wrong.',
+                        data: {},
+                    },
+                }),
+        });
+
+        const promise = loadCombineManifest(
+            'http://localhost:8080/charter5-does-not-exist/manifest.json',
+        );
+
+        await expect(promise).rejects.toThrow('Manifest not found');
+        await expect(promise).rejects.not.toThrow('500 Internal Server Error');
+    });
+
+    test('reports the Lightdash production html fallback as a missing manifest', async () => {
+        mockedFetch.mockResolvedValue({
+            ok: true,
+            status: 200,
+            statusText: 'OK',
+            headers: {
+                get: (name: string) => {
+                    if (name === 'content-type') {
+                        return 'text/html; charset=utf-8';
+                    }
+                    if (name === 'lightdash-version') return '1.163.2';
+                    return null;
+                },
+            },
+            text: async () =>
+                '<!DOCTYPE html><html><body><div id="root"></div></body></html>',
+        });
+
+        await expect(
+            loadCombineManifest(
+                'https://lightdash.example.com/missing/manifest.json',
+            ),
+        ).rejects.toThrow('Manifest not found');
+    });
+
+    test.each([
+        [
+            'a Lightdash API error',
+            'https://lightdash.example.com/api/v1/missing/manifest.json',
+            '1.163.2',
+        ],
+        [
+            'an unmarked external error',
+            'https://example.com/missing/manifest.json',
+            null,
+        ],
+    ])('preserves %s', async (_description, url, lightdashVersion) => {
+        mockedFetch.mockResolvedValue({
+            ok: false,
+            status: 500,
+            statusText: 'Internal Server Error',
+            headers: {
+                get: (name: string) => {
+                    if (name === 'content-type') return 'application/json';
+                    if (name === 'lightdash-version') return lightdashVersion;
+                    return null;
+                },
+            },
+            text: async () =>
+                JSON.stringify({
+                    status: 'error',
+                    error: {
+                        statusCode: 500,
+                        name: 'UnexpectedServerError',
+                        message: 'Something went wrong.',
+                        data: {},
+                    },
+                }),
+        });
+
+        await expect(loadCombineManifest(url)).rejects.toThrow(
+            '500 Internal Server Error',
         );
     });
 
