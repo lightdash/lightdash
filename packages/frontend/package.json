@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/frontend",
-    "version": "1.162.3",
+    "version": "1.162.2",
     "private": true,
     "scripts": {
         "typecheck": "tsc --project tsconfig.json --noEmit",
@@ -47,7 +47,7 @@
         "@reduxjs/toolkit": "2.2.6",
         "@sentry/react": "9.31.0",
         "@sentry/vite-plugin": "5.1.1",
-        "@shopify/react-web-worker": "5.0.13",
+        "@shopify/react-web-worker": "5.1.6",
         "@tabler/icons-react": "2.47.0",
         "@tanstack/react-query": "4.36.1",
         "@tanstack/react-query-devtools": "4.36.1",
