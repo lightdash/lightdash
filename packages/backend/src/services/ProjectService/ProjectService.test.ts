@@ -4462,6 +4462,44 @@ type ProjectServiceInternals = {
     buildMergedManifestAdapter: (args: unknown) => Promise<ProjectAdapter>;
 };
 
+describe('ProjectService.createPreviewFromDbtCloudWebhook', () => {
+    const service = getMockedProjectService(lightdashConfigMock);
+
+    it('throws ForbiddenError when the project has no webhook_hmac_secret configured', async () => {
+        projectModel.getWithSensitiveFields.mockResolvedValueOnce({
+            ...projectWithSensitiveFields,
+            warehouseConnection:
+                warehouseClientMock.credentials as Project['warehouseConnection'],
+        });
+
+        await expect(
+            service.createPreviewFromDbtCloudWebhook('projectUuid', 123, 456, {
+                rawBody: Buffer.from('{}'),
+                signature: 'signature',
+            }),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('throws ForbiddenError when the signature does not match the configured webhook_hmac_secret', async () => {
+        projectModel.getWithSensitiveFields.mockResolvedValueOnce({
+            ...projectWithSensitiveFields,
+            warehouseConnection:
+                warehouseClientMock.credentials as Project['warehouseConnection'],
+            dbtConnection: {
+                ...projectWithSensitiveFields.dbtConnection,
+                webhook_hmac_secret: 'secret',
+            } as Project['dbtConnection'],
+        });
+
+        await expect(
+            service.createPreviewFromDbtCloudWebhook('projectUuid', 123, 456, {
+                rawBody: Buffer.from('{}'),
+                signature: 'wrong-signature',
+            }),
+        ).rejects.toThrow(ForbiddenError);
+    });
+});
+
 describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firewall)', () => {
     const primaryAdapter = {
         id: 'primary-adapter',
