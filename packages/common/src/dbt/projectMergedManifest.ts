@@ -1,3 +1,4 @@
+import merge from 'lodash/merge';
 import { type DbtManifest } from '../types/dbt';
 
 const MODEL_FIELDS = [
@@ -40,10 +41,30 @@ const pickFields = (
             .map((field) => [field, source[field]]),
     );
 
+const projectMeta = (
+    source: Record<string, unknown>,
+): Record<string, unknown> | undefined => {
+    const config =
+        source.config && typeof source.config === 'object'
+            ? (source.config as Record<string, unknown>)
+            : undefined;
+    if (
+        !Object.prototype.hasOwnProperty.call(source, 'meta') &&
+        !config?.meta
+    ) {
+        return undefined;
+    }
+    return merge({}, source.meta, config?.meta);
+};
+
 const projectModelNode = (
     node: Record<string, unknown>,
 ): Record<string, unknown> => {
     const projected = pickFields(node, MODEL_FIELDS);
+    const meta = projectMeta(node);
+    if (meta) {
+        projected.meta = meta;
+    }
     if (projected.config && typeof projected.config === 'object') {
         const { meta: _meta, ...config } = projected.config as Record<
             string,
@@ -55,10 +76,14 @@ const projectModelNode = (
         projected.columns = Object.fromEntries(
             Object.entries(
                 projected.columns as Record<string, Record<string, unknown>>,
-            ).map(([name, column]) => [
-                name,
-                pickFields(column, COLUMN_FIELDS),
-            ]),
+            ).map(([name, column]) => {
+                const projectedColumn = pickFields(column, COLUMN_FIELDS);
+                const columnMeta = projectMeta(column);
+                if (columnMeta) {
+                    projectedColumn.meta = columnMeta;
+                }
+                return [name, projectedColumn];
+            }),
         );
     }
     return projected;

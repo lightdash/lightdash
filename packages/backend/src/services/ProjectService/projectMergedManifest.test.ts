@@ -30,18 +30,40 @@ const manifest = {
             tags: ['finance'],
             config: {
                 materialized: 'table',
-                meta: { label: 'Orders' },
+                meta: {
+                    label: 'Orders',
+                    metrics: {
+                        order_count: {
+                            type: 'count',
+                            label: 'Order count',
+                        },
+                    },
+                },
                 unneeded: 'drop me',
             },
-            meta: { label: 'Orders' },
+            meta: { label: 'Legacy orders' },
             columns: {
                 order_id: {
                     name: 'order_id',
                     description: 'Order identifier',
-                    meta: { dimension: { primary_key: true } },
+                    meta: {
+                        dimension: {
+                            primary_key: false,
+                            label: 'Legacy order identifier',
+                        },
+                    },
                     data_type: DimensionType.NUMBER,
                     config: {
-                        meta: { dimension: { primary_key: true } },
+                        meta: {
+                            dimension: { primary_key: true },
+                            additional_dimensions: {
+                                order_id_plus_one: {
+                                    type: DimensionType.NUMBER,
+                                    label: 'Order ID plus one',
+                                    sql: '${TABLE}.order_id + 1',
+                                },
+                            },
+                        },
                     },
                     timestamp_domain: 'naive',
                     quote: true,
@@ -73,6 +95,7 @@ const manifest = {
 
 describe('projectMergedManifest', () => {
     test('drops model dead weight while preserving compiler semantics', async () => {
+        const manifestBeforeProjection = structuredClone(manifest);
         const projected = projectMergedManifest(manifest);
         const projectedModel = projected.nodes['model.test.orders'] as Record<
             string,
@@ -98,12 +121,32 @@ describe('projectMergedManifest', () => {
                 materialized: 'table',
                 unneeded: 'drop me',
             },
-            meta: { label: 'Orders' },
+            meta: {
+                label: 'Orders',
+                metrics: {
+                    order_count: {
+                        type: 'count',
+                        label: 'Order count',
+                    },
+                },
+            },
             columns: {
                 order_id: {
                     name: 'order_id',
                     description: 'Order identifier',
-                    meta: { dimension: { primary_key: true } },
+                    meta: {
+                        dimension: {
+                            primary_key: true,
+                            label: 'Legacy order identifier',
+                        },
+                        additional_dimensions: {
+                            order_id_plus_one: {
+                                type: DimensionType.NUMBER,
+                                label: 'Order ID plus one',
+                                sql: '${TABLE}.order_id + 1',
+                            },
+                        },
+                    },
                     data_type: DimensionType.NUMBER,
                     timestamp_domain: 'naive',
                 },
@@ -117,6 +160,7 @@ describe('projectMergedManifest', () => {
             manifest.nodes['test.test.orders_not_null'],
         );
         expect(projected.metrics).toEqual(manifest.metrics);
+        expect(manifest).toEqual(manifestBeforeProjection);
 
         const compile = (source: DbtManifest) =>
             convertExplores(
