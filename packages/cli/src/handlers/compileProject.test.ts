@@ -418,7 +418,7 @@ describe('compileProject completeness', () => {
         );
     });
 
-    test('keeps the local manifest without warning when no served manifest exists', async () => {
+    test('notices when no served manifest exists and keeps the local manifest', async () => {
         vi.mocked(loadManifest).mockResolvedValue(
             manifest({
                 'model.test.orders': dbtNode(
@@ -451,6 +451,11 @@ describe('compileProject completeness', () => {
         ]);
         expect(console.error).not.toHaveBeenCalledWith(
             expect.stringContaining('Could not fetch the server manifest'),
+        );
+        expect(console.info).toHaveBeenCalledWith(
+            expect.stringContaining(
+                'No server manifest found; continuing with the preview manifest',
+            ),
         );
     });
 
