@@ -498,8 +498,7 @@ export class QueryController extends BaseController {
                 sql: body.sql,
                 limit: body.limit,
                 references: body.references,
-                context:
-                    context ?? QueryExecutionContext.COMPOSE_SQL_RUNNER,
+                context: context ?? QueryExecutionContext.COMPOSE_SQL_RUNNER,
             });
 
         return {

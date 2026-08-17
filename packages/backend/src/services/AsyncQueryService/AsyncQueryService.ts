@@ -6425,9 +6425,7 @@ export class AsyncQueryService extends ProjectService {
             featureFlagId: FeatureFlags.ComposeSqlRunner,
         });
         if (!isEndpointEnabled) {
-            throw new ForbiddenError(
-                'Compose SQL queries are not enabled',
-            );
+            throw new ForbiddenError('Compose SQL queries are not enabled');
         }
 
         const projectSummary = await this.projectModel.getSummary(projectUuid);
@@ -6549,13 +6547,12 @@ export class AsyncQueryService extends ProjectService {
             userUuid: null,
         });
 
-        const requestParameters: ExecuteAsyncComposeSqlQueryRequestParams =
-            {
-                sql,
-                limit,
-                context,
-                references,
-            };
+        const requestParameters: ExecuteAsyncComposeSqlQueryRequestParams = {
+            sql,
+            limit,
+            context,
+            references,
+        };
 
         const queryCreatedAt = new Date();
         const { queryUuid } = await this.queryHistoryModel.create(account, {
