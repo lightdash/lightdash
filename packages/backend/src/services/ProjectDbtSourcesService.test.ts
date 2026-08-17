@@ -189,12 +189,29 @@ describe('ProjectDbtSourcesService', () => {
             expect(projectDbtSourcesModel.createSource).not.toHaveBeenCalled();
         });
 
+        it.each([
+            ['my source!', 'Use only letters, numbers, and underscores'],
+            ['a'.repeat(300), 'Name must be 64 characters or fewer'],
+            ['sales__orders', 'Name cannot contain "__"'],
+        ])('rejects invalid source name %s', async (name, message) => {
+            const service = getService();
+
+            await expect(
+                service.createProjectDbtSource(adminAccount, projectUuid, {
+                    name,
+                    dbtConnection: githubConnection as never,
+                }),
+            ).rejects.toThrow(message);
+
+            expect(projectDbtSourcesModel.createSource).not.toHaveBeenCalled();
+        });
+
         it('rejects unsafe dbt environment variables', async () => {
             const service = getService();
 
             await expect(
                 service.createProjectDbtSource(adminAccount, projectUuid, {
-                    name: 'unsafe-source',
+                    name: 'unsafe_source',
                     dbtConnection: {
                         ...githubConnection,
                         environment: [
@@ -215,7 +232,7 @@ describe('ProjectDbtSourcesService', () => {
 
             await expect(
                 service.createProjectDbtSource(adminAccount, projectUuid, {
-                    name: 'gitlab-source',
+                    name: 'gitlab_source',
                     dbtConnection: { type: DbtProjectType.GITLAB } as never,
                 }),
             ).rejects.toThrow(ParameterError);
@@ -230,7 +247,7 @@ describe('ProjectDbtSourcesService', () => {
             ]);
             projectDbtSourcesModel.createSource.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,
-                name: 'jaffle-2',
+                name: 'Analytics_2',
                 isPrimary: false,
                 precedence: 4,
                 dbtConnection: githubConnection,
@@ -240,7 +257,10 @@ describe('ProjectDbtSourcesService', () => {
             const created = await service.createProjectDbtSource(
                 adminAccount,
                 projectUuid,
-                { name: 'jaffle-2', dbtConnection: githubConnection as never },
+                {
+                    name: 'Analytics_2',
+                    dbtConnection: githubConnection as never,
+                },
             );
 
             expect(projectDbtSourcesModel.createSource).toHaveBeenCalledWith(
@@ -248,6 +268,7 @@ describe('ProjectDbtSourcesService', () => {
                 expect.objectContaining({ isPrimary: false, precedence: 4 }),
             );
             expect(created.precedence).toBe(4);
+            expect(created.name).toBe('Analytics_2');
         });
 
         it('rejects a developer (no manage permission) with ForbiddenError', async () => {
@@ -281,6 +302,30 @@ describe('ProjectDbtSourcesService', () => {
                     { name: 'dbt_project' },
                 ),
             ).rejects.toThrow(AlreadyExistsError);
+
+            expect(projectDbtSourcesModel.updateSource).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            ['my source!', 'Use only letters, numbers, and underscores'],
+            ['a'.repeat(300), 'Name must be 64 characters or fewer'],
+            ['sales__orders', 'Name cannot contain "__"'],
+        ])('rejects invalid source name %s', async (name, message) => {
+            projectDbtSourcesModel.getSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                projectUuid,
+                dbtConnection: githubConnection,
+            } as never);
+            const service = getService();
+
+            await expect(
+                service.updateProjectDbtSource(
+                    adminAccount,
+                    projectUuid,
+                    sourceUuid,
+                    { name },
+                ),
+            ).rejects.toThrow(message);
 
             expect(projectDbtSourcesModel.updateSource).not.toHaveBeenCalled();
         });

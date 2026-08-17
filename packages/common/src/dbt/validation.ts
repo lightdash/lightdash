@@ -105,6 +105,8 @@ export class ManifestValidator {
         const validator = ManifestValidator.getValidator<DbtModelNode>(
             `${this.lightdashSchemaId}#/definitions/LightdashCompiledModelNode`,
         );
-        return ManifestValidator.isValid(validator, model);
+        const modelToValidate = { ...model };
+        delete modelToValidate.lightdash_source_name;
+        return ManifestValidator.isValid(validator, modelToValidate);
     };
 }
