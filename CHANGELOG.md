@@ -1,3 +1,10 @@
+# [1.170.0](https://github.com/lightdash/lightdash/compare/1.169.1...1.170.0) (2026-08-17)
+
+
+### Features
+
+* **autopilot:** render agent reasoning as markdown and cap message tooltips ([#27506](https://github.com/lightdash/lightdash/issues/27506)) ([7f2551e](https://github.com/lightdash/lightdash/commit/7f2551ea624ab1b9fe0c67289a80149dc432dc83)), closes [/linear.app/lightdash/issue/PROD-10240/render-agent-reasoning-markdown-and-constrain-message-tooltips#agent-session-eb7b1e9](https://github.com//linear.app/lightdash/issue/PROD-10240/render-agent-reasoning-markdown-and-constrain-message-tooltips/issues/agent-session-eb7b1e9) [/linear.app/lightdash/issue/PROD-10240/render-agent-reasoning-markdown-and-constrain-message-tooltips#agent-session-eb7b1e9](https://github.com//linear.app/lightdash/issue/PROD-10240/render-agent-reasoning-markdown-and-constrain-message-tooltips/issues/agent-session-eb7b1e9)
+
 ## [1.169.1](https://github.com/lightdash/lightdash/compare/1.169.0...1.169.1) (2026-08-17)
 
 
