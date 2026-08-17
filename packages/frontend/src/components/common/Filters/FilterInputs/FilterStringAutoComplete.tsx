@@ -288,13 +288,16 @@ const FilterStringAutoComplete: FC<Props> = ({
             value,
             label: resultLabels.get(value) ?? formatDisplayValue(value),
         }));
-        return showNull
+        const showNullInData =
+            showNull && (!isInitialLoading || includeNull === true);
+
+        return showNullInData
             ? [
                   ...valueData,
                   { value: NULL_VALUE_TOKEN, label: NULL_VALUE_LABEL },
               ]
             : valueData;
-    }, [results, values, showNull]);
+    }, [includeNull, isInitialLoading, results, showNull, values]);
 
     const isSummaryMode =
         !singleValue && values.length > SUMMARY_MODE_THRESHOLD;
