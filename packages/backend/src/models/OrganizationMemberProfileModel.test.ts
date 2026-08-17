@@ -82,9 +82,15 @@ describe('OrganizationMemberProfileModel', () => {
 
     describe('updateOrganizationMember', () => {
         it('clears extra custom roles when the system role is written', async () => {
-            tracker.on
-                .any(/UPDATE organization_memberships/)
-                .response({ rows: [{ organization_id: 3, user_id: 7 }] });
+            tracker.on.select(OrganizationMembershipsTableName).response([
+                {
+                    organization_id: 3,
+                    user_id: 7,
+                    role: OrganizationMemberRole.VIEWER,
+                    role_uuid: null,
+                },
+            ]);
+            tracker.on.update(OrganizationMembershipsTableName).response(1);
             tracker.on
                 .delete(OrganizationMembershipCustomRolesTableName)
                 .response(0);

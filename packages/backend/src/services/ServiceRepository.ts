@@ -1590,6 +1590,7 @@ export class ServiceRepository
                     inviteLinkModel: this.models.getInviteLinkModel(),
                     organizationMemberProfileModel:
                         this.models.getOrganizationMemberProfileModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }

@@ -1,5 +1,6 @@
 import {
     AlreadyExistsError,
+    ForbiddenError,
     getSystemRoles,
     GroupProjectAccess,
     isOrganizationMemberRole,
@@ -43,6 +44,8 @@ import {
 import { UserTableName } from '../database/entities/users';
 import { isUniqueConstraintViolation } from '../database/errors';
 import {
+    assertAdminDemotionAllowed,
+    assertAnotherActiveAdminInOrganization,
     clearGroupExtraRoles,
     clearOrganizationExtraRoles,
     clearProjectExtraRoles,
@@ -980,6 +983,12 @@ export class RolesModel {
         const isSystemOrganizationRole = isOrganizationMemberRole(roleId);
 
         await this.runInTransaction(async (trx) => {
+            await assertAdminDemotionAllowed(
+                trx,
+                orgId,
+                userId,
+                isSystemOrganizationRole ? roleId : null,
+            );
             await trx(OrganizationMembershipsTableName)
                 .where({
                     organization_id: orgId,
@@ -1197,7 +1206,7 @@ export class RolesModel {
         userUuid: string,
         roleSet: OrganizationRoleSet,
         tx?: Knex.Transaction,
-    ): Promise<void> {
+    ): Promise<OrganizationRoleSet> {
         const set = normalizeRoleSet(roleSet);
         const runner = async (trx: Knex.Transaction) => {
             await this.validateCustomRoles(
@@ -1208,6 +1217,12 @@ export class RolesModel {
             );
             const userId = await this.getUserId(userUuid, trx);
             const orgId = await this.getOrganizationId(orgUuid, trx);
+            await assertAdminDemotionAllowed(
+                trx,
+                orgId,
+                userId,
+                set.systemRole,
+            );
             const { slot, extraRoleUuids } = splitRoleSet(
                 set,
                 ORGANIZATION_PLACEHOLDER_ROLE,
@@ -1226,8 +1241,9 @@ export class RolesModel {
                 { organization_id: orgId, user_id: userId },
                 extraRoleUuids,
             );
+            return this.getOrganizationUserRoleSet(orgUuid, userUuid, trx);
         };
-        await this.runInTransaction(runner, tx);
+        return this.runInTransaction(runner, tx);
     }
 
     /** Atomically replaces the user's direct project role set, creating access if needed. */
@@ -1236,7 +1252,7 @@ export class RolesModel {
         userUuid: string,
         roleSet: ProjectRoleSet,
         tx?: Knex.Transaction,
-    ): Promise<void> {
+    ): Promise<ProjectRoleSet> {
         const set = normalizeRoleSet(roleSet);
         const runner = async (trx: Knex.Transaction) => {
             const orgUuid = await this.getProjectOrganizationUuid(
@@ -1274,8 +1290,9 @@ export class RolesModel {
                 { project_id: projectId, user_id: userId },
                 extraRoleUuids,
             );
+            return this.getProjectUserRoleSet(projectUuid, userUuid, trx);
         };
-        await this.runInTransaction(runner, tx);
+        return this.runInTransaction(runner, tx);
     }
 
     /** Atomically replaces the group's project role set, creating access if needed. */
@@ -1284,7 +1301,7 @@ export class RolesModel {
         groupUuid: string,
         roleSet: ProjectRoleSet,
         tx?: Knex.Transaction,
-    ): Promise<void> {
+    ): Promise<ProjectRoleSet> {
         const set = normalizeRoleSet(roleSet);
         const runner = async (trx: Knex.Transaction) => {
             const orgUuid = await this.getProjectOrganizationUuid(
@@ -1317,19 +1334,34 @@ export class RolesModel {
                 { project_uuid: projectUuid, group_uuid: groupUuid },
                 extraRoleUuids,
             );
+            return this.getProjectGroupRoleSet(projectUuid, groupUuid, trx);
         };
-        await this.runInTransaction(runner, tx);
+        return this.runInTransaction(runner, tx);
     }
 
-    private async runInTransaction(
-        runner: (trx: Knex.Transaction) => Promise<void>,
+    private async runInTransaction<T>(
+        runner: (trx: Knex.Transaction) => Promise<T>,
         tx?: Knex.Transaction,
-    ): Promise<void> {
+    ): Promise<T> {
         if (tx) {
-            await runner(tx);
-        } else {
-            await this.database.transaction(runner);
+            return runner(tx);
         }
+        return this.database.transaction(runner);
+    }
+
+    /**
+     * Locks the organization's current admin rows and throws unless another
+     * active admin (other than `excludingUserUuid`) remains. Call inside the
+     * transaction that demotes/removes the user so concurrent demotions serialize.
+     */
+    async assertAnotherActiveAdmin(
+        orgUuid: string,
+        excludingUserUuid: string,
+        trx: Knex.Transaction,
+    ): Promise<void> {
+        const orgId = await this.getOrganizationId(orgUuid, trx);
+        const userId = await this.getUserId(excludingUserUuid, trx);
+        await assertAnotherActiveAdminInOrganization(trx, orgId, userId);
     }
 
     async getOrganizationAdmins(

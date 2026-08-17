@@ -224,7 +224,20 @@ type UserServiceTestOverrides = {
         PasswordResetLinkModel,
         'getByCode' | 'deleteByCode'
     >;
-    rolesModel?: Pick<RolesModel, 'getRoleWithScopesByUuid'>;
+    rolesModel?: Partial<
+        Pick<
+            RolesModel,
+            'getRoleWithScopesByUuid' | 'getOrganizationUserRoleSet'
+        >
+    >;
+};
+
+// Delegation checks read the caller's extra custom roles; default to none.
+const rolesModelWithoutExtraRoles = {
+    getOrganizationUserRoleSet: vi.fn(async () => ({
+        systemRole: null,
+        customRoleUuids: [],
+    })),
 };
 
 const createUserService = (
@@ -275,7 +288,10 @@ const createUserService = (
             } as unknown as FeatureFlagModel),
         userAvatarModel: {} as UserAvatarModel,
         userOnboardingModel: {} as UserOnboardingModel,
-        rolesModel: (overrides.rolesModel as RolesModel) ?? ({} as RolesModel),
+        rolesModel: {
+            ...rolesModelWithoutExtraRoles,
+            ...overrides.rolesModel,
+        } as unknown as RolesModel,
     });
 
 vi.spyOn(analyticsMock, 'track');
@@ -3574,8 +3590,8 @@ describe('UserService', () => {
                 );
             });
 
-            // rolesModel is left unstubbed here: a system-role caller must be
-            // measured from its own role, without a custom-role lookup.
+            // getRoleWithScopesByUuid is left unstubbed here: a system-role
+            // caller must be measured from its own role, without a custom-role lookup.
             test('allows an organization admin to invite an admin', async () => {
                 const adminUser = {
                     ...sessionUser,

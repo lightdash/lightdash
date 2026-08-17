@@ -5,18 +5,22 @@ import {
     ApiCustomRoleAsCodeUpsertResponse,
     ApiUserAsCodeUpsertResponse,
     assertRegisteredAccount,
+    CommercialFeatureFlags,
     CreateRole,
     CustomRoleAsCode,
     ForbiddenError,
     getAllScopeMap,
+    getAllScopesForRole,
     InviteLinkPurpose,
     isOrganizationMemberRole,
     isScopeAssignableAtLevel,
     isSystemRole,
     NotFoundError,
     OrganizationMemberRole,
+    OrganizationRoleSet,
     ParameterError,
     ProjectMemberRole,
+    ProjectRoleSet,
     PromotionAction,
     Role,
     RoleAssignee,
@@ -39,7 +43,13 @@ import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { toSessionUser } from '../../auth/account';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../../config/parseConfig';
-import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
+import { createAuditLogEvent } from '../../logging/auditLog';
+import {
+    CaslAuditWrapper,
+    createActorFromAccount,
+} from '../../logging/caslAuditWrapper';
+import { logAuditEvent } from '../../logging/winston';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { GroupsModel } from '../../models/GroupsModel';
 import { InviteLinkModel } from '../../models/InviteLinkModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
@@ -51,6 +61,7 @@ import { wrapSentryTransaction } from '../../utils';
 import {
     getOrganizationSystemRoleScopes,
     validateOrganizationScopesCanBeGranted,
+    validateProjectScopesCanBeGranted,
 } from '../../utils/organizationRolePermissions';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
@@ -69,7 +80,11 @@ type RolesServiceArguments = {
     adminNotificationService: AdminNotificationService;
     inviteLinkModel: InviteLinkModel;
     organizationMemberProfileModel: OrganizationMemberProfileModel;
+    featureFlagModel: FeatureFlagModel;
 };
+
+/** Where a role-set mutation originated; recorded in the audit event. */
+export type RoleSetMutationSource = 'api' | 'scim' | 'as-code';
 
 export class RolesService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
@@ -96,6 +111,8 @@ export class RolesService extends BaseService {
 
     private readonly organizationMemberProfileModel: OrganizationMemberProfileModel;
 
+    private readonly featureFlagModel: FeatureFlagModel;
+
     constructor({
         lightdashConfig,
         licenseService,
@@ -109,6 +126,7 @@ export class RolesService extends BaseService {
         adminNotificationService,
         inviteLinkModel,
         organizationMemberProfileModel,
+        featureFlagModel,
     }: RolesServiceArguments) {
         super({ serviceName: 'RolesService' });
         this.lightdashConfig = lightdashConfig;
@@ -123,6 +141,7 @@ export class RolesService extends BaseService {
         this.adminNotificationService = adminNotificationService;
         this.inviteLinkModel = inviteLinkModel;
         this.organizationMemberProfileModel = organizationMemberProfileModel;
+        this.featureFlagModel = featureFlagModel;
     }
 
     /**
@@ -1150,6 +1169,7 @@ export class RolesService extends BaseService {
             rolesModel: this.rolesModel,
         });
 
+        // The model refuses to demote the organization's last active admin.
         await this.rolesModel.upsertOrganizationUserRoleAssignment(
             orgUuid,
             user.userUuid,
@@ -1214,17 +1234,6 @@ export class RolesService extends BaseService {
         );
 
         const user = await this.userModel.getUserDetailsByUuid(userUuid);
-        if (user.role === OrganizationMemberRole.ADMIN) {
-            // If user is currently an admin, we need to check if there are more admins
-            // because every org should have at least one admin
-            const adminUuids =
-                await this.rolesModel.getOrganizationAdmins(orgUuid);
-            if (adminUuids.length === 1) {
-                throw new ParameterError(
-                    'Organization must have at least one admin',
-                );
-            }
-        }
 
         return this.applyOrganizationUserRoleAssignment(
             account,
@@ -1541,6 +1550,380 @@ export class RolesService extends BaseService {
             createdAt: new Date(),
             updatedAt: new Date(),
         };
+    }
+
+    // =====================================
+    // ROLE SETS (multiple roles per level)
+    // =====================================
+
+    private async assertRoleSetsEnabled(account: Account): Promise<void> {
+        this.assertCustomRolesLicensed();
+        assertRegisteredAccount(account);
+        const flag = await this.featureFlagModel.get({
+            user: {
+                userUuid: account.user.userUuid,
+                organizationUuid: account.organization.organizationUuid,
+            },
+            featureFlagId: CommercialFeatureFlags.MultipleRoles,
+        });
+        if (!flag.enabled) {
+            throw new ForbiddenError('Multiple roles are not enabled');
+        }
+    }
+
+    private static assertNonEmptyRoleSet(roleSet: {
+        systemRole: string | null;
+        customRoleUuids: string[];
+    }): void {
+        if (
+            roleSet.systemRole === null &&
+            roleSet.customRoleUuids.length === 0
+        ) {
+            throw new ParameterError(
+                'A role set must contain at least one role',
+            );
+        }
+    }
+
+    /** Loads the custom roles of a set and checks tenancy, level and non-empty scopes. */
+    private async loadCustomRolesForSet(
+        organizationUuid: string,
+        customRoleUuids: string[],
+        level: RoleLevel,
+    ): Promise<RoleWithScopes[]> {
+        const roles = await Promise.all(
+            [...new Set(customRoleUuids)].map((roleUuid) =>
+                this.rolesModel.getRoleWithScopesByUuid(roleUuid),
+            ),
+        );
+        roles.forEach((role) => {
+            if (role.organizationUuid !== organizationUuid) {
+                throw new ForbiddenError();
+            }
+            RolesService.validateCustomRoleLevel(role, level);
+            if (role.scopes.length === 0) {
+                throw new ParameterError(
+                    'Custom role must have at least one scope',
+                );
+            }
+        });
+        return roles;
+    }
+
+    private static roleSetChanges(
+        before: { systemRole: string | null; customRoleUuids: string[] },
+        after: { systemRole: string | null; customRoleUuids: string[] },
+    ) {
+        const toIds = (set: typeof before) => [
+            ...(set.systemRole ? [set.systemRole] : []),
+            ...set.customRoleUuids,
+        ];
+        const beforeIds = new Set(toIds(before));
+        const afterIds = new Set(toIds(after));
+        return {
+            added: [...afterIds].filter((id) => !beforeIds.has(id)),
+            removed: [...beforeIds].filter((id) => !afterIds.has(id)),
+        };
+    }
+
+    private auditRoleSetChange({
+        account,
+        action,
+        organizationUuid,
+        projectUuid,
+        source,
+        target,
+        before,
+        after,
+    }: {
+        account: Account;
+        action: string;
+        organizationUuid: string;
+        projectUuid?: string;
+        source: RoleSetMutationSource;
+        target: { userUuid?: string; groupUuid?: string };
+        before: OrganizationRoleSet | ProjectRoleSet;
+        after: OrganizationRoleSet | ProjectRoleSet;
+    }): void {
+        const { added, removed } = RolesService.roleSetChanges(before, after);
+        try {
+            logAuditEvent(
+                createAuditLogEvent(
+                    createActorFromAccount(account),
+                    action,
+                    {
+                        type: 'RoleSet',
+                        organizationUuid,
+                        projectUuid,
+                        metadata: {
+                            ...target,
+                            source,
+                            before,
+                            after,
+                            added,
+                            removed,
+                        },
+                    },
+                    {},
+                    'allowed',
+                ),
+            );
+        } catch (error) {
+            this.logger.warn('Failed to write role-set audit event', { error });
+        }
+        this.analytics.track({
+            event: action,
+            userId: account.user?.id,
+            properties: {
+                organizationUuid,
+                projectUuid,
+                ...target,
+                source,
+                addedCount: added.length,
+                removedCount: removed.length,
+                systemRole: after.systemRole,
+                customRoleCount: after.customRoleUuids.length,
+            },
+        });
+    }
+
+    async getOrganizationUserRoleSet(
+        account: Account,
+        orgUuid: string,
+        userUuid: string,
+    ): Promise<OrganizationRoleSet> {
+        await this.assertRoleSetsEnabled(account);
+        RolesService.validateOrganizationAccess(
+            account,
+            this.createAuditedAbility(account),
+            orgUuid,
+        );
+        return this.rolesModel.getOrganizationUserRoleSet(orgUuid, userUuid);
+    }
+
+    async replaceOrganizationUserRoleSet(
+        account: Account,
+        orgUuid: string,
+        userUuid: string,
+        roleSet: OrganizationRoleSet,
+        { source = 'api' }: { source?: RoleSetMutationSource } = {},
+    ): Promise<OrganizationRoleSet> {
+        await this.assertRoleSetsEnabled(account);
+        RolesService.validateOrganizationAccess(
+            account,
+            this.createAuditedAbility(account),
+            orgUuid,
+        );
+        RolesService.assertNonEmptyRoleSet(roleSet);
+        if (
+            roleSet.systemRole !== null &&
+            !isOrganizationMemberRole(roleSet.systemRole)
+        ) {
+            throw new ParameterError(`Unknown organization role`);
+        }
+        const user = await this.userModel.getUserDetailsByUuid(userUuid);
+        if (user.organizationUuid !== orgUuid) {
+            throw new ForbiddenError();
+        }
+        const customRoles = await this.loadCustomRolesForSet(
+            orgUuid,
+            roleSet.customRoleUuids,
+            'organization',
+        );
+
+        assertRegisteredAccount(account);
+        await validateOrganizationScopesCanBeGranted({
+            user: toSessionUser(account),
+            organizationUuid: orgUuid,
+            grantedScopes: [
+                ...(roleSet.systemRole
+                    ? getOrganizationSystemRoleScopes(roleSet.systemRole, {
+                          includePersonalAccessToken:
+                              this.lightdashConfig.auth?.pat?.enabled ===
+                                  true &&
+                              this.lightdashConfig.auth.pat.allowedOrgRoles.includes(
+                                  roleSet.systemRole,
+                              ),
+                      })
+                    : []),
+                ...customRoles.flatMap((role) => role.scopes),
+            ],
+            rolesModel: this.rolesModel,
+        });
+
+        const before = await this.rolesModel.getOrganizationUserRoleSet(
+            orgUuid,
+            userUuid,
+        );
+        // The model refuses to demote the organization's last active admin.
+        const after = await this.rolesModel.replaceOrganizationUserRoleSet(
+            orgUuid,
+            userUuid,
+            roleSet,
+        );
+        this.auditRoleSetChange({
+            account,
+            action: 'organization_role_set.replaced',
+            organizationUuid: orgUuid,
+            source,
+            target: { userUuid },
+            before,
+            after,
+        });
+        if (before.systemRole !== after.systemRole) {
+            this.adminNotificationService
+                .notifyOrgAdminRoleChange(
+                    account,
+                    userUuid,
+                    orgUuid,
+                    before.systemRole ?? OrganizationMemberRole.MEMBER,
+                    after.systemRole ?? OrganizationMemberRole.MEMBER,
+                )
+                .catch((err) => {
+                    this.logger.error(
+                        'Failed to send org admin role change notification',
+                        { error: err },
+                    );
+                });
+        }
+        return after;
+    }
+
+    async getProjectUserRoleSet(
+        account: Account,
+        projectUuid: string,
+        userUuid: string,
+    ): Promise<ProjectRoleSet> {
+        await this.assertRoleSetsEnabled(account);
+        await this.validateProjectAccess(account, projectUuid);
+        return this.rolesModel.getProjectUserRoleSet(projectUuid, userUuid);
+    }
+
+    private async validateProjectRoleSetRequest(
+        account: Account,
+        projectUuid: string,
+        roleSet: ProjectRoleSet,
+    ): Promise<{ organizationUuid: string }> {
+        await this.assertRoleSetsEnabled(account);
+        RolesService.assertNonEmptyRoleSet(roleSet);
+        const project = await this.projectModel.getSummary(projectUuid);
+        await this.validateProjectAccess(account, projectUuid);
+        if (roleSet.systemRole !== null && !isSystemRole(roleSet.systemRole)) {
+            throw new ParameterError(`Unknown project role`);
+        }
+        const customRoles = await this.loadCustomRolesForSet(
+            project.organizationUuid,
+            roleSet.customRoleUuids,
+            'project',
+        );
+        assertRegisteredAccount(account);
+        validateProjectScopesCanBeGranted({
+            user: toSessionUser(account),
+            grantedScopes: [
+                ...(roleSet.systemRole
+                    ? getAllScopesForRole(roleSet.systemRole)
+                    : []),
+                ...customRoles.flatMap((role) => role.scopes),
+            ],
+        });
+        return { organizationUuid: project.organizationUuid };
+    }
+
+    async replaceProjectUserRoleSet(
+        account: Account,
+        projectUuid: string,
+        userUuid: string,
+        roleSet: ProjectRoleSet,
+        { source = 'api' }: { source?: RoleSetMutationSource } = {},
+    ): Promise<ProjectRoleSet> {
+        const { organizationUuid } = await this.validateProjectRoleSetRequest(
+            account,
+            projectUuid,
+            roleSet,
+        );
+        const user = await this.userModel.getUserDetailsByUuid(userUuid);
+        if (user.organizationUuid !== organizationUuid) {
+            throw new ForbiddenError();
+        }
+        const existing = await this.rolesModel.getProjectAccessByUserUuid(
+            userUuid,
+            projectUuid,
+        );
+        const before: ProjectRoleSet =
+            existing.length > 0
+                ? await this.rolesModel.getProjectUserRoleSet(
+                      projectUuid,
+                      userUuid,
+                  )
+                : { systemRole: null, customRoleUuids: [] };
+        const after = await this.rolesModel.replaceProjectUserRoleSet(
+            projectUuid,
+            userUuid,
+            roleSet,
+        );
+        this.auditRoleSetChange({
+            account,
+            action: 'project_role_set.replaced',
+            organizationUuid,
+            projectUuid,
+            source,
+            target: { userUuid },
+            before,
+            after,
+        });
+        return after;
+    }
+
+    async getProjectGroupRoleSet(
+        account: Account,
+        projectUuid: string,
+        groupUuid: string,
+    ): Promise<ProjectRoleSet> {
+        await this.assertRoleSetsEnabled(account);
+        await this.validateProjectAccess(account, projectUuid);
+        return this.rolesModel.getProjectGroupRoleSet(projectUuid, groupUuid);
+    }
+
+    async replaceProjectGroupRoleSet(
+        account: Account,
+        projectUuid: string,
+        groupUuid: string,
+        roleSet: ProjectRoleSet,
+        { source = 'api' }: { source?: RoleSetMutationSource } = {},
+    ): Promise<ProjectRoleSet> {
+        const { organizationUuid } = await this.validateProjectRoleSetRequest(
+            account,
+            projectUuid,
+            roleSet,
+        );
+        const group = await this.groupsModel.getGroup(groupUuid);
+        if (group.organizationUuid !== organizationUuid) {
+            throw new ForbiddenError();
+        }
+        const before: ProjectRoleSet = await this.rolesModel
+            .getProjectGroupRoleSet(projectUuid, groupUuid)
+            .catch((error) => {
+                if (error instanceof NotFoundError) {
+                    return { systemRole: null, customRoleUuids: [] };
+                }
+                throw error;
+            });
+        const after = await this.rolesModel.replaceProjectGroupRoleSet(
+            projectUuid,
+            groupUuid,
+            roleSet,
+        );
+        this.auditRoleSetChange({
+            account,
+            action: 'project_group_role_set.replaced',
+            organizationUuid,
+            projectUuid,
+            source,
+            target: { groupUuid },
+            before,
+            after,
+        });
+        return after;
     }
 
     async getRoleAssignees(
