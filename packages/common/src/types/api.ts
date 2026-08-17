@@ -517,9 +517,14 @@ export enum LightdashMode {
     DEV = 'development',
 }
 
+export type MigrationReadinessWarning =
+    | 'migration_parked'
+    | 'migration_ledger_unavailable';
+
 export type HealthState = {
     healthy: boolean;
     requiresMigration: boolean;
+    migrationWarnings?: MigrationReadinessWarning[];
     license?: {
         hasLicenseKey: boolean;
         valid: boolean;

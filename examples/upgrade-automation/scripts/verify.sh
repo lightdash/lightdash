@@ -105,26 +105,36 @@ if [[ "$DEPLOY_CONCLUSION" == "success" ]]; then
         status=$(curl --connect-timeout 10 --max-time "$curl_timeout" --silent --show-error --output "$response_body" --write-out '%{http_code}' "${INSTANCE_URL%/}/api/v1/readyz" || true)
         readiness=$(jq -r '.status // empty' "$response_body" 2>/dev/null || true)
         if [[ "$status" == "200" && "$readiness" == "ready" ]]; then
-            remaining_seconds=$((deadline - $(date +%s)))
-            if [[ $remaining_seconds -le 0 ]]; then
+            warnings=$(jq -r '.warnings // [] | .[]' "$response_body" 2>/dev/null || true)
+            if [[ $'\n'"$warnings"$'\n' == *$'\nmigration_parked\n'* ]]; then
+                consecutive=0
+                last_reason=migration_parked
                 break
-            fi
-            curl_timeout=$((remaining_seconds < 20 ? remaining_seconds : 20))
-            curl --connect-timeout 10 --max-time "$curl_timeout" --silent --show-error --location --head --output "$response_headers" "${INSTANCE_URL%/}/" || true
-            running_version=$(awk -F': *' 'tolower($1) == "lightdash-version" { gsub("\r", "", $2); print $2; exit }' "$response_headers")
-            if [[ "$running_version" == "$pinned_public" ]]; then
-                consecutive=$((consecutive + 1))
-                last_reason=ready
-                if [[ $consecutive -ge 3 ]]; then
-                    verified=true
+            elif [[ $'\n'"$warnings"$'\n' == *$'\nmigration_ledger_unavailable\n'* ]]; then
+                consecutive=0
+                last_reason=migration_ledger_unavailable
+            else
+                remaining_seconds=$((deadline - $(date +%s)))
+                if [[ $remaining_seconds -le 0 ]]; then
                     break
                 fi
-            else
-                consecutive=0
-                if [[ -z "$running_version" ]]; then
-                    last_reason=version_header_missing
+                curl_timeout=$((remaining_seconds < 20 ? remaining_seconds : 20))
+                curl --connect-timeout 10 --max-time "$curl_timeout" --silent --show-error --location --head --output "$response_headers" "${INSTANCE_URL%/}/" || true
+                running_version=$(awk -F': *' 'tolower($1) == "lightdash-version" { gsub("\r", "", $2); print $2; exit }' "$response_headers")
+                if [[ "$running_version" == "$pinned_public" ]]; then
+                    consecutive=$((consecutive + 1))
+                    last_reason=ready
+                    if [[ $consecutive -ge 3 ]]; then
+                        verified=true
+                        break
+                    fi
                 else
-                    last_reason="version_mismatch:$(printf '%s' "$running_version" | sanitize_evidence)"
+                    consecutive=0
+                    if [[ -z "$running_version" ]]; then
+                        last_reason=version_header_missing
+                    else
+                        last_reason="version_mismatch:$(printf '%s' "$running_version" | sanitize_evidence)"
+                    fi
                 fi
             fi
         else
