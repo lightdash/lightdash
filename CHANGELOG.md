@@ -1,3 +1,11 @@
+## [1.167.4](https://github.com/lightdash/lightdash/compare/1.167.3...1.167.4) (2026-08-17)
+
+
+### Bug Fixes
+
+* always nominate agent memories ([#27484](https://github.com/lightdash/lightdash/issues/27484)) ([2eaca5a](https://github.com/lightdash/lightdash/commit/2eaca5a4ef98422f22c7bd5cbed1606b08085e19)), closes [#27180](https://github.com/lightdash/lightdash/issues/27180)
+* keep stored AI agent memories reachable after disabling memory generation ([#27483](https://github.com/lightdash/lightdash/issues/27483)) ([e7d68c8](https://github.com/lightdash/lightdash/commit/e7d68c8354c1ce1f4af8d1f533fe294443d890f4))
+
 ## [1.167.3](https://github.com/lightdash/lightdash/compare/1.167.2...1.167.3) (2026-08-17)
 
 
