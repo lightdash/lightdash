@@ -17,6 +17,7 @@ import {
     UserAsCodeLifecycleStatus,
     type MemberAbility,
 } from '@lightdash/common';
+import { DatabaseError } from 'pg';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -665,6 +666,35 @@ describe('RolesService', () => {
                 ),
             ).resolves.toBeUndefined();
             expect(mockRolesModel.addScopesToRole).toHaveBeenCalledOnce();
+        });
+    });
+
+    describe('deleteRole', () => {
+        const dbError = (code: string) => {
+            const error = new DatabaseError('violates foreign key', 0, 'error');
+            error.code = code;
+            return error;
+        };
+
+        it.each(['23503', '23001'])(
+            'maps SQLSTATE %s from an assigned role to a ParameterError',
+            async (code) => {
+                mockRolesModel.getRoleByUuid.mockResolvedValue(mockCustomRole);
+                mockRolesModel.deleteRole.mockRejectedValueOnce(dbError(code));
+
+                await expect(
+                    service.deleteRole(mockAccount, mockCustomRole.roleUuid),
+                ).rejects.toThrow('Role cannot be deleted if assigned');
+            },
+        );
+
+        it('rethrows unrelated database errors', async () => {
+            mockRolesModel.getRoleByUuid.mockResolvedValue(mockCustomRole);
+            mockRolesModel.deleteRole.mockRejectedValueOnce(dbError('42P01'));
+
+            await expect(
+                service.deleteRole(mockAccount, mockCustomRole.roleUuid),
+            ).rejects.toBeInstanceOf(DatabaseError);
         });
     });
 
