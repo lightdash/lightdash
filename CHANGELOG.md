@@ -1,3 +1,10 @@
+## [1.171.1](https://github.com/lightdash/lightdash/compare/1.171.0...1.171.1) (2026-08-17)
+
+
+### Bug Fixes
+
+* remove the quotes from GitHub App values in dev-reconcile ([#27468](https://github.com/lightdash/lightdash/issues/27468)) ([82b2d03](https://github.com/lightdash/lightdash/commit/82b2d03b06f306bddaeced4122f7efc7cb53fe8d))
+
 # [1.171.0](https://github.com/lightdash/lightdash/compare/1.170.0...1.171.0) (2026-08-17)
 
 
