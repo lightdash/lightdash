@@ -47,10 +47,6 @@ const DatasetHeader: FC<{
 }> = ({ sourceRole, label, count, open, onClick, onRemove }) => (
     <Box className={styles.header} data-open={open}>
         <UnstyledButton className={styles.headerButton} onClick={onClick}>
-            <Box
-                className={styles.dot}
-                data-side={sourceRole === 'primary' ? 'a' : 'b'}
-            />
             <Box className={styles.headerCopy}>
                 <Text size="sm" fw={600} truncate title={label}>
                     {label}

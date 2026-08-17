@@ -60,30 +60,18 @@ export const MergeReadOnlyBar: FC = () => {
                 <ThemeIcon variant="light" color="gray" radius="md" size="md">
                     <MantineIcon
                         icon={IconArrowMerge}
-                        color="blue.7"
+                        color="gray.7"
                         size={14}
                     />
                 </ThemeIcon>
                 <Box style={{ flex: 1, minWidth: 0 }}>
                     <Group gap={6} wrap="nowrap">
-                        <Box
-                            w={7}
-                            h={7}
-                            bg="blue.6"
-                            style={{ borderRadius: '50%', flexShrink: 0 }}
-                        />
                         <Text size="sm" fw={600} truncate>
                             {primaryExploreLabel}
                         </Text>
                         <Text size="xs" c="dimmed">
                             +
                         </Text>
-                        <Box
-                            w={7}
-                            h={7}
-                            bg="orange.6"
-                            style={{ borderRadius: '50%', flexShrink: 0 }}
-                        />
                         <Text size="sm" fw={600} truncate>
                             {additionalExploreLabel}
                         </Text>

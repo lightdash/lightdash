@@ -13,21 +13,5 @@
 .source {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
     vertical-align: middle;
-}
-
-.dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 2px;
-    flex: none;
-}
-
-.dot[data-side='a'] {
-    background: var(--mantine-color-blue-6);
-}
-
-.dot[data-side='b'] {
-    background: var(--mantine-color-orange-6);
 }
