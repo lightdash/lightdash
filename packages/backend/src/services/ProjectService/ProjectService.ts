@@ -485,6 +485,11 @@ type CrossSourceModelNameCollision = {
     sourceNames: string[];
 };
 
+type ResolvedCompileAdapter = {
+    adapter: ProjectAdapter;
+    stagedMergedManifest?: Buffer;
+};
+
 export class ProjectService extends BaseService {
     static CREATE_PROJECT_JOB_ENQUEUE_GRACE_MS = 15 * 60 * 1000;
 
@@ -3848,19 +3853,21 @@ export class ProjectService extends BaseService {
                         // short-circuit) so "Test & deploy" yields the same
                         // combined explore set as "Refresh dbt".
                         let compileAdapter = primaryAdapter;
+                        let stagedMergedManifest: Buffer | undefined;
                         try {
-                            compileAdapter = await this.resolveCompileAdapter({
-                                projectUuid,
-                                organizationUuid: user.organizationUuid,
-                                userUuid: user.userUuid,
-                                primary: {
-                                    adapter: primaryAdapter,
-                                    warehouseCredentials,
-                                    cachedWarehouse,
-                                    dbtVersionOption,
-                                },
-                                manifestFetchAdapters,
-                            });
+                            ({ adapter: compileAdapter, stagedMergedManifest } =
+                                await this.resolveCompileAdapter({
+                                    projectUuid,
+                                    organizationUuid: user.organizationUuid,
+                                    userUuid: user.userUuid,
+                                    primary: {
+                                        adapter: primaryAdapter,
+                                        warehouseCredentials,
+                                        cachedWarehouse,
+                                        dbtVersionOption,
+                                    },
+                                    manifestFetchAdapters,
+                                }));
                             const trackingParams = {
                                 projectUuid,
                                 organizationUuid: user.organizationUuid,
@@ -3938,6 +3945,10 @@ export class ProjectService extends BaseService {
                                     lightdashProjectConfig.defaults,
                                 complete: true,
                             });
+                            await this.persistMergedManifest(
+                                projectUuid,
+                                stagedMergedManifest,
+                            );
                             timings.cacheExplores.end = performance.now();
                         } finally {
                             await compileAdapter.destroy();
@@ -4612,21 +4623,49 @@ export class ProjectService extends BaseService {
         );
     }
 
-    private async persistMergedManifest(
+    private async stageMergedManifest(
         projectUuid: string,
         manifest: DbtManifest,
-    ): Promise<void> {
+    ): Promise<Buffer | undefined> {
         try {
-            const compressedManifest = await gzipAsync(
+            return await gzipAsync(
                 JSON.stringify(projectMergedManifest(manifest)),
-            );
-            await this.projectModel.upsertMergedManifest(
-                projectUuid,
-                compressedManifest,
             );
         } catch (error) {
             this.logger.warn(
                 `Failed to persist merged dbt manifest for project ${projectUuid}: ${getErrorMessage(error)}`,
+            );
+            return undefined;
+        }
+    }
+
+    private async persistMergedManifest(
+        projectUuid: string,
+        stagedMergedManifest: Buffer | undefined,
+    ): Promise<void> {
+        if (!stagedMergedManifest) {
+            return;
+        }
+        try {
+            await this.projectModel.upsertMergedManifest(
+                projectUuid,
+                stagedMergedManifest,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `Failed to persist merged dbt manifest for project ${projectUuid}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
+    private async deleteMergedManifestBestEffort(
+        projectUuid: string,
+    ): Promise<void> {
+        try {
+            await this.projectModel.deleteMergedManifest(projectUuid);
+        } catch (error) {
+            this.logger.warn(
+                `Failed to delete merged dbt manifest for project ${projectUuid}: ${getErrorMessage(error)}`,
             );
         }
     }
@@ -4659,7 +4698,7 @@ export class ProjectService extends BaseService {
         };
         sources: ProjectDbtSource[];
         manifestFetchAdapters: ProjectAdapter[];
-    }): Promise<ProjectAdapter> {
+    }): Promise<ResolvedCompileAdapter> {
         const shared = {
             warehouseCredentials: primary.warehouseCredentials,
             cachedWarehouse: primary.cachedWarehouse,
@@ -4801,7 +4840,10 @@ export class ProjectService extends BaseService {
             );
         }
 
-        await this.persistMergedManifest(projectUuid, mergedManifest);
+        const stagedMergedManifest = await this.stageMergedManifest(
+            projectUuid,
+            mergedManifest,
+        );
 
         const mergedSelectedModelIds = Object.values(mergedManifest.nodes)
             .filter(
@@ -4811,24 +4853,27 @@ export class ProjectService extends BaseService {
             )
             .map((node) => node.unique_id);
 
-        return projectAdapterFromConfig(
-            {
-                type: DbtProjectType.MANIFEST,
-                manifest: JSON.stringify(mergedManifest),
-                hideRefreshButton: true,
-            },
-            shared.warehouseCredentials,
-            shared.cachedWarehouse,
-            shared.dbtVersionOption,
-            this.lightdashConfig.dbt.environmentVariableAllowlist,
-            this.analytics,
-            // Keep the primary source's lightdash.config.yml / project_context.yml
-            // (spotlight categories, table_groups, parameters, AI context). The
-            // primary clone is alive until the caller destroys manifestFetchAdapters
-            // after compile, so the merged adapter can read these during compile.
-            primary.adapter.dbtProjectDir,
-            mergedSelectedModelIds,
-        );
+        return {
+            adapter: await projectAdapterFromConfig(
+                {
+                    type: DbtProjectType.MANIFEST,
+                    manifest: JSON.stringify(mergedManifest),
+                    hideRefreshButton: true,
+                },
+                shared.warehouseCredentials,
+                shared.cachedWarehouse,
+                shared.dbtVersionOption,
+                this.lightdashConfig.dbt.environmentVariableAllowlist,
+                this.analytics,
+                // Keep the primary source's lightdash.config.yml / project_context.yml
+                // (spotlight categories, table_groups, parameters, AI context). The
+                // primary clone is alive until the caller destroys manifestFetchAdapters
+                // after compile, so the merged adapter can read these during compile.
+                primary.adapter.dbtProjectDir,
+                mergedSelectedModelIds,
+            ),
+            stagedMergedManifest,
+        };
     }
 
     /**
@@ -4859,23 +4904,23 @@ export class ProjectService extends BaseService {
         };
         manifestFetchAdapters: ProjectAdapter[];
         onDbtSourceCount?: (dbtSourceCount: number) => void;
-    }): Promise<ProjectAdapter> {
+    }): Promise<ResolvedCompileAdapter> {
         const { enabled: multiDbtSourcesEnabled } =
             await this.featureFlagModel.get({
                 featureFlagId: FeatureFlags.MultiDbtSources,
                 user: { userUuid, organizationUuid },
             });
         if (!multiDbtSourcesEnabled) {
-            await this.projectModel.deleteMergedManifest(projectUuid);
+            await this.deleteMergedManifestBestEffort(projectUuid);
             onDbtSourceCount?.(1);
-            return primary.adapter;
+            return { adapter: primary.adapter };
         }
         const sources =
             await this.projectDbtSourcesModel.getSources(projectUuid);
         if (sources.length === 0) {
-            await this.projectModel.deleteMergedManifest(projectUuid);
+            await this.deleteMergedManifestBestEffort(projectUuid);
             onDbtSourceCount?.(1);
-            return primary.adapter;
+            return { adapter: primary.adapter };
         }
         onDbtSourceCount?.(sources.length + 1);
         return this.buildMergedManifestAdapter({
@@ -7845,6 +7890,7 @@ export class ProjectService extends BaseService {
         explores: (Explore | ExploreError)[];
         lightdashProjectConfig: LightdashProjectConfig;
         projectContext: ProjectContextEntry[] | undefined;
+        stagedMergedManifest?: Buffer;
     }> {
         // Checks that project exists
         const project = await this.projectModel.get(projectUuid);
@@ -7898,16 +7944,18 @@ export class ProjectService extends BaseService {
             // the union of all sources. A project with zero registered sources runs
             // the unchanged single-source path (N=0 short-circuit / regression firewall).
             let dbtSourceCount = 1;
-            adapter = await this.resolveCompileAdapter({
-                projectUuid,
-                organizationUuid: project.organizationUuid,
-                userUuid: user.userUuid,
-                primary: buildResult,
-                manifestFetchAdapters,
-                onDbtSourceCount: (count) => {
-                    dbtSourceCount = count;
-                },
-            });
+            let stagedMergedManifest: Buffer | undefined;
+            ({ adapter, stagedMergedManifest } =
+                await this.resolveCompileAdapter({
+                    projectUuid,
+                    organizationUuid: project.organizationUuid,
+                    userUuid: user.userUuid,
+                    primary: buildResult,
+                    manifestFetchAdapters,
+                    onDbtSourceCount: (count) => {
+                        dbtSourceCount = count;
+                    },
+                }));
             const packages = await adapter.getDbtPackages();
             const trackingParams = {
                 projectUuid,
@@ -8056,7 +8104,12 @@ export class ProjectService extends BaseService {
                 organizationUuid: project.organizationUuid,
             });
 
-            return { explores, lightdashProjectConfig, projectContext };
+            return {
+                explores,
+                lightdashProjectConfig,
+                projectContext,
+                stagedMergedManifest,
+            };
         } catch (e) {
             if (!(e instanceof LightdashError)) {
                 Sentry.captureException(e);
@@ -8407,6 +8460,7 @@ export class ProjectService extends BaseService {
                             explores,
                             lightdashProjectConfig,
                             projectContext,
+                            stagedMergedManifest,
                         } = await this.refreshTablesAndProjectConfig(
                             user,
                             projectUuid,
@@ -8453,17 +8507,22 @@ export class ProjectService extends BaseService {
                         );
                         timings.parameters.end = performance.now();
                         timings.cacheExplores.start = performance.now();
-                        const result = this.saveExploresToCacheAndIndexCatalog({
-                            userUuid: user.userUuid,
+                        const result =
+                            await this.saveExploresToCacheAndIndexCatalog({
+                                userUuid: user.userUuid,
+                                projectUuid,
+                                explores,
+                                compilationSource: 'refresh_dbt',
+                                jobUuid: job.jobUuid,
+                                requestMethod,
+                                projectConfigDefaults:
+                                    lightdashProjectConfig.defaults,
+                                complete: true,
+                            });
+                        await this.persistMergedManifest(
                             projectUuid,
-                            explores,
-                            compilationSource: 'refresh_dbt',
-                            jobUuid: job.jobUuid,
-                            requestMethod,
-                            projectConfigDefaults:
-                                lightdashProjectConfig.defaults,
-                            complete: true,
-                        });
+                            stagedMergedManifest,
+                        );
                         timings.cacheExplores.end = performance.now();
 
                         return result;
