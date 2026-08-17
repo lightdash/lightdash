@@ -1,3 +1,10 @@
+# [1.164.0](https://github.com/lightdash/lightdash/compare/1.163.3...1.164.0) (2026-08-17)
+
+
+### Features
+
+* add verified-only filtering to find_content search ([#27436](https://github.com/lightdash/lightdash/issues/27436)) ([ed652e7](https://github.com/lightdash/lightdash/commit/ed652e7e8f5e6f90eebb881ceb07d107fd0808f2))
+
 ## [1.163.3](https://github.com/lightdash/lightdash/compare/1.163.2...1.163.3) (2026-08-17)
 
 
