@@ -16,6 +16,7 @@ import {
     CreateSchedulerAndTargetsWithoutIds,
     DeletedContentFilters,
     DeletedDbtChartContentSummary,
+    ExploreSplitError,
     ExploreType,
     ForbiddenError,
     generateSlug,
@@ -1370,6 +1371,16 @@ export class SavedChartService
 
         const { access, inheritsFromOrgOrProject } =
             await this.checkPermissions(account, space, savedChart);
+
+        try {
+            await this.projectModel.getExploreFromCache(
+                savedChart.projectUuid,
+                savedChart.tableName,
+            );
+        } catch (error) {
+            if (error instanceof ExploreSplitError) throw error;
+            if (!(error instanceof NotFoundError)) throw error;
+        }
 
         void this.analyticsModel
             .addChartViewEvent(

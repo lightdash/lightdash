@@ -13,9 +13,11 @@ import {
     DashboardTileTarget,
     Explore,
     ExploreError,
+    ExploreSplitError,
     ExploreType,
     FeatureFlags,
     ForbiddenError,
+    getExploreSplitCandidates,
     getFilterRules,
     getItemId,
     getUnusedDimensions,
@@ -380,6 +382,7 @@ export class ValidationService extends BaseService {
         >,
         selectedExplores?: (Explore | ExploreError)[],
         chartUuid?: string,
+        allExplores: (Explore | ExploreError)[] = selectedExplores ?? [],
     ): Promise<CreateChartValidation[]> {
         const charts = await this.savedChartModel.findChartsForValidation(
             projectUuid,
@@ -418,6 +421,27 @@ export class ValidationService extends BaseService {
                     chartConfig,
                     pivotDimensions,
                 }) => {
+                    const splitCandidates = getExploreSplitCandidates(
+                        tableName,
+                        allExplores,
+                    );
+                    if (splitCandidates.length >= 2) {
+                        const splitError = new ExploreSplitError(
+                            tableName,
+                            splitCandidates,
+                        );
+                        return [
+                            {
+                                chartUuid: uuid,
+                                name,
+                                projectUuid,
+                                source: ValidationSourceType.Chart,
+                                chartName: name,
+                                errorType: ValidationErrorType.ExploreSplit,
+                                error: splitError.message,
+                            },
+                        ];
+                    }
                     const availableDimensionIds =
                         exploreFields[tableName]?.dimensionIds || [];
                     const availableCustomDimensionIds = [
@@ -1099,6 +1123,8 @@ export class ValidationService extends BaseService {
                       projectUuid,
                       exploreFields,
                       onlyValidateExploresInArgs ? compiledExplores : undefined,
+                      undefined,
+                      explores,
                   )
                 : [];
 
