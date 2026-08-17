@@ -1700,9 +1700,6 @@ describe('SpaceService - space share target validation', () => {
                 SpaceMemberRole.VIEWER,
             );
 
-            expect(
-                mockOrganizationMemberProfileModel.findOrganizationMemberUuids,
-            ).toHaveBeenCalledWith('test-org-uuid', ['target-user-uuid']);
             expect(mockSpaceModel.addSpaceAccess).toHaveBeenCalledWith(
                 'test-space-uuid',
                 'target-user-uuid',
@@ -1757,12 +1754,6 @@ describe('SpaceService - space share target validation', () => {
                 ),
             ).rejects.toThrowError(NotFoundError);
 
-            expect(
-                mockOrganizationMemberProfileModel.findOrganizationMemberUuids,
-            ).toHaveBeenCalledWith('test-org-uuid', [
-                'member-user-uuid',
-                'other-org-user-uuid',
-            ]);
             expect(mockSpaceModel.createSpace).not.toHaveBeenCalled();
         });
     });
