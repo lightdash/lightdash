@@ -1,0 +1,163 @@
+import {
+    DimensionType,
+    getDimensions,
+    getItemId,
+    getMetrics,
+    isExploreError,
+    ParameterError,
+    QuerySourceType,
+    type MetricQuery,
+    type QuerySourceDefinition,
+    type QuerySourceSchema,
+    type QuerySourceSchemaColumn,
+    type SemanticLayerSourceQuery,
+    type SourceQuery,
+} from '@lightdash/common';
+import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import type { AsyncQueryService } from '../../AsyncQueryService/AsyncQueryService';
+import type { ProjectService } from '../../ProjectService/ProjectService';
+import type {
+    QuerySourceClient,
+    ScanSchemaArgs,
+    SubmitSourceQueryArgs,
+} from '../types';
+
+type SemanticLayerQuerySourceArguments = {
+    asyncQueryService: AsyncQueryService;
+    projectService: ProjectService;
+    projectModel: ProjectModel;
+};
+
+/**
+ * The project's semantic layer as a query source: explores are the tables,
+ * their dimensions and metrics are the columns, and queries are metric
+ * queries compiled through the explore.
+ */
+export class SemanticLayerQuerySource implements QuerySourceClient {
+    readonly definition: QuerySourceDefinition = {
+        sourceType: QuerySourceType.SEMANTIC_LAYER,
+        label: 'Semantic layer',
+        description:
+            'Metric queries against the explores of this project. Tables are explores; columns are their dimensions and metrics, referenced by field id.',
+    };
+
+    private readonly asyncQueryService: AsyncQueryService;
+
+    private readonly projectService: ProjectService;
+
+    private readonly projectModel: ProjectModel;
+
+    constructor(args: SemanticLayerQuerySourceArguments) {
+        this.asyncQueryService = args.asyncQueryService;
+        this.projectService = args.projectService;
+        this.projectModel = args.projectModel;
+    }
+
+    private static assertSourceQuery(
+        query: SourceQuery,
+    ): SemanticLayerSourceQuery {
+        if (query.sourceType !== QuerySourceType.SEMANTIC_LAYER) {
+            throw new ParameterError(
+                `Expected a ${QuerySourceType.SEMANTIC_LAYER} query, got "${query.sourceType}"`,
+            );
+        }
+        return query;
+    }
+
+    async scanSchema({
+        account,
+        projectUuid,
+    }: ScanSchemaArgs): Promise<QuerySourceSchema> {
+        // Applies view-project authorization and user-attribute filtering
+        const summaries = await this.projectService.getAllExploresSummary(
+            account,
+            projectUuid,
+            true,
+            false,
+        );
+
+        const explores = await this.projectModel.findExploresFromCache(
+            projectUuid,
+            'name',
+            summaries.map((summary) => summary.name),
+        );
+
+        const tables = summaries.map((summary) => {
+            const explore = explores[summary.name];
+            const columns: QuerySourceSchemaColumn[] =
+                explore === undefined || isExploreError(explore)
+                    ? []
+                    : [
+                          ...getDimensions(explore)
+                              .filter((dimension) => !dimension.hidden)
+                              .map((dimension) => ({
+                                  reference: getItemId(dimension),
+                                  type: dimension.type,
+                                  label: dimension.label ?? null,
+                                  description: dimension.description ?? null,
+                              })),
+                          // Metrics are aggregations, so they surface as numbers
+                          ...getMetrics(explore)
+                              .filter((metric) => !metric.hidden)
+                              .map((metric) => ({
+                                  reference: getItemId(metric),
+                                  type: DimensionType.NUMBER,
+                                  label: metric.label ?? null,
+                                  description: metric.description ?? null,
+                              })),
+                      ];
+
+            return {
+                reference: summary.name,
+                label: summary.label ?? null,
+                description: summary.description ?? null,
+                columns,
+            };
+        });
+
+        return {
+            sourceType: QuerySourceType.SEMANTIC_LAYER,
+            tables,
+        };
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    getQueryReferences(): string[] {
+        return [];
+    }
+
+    async submitQuery({
+        account,
+        projectUuid,
+        context,
+        query,
+    }: SubmitSourceQueryArgs): Promise<{ queryUuid: string }> {
+        const sourceQuery = SemanticLayerQuerySource.assertSourceQuery(query);
+        const request = sourceQuery.query;
+
+        const metricQuery: MetricQuery = {
+            exploreName: request.exploreName,
+            dimensions: request.dimensions,
+            metrics: request.metrics,
+            filters: request.filters,
+            sorts: request.sorts,
+            limit: request.limit,
+            tableCalculations: request.tableCalculations,
+            additionalMetrics: request.additionalMetrics,
+            customDimensions: request.customDimensions,
+            timezone: request.timezone,
+            pivotDimensions: request.pivotDimensions,
+            metricOverrides: request.metricOverrides,
+            dimensionOverrides: request.dimensionOverrides,
+        };
+
+        const results = await this.asyncQueryService.executeAsyncMetricQuery({
+            account,
+            projectUuid,
+            metricQuery,
+            context,
+        });
+
+        return { queryUuid: results.queryUuid };
+    }
+}

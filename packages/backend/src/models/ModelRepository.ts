@@ -46,6 +46,7 @@ import { ProjectDbtSourcesModel } from './ProjectDbtSourcesModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
 import { ProjectParametersModel } from './ProjectParametersModel';
 import { PullRequestsModel } from './PullRequestsModel';
+import { QueryDagModel } from './QueryDagModel/QueryDagModel';
 import { QueryHistoryModel } from './QueryHistoryModel/QueryHistoryModel';
 import { ResourceViewItemModel } from './ResourceViewItemModel';
 import { RolesModel } from './RolesModel';
@@ -148,6 +149,7 @@ export type ModelManifest = {
     featureFlagModel: FeatureFlagModel;
     spotlightTableConfigModel: SpotlightTableConfigModel;
     queryHistoryModel: QueryHistoryModel;
+    queryDagModel: QueryDagModel;
     preAggregateModel: PreAggregateModel;
     preAggregateDailyStatsModel: PreAggregateDailyStatsModel;
     projectParametersModel: ProjectParametersModel;
@@ -940,6 +942,13 @@ export class ModelRepository
         return this.getModel(
             'queryHistoryModel',
             () => new QueryHistoryModel({ database: this.database }),
+        );
+    }
+
+    public getQueryDagModel(): QueryDagModel {
+        return this.getModel(
+            'queryDagModel',
+            () => new QueryDagModel({ database: this.database }),
         );
     }
 

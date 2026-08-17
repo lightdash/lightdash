@@ -1,0 +1,130 @@
+import { subject } from '@casl/ability';
+import {
+    ForbiddenError,
+    ParameterError,
+    QuerySourceType,
+    type QuerySourceDefinition,
+    type QuerySourceSchema,
+    type QuerySourceSchemaTable,
+    type SourceQuery,
+    type SqlSourceQuery,
+} from '@lightdash/common';
+import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import type { WarehouseAvailableTablesModel } from '../../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
+import type { AsyncQueryService } from '../../AsyncQueryService/AsyncQueryService';
+import { BaseService } from '../../BaseService';
+import type {
+    QuerySourceClient,
+    ScanSchemaArgs,
+    SubmitSourceQueryArgs,
+} from '../types';
+
+type SqlQuerySourceArguments = {
+    asyncQueryService: AsyncQueryService;
+    projectModel: ProjectModel;
+    warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
+};
+
+/**
+ * The project's data warehouse as a query source: raw SQL through the SQL
+ * runner pipeline. The schema scan lists tables from the cached warehouse
+ * catalog (populated when the SQL runner is used); column detail is not
+ * cached, so tables scan without columns.
+ */
+export class SqlQuerySource extends BaseService implements QuerySourceClient {
+    readonly definition: QuerySourceDefinition = {
+        sourceType: QuerySourceType.SQL,
+        label: 'Warehouse SQL',
+        description:
+            'Raw SQL against the project data warehouse. Tables are referenced as database.schema.table in the SQL dialect of the warehouse.',
+    };
+
+    private readonly asyncQueryService: AsyncQueryService;
+
+    private readonly projectModel: ProjectModel;
+
+    private readonly warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
+
+    constructor(args: SqlQuerySourceArguments) {
+        super({ serviceName: 'SqlQuerySource' });
+        this.asyncQueryService = args.asyncQueryService;
+        this.projectModel = args.projectModel;
+        this.warehouseAvailableTablesModel = args.warehouseAvailableTablesModel;
+    }
+
+    private static assertSourceQuery(query: SourceQuery): SqlSourceQuery {
+        if (query.sourceType !== QuerySourceType.SQL) {
+            throw new ParameterError(
+                `Expected a ${QuerySourceType.SQL} query, got "${query.sourceType}"`,
+            );
+        }
+        return query;
+    }
+
+    async scanSchema({
+        account,
+        projectUuid,
+    }: ScanSchemaArgs): Promise<QuerySourceSchema> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        // Same gate as the SQL runner catalog endpoints
+        const ability = this.createAuditedAbility(account);
+        if (
+            ability.cannot(
+                'manage',
+                subject('SqlRunner', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const catalog =
+            await this.warehouseAvailableTablesModel.getTablesForProjectWarehouseCredentials(
+                projectUuid,
+            );
+
+        const tables: QuerySourceSchemaTable[] = Object.entries(
+            catalog ?? {},
+        ).flatMap(([database, schemas]) =>
+            Object.entries(schemas).flatMap(([schemaName, schemaTables]) =>
+                Object.keys(schemaTables).map((tableName) => ({
+                    reference: `${database}.${schemaName}.${tableName}`,
+                    label: tableName,
+                    description: null,
+                    columns: [],
+                })),
+            ),
+        );
+
+        return {
+            sourceType: QuerySourceType.SQL,
+            tables,
+        };
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    getQueryReferences(): string[] {
+        return [];
+    }
+
+    async submitQuery({
+        account,
+        projectUuid,
+        context,
+        query,
+    }: SubmitSourceQueryArgs): Promise<{ queryUuid: string }> {
+        const sourceQuery = SqlQuerySource.assertSourceQuery(query);
+
+        const results = await this.asyncQueryService.executeAsyncSqlQuery({
+            account,
+            projectUuid,
+            sql: sourceQuery.sql,
+            limit: sourceQuery.limit,
+            invalidateCache: false,
+            context,
+        });
+
+        return { queryUuid: results.queryUuid };
+    }
+}

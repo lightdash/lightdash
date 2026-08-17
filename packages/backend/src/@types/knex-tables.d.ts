@@ -240,6 +240,12 @@ import {
     PullRequestsTableName,
 } from '../database/entities/pullRequests';
 import {
+    QueryDagNodesTable,
+    QueryDagNodesTableName,
+    QueryDagsTable,
+    QueryDagsTableName,
+} from '../database/entities/queryDags';
+import {
     QueryHistoryTable,
     QueryHistoryTableName,
 } from '../database/entities/queryHistory';
@@ -711,6 +717,8 @@ declare module 'knex/types/tables' {
         [OrganizationDesignFilesTableName]: OrganizationDesignFilesTable;
         [OrganizationWarehouseCredentialsTableName]: OrganizationWarehouseCredentialsTable;
         [QueryHistoryTableName]: QueryHistoryTable;
+        [QueryDagsTableName]: QueryDagsTable;
+        [QueryDagNodesTableName]: QueryDagNodesTable;
         [PreAggregateDefinitionsTableName]: PreAggregateDefinitionsTable;
         [PreAggregateDailyStatsTableName]: PreAggregateDailyStatsTable;
         [PreAggregateMaterializationsTableName]: PreAggregateMaterializationsTable;

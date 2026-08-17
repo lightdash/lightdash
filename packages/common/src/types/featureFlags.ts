@@ -329,6 +329,15 @@ export enum FeatureFlags {
      * PREVIEW_ENABLED_FEATURE_FLAGS.
      */
     ComposeSqlRunner = 'compose-sql-runner',
+
+    /**
+     * Enable the multi-source query endpoints
+     * (/api/v2/projects/{projectUuid}/query-sources/*): source discovery,
+     * schema scans, single source-query submission and DAG execution. Off by
+     * default; on in preview/dev environments via
+     * PREVIEW_ENABLED_FEATURE_FLAGS.
+     */
+    MultiSourceQuery = 'multi-source-query',
 }
 
 export type FeatureFlag = {
