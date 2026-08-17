@@ -61,10 +61,31 @@ export class SearchService extends BaseService {
         this.appGenerateService = args.appGenerateService;
     }
 
+    // Verified matches are fetched through a dedicated capped query so they
+    // are never crowded out of the per-type result caps by unverified matches.
+    private static async searchReservingVerified<T extends { uuid: string }>(
+        verifiedOnly: boolean,
+        search: (opts: { verifiedOnly: boolean }) => Promise<T[]>,
+    ): Promise<T[]> {
+        if (verifiedOnly) {
+            return search({ verifiedOnly: true });
+        }
+        const [allResults, verifiedResults] = await Promise.all([
+            search({ verifiedOnly: false }),
+            search({ verifiedOnly: true }),
+        ]);
+        const seenUuids = new Set(allResults.map((result) => result.uuid));
+        return [
+            ...allResults,
+            ...verifiedResults.filter((result) => !seenUuids.has(result.uuid)),
+        ];
+    }
+
     async findContent(
         user: SessionUser,
         projectUuid: string,
         query: string,
+        verifiedOnly: boolean,
     ): Promise<{
         content: (DashboardSearchResult | AllChartsSearchResult)[];
     }> {
@@ -85,18 +106,22 @@ export class SearchService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const dashboardSearchResults = await this.searchModel.searchDashboards(
-            projectUuid,
-            query,
-            undefined,
-            'OR',
-        );
-
-        const chartSearchResults = await this.searchModel.searchAllCharts(
-            projectUuid,
-            query,
-            'OR',
-        );
+        const [dashboardSearchResults, chartSearchResults] = await Promise.all([
+            SearchService.searchReservingVerified(verifiedOnly, (opts) =>
+                this.searchModel.searchDashboards(
+                    projectUuid,
+                    query,
+                    undefined,
+                    { fullTextSearchOperator: 'OR', ...opts },
+                ),
+            ),
+            SearchService.searchReservingVerified(verifiedOnly, (opts) =>
+                this.searchModel.searchAllCharts(projectUuid, query, {
+                    fullTextSearchOperator: 'OR',
+                    ...opts,
+                }),
+            ),
+        ]);
 
         const allContent = [
             ...dashboardSearchResults,

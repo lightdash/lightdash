@@ -841,10 +841,7 @@ export const getAgentTools = (
                     agentName: args.agentSettings.name,
                     threadId: args.threadUuid,
                     promptId: args.promptUuid,
-                    searchQuery: coverage.searchQuery,
-                    totalResultCount: coverage.totalResultCount,
-                    verifiedResultCount: coverage.verifiedResultCount,
-                    topResultVerified: coverage.topResultVerified,
+                    ...coverage,
                 },
             });
         },

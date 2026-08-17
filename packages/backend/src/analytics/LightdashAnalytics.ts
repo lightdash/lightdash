@@ -2879,6 +2879,14 @@ export type AiAgentArtifactsRetrievedEvent = BaseTrack & {
     };
 };
 
+export type AiAgentFindContentCoverage = {
+    searchQuery: string;
+    totalResultCount: number;
+    verifiedResultCount: number;
+    topResultVerified: boolean;
+    verifiedOnly: boolean;
+};
+
 export type AiAgentFindContentCoverageEvent = BaseTrack & {
     event: 'ai_agent.find_content_coverage';
     userId: string;
@@ -2889,11 +2897,7 @@ export type AiAgentFindContentCoverageEvent = BaseTrack & {
         agentName: string;
         threadId: string;
         promptId: string;
-        searchQuery: string;
-        totalResultCount: number;
-        verifiedResultCount: number;
-        topResultVerified: boolean;
-    };
+    } & AiAgentFindContentCoverage;
 };
 
 export type AiAgentSuggestionsGeneratedEvent = BaseTrack & {

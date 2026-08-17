@@ -29,6 +29,7 @@ import {
     AppsTableName,
     AppVersionsTableName,
 } from '../../database/entities/apps';
+import { ContentVerificationTableName } from '../../database/entities/contentVerification';
 import {
     DashboardsTableName,
     DashboardTabsTableName,
@@ -62,6 +63,11 @@ type SearchModelArguments = {
 };
 
 const SEARCH_LIMIT_PER_ITEM_TYPE = 10;
+
+export type SearchContentOptions = {
+    fullTextSearchOperator?: 'OR' | 'AND';
+    verifiedOnly?: boolean;
+};
 
 export class SearchModel {
     private database: Knex;
@@ -132,11 +138,30 @@ export class SearchModel {
             .limit(10);
     }
 
+    // Applied inside the ranked subqueries so verified items compete for
+    // the result cap among themselves, not against unverified matches.
+    private verifiedContentExists(
+        projectUuid: string,
+        contentType: ContentType,
+        contentUuidColumn: string,
+    ) {
+        return this.database(ContentVerificationTableName)
+            .select(this.database.raw('1'))
+            .where(`${ContentVerificationTableName}.project_uuid`, projectUuid)
+            .where(`${ContentVerificationTableName}.content_type`, contentType)
+            .whereRaw(
+                `${ContentVerificationTableName}.content_uuid = ${contentUuidColumn}`,
+            );
+    }
+
     async searchDashboards(
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
-        fullTextSearchOperator: 'OR' | 'AND' = 'AND',
+        {
+            fullTextSearchOperator = 'AND',
+            verifiedOnly = false,
+        }: SearchContentOptions = {},
     ): Promise<DashboardSearchResult[]> {
         if (!shouldSearchForType(SearchItemType.DASHBOARD, filters?.type)) {
             return [];
@@ -332,6 +357,16 @@ export class SearchModel {
             },
             filters,
         );
+
+        if (verifiedOnly) {
+            subquery = subquery.whereExists(
+                this.verifiedContentExists(
+                    projectUuid,
+                    ContentType.DASHBOARD,
+                    `${DashboardsTableName}.dashboard_uuid`,
+                ),
+            );
+        }
 
         const dashboards = await this.database(DashboardsTableName)
             .select()
@@ -1157,7 +1192,10 @@ export class SearchModel {
     async searchAllCharts(
         projectUuid: string,
         query: string,
-        fullTextSearchOperator: 'OR' | 'AND' = 'AND',
+        {
+            fullTextSearchOperator = 'AND',
+            verifiedOnly = false,
+        }: SearchContentOptions = {},
     ): Promise<Array<AllChartsSearchResult>> {
         const savedChartsSearchRankRawSql = getFullTextSearchRankCalcSql({
             database: this.database,
@@ -1344,6 +1382,23 @@ export class SearchModel {
             .whereNull(`${SavedSqlTableName}.deleted_at`)
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .whereRaw(savedSqlSearchFilterSql);
+
+        if (verifiedOnly) {
+            savedChartsSubquery.whereExists(
+                this.verifiedContentExists(
+                    projectUuid,
+                    ContentType.CHART,
+                    `${SavedChartsTableName}.saved_query_uuid`,
+                ),
+            );
+            savedSqlSubquery.whereExists(
+                this.verifiedContentExists(
+                    projectUuid,
+                    ContentType.CHART,
+                    `${SavedSqlTableName}.saved_sql_uuid`,
+                ),
+            );
+        }
 
         // Type-safe union by ensuring both subqueries have identical column structure
         const unionQuery = this.database

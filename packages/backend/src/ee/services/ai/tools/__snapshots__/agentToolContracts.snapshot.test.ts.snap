@@ -1129,6 +1129,7 @@ Usage tips:
 - The search engine understands natural language and context — more descriptive queries yield better results.
 - You can provide multiple search queries to look for different topics simultaneously (e.g., ["monthly revenue", "user acquisition trends"]).
 - Pass spaceSlug to search only inside that space and its descendants.
+- verifiedOnly=true searches only admin-verified charts/dashboards (spaces omitted). Verification is a status, not text — search topic keywords, never the word "verified". If nothing verified matches, the result is empty; verified content may still exist under other terms, so never claim the project has none from one query. Re-run with verifiedOnly=false only if unverified content is acceptable.
 - If results aren't relevant, retry with the full user query or more specific terms.
 - Dashboards with validation errors will be deprioritized.
 - Returns space breadcrumb/path metadata and chart/dashboard URLs when available.
@@ -1158,6 +1159,13 @@ Usage tips:
           "description": "Optional space slug/path. Use null to search the whole project. When set, only content in this space and descendants is returned.",
           "type": [
             "string",
+            "null",
+          ],
+        },
+        "verifiedOnly": {
+          "description": "Set to true to search only admin-verified charts and dashboards. Null or false searches all content.",
+          "type": [
+            "boolean",
             "null",
           ],
         },
