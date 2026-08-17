@@ -717,14 +717,6 @@ export const useColumns = (): TableColumn[] => {
                                                         provenanceStyles.source
                                                     }
                                                 >
-                                                    <span
-                                                        className={
-                                                            provenanceStyles.dot
-                                                        }
-                                                        data-side={
-                                                            mergeOrigin.sourceId
-                                                        }
-                                                    />
                                                     {item.tableLabel}
                                                 </span>
                                             ) : (
