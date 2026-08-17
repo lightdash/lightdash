@@ -1,6 +1,7 @@
 import {
     ForbiddenError,
     ParameterError,
+    ProjectType,
     type ExternalConnection,
 } from '@lightdash/common';
 import { fromJwt } from '../../../auth/account';
@@ -120,6 +121,12 @@ function buildService(opts: {
         resolveAppAlias: vi.fn().mockResolvedValue(opts.connection),
         getDecryptedSecret: vi.fn().mockResolvedValue(opts.secret ?? null),
         incrementRateCounter: vi.fn().mockResolvedValue(opts.rateCount ?? 1),
+        findProjectAbilityContext: vi.fn().mockResolvedValue({
+            organizationUuid: 'org-1',
+            projectType: ProjectType.DEFAULT,
+            projectCreatedByUserUuid: null,
+            upstreamProjectUuid: null,
+        }),
     };
     const googleTokenProvider = {
         getAccessToken: vi

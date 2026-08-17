@@ -2903,4 +2903,183 @@ describe('scopeAbilityBuilder', () => {
             expect(ability.rules.length).toBe(0);
         });
     });
+    describe('data app preview scopes', () => {
+        const buildDataAppAbility = (scopes: string[]) => {
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            buildAbilityFromScopes({ ...baseContext, scopes }, builder);
+            return builder.build();
+        };
+
+        const ownPreviewFromDirectProject = {
+            organizationUuid: 'org-123',
+            projectUuid: 'project-123',
+            upstreamProjectUuid: 'upstream-project',
+            projectType: ProjectType.PREVIEW,
+            projectCreatedByUserUuid: 'user1',
+        };
+        const ownPreviewFromUpstreamProject = {
+            organizationUuid: 'org-123',
+            projectUuid: 'preview-123',
+            upstreamProjectUuid: 'project-123',
+            projectType: ProjectType.PREVIEW,
+            projectCreatedByUserUuid: 'user1',
+        };
+        const ownProduction = {
+            organizationUuid: 'org-123',
+            projectUuid: 'project-123',
+            upstreamProjectUuid: null,
+            projectType: ProjectType.DEFAULT,
+            projectCreatedByUserUuid: 'user1',
+        };
+        const othersPreview = {
+            organizationUuid: 'org-123',
+            projectUuid: 'preview-123',
+            upstreamProjectUuid: 'project-123',
+            projectType: ProjectType.PREVIEW,
+            projectCreatedByUserUuid: 'another-user',
+        };
+
+        it('create:DataApp@preview only reaches previews the user created', () => {
+            const ability = buildDataAppAbility(['create:DataApp@preview']);
+
+            expect(
+                ability.can(
+                    'create',
+                    subject('DataApp', ownPreviewFromDirectProject),
+                ),
+            ).toBe(true);
+            expect(
+                ability.can(
+                    'create',
+                    subject('DataApp', ownPreviewFromUpstreamProject),
+                ),
+            ).toBe(true);
+
+            expect(
+                ability.can('create', subject('DataApp', ownProduction)),
+            ).toBe(false);
+            expect(
+                ability.can('create', subject('DataApp', othersPreview)),
+            ).toBe(false);
+        });
+
+        it('manage:DataApp@preview lets the user iterate on apps inside their own preview', () => {
+            const ability = buildDataAppAbility(['manage:DataApp@preview']);
+
+            expect(
+                ability.can(
+                    'manage',
+                    subject('DataApp', {
+                        ...ownPreviewFromDirectProject,
+                        createdByUserUuid: 'user1',
+                    }),
+                ),
+            ).toBe(true);
+
+            expect(
+                ability.can(
+                    'manage',
+                    subject('DataApp', {
+                        ...ownProduction,
+                        createdByUserUuid: 'user1',
+                    }),
+                ),
+            ).toBe(false);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('DataApp', {
+                        ...othersPreview,
+                        createdByUserUuid: 'user1',
+                    }),
+                ),
+            ).toBe(false);
+        });
+
+        it('keeps project ownership separate from app ownership', () => {
+            const ability = buildDataAppAbility(['manage:DataApp@self']);
+
+            expect(
+                ability.can(
+                    'manage',
+                    subject('DataApp', ownPreviewFromDirectProject),
+                ),
+            ).toBe(false);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('DataApp', {
+                        ...ownPreviewFromDirectProject,
+                        createdByUserUuid: 'user1',
+                    }),
+                ),
+            ).toBe(true);
+        });
+
+        it('the preview scopes do not grant the production create/manage rules', () => {
+            const ability = buildDataAppAbility([
+                'create:DataApp@preview',
+                'manage:DataApp@preview',
+            ]);
+
+            expect(
+                ability.can(
+                    'create',
+                    subject('DataApp', {
+                        organizationUuid: 'org-123',
+                        projectUuid: 'project-123',
+                    }),
+                ),
+            ).toBe(false);
+        });
+
+        it('create:DataApp still covers production and previews alike', () => {
+            const ability = buildDataAppAbility(['create:DataApp']);
+
+            expect(
+                ability.can('create', subject('DataApp', ownProduction)),
+            ).toBe(true);
+            expect(
+                ability.can(
+                    'create',
+                    subject('DataApp', ownPreviewFromDirectProject),
+                ),
+            ).toBe(true);
+        });
+
+        it('grants nothing for org-level assignments outside the user own previews', () => {
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            buildAbilityFromScopes(
+                {
+                    ...baseContextWithOrg,
+                    scopes: ['create:DataApp@preview'],
+                },
+                builder,
+            );
+            const ability = builder.build();
+
+            expect(
+                ability.can(
+                    'create',
+                    subject('DataApp', {
+                        organizationUuid: 'org-123',
+                        projectUuid: 'preview-123',
+                        projectType: ProjectType.PREVIEW,
+                        projectCreatedByUserUuid: 'user1',
+                    }),
+                ),
+            ).toBe(true);
+            expect(
+                ability.can(
+                    'create',
+                    subject('DataApp', {
+                        organizationUuid: 'org-123',
+                        projectUuid: 'preview-123',
+                        projectType: ProjectType.PREVIEW,
+                        projectCreatedByUserUuid: 'another-user',
+                    }),
+                ),
+            ).toBe(false);
+        });
+    });
 });
