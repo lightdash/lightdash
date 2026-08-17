@@ -627,16 +627,21 @@ describe('AiAgentAdminService review access', () => {
 });
 
 describe('AiAgentAdminService.getAllMemories', () => {
-    it('rejects when AI agent memory is disabled', async () => {
+    it('lists stored memories even when AI agent memory is disabled', async () => {
+        const findAdminMemoriesPaginated = vi
+            .fn()
+            .mockResolvedValue({ data: { memories: [] } });
         const service = makeService({
+            aiAgentMemoryModel: { findAdminMemoriesPaginated },
             aiOrganizationSettingsService: {
                 isAiAgentMemoryEnabled: vi.fn().mockResolvedValue(false),
             },
         });
 
-        await expect(service.getAllMemories(makeAdminUser())).rejects.toThrow(
-            'AI agent memory is not enabled',
-        );
+        await expect(service.getAllMemories(makeAdminUser())).resolves.toEqual({
+            data: { memories: [] },
+        });
+        expect(findAdminMemoriesPaginated).toHaveBeenCalled();
     });
 
     it('rejects principals without manage access to any project', async () => {

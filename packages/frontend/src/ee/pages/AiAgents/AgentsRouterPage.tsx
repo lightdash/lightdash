@@ -46,7 +46,6 @@ import { useAiAgentModelSelection } from '../../features/aiCopilot/hooks/useAiAg
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentRouterFlow } from '../../features/aiCopilot/hooks/useAiAgentRouterFlow';
 import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
-import { useAiAgentMemoryEnabled } from '../../features/aiCopilot/hooks/useAiOrganizationSettings';
 import { usePinnedContext } from '../../features/aiCopilot/hooks/usePinnedContext';
 import {
     useCreateAgentThreadMutation,
@@ -76,7 +75,6 @@ const AgentsRouterPage = () => {
 
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [isMemoriesModalOpen, setIsMemoriesModalOpen] = useState(false);
-    const memoryEnabled = useAiAgentMemoryEnabled();
 
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
     const chartUuid = searchParams.get('chartUuid');
@@ -301,22 +299,20 @@ const AgentsRouterPage = () => {
         >
             <Box className={classes.routerView}>
                 <Group gap={4} className={classes.routerActions}>
-                    {memoryEnabled && (
-                        <UnstyledButton
-                            type="button"
-                            className={classes.memoriesButton}
-                            onClick={() => setIsMemoriesModalOpen(true)}
-                        >
-                            <Group gap={6} wrap="nowrap" align="center">
-                                <MantineIcon
-                                    icon={IconNotebook}
-                                    size="sm"
-                                    color="ldGray.6"
-                                />
-                                <Text size="xs">Memories</Text>
-                            </Group>
-                        </UnstyledButton>
-                    )}
+                    <UnstyledButton
+                        type="button"
+                        className={classes.memoriesButton}
+                        onClick={() => setIsMemoriesModalOpen(true)}
+                    >
+                        <Group gap={6} wrap="nowrap" align="center">
+                            <MantineIcon
+                                icon={IconNotebook}
+                                size="sm"
+                                color="ldGray.6"
+                            />
+                            <Text size="xs">Memories</Text>
+                        </Group>
+                    </UnstyledButton>
                     {canManageAgents && (
                         <AgentSettingsSelector
                             agents={agents ?? []}

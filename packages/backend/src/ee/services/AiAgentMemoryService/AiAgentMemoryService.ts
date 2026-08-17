@@ -547,11 +547,18 @@ export class AiAgentMemoryService extends BaseService {
         }
     }
 
-    /** Shared gate for every memory read: project access + both feature flags. */
+    /**
+     * Shared gate for every memory endpoint: project access + copilot flag.
+     * `requireMemoryEnabled` additionally gates on the org memory setting —
+     * generation-adjacent paths (promotion, manual distill) pass true; pure
+     * read/manage paths pass false so stored memories stay reachable after an
+     * org disables memory generation.
+     */
     private async getMemoryAccessContext(
         user: SessionUser,
         projectUuid: string,
         notFoundMessage: string,
+        options: { requireMemoryEnabled: boolean },
     ): Promise<string> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -571,7 +578,10 @@ export class AiAgentMemoryService extends BaseService {
             }),
             this.aiOrganizationSettingsService.isAiAgentMemoryEnabled(user),
         ]);
-        if (!copilot.enabled || !memoryEnabled) {
+        if (
+            !copilot.enabled ||
+            (options.requireMemoryEnabled && !memoryEnabled)
+        ) {
             throw new NotFoundError(notFoundMessage);
         }
 
@@ -609,6 +619,7 @@ export class AiAgentMemoryService extends BaseService {
             user,
             projectUuid,
             `Memory not found: ${slug}`,
+            { requireMemoryEnabled: false },
         );
 
         const result = await this.aiAgentMemoryModel.findByProjectAndSlug({
@@ -736,6 +747,7 @@ export class AiAgentMemoryService extends BaseService {
             user,
             projectUuid,
             `Memory not found: ${memoryUuid}`,
+            { requireMemoryEnabled: true },
         );
         const memory = await this.requireReadableMemory(
             user,
@@ -906,6 +918,7 @@ export class AiAgentMemoryService extends BaseService {
             user,
             projectUuid,
             `Memories not found for project: ${projectUuid}`,
+            { requireMemoryEnabled: false },
         );
 
         return this.aiAgentMemoryModel.findUserMemoriesPaginated({
@@ -926,6 +939,7 @@ export class AiAgentMemoryService extends BaseService {
             user,
             projectUuid,
             `Memory not found: ${memoryUuid}`,
+            { requireMemoryEnabled: false },
         );
         const memory = await this.requireReadableMemory(
             user,
@@ -1015,6 +1029,7 @@ export class AiAgentMemoryService extends BaseService {
             user,
             projectUuid,
             notFoundMessage,
+            { requireMemoryEnabled: true },
         );
 
         if (

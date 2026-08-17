@@ -149,6 +149,7 @@ describe('AiAgentMemoryService', () => {
 
     const build = ({
         enabledOrganization = 'org-enabled',
+        memorySettingEnabled = true,
         consolidationDryRun = false,
     } = {}) => {
         const getFlag = vi.fn(async ({ user, featureFlagId }) => ({
@@ -274,13 +275,11 @@ describe('AiAgentMemoryService', () => {
             userModel: { findSessionUserAndOrgByUuid } as AnyType,
             featureFlagService: { get: getFlag } as AnyType,
             aiOrganizationSettingsService: {
-                isAiAgentMemoryEnabled: async (user) =>
-                    (
-                        await getFlag({
-                            user,
-                            featureFlagId: FeatureFlags.AiAgentMemory,
-                        })
-                    ).enabled,
+                isAiAgentMemoryEnabled: async (user: {
+                    organizationUuid?: string;
+                }) =>
+                    memorySettingEnabled &&
+                    user.organizationUuid === enabledOrganization,
                 isAiAgentReviewsEnabled: vi.fn().mockResolvedValue(true),
             },
             schedulerClient: {
@@ -490,6 +489,73 @@ describe('AiAgentMemoryService', () => {
             memoryUuid: 'memory-1',
             status: 'retired',
         });
+    });
+
+    it('keeps stored memories readable and retirable when the org memory setting is off', async () => {
+        const {
+            service,
+            findByProjectAndSlug,
+            findByProjectAndUuid,
+            findUserMemoriesPaginated,
+            updateStatus,
+        } = build({ memorySettingEnabled: false });
+        findByProjectAndSlug.mockResolvedValue({
+            memory: memoryRow({ user_uuid: 'current-user' }),
+            sources: [lineageSource()],
+            replacement: null,
+        });
+        findByProjectAndUuid.mockResolvedValue(
+            memoryRow({ user_uuid: 'current-user' }),
+        );
+        const user = buildUser(true);
+
+        await expect(
+            service.getMemory(user, 'project-enabled', 'net-revenue-ab12cd34'),
+        ).resolves.toMatchObject({ slug: 'net-revenue-ab12cd34' });
+        await expect(
+            service.listMyMemories(user, 'project-enabled', {
+                page: 1,
+                pageSize: 50,
+            }),
+        ).resolves.toBeDefined();
+        expect(findUserMemoriesPaginated).toHaveBeenCalled();
+        await expect(
+            service.updateMemoryStatus(
+                user,
+                'project-enabled',
+                'memory-1',
+                'retired',
+            ),
+        ).resolves.toBeUndefined();
+        expect(updateStatus).toHaveBeenCalledWith({
+            memoryUuid: 'memory-1',
+            status: 'retired',
+        });
+    });
+
+    it('rejects promotion and manual distill when the org memory setting is off', async () => {
+        const { service, findByProjectAndUuid, aiAgentMemoryDistill } = build({
+            memorySettingEnabled: false,
+        });
+        findByProjectAndUuid.mockResolvedValue(
+            memoryRow({ user_uuid: 'current-user' }),
+        );
+
+        await expect(
+            service.promoteMemory(
+                buildUser(true),
+                'project-enabled',
+                'memory-1',
+            ),
+        ).rejects.toThrow(NotFoundError);
+        await expect(
+            service.triggerThreadDistill(
+                buildUser(true, { canManageAgents: true }),
+                'project-enabled',
+                'thread-enabled',
+            ),
+        ).rejects.toThrow(NotFoundError);
+        expect(aiAgentMemoryDistill).not.toHaveBeenCalled();
     });
 
     it('does not reactivate a memory when its source has a newer active memory', async () => {

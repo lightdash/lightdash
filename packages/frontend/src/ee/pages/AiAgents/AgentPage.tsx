@@ -254,11 +254,7 @@ const AgentPage = () => {
                                 : undefined
                         }
                         isSharing={isCreatingShare}
-                        onOpenMemories={
-                            memoryEnabled
-                                ? () => setIsMemoriesModalOpen(true)
-                                : undefined
-                        }
+                        onOpenMemories={() => setIsMemoriesModalOpen(true)}
                         onMinimize={() => handleMinimize()}
                         settingsHref={
                             canManageAgents
