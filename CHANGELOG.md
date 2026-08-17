@@ -1,3 +1,10 @@
+# [1.172.0](https://github.com/lightdash/lightdash/compare/1.171.1...1.172.0) (2026-08-17)
+
+
+### Features
+
+* **roles:** compose authorization from complete role sets ([#27503](https://github.com/lightdash/lightdash/issues/27503)) ([6a66de6](https://github.com/lightdash/lightdash/commit/6a66de66c34d95ea2514a90ce348b7aa80ac2608)), closes [#27502](https://github.com/lightdash/lightdash/issues/27502)
+
 ## [1.171.1](https://github.com/lightdash/lightdash/compare/1.171.0...1.171.1) (2026-08-17)
 
 
