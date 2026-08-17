@@ -784,7 +784,7 @@ If PM2 shows `MISMATCH`, delete this instance's processes first:
 # One name per call — `pm2 delete a b c` aborts at the first name it cannot
 # find (e.g. sdk-test on an instance that never ran SDK test mode), leaving
 # every later name running.
-for suffix in api scheduler frontend common-watch formula-watch warehouses-watch sdk-test maple; do
+for suffix in api api-routes-watch scheduler frontend common-watch formula-watch warehouses-watch sdk-test maple; do
   pm2 delete "${LD_INSTANCE_ID}-${suffix}" 2>/dev/null || true
 done
 ```
@@ -926,7 +926,7 @@ For permanent worktree removal, use `destroy` instead.
 # One name per call — `pm2 delete a b c` aborts at the first name it cannot
 # find (e.g. sdk-test on an instance that never ran SDK test mode), leaving
 # every later name running.
-for suffix in api scheduler frontend common-watch formula-watch warehouses-watch sdk-test maple; do
+for suffix in api api-routes-watch scheduler frontend common-watch formula-watch warehouses-watch sdk-test maple; do
   pm2 delete "${LD_INSTANCE_ID}-${suffix}" 2>/dev/null || true
 done
 
@@ -943,7 +943,7 @@ Permanently remove this instance's services, PostgreSQL volumes, and port slot. 
 
 ```bash
 # One name per call — see the note under `stop`.
-for suffix in api scheduler frontend common-watch formula-watch warehouses-watch sdk-test maple; do
+for suffix in api api-routes-watch scheduler frontend common-watch formula-watch warehouses-watch sdk-test maple; do
   pm2 delete "${LD_INSTANCE_ID}-${suffix}" 2>/dev/null || true
 done
 
@@ -972,7 +972,7 @@ for f in ~/.lightdash/dev-instances/*.json; do
   [ -f "$f" ] || continue
   INST_ID=$(python3 -c "import json; print(json.load(open('$f'))['instanceId'])")
   # One name per call — see the note under `stop`.
-  for suffix in api scheduler frontend common-watch formula-watch warehouses-watch sdk-test maple; do
+  for suffix in api api-routes-watch scheduler frontend common-watch formula-watch warehouses-watch sdk-test maple; do
     pm2 delete "${INST_ID}-${suffix}" 2>/dev/null || true
   done
 done
