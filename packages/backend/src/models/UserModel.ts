@@ -47,6 +47,7 @@ import {
     EmailTableName,
 } from '../database/entities/emails';
 import { OpenIdIdentitiesTableName } from '../database/entities/openIdIdentities';
+import { OrganizationMembershipCustomRolesTableName } from '../database/entities/organizationMembershipCustomRoles';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import {
     DbOrganization,
@@ -58,6 +59,8 @@ import {
     PasswordLoginTableName,
 } from '../database/entities/passwordLogins';
 import { DbPersonalAccessToken } from '../database/entities/personalAccessTokens';
+import { ProjectGroupAccessCustomRolesTableName } from '../database/entities/projectGroupAccessCustomRoles';
+import { ProjectMembershipCustomRolesTableName } from '../database/entities/projectMembershipCustomRoles';
 import { ProjectMembershipsTableName } from '../database/entities/projectMemberships';
 import { ProjectTableName } from '../database/entities/projects';
 import { ScopedRolesTableName } from '../database/entities/roles';
@@ -692,6 +695,7 @@ export class UserModel {
         { trx = this.database }: { trx?: Knex } = {},
     ): Promise<ProjectAbilityProfile[]> {
         type Row = {
+            project_id: number;
             project_uuid: string;
             role: ProjectMemberRole | null;
             role_uuid: string | null;
@@ -706,6 +710,7 @@ export class UserModel {
             )
             .leftJoin('users', 'project_memberships.user_id', 'users.user_id')
             .select<Row[]>([
+                `${ProjectTableName}.project_id`,
                 `${ProjectTableName}.project_uuid`,
                 'project_memberships.role',
                 'project_memberships.role_uuid',
@@ -714,6 +719,12 @@ export class UserModel {
             ])
             .where('users.user_uuid', userUuid);
 
+        const extraRoleUuidsByProjectId = await this.getProjectExtraRoleUuids(
+            projectMemberships.map((m) => m.project_id),
+            userUuid,
+            trx,
+        );
+
         return projectMemberships.map((membership) => ({
             projectUuid: membership.project_uuid,
             role: membership.role || ProjectMemberRole.VIEWER,
@@ -721,7 +732,61 @@ export class UserModel {
             roleUuid: membership.role_uuid || undefined,
             projectType: membership.project_type,
             projectCreatedByUserUuid: membership.created_by_user_uuid,
+            extraRoleUuids:
+                extraRoleUuidsByProjectId.get(membership.project_id) ?? [],
         }));
+    }
+
+    /** Extra custom roles per project for one user's direct memberships. */
+    private async getProjectExtraRoleUuids(
+        projectIds: number[],
+        userUuid: string,
+        trx: Knex = this.database,
+    ): Promise<Map<number, string[]>> {
+        if (projectIds.length === 0) {
+            return new Map();
+        }
+        const rows = await trx(ProjectMembershipCustomRolesTableName)
+            .join(
+                'users',
+                `${ProjectMembershipCustomRolesTableName}.user_id`,
+                'users.user_id',
+            )
+            .where('users.user_uuid', userUuid)
+            .whereIn(
+                `${ProjectMembershipCustomRolesTableName}.project_id`,
+                projectIds,
+            )
+            .select<{ project_id: number; role_uuid: string }[]>(
+                `${ProjectMembershipCustomRolesTableName}.project_id`,
+                `${ProjectMembershipCustomRolesTableName}.role_uuid`,
+            )
+            .orderBy([
+                {
+                    column: `${ProjectMembershipCustomRolesTableName}.created_at`,
+                },
+                {
+                    column: `${ProjectMembershipCustomRolesTableName}.role_uuid`,
+                },
+            ]);
+        return rows.reduce<Map<number, string[]>>((acc, row) => {
+            acc.set(row.project_id, [
+                ...(acc.get(row.project_id) ?? []),
+                row.role_uuid,
+            ]);
+            return acc;
+        }, new Map());
+    }
+
+    private async getOrganizationExtraRoleUuids(
+        userId: number,
+        organizationId: number,
+        trx: Knex = this.database,
+    ): Promise<string[]> {
+        return trx(OrganizationMembershipCustomRolesTableName)
+            .where({ organization_id: organizationId, user_id: userId })
+            .orderBy([{ column: 'created_at' }, { column: 'role_uuid' }])
+            .pluck('role_uuid');
     }
 
     private async getUserGroupProjectRoles(
@@ -746,12 +811,44 @@ export class UserModel {
             .andWhere('group_memberships.user_id', userId)
             .select(
                 'projects.project_uuid',
+                'project_group_access.group_uuid',
                 'project_group_access.role',
                 'project_group_access.role_uuid',
                 'projects.project_type',
                 'projects.created_by_user_uuid',
             );
         const projectMemberships = await query;
+        const extraRows: {
+            project_uuid: string;
+            group_uuid: string;
+            role_uuid: string;
+        }[] =
+            projectMemberships.length === 0
+                ? []
+                : await trx(ProjectGroupAccessCustomRolesTableName)
+                      .innerJoin(
+                          'group_memberships',
+                          'group_memberships.group_uuid',
+                          `${ProjectGroupAccessCustomRolesTableName}.group_uuid`,
+                      )
+                      .where(
+                          'group_memberships.organization_id',
+                          organizationId,
+                      )
+                      .andWhere('group_memberships.user_id', userId)
+                      .select(
+                          `${ProjectGroupAccessCustomRolesTableName}.project_uuid`,
+                          `${ProjectGroupAccessCustomRolesTableName}.group_uuid`,
+                          `${ProjectGroupAccessCustomRolesTableName}.role_uuid`,
+                      );
+        const extrasByAccess = extraRows.reduce<Map<string, string[]>>(
+            (acc, row) => {
+                const key = `${row.project_uuid}:${row.group_uuid}`;
+                acc.set(key, [...(acc.get(key) ?? []), row.role_uuid]);
+                return acc;
+            },
+            new Map(),
+        );
         return projectMemberships.map((membership) => ({
             projectUuid: membership.project_uuid,
             role: membership.role,
@@ -759,6 +856,10 @@ export class UserModel {
             roleUuid: membership.role_uuid || undefined,
             projectType: membership.project_type,
             projectCreatedByUserUuid: membership.created_by_user_uuid,
+            extraRoleUuids:
+                extrasByAccess.get(
+                    `${membership.project_uuid}:${membership.group_uuid}`,
+                ) ?? [],
         }));
     }
 
@@ -796,17 +897,26 @@ export class UserModel {
         abilityBuilder: AbilityBuilder<MemberAbility>;
         lightdashUser: LightdashUser;
     }> {
-        const [hasAuthentication, projectRoles, groupProjectRoles] =
-            await Promise.all([
-                this.hasAuthentication(user.user_uuid, trx),
-                this.getUserProjectRoles(user.user_uuid, { trx }),
-                this.getUserGroupProjectRoles(
-                    user.user_id,
-                    user.organization_id,
-                    user.user_uuid,
-                    trx,
-                ),
-            ]);
+        const [
+            hasAuthentication,
+            projectRoles,
+            groupProjectRoles,
+            orgExtraRoleUuids,
+        ] = await Promise.all([
+            this.hasAuthentication(user.user_uuid, trx),
+            this.getUserProjectRoles(user.user_uuid, { trx }),
+            this.getUserGroupProjectRoles(
+                user.user_id,
+                user.organization_id,
+                user.user_uuid,
+                trx,
+            ),
+            this.getOrganizationExtraRoleUuids(
+                user.user_id,
+                user.organization_id,
+                trx,
+            ),
+        ]);
         const lightdashUser = mapDbUserDetailsToLightdashUser(
             user,
             hasAuthentication,
@@ -832,6 +942,38 @@ export class UserModel {
             // silently neutered role-driven SAs whenever an admin toggled
             // the flag off, every CI workflow on those tokens would 403
             // overnight.
+            const applyOrgExtraRoles = async (
+                builder: AbilityBuilder<MemberAbility>,
+            ) => {
+                if (orgExtraRoleUuids.length === 0) {
+                    return;
+                }
+                const extraScopes = await this.customRoleScopes(
+                    orgExtraRoleUuids,
+                    trx,
+                );
+                orgExtraRoleUuids.forEach((roleUuid) => {
+                    const scopes = extraScopes[roleUuid];
+                    if (!scopes) {
+                        return;
+                    }
+                    buildAbilityFromScopes(
+                        {
+                            organizationUuid: user.organization_uuid as string,
+                            userUuid: user.user_uuid,
+                            scopes,
+                            isEnterprise:
+                                this.lightdashConfig.license.licenseKey !==
+                                undefined,
+                            organizationRole: user.role,
+                            permissionsConfig: {
+                                pat: this.lightdashConfig.auth.pat,
+                            },
+                        },
+                        builder,
+                    );
+                });
+            };
             if (user.role_uuid) {
                 const customRoleScopes = await this.customRoleScopes(
                     [user.role_uuid],
@@ -864,6 +1006,7 @@ export class UserModel {
                             )}`,
                         );
                     }
+                    await applyOrgExtraRoles(builder);
                     await this.applyServiceAccountProjectMemberships(
                         user.user_id,
                         user.user_uuid,
@@ -893,6 +1036,7 @@ export class UserModel {
                     userUuid: user.user_uuid,
                     builder,
                 });
+                await applyOrgExtraRoles(builder);
                 await this.applyServiceAccountProjectMemberships(
                     user.user_id,
                     user.user_uuid,
@@ -912,8 +1056,15 @@ export class UserModel {
         // runtime (getUserAbilityBuilder reads customRoleScopes[user.roleUuid]).
         const customRoleUuids = [
             lightdashUser.roleUuid,
-            ...projectRoles.map((role) => role.roleUuid),
-            ...groupProjectRoles.map((role) => role.roleUuid),
+            ...orgExtraRoleUuids,
+            ...projectRoles.flatMap((role) => [
+                role.roleUuid,
+                ...(role.extraRoleUuids ?? []),
+            ]),
+            ...groupProjectRoles.flatMap((role) => [
+                role.roleUuid,
+                ...(role.extraRoleUuids ?? []),
+            ]),
         ].filter((roleUuid): roleUuid is string => Boolean(roleUuid));
         const [customRoleScopes, customRolesFlag] = await Promise.all([
             this.customRoleScopes(customRoleUuids, trx),
@@ -928,6 +1079,7 @@ export class UserModel {
         const { builder: abilityBuilder, invalidScopes } =
             getUserAbilityBuilder({
                 user: lightdashUser,
+                orgExtraRoleUuids,
                 projectProfiles: [...projectRoles, ...groupProjectRoles],
                 permissionsConfig: {
                     pat: this.lightdashConfig.auth.pat,
@@ -975,6 +1127,7 @@ export class UserModel {
         trx: Knex = this.database,
     ): Promise<void> {
         type Row = {
+            project_id: number;
             project_uuid: string;
             role: ProjectMemberRole;
             role_uuid: string | null;
@@ -988,6 +1141,7 @@ export class UserModel {
                 `${ProjectTableName}.project_id`,
             )
             .select<Row[]>(
+                `${ProjectTableName}.project_id`,
                 `${ProjectTableName}.project_uuid`,
                 `${ProjectMembershipsTableName}.role`,
                 `${ProjectMembershipsTableName}.role_uuid`,
@@ -995,13 +1149,21 @@ export class UserModel {
                 `${ProjectTableName}.created_by_user_uuid`,
             )
             .where(`${ProjectMembershipsTableName}.user_id`, userId);
+        const extraRoleUuidsByProjectId = await this.getProjectExtraRoleUuids(
+            rows.map((r) => r.project_id),
+            userUuid,
+            trx,
+        );
 
         // Bulk-load scopes for any custom-role grants. Matches the human
         // path's philosophy (UserModel.generateUserAbilityBuilder): once a
         // role is bound in the DB the runtime must respect it, regardless
         // of the customRoles.enabled feature flag (which gates UI only).
         const customRoleUuids = rows
-            .map((r) => r.role_uuid)
+            .flatMap((r) => [
+                r.role_uuid,
+                ...(extraRoleUuidsByProjectId.get(r.project_id) ?? []),
+            ])
             .filter((u): u is string => u !== null);
         const customRoleScopes =
             customRoleUuids.length > 0
@@ -1012,10 +1174,7 @@ export class UserModel {
 
         const aggregatedInvalidScopes = new Set<string>();
         for (const row of rows) {
-            const scopes = row.role_uuid
-                ? customRoleScopes[row.role_uuid]
-                : undefined;
-            if (scopes) {
+            const applyScopes = (scopes: string[]) => {
                 const invalid = buildAbilityFromScopes(
                     {
                         projectUuid: row.project_uuid,
@@ -1031,6 +1190,12 @@ export class UserModel {
                     builder,
                 );
                 invalid.forEach((s) => aggregatedInvalidScopes.add(s));
+            };
+            const scopes = row.role_uuid
+                ? customRoleScopes[row.role_uuid]
+                : undefined;
+            if (scopes) {
+                applyScopes(scopes);
             } else {
                 projectMemberAbilities[row.role](
                     {
@@ -1041,6 +1206,15 @@ export class UserModel {
                     builder,
                 );
             }
+            // Extra custom roles are unioned on top of the slot.
+            (extraRoleUuidsByProjectId.get(row.project_id) ?? []).forEach(
+                (roleUuid) => {
+                    const extraScopes = customRoleScopes[roleUuid];
+                    if (extraScopes) {
+                        applyScopes(extraScopes);
+                    }
+                },
+            );
         }
         if (aggregatedInvalidScopes.size > 0) {
             Logger.warn(
