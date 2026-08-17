@@ -549,16 +549,13 @@ export class AiAgentMemoryService extends BaseService {
 
     /**
      * Shared gate for every memory endpoint: project access + copilot flag.
-     * `requireMemoryEnabled` additionally gates on the org memory setting —
-     * generation-adjacent paths (promotion, manual distill) pass true; pure
-     * read/manage paths pass false so stored memories stay reachable after an
-     * org disables memory generation.
+     * Deliberately not the org memory setting, so stored memories stay
+     * reachable after an org disables memory generation.
      */
     private async getMemoryAccessContext(
         user: SessionUser,
         projectUuid: string,
         notFoundMessage: string,
-        options: { requireMemoryEnabled: boolean },
     ): Promise<string> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -571,21 +568,33 @@ export class AiAgentMemoryService extends BaseService {
             throw new ForbiddenError('Cannot view project');
         }
 
-        const [copilot, memoryEnabled] = await Promise.all([
-            this.featureFlagService.get({
-                user,
-                featureFlagId: CommercialFeatureFlags.AiCopilot,
-            }),
-            this.aiOrganizationSettingsService.isAiAgentMemoryEnabled(user),
-        ]);
-        if (
-            !copilot.enabled ||
-            (options.requireMemoryEnabled && !memoryEnabled)
-        ) {
+        const copilot = await this.featureFlagService.get({
+            user,
+            featureFlagId: CommercialFeatureFlags.AiCopilot,
+        });
+        if (!copilot.enabled) {
             throw new NotFoundError(notFoundMessage);
         }
 
         return organizationUuid;
+    }
+
+    /**
+     * Extra gate for generation-adjacent paths (promotion, manual distill):
+     * the org memory setting. The background-job equivalent is `isEnabled`,
+     * which folds the same setting in with the copilot flag.
+     */
+    private async assertMemoryGenerationEnabled(
+        user: SessionUser,
+        notFoundMessage: string,
+    ): Promise<void> {
+        if (
+            !(await this.aiOrganizationSettingsService.isAiAgentMemoryEnabled(
+                user,
+            ))
+        ) {
+            throw new NotFoundError(notFoundMessage);
+        }
     }
 
     private async requireReadableMemory(
@@ -619,7 +628,6 @@ export class AiAgentMemoryService extends BaseService {
             user,
             projectUuid,
             `Memory not found: ${slug}`,
-            { requireMemoryEnabled: false },
         );
 
         const result = await this.aiAgentMemoryModel.findByProjectAndSlug({
@@ -743,12 +751,13 @@ export class AiAgentMemoryService extends BaseService {
         reason?: string,
     ): Promise<MemoryReviewItemUpsert> {
         const nominationReason = reason?.trim() || null;
+        const notFoundMessage = `Memory not found: ${memoryUuid}`;
         const organizationUuid = await this.getMemoryAccessContext(
             user,
             projectUuid,
-            `Memory not found: ${memoryUuid}`,
-            { requireMemoryEnabled: true },
+            notFoundMessage,
         );
+        await this.assertMemoryGenerationEnabled(user, notFoundMessage);
         const memory = await this.requireReadableMemory(
             user,
             organizationUuid,
@@ -918,7 +927,6 @@ export class AiAgentMemoryService extends BaseService {
             user,
             projectUuid,
             `Memories not found for project: ${projectUuid}`,
-            { requireMemoryEnabled: false },
         );
 
         return this.aiAgentMemoryModel.findUserMemoriesPaginated({
@@ -939,7 +947,6 @@ export class AiAgentMemoryService extends BaseService {
             user,
             projectUuid,
             `Memory not found: ${memoryUuid}`,
-            { requireMemoryEnabled: false },
         );
         const memory = await this.requireReadableMemory(
             user,
@@ -1029,8 +1036,8 @@ export class AiAgentMemoryService extends BaseService {
             user,
             projectUuid,
             notFoundMessage,
-            { requireMemoryEnabled: true },
         );
+        await this.assertMemoryGenerationEnabled(user, notFoundMessage);
 
         if (
             this.createAuditedAbility(user).cannot(
