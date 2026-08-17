@@ -323,12 +323,12 @@ export enum FeatureFlags {
 
     /**
      * Enable the async pre-aggregate DuckDB SQL endpoint
-     * (POST /api/v2/projects/{projectUuid}/query/pre-aggregate-sql), which
+     * (POST /api/v2/projects/{projectUuid}/query/compose-sql), which
      * runs DuckDB SQL over lightdash_query('<queryUuid>') result references.
      * Off by default; on in preview/dev environments via
      * PREVIEW_ENABLED_FEATURE_FLAGS.
      */
-    PreAggregateSqlRunner = 'pre-aggregate-sql-runner',
+    ComposeSqlRunner = 'compose-sql-runner',
 }
 
 export type FeatureFlag = {

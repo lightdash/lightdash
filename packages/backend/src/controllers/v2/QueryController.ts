@@ -28,7 +28,7 @@ import {
     type ExecuteAsyncDashboardSqlChartRequestParams,
     type ExecuteAsyncFieldValueSearchRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
-    type ExecuteAsyncPreAggregateSqlQueryRequestParams,
+    type ExecuteAsyncComposeSqlQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
     type ExecuteAsyncSqlChartRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
@@ -436,16 +436,16 @@ export class QueryController extends BaseController {
     }
 
     /**
-     * Executes a DuckDB SQL query asynchronously on the pre-aggregate DuckDB engine. Requires run-queries access (interactive viewer and up) and the pre-aggregate-sql-runner feature flag. The references map exposes previous async queries' results as named tables the SQL can select from ({"orders": "queryUuid"} lets the SQL run SELECT * FROM orders); each referenced query is authorized with the same access checks as Get results, so you can reference any query you can already fetch by uuid. Direct file access in the SQL is rejected. Returns a queryUuid to poll for results via Get results.
-     * @summary Execute pre-aggregate SQL query
+     * Executes a DuckDB SQL query asynchronously on the pre-aggregate DuckDB engine. Requires run-queries access (interactive viewer and up) and the compose-sql-runner feature flag. The references map exposes previous async queries' results as named tables the SQL can select from ({"orders": "queryUuid"} lets the SQL run SELECT * FROM orders); each referenced query is authorized with the same access checks as Get results, so you can reference any query you can already fetch by uuid. Direct file access in the SQL is rejected. Returns a queryUuid to poll for results via Get results.
+     * @summary Execute compose SQL query
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Post('/pre-aggregate-sql')
-    @OperationId('executeAsyncPreAggregateSqlQuery')
-    async executeAsyncPreAggregateSqlQuery(
+    @Post('/compose-sql')
+    @OperationId('executeAsyncComposeSqlQuery')
+    async executeAsyncComposeSqlQuery(
         @Body()
-        body: ExecuteAsyncPreAggregateSqlQueryRequestParams,
+        body: ExecuteAsyncComposeSqlQueryRequestParams,
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccess<ApiExecuteAsyncSqlQueryResults>> {
@@ -454,14 +454,14 @@ export class QueryController extends BaseController {
 
         const results = await this.services
             .getAsyncQueryService()
-            .executeAsyncPreAggregateSqlQuery({
+            .executeAsyncComposeSqlQuery({
                 account: req.account!,
                 projectUuid,
                 sql: body.sql,
                 limit: body.limit,
                 references: body.references,
                 context:
-                    context ?? QueryExecutionContext.PRE_AGGREGATE_SQL_RUNNER,
+                    context ?? QueryExecutionContext.COMPOSE_SQL_RUNNER,
             });
 
         return {

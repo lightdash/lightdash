@@ -138,6 +138,6 @@ export enum QueryExecutionContext {
     CLI = 'cli',
     METRICS_EXPLORER = 'metricsExplorer',
     PRE_AGGREGATE_MATERIALIZATION = 'preAggregateMaterialization',
-    PRE_AGGREGATE_SQL_RUNNER = 'preAggregateSqlRunner',
+    COMPOSE_SQL_RUNNER = 'composeSqlRunner',
     DATA_APP_SAMPLE = 'dataAppSample',
 }

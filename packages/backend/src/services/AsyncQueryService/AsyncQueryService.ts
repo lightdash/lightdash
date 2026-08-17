@@ -111,7 +111,7 @@ import {
     type ExecuteAsyncFieldValueSearchRequestParams,
     type ExecuteAsyncMergeQueryRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
-    type ExecuteAsyncPreAggregateSqlQueryRequestParams,
+    type ExecuteAsyncComposeSqlQueryRequestParams,
     type ExecuteAsyncQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
@@ -233,7 +233,7 @@ import {
     type ExecuteAsyncFieldValueSearchArgs,
     type ExecuteAsyncMergeQueryArgs,
     type ExecuteAsyncMetricQueryArgs,
-    type ExecuteAsyncPreAggregateSqlQueryArgs,
+    type ExecuteAsyncComposeSqlQueryArgs,
     type ExecuteAsyncQueryReturn,
     type ExecuteAsyncSavedChartQueryArgs,
     type ExecuteAsyncSqlChartArgs,
@@ -6327,14 +6327,14 @@ export class AsyncQueryService extends ProjectService {
      * referenced results are the only data this endpoint can reach — which
      * is why run-queries access (interactive viewer and up) suffices.
      */
-    async executeAsyncPreAggregateSqlQuery({
+    async executeAsyncComposeSqlQuery({
         account,
         projectUuid,
         sql,
         context,
         limit,
         references,
-    }: ExecuteAsyncPreAggregateSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
+    }: ExecuteAsyncComposeSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
         assertIsAccountWithOrg(account);
 
         const { enabled: isEndpointEnabled } = await this.featureFlagModel.get({
@@ -6342,11 +6342,11 @@ export class AsyncQueryService extends ProjectService {
                 userUuid: account.user.id,
                 organizationUuid: account.organization.organizationUuid,
             },
-            featureFlagId: FeatureFlags.PreAggregateSqlRunner,
+            featureFlagId: FeatureFlags.ComposeSqlRunner,
         });
         if (!isEndpointEnabled) {
             throw new ForbiddenError(
-                'Pre-aggregate SQL queries are not enabled',
+                'Compose SQL queries are not enabled',
             );
         }
 
@@ -6469,7 +6469,7 @@ export class AsyncQueryService extends ProjectService {
             userUuid: null,
         });
 
-        const requestParameters: ExecuteAsyncPreAggregateSqlQueryRequestParams =
+        const requestParameters: ExecuteAsyncComposeSqlQueryRequestParams =
             {
                 sql,
                 limit,
@@ -6533,7 +6533,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentialsTypeOverride: warehouseClient.credentials.type,
         }).catch((e) => {
             this.logger.error(
-                `Async pre-aggregate SQL query ${queryUuid} failed: ${getErrorMessage(
+                `Async compose SQL query ${queryUuid} failed: ${getErrorMessage(
                     e,
                 )}`,
             );
