@@ -1,3 +1,10 @@
+## [1.163.3](https://github.com/lightdash/lightdash/compare/1.163.2...1.163.3) (2026-08-17)
+
+
+### Bug Fixes
+
+* viz dialog tables must scroll horizontally — generation contract rule ([#27469](https://github.com/lightdash/lightdash/issues/27469)) ([589a3aa](https://github.com/lightdash/lightdash/commit/589a3aaf4de61475b5df4b85cecef14c393c979c))
+
 ## [1.163.2](https://github.com/lightdash/lightdash/compare/1.163.1...1.163.2) (2026-08-16)
 
 
