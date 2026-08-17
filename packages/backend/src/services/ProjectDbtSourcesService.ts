@@ -13,6 +13,7 @@ import {
     ProjectDbtSourceWithConnection,
     sensitiveDbtCredentialsFieldNames,
     UnexpectedServerError,
+    validateGithubToken,
     validateProjectDbtSourceName,
     type Account,
 } from '@lightdash/common';
@@ -130,6 +131,23 @@ export class ProjectDbtSourcesService extends BaseService {
         });
     }
 
+    private static validateGithubPersonalAccessToken(
+        dbtConnection: DbtProjectConfig,
+    ): void {
+        if (
+            dbtConnection.type !== DbtProjectType.GITHUB ||
+            !dbtConnection.personal_access_token
+        ) {
+            return;
+        }
+        const [isValid, error] = validateGithubToken(
+            dbtConnection.personal_access_token,
+        );
+        if (!isValid) {
+            throw new ParameterError(error);
+        }
+    }
+
     private async checkProjectAccess(
         account: Account,
         projectUuid: string,
@@ -195,6 +213,9 @@ export class ProjectDbtSourcesService extends BaseService {
                 'Additional dbt sources currently support GitHub connections only',
             );
         }
+        ProjectDbtSourcesService.validateGithubPersonalAccessToken(
+            data.dbtConnection,
+        );
         ProjectDbtSourcesService.validateDbtEnvironmentVariables(
             data.dbtConnection,
         );
@@ -310,6 +331,9 @@ export class ProjectDbtSourcesService extends BaseService {
             );
         }
         if (data.dbtConnection) {
+            ProjectDbtSourcesService.validateGithubPersonalAccessToken(
+                data.dbtConnection,
+            );
             ProjectDbtSourcesService.validateDbtEnvironmentVariables(
                 data.dbtConnection,
             );

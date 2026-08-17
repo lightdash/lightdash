@@ -240,6 +240,25 @@ describe('ProjectDbtSourcesService', () => {
             expect(projectDbtSourcesModel.createSource).not.toHaveBeenCalled();
         });
 
+        it('rejects an invalid GitHub token before creating the source', async () => {
+            const service = getService();
+
+            await expect(
+                service.createProjectDbtSource(adminAccount, projectUuid, {
+                    name: 'private_source',
+                    dbtConnection: {
+                        ...githubConnection,
+                        authorization_method: 'personal_access_token',
+                        personal_access_token: 'invalid',
+                    } as never,
+                }),
+            ).rejects.toThrow(
+                'GitHub token should start with "github_pat_", "ghp_", "gho_", "ghs_", or "ghu_"',
+            );
+
+            expect(projectDbtSourcesModel.createSource).not.toHaveBeenCalled();
+        });
+
         it('creates a GitHub source at precedence = max(existing) + 1', async () => {
             projectDbtSourcesModel.getSources.mockResolvedValue([
                 { precedence: 1 } as never,
@@ -376,6 +395,34 @@ describe('ProjectDbtSourcesService', () => {
                     { dbtConnection: { type: DbtProjectType.GITLAB } as never },
                 ),
             ).rejects.toThrow(ParameterError);
+
+            expect(projectDbtSourcesModel.updateSource).not.toHaveBeenCalled();
+        });
+
+        it('rejects an invalid GitHub token before updating the source', async () => {
+            projectDbtSourcesModel.getSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                projectUuid,
+                dbtConnection: githubConnection,
+            } as never);
+            const service = getService();
+
+            await expect(
+                service.updateProjectDbtSource(
+                    adminAccount,
+                    projectUuid,
+                    sourceUuid,
+                    {
+                        dbtConnection: {
+                            ...githubConnection,
+                            authorization_method: 'personal_access_token',
+                            personal_access_token: 'invalid',
+                        } as never,
+                    },
+                ),
+            ).rejects.toThrow(
+                'GitHub token should start with "github_pat_", "ghp_", "gho_", "ghs_", or "ghu_"',
+            );
 
             expect(projectDbtSourcesModel.updateSource).not.toHaveBeenCalled();
         });
