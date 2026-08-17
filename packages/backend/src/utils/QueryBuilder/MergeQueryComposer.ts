@@ -36,6 +36,35 @@ export type MergeQueryComposerArguments = {
 };
 
 /**
+ * Describes the merged result for result ordering and chart configuration.
+ * It is a metadata carrier, never a query that can be compiled on its own.
+ */
+export const buildMergeResultMetricQuery = ({
+    itemsMap,
+    columnOrder,
+    limit,
+}: {
+    itemsMap: ItemsMap;
+    columnOrder: string[];
+    limit: number;
+}): MetricQuery => {
+    const dimensions = columnOrder.filter((fieldId) => {
+        const item = itemsMap[fieldId];
+        return item !== undefined && isDimension(item);
+    });
+
+    return {
+        exploreName: MERGE_EXPLORE_NAME,
+        dimensions,
+        metrics: columnOrder.filter((fieldId) => !dimensions.includes(fieldId)),
+        filters: {},
+        sorts: [],
+        limit,
+        tableCalculations: [],
+    };
+};
+
+/**
  * QueryComposer for merged queries.
  *
  * A merge compiles two metric queries into one statement, so there is no
@@ -70,11 +99,11 @@ export class MergeQueryComposer extends QueryComposer {
 
         super(
             {
-                metricQuery: MergeQueryComposer.buildMetricQuery(
+                metricQuery: buildMergeResultMetricQuery({
                     itemsMap,
                     columnOrder,
                     limit,
-                ),
+                }),
                 pivotConfiguration,
             },
             {
@@ -116,34 +145,6 @@ export class MergeQueryComposer extends QueryComposer {
             // present. The source-cap assertion must remain outermost.
             ...(isPivoted ? { orderBy: [], limit: null } : {}),
         });
-    }
-
-    /**
-     * Describes the merged result for column ordering and the chart config.
-     * Filters and sorts stay empty: the real filters live on the source
-     * queries, and echoing them here invites a consumer to apply them twice.
-     */
-    private static buildMetricQuery(
-        itemsMap: ItemsMap,
-        columnOrder: string[],
-        limit: number,
-    ): MetricQuery {
-        const dimensions = columnOrder.filter((fieldId) => {
-            const item = itemsMap[fieldId];
-            return item !== undefined && isDimension(item);
-        });
-
-        return {
-            exploreName: MERGE_EXPLORE_NAME,
-            dimensions,
-            metrics: columnOrder.filter(
-                (fieldId) => !dimensions.includes(fieldId),
-            ),
-            filters: {},
-            sorts: [],
-            limit,
-            tableCalculations: [],
-        };
     }
 
     /**

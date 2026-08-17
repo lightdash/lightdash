@@ -877,22 +877,38 @@ export type ApiExecuteAsyncMetricQueryResults =
         warnings: QueryWarning[];
     };
 
-export type ApiExecuteAsyncMergeQueryResults = {
-    /** Validation errors that prevented execution. Empty when started is set. */
-    errors: MergeQueryError[];
-    started: ApiExecuteAsyncMetricQueryResults | null;
+type ApiExecuteAsyncMergeQueryMetadata = {
     parameterReferences: string[];
     fieldOrigins: MergeFieldOrigins;
 };
 
-/** One-call merge execution request. Chart state stays optional for exports without pivoting. */
-export type ApiExecuteAsyncMergeQueryRequest =
-    ExecuteAsyncMergeQueryRequestParams & {
-        chartConfig?: ChartConfig;
-        pivotConfig?: SavedChart['pivotConfig'];
-        /** Export row limit. Null means all rows within the organization's cell cap. */
-        csvLimit?: number | null;
-    };
+export type ApiExecuteAsyncMergeQueryResults =
+    | (ApiExecuteAsyncMergeQueryMetadata & {
+          outcome: 'started';
+          query: ApiExecuteAsyncMetricQueryResults;
+      })
+    | (ApiExecuteAsyncMergeQueryMetadata & {
+          outcome: 'refused';
+          errors: MergeQueryError[];
+      });
+
+export type MergeQueryExecutionMode =
+    | { type: 'interactive' }
+    | { type: 'export'; limit: number | null };
+
+export type MergeQueryChart = {
+    chartConfig: ChartConfig;
+    pivotConfig?: SavedChart['pivotConfig'];
+};
+
+/** One-call merge execution request. Derived pivot SQL remains server-owned. */
+export type ApiExecuteAsyncMergeQueryRequest = Omit<
+    ExecuteAsyncMergeQueryRequestParams,
+    'pivotConfiguration' | 'usePreAggregateCache'
+> & {
+    mode?: MergeQueryExecutionMode;
+    chart?: MergeQueryChart;
+};
 
 export type ApiExecuteAsyncDashboardChartQueryResults =
     ApiExecuteAsyncQueryResultsCommon & {

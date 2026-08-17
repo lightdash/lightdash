@@ -34,6 +34,7 @@ import {
     type ExecuteAsyncSqlChartRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
     type MetricQuery,
+    type UUID,
 } from '@lightdash/common';
 import {
     Body,
@@ -181,7 +182,7 @@ export class QueryController extends BaseController {
     @OperationId('executeAsyncMergeQuery')
     async executeAsyncMergeQuery(
         @Body() body: ApiExecuteAsyncMergeQueryRequest,
-        @Path() projectUuid: string,
+        @Path() projectUuid: UUID,
         @Request() req: express.Request,
     ): Promise<ApiSuccess<ApiExecuteAsyncMergeQueryResults>> {
         this.setStatus(200);
@@ -197,10 +198,10 @@ export class QueryController extends BaseController {
                     QueryExecutionContext.API,
                 invalidateCache: body.invalidateCache,
                 parameters: body.parameters,
-                csvLimit: body.csvLimit,
-                chartConfig: body.chartConfig,
-                pivotConfig: body.pivotConfig,
-                pivotConfiguration: body.pivotConfiguration,
+                mode: body.mode ?? { type: 'interactive' },
+                presentation: body.chart
+                    ? { type: 'chart', ...body.chart }
+                    : undefined,
             });
 
         return { status: 'ok', results };

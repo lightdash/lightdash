@@ -322,14 +322,25 @@ export const MergeProvider: FC<
             executeMergeQuery(projectUuid, mergeQuery, parameters, savedChart)
                 .then((result) => {
                     if (activeRun.current !== runId) return;
-                    setRunState({
-                        isRunning: false,
-                        errors: result.errors,
-                        started: result.started,
-                        error: null,
-                        parameterReferences: result.parameterReferences,
-                        fieldOrigins: result.fieldOrigins,
-                    });
+                    if (result.outcome === 'refused') {
+                        setRunState({
+                            isRunning: false,
+                            errors: result.errors,
+                            started: null,
+                            error: null,
+                            parameterReferences: result.parameterReferences,
+                            fieldOrigins: result.fieldOrigins,
+                        });
+                    } else {
+                        setRunState({
+                            isRunning: false,
+                            errors: [],
+                            started: result.query,
+                            error: null,
+                            parameterReferences: result.parameterReferences,
+                            fieldOrigins: result.fieldOrigins,
+                        });
+                    }
                 })
                 .catch((error: ApiError) => {
                     if (activeRun.current !== runId) return;
@@ -359,12 +370,12 @@ export const MergeProvider: FC<
                 exportPivotedResults ? savedChart : undefined,
                 limit,
             );
-            if (!result.started) {
+            if (result.outcome === 'refused') {
                 throw new Error(
                     result.errors.map((error) => error.message).join(' '),
                 );
             }
-            return result.started.queryUuid;
+            return result.query.queryUuid;
         },
         [projectUuid],
     );

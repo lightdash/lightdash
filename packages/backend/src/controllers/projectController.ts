@@ -598,13 +598,21 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
                 account: req.account!,
                 projectUuid,
                 mergeQuery: body.mergeQuery,
-                pivotConfiguration: body.pivotConfiguration,
-                csvLimit: body.csvLimit,
                 parameters: body.parameters,
+                mode:
+                    body.csvLimit === undefined
+                        ? { type: 'interactive' }
+                        : { type: 'export', limit: body.csvLimit },
+                presentation: body.pivotConfiguration
+                    ? {
+                          type: 'resolvedPivot',
+                          configuration: body.pivotConfiguration,
+                      }
+                    : undefined,
                 context:
                     getContextFromHeader(req) ?? QueryExecutionContext.EXPLORE,
             });
-        if (!result.started) {
+        if (result.outcome === 'refused') {
             throw new ParameterError(
                 `This merge cannot be run: ${result.errors
                     .map((error) => error.message)
@@ -612,7 +620,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
                 { errors: result.errors },
             );
         }
-        return { status: 'ok', results: result.started };
+        return { status: 'ok', results: result.query };
     }
 
     /**

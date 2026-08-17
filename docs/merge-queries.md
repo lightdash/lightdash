@@ -8,9 +8,21 @@ stage, caching and downloads all behave as for any other query. Date-spine
 filling is intentionally a follow-up capability layered on this core.
 
 The `merge-queries` feature flag is consumed by the frontend only: it shows or
-hides the explorer entry point. The API endpoints
-(`POST /projects/{uuid}/mergeQuery/compile|run`) are always available — they
-are additive and permission-checked, so orgs without the flag are unaffected.
+hides the explorer entry point. The API endpoints are always available and
+permission-checked, so orgs without the flag are unaffected.
+
+- `POST /api/v2/projects/{uuid}/query/merge-query` validates and starts a merge
+  in one request. It is the primary execution endpoint.
+- `POST /api/v1/projects/{uuid}/mergeQuery/compile` remains the SQL-preview and
+  continuous-validation endpoint. Execution never calls it first.
+- `POST /api/v1/projects/{uuid}/mergeQuery/run` remains a compatibility adapter
+  for existing clients.
+
+The execution request carries source intent (`mergeQuery`, parameters, export
+mode, and optional chart state). Derived pivot SQL is server-owned. Its outcome
+is either `started` with a query UUID or `refused` with validation errors; the
+two states cannot overlap. The effective export limit is established before
+the sole compilation.
 
 ## Verification
 

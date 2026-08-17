@@ -5,6 +5,7 @@ import {
     type CompileMergeQueryRequest,
     type MergeQuery,
     type ParametersValuesMap,
+    QueryExecutionContext,
     type SavedChartDAO,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
@@ -41,9 +42,12 @@ const runMergeQuery = (
         body: JSON.stringify({
             mergeQuery,
             parameters,
-            chartConfig: savedChart?.chartConfig,
-            pivotConfig: savedChart?.pivotConfig,
-            csvLimit,
+            context: QueryExecutionContext.EXPLORE,
+            mode:
+                csvLimit === undefined
+                    ? { type: 'interactive' }
+                    : { type: 'export', limit: csvLimit },
+            chart: savedChart,
         } satisfies ApiExecuteAsyncMergeQueryRequest),
     });
 

@@ -1,12 +1,18 @@
-import { LightdashAppPreviewTokenHeader } from '@lightdash/common';
+import {
+    ChartType,
+    LightdashAppPreviewTokenHeader,
+    MergeJoinType,
+    QueryExecutionContext,
+    type ApiExecuteAsyncMergeQueryRequest,
+} from '@lightdash/common';
 import express from 'express';
 import { QueryController } from './QueryController';
 
 describe('QueryController', () => {
     it('forwards merge execution to the one-call service interface', async () => {
         const executeAsyncMergeQuery = vi.fn().mockResolvedValue({
-            errors: [],
-            started: { queryUuid: 'query-uuid' },
+            outcome: 'started',
+            query: { queryUuid: 'query-uuid' },
         });
         const controller = new QueryController({
             getAsyncQueryService: () => ({
@@ -19,24 +25,31 @@ describe('QueryController', () => {
             headers: {},
             header: vi.fn(),
         } as unknown as express.Request;
-        const body = {
-            mergeQuery: { sources: [] },
-            chartConfig: { type: 'table', config: {} },
-            pivotConfig: { columns: ['customer_id'] },
+        const body: ApiExecuteAsyncMergeQueryRequest = {
+            mergeQuery: {
+                sources: [],
+                joinKey: [],
+                joinType: MergeJoinType.FULL,
+                limit: 500,
+                tableCalculations: [],
+            },
+            context: QueryExecutionContext.EXPLORE,
+            mode: { type: 'export', limit: 42 },
+            chart: {
+                chartConfig: { type: ChartType.TABLE, config: {} },
+                pivotConfig: { columns: ['customer_id'], rows: [] },
+            },
         };
 
-        await controller.executeAsyncMergeQuery(
-            body as never,
-            'project-uuid',
-            req,
-        );
+        await controller.executeAsyncMergeQuery(body, 'project-uuid', req);
 
         expect(executeAsyncMergeQuery).toHaveBeenCalledWith(
             expect.objectContaining({
                 projectUuid: 'project-uuid',
                 mergeQuery: body.mergeQuery,
-                chartConfig: body.chartConfig,
-                pivotConfig: body.pivotConfig,
+                context: QueryExecutionContext.EXPLORE,
+                mode: body.mode,
+                presentation: { type: 'chart', ...body.chart },
             }),
         );
     });

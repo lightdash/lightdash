@@ -1,4 +1,8 @@
-import { ChartType, MergeJoinType } from '@lightdash/common';
+import {
+    ChartType,
+    MergeJoinType,
+    QueryExecutionContext,
+} from '@lightdash/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../../api';
 import { executeMergeQuery } from './useMergeQuery';
@@ -12,8 +16,8 @@ describe('executeMergeQuery', () => {
 
     it('starts a merge with one v2 request', async () => {
         api.mockResolvedValueOnce({
-            errors: [],
-            started: { queryUuid: 'query-uuid' },
+            outcome: 'started',
+            query: { queryUuid: 'query-uuid' },
             fieldOrigins: {},
             parameterReferences: ['date_dim_parameter'],
         } as never);
@@ -50,15 +54,18 @@ describe('executeMergeQuery', () => {
         expect(
             JSON.parse((api.mock.calls[0][0].body as string) ?? '{}'),
         ).toMatchObject({
-            chartConfig: {
-                type: ChartType.TABLE,
-                config: {},
+            context: QueryExecutionContext.EXPLORE,
+            mode: { type: 'export', limit: 42 },
+            chart: {
+                chartConfig: {
+                    type: ChartType.TABLE,
+                    config: {},
+                },
+                pivotConfig: {
+                    columns: ['merge_join_key_0'],
+                    rows: [],
+                },
             },
-            pivotConfig: {
-                columns: ['merge_join_key_0'],
-                rows: [],
-            },
-            csvLimit: 42,
         });
         expect(result.parameterReferences).toEqual(['date_dim_parameter']);
         expect(api).toHaveBeenCalledTimes(1);
@@ -66,7 +73,7 @@ describe('executeMergeQuery', () => {
 
     it('returns parameter references when compilation is refused', async () => {
         api.mockResolvedValueOnce({
-            started: null,
+            outcome: 'refused',
             fieldOrigins: {},
             parameterReferences: ['customers.customer_name'],
             errors: [{ message: 'Missing customer name' }],
@@ -81,7 +88,7 @@ describe('executeMergeQuery', () => {
         });
 
         expect(result).toMatchObject({
-            started: null,
+            outcome: 'refused',
             parameterReferences: ['customers.customer_name'],
         });
         expect(api).toHaveBeenCalledTimes(1);
