@@ -226,15 +226,6 @@ export enum FeatureFlags {
     OrganizationRoadmap = 'organization-roadmap',
 
     /**
-     * Replace the discoverFields sub-agent with a deterministic grep over an
-     * in-memory, annotated view of the project's cached explores (explore =
-     * directory, field = file). Connection-agnostic (reads compiled explores,
-     * never the warehouse or git) — lets the main agent navigate fields itself
-     * instead of paying the discoverFields sub-agent round-trip. Experimental.
-     */
-    AiGrepFields = 'ai-grep-fields',
-
-    /**
      * Guard the agent's `searchFieldValues` tool against pathological warehouse
      * scans. When on, an empty/whitespace query — which compiles to
      * `LIKE '%%'`, i.e. "distinct the entire column" — is rejected immediately

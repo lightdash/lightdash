@@ -221,7 +221,6 @@ const makeMcpService = ({
     verifiedContent = [],
     artifactVerifiedContent = [],
     runtimeErrors = {},
-    grepFieldsEnabled = false,
 }: {
     context?: {
         projectUuid: string;
@@ -248,7 +247,6 @@ const makeMcpService = ({
         findFields?: string;
         findFieldsByQuery?: Record<string, string>;
     };
-    grepFieldsEnabled?: boolean;
 } = {}) => {
     const asyncQueryService = {
         executeAsyncSqlQuery: vi.fn(),
@@ -574,7 +572,6 @@ const makeMcpService = ({
     service.setupHandlers({
         projectPinned: false,
         aiWritebackEnabled: false,
-        grepFieldsEnabled,
         mcpContentWritesEnabled: true,
         scheduledDeliveryEnabled: true,
         runSqlEnabled: true,
@@ -911,15 +908,11 @@ describe('MCP async query polling', () => {
         });
     });
 
-    it('registers grep_fields instead of legacy discovery tools when ai-grep-fields is enabled', async () => {
-        makeMcpService({ grepFieldsEnabled: true });
+    it('registers grep_fields alongside legacy discovery tools', async () => {
+        makeMcpService();
 
-        expect(() => getToolCallback(McpToolName.FIND_EXPLORES)).toThrow(
-            'Tool find_explores was not registered',
-        );
-        expect(() => getToolCallback(McpToolName.FIND_FIELDS)).toThrow(
-            'Tool find_fields was not registered',
-        );
+        expect(() => getToolCallback(McpToolName.FIND_EXPLORES)).not.toThrow();
+        expect(() => getToolCallback(McpToolName.FIND_FIELDS)).not.toThrow();
 
         const result = await getToolCallback(McpToolName.GREP_FIELDS)(
             {
@@ -952,8 +945,8 @@ describe('MCP async query polling', () => {
         });
     });
 
-    it('returns structured metadata content when ai-grep-fields is enabled', async () => {
-        makeMcpService({ grepFieldsEnabled: true });
+    it('returns structured metadata content', async () => {
+        makeMcpService();
 
         const result = await getToolCallback(McpToolName.GET_METADATA)(
             {
@@ -1001,7 +994,6 @@ describe('MCP async query polling', () => {
 
     it('lists only explores available to the explicit agent in grep_fields', async () => {
         makeMcpService({
-            grepFieldsEnabled: true,
             context: {
                 projectUuid,
                 projectName: 'Project',

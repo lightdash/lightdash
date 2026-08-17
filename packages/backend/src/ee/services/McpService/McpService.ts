@@ -514,10 +514,7 @@ export class McpService extends BaseService {
         this.aiRouterService = aiRouterService;
         this.aiWritebackService = aiWritebackService;
         try {
-            this.mcpServer = this.buildMcpServer({
-                enableGrepFields: false,
-                runSqlEnabled: false,
-            });
+            this.mcpServer = this.buildMcpServer({ runSqlEnabled: false });
             this.setupHandlers();
         } catch (error) {
             this.logger.error('Error initializing MCP server:', error);
@@ -525,10 +522,7 @@ export class McpService extends BaseService {
         }
     }
 
-    private buildMcpServer(args: {
-        enableGrepFields: boolean;
-        runSqlEnabled: boolean;
-    }): McpServer {
+    private buildMcpServer(args: { runSqlEnabled: boolean }): McpServer {
         return Sentry.wrapMcpServerWithSentry(
             new McpServer(
                 {
@@ -554,7 +548,6 @@ export class McpService extends BaseService {
                 },
                 {
                     instructions: getMcpAnalystPrompt({
-                        enableGrepFields: args.enableGrepFields,
                         runSqlEnabled: args.runSqlEnabled,
                     }),
                 },
@@ -1889,7 +1882,6 @@ export class McpService extends BaseService {
         options: {
             projectPinned: boolean;
             aiWritebackEnabled: boolean;
-            grepFieldsEnabled: boolean;
             mcpContentWritesEnabled: boolean;
             scheduledDeliveryEnabled: boolean;
             runSqlEnabled: boolean;
@@ -1897,7 +1889,6 @@ export class McpService extends BaseService {
         } = {
             projectPinned: false,
             aiWritebackEnabled: false,
-            grepFieldsEnabled: false,
             mcpContentWritesEnabled: true,
             scheduledDeliveryEnabled: true,
             runSqlEnabled: false,
@@ -1978,7 +1969,7 @@ export class McpService extends BaseService {
             },
         );
 
-        if (options.grepFieldsEnabled) {
+        {
             this.registerTrackedTool(
                 mcpGrepFieldsTool.name,
                 {
@@ -2117,7 +2108,12 @@ export class McpService extends BaseService {
                     }
                 },
             );
-        } else {
+        }
+
+        // Deprecated compatibility tools. Keep these callable for existing MCP
+        // clients, but omit them from analyst guidance in favor of grep_fields
+        // and get_metadata.
+        {
             this.registerTrackedTool(
                 mcpFindExploresTool.name,
                 {
@@ -3643,7 +3639,6 @@ export class McpService extends BaseService {
             },
             async () => {
                 const promptText = getMcpAnalystPrompt({
-                    enableGrepFields: options.grepFieldsEnabled,
                     runSqlEnabled: options.runSqlEnabled,
                 });
 
@@ -4021,14 +4016,12 @@ export class McpService extends BaseService {
     public async createServer(options?: {
         projectPinned?: boolean;
         aiWritebackEnabled?: boolean;
-        grepFieldsEnabled?: boolean;
         mcpContentWritesEnabled?: boolean;
         scheduledDeliveryEnabled?: boolean;
         runSqlEnabled?: boolean;
         runMetricQueryEnabled?: boolean;
     }): Promise<McpServer> {
         const newServer = this.buildMcpServer({
-            enableGrepFields: options?.grepFieldsEnabled ?? false,
             runSqlEnabled: options?.runSqlEnabled ?? false,
         });
 
@@ -4040,7 +4033,6 @@ export class McpService extends BaseService {
         this.setupHandlers({
             projectPinned: options?.projectPinned ?? false,
             aiWritebackEnabled: options?.aiWritebackEnabled ?? false,
-            grepFieldsEnabled: options?.grepFieldsEnabled ?? false,
             mcpContentWritesEnabled: options?.mcpContentWritesEnabled ?? true,
             scheduledDeliveryEnabled: options?.scheduledDeliveryEnabled ?? true,
             runSqlEnabled: options?.runSqlEnabled ?? false,
@@ -4245,21 +4237,6 @@ export class McpService extends BaseService {
             aiCopilotFlag.enabled,
             user.organizationUuid,
         );
-    }
-
-    /**
-     * Whether MCP should expose the grep_fields/get_metadata discovery pair
-     * instead of the legacy find_explores/find_fields pair. Resolved per
-     * request so the MCP surface can dark-launch behind AiGrepFields.
-     */
-    public async isAiGrepFieldsEnabled(
-        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
-    ): Promise<boolean> {
-        const flag = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.AiGrepFields,
-        });
-        return flag.enabled;
     }
 
     public async isMcpContentWritesEnabled(

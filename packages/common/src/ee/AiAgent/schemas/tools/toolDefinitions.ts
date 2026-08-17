@@ -626,6 +626,8 @@ export const runMetricQueryToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolRunMetricQueryOutputSchema },
 });
 
+// Historical contract only: persisted calls still need to parse and render.
+// New agent runs use grepFields + getMetadata.
 export const discoverFieldsToolDefinition: ToolDefinitionWithoutMcpOutput<
     'discoverFields',
     typeof discoverFieldsInputSchema,

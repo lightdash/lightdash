@@ -17,17 +17,15 @@ exports[`MCP tool contracts > matches the current MCP tool and prompt contract s
 ## Query Building Workflow
 
 0. **Get started with context**: Call \`get_context\` first, select the relevant project, and pass its \`projectUuid\` to every project-scoped tool. When agent-specific scope is useful, call \`route_agent\` with that project UUID and pass its returned \`agentUuid\` to subsequent scoped tools. If routing is unavailable or full project scope is desired, omit \`agentUuid\`; use \`set_agent\` to select an agent manually
-1. **Find explores first**: Use \`find_explores\` with a natural language search query to discover relevant data models and any matching verified answers
-   - If the response includes a verified answer that clearly matches, prefer its returned config over constructing a new query from scratch
-   - Use matching verified answers as the starting point, then adapt only if the user asked for a clear modification
-   - Review the \`topMatchingFields\` to understand which explores match
-   - If multiple explores match with similar scores, ask the user which data source they mean
-2. **Get fields**: Use \`find_fields\` for the chosen explore to see all available dimensions and metrics
-   - Read field labels, descriptions, and hints carefully — hints are written specifically for AI guidance
-   - Never invent field IDs; only use exact values returned by \`find_fields\`
-   - Search for business terms, not technical field names
-   - Use multiple search queries in one call to find related fields efficiently
-   - Look for both dimensions (for grouping) and metrics (for aggregation)
+1. **Search fields first**: Use \`grep_fields\` with 1–5 high-signal keyword patterns to discover the relevant explore and field IDs
+   - Search with business terms and synonyms, not long natural-language phrases
+   - Use \`|\` to OR synonyms (for example \`revenue|sales\`) and spaces or \`.*\` to require terms together (for example \`order.*status\`)
+   - Pass several patterns in one call so you can compare the different angles of the request together
+   - Pick the single explore whose fields answer the question at the right grain; if several still fit, ask the user which data source they mean
+2. **Get metadata**: Use \`get_metadata\` for the explores and fields you selected from \`grep_fields\`
+   - Batch all needed explores and fields in one call
+   - Use it to confirm joined tables, required filters, filter types, case-sensitivity, and field-level hints before building the query
+   - Never invent field IDs; only use exact values returned by \`grep_fields\` / \`get_metadata\`
 3. **Search field values**: Use \`search_field_values\` to discover valid filter values for a dimension
 4. **Run queries**: Use \`run_metric_query\` for semantic-layer metric queries, or \`run_sql\` for custom SQL
 5. **Poll long-running queries**: If a query returns \`status: "running"\`, call \`get_query_result\` with the \`queryUuid\` until it returns done/error/cancelled/expired
@@ -38,8 +36,8 @@ exports[`MCP tool contracts > matches the current MCP tool and prompt contract s
 ## Critical Rules
 
 ### Explore Selection
-- When the user's query contains a domain word matching an explore name, use that explore
-- When multiple explores match, check \`usageInCharts\` to find the most commonly used one
+- When the user's query contains a domain word matching an explore name, prefer that explore if \`grep_fields\` also surfaces relevant fields there
+- When multiple explores surface plausible fields, choose the one whose dimensions and metrics match the user's intended grain
 - If still ambiguous, ask the user which data source they want — do NOT guess
 
 ### When to Use run_sql vs run_metric_query
@@ -77,7 +75,7 @@ Use table calculations for:
 
 ### Custom Metrics
 - Use when the explore lacks a needed aggregation
-- Always confirm the metric doesn't already exist via \`find_fields\` first
+- Always confirm the metric doesn't already exist via \`grep_fields\` / \`get_metadata\` first
 - Reference using the pattern \`table_metricname\`
 ",
       "title": "Lightdash Data Analyst",
@@ -143,6 +141,924 @@ Usage Tips:
       },
       "name": "list_explores",
       "title": "List explores",
+    },
+    {
+      "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+      },
+      "description": "Tool: grep_fields
+
+Purpose:
+Find which explores and fields can answer a question by grepping an in-memory, annotated view of the project's fields (names, labels, descriptions, hints and tags). Returns matching fields as \`explore/fieldId  [kind type]\` lines grouped by explore.
+
+Use this as the FIRST step whenever the user asks a data question (counts, totals, breakdowns, trends, "what is", "show me", "how many"). Do NOT call this for questions about existing dashboards/charts (use find_content).
+
+Each pattern is a case-insensitive keyword pattern (not a full regex): use \`|\` to OR synonyms ("revenue|sales") and a space or \`.*\` between words to require all of them ("order.*status" matches fields mentioning both "order" and "status"). Pass 1–5 patterns in a SINGLE call covering the different angles of the question — they run together so you see all results at once instead of grepping one at a time. Start broad with meaningful keywords (e.g. ["revenue|sales", "country|region", "segment|tier"]) and narrow from there — long natural-language phrases will not match. If results are empty, try synonyms or broader patterns before giving up. Read the returned fieldIds and pick the single explore that answers at the right grain before building a query.
+
+A description or hint ending in "...(truncated)" is incomplete — call get_metadata to read the full text before using that field.
+
+A field annotated with \`⚠params: <names>\` depends on those Lightdash parameters — what it returns changes with the parameter values the query runs with (unset parameters resolve to their default). Call get_metadata on its explore to see the parameter definitions before querying such a field.
+",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
+          "exploreName": {
+            "description": "Restrict the search to this explore only, or null to search all explores., ",
+            "type": "string",
+          },
+          "patterns": {
+            "description": "Up to 5 case-insensitive keyword patterns, run together in one call. Use \`|\` to OR synonyms and a space or \`.*\` between words to require all of them. Each is matched against field names, labels, descriptions, hints and tags.",
+            "items": {
+              "minLength": 1,
+              "type": "string",
+            },
+            "maxItems": 5,
+            "minItems": 1,
+            "type": "array",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
+        },
+        "required": [
+          "patterns",
+          "projectUuid",
+        ],
+        "type": "object",
+      },
+      "name": "grep_fields",
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string",
+          },
+          "exploreName": {
+            "type": [
+              "string",
+              "null",
+            ],
+          },
+          "fuzzyMatches": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "description": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "exploreName": {
+                  "type": "string",
+                },
+                "fieldId": {
+                  "type": "string",
+                },
+                "fieldType": {
+                  "type": "string",
+                },
+                "label": {
+                  "type": "string",
+                },
+                "searchRank": {
+                  "type": [
+                    "number",
+                    "null",
+                  ],
+                },
+                "usageInCharts": {
+                  "type": "number",
+                },
+                "usageInVerifiedCharts": {
+                  "type": "number",
+                },
+              },
+              "required": [
+                "exploreName",
+                "fieldId",
+                "label",
+                "fieldType",
+                "description",
+                "searchRank",
+                "usageInCharts",
+                "usageInVerifiedCharts",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+          "patterns": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "matchCount": {
+                  "type": "number",
+                },
+                "matchedAllFields": {
+                  "type": "boolean",
+                },
+                "matchingExploresByName": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "exploreLabel": {
+                        "type": "string",
+                      },
+                      "exploreName": {
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "exploreName",
+                      "exploreLabel",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+                "metricAmbiguityNote": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "note": {
+                  "type": "string",
+                },
+                "pattern": {
+                  "type": "string",
+                },
+                "resultsByExplore": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "exploreLabel": {
+                        "type": "string",
+                      },
+                      "exploreName": {
+                        "type": "string",
+                      },
+                      "fields": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "defaultTimeDimension": {
+                              "type": [
+                                "string",
+                                "null",
+                              ],
+                            },
+                            "defaultTimeDimensionGranularity": {
+                              "type": [
+                                "string",
+                                "null",
+                              ],
+                            },
+                            "description": {
+                              "type": [
+                                "string",
+                                "null",
+                              ],
+                            },
+                            "exploreLabel": {
+                              "type": "string",
+                            },
+                            "exploreName": {
+                              "type": "string",
+                            },
+                            "fieldId": {
+                              "type": "string",
+                            },
+                            "fieldType": {
+                              "type": "string",
+                            },
+                            "hint": {
+                              "type": [
+                                "string",
+                                "null",
+                              ],
+                            },
+                            "kind": {
+                              "enum": [
+                                "dimension",
+                                "metric",
+                              ],
+                              "type": "string",
+                            },
+                            "label": {
+                              "type": "string",
+                            },
+                            "matchLocality": {
+                              "enum": [
+                                "name",
+                                "description",
+                                "hint",
+                                "mixed",
+                              ],
+                              "type": "string",
+                            },
+                            "path": {
+                              "type": "string",
+                            },
+                            "requiredParameters": {
+                              "items": {
+                                "type": "string",
+                              },
+                              "type": "array",
+                            },
+                            "usageInVerifiedCharts": {
+                              "type": "number",
+                            },
+                          },
+                          "required": [
+                            "exploreName",
+                            "exploreLabel",
+                            "fieldId",
+                            "path",
+                            "kind",
+                            "fieldType",
+                            "label",
+                            "description",
+                            "hint",
+                            "defaultTimeDimension",
+                            "defaultTimeDimensionGranularity",
+                            "requiredParameters",
+                            "usageInVerifiedCharts",
+                            "matchLocality",
+                          ],
+                          "type": "object",
+                        },
+                        "type": "array",
+                      },
+                      "requiredFilters": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "fieldId": {
+                              "type": "string",
+                            },
+                            "fieldRef": {
+                              "type": "string",
+                            },
+                            "operator": {
+                              "type": "string",
+                            },
+                            "required": {
+                              "type": "boolean",
+                            },
+                            "settings": {},
+                            "tableName": {
+                              "type": "string",
+                            },
+                            "values": {
+                              "items": {},
+                              "type": "array",
+                            },
+                          },
+                          "required": [
+                            "fieldId",
+                            "fieldRef",
+                            "tableName",
+                            "operator",
+                            "required",
+                          ],
+                          "type": "object",
+                        },
+                        "type": "array",
+                      },
+                    },
+                    "required": [
+                      "exploreName",
+                      "exploreLabel",
+                      "requiredFilters",
+                      "fields",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+                "scopeSize": {
+                  "type": "number",
+                },
+                "status": {
+                  "enum": [
+                    "matches",
+                    "no_matches",
+                    "no_signal",
+                  ],
+                  "type": "string",
+                },
+              },
+              "required": [
+                "pattern",
+                "status",
+                "matchCount",
+                "scopeSize",
+                "matchedAllFields",
+                "note",
+                "resultsByExplore",
+                "metricAmbiguityNote",
+                "matchingExploresByName",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+          "relevantVerifiedAnswers": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "artifactType": {
+                  "enum": [
+                    "chart",
+                    "dashboard",
+                  ],
+                  "type": "string",
+                },
+                "artifactVersionUuid": {
+                  "type": "string",
+                },
+                "chartConfig": {
+                  "additionalProperties": {},
+                  "type": "object",
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "similarity": {
+                  "type": "number",
+                },
+                "title": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "verifiedQuestion": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+              },
+              "required": [
+                "artifactVersionUuid",
+                "chartConfig",
+                "artifactType",
+                "verifiedQuestion",
+                "title",
+                "description",
+                "similarity",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+        },
+        "required": [
+          "description",
+          "exploreName",
+          "patterns",
+          "fuzzyMatches",
+        ],
+        "type": "object",
+      },
+      "title": "Search fields",
+    },
+    {
+      "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+      },
+      "description": "Tool: get_metadata
+
+Purpose:
+Get the full metadata for specific explores and/or fields that you already know the IDs of (typically from grep_fields). grep_fields is lean — it tells you WHICH fields exist; get_metadata gives you the DETAIL you need to build a correct query: an explore's joined tables, table filters, and parameters, and a field's filter type, case-sensitivity, resolved default time dimension, parameter dependencies, hints, and whether it comes from a joined table. A field marked with required parameters returns different results depending on the parameter values the query runs with — unset parameters resolve to their default.
+
+Call this AFTER grep_fields, once you have narrowed down to the explore(s) and field(s) you intend to use, and BEFORE render_chart. You can ask for several explores and several fields across explores in a SINGLE call — batch everything you need at once instead of one request per item.
+
+Each entry in \`requests\` is one of:
+- \`{ "type": "explore", "exploreIds": ["orders", "customers"] }\` — full metadata for those explores (joined tables, table filters, field counts).
+- \`{ "type": "field", "fields": [{ "exploreId": "orders", "fieldId": "orders_status" }] }\` — full metadata for those specific fields.
+",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
+          "requests": {
+            "description": "A batch of explore and/or field metadata requests, resolved together in one call.",
+            "items": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "exploreIds": {
+                      "description": "Explore IDs (names) to fetch full metadata for.",
+                      "items": {
+                        "minLength": 1,
+                        "type": "string",
+                      },
+                      "minItems": 1,
+                      "type": "array",
+                    },
+                    "type": {
+                      "const": "explore",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "type",
+                    "exploreIds",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "fields": {
+                      "description": "Specific fields to fetch full metadata for.",
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "exploreId": {
+                            "description": "The explore the field belongs to.",
+                            "minLength": 1,
+                            "type": "string",
+                          },
+                          "fieldId": {
+                            "description": "The fieldId, e.g. \`orders_status\`.",
+                            "minLength": 1,
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "exploreId",
+                          "fieldId",
+                        ],
+                        "type": "object",
+                      },
+                      "minItems": 1,
+                      "type": "array",
+                    },
+                    "type": {
+                      "const": "field",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "type",
+                    "fields",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "type": "array",
+          },
+        },
+        "required": [
+          "requests",
+          "projectUuid",
+        ],
+        "type": "object",
+      },
+      "name": "get_metadata",
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "explores": {
+            "items": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "baseDimensions": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "count": {
+                          "type": "number",
+                        },
+                        "fieldIds": {
+                          "items": {
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                      },
+                      "required": [
+                        "count",
+                        "fieldIds",
+                      ],
+                      "type": "object",
+                    },
+                    "baseMetrics": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "count": {
+                          "type": "number",
+                        },
+                        "fieldIds": {
+                          "items": {
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                      },
+                      "required": [
+                        "count",
+                        "fieldIds",
+                      ],
+                      "type": "object",
+                    },
+                    "baseTable": {
+                      "type": "string",
+                    },
+                    "description": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "exploreId": {
+                      "type": "string",
+                    },
+                    "hint": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "joinedTables": {
+                      "items": {
+                        "type": "string",
+                      },
+                      "type": "array",
+                    },
+                    "label": {
+                      "type": "string",
+                    },
+                    "parameters": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "allowCustomValues": {
+                            "type": "boolean",
+                          },
+                          "default": {
+                            "anyOf": [
+                              {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                  },
+                                  {
+                                    "type": "number",
+                                  },
+                                  {
+                                    "items": {
+                                      "type": "string",
+                                    },
+                                    "type": "array",
+                                  },
+                                  {
+                                    "items": {
+                                      "type": "number",
+                                    },
+                                    "type": "array",
+                                  },
+                                ],
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "description": {
+                            "type": [
+                              "string",
+                              "null",
+                            ],
+                          },
+                          "label": {
+                            "type": "string",
+                          },
+                          "multiple": {
+                            "type": "boolean",
+                          },
+                          "name": {
+                            "type": "string",
+                          },
+                          "options": {
+                            "anyOf": [
+                              {
+                                "items": {
+                                  "type": [
+                                    "string",
+                                    "number",
+                                  ],
+                                },
+                                "type": "array",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "optionsFromDimension": {
+                            "anyOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "dimension": {
+                                    "type": "string",
+                                  },
+                                  "model": {
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "model",
+                                  "dimension",
+                                ],
+                                "type": "object",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "type": {
+                            "enum": [
+                              "string",
+                              "number",
+                              "date",
+                            ],
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "name",
+                          "label",
+                          "description",
+                          "type",
+                          "default",
+                          "multiple",
+                          "allowCustomValues",
+                          "options",
+                          "optionsFromDimension",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    "requiredFilters": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "fieldId": {
+                            "type": "string",
+                          },
+                          "fieldRef": {
+                            "type": "string",
+                          },
+                          "operator": {
+                            "type": "string",
+                          },
+                          "required": {
+                            "type": "boolean",
+                          },
+                          "settings": {},
+                          "tableName": {
+                            "type": "string",
+                          },
+                          "values": {
+                            "items": {},
+                            "type": "array",
+                          },
+                        },
+                        "required": [
+                          "fieldId",
+                          "fieldRef",
+                          "tableName",
+                          "operator",
+                          "required",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    "status": {
+                      "const": "found",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "exploreId",
+                    "status",
+                    "label",
+                    "description",
+                    "hint",
+                    "baseTable",
+                    "joinedTables",
+                    "requiredFilters",
+                    "parameters",
+                    "baseDimensions",
+                    "baseMetrics",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                    },
+                    "exploreId": {
+                      "type": "string",
+                    },
+                    "status": {
+                      "const": "not_found",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "exploreId",
+                    "status",
+                    "error",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "type": "array",
+          },
+          "fields": {
+            "items": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "caseSensitiveFilters": {
+                      "type": [
+                        "boolean",
+                        "null",
+                      ],
+                    },
+                    "defaultTimeDimension": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "defaultTimeDimensionGranularity": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "description": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "exploreId": {
+                      "type": "string",
+                    },
+                    "fieldId": {
+                      "type": "string",
+                    },
+                    "fieldType": {
+                      "type": "string",
+                    },
+                    "filterType": {
+                      "type": "string",
+                    },
+                    "hint": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "isFromJoinedTable": {
+                      "type": "boolean",
+                    },
+                    "joinedTableName": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "kind": {
+                      "enum": [
+                        "dimension",
+                        "metric",
+                      ],
+                      "type": "string",
+                    },
+                    "label": {
+                      "type": "string",
+                    },
+                    "requiredParameters": {
+                      "items": {
+                        "type": "string",
+                      },
+                      "type": "array",
+                    },
+                    "status": {
+                      "const": "found",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "exploreId",
+                    "fieldId",
+                    "status",
+                    "kind",
+                    "fieldType",
+                    "label",
+                    "filterType",
+                    "isFromJoinedTable",
+                    "joinedTableName",
+                    "caseSensitiveFilters",
+                    "defaultTimeDimension",
+                    "defaultTimeDimensionGranularity",
+                    "requiredParameters",
+                    "description",
+                    "hint",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                    },
+                    "exploreId": {
+                      "type": "string",
+                    },
+                    "fieldId": {
+                      "type": "string",
+                    },
+                    "status": {
+                      "const": "not_found",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "exploreId",
+                    "fieldId",
+                    "status",
+                    "error",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "type": "array",
+          },
+        },
+        "required": [
+          "explores",
+          "fields",
+        ],
+        "type": "object",
+      },
+      "title": "Get metadata",
     },
     {
       "agentName": null,
