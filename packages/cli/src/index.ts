@@ -604,10 +604,10 @@ program
         '--organization-credentials <name>',
         'Use organization warehouse credentials with the specified name (Enterprise Edition feature)',
     )
+    .option('--no-batched-deploy', 'Use the legacy single-request deploy')
     .option(
         '--use-batched-deploy',
-        'Use the new batched deploy feature to upload explores in batches',
-        false,
+        'Use batched deploy to upload explores in batches',
     )
     .option(
         '--batch-size <number>',
@@ -743,10 +743,10 @@ program
         'Create preview without warehouse credentials. Copies credentials from upstream project.',
     )
     .option('-y, --assume-yes', 'assume yes to prompts', false)
+    .option('--no-batched-deploy', 'Use the legacy single-request deploy')
     .option(
         '--use-batched-deploy',
-        'Use the new batched deploy feature to upload explores in batches',
-        false,
+        'Use batched deploy to upload explores in batches',
     )
     .option(
         '--batch-size <number>',
@@ -1293,10 +1293,10 @@ program
         parseDisableTimestampConversionOption,
     )
     .option('-y, --assume-yes', 'assume yes to prompts', false)
+    .option('--no-batched-deploy', 'Use the legacy single-request deploy')
     .option(
         '--use-batched-deploy',
-        'Use batched deploy for large projects (sends explores in batches)',
-        false,
+        'Use batched deploy to upload explores in batches',
     )
     .option(
         '--batch-size <number>',
