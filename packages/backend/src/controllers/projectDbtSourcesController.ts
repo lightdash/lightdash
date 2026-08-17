@@ -25,7 +25,6 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { validateProjectDbtSourceName } from '../services/ProjectDbtSourcesService';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -79,7 +78,6 @@ export class ProjectDbtSourcesController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiProjectDbtSourceResponse> {
         assertRegisteredAccount(req.account);
-        validateProjectDbtSourceName(body.name);
         this.setStatus(201);
         const results = await this.services
             .getProjectDbtSourcesService()
@@ -138,9 +136,6 @@ export class ProjectDbtSourcesController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiProjectDbtSourceResponse> {
         assertRegisteredAccount(req.account);
-        if (body.name !== undefined) {
-            validateProjectDbtSourceName(body.name);
-        }
         this.setStatus(200);
         const results = await this.services
             .getProjectDbtSourcesService()
