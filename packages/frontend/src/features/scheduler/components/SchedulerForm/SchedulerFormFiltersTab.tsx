@@ -25,7 +25,7 @@ import {
     IconAlertTriangle,
     IconCheck,
     IconPencil,
-    IconPlus,
+    IconFilterPlus,
     IconRotate2,
     IconTrash,
 } from '@tabler/icons-react';
@@ -316,7 +316,7 @@ const RemovedFilterItem: FC<RemovedFilterItemProps> = ({
                     aria-label="Re-add filter"
                     onClick={onRestore}
                 >
-                    <MantineIcon icon={IconPlus} />
+                    <MantineIcon icon={IconFilterPlus} />
                 </ActionIcon>
             </Tooltip>
         </Group>
