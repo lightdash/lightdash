@@ -1,8 +1,10 @@
 import {
     convertExplores,
+    DbtManifestVersion,
     DEFAULT_SPOTLIGHT_CONFIG,
     DimensionType,
     getModelsFromManifest,
+    ManifestValidator,
     SupportedDbtAdapter,
     type DbtManifest,
 } from '@lightdash/common';
@@ -25,6 +27,11 @@ const manifest = {
             resource_type: 'model',
             package_name: 'test',
             path: 'orders.sql',
+            original_file_path: 'models/orders.sql',
+            root_path: '/workspace/test',
+            fqn: ['test', 'orders'],
+            alias: 'orders',
+            checksum: { name: 'sha256', checksum: 'abc123' },
             patch_path: 'test://models/orders.yml',
             description: 'Orders',
             tags: ['finance'],
@@ -74,6 +81,7 @@ const manifest = {
             lightdash_source_name: 'primary',
             unrendered_config: { meta: { hidden: true } },
             raw_code: 'select 1',
+            language: 'sql',
             compiled_code: 'select 1',
         },
         'test.test.orders_not_null': {
@@ -94,6 +102,64 @@ const manifest = {
 } as unknown as DbtManifest;
 
 describe('projectMergedManifest', () => {
+    test.each(Object.values(DbtManifestVersion))(
+        'keeps every model field required by CLI validation for %s',
+        (manifestVersion) => {
+            const modelValidator = ManifestValidator.getValidator(
+                `https://schemas.lightdash.com/lightdash/${manifestVersion}.json#/definitions/LightdashCompiledModelNode`,
+            );
+            const modelSchemaReference = (
+                modelValidator.schema as {
+                    allOf?: { $ref?: string }[];
+                }
+            ).allOf?.find(({ $ref }) => $ref?.includes('/manifest/'))?.$ref;
+            const modelSchema = modelSchemaReference
+                ? (ManifestValidator.getValidator(modelSchemaReference)
+                      .schema as {
+                      properties?: Record<string, unknown>;
+                      required?: string[];
+                  })
+                : undefined;
+            const requiredFields = modelSchema?.required ?? [];
+            const manifestForVersion = structuredClone(manifest);
+            manifestForVersion.metadata.dbt_schema_version = `https://schemas.getdbt.com/dbt/manifest/${manifestVersion}.json`;
+            const sourceModel = manifestForVersion.nodes[
+                'model.test.orders'
+            ] as unknown as Record<string, unknown>;
+            if (modelSchema?.properties) {
+                const schemaFields = new Set(
+                    Object.keys(modelSchema.properties),
+                );
+                manifestForVersion.nodes['model.test.orders'] =
+                    Object.fromEntries(
+                        Object.entries(sourceModel).filter(
+                            ([field]) =>
+                                schemaFields.has(field) ||
+                                field === 'lightdash_source_name',
+                        ),
+                    ) as DbtManifest['nodes'][string];
+            }
+            const projectedModels = getModelsFromManifest(
+                projectMergedManifest(manifestForVersion),
+            ).filter(({ resource_type: resourceType }) =>
+                ['model'].includes(resourceType),
+            );
+
+            projectedModels.forEach((model) => {
+                requiredFields.forEach((requiredField) => {
+                    expect(model).toHaveProperty(requiredField);
+                });
+                const modelToValidate = { ...model } as typeof model & {
+                    lightdash_source_name?: unknown;
+                };
+                delete modelToValidate.lightdash_source_name;
+                expect(
+                    ManifestValidator.isValid(modelValidator, modelToValidate),
+                ).toEqual([true, undefined]);
+            });
+        },
+    );
+
     test('drops model dead weight while preserving compiler semantics', async () => {
         const manifestBeforeProjection = structuredClone(manifest);
         const projected = projectMergedManifest(manifest);
@@ -114,6 +180,11 @@ describe('projectMergedManifest', () => {
             resource_type: 'model',
             package_name: 'test',
             path: 'orders.sql',
+            original_file_path: 'models/orders.sql',
+            root_path: '/workspace/test',
+            fqn: ['test', 'orders'],
+            alias: 'orders',
+            checksum: { name: 'sha256', checksum: 'abc123' },
             patch_path: 'test://models/orders.yml',
             description: 'Orders',
             tags: ['finance'],
@@ -152,6 +223,8 @@ describe('projectMergedManifest', () => {
                 },
             },
             compiled: true,
+            raw_code: 'select 1',
+            language: 'sql',
             depends_on: { nodes: [], macros: [] },
             lightdash_source_name: 'primary',
         });
