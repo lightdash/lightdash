@@ -208,7 +208,10 @@ describe('DataApp preview scopes', () => {
                 PRODUCTION_PROJECT_UUID,
                 'Insufficient permissions to create data apps',
             ),
-        ).rejects.toThrow(/only allows data apps in preview projects/);
+        ).rejects.toMatchObject({
+            message:
+                'Insufficient permissions to create data apps. Your role only allows data apps in preview projects you created, and this is not one.',
+        });
     });
 
     it('keeps the generic message for roles with no preview-only grant', async () => {

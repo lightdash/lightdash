@@ -10,7 +10,7 @@ import {
     S3ServiceException,
     type ObjectIdentifier,
 } from '@aws-sdk/client-s3';
-import { subject } from '@casl/ability';
+import { subject, type Ability } from '@casl/ability';
 import {
     AlreadyExistsError,
     APP_VERSION_CANCELLED_BY_USER,
@@ -138,6 +138,7 @@ import {
     type DbAppActivityRow,
     type DbAppVersion,
 } from '../../../database/entities/apps';
+import { type CaslAuditWrapper } from '../../../logging/caslAuditWrapper';
 import { AnalyticsModel } from '../../../models/AnalyticsModel';
 import { AppModel } from '../../../models/AppModel';
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
@@ -568,6 +569,30 @@ export class AppGenerateService extends BaseService {
         };
     }
 
+    private static isPreviewOnlyDataAppGrant(
+        rules: CaslAuditWrapper<Ability>['rules'],
+        action: 'view' | 'create' | 'manage',
+    ): boolean {
+        const dataAppRules = rules.filter(
+            (rule) =>
+                rule.subject === 'DataApp' &&
+                !rule.inverted &&
+                (rule.action === action || rule.action === 'manage'),
+        );
+        return (
+            dataAppRules.length > 0 &&
+            dataAppRules.every((rule) => {
+                const { conditions } = rule;
+                return (
+                    typeof conditions === 'object' &&
+                    conditions !== null &&
+                    'projectType' in conditions &&
+                    conditions.projectType === ProjectType.PREVIEW
+                );
+            })
+        );
+    }
+
     /**
      * Run a CASL check on `DataApp`, throwing `ForbiddenError` if denied.
      */
@@ -589,16 +614,12 @@ export class AppGenerateService extends BaseService {
                 }),
             )
         ) {
-            const wouldAllowInOwnPreview = auditedAbility.can(
-                action,
-                subject('DataApp', {
-                    ...projectContext,
-                    ...extraContext,
-                    projectType: ProjectType.PREVIEW,
-                    projectCreatedByUserUuid: user.userUuid,
-                }),
-            );
-            if (wouldAllowInOwnPreview) {
+            if (
+                AppGenerateService.isPreviewOnlyDataAppGrant(
+                    auditedAbility.rules,
+                    action,
+                )
+            ) {
                 throw new ForbiddenError(
                     `${errorMessage}. Your role only allows data apps in preview projects you created, and this is not one.`,
                 );
