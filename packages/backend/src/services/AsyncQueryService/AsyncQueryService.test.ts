@@ -9,8 +9,10 @@ import {
     ExecuteAsyncQueryRequestParams,
     ExploreType,
     FeatureFlags,
+    FieldType,
     FilterOperator,
     ForbiddenError,
+    MetricType,
     NotFoundError,
     OrganizationAccessStatus,
     PersistentDownloadFileAccessMode,
@@ -408,6 +410,42 @@ type JwtDashboardQueryContextTestService = {
 };
 
 describe('AsyncQueryService', () => {
+    describe('executeAsyncMergeQuery', () => {
+        const mergeQuery = {
+            sources: [],
+            joinKey: [],
+            joinType: 'full',
+            tableCalculations: [],
+            limit: 500,
+        } as never;
+
+        test('returns validation errors without starting execution', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            vi.spyOn(service, 'compileMergeQuery').mockResolvedValue({
+                coreSql: null,
+                typedColumns: null,
+                terminalWrapper: null,
+                errors: [{ message: 'Fan-out' }],
+                parameterReferences: ['date'],
+                fieldOrigins: {},
+            } as never);
+            const result = await service.executeAsyncMergeQuery({
+                account: sessionAccount,
+                projectUuid,
+                mergeQuery,
+                context: QueryExecutionContext.EXPLORE,
+                mode: { type: 'interactive' },
+            });
+
+            expect(service.compileMergeQuery).toHaveBeenCalledTimes(1);
+            expect(result).toMatchObject({
+                outcome: 'refused',
+                parameterReferences: ['date'],
+                errors: [{ message: 'Fan-out' }],
+            });
+        });
+    });
+
     describe('getJwtDashboardQueryContext', () => {
         const buildDashboardEmbedAccount = () =>
             ({

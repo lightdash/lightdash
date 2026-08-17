@@ -1,20 +1,9 @@
-import { type DashboardSummary } from '../../types/dashboard';
 import {
     type CustomSqlDimension,
     type Field,
     type TableCalculation,
 } from '../../types/field';
 import { type MetricQuery } from '../../types/metricQuery';
-
-export type ApiAiDashboardSummaryResponse = {
-    status: 'ok';
-    results: DashboardSummary;
-};
-
-export type ApiAiGetDashboardSummaryResponse = {
-    status: 'ok';
-    results: DashboardSummary;
-};
 
 export type ApiAiGenerateCustomVizResponse = {
     status: 'ok';

@@ -27,6 +27,7 @@ import {
     type TableCalculation,
 } from '../types/field';
 import {
+    FilterGroupOperator,
     FilterOperator,
     FilterType,
     isAndFilterGroup,
@@ -81,6 +82,59 @@ export const getTotalFilterRules = (filters: Filters): FilterRule[] => [
     ...getFilterRulesFromGroup(filters.metrics),
     ...getFilterRulesFromGroup(filters.tableCalculations),
 ];
+
+export type FilterExpression = {
+    operator: FilterGroupOperator;
+    items: Array<FilterRule | FilterExpression>;
+};
+
+export const isFilterExpression = (
+    item: FilterRule | FilterExpression,
+): item is FilterExpression => 'items' in item;
+
+const getFilterGroupExpression = (
+    group: FilterGroup,
+    includeRule: (rule: FilterRule) => boolean,
+): FilterExpression | undefined => {
+    const operator = isAndFilterGroup(group)
+        ? FilterGroupOperator.and
+        : FilterGroupOperator.or;
+    const groupItems = isAndFilterGroup(group) ? group.and : group.or;
+    const items = groupItems.flatMap<FilterRule | FilterExpression>((item) => {
+        if (isFilterGroup(item)) {
+            const expression = getFilterGroupExpression(item, includeRule);
+            return expression ? [expression] : [];
+        }
+        return includeRule(item) ? [item] : [];
+    });
+
+    return items.length > 0 ? { operator, items } : undefined;
+};
+
+export const getFilterExpression = (
+    filters: Filters,
+    includeRule: (rule: FilterRule) => boolean = () => true,
+): FilterExpression | undefined => {
+    const groups = [
+        filters.dimensions,
+        filters.metrics,
+        filters.tableCalculations,
+    ].flatMap((group) => {
+        if (!group) return [];
+        const expression = getFilterGroupExpression(group, includeRule);
+        return expression ? [expression] : [];
+    });
+
+    if (groups.length === 0) return undefined;
+    if (groups.length === 1) return groups[0];
+
+    return {
+        operator: FilterGroupOperator.and,
+        items: groups.flatMap((group) =>
+            group.operator === FilterGroupOperator.and ? group.items : [group],
+        ),
+    };
+};
 
 export const countTotalFilterRules = (filters: Filters): number =>
     getTotalFilterRules(filters).length;
@@ -586,6 +640,8 @@ export const createDashboardFilterRuleFromSqlColumn = ({
 type AddFilterRuleArgs = {
     filters: Filters;
     field: FilterableField;
+    /** Override the display field's id when it represents another source. */
+    targetFieldId?: string;
     value?: AnyType;
     timezone?: string;
     operator?: QuickFilterOperator;
@@ -594,6 +650,7 @@ type AddFilterRuleArgs = {
 export const addFilterRule = ({
     filters,
     field,
+    targetFieldId,
     value,
     timezone,
     operator,
@@ -608,6 +665,21 @@ export const addFilterRule = ({
         return 'metrics';
     })(field);
     const group = filters[groupKey];
+    const createdRule = createFilterRuleFromField(
+        field,
+        value,
+        timezone,
+        operator,
+    );
+    const rule = targetFieldId
+        ? {
+              ...createdRule,
+              target: {
+                  ...createdRule.target,
+                  fieldId: targetFieldId,
+              },
+          }
+        : createdRule;
     return {
         ...filters,
         [groupKey]: {
@@ -615,7 +687,7 @@ export const addFilterRule = ({
             ...group,
             [getFilterGroupItemsPropertyName(group)]: [
                 ...getItemsFromFilterGroup(group),
-                createFilterRuleFromField(field, value, timezone, operator),
+                rule,
             ],
         },
     };

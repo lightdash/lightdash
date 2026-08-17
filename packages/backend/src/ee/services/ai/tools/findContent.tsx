@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import moment from 'moment';
+import type { AiAgentFindContentCoverage } from '../../../../analytics/LightdashAnalytics';
 import type {
     FindContentChartResult,
     FindContentDashboardResult,
@@ -33,12 +34,7 @@ type Dependencies = {
     findContent: FindContentFn;
     siteUrl: string;
     toolDescriptionMaxChars: number;
-    trackCoverage: (coverage: {
-        searchQuery: string;
-        totalResultCount: number;
-        verifiedResultCount: number;
-        topResultVerified: boolean;
-    }) => void;
+    trackCoverage: (coverage: AiAgentFindContentCoverage) => void;
 };
 
 const toolDefinition = findContentToolDefinition.for('agent');
@@ -209,7 +205,10 @@ const isSpaceResult = (
 ): content is FindContentSpaceResult => content.contentType === 'space';
 
 const renderContent = (
-    args: Awaited<ReturnType<FindContentFn>> & { searchQuery: string },
+    args: Awaited<ReturnType<FindContentFn>> & {
+        searchQuery: string;
+        verifiedOnly: boolean;
+    },
     siteUrl: string,
     toolDescriptionMaxChars: number,
 ) => {
@@ -219,6 +218,9 @@ const renderContent = (
     );
     return (
         <searchresult searchQuery={args.searchQuery}>
+            {args.verifiedOnly && sortedContent.length === 0
+                ? 'No verified content matched this query. Verified content may still exist under other search terms; re-run with verifiedOnly=false only if unverified content is acceptable.'
+                : null}
             {sortedContent.map((content) => {
                 if (isSpaceResult(content)) {
                     return renderSpace(content);
@@ -241,12 +243,15 @@ export const getFindContent = ({
         ...toolDefinition,
         execute: async (args) => {
             try {
+                const verifiedOnly = args.verifiedOnly ?? false;
                 const searchQueryResults = await Promise.all(
                     args.searchQueries.map(async (searchQuery) => ({
                         searchQuery: searchQuery.label,
+                        verifiedOnly,
                         ...(await findContent({
                             searchQuery,
                             spaceSlug: args.spaceSlug ?? null,
+                            verifiedOnly,
                         })),
                     })),
                 );
@@ -264,6 +269,7 @@ export const getFindContent = ({
                         totalResultCount,
                         verifiedResultCount,
                         topResultVerified,
+                        verifiedOnly,
                     });
                 }
 

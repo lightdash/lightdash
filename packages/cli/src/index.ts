@@ -1956,7 +1956,13 @@ const errorHandler = (err: Error) => {
         );
     } else if (err.name === 'AuthorizationError') {
         console.error(
-            `Looks like you did not authenticate or the personal access token expired.\n\n👀 See https://docs.lightdash.com/guides/cli/cli-authentication for help and examples`,
+            `Looks like you did not authenticate or the personal access token expired.${
+                process.env.LIGHTDASH_API_KEY
+                    ? `\n\nLIGHTDASH_API_KEY is set, and it takes precedence over the token saved by \`lightdash login\`. If you expected your saved login to be used, run ${styles.bold(
+                          'unset LIGHTDASH_API_KEY',
+                      )}.`
+                    : ''
+            }\n\n👀 See https://docs.lightdash.com/guides/cli/cli-authentication for help and examples`,
         );
     } else if (!(err instanceof LightdashError)) {
         console.error(err);

@@ -1,11 +1,14 @@
 {
   "name": "@lightdash/cli",
-  "version": "1.150.0",
+  "version": "1.169.1",
   "description": "Lightdash CLI tool",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/lightdash/lightdash.git"
+  },
+  "engines": {
+    "node": ">=24"
   },
   "bin": {
     "lightdash": "dist/index.js"

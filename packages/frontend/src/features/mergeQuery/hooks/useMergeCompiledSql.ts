@@ -14,7 +14,7 @@ import { useMergeSetup } from './useMergeSetup';
  * The merged statement, compiled for the SQL card.
  *
  * With a merge configured, the merged statement is what Run executes — a SQL
- * card showing Query A's SQL alone would be showing SQL that does not run.
+ * card showing the primary source's SQL alone would show SQL that does not run.
  * `isMergeActive` is false until the merge is complete enough to compile, so
  * callers fall back to the single-query SQL while the join is being set up.
  */

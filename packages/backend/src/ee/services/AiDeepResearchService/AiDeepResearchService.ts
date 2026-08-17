@@ -21,6 +21,7 @@ import {
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
+    sleep,
     toolRunQueryArgsSchema,
     UnexpectedServerError,
     type Account,
@@ -75,10 +76,44 @@ import {
 const MAX_EVENT_PAGE_SIZE = 100;
 const DEFAULT_EVENT_PAGE_SIZE = 50;
 const STALE_RUN_THRESHOLD_MINUTES = 75;
+const REPORT_FINALIZATION_RETRY_DELAYS_MS = [100, 500] as const;
 const STALE_RUN_ERROR_MESSAGE =
     'Deep Research stopped unexpectedly before it could finish.';
 const FAILED_RUN_ERROR_MESSAGE =
     'Deep Research could not finish. Please try again.';
+const REPORT_ADJUSTED_WARNING =
+    '<warning title="Report adjusted">Some chart evidence was omitted because it could not be verified. The remaining narrative and verified evidence are preserved.</warning>';
+
+const retryReportFinalization = async <T>(
+    operation: () => Promise<T>,
+    onRetry: (error: unknown, attempt: number) => void,
+    attempt = 0,
+): Promise<T> => {
+    try {
+        return await operation();
+    } catch (error) {
+        const delay = REPORT_FINALIZATION_RETRY_DELAYS_MS[attempt];
+        if (delay === undefined) {
+            throw error;
+        }
+        onRetry(error, attempt + 1);
+        await sleep(delay);
+        return retryReportFinalization(operation, onRetry, attempt + 1);
+    }
+};
+
+const addReportAdjustedWarning = (markdown: string): string => {
+    const reportTitle = markdown.match(/^# +.+$/m);
+    if (!reportTitle || reportTitle.index === undefined) {
+        return `${REPORT_ADJUSTED_WARNING}\n\n${markdown}`;
+    }
+
+    const reportTitleEnd = reportTitle.index + reportTitle[0].length;
+    return `${markdown.slice(
+        0,
+        reportTitleEnd,
+    )}\n\n${REPORT_ADJUSTED_WARNING}${markdown.slice(reportTitleEnd)}`;
+};
 
 const getCompletionClass = (
     status: DbAiDeepResearchRun['status'],
@@ -93,7 +128,9 @@ const getCompletionClass = (
 };
 
 const getReportQuality = (run: DbAiDeepResearchRun) => {
-    const hasReport = run.result_markdown !== null;
+    const hasReport =
+        (run.status === 'completed' || run.status === 'partially_completed') &&
+        run.result_markdown !== null;
     const structureValid = hasReport
         ? lintDeepResearchReport(run.result_markdown ?? '').length === 0
         : false;
@@ -346,7 +383,11 @@ const toRun = (row: DbAiDeepResearchRun): AiDeepResearchRun => {
         prompt: row.prompt,
         status: row.status,
         terminalReason: row.terminal_reason,
-        resultMarkdown: isReportExpired ? null : row.result_markdown,
+        resultMarkdown:
+            isReportExpired ||
+            (row.status !== 'completed' && row.status !== 'partially_completed')
+                ? null
+                : row.result_markdown,
         reportExpiresAt: reportExpiresAt?.toISOString() ?? null,
         reportExpiredAt: row.report_expired_at?.toISOString() ?? null,
         isReportExpired,
@@ -1183,27 +1224,37 @@ export class AiDeepResearchService extends BaseService {
             throw new Error('Deep Research executor is not configured');
         }
 
+        let checkpointedReport: AiDeepResearchSubmittedReport | null = null;
         try {
             const result = await this.executor(run, { signal });
             if (result.status === 'completed') {
-                const report = await this.prepareEvidenceReport(
+                const report = await this.persistAndPrepareEvidenceReport(
                     run,
                     result.report,
                     new Set(result.warehouseQueryUuids),
                 );
+                checkpointedReport = result.report;
                 const hasAdjustments =
                     report.adjustments.repaired.length > 0 ||
                     report.adjustments.dropped.length > 0;
-                const completed = hasAdjustments
-                    ? await this.aiDeepResearchRunModel.markCompleted(
-                          payload.aiDeepResearchRunUuid,
-                          report.markdown,
-                          report.adjustments,
-                      )
-                    : await this.aiDeepResearchRunModel.markCompleted(
-                          payload.aiDeepResearchRunUuid,
-                          report.markdown,
-                      );
+                const completed = await retryReportFinalization(
+                    () =>
+                        hasAdjustments
+                            ? this.aiDeepResearchRunModel.markCompleted(
+                                  payload.aiDeepResearchRunUuid,
+                                  report.markdown,
+                                  report.adjustments,
+                              )
+                            : this.aiDeepResearchRunModel.markCompleted(
+                                  payload.aiDeepResearchRunUuid,
+                                  report.markdown,
+                              ),
+                    (error, attempt) => {
+                        this.logger.warn(
+                            `Deep Research run ${run.ai_deep_research_run_uuid} could not persist completion (retry ${attempt}): ${getErrorMessage(error)}`,
+                        );
+                    },
+                );
                 if (!completed) {
                     await this.markCancelledAfterCompletedExecution(
                         payload.aiDeepResearchRunUuid,
@@ -1216,26 +1267,35 @@ export class AiDeepResearchService extends BaseService {
                 return;
             }
             if (result.status === 'partially_completed') {
-                const report = await this.prepareEvidenceReport(
+                const report = await this.persistAndPrepareEvidenceReport(
                     run,
                     result.report,
                     new Set(result.warehouseQueryUuids),
                 );
+                checkpointedReport = result.report;
                 const hasAdjustments =
                     report.adjustments.repaired.length > 0 ||
                     report.adjustments.dropped.length > 0;
-                const completed = hasAdjustments
-                    ? await this.aiDeepResearchRunModel.markPartiallyCompleted(
-                          payload.aiDeepResearchRunUuid,
-                          report.markdown,
-                          result.terminalReason,
-                          report.adjustments,
-                      )
-                    : await this.aiDeepResearchRunModel.markPartiallyCompleted(
-                          payload.aiDeepResearchRunUuid,
-                          report.markdown,
-                          result.terminalReason,
-                      );
+                const completed = await retryReportFinalization(
+                    () =>
+                        hasAdjustments
+                            ? this.aiDeepResearchRunModel.markPartiallyCompleted(
+                                  payload.aiDeepResearchRunUuid,
+                                  report.markdown,
+                                  result.terminalReason,
+                                  report.adjustments,
+                              )
+                            : this.aiDeepResearchRunModel.markPartiallyCompleted(
+                                  payload.aiDeepResearchRunUuid,
+                                  report.markdown,
+                                  result.terminalReason,
+                              ),
+                    (error, attempt) => {
+                        this.logger.warn(
+                            `Deep Research run ${run.ai_deep_research_run_uuid} could not persist partial completion (retry ${attempt}): ${getErrorMessage(error)}`,
+                        );
+                    },
+                );
                 if (!completed) {
                     await this.markCancelledAfterCompletedExecution(
                         payload.aiDeepResearchRunUuid,
@@ -1286,15 +1346,59 @@ export class AiDeepResearchService extends BaseService {
             this.logger.error(
                 `Deep Research run ${payload.aiDeepResearchRunUuid} threw: ${getErrorMessage(error)}`,
             );
-            await this.aiDeepResearchRunModel.markFailed(
-                payload.aiDeepResearchRunUuid,
-                FAILED_RUN_ERROR_MESSAGE,
-                'internal_error',
-            );
+            if (!checkpointedReport) {
+                await this.aiDeepResearchRunModel.markFailed(
+                    payload.aiDeepResearchRunUuid,
+                    FAILED_RUN_ERROR_MESSAGE,
+                    'internal_error',
+                );
+            }
             await this.dispatchPendingLifecycleAnalytics(
                 payload.aiDeepResearchRunUuid,
             );
             throw error;
+        }
+    }
+
+    private async persistAndPrepareEvidenceReport(
+        run: DbAiDeepResearchRun,
+        report: AiDeepResearchSubmittedReport,
+        runQueryUuids: Set<string>,
+    ): Promise<{
+        markdown: string;
+        adjustments: AiDeepResearchReportAdjustment;
+    }> {
+        await retryReportFinalization(
+            async () => {
+                await this.aiDeepResearchRunModel.checkpointReport(
+                    run.ai_deep_research_run_uuid,
+                    report.markdown,
+                );
+            },
+            (error, attempt) => {
+                this.logger.warn(
+                    `Deep Research run ${run.ai_deep_research_run_uuid} could not checkpoint its report (retry ${attempt}): ${getErrorMessage(error)}`,
+                );
+            },
+        );
+
+        try {
+            return await retryReportFinalization(
+                () => this.prepareEvidenceReport(run, report, runQueryUuids),
+                (error, attempt) => {
+                    this.logger.warn(
+                        `Deep Research run ${run.ai_deep_research_run_uuid} could not verify its report evidence (retry ${attempt}): ${getErrorMessage(error)}`,
+                    );
+                },
+            );
+        } catch (error) {
+            this.logger.error(
+                `Deep Research run ${run.ai_deep_research_run_uuid} is publishing its checkpointed report after evidence verification failed: ${getErrorMessage(error)}`,
+            );
+            return {
+                markdown: report.markdown,
+                adjustments: { repaired: [], dropped: [] },
+            };
         }
     }
 
@@ -1395,7 +1499,7 @@ export class AiDeepResearchService extends BaseService {
         const hasDroppedCharts = chartReport.adjustments.dropped.length > 0;
         return {
             markdown: hasDroppedCharts
-                ? `<warning title="Report adjusted">Some chart evidence was omitted because it could not be verified. The remaining narrative and verified evidence are preserved.</warning>\n\n${chartReport.markdown}`
+                ? addReportAdjustedWarning(chartReport.markdown)
                 : chartReport.markdown,
             adjustments: chartReport.adjustments,
         };
@@ -1462,6 +1566,9 @@ export class AiDeepResearchService extends BaseService {
         run: DbAiDeepResearchRun,
         depth = 0,
     ): Promise<AiDeepResearchEvidenceBuildResult> {
+        const timezone =
+            (await this.projectModel.getQueryTimezone(run.project_uuid)) ??
+            'UTC';
         const provenance =
             await this.aiAgentModel.getToolCallsAndResultsForPrompt(
                 run.prompt_uuid,
@@ -1530,6 +1637,8 @@ export class AiDeepResearchService extends BaseService {
 
         const currentPack: AiDeepResearchEvidencePack = {
             question: run.prompt,
+            generatedAt: new Date().toISOString(),
+            timezone,
             queries: queryResults.flatMap((query) => (query ? [query] : [])),
             workerFindings,
         };
@@ -1547,6 +1656,8 @@ export class AiDeepResearchService extends BaseService {
                 const source = await this.buildEvidencePack(sourceRun, 1);
                 evidencePack = {
                     question: run.prompt,
+                    generatedAt: currentPack.generatedAt,
+                    timezone: currentPack.timezone,
                     queries: [
                         ...source.evidencePack.queries,
                         ...currentPack.queries,
@@ -1614,7 +1725,18 @@ export class AiDeepResearchService extends BaseService {
                 truncated:
                     (queryHistory.totalRowCount ?? page.rows.length) >
                     AI_DEEP_RESEARCH_EVIDENCE_MAX_ROWS,
+                warnings: [] as string[],
             };
+            if (baseEvidence.rowCount <= AI_DEEP_RESEARCH_EVIDENCE_MAX_ROWS) {
+                baseEvidence.warnings.push(
+                    `Small result set (${baseEvidence.rowCount} rows): verify the expected grain before making broad magnitude claims.`,
+                );
+            }
+            if (baseEvidence.truncated) {
+                baseEvidence.warnings.push(
+                    `Only the first ${AI_DEEP_RESEARCH_EVIDENCE_MAX_ROWS} of ${baseEvidence.rowCount} rows are included in this evidence pack.`,
+                );
+            }
             if (isRawSql) {
                 let columns = Object.keys(queryHistory.columns ?? {});
                 if (columns.length === 0) {
@@ -1639,6 +1761,17 @@ export class AiDeepResearchService extends BaseService {
                 toolArgs,
                 queryUuid,
             );
+            const { metricQuery } = queryHistory;
+            if (Object.keys(metricQuery.filters).length > 0) {
+                baseEvidence.warnings.push(
+                    'This query is filtered; do not generalize its results outside the filtered population.',
+                );
+            }
+            if (baseEvidence.rowCount >= metricQuery.limit) {
+                baseEvidence.warnings.push(
+                    `The result reached its ${metricQuery.limit}-row query limit and may not represent the full population.`,
+                );
+            }
             return {
                 ...baseEvidence,
                 type: 'metric_query',
@@ -1646,8 +1779,12 @@ export class AiDeepResearchService extends BaseService {
                 description: parsedArgs.success
                     ? parsedArgs.data.description
                     : '',
-                dimensions: queryHistory.metricQuery.dimensions,
-                metrics: queryHistory.metricQuery.metrics,
+                dimensions: metricQuery.dimensions,
+                metrics: metricQuery.metrics,
+                filters: metricQuery.filters,
+                sorts: metricQuery.sorts,
+                limit: metricQuery.limit,
+                timezone: metricQuery.timezone ?? null,
                 chartable: resolvedChart !== null,
                 visualizationType:
                     resolvedChart?.chart.chartConfig.defaultVizType ?? null,

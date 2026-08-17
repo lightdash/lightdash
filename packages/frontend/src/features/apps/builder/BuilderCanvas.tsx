@@ -2,7 +2,7 @@ import {
     ECHARTS_DEFAULT_COLORS,
     type DataAppVizContext,
 } from '@lightdash/common';
-import { Anchor, Box, Stack, Text } from '@mantine/core';
+import { Box, Stack, Text } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
 import { useResolvedColorPalette } from '../../../hooks/appearance/useResolvedColorPalette';
 import AppPreview from '../components/AppPreview';
@@ -16,10 +16,6 @@ type Props = {
     /** The version the preview renders; null when nothing is renderable. */
     previewVersion: number | null;
     isBuilding: boolean;
-    /** Echoed under the first-build state. */
-    buildingPrompt: string | null;
-    elapsed: string | null;
-    onCancelBuild: (() => void) | null;
     /** Why the latest build failed, when there is nothing renderable. */
     failureMessage: string | null;
     /** Sample data plus configuration from the panel; null renders the app bare. */
@@ -65,33 +61,17 @@ const SkeletonBars: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     );
 };
 
-const CancelBuildLink: FC<{ onCancel: () => void }> = ({ onCancel }) => (
-    <Anchor
-        component="button"
-        type="button"
-        size="xs"
-        c="dimmed"
-        px="xs"
-        onClick={onCancel}
-    >
-        Cancel
-    </Anchor>
-);
-
 /**
  * The center of the builder: empty, building, failure, and rendered states.
  * A first build gets a full skeleton; a rebuild keeps the previous version
- * dimmed underneath a pill, with the configuration column beside it staying
- * legible throughout.
+ * legible underneath — chart and options together, dimmed and inert, since
+ * both belong to the version being replaced. Live status stays in the composer.
  */
 const BuilderCanvas: FC<Props> = ({
     projectUuid,
     appUuid,
     previewVersion,
     isBuilding,
-    buildingPrompt,
-    elapsed,
-    onCancelBuild,
     failureMessage,
     previewContext,
     configurePanel,
@@ -103,9 +83,13 @@ const BuilderCanvas: FC<Props> = ({
     return (
         <Box className={classes.canvas}>
             {hasPreview ? (
-                <Box className={classes.card}>
+                <Box
+                    className={classes.card}
+                    data-dimmed={isBuilding}
+                    inert={isBuilding}
+                >
                     {configurePanel}
-                    <Box className={classes.preview} data-dimmed={isBuilding}>
+                    <Box className={classes.preview}>
                         <AppPreview
                             projectUuid={projectUuid}
                             appUuid={appUuid}
@@ -118,36 +102,9 @@ const BuilderCanvas: FC<Props> = ({
             ) : isFirstBuild ? (
                 <Stack gap="xl" align="center">
                     <SkeletonBars projectUuid={projectUuid} />
-                    <Stack gap="xs" align="center">
-                        <Text
-                            className={classes.buildingLabel}
-                            size="md"
-                            fw={600}
-                            c="ldGray.8"
-                        >
-                            Building your chart type…
-                        </Text>
-                        {buildingPrompt && (
-                            <Text
-                                fz="xs"
-                                c="dimmed"
-                                maw={400}
-                                ta="center"
-                                lh={1.5}
-                            >
-                                “{buildingPrompt}”
-                            </Text>
-                        )}
-                        {(elapsed || onCancelBuild) && (
-                            <Text fz="xs" c="dimmed">
-                                {elapsed ?? ''}
-                                {elapsed && onCancelBuild ? ' · ' : ''}
-                                {onCancelBuild && (
-                                    <CancelBuildLink onCancel={onCancelBuild} />
-                                )}
-                            </Text>
-                        )}
-                    </Stack>
+                    <Text size="md" fw={600} c="ldGray.8">
+                        Building your chart type…
+                    </Text>
                 </Stack>
             ) : failureMessage !== null ? (
                 <Stack gap="xs" align="center">
@@ -179,20 +136,6 @@ const BuilderCanvas: FC<Props> = ({
                         />
                     )}
                 </Stack>
-            )}
-
-            {isBuilding && hasPreview && (
-                <Box className={classes.overlay}>
-                    <Box className={classes.buildingPill}>
-                        <Text span inherit>
-                            Building…
-                            {elapsed ? ` ${elapsed}` : ''}
-                        </Text>
-                        {onCancelBuild && (
-                            <CancelBuildLink onCancel={onCancelBuild} />
-                        )}
-                    </Box>
-                </Box>
             )}
         </Box>
     );

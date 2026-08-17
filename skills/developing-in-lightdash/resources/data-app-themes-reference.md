@@ -104,9 +104,11 @@ Theme CSS is an input to Data App generation, not a stylesheet injected into eve
 
 ### Fonts
 
+<!-- Keep Apple system-font fallback values aligned with the canonical constants in packages/backend/src/services/OrganizationDesignService/restrictedAppleFonts.ts. -->
+
 Put ordinary licensed web fonts under `fonts/`. Supported formats are `.woff`, `.woff2`, `.ttf`, and `.otf`. Reference bundled fonts through `@font-face` rather than an external font CDN.
 
-Do not commit or upload restricted Apple system-font binaries such as SF-family or New York fonts. Use a system stack instead, for example:
+Restricted Apple system-font binaries such as SF-family or New York fonts are rejected during upload and omitted from new Data App generations when found in a legacy theme. Do not commit them to a theme package. Use a system stack instead, for example:
 
 ```css
 font-family:
@@ -117,7 +119,7 @@ font-family:
     sans-serif;
 ```
 
-The current package validator checks font format, not every font's licensing metadata. Treat this as an authoring requirement even if an upload is technically accepted.
+Use `ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace` for SF Mono and `ui-serif, Georgia, serif` for New York.
 
 ### Images
 

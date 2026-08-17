@@ -31,8 +31,11 @@ import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
 import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
 import isEqual from 'lodash/isEqual';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { OrganizationMembershipCustomRolesTableName } from '../../database/entities/organizationMembershipCustomRoles';
 import { OrganizationMembershipsTableName } from '../../database/entities/organizationMemberships';
 import { ProjectGroupAccessTableName } from '../../database/entities/projectGroupAccess';
+import { ProjectGroupAccessCustomRolesTableName } from '../../database/entities/projectGroupAccessCustomRoles';
+import { ProjectMembershipCustomRolesTableName } from '../../database/entities/projectMembershipCustomRoles';
 import { ProjectMembershipsTableName } from '../../database/entities/projectMemberships';
 import {
     CachedExploresTableName,
@@ -239,6 +242,18 @@ describe('ProjectModel', () => {
         ]);
         tracker.on.insert(matchSql(ProjectMembershipsTableName)).response([]);
         tracker.on.insert(matchSql(ProjectGroupAccessTableName)).response([]);
+        tracker.on
+            .delete(matchSql(ProjectMembershipCustomRolesTableName))
+            .response(0);
+        tracker.on
+            .delete(matchSql(ProjectGroupAccessCustomRolesTableName))
+            .response(0);
+        tracker.on
+            .insert(matchSql(ProjectMembershipCustomRolesTableName))
+            .response([]);
+        tracker.on
+            .insert(matchSql(ProjectGroupAccessCustomRolesTableName))
+            .response([]);
 
         const copyAccess = () =>
             model.copyProjectAccess(upstreamProjectUuid, previewProjectUuid);
@@ -251,18 +266,56 @@ describe('ProjectModel', () => {
         await expect(copyAccess()).resolves.toEqual(expectedResult);
         await expect(copyAccess()).resolves.toEqual(expectedResult);
 
-        expect(tracker.history.insert).toHaveLength(4);
-        expect(tracker.history.insert[0].bindings).toEqual(
+        const membershipInserts = tracker.history.insert.filter(({ sql }) =>
+            sql.includes(`"${ProjectMembershipsTableName}"`),
+        );
+        const groupInserts = tracker.history.insert.filter(({ sql }) =>
+            sql.includes(`"${ProjectGroupAccessTableName}"`),
+        );
+        const extraRoleInserts = tracker.history.insert.filter(
+            ({ sql }) =>
+                sql.includes(ProjectMembershipCustomRolesTableName) ||
+                sql.includes(ProjectGroupAccessCustomRolesTableName),
+        );
+        expect(membershipInserts).toHaveLength(2);
+        expect(groupInserts).toHaveLength(2);
+        expect(extraRoleInserts).toHaveLength(4);
+        expect(membershipInserts[0].bindings).toEqual(
             expect.arrayContaining([1, 2, ProjectMemberRole.EDITOR]),
         );
-        expect(tracker.history.insert[0].bindings).not.toContain(3);
-        expect(tracker.history.insert[0].sql).toContain('on conflict');
-        expect(tracker.history.insert[1].sql).toContain('on conflict');
+        expect(membershipInserts[0].bindings).not.toContain(3);
+        expect(membershipInserts[0].sql).toContain('on conflict');
+        expect(groupInserts[0].sql).toContain('on conflict');
+        // extra custom roles are copied from upstream (1) into preview (2) for the eligible user only
+        expect(extraRoleInserts[0].bindings).toEqual(
+            expect.arrayContaining([2, 1, [1]]),
+        );
         const groupAccessQuery = tracker.history.select.find(({ sql }) =>
             sql.includes(ProjectGroupAccessTableName),
         );
         expect(groupAccessQuery?.sql).toContain('groups');
         expect(groupAccessQuery?.bindings).toContain(10);
+    });
+
+    test('updateProjectAccess clears extra custom roles for every updated membership', async () => {
+        tracker.on
+            .any(/UPDATE project_memberships/)
+            .response({ rows: [{ project_id: 5, user_id: 7 }] });
+        tracker.on
+            .delete(({ sql }: RawQuery) =>
+                sql.includes(ProjectMembershipCustomRolesTableName),
+            )
+            .response(0);
+
+        await model.updateProjectAccess(
+            projectUuid,
+            'user-uuid',
+            ProjectMemberRole.EDITOR,
+        );
+
+        const [clear] = tracker.history.delete;
+        expect(clear.sql).toContain(ProjectMembershipCustomRolesTableName);
+        expect(clear.bindings).toEqual([5, 7]);
     });
 
     describe('should convert outdated metric filters in explores', () => {
@@ -283,6 +336,153 @@ describe('ProjectModel', () => {
     });
 
     describe('saveExploresToCache', () => {
+        test('preserves cached explores when the payload is not explicitly complete', async () => {
+            const cachedExplore = exploresWithSameName[0];
+            const incomingExplore = {
+                ...cachedExplore,
+                name: 'incoming_explore',
+            };
+            const virtualView = {
+                ...cachedExplore,
+                name: 'virtual_view',
+                type: ExploreType.VIRTUAL,
+            };
+
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explore"'))
+                .response([
+                    { explore: cachedExplore },
+                    { explore: virtualView },
+                ]);
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explore"'))
+                .response([{ cached_explore_uuid: 'incoming-uuid' }]);
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+
+            await model.saveExploresToCache(projectUuid, [incomingExplore]);
+
+            expect(tracker.history.delete).toHaveLength(0);
+            expect(tracker.history.select).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({ bindings: [projectUuid] }),
+                ]),
+            );
+            expect(tracker.history.insert).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        sql: expect.stringContaining(
+                            'on conflict ("name", "project_uuid")',
+                        ),
+                    }),
+                    expect.objectContaining({
+                        bindings: expect.arrayContaining([
+                            JSON.stringify([
+                                cachedExplore,
+                                virtualView,
+                                incomingExplore,
+                            ]),
+                        ]),
+                    }),
+                ]),
+            );
+        });
+
+        test('accepts an empty additive payload when cached explores exist', async () => {
+            const cachedExplore = exploresWithSameName[0];
+
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explore"'))
+                .response([{ explore: cachedExplore }]);
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+
+            await expect(
+                model.saveExploresToCache(projectUuid, []),
+            ).resolves.toEqual({ cachedExploreUuids: [] });
+            expect(tracker.history.delete).toHaveLength(0);
+        });
+
+        test('rejects an empty additive payload when no cached explores exist', async () => {
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explore"'))
+                .response([]);
+
+            await expect(
+                model.saveExploresToCache(projectUuid, []),
+            ).rejects.toThrow('No explores to save');
+        });
+
+        test('replaces absent cached explores only when explicitly complete', async () => {
+            const cachedExplore = exploresWithSameName[0];
+            const incomingExplore = {
+                ...cachedExplore,
+                name: 'incoming_explore',
+            };
+            const virtualView = {
+                ...cachedExplore,
+                name: 'incoming_explore',
+                type: ExploreType.VIRTUAL,
+            };
+
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explore"'))
+                .response([
+                    { explore: cachedExplore },
+                    { explore: virtualView },
+                ]);
+            tracker.on
+                .delete(({ sql }) => sql.includes('"cached_explore"'))
+                .response([]);
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explore"'))
+                .response([{ cached_explore_uuid: 'virtual-uuid' }]);
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+
+            await model.saveExploresToCache(
+                projectUuid,
+                [incomingExplore],
+                true,
+            );
+
+            expect(tracker.history.delete).toHaveLength(1);
+            expect(tracker.history.select).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        bindings: [projectUuid, ExploreType.VIRTUAL],
+                    }),
+                ]),
+            );
+            expect(tracker.history.insert).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        bindings: expect.arrayContaining([
+                            JSON.stringify([virtualView]),
+                        ]),
+                    }),
+                ]),
+            );
+        });
+
         // TODO: this test is skipped because there is an issue in our version of knex-mock-client
         // which makes it not handle batch inserts correctly. If we upgrade to a newer version,
         // we can remove the skip. There are a lot of breaking changes in the new version though.
@@ -1001,6 +1201,9 @@ describe('ProjectModel', () => {
             tracker.on
                 .update(matchSql(OrganizationMembershipsTableName))
                 .response([]);
+            tracker.on
+                .delete(matchSql(OrganizationMembershipCustomRolesTableName))
+                .response(0);
 
             await model.setServiceAccountProjectAccess(
                 SA_UUID,
@@ -1015,6 +1218,11 @@ describe('ProjectModel', () => {
             expect(tracker.history.update[1].bindings).toContain(
                 OrganizationMemberRole.MEMBER,
             );
+            // singular org-role write also clears extra custom roles
+            const extrasClear = tracker.history.delete.find(({ sql }) =>
+                sql.includes(OrganizationMembershipCustomRolesTableName),
+            );
+            expect(extrasClear).toBeDefined();
         });
     });
 });

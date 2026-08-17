@@ -59,6 +59,11 @@ export type CompileHandlerOptions = DbtCompileOptions & {
     partialCompilation?: boolean;
 };
 
+export type CompileProjectResult = {
+    explores: (Explore | ExploreError)[];
+    isProjectComplete: boolean;
+};
+
 export const hasBlockingCompileError = (
     explore: Explore | ExploreError,
 ): boolean =>
@@ -309,7 +314,9 @@ async function patchDeferredModels(
     }
 }
 
-export const compile = async (options: CompileHandlerOptions) => {
+export const compileProject = async (
+    options: CompileHandlerOptions,
+): Promise<CompileProjectResult> => {
     const dbtVersionResult = await tryGetDbtVersion();
     const executionId = uuidv4();
     const startTime = Date.now();
@@ -339,6 +346,7 @@ export const compile = async (options: CompileHandlerOptions) => {
     // Try lightdash project compile
     let explores: (Explore | ExploreError)[] | null = null;
     let dbtMetrics: DbtManifest['metrics'] | null = null;
+    let isProjectComplete = true;
 
     explores = await getExploresFromLightdashYmlProject({
         projectDir: absoluteProjectPath,
@@ -381,6 +389,10 @@ export const compile = async (options: CompileHandlerOptions) => {
                 options,
             );
         let manifest = await loadManifest({ targetDir: context.targetDir });
+        const projectManifestModels = getModelsFromManifest(manifest);
+        isProjectComplete =
+            getCompiledModels(projectManifestModels, compiledModelIds)
+                .length === projectManifestModels.length;
         let effectiveCompiledModelIds = compiledModelIds;
         if (options.combineManifest) {
             const externalManifest = await loadCombineManifest(
@@ -629,8 +641,13 @@ export const compile = async (options: CompileHandlerOptions) => {
             durationMs: Date.now() - startTime,
         },
     });
-    return explores;
+    return { explores, isProjectComplete };
 };
+
+export const compile = async (
+    options: CompileHandlerOptions,
+): Promise<(Explore | ExploreError)[]> =>
+    (await compileProject(options)).explores;
 
 export const compileHandler = async (
     originalOptions: CompileHandlerOptions,

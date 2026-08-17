@@ -204,6 +204,7 @@ import { UserService } from '../services/UserService';
 import { ValidationService } from '../services/ValidationService/ValidationService';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import { sanitizeGenericFileName } from '../utils/FileDownloadUtils/FileDownloadUtils';
+import { buildGoogleSheetsFilterSummaryRows } from '../utils/googleSheetsFilterSummary';
 import { SchedulerClient } from './SchedulerClient';
 import { SchedulerDeliveryError } from './SchedulerDeliveryError';
 
@@ -4037,6 +4038,9 @@ export default class SchedulerTask {
             const tabName = isSchedulerGsheetsOptions(scheduler.options)
                 ? scheduler.options.tabName
                 : undefined;
+            const showFilters =
+                isSchedulerGsheetsOptions(scheduler.options) &&
+                scheduler.options.showFilters === true;
 
             await this.schedulerService.logSchedulerJob({
                 task: SCHEDULER_TASKS.UPLOAD_GSHEETS,
@@ -4136,6 +4140,12 @@ export default class SchedulerTask {
                     reportUrl,
                 );
                 const pivotConfig = getPivotConfig(chart);
+                const filterSummaryRows = showFilters
+                    ? buildGoogleSheetsFilterSummaryRows(
+                          chart.metricQuery.filters,
+                          itemMap,
+                      )
+                    : [];
                 if (
                     pivotConfig &&
                     pivotDetails &&
@@ -4162,7 +4172,7 @@ export default class SchedulerTask {
                     await this.googleDriveClient.appendCsvToSheet(
                         refreshToken,
                         gdriveId,
-                        pivotedResults,
+                        [...filterSummaryRows, ...pivotedResults],
                         tabName,
                     );
                 } else {
@@ -4177,6 +4187,7 @@ export default class SchedulerTask {
                         customLabels,
                         getHiddenTableFields(chart.chartConfig),
                         displayTimezone ?? undefined,
+                        filterSummaryRows,
                     );
                 }
             } else if (dashboardUuid) {
@@ -4584,7 +4595,7 @@ export default class SchedulerTask {
                     readyItems,
                     pacingDelayMs,
                     async (item) => {
-                        const { rows, fields, displayTimezone } =
+                        const { rows, fields, displayTimezone, metricQuery } =
                             await this.asyncQueryService.getRawAsyncQueryResults(
                                 {
                                     account: account!,
@@ -4605,6 +4616,12 @@ export default class SchedulerTask {
                                 ),
                             ),
                         );
+                        const filterSummaryRows = showFilters
+                            ? buildGoogleSheetsFilterSummaryRows(
+                                  metricQuery?.filters,
+                                  fields,
+                              )
+                            : [];
 
                         // appendCsvToSheet creates the tab itself when given
                         // a tabName — itemTabName is already fully
@@ -4618,7 +4635,11 @@ export default class SchedulerTask {
                                 this.googleDriveClient.appendCsvToSheet(
                                     refreshToken,
                                     gdriveId,
-                                    [columnNames, ...dataRows],
+                                    [
+                                        ...filterSummaryRows,
+                                        columnNames,
+                                        ...dataRows,
+                                    ],
                                     itemTabName,
                                 ),
                             undefined,

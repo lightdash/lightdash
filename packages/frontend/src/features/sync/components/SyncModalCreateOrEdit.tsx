@@ -72,6 +72,7 @@ export const SyncModalCreateOrEdit: FC<Props> = ({
                     id={formId}
                     onSubmit={handleSubmit}
                     isApp={resource.type === 'app'}
+                    supportsFilters={resource.type !== 'sqlChart'}
                 />
             </MantineModal>
         </SyncModalFormProvider>

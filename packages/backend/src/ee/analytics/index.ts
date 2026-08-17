@@ -28,35 +28,6 @@ export type EmbedQueryViewed = BaseTrack & {
     };
 };
 
-export type DashboardSummaryCreated = BaseTrack & {
-    event: 'ai.dashboard_summary.executed';
-    properties: {
-        openAIModelName: string;
-        organizationId: string;
-        projectId: string;
-        dashboardId: string;
-        dashboardSummaryUuid: string;
-        // Track the metadata of the request and response
-        context?: string | null;
-        responseSize: number; // length in chars
-        tokenUsage?: TokenUsage;
-        // Track how long is taking to get the response
-        timeGetCharts: number;
-        timeOpenAi: number;
-        timeTotal: number;
-    };
-};
-
-export type DashboardSummaryViewed = BaseTrack & {
-    event: 'ai.dashboard_summary.viewed';
-    properties: {
-        organizationId: string;
-        projectId: string;
-        dashboardId: string;
-        dashboardSummaryUuid: string;
-    };
-};
-
 export type CustomVizGenerated = BaseTrack & {
     event: 'ai.custom_viz.generated';
     properties: {

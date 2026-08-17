@@ -560,7 +560,7 @@ export class AiAgentReviewClassifierModel {
         this.database = database;
     }
 
-    private jsonb(value: unknown): Knex.Raw {
+    private jsonb<T>(value: T): Knex.Raw<T> {
         return this.database.raw('?::jsonb', [JSON.stringify(value)]);
     }
 
@@ -728,10 +728,10 @@ export class AiAgentReviewClassifierModel {
                 organization_uuid: args.organizationUuid,
                 review_agent_version: args.reviewAgentVersion,
                 judge_prompt_hash: args.judgePromptHash,
-                run_scope: this.jsonb(args.runScope) as never,
+                run_scope: this.jsonb(args.runScope),
                 agent_config_snapshot_hash: args.agentConfigSnapshotHash,
                 agent_config_snapshot: args.agentConfigSnapshot
-                    ? (this.jsonb(args.agentConfigSnapshot) as never)
+                    ? this.jsonb(args.agentConfigSnapshot)
                     : null,
                 agent_config_snapshot_agent_updated_at:
                     args.agentConfigSnapshotAgentUpdatedAt,
@@ -1660,7 +1660,9 @@ export class AiAgentReviewClassifierModel {
                 primary_root_cause: args.primaryRootCause,
                 priority: args.priority,
                 target_refs:
-                    args.targetRefs.length > 0 ? args.targetRefs : null,
+                    args.targetRefs.length > 0
+                        ? this.jsonb(args.targetRefs)
+                        : null,
                 status: 'open',
                 assigned_to_user_uuid: args.assignedToUserUuid,
                 created_by_user_uuid: args.createdByUserUuid,
@@ -1751,9 +1753,7 @@ export class AiAgentReviewClassifierModel {
             primary_root_cause: 'project_context' as const,
             priority: 'none' as const,
             target_refs: null,
-            project_context_entry: JSON.stringify(
-                args.projectContextEntry,
-            ) as never,
+            project_context_entry: this.jsonb(args.projectContextEntry),
             nomination_reason: args.nominationReason,
             status: 'open' as const,
             dismissed_reason: null,
@@ -2806,49 +2806,45 @@ export class AiAgentReviewClassifierModel {
                     project_uuid: turnSignal.subject.projectUuid,
                     agent_uuid: turnSignal.subject.agentUuid,
                     interaction_source: turnSignal.interactionSource,
-                    source_ref: this.jsonb(turnSignal.sourceRef) as never,
+                    source_ref: this.jsonb(turnSignal.sourceRef),
                     signal: turnSignal.signal,
                     implicit_signal_sources: this.jsonb(
                         turnSignal.implicitSignalSources,
-                    ) as never,
+                    ),
                     confidence: turnSignal.confidence,
                     promoted_to_finding: turnSignal.promotedToFinding,
                     promotion_reason: turnSignal.promotionReason,
-                    tool_evidence_refs: this.jsonb(
-                        turnSignal.toolEvidenceRefs,
-                    ) as never,
+                    tool_evidence_refs: this.jsonb(turnSignal.toolEvidenceRefs),
                     fingerprint: finding?.reviewItem.fingerprint,
                     primary_root_cause: finding?.primaryRootCause,
                     secondary_root_causes: finding
-                        ? (this.jsonb(finding.secondaryRootCauses) as never)
+                        ? this.jsonb(finding.secondaryRootCauses)
                         : null,
                     subcategories: finding
-                        ? (this.jsonb(finding.subcategories) as never)
+                        ? this.jsonb(finding.subcategories)
                         : null,
                     fix_targets: finding
-                        ? (this.jsonb(finding.fixTargets) as never)
+                        ? this.jsonb(finding.fixTargets)
                         : null,
                     target_refs: finding
-                        ? (this.jsonb(finding.targetRefs) as never)
+                        ? this.jsonb(finding.targetRefs)
                         : null,
                     evidence_excerpts: finding
-                        ? (this.jsonb(finding.evidenceExcerpts) as never)
+                        ? this.jsonb(finding.evidenceExcerpts)
                         : null,
-                    recommendation: finding
-                        ? (this.jsonb(finding.recommendation) as never)
+                    recommendation: finding?.recommendation
+                        ? this.jsonb(finding.recommendation)
                         : null,
-                    project_context_entry: finding
-                        ? (this.jsonb(finding.projectContextEntry) as never)
+                    project_context_entry: finding?.projectContextEntry
+                        ? this.jsonb(finding.projectContextEntry)
                         : null,
                     owner_type: finding?.reviewItem.ownerType,
                     review_item_title: finding?.reviewItem.title,
                     review_item_description: finding?.reviewItem.description,
                     runtime_context_snapshot: this.jsonb(
                         turnSignal.runtimeContextSnapshot,
-                    ) as never,
-                    model_metadata: this.jsonb(
-                        turnSignal.modelMetadata,
-                    ) as never,
+                    ),
+                    model_metadata: this.jsonb(turnSignal.modelMetadata),
                 })
                 .returning('ai_agent_review_turn_signal_uuid');
 

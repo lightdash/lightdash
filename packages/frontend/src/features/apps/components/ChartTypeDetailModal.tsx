@@ -97,13 +97,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                 <SimpleGrid cols={2} className={classes.metaPanel}>
                     {builtBy !== null && (
                         <Box>
-                            <Text
-                                fz={11}
-                                fw={600}
-                                c="ldGray.6"
-                                tt="uppercase"
-                                lts="0.06em"
-                            >
+                            <Text fz={12} fw={600} c="ldGray.6">
                                 Built by
                             </Text>
                             <Text fz="sm" fw={500} c="ldGray.8">
@@ -112,13 +106,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                         </Box>
                     )}
                     <Box>
-                        <Text
-                            fz={11}
-                            fw={600}
-                            c="ldGray.6"
-                            tt="uppercase"
-                            lts="0.06em"
-                        >
+                        <Text fz={12} fw={600} c="ldGray.6">
                             Last updated
                         </Text>
                         <Text fz="sm" fw={500} c="ldGray.8">
@@ -126,13 +114,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                         </Text>
                     </Box>
                     <Box>
-                        <Text
-                            fz={11}
-                            fw={600}
-                            c="ldGray.6"
-                            tt="uppercase"
-                            lts="0.06em"
-                        >
+                        <Text fz={12} fw={600} c="ldGray.6">
                             Inputs
                         </Text>
                         <Text fz="sm" fw={500} c="ldGray.8">
@@ -144,13 +126,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                         </Text>
                     </Box>
                     <Box>
-                        <Text
-                            fz={11}
-                            fw={600}
-                            c="ldGray.6"
-                            tt="uppercase"
-                            lts="0.06em"
-                        >
+                        <Text fz={12} fw={600} c="ldGray.6">
                             Version
                         </Text>
                         <Text fz="sm" fw={500} c="ldGray.8">

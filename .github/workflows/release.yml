@@ -3,9 +3,16 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish
+        required: true
+        type: string
 
 jobs:
   build-and-test:
+    if: ${{ github.event_name == 'push' && !startsWith(github.event.head_commit.message, 'chore(release):') }}
     name: Build & Test
     runs-on: depot-ubuntu-24.04-8
     env:
@@ -18,11 +25,6 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - name: Setup Socket Firewall
-        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
-        with:
-          mode: firewall-free
-          firewall-version: 1.15.0
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
@@ -30,16 +32,25 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: 'pnpm-lock.yaml'
       - name: Install packages
-        run: sfw pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
+        run: pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
       - name: Generate backend API artifacts
         run: pnpm generate-api:backend
       - name: Build all packages
         run: pnpm build
 
   release:
+    if: ${{ github.event_name == 'push' && !startsWith(github.event.head_commit.message, 'chore(release):') }}
+    # Must stay on a GitHub-hosted runner: npm's trusted-publishing provenance
+    # rejects self-hosted/Depot runners (422 "Unsupported GitHub Actions runner
+    # environment", run 31724064116).
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: build-and-test
+    outputs:
+      new_release_published: ${{ steps.semantic.outputs.new_release_published }}
+      new_release_git_tag: ${{ steps.semantic.outputs.new_release_git_tag }}
+    # Deliberately no `needs: build-and-test`: a broken build aborts
+    # semantic-release during prepare, before the git plugin pushes the
+    # chore commit/tag, so gating on the build only adds serial latency.
     concurrency: ${{ github.ref }}
     permissions:
       contents: read
@@ -53,12 +64,15 @@ jobs:
         with:
           token: ${{ secrets.CI_GITHUB_TOKEN }}
           persist-credentials: false
-
-      - name: Setup Socket Firewall
-        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
-        with:
-          mode: firewall-free
-          firewall-version: 1.15.0
+          # Full history for semantic-release, but blobless: old file contents
+          # are fetched on demand (the release-safety oasdiff step pulls the
+          # previous tag's swagger.json lazily).
+          fetch-depth: 0
+          filter: blob:none
+          # Tags arrive blobless at checkout (~1s) so semantic-release's own
+          # `git fetch --tags` during getLastRelease becomes a no-op instead of
+          # transferring all 7k+ tags (~63s measured on the 1.152.0 release).
+          fetch-tags: true
 
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
@@ -71,10 +85,10 @@ jobs:
       # pnpm 11 publishes natively via OIDC trusted publishing; npm is pinned only
       # for the npm version prepare step in release.config.js.
       - name: Pin npm for the versioning step
-        run: sfw npm install -g npm@12.0.1
+        run: npm install -g npm@12.0.1
 
       - name: Install dependencies
-        run: sfw pnpm install --frozen-lockfile --prefer-offline --prod=false --network-concurrency=16
+        run: pnpm install --frozen-lockfile --prefer-offline --prod=false --network-concurrency=16
 
       # PROD-8359: install oasdiff so the release-safety marker generator can diff
       # the REST API (swagger.json) between the previous tag and HEAD for breaking
@@ -119,3 +133,43 @@ jobs:
             @semantic-release/exec@6
             @semantic-release/git@10
             @semantic-release/github@8
+
+  publish-npm-packages:
+    name: Publish npm Packages
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    needs: release
+    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.release.outputs.new_release_published == 'true') }}
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || needs.release.outputs.new_release_git_tag }}
+
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline --prod=false --network-concurrency=16
+
+      - name: Generate backend API artifacts
+        run: pnpm generate-api:backend
+
+      - name: Build published packages
+        run: pnpm build-published-packages
+
+      - name: Publish npm packages
+        run: pnpm release-packages

@@ -105,7 +105,16 @@ from the source tables.
 **Additivity**:
 A metric's capacity to be re-aggregated from pre-computed results: additive
 (sum, count), decomposable (average — derivable from stored components), or
-non-additive (count_distinct, median — cannot be pre-aggregated).
+non-additive (count_distinct, median — cannot be re-aggregated, servable only
+on an exact match).
+
+**Exact match**:
+A match where the query's selected dimensions equal the pre-aggregate's
+dimensions, with the time dimension at exactly the pre-aggregate's
+granularity — so each result row is served from a single materialization row
+and no re-aggregation occurs. The only kind of match that can serve
+non-additive metrics. A definition dimension referenced only by a query
+filter, or reached through a custom bin, does not count as selected.
 
 **Audit**:
 A per-dashboard coverage report classifying each tile as hit, miss (with

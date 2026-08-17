@@ -67,6 +67,10 @@ import { type PersistentDownloadFileSource } from '../services/PersistentDownloa
 import { VERSION } from '../version';
 import type { AiUsageEvent } from './aiUsage';
 import type { EventStreamSink } from './eventStream/EventStreamSink';
+import type {
+    UpgradeEventName,
+    UpgradeEventProperties,
+} from './upgradeTelemetryEvents';
 
 type Identify = {
     userId: string;
@@ -1984,6 +1988,9 @@ export type AiWritebackCompletedEvent = BaseTrack & {
         numTurns: number | null;
         // Time (ms) spent in LLM API calls — the rest is local tool execution.
         durationApiMs: number | null;
+        repoContextBytes: number | null;
+        repoContextCapped: boolean | null;
+        repoContextFileCount: number | null;
     };
 };
 
@@ -2006,6 +2013,9 @@ export type AiWritebackFailedEvent = BaseTrack & {
         failureStage: AiWritebackFailureStage;
         errorMessage: string;
         totalDurationMs: number;
+        repoContextBytes: number | null;
+        repoContextCapped: boolean | null;
+        repoContextFileCount: number | null;
     };
 };
 
@@ -2869,6 +2879,14 @@ export type AiAgentArtifactsRetrievedEvent = BaseTrack & {
     };
 };
 
+export type AiAgentFindContentCoverage = {
+    searchQuery: string;
+    totalResultCount: number;
+    verifiedResultCount: number;
+    topResultVerified: boolean;
+    verifiedOnly: boolean;
+};
+
 export type AiAgentFindContentCoverageEvent = BaseTrack & {
     event: 'ai_agent.find_content_coverage';
     userId: string;
@@ -2879,11 +2897,7 @@ export type AiAgentFindContentCoverageEvent = BaseTrack & {
         agentName: string;
         threadId: string;
         promptId: string;
-        searchQuery: string;
-        totalResultCount: number;
-        verifiedResultCount: number;
-        topResultVerified: boolean;
-    };
+    } & AiAgentFindContentCoverage;
 };
 
 export type AiAgentSuggestionsGeneratedEvent = BaseTrack & {
@@ -3241,6 +3255,12 @@ export type PromptFetchedEvent = BaseTrack & {
 
 export type FeatureFlagCheckProcessType = 'api' | 'scheduler' | null;
 
+type UpgradeTelemetryAnalyticsEvent = BaseTrack & {
+    event: UpgradeEventName;
+    anonymousId: string;
+    properties: UpgradeEventProperties;
+};
+
 export type FeatureFlagCheckedAggregatedEvent = BaseTrack & {
     event: 'feature_flag.checked_aggregated';
     properties: {
@@ -3428,6 +3448,7 @@ type TypedEvent =
     | PersistentFileGenerationCompletedEvent
     | PersistentFileUrlRequestedEvent
     | PersistentFileUrlRespondedEvent
+    | UpgradeTelemetryAnalyticsEvent
     | AiUsageEvent;
 
 type UntypedEvent<T extends BaseTrack> = Omit<BaseTrack, 'event'> &

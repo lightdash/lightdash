@@ -87,6 +87,7 @@ export class DeployController extends BaseController {
                 sessionUuid,
                 (body as unknown as ApiAddDeployBatchRequest).explores,
                 (body as unknown as ApiAddDeployBatchRequest).batchNumber,
+                (body as unknown as ApiAddDeployBatchRequest).complete,
             );
         return {
             status: 'ok',

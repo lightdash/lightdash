@@ -13,7 +13,7 @@ import {
     useComputedColorScheme,
 } from '@mantine/core';
 import { modals } from '@mantine/modals';
-import { IconCheck, IconCopy, IconSpeakerphone } from '@tabler/icons-react';
+import { IconCheck, IconCopy } from '@tabler/icons-react';
 import { defaultContext } from '@tanstack/react-query';
 import { useContext, useLayoutEffect, useRef, useState } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -56,7 +56,10 @@ const ErrorMessage = ({
         clone.style.setProperty('overflow', 'visible');
         clone.style.setProperty('position', 'absolute');
         clone.style.setProperty('visibility', 'hidden');
-        clone.style.setProperty('width', `${el.clientWidth}px`);
+        clone.style.setProperty(
+            'width',
+            `${el.getBoundingClientRect().width}px`,
+        );
         el.parentElement?.appendChild(clone);
         setIsClamped(clone.scrollHeight > el.clientHeight + 1);
         clone.remove();
@@ -126,6 +129,23 @@ export const CopyErrorButton = ({
                     />
                 </ActionIcon>
             </Tooltip>
+        )}
+    </CopyButton>
+);
+
+const CopyErrorIdButton = ({ value }: { value: string }) => (
+    <CopyButton value={value}>
+        {({ copied, copy }) => (
+            <Button
+                size="compact-xs"
+                variant="subtle"
+                leftSection={
+                    <MantineIcon icon={copied ? IconCheck : IconCopy} />
+                }
+                onClick={copy}
+            >
+                {copied ? 'Copied' : 'Copy error'}
+            </Button>
         )}
     </CopyButton>
 );
@@ -274,10 +294,6 @@ const ApiErrorDisplayWithHealth = ({
                     <Group gap="xs">
                         <Button
                             size="compact-xs"
-                            variant="default"
-                            leftSection={
-                                <MantineIcon icon={IconSpeakerphone} />
-                            }
                             onClick={() => {
                                 modals.open({
                                     title: 'Share with Lightdash Support',
@@ -288,11 +304,10 @@ const ApiErrorDisplayWithHealth = ({
                                 });
                             }}
                         >
-                            <Text fz="xs">Notify support</Text>
+                            Notify support
                         </Button>
-                        <CopyErrorButton
+                        <CopyErrorIdButton
                             value={errorClipboardValue(apiError)}
-                            color="ldGray.6"
                         />
                     </Group>
                 </Stack>

@@ -10,6 +10,12 @@
     border-radius: var(--mantine-radius-md) 0 0 var(--mantine-radius-md);
 }
 
+/* Mid version switch these options still describe the version being left, so
+   they stay readable but go inert until the previewed one's arrive. */
+.panel[data-stale='true'] {
+    opacity: 0.5;
+}
+
 /* A soft chip is the whole treatment: the options below it came from the
    generated declaration, not from Lightdash chart config. It rides the card's
    top border, half in and half out. */
@@ -23,8 +29,6 @@
     color: var(--mantine-color-ldGray-6);
     font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
     white-space: nowrap;
 }
 

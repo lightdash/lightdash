@@ -1,20 +1,19 @@
 import {
     createVirtualView,
     isDimension,
+    MERGE_TABLE_NAME,
     type Explore,
     type ItemsMap,
     type MergeTerminalWrapper,
     type MergeTypedColumn,
     type MetricQuery,
+    type ParametersValuesMap,
     type PivotConfiguration,
     type WarehouseClient,
 } from '@lightdash/common';
 import { applyMergeTerminalWrapper } from './MergeQueryBuilder';
 import { type CompiledQuery } from './MetricQueryBuilder';
 import { QueryComposer } from './QueryComposer';
-
-/** Explore name a merged result reports. Deliberately not either source's. */
-export const MERGE_EXPLORE_NAME = 'merge';
 
 export type MergeQueryComposerArguments = {
     /** Composable merge SQL, before presentation pivot and terminal checks. */
@@ -27,12 +26,43 @@ export type MergeQueryComposerArguments = {
     /** Field ids the merged result carries, in the order it returns them. */
     columnOrder: string[];
     limit: number;
+    parameterReferences: string[];
+    usedParametersValues: ParametersValuesMap;
     warehouseClient: WarehouseClient;
     /**
      * Standard pivot stage over the merged rows. Every merged dimension is a
      * join key part, so anything pivotable here is shared by both sources.
      */
     pivotConfiguration?: PivotConfiguration;
+};
+
+/**
+ * Describes the merged result for result ordering and chart configuration.
+ * It is a metadata carrier, never a query that can be compiled on its own.
+ */
+export const buildMergeResultMetricQuery = ({
+    itemsMap,
+    columnOrder,
+    limit,
+}: {
+    itemsMap: ItemsMap;
+    columnOrder: string[];
+    limit: number;
+}): MetricQuery => {
+    const dimensions = columnOrder.filter((fieldId) => {
+        const item = itemsMap[fieldId];
+        return item !== undefined && isDimension(item);
+    });
+
+    return {
+        exploreName: MERGE_TABLE_NAME,
+        dimensions,
+        metrics: columnOrder.filter((fieldId) => !dimensions.includes(fieldId)),
+        filters: {},
+        sorts: [],
+        limit,
+        tableCalculations: [],
+    };
 };
 
 /**
@@ -56,6 +86,10 @@ export class MergeQueryComposer extends QueryComposer {
 
     private readonly terminalWrapper: MergeTerminalWrapper;
 
+    private readonly parameterReferences: Set<string>;
+
+    private readonly usedParametersValues: ParametersValuesMap;
+
     constructor(args: MergeQueryComposerArguments) {
         const {
             coreSql,
@@ -64,17 +98,19 @@ export class MergeQueryComposer extends QueryComposer {
             typedColumns,
             columnOrder,
             limit,
+            parameterReferences,
+            usedParametersValues,
             warehouseClient,
             pivotConfiguration,
         } = args;
 
         super(
             {
-                metricQuery: MergeQueryComposer.buildMetricQuery(
+                metricQuery: buildMergeResultMetricQuery({
                     itemsMap,
                     columnOrder,
                     limit,
-                ),
+                }),
                 pivotConfiguration,
             },
             {
@@ -94,6 +130,8 @@ export class MergeQueryComposer extends QueryComposer {
         this.mergedSql = coreSql;
         this.mergedItemsMap = itemsMap;
         this.terminalWrapper = terminalWrapper;
+        this.parameterReferences = new Set(parameterReferences);
+        this.usedParametersValues = usedParametersValues;
     }
 
     /** The merged statement is already compiled; nothing recompiles it. */
@@ -102,9 +140,9 @@ export class MergeQueryComposer extends QueryComposer {
             query: this.mergedSql,
             fields: this.mergedItemsMap,
             warnings: [],
-            parameterReferences: new Set(),
+            parameterReferences: this.parameterReferences,
             missingParameterReferences: new Set(),
-            usedParameters: {},
+            usedParameters: this.usedParametersValues,
             compilationErrors: [],
         };
     }
@@ -119,34 +157,6 @@ export class MergeQueryComposer extends QueryComposer {
     }
 
     /**
-     * Describes the merged result for column ordering and the chart config.
-     * Filters and sorts stay empty: the real filters live on the source
-     * queries, and echoing them here invites a consumer to apply them twice.
-     */
-    private static buildMetricQuery(
-        itemsMap: ItemsMap,
-        columnOrder: string[],
-        limit: number,
-    ): MetricQuery {
-        const dimensions = columnOrder.filter((fieldId) => {
-            const item = itemsMap[fieldId];
-            return item !== undefined && isDimension(item);
-        });
-
-        return {
-            exploreName: MERGE_EXPLORE_NAME,
-            dimensions,
-            metrics: columnOrder.filter(
-                (fieldId) => !dimensions.includes(fieldId),
-            ),
-            filters: {},
-            sorts: [],
-            limit,
-            tableCalculations: [],
-        };
-    }
-
-    /**
      * A view over the merged statement. Only its name and warehouse routing
      * are read downstream — the fields come from the merged items map, not
      * from compiling this. Column types come from the compile's typed field
@@ -158,7 +168,7 @@ export class MergeQueryComposer extends QueryComposer {
         warehouseClient: WarehouseClient,
     ): Explore {
         return createVirtualView(
-            MERGE_EXPLORE_NAME,
+            MERGE_TABLE_NAME,
             sql,
             typedColumns.map(({ reference, type }) => ({ reference, type })),
             warehouseClient,

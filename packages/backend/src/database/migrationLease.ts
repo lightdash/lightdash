@@ -683,4 +683,19 @@ export class MigrationLeaseManager {
             runs: rows.map(mapRun),
         };
     }
+
+    async readLastSucceededRun(): Promise<MigrationRun | null> {
+        const initialized = await this.database.schema.hasTable(
+            MIGRATION_RUN_LEDGER_TABLE_NAME,
+        );
+        if (!initialized) {
+            return null;
+        }
+        const row = (await this.database(MIGRATION_RUN_LEDGER_TABLE_NAME)
+            .select(RUN_COLUMNS)
+            .where('outcome', 'succeeded')
+            .orderBy('started_at', 'desc')
+            .first()) as MigrationRunDatabaseRow | undefined;
+        return row === undefined ? null : mapRun(row);
+    }
 }

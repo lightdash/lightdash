@@ -32,6 +32,7 @@ import {
     combineManifestSources,
     CompilationSource,
     CompiledDimension,
+    ConflictError,
     ContentType,
     convertCustomMetricToDbt,
     convertExplores,
@@ -102,6 +103,7 @@ import {
     getMergeSourceTableLabel,
     getMetricOverridesWithPopInheritance,
     getMetrics,
+    getModelsFromManifest,
     getParameterReferences,
     getPreAggregateExploreName,
     getTimezoneLabel,
@@ -448,7 +450,14 @@ const isValidDbtCloudWebhookSignature = (
 
 const WINDOW_CLAUSE_PATTERN = /\bover\s*\(/i;
 
+type CrossSourceModelNameCollision = {
+    modelName: string;
+    sourceNames: string[];
+};
+
 export class ProjectService extends BaseService {
+    static CREATE_PROJECT_JOB_ENQUEUE_GRACE_MS = 15 * 60 * 1000;
+
     lightdashConfig: LightdashConfig;
 
     analytics: LightdashAnalytics;
@@ -2294,6 +2303,7 @@ export class ProjectService extends BaseService {
         requestMethod?: string | null;
         projectConfigDefaults?: ProjectDefaults;
         cliVersion?: string | null;
+        complete?: boolean;
     }) {
         const {
             userUuid,
@@ -2304,9 +2314,8 @@ export class ProjectService extends BaseService {
             requestMethod,
             projectConfigDefaults,
             cliVersion,
+            complete,
         } = args;
-        // We delete the explores when saving to cache which cascades to the catalog
-        // So we need to get the current tagged catalog items before deleting the explores (to do a best effort re-tag) and icons
         const prevCatalogItemsWithTags =
             await this.catalogModel.getCatalogItemsWithTags(projectUuid, {
                 onlyTagged: true, // We only need the tagged catalog items
@@ -2338,7 +2347,11 @@ export class ProjectService extends BaseService {
         }
 
         const { cachedExploreUuids } =
-            await this.projectModel.saveExploresToCache(projectUuid, explores);
+            await this.projectModel.saveExploresToCache(
+                projectUuid,
+                explores,
+                complete,
+            );
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
@@ -2354,10 +2367,15 @@ export class ProjectService extends BaseService {
             const newNames = explores.map((explore) => explore.name);
             const previousNameSet = new Set(previousExploreNames ?? []);
             const newNameSet = new Set(newNames);
-            const removed = (previousExploreNames ?? []).filter(
-                (name) => !newNameSet.has(name),
-            );
+            const removed = complete
+                ? (previousExploreNames ?? []).filter(
+                      (name) => !newNameSet.has(name),
+                  )
+                : [];
             const added = newNames.filter((name) => !previousNameSet.has(name));
+            const resultingExploreCount = complete
+                ? newNameSet.size
+                : new Set([...(previousExploreNames ?? []), ...newNames]).size;
 
             this.logger.info('compile.completed', {
                 projectUuid,
@@ -2368,7 +2386,7 @@ export class ProjectService extends BaseService {
                 cliVersion: cliVersion ?? null,
                 // null distinguishes "fetch failed" from "no previous explores"
                 previousExploreCount: previousExploreNames?.length ?? null,
-                newExploreCount: newNames.length,
+                newExploreCount: resultingExploreCount,
                 addedExploreCount:
                     previousExploreNames === null ? null : added.length,
                 removedExploreCount:
@@ -2871,19 +2889,77 @@ export class ProjectService extends BaseService {
         };
 
         // create legacy job steps that UI expects
-        await this.jobModel.create(job);
-        // schedule job
-        await this.schedulerClient.createProjectWithCompile({
-            createdByUserUuid: user.userUuid,
-            isPreview: data.type === ProjectType.PREVIEW,
-            organizationUuid: user.organizationUuid,
-            requestMethod: method,
-            jobUuid: job.jobUuid,
-            data: encryptedData,
-            userUuid: user.userUuid,
-            projectUuid: undefined,
-        });
+        if (data.type === ProjectType.PREVIEW) {
+            await this.jobModel.create(job, true);
+        } else {
+            await this.reapStaleCreateProjectJobs(user.organizationUuid);
+            const result = await this.jobModel.createProjectJobIfNoActive({
+                job,
+                organizationUuid: user.organizationUuid,
+            });
+            if (!result.isCreated) {
+                if (result.activeJob.userUuid !== user.userUuid) {
+                    throw new ConflictError(
+                        'A project creation is already in progress for the organization',
+                    );
+                }
+                throw new ConflictError(
+                    'A project creation is already in progress',
+                    { jobUuid: result.activeJob.jobUuid },
+                );
+            }
+        }
+        try {
+            await this.schedulerClient.createProjectWithCompile({
+                createdByUserUuid: user.userUuid,
+                isPreview: data.type === ProjectType.PREVIEW,
+                organizationUuid: user.organizationUuid,
+                requestMethod: method,
+                jobUuid: job.jobUuid,
+                data: encryptedData,
+                userUuid: user.userUuid,
+                projectUuid: undefined,
+            });
+        } catch (error) {
+            await this.jobModel.update(job.jobUuid, {
+                jobStatus: JobStatusType.ERROR,
+            });
+            throw error;
+        }
         return { jobUuid: job.jobUuid };
+    }
+
+    private async reapStaleCreateProjectJobs(
+        organizationUuid: string,
+    ): Promise<void> {
+        const staleJobUuids =
+            await this.jobModel.findStaleCreateProjectJobUuids({
+                organizationUuid,
+                updatedBefore: new Date(
+                    Date.now() -
+                        ProjectService.CREATE_PROJECT_JOB_ENQUEUE_GRACE_MS,
+                ),
+            });
+        const schedulerJobExists = await Promise.all(
+            staleJobUuids.map((jobUuid) =>
+                this.schedulerClient.hasCreateProjectWithCompileJob(jobUuid),
+            ),
+        );
+        await this.jobModel.markCreateProjectJobsAsError(
+            staleJobUuids.filter((_, index) => !schedulerJobExists[index]),
+        );
+    }
+
+    async getActiveCreateProjectJob(user: SessionUser): Promise<Job | null> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        await this.reapStaleCreateProjectJobs(user.organizationUuid);
+        return this.jobModel.findActiveCreateProjectJob({
+            organizationUuid: user.organizationUuid,
+            userUuid: user.userUuid,
+        });
     }
 
     static PREVIEW_PROJECT_FALLBACK_TTL_HOURS = 720;
@@ -3106,6 +3182,7 @@ export class ProjectService extends BaseService {
                             requestMethod: method,
                             projectConfigDefaults:
                                 lightdashProjectConfig.defaults,
+                            complete: true,
                         });
                     }
                     return newProjectUuid;
@@ -3160,6 +3237,7 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         explores: (Explore | ExploreError)[],
         cliVersion?: string | null,
+        complete?: boolean,
     ): Promise<ApiDeployExploresResults> {
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
@@ -3204,6 +3282,7 @@ export class ProjectService extends BaseService {
             jobUuid: null,
             requestMethod: 'cli',
             cliVersion,
+            complete,
         });
 
         await this.schedulerClient.generateValidation({
@@ -3458,7 +3537,10 @@ export class ProjectService extends BaseService {
                 });
         }
 
-        await this.jobModel.create(job);
+        await this.jobModel.create(
+            job,
+            savedProject.type === ProjectType.PREVIEW,
+        );
 
         if (updatedProject.dbtConnection.type !== DbtProjectType.NONE) {
             await this.schedulerClient.testAndCompileProject({
@@ -3795,6 +3877,7 @@ export class ProjectService extends BaseService {
                                 requestMethod: method,
                                 projectConfigDefaults:
                                     lightdashProjectConfig.defaults,
+                                complete: true,
                             });
                             timings.cacheExplores.end = performance.now();
                         } finally {
@@ -4448,6 +4531,28 @@ export class ProjectService extends BaseService {
         );
     }
 
+    private static formatCrossSourceModelNameCollisionsError(
+        collisions: CrossSourceModelNameCollision[],
+    ): string {
+        const MAX_COLLISIONS_IN_ERROR = 10;
+        const shown = collisions.slice(0, MAX_COLLISIONS_IN_ERROR);
+        const remainder = collisions.length - shown.length;
+        const details = shown
+            .map(
+                ({ modelName, sourceNames }) =>
+                    `model "${modelName}" is defined in sources ${sourceNames
+                        .map((sourceName) => `"${sourceName}"`)
+                        .join(' and ')}`,
+            )
+            .join('; ');
+        return (
+            `Merging dbt sources found ${collisions.length} model name collision${
+                collisions.length === 1 ? '' : 's'
+            }: ${details}${remainder > 0 ? `; and ${remainder} more` : ''}. ` +
+            `Rename or remove the duplicate(s) before deploying.`
+        );
+    }
+
     /**
      * Merge the primary source's manifest with every additional source's manifest
      * into one combined manifest, then return a MANIFEST adapter over it so a single
@@ -4579,6 +4684,32 @@ export class ProjectService extends BaseService {
             );
             throw new ParameterError(
                 ProjectService.formatManifestCollisionsError(collisions),
+            );
+        }
+
+        const sourceNamesByModelName = new Map<string, string[]>();
+        manifestSources.forEach(({ name: sourceName, manifest }) => {
+            const modelNames = new Set(
+                getModelsFromManifest(manifest).map((model) => model.name),
+            );
+            modelNames.forEach((modelName) => {
+                const sourceNames = sourceNamesByModelName.get(modelName) ?? [];
+                sourceNames.push(sourceName);
+                sourceNamesByModelName.set(modelName, sourceNames);
+            });
+        });
+        const modelNameCollisions = Array.from(sourceNamesByModelName)
+            .filter(([, sourceNames]) => sourceNames.length > 1)
+            .map(([modelName, sourceNames]) => ({ modelName, sourceNames }));
+        if (modelNameCollisions.length > 0) {
+            this.logger.warn(
+                `Merged ${manifestSources.length} dbt sources for project ${projectUuid} with ${modelNameCollisions.length} model name collision(s)`,
+                { projectUuid, modelNameCollisions },
+            );
+            throw new ParameterError(
+                ProjectService.formatCrossSourceModelNameCollisionsError(
+                    modelNameCollisions,
+                ),
             );
         }
 
@@ -5224,6 +5355,8 @@ export class ProjectService extends BaseService {
                 fields: [],
                 itemsMap: {},
                 fieldOrigins: {},
+                parameterReferences: [],
+                usedParametersValues: {},
                 fieldIdByColumn: {},
                 errors,
             };
@@ -5269,6 +5402,9 @@ export class ProjectService extends BaseService {
                 const missingParameters = Array.from(
                     compiled.missingParameterReferences,
                 );
+                const parameterReferences = Array.from(
+                    compiled.parameterReferences,
+                );
 
                 const joinKeyColumnByName = Object.fromEntries(
                     mergeQuery.joinKey.map((part) => [
@@ -5294,6 +5430,8 @@ export class ProjectService extends BaseService {
                     joinKeyColumnByName,
                     valueColumns,
                     missingParameters,
+                    parameterReferences,
+                    usedParametersValues: compiled.usedParameters,
                     originBySourceColumn: Object.fromEntries(
                         valueColumns.map((column) => [
                             column,
@@ -5318,6 +5456,13 @@ export class ProjectService extends BaseService {
                       },
                   ],
         );
+        const parameterReferences = Array.from(
+            new Set(sources.flatMap((source) => source.parameterReferences)),
+        );
+        const usedParametersValues = Object.assign(
+            {},
+            ...sources.map((source) => source.usedParametersValues),
+        );
         if (parameterErrors.length > 0) {
             return {
                 sql: null,
@@ -5328,6 +5473,8 @@ export class ProjectService extends BaseService {
                 fields: [],
                 itemsMap: {},
                 fieldOrigins: {},
+                parameterReferences,
+                usedParametersValues,
                 fieldIdByColumn: {},
                 errors: parameterErrors,
             };
@@ -5425,6 +5572,8 @@ export class ProjectService extends BaseService {
                 fields: [],
                 itemsMap: {},
                 fieldOrigins: {},
+                parameterReferences,
+                usedParametersValues,
                 fieldIdByColumn: {},
                 errors: referenceErrors,
             };
@@ -5601,7 +5750,10 @@ export class ProjectService extends BaseService {
                             type: DimensionType.STRING,
                         },
                     }),
-                    origin: { kind: 'joinKey' },
+                    origin: {
+                        kind: 'joinKey',
+                        fieldIdBySourceId: part.fieldIdBySourceId,
+                    },
                 };
             },
         );
@@ -5759,6 +5911,8 @@ export class ProjectService extends BaseService {
                 fields: [],
                 itemsMap: {},
                 fieldOrigins: {},
+                parameterReferences,
+                usedParametersValues,
                 fieldIdByColumn: {},
                 errors: typeErrors,
             };
@@ -5781,6 +5935,8 @@ export class ProjectService extends BaseService {
             fields: [...joinKeyFields, ...valueFields, ...calculationFields],
             itemsMap,
             fieldOrigins,
+            parameterReferences,
+            usedParametersValues,
             fieldIdByColumn,
             errors: [],
         };
@@ -8099,7 +8255,7 @@ export class ProjectService extends BaseService {
             steps: [{ stepType: JobStepType.COMPILING }],
         };
 
-        await this.jobModel.create(job);
+        await this.jobModel.create(job, type === ProjectType.PREVIEW);
 
         await this.schedulerClient.compileProject({
             createdByUserUuid: user.userUuid,
@@ -8241,6 +8397,7 @@ export class ProjectService extends BaseService {
                             requestMethod,
                             projectConfigDefaults:
                                 lightdashProjectConfig.defaults,
+                            complete: true,
                         });
                         timings.cacheExplores.end = performance.now();
 
@@ -11358,6 +11515,7 @@ export class ProjectService extends BaseService {
             jobUuid: null,
             requestMethod: 'api',
             projectConfigDefaults: project.projectDefaults,
+            complete: true,
         });
 
         Logger.info(`Schedule validation:`, {

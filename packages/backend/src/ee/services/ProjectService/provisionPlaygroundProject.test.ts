@@ -164,6 +164,7 @@ describe('provisionPlaygroundProject', () => {
         expect(mocks.saveExploresToCache).toHaveBeenCalledWith(
             projectUuid,
             expect.any(Array),
+            true,
         );
         expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
             event: 'playground_project.skipped',
@@ -266,6 +267,7 @@ describe('provisionPlaygroundProject', () => {
         expect(mocks.saveExploresToCache).toHaveBeenCalledWith(
             projectUuid,
             expect.any(Array),
+            true,
         );
         expect(mocks.indexCatalog).toHaveBeenCalledWith(
             projectUuid,

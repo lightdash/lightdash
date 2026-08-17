@@ -1,11 +1,22 @@
-import { ActionIcon, Anchor, Box, Group, Text, Tooltip } from '@mantine/core';
+import {
+    ActionIcon,
+    Anchor,
+    Box,
+    Group,
+    Loader,
+    Text,
+    Tooltip,
+    UnstyledButton,
+} from '@mantine/core';
 import {
     IconArrowUp,
     IconPaperclip,
     IconPlayerStop,
+    IconX,
 } from '@tabler/icons-react';
 import {
     forwardRef,
+    useEffect,
     useImperativeHandle,
     useRef,
     useState,
@@ -19,7 +30,10 @@ import PromptComposer, {
 } from '../../../components/common/PromptComposer/PromptComposer';
 import { ModelPicker, SelectedAttachmentSection } from '../AppResourcePicker';
 import { type DataAppModelSelection } from '../hooks/useDataAppModelSelection';
-import { type DataAppVizBuildState } from '../hooks/useDataAppVizBuild';
+import {
+    type DataAppVizBuildState,
+    type VizBuildRequest,
+} from '../hooks/useDataAppVizBuild';
 import { useVizComposerAttachments } from '../hooks/useVizComposerAttachments';
 import classes from './BuilderPromptBar.module.css';
 
@@ -27,10 +41,21 @@ type Props = {
     projectUuid: string;
     /** The viz, or the pre-claimed draft uuid while nothing exists yet. */
     composerAppUuid: string;
+    /** Stable across the create route adopting its claimed app uuid. */
+    sessionKey: string;
     hasVersions: boolean;
+    isBuilding: boolean;
+    buildingPrompt: string | null;
+    elapsed: string | null;
+    latestReadyVersion: number | null;
     build: DataAppVizBuildState;
     onCancelBuild: (() => void) | null;
     modelSelection: DataAppModelSelection;
+};
+
+type QueuedPrompt = {
+    id: number;
+    request: VizBuildRequest;
 };
 
 export type BuilderPromptBarHandle = {
@@ -38,12 +63,79 @@ export type BuilderPromptBarHandle = {
     setPrompt: (text: string) => void;
 };
 
+const QueuedPromptRow = ({
+    item,
+    state,
+    canInterrupt,
+    onEdit,
+    onRemove,
+    onSendNow,
+}: {
+    item: QueuedPrompt;
+    state: 'queued' | 'next' | 'sending';
+    canInterrupt: boolean;
+    onEdit: () => void;
+    onRemove: () => void;
+    onSendNow: () => void;
+}) => (
+    <Box
+        className={`${classes.stackRow} ${classes.queuedPrompt}`}
+        data-state={state}
+        role="listitem"
+    >
+        {state === 'sending' && <Loader size={12} color="ldGray.6" />}
+        <UnstyledButton
+            className={classes.queuedPromptText}
+            aria-label={`Edit queued prompt: ${item.request.description}`}
+            onClick={onEdit}
+            disabled={state === 'sending'}
+        >
+            <Text fz="xs" lineClamp={1}>
+                {item.request.description}
+            </Text>
+        </UnstyledButton>
+        <Text className={classes.queueState} fz="xs">
+            {state === 'sending'
+                ? 'Sending…'
+                : state === 'next'
+                  ? 'Next up'
+                  : 'Queued'}
+        </Text>
+        {state === 'queued' && canInterrupt && (
+            <Anchor
+                component="button"
+                type="button"
+                size="xs"
+                fw={500}
+                onClick={onSendNow}
+            >
+                Send now
+            </Anchor>
+        )}
+        {state !== 'sending' && (
+            <ActionIcon
+                variant="subtle"
+                color="ldGray"
+                size="xs"
+                aria-label={`Remove queued prompt: ${item.request.description}`}
+                onClick={onRemove}
+            >
+                <MantineIcon icon={IconX} size={14} />
+            </ActionIcon>
+        )}
+    </Box>
+);
+
 const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
     function PromptPill(
         {
             projectUuid,
             composerAppUuid,
             hasVersions,
+            isBuilding,
+            buildingPrompt,
+            elapsed,
+            latestReadyVersion,
             build,
             onCancelBuild,
             modelSelection,
@@ -56,32 +148,130 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
         });
         const composerRef = useRef<PromptComposerHandle>(null);
         const fileInputRef = useRef<HTMLInputElement>(null);
+        const nextQueueId = useRef(0);
+        const editingPrompt = useRef<QueuedPrompt | null>(null);
+        const interruptPending = useRef(false);
+        const lastHandledReadyVersion = useRef(latestReadyVersion);
         const [isEmpty, setIsEmpty] = useState(true);
+        const [queuedPrompts, setQueuedPrompts] = useState<QueuedPrompt[]>([]);
+        const [sendingPrompt, setSendingPrompt] = useState<QueuedPrompt | null>(
+            null,
+        );
+        const [interruptNext, setInterruptNext] = useState<QueuedPrompt | null>(
+            null,
+        );
 
         useImperativeHandle(ref, () => ({
             setPrompt: (text) => {
+                editingPrompt.current = null;
                 composerRef.current?.clear();
                 composerRef.current?.insertContent([{ type: 'text', text }]);
             },
         }));
 
-        const canSend = !build.isBuilding && !attachments.isUploading;
+        const canSubmit = !attachments.isUploading;
+        const sendBuild = build.send;
+        const buildError = build.error;
+        const cancelActiveBuild = interruptNext
+            ? build.interrupt
+            : onCancelBuild;
+        const isCancelling = build.isCancelling;
 
         const handleSubmit = () => {
             const description = composerRef.current?.getText().trim() ?? '';
-            if (!description || !canSend) return;
-            composerRef.current?.clear();
-            build.send({
+            if (!description || !canSubmit) return;
+            const editing = editingPrompt.current;
+            const request: VizBuildRequest = {
                 description,
-                fileIds: attachments.fileIds,
+                fileIds:
+                    attachments.fileIds.length > 0
+                        ? attachments.fileIds
+                        : (editing?.request.fileIds ?? []),
                 claudeModel: modelSelection.selectedModel,
-            });
+            };
+            const queuedPrompt: QueuedPrompt = {
+                id: editing?.id ?? nextQueueId.current++,
+                request,
+            };
+            editingPrompt.current = null;
+            composerRef.current?.clear();
             attachments.clear();
+
+            if (isBuilding) {
+                setQueuedPrompts((current) => [...current, queuedPrompt]);
+                return;
+            }
+            sendBuild(request);
         };
 
+        const handleEdit = (item: QueuedPrompt) => {
+            setQueuedPrompts((current) =>
+                current.filter((queued) => queued.id !== item.id),
+            );
+            editingPrompt.current = item;
+            modelSelection.setModel(item.request.claudeModel);
+            composerRef.current?.clear();
+            composerRef.current?.insertContent([
+                { type: 'text', text: item.request.description },
+            ]);
+        };
+
+        const handleSendNow = (item: QueuedPrompt) => {
+            if (!build.interrupt || interruptPending.current) return;
+            interruptPending.current = true;
+            setQueuedPrompts((current) =>
+                current.filter((queued) => queued.id !== item.id),
+            );
+            setInterruptNext(item);
+            build.interrupt();
+        };
+
+        const handleCancelBuild = () => {
+            if (!cancelActiveBuild) return;
+            if (!interruptNext) setSendingPrompt(null);
+            cancelActiveBuild();
+        };
+
+        // Backend completion is the event that advances this session-local
+        // queue; composer click handlers cannot know when that has settled.
+        useEffect(
+            function advanceQueueAfterBuildSettles() {
+                if (isBuilding || isCancelling || buildError !== null) return;
+
+                if (interruptNext) {
+                    interruptPending.current = false;
+                    setInterruptNext(null);
+                    setSendingPrompt(interruptNext);
+                    sendBuild(interruptNext.request);
+                    return;
+                }
+
+                if (latestReadyVersion === lastHandledReadyVersion.current)
+                    return;
+                lastHandledReadyVersion.current = latestReadyVersion;
+
+                const [next, ...remaining] = queuedPrompts;
+                if (!next) {
+                    setSendingPrompt(null);
+                    return;
+                }
+                setQueuedPrompts(remaining);
+                setSendingPrompt(next);
+                sendBuild(next.request);
+            },
+            [
+                buildError,
+                interruptNext,
+                isBuilding,
+                isCancelling,
+                latestReadyVersion,
+                queuedPrompts,
+                sendBuild,
+            ],
+        );
+
         const handlePaste: ClipboardEventHandler = (event) => {
-            if (build.isBuilding || event.clipboardData.files.length === 0)
-                return;
+            if (event.clipboardData.files.length === 0) return;
             event.preventDefault();
             attachments.add(Array.from(event.clipboardData.files));
         };
@@ -92,9 +282,14 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
 
         const handleDrop: DragEventHandler = (event) => {
             event.preventDefault();
-            if (build.isBuilding) return;
             attachments.add(Array.from(event.dataTransfer.files));
         };
+
+        const visibleSendingPrompt =
+            !isBuilding && buildError === null ? sendingPrompt : null;
+        const queuedStackSize =
+            queuedPrompts.length + (visibleSendingPrompt ? 1 : 0);
+        const hasStack = queuedStackSize > 0 || isBuilding;
 
         return (
             <Box
@@ -102,15 +297,126 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
             >
+                {hasStack && (
+                    <Box
+                        className={classes.queue}
+                        data-building={isBuilding || undefined}
+                    >
+                        {isBuilding && (
+                            <Box
+                                className={`${classes.stackRow} ${classes.buildingStatus}`}
+                            >
+                                <Loader size={13} color="ldGray.6" />
+                                <Text fz="xs" fw={600} c="ldGray.9" inherit>
+                                    Building…{elapsed ? ` ${elapsed}` : ''}
+                                </Text>
+                                {build.cancelError ? (
+                                    <Text
+                                        className={classes.buildingPrompt}
+                                        fz="xs"
+                                        c="red.6"
+                                        lineClamp={1}
+                                        role="alert"
+                                    >
+                                        Could not cancel: {build.cancelError}
+                                    </Text>
+                                ) : (
+                                    buildingPrompt && (
+                                        <Text
+                                            className={classes.buildingPrompt}
+                                            fz="xs"
+                                            c="dimmed"
+                                            lineClamp={1}
+                                        >
+                                            “{buildingPrompt}”
+                                        </Text>
+                                    )
+                                )}
+                                {queuedPrompts.length > 0 && (
+                                    <Text
+                                        fz="xs"
+                                        c="dimmed"
+                                        className={classes.queuedCount}
+                                    >
+                                        · {queuedPrompts.length} queued
+                                    </Text>
+                                )}
+                                {cancelActiveBuild && (
+                                    <Anchor
+                                        className={classes.cancelBuild}
+                                        component="button"
+                                        type="button"
+                                        size="xs"
+                                        c="dimmed"
+                                        fw={500}
+                                        onClick={handleCancelBuild}
+                                        disabled={isCancelling}
+                                    >
+                                        {isCancelling
+                                            ? 'Cancelling…'
+                                            : 'Cancel'}
+                                    </Anchor>
+                                )}
+                            </Box>
+                        )}
+                        {queuedStackSize > 0 && (
+                            <Box
+                                className={classes.queueList}
+                                role="list"
+                                aria-label={`${queuedStackSize} queued ${queuedStackSize === 1 ? 'prompt' : 'prompts'}`}
+                            >
+                                {visibleSendingPrompt && (
+                                    <QueuedPromptRow
+                                        item={visibleSendingPrompt}
+                                        state="sending"
+                                        canInterrupt={false}
+                                        onEdit={() => undefined}
+                                        onRemove={() => undefined}
+                                        onSendNow={() => undefined}
+                                    />
+                                )}
+                                {queuedPrompts.map((item, index) => (
+                                    <QueuedPromptRow
+                                        key={item.id}
+                                        item={item}
+                                        state={
+                                            !isBuilding && index === 0
+                                                ? 'next'
+                                                : 'queued'
+                                        }
+                                        canInterrupt={
+                                            isBuilding &&
+                                            build.interrupt !== null &&
+                                            interruptNext === null &&
+                                            !isCancelling
+                                        }
+                                        onEdit={() => handleEdit(item)}
+                                        onRemove={() =>
+                                            setQueuedPrompts((current) =>
+                                                current.filter(
+                                                    (queued) =>
+                                                        queued.id !== item.id,
+                                                ),
+                                            )
+                                        }
+                                        onSendNow={() => handleSendNow(item)}
+                                    />
+                                ))}
+                            </Box>
+                        )}
+                    </Box>
+                )}
                 <PromptComposer
                     ref={composerRef}
                     variant="inline"
                     placeholder={
-                        hasVersions
-                            ? 'Ask for a change…'
-                            : 'Describe a new chart type…'
+                        isBuilding
+                            ? 'Ask for another change…'
+                            : hasVersions
+                              ? 'Ask for a change…'
+                              : 'Describe a new chart type…'
                     }
-                    submitDisabled={!canSend}
+                    submitDisabled={!canSubmit}
                     onEmptyChange={setIsEmpty}
                     onSubmit={handleSubmit}
                     onPaste={handlePaste}
@@ -118,45 +424,55 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                         attachments.attachments.length > 0 ? (
                             <SelectedAttachmentSection
                                 attachments={attachments.attachments.map(
-                                    (a) => ({
-                                        id: a.key,
-                                        previewUrl: a.previewUrl,
-                                        filename: a.filename,
+                                    (attachment) => ({
+                                        id: attachment.key,
+                                        previewUrl: attachment.previewUrl,
+                                        filename: attachment.filename,
                                     }),
                                 )}
                                 onRemove={attachments.remove}
-                                disabled={build.isBuilding}
                             />
                         ) : undefined
                     }
                     toolbarRight={
-                        <Group gap={4} align="center" wrap="nowrap">
-                            <ModelPicker
-                                value={modelSelection.selectedModel}
-                                onChange={modelSelection.setModel}
-                                disabled={
-                                    build.isBuilding || modelSelection.isLoading
-                                }
-                                visibleModels={modelSelection.visibleModels}
-                            />
+                        <Group
+                            gap="calc(var(--mantine-spacing-xs) / 2)"
+                            align="center"
+                            wrap="nowrap"
+                        >
+                            {isBuilding && !isEmpty ? (
+                                <Text
+                                    className={classes.queueHint}
+                                    fz="xs"
+                                    c="dimmed"
+                                >
+                                    Enter to queue
+                                </Text>
+                            ) : (
+                                <ModelPicker
+                                    value={modelSelection.selectedModel}
+                                    onChange={modelSelection.setModel}
+                                    disabled={modelSelection.isLoading}
+                                    visibleModels={modelSelection.visibleModels}
+                                />
+                            )}
                             <input
                                 ref={fileInputRef}
                                 type="file"
                                 multiple
                                 hidden
-                                onChange={(e) => {
+                                onChange={(event) => {
                                     attachments.add(
-                                        Array.from(e.target.files ?? []),
+                                        Array.from(event.target.files ?? []),
                                     );
-                                    e.target.value = '';
+                                    event.target.value = '';
                                 }}
                             />
                             <Tooltip withArrow label="Attach an image or file">
                                 <ActionIcon
                                     variant="subtle"
-                                    color="gray"
+                                    color="ldGray"
                                     size="sm"
-                                    disabled={build.isBuilding}
                                     aria-label="Attach"
                                     onClick={() =>
                                         fileInputRef.current?.click()
@@ -165,21 +481,28 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                     <MantineIcon icon={IconPaperclip} />
                                 </ActionIcon>
                             </Tooltip>
-                            {build.isBuilding && onCancelBuild ? (
+                            {isBuilding && isEmpty && cancelActiveBuild ? (
                                 <ComposerSubmitButton
                                     icon={IconPlayerStop}
-                                    label="Stop generation"
+                                    label={
+                                        isCancelling
+                                            ? 'Cancelling generation'
+                                            : 'Stop generation'
+                                    }
                                     size="sm"
                                     destructive
-                                    onClick={onCancelBuild}
+                                    disabled={isCancelling}
+                                    loading={isCancelling}
+                                    onClick={handleCancelBuild}
                                 />
                             ) : (
                                 <ComposerSubmitButton
                                     icon={IconArrowUp}
-                                    label="Send"
+                                    label={
+                                        isBuilding ? 'Queue message' : 'Send'
+                                    }
                                     size="sm"
-                                    disabled={isEmpty || !canSend}
-                                    loading={build.isBuilding}
+                                    disabled={isEmpty || !canSubmit}
                                     onClick={handleSubmit}
                                 />
                             )}
@@ -213,9 +536,9 @@ const BuilderPromptBar = forwardRef<BuilderPromptBarHandle, Props>(
                         )}
                     </Box>
                 )}
-                {/* Remount on app change so drafted text and attachments never leak
-            across visualizations. */}
-                <PromptPill key={props.composerAppUuid} ref={ref} {...props} />
+                {/* Remount on intentional app changes so drafts, attachments,
+                    and queued prompts never leak between visualizations. */}
+                <PromptPill key={props.sessionKey} ref={ref} {...props} />
             </Box>
         );
     },

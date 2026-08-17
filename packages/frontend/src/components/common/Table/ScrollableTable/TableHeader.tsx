@@ -74,15 +74,24 @@ const TableHeader: FC<TableHeaderProps> = ({
                                 meta?.item && isField(meta.item)
                                     ? meta.item.description
                                     : undefined;
+                            const tooltipContext = meta?.headerContext;
+                            const tooltipDetails = [
+                                tooltipContext,
+                                tooltipDescription,
+                            ].filter((detail): detail is string => !!detail);
                             const tooltipLabel =
-                                titleLabel && tooltipDescription ? (
+                                titleLabel && tooltipDetails.length > 0 ? (
                                     <>
                                         {titleLabel}
-                                        <br />
-                                        {tooltipDescription}
+                                        {tooltipDetails.map((detail) => (
+                                            <React.Fragment key={detail}>
+                                                <br />
+                                                {detail}
+                                            </React.Fragment>
+                                        ))}
                                     </>
                                 ) : (
-                                    (titleLabel ?? tooltipDescription)
+                                    (titleLabel ?? tooltipDetails[0])
                                 );
                             const canResize =
                                 onColumnWidthChange &&

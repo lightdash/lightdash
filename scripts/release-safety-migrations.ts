@@ -1,5 +1,37 @@
 import { execFileSync } from 'node:child_process';
 
+/** Knex migration files are timestamped: YYYYMMDDHHMMSS_description.ts */
+const MIGRATION_FILENAME_RE = /^\d{14}_.+\.(ts|js)$/;
+
+/**
+ * Knex reads each migration directory non-recursively, so a file under
+ * `__tests__/` is never run as a migration even when it is named after one.
+ */
+const MIGRATION_TEST_PATH_RE = /(^|\/)__tests__\//;
+
+/**
+ * PURE. Is this path a migration the release-safety tooling should act on?
+ *
+ * The test for a migration is not one. The repo colocates such tests as
+ * `migrations/__tests__/<timestamp>_<name>.test.ts`, and knex never loads them.
+ * Counting one inflates the shipped marker, feeds a non-migration to the
+ * code-aware review, and fails the linter with advice — "export a down
+ * function" — that cannot be followed.
+ *
+ * The rule is the directory, not the file name. A timestamped file sitting
+ * directly in a migration directory IS loaded by knex, whatever it is called, so
+ * a stray `<timestamp>_<name>.test.ts` there stays in scope: it will run as a
+ * migration in production, and that is exactly what this tooling exists to
+ * catch.
+ *
+ * Callers still scope the diff to the migration directories; this decides what
+ * counts as a migration inside them.
+ */
+export function isMigrationPath(filePath: string): boolean {
+    if (MIGRATION_TEST_PATH_RE.test(filePath)) return false;
+    return MIGRATION_FILENAME_RE.test(filePath.split('/').pop() ?? '');
+}
+
 export interface MigrationHeaviness {
     locksTable: boolean | 'unknown';
     rewritesTable: boolean | 'unknown';

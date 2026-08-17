@@ -14,6 +14,7 @@ import {
 import * as crypto from 'crypto';
 import { Knex } from 'knex';
 import { LightdashConfig } from '../../config/parseConfig';
+import { OrganizationMembershipCustomRolesTableName } from '../../database/entities/organizationMembershipCustomRoles';
 import { OrganizationMembershipsTableName } from '../../database/entities/organizationMemberships';
 import { RolesTableName } from '../../database/entities/roles';
 import { DbUser, UserTableName } from '../../database/entities/users';
@@ -396,6 +397,18 @@ export class ServiceAccountModel {
                             )
                             .select('user_id'),
                     );
+                // A singular write replaces the whole role set, so extras go too.
+                await trx(OrganizationMembershipCustomRolesTableName)
+                    .whereIn(
+                        'user_id',
+                        trx('users')
+                            .where(
+                                'user_uuid',
+                                existing.service_account_user_uuid,
+                            )
+                            .select('user_id'),
+                    )
+                    .delete();
             }
 
             const updatedServiceAccounts = await trx(ServiceAccountsTableName)

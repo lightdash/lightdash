@@ -52,6 +52,21 @@ export interface RenderOpts {
      * OpenAPI specs it needed — the second is a broken check, not a clean bill.
      */
     restStatus?: 'ran' | 'skipped' | 'failed';
+    declarationGateFailed?: boolean;
+    /**
+     * The revision this verdict describes. Stamped into the comment so a later
+     * `edited` event can tell whether the verdict on the page still applies, and
+     * skip recomputing it if so.
+     */
+    headSha?: string;
+    baseSha?: string;
+    /**
+     * Whether the release-safety gates failed for this revision. The stamp
+     * carries it because the check is required: a skipped job reports SKIPPED,
+     * which satisfies a required check, so short-circuiting a failed verdict
+     * would turn a red gate green. Only a passing verdict may be reused.
+     */
+    gateFailed?: boolean;
 }
 
 const SAFE_HEADLINE = '✅ **Safe to upgrade normally.** No downtime needed.';
@@ -76,6 +91,12 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
     const clearedAsSafeDrop = lintFlagged && rollingUpdateSafe === true;
     // The risk comes from an API change (no DB migration) rather than the schema.
     const apiDriven = (restBreaking || mcpBreaking) && migrationsPresent !== true;
+    // Any failed gate needs remediation text, or the downgraded headline below
+    // names a problem the comment never explains.
+    const needsUnblock =
+        rollingUpdateSafe !== true ||
+        opts.declarationGateFailed === true ||
+        opts.gateFailed === true;
 
     // ---- the answer, in one line + a plain "why" ----------------------------
     const head: string[] = [];
@@ -94,15 +115,26 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
         );
     } else if (rollingUpdateSafe === 'unknown') {
         head.push('❓ **Couldn’t confirm it’s safe.** Treat it as needing care on upgrade until checked.');
-        // An API break with no migration lands here too, so name what actually
-        // changed — telling the author "this changes the database" when it doesn't
-        // sends them looking for a migration that isn't there.
-        const subject = apiDriven ? 'This changes the API' : 'This changes the database';
-        head.push(
-            opts.draft
-                ? `${subject}. Mark the PR ready for review and an automated, code-aware check will look at whether the old version still uses what changed — it may clear it as safe.`
-                : `${subject} and we couldn’t automatically confirm the old version keeps working through the upgrade.`,
-        );
+        // Name what actually drove the verdict. An API break with no migration
+        // lands here, and so does a PR that changes neither — a check that
+        // couldn't run leaves the verdict unknown on its own. Telling that second
+        // author "this changes the database" sends them looking for a migration
+        // that isn't there, and the code-aware review they're pointed at only
+        // runs on a migration or an API break, so it would never clear them.
+        if (apiDriven || migrationsPresent === true) {
+            const subject = apiDriven ? 'This changes the API' : 'This changes the database';
+            head.push(
+                opts.draft
+                    ? `${subject}. Mark the PR ready for review and an automated, code-aware check will look at whether the old version still uses what changed — it may clear it as safe.`
+                    : `${subject} and we couldn’t automatically confirm the old version keeps working through the upgrade.`,
+            );
+        } else {
+            head.push(
+                migrationsPresent === false
+                    ? 'No database changes here. One of the checks below didn’t complete, so we can’t confirm this either way — the table says which one.'
+                    : 'We couldn’t tell what this release changes, because one of the checks below didn’t complete — the table says which one.',
+            );
+        }
     } else if (clearedAsSafeDrop) {
         head.push(SAFE_HEADLINE);
         head.push('This removes something from the database, but the app already stopped using it in an earlier release, so the old version keeps working fine through the upgrade.');
@@ -128,6 +160,18 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
             head[safe] = '❓ **Couldn’t confirm it’s safe.** Part of the check didn’t run.';
         }
         head.push('⚠️ **The REST API check didn’t run** — its OpenAPI specs couldn’t be generated, so a change that breaks scripts or integrations wouldn’t have been spotted here.');
+    }
+
+    // A failed gate is not a verdict about the upgrade: the declaration gate can
+    // fail while the marker is green, and that separation is deliberate. The
+    // headline is still the line people read, and "Safe to upgrade normally" above
+    // a red required check reads as a contradiction — the author trusts one of the
+    // two and ignores the other. Keep both facts, and lead with the blocking one.
+    if (opts.gateFailed === true || opts.declarationGateFailed === true) {
+        const safe = head.indexOf(SAFE_HEADLINE);
+        if (safe >= 0) {
+            head[safe] = '⚠️ **A required check failed.** The upgrade itself looks safe — this is about the check, not the release.';
+        }
     }
 
     // ---- what we looked at (plain, no internal tool names) ------------------
@@ -193,13 +237,33 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
     } else if (requiredStop) {
         advice.push('Call this out in the release notes so customers know they can’t skip this version.');
     }
+    const unblock = needsUnblock
+        ? [
+              '**How to unblock this pull request**',
+              '',
+              'This required check must pass before merge. For a migration break, follow `packages/backend/src/database/migrations/CLAUDE.md`; for an API or type break, add the verified declaration described in [the release-safety guidance](https://github.com/lightdash/lightdash/blob/main/CLAUDE.md#release-safety-declarations).',
+              '',
+              'Never declare a break merely to make CI pass. Declaring a break advises every self-hosted customer to use the Recreate strategy.',
+              '',
+              'A release that ships as `breaking` or `unknown` stops the internal analytics instance upgrading. Every later release inherits the block until someone moves the pin past it by hand.',
+          ]
+        : [];
 
     // ---- assemble -----------------------------------------------------------
     const baseLine = opts.baseLabel ? `> Comparing against \`${opts.baseLabel}\`.\n` : '';
     const rawJson = JSON.stringify(marker, null, 2);
+    const describes =
+        opts.headSha && opts.baseSha
+            ? [
+                  `<!-- release-safety-describes head:${opts.headSha} base:${opts.baseSha} gate:${
+                      opts.gateFailed ? 'fail' : 'pass'
+                  } -->`,
+              ]
+            : [];
 
     return [
         COMMENT_MARKER,
+        ...describes,
         '## 🛡️ Upgrade safety for self-hosted customers',
         baseLine,
         head.map((l) => `- ${l}`).join('\n'),
@@ -208,6 +272,7 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
         '',
         table,
         ...(advice.length ? ['', '**What to do**', '', advice.map((a) => `- ${a}`).join('\n')] : []),
+        ...(unblock.length ? ['', ...unblock] : []),
         '',
         '<details><summary>Technical details (raw JSON)</summary>\n',
         '```json',
@@ -239,6 +304,10 @@ function main(): void {
     const body = renderPrComment(marker, {
         baseLabel: arg('base'),
         restStatus: restStatus as RenderOpts['restStatus'],
+        declarationGateFailed: process.argv.includes('--declaration-gate-failed'),
+        headSha: arg('head-sha'),
+        baseSha: arg('base-sha'),
+        gateFailed: process.argv.includes('--gate-failed'),
         draft: process.argv.includes('--draft'),
         linterBreaking: process.argv.includes('--linter-breaking')
             ? true

@@ -35,7 +35,6 @@ import { useDataAppVisualization } from '../features/apps/hooks/useDataAppVisual
 import { useDataAppVizBuild } from '../features/apps/hooks/useDataAppVizBuild';
 import { useElapsedClock } from '../features/apps/hooks/useElapsedClock';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
-import { useUpdateApp } from '../features/apps/hooks/useUpdateApp';
 import { buildSampleVizContext } from '../features/apps/utils/sampleVizContext';
 import { useResolvedColorPalette } from '../hooks/appearance/useResolvedColorPalette';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
@@ -76,10 +75,6 @@ const ChartTypeBuilder: FC = () => {
 
     const historyUuid = activeVizUuid ?? build.appUuid;
     const history = useAppVersionHistory(projectUuid ?? '', historyUuid);
-    const { data: dataAppViz } = useDataAppVisualization(
-        projectUuid,
-        activeVizUuid,
-    );
 
     // Covers builds sent here and builds found already running in history.
     const historyLatestInProgress =
@@ -114,6 +109,11 @@ const ChartTypeBuilder: FC = () => {
     // Intentional navigation between vizs resets session state; the
     // post-submit `/new` → uuid replace must not.
     const prevUrlVizUuid = useRef(urlVizUuid);
+    const latestDraftAppUuid = useRef(build.draftAppUuid);
+    latestDraftAppUuid.current = build.draftAppUuid;
+    const [promptSessionKey, setPromptSessionKey] = useState(
+        () => urlVizUuid ?? build.draftAppUuid,
+    );
     const [pin, setPin] = useState<{
         appUuid: string;
         version: number;
@@ -135,6 +135,7 @@ const ChartTypeBuilder: FC = () => {
         prevUrlVizUuid.current = urlVizUuid;
         // Post-submit redirect: undefined → new uuid. Don't clear state.
         if (!prev && urlVizUuid) return;
+        setPromptSessionKey(urlVizUuid ?? latestDraftAppUuid.current);
         setPin(null);
         setOptionValues({});
         setColorPaletteUuid(null);
@@ -172,6 +173,11 @@ const ChartTypeBuilder: FC = () => {
     }, [pin, activeVizUuid, history.latestReadyVersion, history.versions]);
 
     const previewVersion = effectiveViewedVersion ?? history.latestReadyVersion;
+
+    // The schema follows the preview: the options beside a version are the ones
+    // that version declares, and the sample data is built from its fields.
+    const { data: dataAppViz, isFetching: isFetchingSchema } =
+        useDataAppVisualization(projectUuid, activeVizUuid, previewVersion);
 
     const colorPalette = useResolvedColorPalette(projectUuid, colorPaletteUuid);
     // The sample-data preview context, rebuilt on any option or palette edit.
@@ -221,15 +227,6 @@ const ChartTypeBuilder: FC = () => {
     const handlePickExample = useCallback(
         (prompt: string) => promptBarRef.current?.setPrompt(prompt),
         [],
-    );
-
-    const { mutate: updateApp } = useUpdateApp({ resourceLabel: 'Chart type' });
-    const handleSaveMeta = useCallback(
-        (patch: { name?: string; description?: string }) => {
-            if (!projectUuid || !appMeta) return;
-            updateApp({ projectUuid, appUuid: appMeta.appUuid, ...patch });
-        },
-        [projectUuid, appMeta, updateApp],
     );
 
     const canEdit = useCanEditDataApp(projectUuid, {
@@ -320,6 +317,7 @@ const ChartTypeBuilder: FC = () => {
             onOptionChange={handleOptionChange}
             colorPaletteUuid={colorPaletteUuid}
             onPaletteChange={setColorPaletteUuid}
+            isStale={isFetchingSchema}
         />
     ) : null;
 
@@ -346,7 +344,6 @@ const ChartTypeBuilder: FC = () => {
                         ? handleCloseHistory()
                         : setIsHistoryOpen(true)
                 }
-                onSaveMeta={handleSaveMeta}
                 onPreviewInExplorer={() =>
                     void navigate(
                         `/projects/${projectUuid}/tables?dataAppVizUuid=${activeVizUuid}`,
@@ -360,9 +357,6 @@ const ChartTypeBuilder: FC = () => {
                         appUuid={activeVizUuid ?? null}
                         previewVersion={previewVersion}
                         isBuilding={isBuilding}
-                        buildingPrompt={buildingPrompt}
-                        elapsed={elapsed}
-                        onCancelBuild={onCancelBuild}
                         failureMessage={failureMessage}
                         previewContext={previewContext}
                         configurePanel={configurePanel}
@@ -373,11 +367,18 @@ const ChartTypeBuilder: FC = () => {
                     {isPromptBarMounted && (
                         <BuilderPromptBar
                             ref={promptBarRef}
+                            sessionKey={promptSessionKey}
                             projectUuid={projectUuid}
                             composerAppUuid={
-                                activeVizUuid ?? build.draftAppUuid
+                                activeVizUuid ??
+                                build.appUuid ??
+                                build.draftAppUuid
                             }
                             hasVersions={history.versions.length > 0}
+                            isBuilding={isBuilding}
+                            buildingPrompt={buildingPrompt}
+                            elapsed={elapsed}
+                            latestReadyVersion={history.latestReadyVersion}
                             build={build}
                             onCancelBuild={onCancelBuild}
                             modelSelection={modelSelection}

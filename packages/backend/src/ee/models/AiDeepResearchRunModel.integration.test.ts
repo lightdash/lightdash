@@ -463,6 +463,19 @@ describe('AiDeepResearchRunModel integration', () => {
         );
     });
 
+    it('records the terminal reason when a queued run is cancelled', async () => {
+        const run = await createRun();
+
+        await model.requestCancellation(run.ai_deep_research_run_uuid);
+
+        await expect(
+            model.findByUuid(run.ai_deep_research_run_uuid),
+        ).resolves.toMatchObject({
+            status: 'cancelled',
+            terminal_reason: 'user_cancellation',
+        });
+    });
+
     it('keeps completion and cancellation terminal under contention', async () => {
         const run = await createRun();
         await model.claimQueuedRun(run.ai_deep_research_run_uuid);
@@ -507,6 +520,22 @@ describe('AiDeepResearchRunModel integration', () => {
                       'status_changed:cancelled',
                   ],
         );
+    });
+
+    it('clears a private report checkpoint when a running run is cancelled', async () => {
+        const run = await createRun();
+        await model.claimQueuedRun(run.ai_deep_research_run_uuid);
+        await model.checkpointReport(run.ai_deep_research_run_uuid, report);
+        await model.requestCancellation(run.ai_deep_research_run_uuid);
+
+        await model.markCancelled(run.ai_deep_research_run_uuid);
+
+        await expect(
+            model.findByUuid(run.ai_deep_research_run_uuid),
+        ).resolves.toMatchObject({
+            status: 'cancelled',
+            result_markdown: null,
+        });
     });
 
     it.each(['completed', 'partially_completed'] as const)(
@@ -676,7 +705,7 @@ describe('AiDeepResearchRunModel integration', () => {
         const futureRun = await createRun({ promptUuid: futurePromptUuid });
         const expiredToolCallId = `expired-${crypto.randomUUID()}`;
         const futureToolCallId = `future-${crypto.randomUUID()}`;
-        const unrelatedToolCallId = `unrelated-${crypto.randomUUID()}`;
+        const coordinatorToolCallId = `coordinator-${crypto.randomUUID()}`;
 
         await database(AiDeepResearchRunsTableName)
             .where(
@@ -709,7 +738,7 @@ describe('AiDeepResearchRunModel integration', () => {
             },
             {
                 ai_prompt_uuid: promptUuid,
-                tool_call_id: unrelatedToolCallId,
+                tool_call_id: coordinatorToolCallId,
                 tool_name: 'runSql',
                 tool_args: {},
                 ai_mcp_server_uuid: null,
@@ -725,7 +754,7 @@ describe('AiDeepResearchRunModel integration', () => {
                     promptUuid: futurePromptUuid,
                     toolCallId: futureToolCallId,
                 },
-                { promptUuid, toolCallId: unrelatedToolCallId },
+                { promptUuid, toolCallId: coordinatorToolCallId },
             ].map(({ promptUuid: toolPromptUuid, toolCallId }) => ({
                 ai_prompt_uuid: toolPromptUuid,
                 tool_call_id: toolCallId,
@@ -808,22 +837,22 @@ describe('AiDeepResearchRunModel integration', () => {
                         .whereIn('tool_call_id', [
                             expiredToolCallId,
                             futureToolCallId,
-                            unrelatedToolCallId,
+                            coordinatorToolCallId,
                         ])
                         .pluck('tool_call_id')
                 ).sort(),
-            ).toEqual([futureToolCallId, unrelatedToolCallId].sort());
+            ).toEqual([futureToolCallId]);
             expect(
                 (
                     await database(AiAgentToolResultTableName)
                         .whereIn('tool_call_id', [
                             expiredToolCallId,
                             futureToolCallId,
-                            unrelatedToolCallId,
+                            coordinatorToolCallId,
                         ])
                         .pluck('tool_call_id')
                 ).sort(),
-            ).toEqual([futureToolCallId, unrelatedToolCallId].sort());
+            ).toEqual([futureToolCallId]);
             expect(
                 await database(AiSqlApprovalTableName)
                     .where('tool_call_id', expiredToolCallId)
@@ -839,6 +868,72 @@ describe('AiDeepResearchRunModel integration', () => {
                 .where('tool_call_id', expiredToolCallId)
                 .delete();
         }
+    });
+
+    it('scrubs expired provenance for a failed run without a report', async () => {
+        const failedPromptUuid = await createAdditionalPrompt();
+        const failedRun = await createRun({ promptUuid: failedPromptUuid });
+        const toolCallId = `failed-${crypto.randomUUID()}`;
+        const invalidToolCallId = `invalid-${crypto.randomUUID()}`;
+        await database(AiDeepResearchRunsTableName)
+            .where(
+                'ai_deep_research_run_uuid',
+                failedRun.ai_deep_research_run_uuid,
+            )
+            .update({
+                status: 'failed',
+                terminal_reason: 'internal_error',
+                result_markdown: null,
+                completed_at: database.raw("now() - interval '31 days'"),
+            });
+        await database<AiAgentToolCallTable>(AiAgentToolCallTableName).insert({
+            ai_prompt_uuid: failedPromptUuid,
+            tool_call_id: toolCallId,
+            tool_name: 'runSql',
+            tool_args: {},
+            ai_mcp_server_uuid: null,
+            parent_tool_call_id: null,
+        });
+        await database<AiAgentToolResultTable>(
+            AiAgentToolResultTableName,
+        ).insert({
+            ai_prompt_uuid: failedPromptUuid,
+            tool_call_id: toolCallId,
+            tool_name: 'runSql',
+            result: JSON.stringify({ rows: [{ secret: 'expired' }] }),
+        });
+        await database<AiAgentToolCallErrorTable>(
+            AiAgentToolCallErrorTableName,
+        ).insert({
+            ai_prompt_uuid: failedPromptUuid,
+            tool_call_id: invalidToolCallId,
+            tool_name: 'runSql',
+            error_message: 'invalid call',
+            raw_args: JSON.stringify({ secret: 'expired invalid args' }),
+        });
+
+        expect(await model.cleanExpiredReports(100)).toEqual({
+            scanned: 1,
+            expired: 1,
+            failed: 0,
+        });
+        expect(
+            await database(AiAgentToolCallTableName)
+                .where('tool_call_id', toolCallId)
+                .first(),
+        ).toBeUndefined();
+        expect(
+            await database(AiAgentToolCallErrorTableName)
+                .where('tool_call_id', invalidToolCallId)
+                .first(),
+        ).toBeUndefined();
+        await expect(
+            model.findByUuid(failedRun.ai_deep_research_run_uuid),
+        ).resolves.toMatchObject({
+            status: 'failed',
+            result_markdown: null,
+            report_expired_at: expect.any(Date),
+        });
     });
 
     it('rolls provenance deletion back when scrubbing the report fails', async () => {
@@ -940,5 +1035,51 @@ describe('AiDeepResearchRunModel integration', () => {
                 },
             ],
         );
+    });
+
+    it('promotes a stale run with a report checkpoint to useful partial', async () => {
+        const run = await createRun();
+        await model.claimQueuedRun(run.ai_deep_research_run_uuid);
+        await model.checkpointReport(run.ai_deep_research_run_uuid, report);
+        await database(AiDeepResearchRunsTableName)
+            .where('ai_deep_research_run_uuid', run.ai_deep_research_run_uuid)
+            .update({ updated_at: database.raw("now() - interval '2 hours'") });
+
+        const staleRuns = await model.markStaleRunsAsFailed(75, 'stale');
+
+        expect(staleRuns[0]).toMatchObject({
+            status: 'partially_completed',
+            terminal_reason: 'internal_error',
+            result_markdown: report,
+        });
+        expect(await getEventSequence(run.ai_deep_research_run_uuid)).toEqual([
+            'status_changed:queued',
+            'status_changed:running',
+            'status_changed:partially_completed',
+        ]);
+    });
+
+    it('prioritizes a pending cancellation over stale checkpoint recovery', async () => {
+        const run = await createRun();
+        await model.claimQueuedRun(run.ai_deep_research_run_uuid);
+        await model.checkpointReport(run.ai_deep_research_run_uuid, report);
+        await model.requestCancellation(run.ai_deep_research_run_uuid);
+        await database(AiDeepResearchRunsTableName)
+            .where('ai_deep_research_run_uuid', run.ai_deep_research_run_uuid)
+            .update({ updated_at: database.raw("now() - interval '2 hours'") });
+
+        const staleRuns = await model.markStaleRunsAsFailed(75, 'stale');
+
+        expect(staleRuns[0]).toMatchObject({
+            status: 'cancelled',
+            terminal_reason: 'user_cancellation',
+            result_markdown: null,
+        });
+        expect(await getEventSequence(run.ai_deep_research_run_uuid)).toEqual([
+            'status_changed:queued',
+            'status_changed:running',
+            'cancellation_requested',
+            'status_changed:cancelled',
+        ]);
     });
 });

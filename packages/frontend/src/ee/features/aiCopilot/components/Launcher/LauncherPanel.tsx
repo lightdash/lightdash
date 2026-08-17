@@ -403,6 +403,7 @@ const NewThreadPanel: FC<{
                     projectUuid={projectUuid}
                     agentUuid={concreteAgent?.uuid}
                     fullWidth
+                    showDeepResearchBelowComposer
                     sqlMode={sqlModeAvailable && !isAuto ? sqlMode : undefined}
                     onSqlModeChange={
                         sqlModeAvailable && !isAuto

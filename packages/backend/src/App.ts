@@ -230,6 +230,8 @@ export default class App {
 
     private readonly analyticsEventEmitter: EventEmitter;
 
+    private readonly readinessService: ReadinessService;
+
     private featureFlagCheckFlushInterval: NodeJS.Timeout | undefined;
 
     constructor(args: AppArguments) {
@@ -279,6 +281,13 @@ export default class App {
             database: this.database,
             utils: this.utils,
         });
+        this.readinessService = new ReadinessService({
+            migrationModel: this.models.getMigrationModel(),
+            migrationRunLedger: new MigrationLeaseManager({
+                database: this.database,
+            }),
+            ttlMs: this.lightdashConfig.database.readinessProbeTtlMs,
+        });
         this.clients = new ClientRepository({
             clientProviders: args.clientProviders,
             context: new OperationContext({
@@ -299,6 +308,7 @@ export default class App {
             models: this.models,
             utils: this.utils,
             prometheusMetrics: this.prometheusMetrics,
+            readinessService: this.readinessService,
         });
         this.schedulerWorkerFactory =
             args.schedulerWorkerFactory || schedulerWorkerFactory;
@@ -350,18 +360,7 @@ export default class App {
             qs.parse(str, { arrayLimit: 1000 }),
         );
 
-        expressApp.use(
-            '/api/v1',
-            createProbeRouter(
-                new ReadinessService({
-                    migrationModel: this.models.getMigrationModel(),
-                    migrationRunLedger: new MigrationLeaseManager({
-                        database: this.database,
-                    }),
-                    ttlMs: this.lightdashConfig.database.readinessProbeTtlMs,
-                }),
-            ),
-        );
+        expressApp.use('/api/v1', createProbeRouter(this.readinessService));
 
         // Slack must be initialized before our own middleware / routes, which cause the slack app to fail
         this.initSlack(expressApp).catch((e) => {

@@ -190,6 +190,23 @@ describe('DeepResearchReport', () => {
         ).toBeVisible();
     });
 
+    it('renders adjusted reports in the structured view', async () => {
+        renderReport(vi.fn(), {
+            ...deepResearchRunFixture,
+            resultMarkdown: `<warning title="Report adjusted">Some chart evidence was omitted.</warning>\n\n${canonicalMarkdown}`,
+        });
+
+        expect(
+            await screen.findByRole('heading', {
+                name: 'Reliability Drove Retention Losses',
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('heading', { name: 'Conclusion' }),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Report adjusted')).toBeInTheDocument();
+    });
+
     it('renders inline markdown in the generated report title', async () => {
         mocks.useChartQuery.mockReturnValue({
             isLoading: false,

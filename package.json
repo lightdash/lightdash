@@ -1,6 +1,6 @@
 {
     "name": "lightdash",
-    "version": "1.150.0",
+    "version": "1.169.1",
     "main": "index.js",
     "license": "MIT",
     "private": true,
@@ -15,7 +15,6 @@
         "tslib": "2.8.1"
     },
     "devDependencies": {
-        "@spotlightjs/spotlight": "4.10.0",
         "@types/node": "24.13.2",
         "@types/pegjs": "0.10.3",
         "@vitest/eslint-plugin": "1.6.23",
@@ -140,9 +139,8 @@
         "pm2:restart:api": "pm2 restart lightdash-api",
         "pm2:restart:scheduler": "pm2 restart lightdash-scheduler",
         "pm2:restart:frontend": "pm2 restart lightdash-frontend",
-        "pm2:logs:spotlight": "pm2 logs lightdash-spotlight --lines 50",
-        "pm2:restart:spotlight": "pm2 restart lightdash-spotlight",
-        "spotlight": "pnpm dlx @spotlightjs/spotlight@latest",
+        "pm2:logs:maple": "pm2 logs lightdash-maple --lines 50",
+        "pm2:restart:maple": "pm2 restart lightdash-maple",
         "dev:pm2": "pm2 start ecosystem.config.js && pm2 logs --lines 50"
     },
     "lint-staged": {

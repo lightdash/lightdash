@@ -21,6 +21,9 @@ type Props = {
     /** Preview-only; a chart using the viz owns the palette the normal way. */
     colorPaletteUuid: string | null;
     onPaletteChange: (colorPaletteUuid: string | null) => void;
+    /** The schema on screen belongs to a version being navigated away from;
+     *  held legible but inert until the one being previewed arrives. */
+    isStale: boolean;
 };
 
 /**
@@ -35,6 +38,7 @@ const ConfigurePanel: FC<Props> = ({
     onOptionChange,
     colorPaletteUuid,
     onPaletteChange,
+    isStale,
 }) => {
     const { data: palettes = [] } = useColorPalettes();
 
@@ -57,7 +61,7 @@ const ConfigurePanel: FC<Props> = ({
         : (optionGroups[0]?.id ?? null);
 
     return (
-        <Box className={classes.panel}>
+        <Box className={classes.panel} data-stale={isStale} inert={isStale}>
             {/* The options are the generated contract, not Lightdash chart
                 config, and the chip says so. */}
             <Text className={classes.generatedChip}>Generated options</Text>

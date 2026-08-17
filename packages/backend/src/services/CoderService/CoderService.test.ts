@@ -12,6 +12,18 @@ import { CoderService } from './CoderService';
 import { withTileWarnings } from './dashboardReferences';
 
 describe('CoderService', () => {
+    describe('getMissingIds', () => {
+        it('recognizes requested chart aliases as downloaded content', () => {
+            expect(
+                CoderService.getMissingIds(
+                    ['old-orders'],
+                    [{ uuid: 'chart-uuid', slug: 'orders' }],
+                    ['old-orders'],
+                ),
+            ).toEqual([]);
+        });
+    });
+
     describe('transformChart', () => {
         it('identifies the chart when its space is missing', () => {
             expect(() =>

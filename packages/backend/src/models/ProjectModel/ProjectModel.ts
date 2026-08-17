@@ -65,6 +65,7 @@ import {
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
 import { Knex } from 'knex';
+import chunk from 'lodash/chunk';
 import isEqual from 'lodash/isEqual';
 import NodeCache from 'node-cache';
 import { DatabaseError } from 'pg';
@@ -79,6 +80,7 @@ import {
 } from '../../database/entities/dashboards';
 import { GroupMembershipTableName } from '../../database/entities/groupMemberships';
 import { GroupTableName } from '../../database/entities/groups';
+import { OrganizationMembershipCustomRolesTableName } from '../../database/entities/organizationMembershipCustomRoles';
 import { OrganizationMembershipsTableName } from '../../database/entities/organizationMemberships';
 import {
     DbOrganization,
@@ -86,6 +88,8 @@ import {
 } from '../../database/entities/organizations';
 import { PinnedListTableName } from '../../database/entities/pinnedList';
 import { ProjectGroupAccessTableName } from '../../database/entities/projectGroupAccess';
+import { ProjectGroupAccessCustomRolesTableName } from '../../database/entities/projectGroupAccessCustomRoles';
+import { ProjectMembershipCustomRolesTableName } from '../../database/entities/projectMembershipCustomRoles';
 import {
     DbProjectMembership,
     ProjectMembershipsTableName,
@@ -139,6 +143,7 @@ import {
     acquireProjectSlugLock,
     generateUniqueSlugScopedToProject,
 } from '../../utils/SlugUtils';
+import { clearProjectExtraRoles } from '../roleSetUtils';
 import { omitProjectUuid, replaceProjectUuid } from './previewContent';
 import Transaction = Knex.Transaction;
 
@@ -1648,6 +1653,7 @@ export class ProjectModel {
     async saveExploresToCache(
         projectUuid: string,
         explores: (Explore | ExploreError)[],
+        complete = false,
     ) {
         return wrapSentryTransaction(
             'ProjectModel.saveExploresToCache',
@@ -1658,24 +1664,40 @@ export class ProjectModel {
                         trx,
                         projectUuid,
                     );
-                    // Get custom explores/virtual views before deleting them
-                    const virtualViews = await trx(CachedExploreTableName)
-                        .select('explore')
-                        .where('project_uuid', projectUuid)
-                        .whereRaw("explore->>'type' = ?", [
+                    const cachedExploresQuery = trx(CachedExploreTableName)
+                        .select<{ explore: Explore | ExploreError }[]>(
+                            'explore',
+                        )
+                        .where('project_uuid', projectUuid);
+                    if (complete) {
+                        cachedExploresQuery.whereRaw("explore->>'type' = ?", [
                             ExploreType.VIRTUAL,
                         ]);
-
-                    // Delete previous individually cached explores
-                    await trx(CachedExploreTableName)
-                        .where('project_uuid', projectUuid)
-                        .delete();
+                    }
+                    const cachedExplores = await cachedExploresQuery;
+                    const virtualViews = cachedExplores.filter(
+                        ({ explore }) => explore.type === ExploreType.VIRTUAL,
+                    );
+                    const virtualViewsByName = new Map(
+                        virtualViews.map(({ explore }) => [
+                            explore.name,
+                            explore,
+                        ]),
+                    );
 
                     // NOTE: virtual views with the same name as explores will override the explore.
                     // This isn't new behavior, but it's still a bit of a bug. However, it's
                     // not clear what a better approach would be at the moment.
                     const exploresMap = new Map(
-                        explores.map((e) => [e.name, e]),
+                        complete
+                            ? []
+                            : cachedExplores.map(({ explore }) => [
+                                  explore.name,
+                                  explore,
+                              ]),
+                    );
+                    explores.forEach((explore) =>
+                        exploresMap.set(explore.name, explore),
                     );
                     virtualViews.forEach((e) =>
                         exploresMap.set(e.explore.name, e.explore),
@@ -1686,18 +1708,47 @@ export class ProjectModel {
                         throw new ParameterError('No explores to save');
                     }
 
-                    // Cache explores individually
-                    const individualCachedExplores = await trx
-                        .batchInsert<DbCachedExplore>(
-                            CachedExploreTableName,
-                            uniqueExplores.map((explore) => ({
-                                project_uuid: projectUuid,
-                                name: explore.name,
-                                table_names: Object.keys(explore.tables || {}),
-                                explore: JSON.stringify(explore),
-                            })),
-                        )
-                        .returning('cached_explore_uuid');
+                    const exploresToSave = complete
+                        ? uniqueExplores
+                        : Array.from(
+                              new Map(
+                                  explores.map((explore) => [
+                                      explore.name,
+                                      explore,
+                                  ]),
+                              ).values(),
+                          ).map(
+                              (explore) =>
+                                  virtualViewsByName.get(explore.name) ??
+                                  explore,
+                          );
+
+                    if (complete) {
+                        await trx(CachedExploreTableName)
+                            .where('project_uuid', projectUuid)
+                            .delete();
+                    }
+
+                    const rowsToSave = exploresToSave.map((explore) => ({
+                        project_uuid: projectUuid,
+                        name: explore.name,
+                        table_names: Object.keys(explore.tables || {}),
+                        explore: JSON.stringify(explore),
+                    }));
+                    const savedExploreBatches = await Promise.all(
+                        chunk(rowsToSave, 1000).map((rows) => {
+                            const insertQuery = trx<DbCachedExplore>(
+                                CachedExploreTableName,
+                            ).insert(rows);
+                            return complete
+                                ? insertQuery.returning('cached_explore_uuid')
+                                : insertQuery
+                                      .onConflict(['name', 'project_uuid'])
+                                      .merge(['table_names', 'explore'])
+                                      .returning('cached_explore_uuid');
+                        }),
+                    );
+                    const individualCachedExplores = savedExploreBatches.flat();
 
                     // Cache explores together
                     await trx(CachedExploresTableName)
@@ -1991,6 +2042,27 @@ export class ProjectModel {
                     )
                     .onConflict(['user_id', 'project_id'])
                     .merge(['role', 'role_uuid']);
+                // Extra custom roles follow their membership into the preview.
+                const eligibleUserIds = eligibleProjectAccesses.map(
+                    ({ user_id }) => user_id,
+                );
+                await trx(ProjectMembershipCustomRolesTableName)
+                    .where('project_id', previewProject.project_id)
+                    .whereIn('user_id', eligibleUserIds)
+                    .delete();
+                await trx.raw(
+                    `INSERT INTO ?? (project_id, user_id, role_uuid)
+                     SELECT ?, user_id, role_uuid FROM ??
+                     WHERE project_id = ? AND user_id = ANY(?)
+                     ON CONFLICT DO NOTHING`,
+                    [
+                        ProjectMembershipCustomRolesTableName,
+                        previewProject.project_id,
+                        ProjectMembershipCustomRolesTableName,
+                        upstreamProject.project_id,
+                        eligibleUserIds,
+                    ],
+                );
             }
             if (groupAccesses.length > 0) {
                 await trx(ProjectGroupAccessTableName)
@@ -2006,6 +2078,26 @@ export class ProjectModel {
                     )
                     .onConflict(['project_uuid', 'group_uuid'])
                     .merge(['role', 'role_uuid']);
+                const groupUuids = groupAccesses.map(
+                    ({ group_uuid }) => group_uuid,
+                );
+                await trx(ProjectGroupAccessCustomRolesTableName)
+                    .where('project_uuid', previewProjectUuid)
+                    .whereIn('group_uuid', groupUuids)
+                    .delete();
+                await trx.raw(
+                    `INSERT INTO ?? (project_uuid, group_uuid, role_uuid)
+                     SELECT ?, group_uuid, role_uuid FROM ??
+                     WHERE project_uuid = ? AND group_uuid = ANY(?)
+                     ON CONFLICT DO NOTHING`,
+                    [
+                        ProjectGroupAccessCustomRolesTableName,
+                        previewProjectUuid,
+                        ProjectGroupAccessCustomRolesTableName,
+                        upstreamProjectUuid,
+                        groupUuids,
+                    ],
+                );
             }
 
             return {
@@ -2075,18 +2167,28 @@ export class ProjectModel {
     ): Promise<void> {
         // Clear role_uuid when switching to a system role so that stale FK
         // references don't prevent custom role deletion later (see #20690).
-        await this.database.raw<(DbProjectMembership & DbProject & DbUser)[]>(
-            `
+        // A singular write replaces the whole role set, so extras go too.
+        await this.database.transaction(async (trx) => {
+            const { rows } = await trx.raw<{
+                rows: Pick<DbProjectMembership, 'project_id' | 'user_id'>[];
+            }>(
+                `
                 UPDATE project_memberships AS m
                 SET role = :role, role_uuid = NULL FROM projects AS p, users AS u
                 WHERE p.project_id = m.project_id
                   AND u.user_id = m.user_id
                   AND user_uuid = :userUuid
                   AND p.project_uuid = :projectUuid
-                    RETURNING *
+                    RETURNING m.project_id, m.user_id
             `,
-            { projectUuid, userUuid, role },
-        );
+                { projectUuid, userUuid, role },
+            );
+            await Promise.all(
+                rows.map((row) =>
+                    clearProjectExtraRoles(trx, row.project_id, row.user_id),
+                ),
+            );
+        });
     }
 
     async updateMetadata(
@@ -2510,6 +2612,10 @@ export class ProjectModel {
                         role: OrganizationMemberRole.MEMBER,
                         role_uuid: null,
                     });
+                // A singular write replaces the whole role set, so extras go too.
+                await trx(OrganizationMembershipCustomRolesTableName)
+                    .where('user_id', sa.user_id)
+                    .delete();
             }
         });
     }

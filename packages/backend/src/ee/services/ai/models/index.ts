@@ -309,6 +309,8 @@ export const getModel = (
         enableReasoning?: boolean;
         modelName?: string;
         provider?: typeof config.defaultProvider;
+        /** Only server-generated immutable snapshots may pin non-preset names. */
+        trustPinnedModelName?: boolean;
         /**
          * Use a fast, cost-effective model for lightweight tasks
          * (text generation, summaries, simple structured output)
@@ -351,7 +353,12 @@ export const getModel = (
             // Azure doesn't use presets - uses deployment name directly
             return withKeyManagement(
                 applyStreamingCapability(
-                    getAzureGpt41Model(azureConfig),
+                    getAzureGpt41Model({
+                        ...azureConfig,
+                        deploymentName: options?.trustPinnedModelName
+                            ? (options.modelName ?? azureConfig.deploymentName)
+                            : azureConfig.deploymentName,
+                    }),
                     azureConfig.supportsStreaming,
                 ),
                 keyManagement,
@@ -383,17 +390,31 @@ export const getModel = (
             // OpenRouter doesn't use presets - uses model name directly
             return withKeyManagement(
                 applyStreamingCapability(
-                    getOpenRouterModel(openrouterConfig),
+                    getOpenRouterModel({
+                        ...openrouterConfig,
+                        modelName: options?.trustPinnedModelName
+                            ? (options.modelName ?? openrouterConfig.modelName)
+                            : openrouterConfig.modelName,
+                    }),
                     openrouterConfig.supportsStreaming,
                 ),
                 keyManagement,
             );
         }
         case 'bedrock': {
+            const requestedBedrockModel = resolveModelName('bedrock');
+            const bedrockModelName = requestedBedrockModel
+                ? (MODEL_PRESETS.bedrock.find(
+                      (preset) =>
+                          requestedBedrockModel === preset.name ||
+                          requestedBedrockModel === preset.modelId ||
+                          requestedBedrockModel.endsWith(`.${preset.modelId}`),
+                  )?.modelId ?? requestedBedrockModel)
+                : undefined;
             const { config: bedrockConfig, preset } = getModelPreset(
                 'bedrock',
                 config,
-                resolveModelName('bedrock'),
+                bedrockModelName,
             );
             return withKeyManagement(
                 applyStreamingCapability(

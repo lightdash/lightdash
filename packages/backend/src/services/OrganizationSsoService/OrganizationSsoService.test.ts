@@ -348,6 +348,207 @@ describe('OrganizationSsoService', () => {
         });
     });
 
+    describe('isEmailDomainAllowedForOrgSso', () => {
+        it('returns false for an email without a domain', async () => {
+            const { service, organizationSsoModel } = buildService();
+
+            await expect(
+                service.isEmailDomainAllowedForOrgSso(
+                    'no-domain',
+                    ORG_UUID,
+                    OrganizationSsoProvider.GENERIC_OIDC,
+                ),
+            ).resolves.toBe(false);
+            expect(
+                organizationSsoModel.findEnabledMethodsForEmailDomain,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('lowercases the asserted domain before querying', async () => {
+            const { service, organizationSsoModel } = buildService();
+            organizationSsoModel.findEnabledMethodsForEmailDomain.mockResolvedValue(
+                [],
+            );
+
+            await service.isEmailDomainAllowedForOrgSso(
+                'User@ACME.com',
+                ORG_UUID,
+                OrganizationSsoProvider.GENERIC_OIDC,
+            );
+
+            expect(
+                organizationSsoModel.findEnabledMethodsForEmailDomain,
+            ).toHaveBeenCalledWith('acme.com');
+        });
+
+        it('allows an identity whose domain the authorizing org+provider routes', async () => {
+            const { service, organizationSsoModel } = buildService();
+            organizationSsoModel.findEnabledMethodsForEmailDomain.mockResolvedValue(
+                [
+                    enabledMethodForOrg(
+                        ORG_UUID,
+                        OrganizationSsoProvider.GENERIC_OIDC,
+                    ),
+                ],
+            );
+
+            await expect(
+                service.isEmailDomainAllowedForOrgSso(
+                    'user@acme.com',
+                    ORG_UUID,
+                    OrganizationSsoProvider.GENERIC_OIDC,
+                ),
+            ).resolves.toBe(true);
+        });
+
+        it('rejects when the asserted domain routes only to a different org', async () => {
+            const { service, organizationSsoModel } = buildService();
+            // The asserted domain routes to a different org's method, not the
+            // org whose strategy authenticated the request.
+            organizationSsoModel.findEnabledMethodsForEmailDomain.mockResolvedValue(
+                [
+                    enabledMethodForOrg(
+                        OTHER_ORG_UUID,
+                        OrganizationSsoProvider.GENERIC_OIDC,
+                    ),
+                ],
+            );
+
+            await expect(
+                service.isEmailDomainAllowedForOrgSso(
+                    'user@domain-b.com',
+                    ORG_UUID,
+                    OrganizationSsoProvider.GENERIC_OIDC,
+                ),
+            ).resolves.toBe(false);
+        });
+
+        it('rejects when the org routes the domain but under a different provider', async () => {
+            const { service, organizationSsoModel } = buildService();
+            organizationSsoModel.findEnabledMethodsForEmailDomain.mockResolvedValue(
+                [
+                    enabledMethodForOrg(
+                        ORG_UUID,
+                        OrganizationSsoProvider.AZUREAD,
+                    ),
+                ],
+            );
+
+            await expect(
+                service.isEmailDomainAllowedForOrgSso(
+                    'user@acme.com',
+                    ORG_UUID,
+                    OrganizationSsoProvider.GENERIC_OIDC,
+                ),
+            ).resolves.toBe(false);
+        });
+
+        it('rejects when no enabled method routes the asserted domain', async () => {
+            const { service, organizationSsoModel } = buildService();
+            organizationSsoModel.findEnabledMethodsForEmailDomain.mockResolvedValue(
+                [],
+            );
+
+            await expect(
+                service.isEmailDomainAllowedForOrgSso(
+                    'user@acme.com',
+                    ORG_UUID,
+                    OrganizationSsoProvider.GENERIC_OIDC,
+                ),
+            ).resolves.toBe(false);
+        });
+
+        it('rejects an existing user who does not belong to the authorizing org', async () => {
+            const { service, organizationSsoModel, userModel } = buildService();
+            organizationSsoModel.findEnabledMethodsForEmailDomain.mockResolvedValue(
+                [
+                    enabledMethodForOrg(
+                        ORG_UUID,
+                        OrganizationSsoProvider.GENERIC_OIDC,
+                    ),
+                ],
+            );
+            userModel.findUserByEmail.mockResolvedValue({
+                userUuid: USER_UUID,
+            });
+            userModel.getOrganizationsForUser.mockResolvedValue([
+                { organizationUuid: OTHER_ORG_UUID },
+            ]);
+
+            await expect(
+                service.isEmailDomainAllowedForOrgSso(
+                    'user@acme.com',
+                    ORG_UUID,
+                    OrganizationSsoProvider.GENERIC_OIDC,
+                ),
+            ).resolves.toBe(false);
+        });
+
+        it('allows an existing user who belongs to the authorizing org', async () => {
+            const { service, organizationSsoModel, userModel } = buildService();
+            organizationSsoModel.findEnabledMethodsForEmailDomain.mockResolvedValue(
+                [
+                    enabledMethodForOrg(
+                        ORG_UUID,
+                        OrganizationSsoProvider.GENERIC_OIDC,
+                    ),
+                ],
+            );
+            userModel.findUserByEmail.mockResolvedValue({
+                userUuid: USER_UUID,
+            });
+            userModel.getOrganizationsForUser.mockResolvedValue([
+                { organizationUuid: ORG_UUID },
+            ]);
+
+            await expect(
+                service.isEmailDomainAllowedForOrgSso(
+                    'user@acme.com',
+                    ORG_UUID,
+                    OrganizationSsoProvider.GENERIC_OIDC,
+                ),
+            ).resolves.toBe(true);
+        });
+
+        it('allows each org when an existing user belongs to two orgs routing the same domain and provider', async () => {
+            const { service, organizationSsoModel, userModel } = buildService();
+            organizationSsoModel.findEnabledMethodsForEmailDomain.mockResolvedValue(
+                [
+                    enabledMethodForOrg(
+                        OTHER_ORG_UUID,
+                        OrganizationSsoProvider.GENERIC_OIDC,
+                    ),
+                    enabledMethodForOrg(
+                        ORG_UUID,
+                        OrganizationSsoProvider.GENERIC_OIDC,
+                    ),
+                ],
+            );
+            userModel.findUserByEmail.mockResolvedValue({
+                userUuid: USER_UUID,
+            });
+            userModel.getOrganizationsForUser.mockResolvedValue([
+                { organizationUuid: ORG_UUID },
+                { organizationUuid: OTHER_ORG_UUID },
+            ]);
+
+            await expect(
+                service.isEmailDomainAllowedForOrgSso(
+                    'user@acme.com',
+                    ORG_UUID,
+                    OrganizationSsoProvider.GENERIC_OIDC,
+                ),
+            ).resolves.toBe(true);
+            await expect(
+                service.isEmailDomainAllowedForOrgSso(
+                    'user@acme.com',
+                    OTHER_ORG_UUID,
+                    OrganizationSsoProvider.GENERIC_OIDC,
+                ),
+            ).resolves.toBe(true);
+        });
+    });
+
     describe('findEnabledOktaMethodForIssuer', () => {
         it('normalizes issuer lookup before querying the SSO model', async () => {
             const { service, organizationSsoModel } = buildService();

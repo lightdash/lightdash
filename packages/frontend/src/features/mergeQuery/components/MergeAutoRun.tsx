@@ -6,7 +6,7 @@ import { useMergeSetup } from '../hooks/useMergeSetup';
  * Runs a restored merge once, headlessly.
  *
  * A merge that arrived with the chart has to run itself: without this a saved
- * merged chart opens showing Query A's results — the wrong numbers, presented
+ * merged chart opens showing only the primary source's results — the wrong numbers, presented
  * as the chart that was saved. It lives in the main column rather than the
  * sidebar because the saved-chart view opens with the sidebar closed.
  */

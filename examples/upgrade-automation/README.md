@@ -2,14 +2,19 @@
 
 This example keeps a self-hosted Lightdash deployment on the newest release that the public release-safety gate can reach. It is intentionally generic, has no telemetry, and stores its evidence only in the consumer repository.
 
+> [!NOTE]
+> This example is in [Beta](https://docs.lightdash.com/references/workspace/feature-maturity-levels), together with the release-safety artifact that it reads. The workflow runs today and we use this approach on our own instance, but the artifact fields, the verdict shape and the action inputs can still change.
+>
+> Pin the composite actions to a reviewed commit SHA, which the steps below require anyway, and read this page again when you move that pin. Feedback shapes where this goes next: tell us in a [GitHub issue](https://github.com/lightdash/lightdash/issues) if the loop does not fit your deployment.
+
 The loop is:
 
 1. Stop silently when an open issue carries the freeze label.
 2. Read the current image tag and the public release-safety index.
-3. Run `lightdash upgrade-check` against candidate public versions and select the newest green-reachable target. A required stop becomes the next target. A genuinely red next hop opens a held pull request; unknown or incomplete safety data fails closed and retries on a later run.
+3. Run `lightdash upgrade-check` against candidate public versions and select the newest green-reachable target. A required stop becomes the next target. Any next hop that is not green opens a held pull request: a genuinely red hop, and equally one whose safety data is unknown or incomplete. Both hold; neither merges. The held pull request states which of the two it is.
 4. Optionally require the mapped image tag to exist in an OCI registry.
 5. Open a pin pull request containing the complete nine-key verdict JSON.
-6. Enable auto-merge when configured and green, or send an `[upgrade-hold]` Slack message for a red hop.
+6. Enable auto-merge when configured and green, or send an `[upgrade-hold]` Slack message for a hop that is red or unknown. The escalation is sent once, when the held pull request is opened, not on every subsequent planning run.
 7. After the consumer's deployment workflow finishes, poll `/api/v1/readyz` every 20 seconds and compare the `Lightdash-Version` response header from `/` with the pinned public version. Three consecutive ready and version-matched polls are required.
 8. On failure, open a freeze issue and send an `[upgrade-verify-failed]` Slack message. The automation never rolls back.
 9. Comment the verdict, verification result, timings, readiness reason, and deployment-run link on the pin pull request.
@@ -57,7 +62,7 @@ The deployment workflow runs when the pin pull request merges into the default b
 
 Verification has three outcomes: a matching merged upgrade pull request runs the full readiness and version check, no matching pull request logs a successful no-op, and any pull-request lookup failure fails the job without skipping verification.
 
-`/api/v1/readyz` certifies the schema gate and clean migration run ledger without the per-request database work performed by `/api/v1/health`. The probe does not expose a version, so the action separately reads the public `Lightdash-Version` header from the instance root. A missing or ingress-stripped header fails closed. Old pods can return 404 for `readyz`; polling continues until the new pods answer or the verification budget expires.
+`/api/v1/readyz` certifies the schema gate and reports migration run ledger warnings without the per-request database work performed by `/api/v1/health`. A parked migration or an unavailable ledger is advisory and does not make the probe fail. Verification treats a parked migration as a failure even though `readyz` returns 200. The probe does not expose a version, so the action separately reads the public `Lightdash-Version` header from the instance root. A missing or ingress-stripped header fails closed. Old pods can return 404 for `readyz`; polling continues until the new pods answer or the verification budget expires.
 
 The current CLI includes a required stop equal to the target in `requiredStops`, making that hop exit non-zero even when its underlying verdict is true. The plan action accepts only that narrow stop-target case: the verdict must be true, coverage complete, the minimum previous version satisfied, and the target must be the sole required stop. False and unknown verdicts are never treated as green.
 

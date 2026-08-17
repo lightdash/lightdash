@@ -1,6 +1,10 @@
 /// <reference path="../../../@types/passport-openidconnect.d.ts" />
 /// <reference path="../../../@types/express-session.d.ts" />
-import { AzureAdSsoConfig, OpenIdIdentityIssuerType } from '@lightdash/common';
+import {
+    AzureAdSsoConfig,
+    OpenIdIdentityIssuerType,
+    OrganizationSsoProvider,
+} from '@lightdash/common';
 import {
     BaseClient,
     Issuer,
@@ -108,6 +112,7 @@ const azureAdPrivateKeyJksStrategy = async (): Promise<
  */
 export const createAzureAdOidcStrategyForConfig = (
     config: AzureAdSsoConfig,
+    organizationUuid?: string,
 ): OpenIDConnectStrategy =>
     new OpenIDConnectStrategy(
         {
@@ -123,7 +128,16 @@ export const createAzureAdOidcStrategyForConfig = (
             ).href,
             passReqToCallback: true,
         },
-        genericOidcHandler(OpenIdIdentityIssuerType.AZUREAD),
+        genericOidcHandler(
+            OpenIdIdentityIssuerType.AZUREAD,
+            undefined,
+            organizationUuid
+                ? {
+                      organizationUuid,
+                      provider: OrganizationSsoProvider.AZUREAD,
+                  }
+                : undefined,
+        ),
     );
 
 /**

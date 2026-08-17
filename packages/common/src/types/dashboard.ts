@@ -277,24 +277,6 @@ export type Dashboard = {
     } | null;
 };
 
-export enum DashboardSummaryTone {
-    FRIENDLY = 'friendly',
-    FORMAL = 'formal',
-    DIRECT = 'direct',
-    ENTHUSIASTIC = 'enthusiastic',
-}
-
-export type DashboardSummary = {
-    dashboardSummaryUuid: string;
-    dashboardUuid: string;
-    dashboardVersionId: number;
-    context?: string | null;
-    tone: DashboardSummaryTone;
-    audiences: string[];
-    summary: string;
-    createdAt: Date;
-};
-
 export type DashboardBasicDetails = Pick<
     Dashboard,
     | 'uuid'

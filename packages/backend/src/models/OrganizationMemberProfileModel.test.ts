@@ -1,6 +1,7 @@
 import { OrganizationMemberRole } from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
+import { OrganizationMembershipCustomRolesTableName } from '../database/entities/organizationMembershipCustomRoles';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import { UserTableName } from '../database/entities/users';
 import { OrganizationMemberProfileModel } from './OrganizationMemberProfileModel';
@@ -76,6 +77,31 @@ describe('OrganizationMemberProfileModel', () => {
             expect(memberQuery.sql).toContain('"users"."is_internal"');
             expect(memberQuery.bindings).toContain('organization-uuid');
             expect(memberQuery.bindings).toContainEqual(['member@example.com']);
+        });
+    });
+
+    describe('updateOrganizationMember', () => {
+        it('clears extra custom roles when the system role is written', async () => {
+            tracker.on
+                .any(/UPDATE organization_memberships/)
+                .response({ rows: [{ organization_id: 3, user_id: 7 }] });
+            tracker.on
+                .delete(OrganizationMembershipCustomRolesTableName)
+                .response(0);
+            const getMember = vi
+                .spyOn(model, 'getOrganizationMemberByUuid')
+                .mockResolvedValue({} as never);
+
+            await model.updateOrganizationMember('org-uuid', 'user-uuid', {
+                role: OrganizationMemberRole.EDITOR,
+            });
+
+            const [clear] = tracker.history.delete;
+            expect(clear.sql).toContain(
+                OrganizationMembershipCustomRolesTableName,
+            );
+            expect(clear.bindings).toEqual([3, 7]);
+            getMember.mockRestore();
         });
     });
 });

@@ -174,6 +174,99 @@ describe('GoogleDriveClient', () => {
                 undefined,
             );
         });
+
+        test('should write fixed header rows before the table header', async () => {
+            const client = new GoogleDriveClient({
+                lightdashConfig: {
+                    auth: {
+                        google: {
+                            oauth2ClientId: 'client-id',
+                            oauth2ClientSecret: 'client-secret',
+                        },
+                    },
+                },
+            } as never);
+
+            const appendCsvToSheet = vi
+                .spyOn(client, 'appendCsvToSheet')
+                .mockResolvedValue(undefined);
+
+            await client.appendToSheet(
+                'refresh-token',
+                'file-id',
+                [{ orders_total_revenue: 120 }],
+                {
+                    orders_total_revenue: {
+                        name: 'total_revenue',
+                        label: 'Total revenue',
+                        type: DimensionType.NUMBER,
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        fieldType: FieldType.METRIC,
+                        sql: '${TABLE}.total_revenue',
+                        hidden: false,
+                    },
+                },
+                false,
+                undefined,
+                [],
+                {},
+                [],
+                undefined,
+                [['Active filters'], ['No active filters applied'], []],
+            );
+
+            expect(appendCsvToSheet).toHaveBeenCalledWith(
+                'refresh-token',
+                'file-id',
+                [
+                    ['Active filters'],
+                    ['No active filters applied'],
+                    [],
+                    ['Total revenue'],
+                    [120],
+                ],
+                undefined,
+            );
+        });
+
+        test('should write filter summary rows when the query has no results', async () => {
+            const client = new GoogleDriveClient({
+                lightdashConfig: {
+                    auth: {
+                        google: {
+                            oauth2ClientId: 'client-id',
+                            oauth2ClientSecret: 'client-secret',
+                        },
+                    },
+                },
+            } as never);
+
+            const appendCsvToSheet = vi
+                .spyOn(client, 'appendCsvToSheet')
+                .mockResolvedValue(undefined);
+
+            await client.appendToSheet(
+                'refresh-token',
+                'file-id',
+                [],
+                {},
+                false,
+                undefined,
+                [],
+                {},
+                [],
+                undefined,
+                [['Active filters'], ['No active filters applied'], []],
+            );
+
+            expect(appendCsvToSheet).toHaveBeenCalledWith(
+                'refresh-token',
+                'file-id',
+                [['Active filters'], ['No active filters applied'], [], []],
+                undefined,
+            );
+        });
     });
 
     // gaxios never retries our requests (nothing sets `retry`/`retryConfig`

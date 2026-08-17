@@ -26,13 +26,16 @@ import {
     buildAgentMessages,
     buildDeepResearchExecutionContextSnapshot,
     buildForcedFirstStep,
+    buildPrepareStep,
     generateAgentResponse,
+    getAgentMessages,
     getAgentTools,
     getDeepResearchBudgetInstruction,
     getPromptMcpServers,
     getStepBudgetOverride,
     normalizeToolOutput,
     recordAgentStepUsage,
+    scopeAgentConversation,
     storeInvalidAgentToolCall,
     streamAgentResponse,
     withEarlyToolProgress,
@@ -680,6 +683,94 @@ describe('getStepBudgetOverride', () => {
             ),
         ).toBeUndefined();
     });
+
+    it('reserves a worker final step for findings submission', () => {
+        const execution = {
+            mode: 'deep_research',
+            runUuid: 'run-1',
+            phase: 'investigating',
+            maxSteps: 5,
+            budget: {
+                maxTokens: 10_000,
+                maxToolCalls: 20,
+                maxWarehouseQueries: 10,
+                maxResultRows: 1_000,
+                maxSteps: 5,
+                deadlineMs: 600_000,
+            },
+            canUseRawSql: true,
+            initialTokenUsage: 0,
+            research: {
+                role: 'worker',
+                task: { id: 'task-1', question: 'Why?', focus: 'Orders' },
+                onFindings: vi.fn(),
+            },
+        } as const;
+
+        expect(getStepBudgetOverride(execution, 3)).toBeUndefined();
+        expect(getStepBudgetOverride(execution, 4)).toEqual({
+            message: expect.stringContaining('Submit the best findings packet'),
+            activeTools: ['submitWorkerFindings'],
+            toolChoice: {
+                type: 'tool',
+                toolName: 'submitWorkerFindings',
+            },
+        });
+    });
+});
+
+describe('buildPrepareStep worker isolation', () => {
+    it('does not consume or inject prompt-wide steers for a worker', async () => {
+        const args = buildAgentArgs({
+            mode: 'deep_research',
+            runUuid: 'run-1',
+            phase: 'investigating',
+            maxSteps: 5,
+            budget: {
+                maxTokens: 10_000,
+                maxToolCalls: 20,
+                maxWarehouseQueries: 10,
+                maxResultRows: 1_000,
+                maxSteps: 5,
+                deadlineMs: 600_000,
+            },
+            canUseRawSql: true,
+            initialTokenUsage: 0,
+            research: {
+                role: 'worker',
+                task: { id: 'task-1', question: 'Why?', focus: 'Orders' },
+                onFindings: vi.fn(),
+            },
+        });
+        const consumePromptSteers = vi
+            .fn()
+            .mockResolvedValue([{ message: 'Coordinator-only guidance' }]);
+        const prepareStep = buildPrepareStep({
+            args,
+            dependencies: {
+                ...buildAgentDependencies(vi.fn()),
+                consumePromptSteers,
+            },
+            tools: { submitWorkerFindings: {} as never },
+            mcpToolNames: [],
+            logger: vi.fn(),
+            invalidToolCallIds: new Set(),
+        });
+
+        const result = await prepareStep({ stepNumber: 4, messages: [] });
+
+        expect(consumePromptSteers).not.toHaveBeenCalled();
+        expect(JSON.stringify(result)).not.toContain(
+            'Coordinator-only guidance',
+        );
+        expect(result).toMatchObject({
+            activeTools: ['submitWorkerFindings'],
+            toolChoice: {
+                type: 'tool',
+                toolName: 'submitWorkerFindings',
+            },
+        });
+    });
 });
 
 describe('buildDeepResearchExecutionContextSnapshot', () => {
@@ -1297,5 +1388,143 @@ describe('buildAgentMessages', () => {
 
         expect(messages).toHaveLength(2);
         expect(messages[1]).toEqual({ role: 'user', content: 'Question' });
+    });
+});
+
+describe('scopeAgentConversation', () => {
+    const history: ModelMessage[] = [
+        { role: 'user', content: 'Original user question' },
+        { role: 'assistant', content: 'Coordinator investigation' },
+    ];
+
+    it('removes rebuilt thread, compaction, and memory context from workers', () => {
+        expect(
+            scopeAgentConversation({
+                execution: {
+                    mode: 'deep_research',
+                    runUuid: 'run-1',
+                    phase: 'investigating',
+                    maxSteps: 5,
+                    budget: {
+                        maxTokens: 10_000,
+                        maxToolCalls: 20,
+                        maxWarehouseQueries: 10,
+                        maxResultRows: 1_000,
+                        maxSteps: 5,
+                        deadlineMs: 600_000,
+                    },
+                    canUseRawSql: true,
+                    initialTokenUsage: 0,
+                    research: {
+                        role: 'worker',
+                        task: {
+                            id: 'task-1',
+                            question: 'Why?',
+                            focus: 'Orders',
+                        },
+                        onFindings: vi.fn(),
+                    },
+                },
+                messageHistory: history,
+                compactionSummary: 'Coordinator summary',
+                memoryBlock: 'Agent memory',
+            }),
+        ).toEqual({
+            messageHistory: [
+                {
+                    role: 'user',
+                    content:
+                        'Carry out the isolated task packet in your system instructions.',
+                },
+            ],
+            compactionSummary: null,
+            memoryBlock: null,
+        });
+    });
+
+    it('builds a worker prompt with a conversation kickoff and no coordinator text', () => {
+        const args = buildAgentArgs({
+            mode: 'deep_research',
+            runUuid: 'run-1',
+            phase: 'investigating',
+            maxSteps: 5,
+            budget: {
+                maxTokens: 10_000,
+                maxToolCalls: 20,
+                maxWarehouseQueries: 10,
+                maxResultRows: 1_000,
+                maxSteps: 5,
+                deadlineMs: 600_000,
+            },
+            canUseRawSql: true,
+            initialTokenUsage: 0,
+            research: {
+                role: 'worker',
+                task: { id: 'task-1', question: 'Why?', focus: 'Orders' },
+                onFindings: vi.fn(),
+            },
+        });
+        args.messageHistory = history;
+        args.compactionSummary = 'Coordinator summary';
+        args.toolHints = ['runSql'];
+        args.forceToolHints = true;
+        args.enableGrepFields = true;
+        const messages = getAgentMessages(
+            args,
+            [],
+            mcpToolSetup(),
+            {},
+            new Map(),
+            'Agent memory',
+        );
+
+        expect(messages[0].role).toBe('system');
+        expect(messages.slice(1)).toEqual([
+            {
+                role: 'user',
+                content:
+                    'Carry out the isolated task packet in your system instructions.',
+            },
+        ]);
+        expect(JSON.stringify(messages)).not.toContain('Coordinator');
+        expect(JSON.stringify(messages)).not.toContain(
+            'Original user question',
+        );
+        expect(JSON.stringify(messages)).not.toContain('Agent memory');
+        expect(messages[1].content).not.toContain('runSql');
+        expect(
+            buildForcedFirstStep(args, { runSql: {} as never }),
+        ).toBeUndefined();
+    });
+
+    it('preserves coordinator conversation context', () => {
+        expect(
+            scopeAgentConversation({
+                execution: {
+                    mode: 'deep_research',
+                    runUuid: 'run-1',
+                    phase: 'planning',
+                    maxSteps: 16,
+                    budget: {
+                        maxTokens: 10_000,
+                        maxToolCalls: 20,
+                        maxWarehouseQueries: 10,
+                        maxResultRows: 1_000,
+                        maxSteps: 16,
+                        deadlineMs: 600_000,
+                    },
+                    canUseRawSql: true,
+                    initialTokenUsage: 0,
+                    research: { role: 'coordinator', runTask: vi.fn() },
+                },
+                messageHistory: history,
+                compactionSummary: 'Coordinator summary',
+                memoryBlock: 'Agent memory',
+            }),
+        ).toEqual({
+            messageHistory: history,
+            compactionSummary: 'Coordinator summary',
+            memoryBlock: 'Agent memory',
+        });
     });
 });

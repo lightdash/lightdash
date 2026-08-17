@@ -256,6 +256,7 @@ const buildService = (
             .fn()
             .mockResolvedValue(runRow({ status: 'running' })),
         markCompleted: vi.fn().mockResolvedValue(true),
+        checkpointReport: vi.fn().mockResolvedValue(true),
         markPartiallyCompleted: vi.fn().mockResolvedValue(true),
         markFailed: vi.fn().mockResolvedValue(true),
         markCancelled: vi.fn().mockResolvedValue(true),
@@ -320,6 +321,7 @@ const buildService = (
     };
     const projectModel = {
         getSummary: vi.fn().mockResolvedValue({ organizationUuid: 'org-1' }),
+        getQueryTimezone: vi.fn().mockResolvedValue('Europe/London'),
         ...overrides.projectModel,
     };
     const schedulerClient = {
@@ -913,6 +915,27 @@ describe('AiDeepResearchService', () => {
     });
 
     describe('access and cancellation', () => {
+        it('does not expose checkpoint markdown before terminal completion', async () => {
+            const { service } = buildService({
+                model: {
+                    findByUuidScoped: vi.fn().mockResolvedValue(
+                        runRow({
+                            status: 'running',
+                            result_markdown: 'Unverified checkpoint',
+                        }),
+                    ),
+                },
+            });
+
+            const run = await service.getRun(
+                userWithProjectAccess(),
+                'project-1',
+                'run-1',
+            );
+
+            expect(run.resultMarkdown).toBeNull();
+        });
+
         it('does not expose a run through a different project path', async () => {
             const { service, model, projectModel } = buildService({
                 model: {
@@ -1156,10 +1179,93 @@ describe('AiDeepResearchService', () => {
 
             await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
 
+            expect(model.checkpointReport).toHaveBeenCalledWith(
+                'run-1',
+                reportMarkdown,
+            );
+            expect(
+                model.checkpointReport.mock.invocationCallOrder[0],
+            ).toBeLessThan(model.markCompleted.mock.invocationCallOrder[0]);
             expect(model.markCompleted).toHaveBeenCalledWith(
                 'run-1',
                 reportMarkdown,
             );
+        });
+
+        it('retries transient evidence preparation failures after checkpointing', async () => {
+            const getToolCallsAndResultsForPrompt = vi
+                .fn()
+                .mockRejectedValueOnce(new Error('temporary database error'))
+                .mockResolvedValue([]);
+            const { service, model } = buildService({
+                aiAgentModel: { getToolCallsAndResultsForPrompt },
+            });
+
+            await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
+
+            expect(model.checkpointReport).toHaveBeenCalledWith(
+                'run-1',
+                reportMarkdown,
+            );
+            expect(getToolCallsAndResultsForPrompt).toHaveBeenCalledTimes(2);
+            expect(model.markCompleted).toHaveBeenCalledWith(
+                'run-1',
+                reportMarkdown,
+            );
+            expect(model.markFailed).not.toHaveBeenCalled();
+        });
+
+        it('publishes the checkpointed narrative when evidence preparation stays unavailable', async () => {
+            const getToolCallsAndResultsForPrompt = vi
+                .fn()
+                .mockRejectedValue(new Error('database unavailable'));
+            const { service, model } = buildService({
+                aiAgentModel: { getToolCallsAndResultsForPrompt },
+            });
+
+            await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
+
+            expect(getToolCallsAndResultsForPrompt).toHaveBeenCalledTimes(3);
+            expect(model.markCompleted).toHaveBeenCalledWith(
+                'run-1',
+                reportMarkdown,
+            );
+            expect(model.markFailed).not.toHaveBeenCalled();
+        });
+
+        it('retries terminal persistence without discarding the checkpoint', async () => {
+            const markCompleted = vi
+                .fn()
+                .mockRejectedValueOnce(new Error('temporary database error'))
+                .mockResolvedValue(true);
+            const { service, model } = buildService({
+                model: { markCompleted },
+            });
+
+            await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
+
+            expect(markCompleted).toHaveBeenCalledTimes(2);
+            expect(model.markFailed).not.toHaveBeenCalled();
+        });
+
+        it('leaves an exhausted terminal write checkpointed for stale recovery', async () => {
+            const terminalError = new Error('database unavailable');
+            const { service, model } = buildService({
+                model: {
+                    markCompleted: vi.fn().mockRejectedValue(terminalError),
+                },
+            });
+
+            await expect(
+                service.executeRun({ aiDeepResearchRunUuid: 'run-1' }),
+            ).rejects.toBe(terminalError);
+
+            expect(model.checkpointReport).toHaveBeenCalledWith(
+                'run-1',
+                reportMarkdown,
+            );
+            expect(model.markCompleted).toHaveBeenCalledTimes(3);
+            expect(model.markFailed).not.toHaveBeenCalled();
         });
 
         it('emits one terminal rollup from the persisted metrics snapshot', async () => {
@@ -1504,7 +1610,9 @@ describe('AiDeepResearchService', () => {
             const { service, model, queryHistoryModel } = buildService({
                 executor: vi.fn().mockResolvedValue({
                     status: 'completed',
-                    report: chartReport,
+                    report: {
+                        markdown: `# Evidence report\n\n${chartReportMarkdown}`,
+                    },
                     warehouseQueryUuids: [chart.queryUuid],
                 }),
             });
@@ -1525,6 +1633,16 @@ describe('AiDeepResearchService', () => {
             expect(model.markCompleted).toHaveBeenCalledWith(
                 'run-1',
                 expect.stringContaining('The baseline trend is stable.'),
+                {
+                    repaired: [],
+                    dropped: [{ key: chart.queryUuid, reason: 'unverifiable' }],
+                },
+            );
+            expect(model.markCompleted).toHaveBeenCalledWith(
+                'run-1',
+                expect.stringMatching(
+                    /^# Evidence report\n\n<warning title="Report adjusted">/,
+                ),
                 {
                     repaired: [],
                     dropped: [{ key: chart.queryUuid, reason: 'unverifiable' }],
@@ -1767,6 +1885,12 @@ describe('AiDeepResearchService', () => {
             metricQuery: {
                 dimensions: ['orders_order_month'],
                 metrics: ['orders_total_revenue'],
+                filters: {
+                    dimensions: { id: 'filter-1', and: [] },
+                },
+                sorts: [{ fieldId: 'orders_order_month', descending: true }],
+                limit: 400,
+                timezone: 'America/New_York',
             },
             fields: {},
         };
@@ -1802,6 +1926,8 @@ describe('AiDeepResearchService', () => {
 
             expect(hasEvidenceBuildFailures).toBe(false);
             expect(pack.question).toBe('Investigate revenue');
+            expect(pack.timezone).toBe('Europe/London');
+            expect(pack.generatedAt).toEqual(expect.any(String));
             expect(pack.queries).toHaveLength(1);
             expect(pack.queries[0]).toMatchObject({
                 type: 'metric_query',
@@ -1811,6 +1937,15 @@ describe('AiDeepResearchService', () => {
                 // its 20-row slice as the whole result.
                 rowCount: 400,
                 truncated: true,
+                filters: evidenceQueryHistory.metricQuery.filters,
+                sorts: evidenceQueryHistory.metricQuery.sorts,
+                limit: 400,
+                timezone: 'America/New_York',
+                warnings: [
+                    expect.stringContaining('first 20 of 400'),
+                    expect.stringContaining('filtered'),
+                    expect.stringContaining('400-row query limit'),
+                ],
                 // The execution carries a chart config, so the finalizer is
                 // told it may reference this queryUuid as a chart.
                 chartable: true,

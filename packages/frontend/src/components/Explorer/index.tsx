@@ -33,6 +33,8 @@ import {
 } from '../../features/explorer/store';
 import { MergeAutoRun } from '../../features/mergeQuery/components/MergeAutoRun';
 import { MergeReadOnlyBar } from '../../features/mergeQuery/components/MergeReadOnlyBar';
+import { MergeRelationshipCard } from '../../features/mergeQuery/components/MergeRelationshipCard';
+import { useMergeSafe } from '../../features/mergeQuery/context/useMerge';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import { useParameters } from '../../hooks/parameters/useParameters';
 import { useCompiledSql } from '../../hooks/useCompiledSql';
@@ -59,6 +61,8 @@ import SqlCard from './SqlCard/SqlCard';
 import VisualizationCard from './VisualizationCard/VisualizationCard';
 import { WriteBackModal } from './WriteBackModal';
 
+const EMPTY_PARAMETER_REFERENCES: string[] = [];
+
 const Explorer: FC<{ hideHeader?: boolean }> = memo(
     ({ hideHeader = false }) => {
         const tableName = useExplorerSelector(selectTableName);
@@ -72,6 +76,18 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             selectParameterReferences,
         );
         const parameters = useExplorerSelector(selectParameters);
+        const mergeParameterReferences =
+            useMergeSafe()?.parameterReferences ?? EMPTY_PARAMETER_REFERENCES;
+        const effectiveParameterReferences = useMemo(
+            () =>
+                Array.from(
+                    new Set([
+                        ...(parameterReferencesFromRedux ?? []),
+                        ...mergeParameterReferences,
+                    ]),
+                ),
+            [parameterReferencesFromRedux, mergeParameterReferences],
+        );
 
         const savedChart = useExplorerSelector(selectSavedChart);
 
@@ -178,9 +194,9 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
         const { data: projectParameters } = useParameters(
             projectUuid,
-            parameterReferencesFromRedux ?? undefined,
+            effectiveParameterReferences,
             {
-                enabled: !!parameterReferencesFromRedux?.length,
+                enabled: effectiveParameterReferences.length > 0,
             },
         );
 
@@ -208,10 +224,10 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 Object.keys(
                     getReferencedParameterDefinitions(
                         parameterDefinitions,
-                        parameterReferencesFromRedux ?? undefined,
+                        effectiveParameterReferences,
                     ),
                 ).length > 0,
-            [parameterDefinitions, parameterReferencesFromRedux],
+            [parameterDefinitions, effectiveParameterReferences],
         );
 
         // Seed parameter values from virtual view's savedParameterValues
@@ -259,12 +275,14 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                     <MergeAutoRun />
                     {!isFullscreen && <MergeReadOnlyBar />}
 
+                    {!isFullscreen && <MergeRelationshipCard />}
+
                     {!isFullscreen &&
                         !!tableName &&
                         hasReferencedUserParameters && (
                             <ParametersCard
                                 parameterReferences={
-                                    parameterReferencesFromRedux ?? undefined
+                                    effectiveParameterReferences
                                 }
                             />
                         )}

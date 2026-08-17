@@ -22,7 +22,11 @@ on:
 permissions: {}
 
 concurrency:
-  group: lightdash-upgrade-${{ github.repository }}
+  group: >-
+    lightdash-upgrade-${{ github.repository }}-${{
+    github.event_name == 'workflow_run' && 'verify'
+    || github.event_name == 'issues' && 'freeze-announce'
+    || 'plan' }}
   cancel-in-progress: false
 
 env:
@@ -97,6 +101,7 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
           token: ${{ secrets.UPGRADE_AUTOMATION_TOKEN || github.token }}
+          persist-credentials: false
       - uses: lightdash/lightdash/examples/upgrade-automation/verify@REPLACE_WITH_LIGHTDASH_COMMIT_SHA
         with:
           instance_url: ${{ env.LIGHTDASH_INSTANCE_URL }}

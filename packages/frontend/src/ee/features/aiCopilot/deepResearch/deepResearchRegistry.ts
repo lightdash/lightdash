@@ -3,16 +3,21 @@ import { type DeepResearchRunRegistration } from './types';
 
 const STORAGE_KEY = 'lightdash.deep-research-runs.v1';
 const REGISTRY_EVENT = 'lightdash:deep-research-runs-changed';
+let memoryRegistry: DeepResearchRunRegistration[] = [];
+let storageAvailable = true;
 
 const readRegistry = (): DeepResearchRunRegistration[] => {
     if (typeof window === 'undefined') {
         return [];
     }
+    if (!storageAvailable) {
+        return memoryRegistry;
+    }
     try {
         const value: unknown = JSON.parse(
             window.localStorage.getItem(STORAGE_KEY) ?? '[]',
         );
-        return Array.isArray(value)
+        const registrations = Array.isArray(value)
             ? value.filter(
                   (item): item is DeepResearchRunRegistration =>
                       typeof item === 'object' &&
@@ -31,8 +36,10 @@ const readRegistry = (): DeepResearchRunRegistration[] => {
                       typeof item.question === 'string',
               )
             : [];
+        memoryRegistry = registrations;
+        return registrations;
     } catch {
-        return [];
+        return memoryRegistry;
     }
 };
 
@@ -40,8 +47,16 @@ let snapshot = readRegistry();
 const EMPTY_REGISTRY: DeepResearchRunRegistration[] = [];
 
 const emitChange = (registrations: DeepResearchRunRegistration[]) => {
+    memoryRegistry = registrations;
     snapshot = registrations;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(registrations));
+    try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(registrations));
+        storageAvailable = true;
+    } catch {
+        storageAvailable = false;
+        // The in-memory registry keeps Deep Research usable when storage is
+        // blocked or full. It intentionally lasts only for this page session.
+    }
     window.dispatchEvent(new Event(REGISTRY_EVENT));
 };
 

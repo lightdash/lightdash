@@ -2,6 +2,8 @@ import {
     Account,
     DownloadFileType,
     MergeQuery,
+    MergeQueryChart,
+    MergeQueryExecutionMode,
     MetricQuery,
     PersistentDownloadFileAccessMode,
     PivotConfig,
@@ -174,8 +176,8 @@ export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
 
 export type ExecuteAsyncMergeQueryArgs = CommonAsyncQueryArgs & {
     mergeQuery: MergeQuery;
-    /** Standard pivot stage over the merged rows. */
-    pivotConfiguration?: PivotConfiguration;
+    mode: MergeQueryExecutionMode;
+    chart?: MergeQueryChart;
 };
 
 export type ExecuteAsyncDashboardSqlChartCommonArgs = CommonAsyncQueryArgs & {

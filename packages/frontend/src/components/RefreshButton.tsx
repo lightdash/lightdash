@@ -123,6 +123,7 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
                         // tooltip can say why the merge cannot run yet.
                         disabled={!canRunQuery && !mergeBlockedReason}
                         data-disabled={mergeBlockedReason ? true : undefined}
+                        aria-disabled={mergeBlockedReason ? true : undefined}
                         leftSection={<MantineIcon icon={IconPlayerPlay} />}
                         loading={isLoading || !!merge.isRunning}
                         onClick={onClick}
@@ -133,6 +134,10 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
                                 : undefined,
                             borderTopRightRadius: 0,
                             borderBottomRightRadius: 0,
+                            opacity: mergeBlockedReason ? 0.55 : undefined,
+                            cursor: mergeBlockedReason
+                                ? 'not-allowed'
+                                : undefined,
                         })}
                         data-testid="RefreshButton/RunQueryButton"
                     >
@@ -165,7 +170,7 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
                     </Tooltip>
                 ) : (
                     <RunQuerySettings
-                        disabled={!isValidQuery}
+                        disabled={!canRunQuery}
                         size={size}
                         maxLimit={maxLimit}
                         limit={limit}

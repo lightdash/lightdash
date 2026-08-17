@@ -41,7 +41,6 @@ import { AiWritebackRunModel } from './models/AiWritebackRunModel';
 import { AiWritebackThreadModel } from './models/AiWritebackThreadModel';
 import { CommercialFeatureFlagModel } from './models/CommercialFeatureFlagModel';
 import { CommercialSlackAuthenticationModel } from './models/CommercialSlackAuthenticationModel';
-import { DashboardSummaryModel } from './models/DashboardSummaryModel';
 import { EmbedModel } from './models/EmbedModel';
 import { ExternalConnectionModel } from './models/ExternalConnectionModel';
 import { HomepageRecommendedActionSkipsModel } from './models/HomepageRecommendedActionSkipsModel';
@@ -418,13 +417,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AiService({
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
-                    dashboardModel: models.getDashboardModel(),
-                    dashboardSummaryModel: models.getDashboardSummaryModel(),
-                    savedChartModel: models.getSavedChartModel(),
                     projectService: repository.getProjectService(),
-                    spacePermissionService:
-                        repository.getSpacePermissionService(),
-                    asyncQueryService: repository.getAsyncQueryService(),
                     featureFlagService: repository.getFeatureFlagService(),
                     openAi: new OpenAi(
                         context.lightdashConfig.ai.copilot.providers.openai,
@@ -1167,8 +1160,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             embedModel: ({ database }) => new EmbedModel({ database }),
             mcpContextModel: ({ database }) => new McpContextModel(database),
-            dashboardSummaryModel: ({ database }) =>
-                new DashboardSummaryModel({ database }),
             slackAuthenticationModel: ({ database }) =>
                 new CommercialSlackAuthenticationModel({ database }),
             serviceAccountModel: ({ database }) =>

@@ -41,6 +41,7 @@ import * as GitlabClient from '../../clients/gitlab/Gitlab';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
+import { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { PullRequestsModel } from '../../models/PullRequestsModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -52,6 +53,7 @@ type GitIntegrationServiceArguments = {
     lightdashConfig: LightdashConfig;
     savedChartModel: SavedChartModel;
     projectModel: ProjectModel;
+    projectDbtSourcesModel: ProjectDbtSourcesModel;
     spaceModel: SpaceModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
     githubAppService: GithubAppService;
@@ -83,6 +85,8 @@ export class GitIntegrationService extends BaseService {
 
     private readonly projectModel: ProjectModel;
 
+    private readonly projectDbtSourcesModel: ProjectDbtSourcesModel;
+
     private readonly spaceModel: SpaceModel;
 
     private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
@@ -98,6 +102,7 @@ export class GitIntegrationService extends BaseService {
         this.lightdashConfig = args.lightdashConfig;
         this.savedChartModel = args.savedChartModel;
         this.projectModel = args.projectModel;
+        this.projectDbtSourcesModel = args.projectDbtSourcesModel;
         this.spaceModel = args.spaceModel;
         this.githubAppInstallationsModel = args.githubAppInstallationsModel;
         this.githubAppService = args.githubAppService;
@@ -495,6 +500,33 @@ Affected charts:
         };
     }
 
+    private async assertExploreWritebackSourceIsUnambiguous(
+        projectUuid: string,
+    ): Promise<void> {
+        const additionalGitBackedSources = (
+            await this.projectDbtSourcesModel.getSources(projectUuid)
+        ).filter(
+            (source) =>
+                source.dbtConnection?.type === DbtProjectType.GITHUB ||
+                source.dbtConnection?.type === DbtProjectType.GITLAB,
+        );
+
+        if (additionalGitBackedSources.length === 0) {
+            return;
+        }
+
+        const sourceNames = [
+            'Project dbt connection',
+            ...additionalGitBackedSources.map((source) => source.name),
+        ]
+            .map((name) => `"${name}"`)
+            .join(', ');
+
+        throw new ParameterError(
+            `Explore write-back cannot determine which dbt source owns this model on a project with multiple git-backed dbt sources: ${sourceNames}`,
+        );
+    }
+
     /**
      * Get the protected branch for a project.
      * For normal projects: the project's configured branch (e.g., "main")
@@ -629,6 +661,7 @@ Affected charts:
             throw new ForbiddenError();
         }
 
+        await this.assertExploreWritebackSourceIsUnambiguous(projectUuid);
         const gitProps = await this.getGitProps(user, projectUuid, quoteChar);
 
         await GitIntegrationService.createBranch(gitProps);

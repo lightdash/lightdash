@@ -125,6 +125,7 @@ export const getDiscoverFieldsSystemPrompt = (args: {
         content,
         providerOptions: {
             anthropic: { cacheControl: { type: 'ephemeral' } },
+            bedrock: { cachePoint: { type: 'default' } },
         },
     };
 };

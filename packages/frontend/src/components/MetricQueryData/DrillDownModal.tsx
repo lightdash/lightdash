@@ -24,6 +24,7 @@ import { IconArrowBarToDown, IconExternalLink } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import { v4 as uuidv4 } from 'uuid';
+import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import FieldSelect from '../common/FieldSelect';
 import MantineIcon from '../common/MantineIcon';
@@ -209,11 +210,18 @@ export const DrillDownModal: FC = () => {
     const {
         isDrillDownModalOpen,
         closeDrillDownModal,
-        explore,
-        metricQuery,
+        explore: contextExplore,
+        metricQuery: contextMetricQuery,
+        tableName,
         drillDownConfig,
         resolvedTimezone,
     } = useMetricQueryDataContext();
+    const source = drillDownConfig?.source;
+    const metricQuery = source?.metricQuery ?? contextMetricQuery;
+    const { data: sourceExplore } = useExplore(source?.tableName ?? tableName, {
+        refetchOnMount: false,
+    });
+    const explore = source ? sourceExplore : contextExplore;
 
     const dimensionsAvailable = useMemo(() => {
         if (!explore) return [];

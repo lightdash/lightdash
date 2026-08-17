@@ -26,22 +26,8 @@
     flex-shrink: 0;
 }
 
-/* Sized by the input's own `size`; this only makes it read as a title that
-   happens to be editable rather than as a form field. */
-.nameInput {
-    font-weight: 600;
-    color: var(--mantine-color-foreground-0);
-    background: transparent;
-    border: 1px solid transparent;
-
-    &:hover {
-        border-color: var(--mantine-color-ldGray-2);
-    }
-
-    &:focus {
-        border-color: var(--mantine-color-ldBrandViolet-4);
-        background: var(--mantine-color-background-0);
-    }
+.name {
+    max-width: 280px;
 }
 
 .provenance {

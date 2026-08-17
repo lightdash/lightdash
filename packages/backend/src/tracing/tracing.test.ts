@@ -1,8 +1,9 @@
-import { context, SpanKind } from '@opentelemetry/api';
+import { context, ROOT_CONTEXT, SpanKind, trace } from '@opentelemetry/api';
 import { SamplingDecision, type Sampler } from '@opentelemetry/sdk-trace-base';
 import { describe, expect, it, vi } from 'vitest';
 import {
     AlwaysSampleAiRootsSampler,
+    LightdashTraceContextPropagator,
     sentryTraceToTraceparent,
 } from './tracing';
 
@@ -136,5 +137,43 @@ describe('sentryTraceToTraceparent', () => {
         expect(
             sentryTraceToTraceparent(`${TRACE_ID}-${SPAN_ID}-2`),
         ).toBeUndefined();
+    });
+});
+
+describe('LightdashTraceContextPropagator', () => {
+    const getter = {
+        keys: (carrier: Record<string, string>) => Object.keys(carrier),
+        get: (carrier: Record<string, string>, key: string) => carrier[key],
+    };
+
+    it('does not adopt a Sentry browser span as the OTel parent', () => {
+        const sentryTrace = `${TRACE_ID}-${SPAN_ID}-1`;
+        const propagator = new LightdashTraceContextPropagator();
+        const extracted = propagator.extract(
+            ROOT_CONTEXT,
+            {
+                'sentry-trace': sentryTrace,
+                traceparent: sentryTraceToTraceparent(sentryTrace)!,
+            },
+            getter,
+        );
+
+        expect(trace.getSpanContext(extracted)).toBeUndefined();
+    });
+
+    it('continues genuine W3C trace context', () => {
+        const traceparent = `00-${TRACE_ID}-${SPAN_ID}-01`;
+        const propagator = new LightdashTraceContextPropagator();
+        const extracted = propagator.extract(
+            ROOT_CONTEXT,
+            { traceparent },
+            getter,
+        );
+
+        expect(trace.getSpanContext(extracted)).toMatchObject({
+            traceId: TRACE_ID,
+            spanId: SPAN_ID,
+            isRemote: true,
+        });
     });
 });

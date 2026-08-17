@@ -46,7 +46,7 @@ vi.mock('../features/apps/hooks/useAppBuildPoller', () => ({
     useAppBuildPoller: vi.fn(),
 }));
 vi.mock('../features/apps/hooks/useUpdateApp', () => ({
-    useUpdateApp: () => ({ mutate: vi.fn() }),
+    useUpdateApp: () => ({ mutateAsync: vi.fn(), isLoading: false }),
 }));
 vi.mock('../hooks/appearance/useOrganizationAppearance', () => ({
     useColorPalettes: () => ({ data: [] }),
@@ -60,9 +60,13 @@ vi.mock('../features/apps/components/AppPreview', () => ({
     ),
 }));
 vi.mock('../components/common/PromptComposer/PromptComposer', () => ({
-    default: ({ placeholder }: { placeholder: string }) => (
-        <input placeholder={placeholder} />
-    ),
+    default: ({
+        placeholder,
+        disabled,
+    }: {
+        placeholder: string;
+        disabled?: boolean;
+    }) => <input placeholder={placeholder} disabled={disabled} />,
 }));
 vi.mock('../features/apps/hooks/useVizComposerAttachments', () => ({
     useVizComposerAttachments: () => ({
@@ -124,33 +128,35 @@ const setApp = (meta: AppMeta | null, error: unknown = null) =>
         error,
     } as unknown as ReturnType<typeof useGetApp>);
 
+const builderRoutes = (path: string) => (
+    <MemoryRouter initialEntries={[path]}>
+        <Routes>
+            <Route
+                path="/projects/:projectUuid/chart-types/new"
+                element={<ChartTypeBuilder />}
+            />
+            <Route
+                path="/projects/:projectUuid/chart-types/:dataAppVizUuid"
+                element={<ChartTypeBuilder />}
+            />
+            <Route
+                path="/projects/:projectUuid/gallery"
+                element={<div>gallery</div>}
+            />
+            <Route
+                path="/projects/:projectUuid/home"
+                element={<div>home</div>}
+            />
+            <Route
+                path="/projects/:projectUuid/apps/:appUuid"
+                element={<div>app-builder</div>}
+            />
+        </Routes>
+    </MemoryRouter>
+);
+
 const renderBuilder = (path: string) =>
-    renderWithProviders(
-        <MemoryRouter initialEntries={[path]}>
-            <Routes>
-                <Route
-                    path="/projects/:projectUuid/chart-types/new"
-                    element={<ChartTypeBuilder />}
-                />
-                <Route
-                    path="/projects/:projectUuid/chart-types/:dataAppVizUuid"
-                    element={<ChartTypeBuilder />}
-                />
-                <Route
-                    path="/projects/:projectUuid/gallery"
-                    element={<div>gallery</div>}
-                />
-                <Route
-                    path="/projects/:projectUuid/home"
-                    element={<div>home</div>}
-                />
-                <Route
-                    path="/projects/:projectUuid/apps/:appUuid"
-                    element={<div>app-builder</div>}
-                />
-            </Routes>
-        </MemoryRouter>,
-    );
+    renderWithProviders(builderRoutes(path));
 
 describe('ChartTypeBuilder', () => {
     beforeEach(() => {
@@ -278,8 +284,11 @@ describe('ChartTypeBuilder', () => {
             '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
         );
 
-        // The chart dims under the building pill; the options stay usable.
+        // Chart and options are one version: both stay legible under the
+        // building pill, and both go out of play until the next one lands.
         expect(screen.getByLabelText('Show grid')).toBeInTheDocument();
+        const card = screen.getByText('Generated options').closest('[inert]');
+        expect(card).toHaveAttribute('data-dimmed', 'true');
         expect(screen.getByText(/Building…/)).toBeInTheDocument();
     });
 
@@ -297,7 +306,7 @@ describe('ChartTypeBuilder', () => {
         // The edit route re-renders with the uuid param; its useGetApp stub
         // has no data, so the header stays bare.
         expect(
-            screen.getByPlaceholderText('Describe a new chart type…'),
+            screen.getByPlaceholderText('Ask for another change…'),
         ).toBeInTheDocument();
         // First build: the skeleton state echoes what was asked for.
         expect(
@@ -306,6 +315,32 @@ describe('ChartTypeBuilder', () => {
         expect(
             screen.getByText('“a stream graph of category share”'),
         ).toBeInTheDocument();
+    });
+
+    it('keeps a drafted follow-up when the create route adopts the app', () => {
+        let currentBuild = buildStub({
+            isBuilding: true,
+            pendingPrompt: 'a stream graph of category share',
+        });
+        vi.mocked(useDataAppVizBuild).mockImplementation(() => currentBuild);
+        const view = renderBuilder('/projects/p1/chart-types/new');
+        const composer = screen.getByPlaceholderText('Ask for another change…');
+        fireEvent.change(composer, {
+            target: { value: 'make the target markers red' },
+        });
+
+        currentBuild = buildStub({
+            draftAppUuid: 'draft-app-2',
+            isBuilding: true,
+            appUuid: '1e9a3b2c-0000-4000-8000-000000000009',
+            claimedVersion: 1,
+            pendingPrompt: 'a stream graph of category share',
+        });
+        view.rerender(builderRoutes('/projects/p1/chart-types/new'));
+
+        expect(
+            screen.getByPlaceholderText('Ask for another change…'),
+        ).toHaveValue('make the target markers red');
     });
 
     it('keeps the previous version dimmed under the pill while rebuilding', () => {
@@ -330,6 +365,31 @@ describe('ChartTypeBuilder', () => {
         );
         expect(screen.getByText(/Building…/)).toBeInTheDocument();
         expect(screen.queryByText('Building your chart type…')).toBeNull();
+        // A rebuild echoes its prompt too, not just the first build.
+        expect(screen.getByText('“make the bars teal”')).toBeInTheDocument();
+    });
+
+    it('keeps the composer editable while the first version builds', () => {
+        // The in-progress v1 is already in history; "has versions" is not the signal.
+        vi.mocked(useAppVersionHistory).mockReturnValue(
+            historyStub([appVersion({ version: 1, status: 'building' })], null),
+        );
+        vi.mocked(useDataAppVizBuild).mockReturnValue(
+            buildStub({
+                isBuilding: true,
+                appUuid: '1e9a3b2c-0000-4000-8000-000000000001',
+                claimedVersion: 1,
+                pendingPrompt: 'give me a chart type',
+                startedAt: new Date('2026-05-15T10:00:00Z'),
+            }),
+        );
+        renderBuilder(
+            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+        );
+
+        expect(
+            screen.getByPlaceholderText('Ask for another change…'),
+        ).toBeEnabled();
     });
 
     it('renders the current version and lists its history on demand', () => {
@@ -384,6 +444,115 @@ describe('ChartTypeBuilder', () => {
         );
     });
 
+    // The schema belongs to the version that generated it, so a v1 preview must
+    // not be configured with v2's options.
+    const setSchemaPerVersion = () =>
+        vi.mocked(useDataAppVisualization).mockImplementation(
+            (_projectUuid, _dataAppVizUuid, version) =>
+                ({
+                    data: {
+                        schema: {
+                            fields: [],
+                            configOptions: [
+                                version === 1
+                                    ? {
+                                          name: 'grid',
+                                          label: 'Show grid',
+                                          type: 'boolean',
+                                          default: true,
+                                      }
+                                    : {
+                                          name: 'markers',
+                                          label: 'Show markers',
+                                          type: 'boolean',
+                                          default: true,
+                                      },
+                            ],
+                            colorPalette: null,
+                        },
+                    },
+                }) as unknown as ReturnType<typeof useDataAppVisualization>,
+        );
+
+    it('configures the version being previewed, not the current one', () => {
+        setApp(appMeta());
+        vi.mocked(useAppVersionHistory).mockReturnValue(
+            historyStub(
+                [appVersion({ version: 2 }), appVersion({ version: 1 })],
+                2,
+            ),
+        );
+        setSchemaPerVersion();
+        renderBuilder(
+            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+        );
+
+        expect(screen.getByLabelText('Show markers')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByText('History'));
+        fireEvent.click(screen.getByLabelText('View v1'));
+
+        // The uuid comes from the loaded app row, the version from the pin.
+        expect(vi.mocked(useDataAppVisualization)).toHaveBeenLastCalledWith(
+            'p1',
+            'viz-1',
+            1,
+        );
+        expect(screen.getByLabelText('Show grid')).toBeInTheDocument();
+        expect(screen.queryByLabelText('Show markers')).toBeNull();
+
+        fireEvent.click(screen.getByLabelText('Close history'));
+        expect(screen.getByLabelText('Show markers')).toBeInTheDocument();
+        expect(screen.queryByLabelText('Show grid')).toBeNull();
+    });
+
+    it('keeps a value set on the current version across a visit to an older one', () => {
+        setApp(appMeta());
+        vi.mocked(useAppVersionHistory).mockReturnValue(
+            historyStub(
+                [appVersion({ version: 2 }), appVersion({ version: 1 })],
+                2,
+            ),
+        );
+        setSchemaPerVersion();
+        renderBuilder(
+            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+        );
+
+        fireEvent.click(screen.getByLabelText('Show markers'));
+        expect(screen.getByLabelText('Show markers')).not.toBeChecked();
+
+        fireEvent.click(screen.getByText('History'));
+        fireEvent.click(screen.getByLabelText('View v1'));
+        fireEvent.click(screen.getByLabelText('Close history'));
+
+        expect(screen.getByLabelText('Show markers')).not.toBeChecked();
+    });
+
+    it('shows the name and description read-only, and edits them in a modal', () => {
+        setApp(appMeta());
+        vi.mocked(useAppVersionHistory).mockReturnValue(
+            historyStub([appVersion({ version: 1 })], 1),
+        );
+        renderBuilder(
+            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+        );
+
+        // The title is text, not a field you can type over by accident.
+        expect(screen.queryByLabelText('Chart type name')).toBeNull();
+        expect(screen.getByText('Stream graph')).toBeInTheDocument();
+        expect(
+            screen.getByLabelText('Chart type description'),
+        ).toBeInTheDocument();
+
+        fireEvent.click(screen.getByLabelText('Edit chart type details'));
+        expect(screen.getByText('Update Chart Type')).toBeInTheDocument();
+        expect(screen.getByLabelText(/Name/)).toHaveValue('Stream graph');
+        expect(screen.getByLabelText(/Description/)).toHaveValue(
+            'Layered flows',
+        );
+    });
+
     it('offers no history toggle before the first version exists', () => {
         renderBuilder('/projects/p1/chart-types/new');
 
@@ -410,8 +579,7 @@ describe('ChartTypeBuilder', () => {
 
         expect(screen.getByText('The build failed')).toBeInTheDocument();
         expect(screen.getByText('Sandbox crashed')).toBeInTheDocument();
-        expect(
-            screen.getByPlaceholderText('Ask for a change…'),
-        ).toBeInTheDocument();
+        // Nothing is running any more, so the retry has to be typeable.
+        expect(screen.getByPlaceholderText('Ask for a change…')).toBeEnabled();
     });
 });

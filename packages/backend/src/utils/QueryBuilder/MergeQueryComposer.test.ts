@@ -1,6 +1,7 @@
 import {
     DimensionType,
     FieldType,
+    MERGE_TABLE_NAME,
     MetricType,
     SupportedDbtAdapter,
     VizAggregationOptions,
@@ -9,7 +10,7 @@ import {
     type ItemsMap,
     type WarehouseClient,
 } from '@lightdash/common';
-import { MERGE_EXPLORE_NAME, MergeQueryComposer } from './MergeQueryComposer';
+import { MergeQueryComposer } from './MergeQueryComposer';
 
 const mockWarehouseClient = {
     getFieldQuoteChar: () => '"',
@@ -58,12 +59,18 @@ const typedColumns = [
     {
         reference: 'merge_k0',
         type: DimensionType.DATE,
-        origin: { kind: 'joinKey' as const },
+        origin: {
+            kind: 'joinKey' as const,
+            fieldIdBySourceId: { a: 'a_date', b: 'b_date' },
+        },
     },
     {
         reference: 'merge_k1',
         type: DimensionType.STRING,
-        origin: { kind: 'joinKey' as const },
+        origin: {
+            kind: 'joinKey' as const,
+            fieldIdBySourceId: { a: 'a_name', b: 'b_name' },
+        },
     },
     {
         reference: 'a_followers_count',
@@ -75,6 +82,11 @@ const typedColumns = [
         },
     },
 ];
+
+const parameterMetadata = {
+    parameterReferences: ['date_parameter'],
+    usedParametersValues: { date_parameter: '2024-01-01' },
+};
 
 const compose = () =>
     new MergeQueryComposer({
@@ -88,6 +100,7 @@ const compose = () =>
         typedColumns,
         columnOrder: ['merge_k0', 'a_followers_count'],
         limit: 500,
+        ...parameterMetadata,
         warehouseClient: mockWarehouseClient,
     });
 
@@ -98,6 +111,13 @@ describe('MergeQueryComposer', () => {
 
     it('reports the merged items map as the query fields', () => {
         expect(compose().getFields()).toEqual(itemsMap);
+    });
+
+    it('reports the parameters embedded during source compilation', () => {
+        expect(compose().getParameterReferences()).toEqual(['date_parameter']);
+        expect(compose().getUsedParameters()).toEqual(
+            parameterMetadata.usedParametersValues,
+        );
     });
 
     // Everything downstream looks fields up by id, so a composer whose fields
@@ -113,7 +133,7 @@ describe('MergeQueryComposer', () => {
     // of the join and quietly return that side's numbers.
     it('names a sentinel explore rather than either source', () => {
         expect(compose().getMetricQuery().exploreName).toEqual(
-            MERGE_EXPLORE_NAME,
+            MERGE_TABLE_NAME,
         );
     });
 
@@ -140,6 +160,7 @@ describe('MergeQueryComposer', () => {
             typedColumns,
             columnOrder: ['merge_k0', 'merge_k1', 'a_followers_count'],
             limit: 500,
+            ...parameterMetadata,
             warehouseClient: mockWarehouseClient,
             pivotConfiguration: {
                 indexColumn: { reference: 'merge_k0', type: VizIndexType.TIME },
@@ -174,6 +195,7 @@ describe('MergeQueryComposer', () => {
             typedColumns,
             columnOrder: ['merge_k0', 'merge_k1', 'a_followers_count'],
             limit: 500,
+            ...parameterMetadata,
             warehouseClient: mockWarehouseClient,
             pivotConfiguration: {
                 indexColumn: { reference: 'merge_k0', type: VizIndexType.TIME },

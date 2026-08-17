@@ -274,6 +274,21 @@ describe('AiDeepResearchRunModel', () => {
         expect(tracker.history.insert).toHaveLength(0);
     });
 
+    it('checkpoints raw report markdown while the run is still active', async () => {
+        tracker.on.update(AiDeepResearchRunsTableName).responseOnce(1);
+
+        const updated = await model.checkpointReport(RUN_UUID, reportMarkdown);
+
+        expect(updated).toBe(true);
+        expect(tracker.history.update[0].sql).toContain(
+            '"result_markdown" = $1',
+        );
+        expect(tracker.history.update[0].sql).toContain('"status" = $');
+        expect(tracker.history.update[0].sql).toContain(
+            '"cancellation_requested_at" is null',
+        );
+    });
+
     it('atomically accumulates each reported token class and records incomplete usage', async () => {
         tracker.on.update(AiDeepResearchRunsTableName).responseOnce(1);
 
@@ -430,6 +445,9 @@ describe('AiDeepResearchRunModel', () => {
         expect(tracker.history.update[0].bindings).toEqual(
             expect.arrayContaining(['queued', 'cancelled', RUN_UUID]),
         );
+        expect(tracker.history.update[0].bindings).toContain(
+            'user_cancellation',
+        );
         expect(tracker.history.insert).toHaveLength(3);
         expect(tracker.history.insert[0].bindings).toContain(
             'cancellation_requested',
@@ -508,7 +526,10 @@ describe('AiDeepResearchRunModel', () => {
         expect(runs).toHaveLength(2);
         const [update] = tracker.history.update;
         expect(update.bindings).toEqual(
-            expect.arrayContaining(['running', 75, 'failed', 'stale']),
+            expect.arrayContaining(['running', 75, 'stale']),
+        );
+        expect(update.sql).toContain(
+            "when result_markdown is not null then 'partially_completed' else 'failed' end",
         );
         expect(tracker.history.insert).toHaveLength(4);
         expect(tracker.history.insert[2].bindings).toContain('internal_error');
@@ -547,6 +568,12 @@ describe('AiDeepResearchRunModel', () => {
         );
         expect(tracker.history.update.at(-1)?.sql).not.toContain(
             'result_chart_data',
+        );
+        expect(tracker.history.select[0]?.sql).not.toContain(
+            '"result_markdown" is not null',
+        );
+        expect(tracker.history.select[0]?.sql).toContain(
+            '"status" in ($1, $2, $3, $4)',
         );
     });
 });
