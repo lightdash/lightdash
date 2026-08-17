@@ -4633,7 +4633,7 @@ export class ProjectService extends BaseService {
             );
         } catch (error) {
             this.logger.warn(
-                `Failed to persist merged dbt manifest for project ${projectUuid}: ${getErrorMessage(error)}`,
+                `Failed to serialize merged dbt manifest for project ${projectUuid}: ${getErrorMessage(error)}`,
             );
             return undefined;
         }

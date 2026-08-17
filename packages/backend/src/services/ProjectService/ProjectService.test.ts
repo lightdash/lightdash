@@ -4563,6 +4563,10 @@ type ProjectServiceInternals = {
     buildMergedManifestAdapter: (
         args: BuildMergedManifestAdapterArgs,
     ) => Promise<ResolvedCompileAdapter>;
+    stageMergedManifest: (
+        projectUuid: string,
+        manifest: DbtManifest,
+    ) => Promise<Buffer | undefined>;
     buildSourceAdapter: (...args: unknown[]) => Promise<ProjectAdapter>;
     logger: { warn: (...args: unknown[]) => void };
 };
@@ -5130,6 +5134,26 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             projectDbtSourcesModel,
         });
     };
+
+    it('BC-7: distinguishes manifest staging failures from persistence failures', async () => {
+        const projectService = buildCompilationBoundaryService();
+        const internals = projectService as unknown as ProjectServiceInternals;
+        const warn = vi.spyOn(internals.logger, 'warn');
+        const circularMetadata: Record<string, unknown> = {};
+        circularMetadata.self = circularMetadata;
+
+        await expect(
+            internals.stageMergedManifest('project-uuid', {
+                metadata: circularMetadata,
+                nodes: {},
+            } as unknown as DbtManifest),
+        ).resolves.toBeUndefined();
+        expect(warn).toHaveBeenCalledWith(
+            expect.stringMatching(
+                /^Failed to serialize merged dbt manifest for project project-uuid:/,
+            ),
+        );
+    });
 
     it('BC-7: test and deploy publishes the staged manifest only after cache completion', async () => {
         let cacheCompleted = false;
