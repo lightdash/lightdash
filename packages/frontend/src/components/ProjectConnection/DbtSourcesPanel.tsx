@@ -380,7 +380,9 @@ const RenamePrimaryDbtSourceModal: FC<{
     });
     const form = useMantineForm({
         initialValues: { name: source?.name ?? '' },
-        validate: { name: validateDbtSourceName },
+        validate: {
+            name: (value) => validateProjectDbtSourceName(value.trim()),
+        },
     });
 
     if (!source) return null;
