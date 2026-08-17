@@ -1916,13 +1916,15 @@ export class CoderService extends BaseService {
     static getMissingIds(
         ids: string[] | undefined,
         items: Pick<SavedChartDAO | DashboardDAO, 'slug' | 'uuid'>[],
+        aliases: string[] = [],
     ) {
+        const aliasSet = new Set(aliases);
         return ids
             ? ids.reduce<string[]>((acc, id) => {
                   const exists = items.some(
                       (item) => id === item.uuid || id === item.slug,
                   );
-                  if (!exists) {
+                  if (!exists && !aliasSet.has(id)) {
                       acc.push(id);
                   }
                   return acc;
@@ -2195,11 +2197,13 @@ export class CoderService extends BaseService {
             await this.dashboardModel.getSlugsForUuids(dashboardUuids);
 
         const chartUuids = charts.map((chart) => chart.uuid);
-        const chartVerificationMap =
-            await this.contentVerificationModel.getByContentUuids(
+        const [chartVerificationMap, chartAliases] = await Promise.all([
+            this.contentVerificationModel.getByContentUuids(
                 ContentType.CHART,
                 chartUuids,
-            );
+            ),
+            this.savedChartModel.getSlugAliasesForUuids(chartUuids),
+        ]);
 
         const transformedCharts = charts.map((chart) =>
             CoderService.transformChart(
@@ -2210,7 +2214,11 @@ export class CoderService extends BaseService {
             ),
         );
 
-        const missingIds = CoderService.getMissingIds(chartIds, charts);
+        const missingIds = CoderService.getMissingIds(
+            chartIds,
+            charts,
+            chartAliases,
+        );
 
         return {
             charts: transformedCharts,
@@ -2922,6 +2930,7 @@ export class CoderService extends BaseService {
             chart: {
                 ...promotedChart.chart,
                 ...chartWithDefaults,
+                slug: chart.slug,
                 projectUuid,
                 organizationUuid: project.organizationUuid,
             },
