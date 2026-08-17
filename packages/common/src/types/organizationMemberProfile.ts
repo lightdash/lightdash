@@ -51,6 +51,8 @@ export type OrganizationMemberProfile = {
      */
     role: OrganizationMemberRole;
     roleUuid: string | undefined;
+    /** True when the member holds extra custom roles beyond `role`/`roleUuid` (see role sets). */
+    hasMultipleRoles?: boolean;
     /**
      * Whether the user can login
      */

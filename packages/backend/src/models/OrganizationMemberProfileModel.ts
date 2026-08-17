@@ -16,6 +16,7 @@ import { GroupMembershipTableName } from '../database/entities/groupMemberships'
 import { GroupTableName } from '../database/entities/groups';
 import { InviteLinkTableName } from '../database/entities/inviteLinks';
 import { OpenIdIdentitiesTableName } from '../database/entities/openIdIdentities';
+import { OrganizationMembershipCustomRolesTableName } from '../database/entities/organizationMembershipCustomRoles';
 import {
     DbOrganizationMembership,
     DbOrganizationMembershipIn,
@@ -47,12 +48,13 @@ type DbOrganizationMemberProfile = {
     organization_uuid: string;
     role: OrganizationMemberRole;
     role_uuid: string | null;
+    has_extra_roles: boolean;
     expires_at?: Date;
     avatar_gradient: string | null;
     avatar_content_hash: string | null;
 };
 
-const SelectColumns = [
+const selectColumns = (db: Knex) => [
     `${UserTableName}.user_uuid`,
     `${UserTableName}.user_id`,
     `${UserTableName}.first_name`,
@@ -67,6 +69,14 @@ const SelectColumns = [
     `${UserTableName}.updated_at as user_updated_at`,
     `${UserTableName}.avatar_gradient`,
     `${UserAvatarsTableName}.content_hash as avatar_content_hash`,
+    db.raw(
+        `EXISTS (SELECT 1 FROM ?? AS x WHERE x.organization_id = ??.organization_id AND x.user_id = ??.user_id) AS has_extra_roles`,
+        [
+            OrganizationMembershipCustomRolesTableName,
+            OrganizationMembershipsTableName,
+            OrganizationMembershipsTableName,
+        ],
+    ),
 ];
 
 export class OrganizationMemberProfileModel {
@@ -127,6 +137,7 @@ export class OrganizationMemberProfileModel {
             organizationUuid: member.organization_uuid,
             role: member.role,
             roleUuid: member.role_uuid || undefined,
+            hasMultipleRoles: member.has_extra_roles,
             isActive: member.is_active,
             isInviteExpired,
             isPending,
@@ -163,7 +174,9 @@ export class OrganizationMemberProfileModel {
                 `${OrganizationTableName}.organization_uuid`,
                 organizationUuid,
             )
-            .select<DbOrganizationMemberProfile[]>(SelectColumns);
+            .select<DbOrganizationMemberProfile[]>(
+                selectColumns(this.database),
+            );
 
         // Apply exact match filter if provided
         if (exactMatchFilter) {
@@ -259,7 +272,7 @@ export class OrganizationMemberProfileModel {
                 `${OrganizationTableName}.organization_uuid`,
                 organizationUuid,
             )
-            .select<DbOrganizationMemberProfile[]>(SelectColumns)
+            .select<DbOrganizationMemberProfile[]>(selectColumns(this.database))
             .orderBy(`${EmailTableName}.email`, 'asc');
 
         const usersHaveAuthenticationRows =
@@ -319,7 +332,7 @@ export class OrganizationMemberProfileModel {
                 `${EmailTableName}.email`,
                 normalizedEmails,
             ])
-            .select<DbOrganizationMemberProfile[]>(SelectColumns)
+            .select<DbOrganizationMemberProfile[]>(selectColumns(this.database))
             .orderBy(`${EmailTableName}.email`, 'asc')
             .orderBy(`${UserTableName}.user_uuid`, 'asc');
 
@@ -532,7 +545,9 @@ export class OrganizationMemberProfileModel {
                 organizationUuid,
             )
             .andWhere('role', 'admin')
-            .select<DbOrganizationMemberProfile[]>(SelectColumns);
+            .select<DbOrganizationMemberProfile[]>(
+                selectColumns(this.database),
+            );
         const usersHaveAuthenticationRows =
             await UserModel.findIfUsersHaveAuthentication(this.database, {
                 userUuids: members.map((m) => m.user_uuid),
@@ -611,7 +626,9 @@ export class OrganizationMemberProfileModel {
                 `${OrganizationTableName}.organization_uuid`,
                 organizationUuid,
             )
-            .select<DbOrganizationMemberProfile[]>(SelectColumns);
+            .select<DbOrganizationMemberProfile[]>(
+                selectColumns(this.database),
+            );
 
         if (!dbMember) {
             throw new NotFoundError('No matching member found in organization');
@@ -642,7 +659,9 @@ export class OrganizationMemberProfileModel {
                 `${OrganizationTableName}.organization_uuid`,
                 organizationUuid,
             )
-            .select<DbOrganizationMemberProfile[]>(SelectColumns);
+            .select<DbOrganizationMemberProfile[]>(
+                selectColumns(this.database),
+            );
 
         if (!dbMember) {
             throw new NotFoundError('No matching member found in organization');

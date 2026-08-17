@@ -12,6 +12,7 @@ describeContentAsCodeSchemaContract({
         'isInviteExpired',
         'isPending',
         'lastName',
+        'hasMultipleRoles',
         'organizationUuid',
         'roleUuid',
         'userCreatedAt',
