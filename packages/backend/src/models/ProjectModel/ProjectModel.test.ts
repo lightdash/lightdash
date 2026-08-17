@@ -113,6 +113,22 @@ describe('ProjectModel', () => {
             dbtSourceName: 'dbt_project',
         });
     });
+    test('should use the project uuid when the primary dbt source uuid is null', async () => {
+        tracker.on
+            .select(queryMatcher(ProjectTableName, [projectUuid]))
+            .response([
+                {
+                    project_uuid: projectUuid,
+                    dbt_source_uuid: null,
+                    dbt_source_name: 'dbt_project',
+                },
+            ]);
+
+        await expect(model.getDbtSourceIdentity(projectUuid)).resolves.toEqual({
+            dbtSourceUuid: projectUuid,
+            dbtSourceName: 'dbt_project',
+        });
+    });
     test('should throw when getting the dbt source identity for a missing project', async () => {
         tracker.on
             .select(queryMatcher(ProjectTableName, [projectUuid]))
