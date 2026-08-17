@@ -1,3 +1,10 @@
+# [1.167.0](https://github.com/lightdash/lightdash/compare/1.166.1...1.167.0) (2026-08-17)
+
+
+### Features
+
+* support custom S3 endpoint for query results ([#27480](https://github.com/lightdash/lightdash/issues/27480)) ([5ed714b](https://github.com/lightdash/lightdash/commit/5ed714b8041efc9dd3484e918db826e858a2df04))
+
 ## [1.166.1](https://github.com/lightdash/lightdash/compare/1.166.0...1.166.1) (2026-08-17)
 
 
