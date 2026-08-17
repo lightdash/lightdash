@@ -4,8 +4,8 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import {
-    applyMergeExecutionMode,
-    getMergeResultColumnCount,
+    applyMergeExportLimit,
+    getMergeOutputColumnCount,
 } from './mergeQueryExecution';
 
 const sourceQuery = (metrics: string[], calculations: string[] = []) =>
@@ -50,31 +50,21 @@ const mergeQuery: MergeQuery = {
 
 describe('merge query execution', () => {
     test('counts every column in the merged result', () => {
-        expect(getMergeResultColumnCount(mergeQuery)).toBe(6);
-    });
-
-    test('leaves interactive queries unchanged', () => {
-        expect(
-            applyMergeExecutionMode({
-                mergeQuery,
-                mode: { type: 'interactive' },
-                csvCellsLimit: 60,
-            }),
-        ).toBe(mergeQuery);
+        expect(getMergeOutputColumnCount(mergeQuery)).toBe(6);
     });
 
     test('applies requested and cell-based export limits once to the merge', () => {
         expect(
-            applyMergeExecutionMode({
+            applyMergeExportLimit({
                 mergeQuery,
-                mode: { type: 'export', limit: 8 },
+                requestedRows: 8,
                 csvCellsLimit: 60,
             }).limit,
         ).toBe(8);
         expect(
-            applyMergeExecutionMode({
+            applyMergeExportLimit({
                 mergeQuery,
-                mode: { type: 'export', limit: null },
+                requestedRows: null,
                 csvCellsLimit: 60,
             }).limit,
         ).toBe(10);
@@ -83,7 +73,7 @@ describe('merge query execution', () => {
 
     test('leaves structural validation to compilation', () => {
         expect(
-            applyMergeExecutionMode({
+            applyMergeExportLimit({
                 mergeQuery: {
                     sources: [],
                     joinKey: [],
@@ -91,7 +81,7 @@ describe('merge query execution', () => {
                     tableCalculations: [],
                     limit: 500,
                 },
-                mode: { type: 'export', limit: null },
+                requestedRows: null,
                 csvCellsLimit: 60,
             }).limit,
         ).toBe(60);

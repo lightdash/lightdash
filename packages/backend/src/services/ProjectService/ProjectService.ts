@@ -5356,6 +5356,7 @@ export class ProjectService extends BaseService {
                 itemsMap: {},
                 fieldOrigins: {},
                 parameterReferences: [],
+                usedParametersValues: {},
                 fieldIdByColumn: {},
                 errors,
             };
@@ -5430,6 +5431,7 @@ export class ProjectService extends BaseService {
                     valueColumns,
                     missingParameters,
                     parameterReferences,
+                    usedParametersValues: compiled.usedParameters,
                     originBySourceColumn: Object.fromEntries(
                         valueColumns.map((column) => [
                             column,
@@ -5457,6 +5459,10 @@ export class ProjectService extends BaseService {
         const parameterReferences = Array.from(
             new Set(sources.flatMap((source) => source.parameterReferences)),
         );
+        const usedParametersValues = Object.assign(
+            {},
+            ...sources.map((source) => source.usedParametersValues),
+        );
         if (parameterErrors.length > 0) {
             return {
                 sql: null,
@@ -5468,6 +5474,7 @@ export class ProjectService extends BaseService {
                 itemsMap: {},
                 fieldOrigins: {},
                 parameterReferences,
+                usedParametersValues,
                 fieldIdByColumn: {},
                 errors: parameterErrors,
             };
@@ -5566,6 +5573,7 @@ export class ProjectService extends BaseService {
                 itemsMap: {},
                 fieldOrigins: {},
                 parameterReferences,
+                usedParametersValues,
                 fieldIdByColumn: {},
                 errors: referenceErrors,
             };
@@ -5904,6 +5912,7 @@ export class ProjectService extends BaseService {
                 itemsMap: {},
                 fieldOrigins: {},
                 parameterReferences,
+                usedParametersValues,
                 fieldIdByColumn: {},
                 errors: typeErrors,
             };
@@ -5927,6 +5936,7 @@ export class ProjectService extends BaseService {
             itemsMap,
             fieldOrigins,
             parameterReferences,
+            usedParametersValues,
             fieldIdByColumn,
             errors: [],
         };

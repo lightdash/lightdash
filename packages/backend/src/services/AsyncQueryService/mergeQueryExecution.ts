@@ -1,6 +1,6 @@
-import type { MergeQuery, MergeQueryExecutionMode } from '@lightdash/common';
+import type { MergeQuery } from '@lightdash/common';
 
-export const getMergeResultColumnCount = (mergeQuery: MergeQuery): number =>
+export const getMergeOutputColumnCount = (mergeQuery: MergeQuery): number =>
     mergeQuery.joinKey.length +
     mergeQuery.tableCalculations.length +
     mergeQuery.sources.reduce(
@@ -13,26 +13,24 @@ export const getMergeResultColumnCount = (mergeQuery: MergeQuery): number =>
 
 /** Resolve the final merged row limit before compilation. Source CTE limits
  * stay untouched because merge compilation deliberately removes them. */
-export const applyMergeExecutionMode = ({
+export const applyMergeExportLimit = ({
     mergeQuery,
-    mode,
+    requestedRows,
     csvCellsLimit,
 }: {
     mergeQuery: MergeQuery;
-    mode: MergeQueryExecutionMode;
+    requestedRows: number | null;
     csvCellsLimit: number;
 }): MergeQuery => {
-    if (mode.type === 'interactive') return mergeQuery;
-
     // Structural validation remains the compiler's job so invalid exports
     // receive the same structured refusal as interactive runs.
-    const columnCount = Math.max(getMergeResultColumnCount(mergeQuery), 1);
+    const columnCount = Math.max(getMergeOutputColumnCount(mergeQuery), 1);
     const cellLimitedRows = Math.floor(csvCellsLimit / columnCount);
     return {
         ...mergeQuery,
         limit:
-            mode.limit === null
+            requestedRows === null
                 ? cellLimitedRows
-                : Math.min(mode.limit, cellLimitedRows),
+                : Math.min(requestedRows, cellLimitedRows),
     };
 };

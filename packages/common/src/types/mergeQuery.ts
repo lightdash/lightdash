@@ -487,6 +487,8 @@ export type ApiCompiledMergeQueryResults = {
     fieldOrigins: MergeFieldOrigins;
     /** User parameters referenced by any source query. */
     parameterReferences: string[];
+    /** Resolved parameter values embedded in the compiled source queries. */
+    usedParametersValues: ParametersValuesMap;
     /**
      * Field id for each column the statement returns. Warehouse aliases are
      * short and positional so they cannot breach an identifier length limit;

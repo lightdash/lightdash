@@ -1,20 +1,19 @@
 import {
     createVirtualView,
     isDimension,
+    MERGE_TABLE_NAME,
     type Explore,
     type ItemsMap,
     type MergeTerminalWrapper,
     type MergeTypedColumn,
     type MetricQuery,
+    type ParametersValuesMap,
     type PivotConfiguration,
     type WarehouseClient,
 } from '@lightdash/common';
 import { applyMergeTerminalWrapper } from './MergeQueryBuilder';
 import { type CompiledQuery } from './MetricQueryBuilder';
 import { QueryComposer } from './QueryComposer';
-
-/** Explore name a merged result reports. Deliberately not either source's. */
-export const MERGE_EXPLORE_NAME = 'merge';
 
 export type MergeQueryComposerArguments = {
     /** Composable merge SQL, before presentation pivot and terminal checks. */
@@ -27,6 +26,8 @@ export type MergeQueryComposerArguments = {
     /** Field ids the merged result carries, in the order it returns them. */
     columnOrder: string[];
     limit: number;
+    parameterReferences: string[];
+    usedParametersValues: ParametersValuesMap;
     warehouseClient: WarehouseClient;
     /**
      * Standard pivot stage over the merged rows. Every merged dimension is a
@@ -54,7 +55,7 @@ export const buildMergeResultMetricQuery = ({
     });
 
     return {
-        exploreName: MERGE_EXPLORE_NAME,
+        exploreName: MERGE_TABLE_NAME,
         dimensions,
         metrics: columnOrder.filter((fieldId) => !dimensions.includes(fieldId)),
         filters: {},
@@ -85,6 +86,10 @@ export class MergeQueryComposer extends QueryComposer {
 
     private readonly terminalWrapper: MergeTerminalWrapper;
 
+    private readonly parameterReferences: Set<string>;
+
+    private readonly usedParametersValues: ParametersValuesMap;
+
     constructor(args: MergeQueryComposerArguments) {
         const {
             coreSql,
@@ -93,6 +98,8 @@ export class MergeQueryComposer extends QueryComposer {
             typedColumns,
             columnOrder,
             limit,
+            parameterReferences,
+            usedParametersValues,
             warehouseClient,
             pivotConfiguration,
         } = args;
@@ -123,6 +130,8 @@ export class MergeQueryComposer extends QueryComposer {
         this.mergedSql = coreSql;
         this.mergedItemsMap = itemsMap;
         this.terminalWrapper = terminalWrapper;
+        this.parameterReferences = new Set(parameterReferences);
+        this.usedParametersValues = usedParametersValues;
     }
 
     /** The merged statement is already compiled; nothing recompiles it. */
@@ -131,9 +140,9 @@ export class MergeQueryComposer extends QueryComposer {
             query: this.mergedSql,
             fields: this.mergedItemsMap,
             warnings: [],
-            parameterReferences: new Set(),
+            parameterReferences: this.parameterReferences,
             missingParameterReferences: new Set(),
-            usedParameters: {},
+            usedParameters: this.usedParametersValues,
             compilationErrors: [],
         };
     }
@@ -159,7 +168,7 @@ export class MergeQueryComposer extends QueryComposer {
         warehouseClient: WarehouseClient,
     ): Explore {
         return createVirtualView(
-            MERGE_EXPLORE_NAME,
+            MERGE_TABLE_NAME,
             sql,
             typedColumns.map(({ reference, type }) => ({ reference, type })),
             warehouseClient,

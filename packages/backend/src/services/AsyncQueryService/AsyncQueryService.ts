@@ -212,7 +212,7 @@ import {
 import { getValidatedDashboardSorts } from './dashboardSorts';
 import { getPivotedColumns } from './getPivotedColumns';
 import { getUnpivotedColumns } from './getUnpivotedColumns';
-import { applyMergeExecutionMode } from './mergeQueryExecution';
+import { applyMergeExportLimit } from './mergeQueryExecution';
 import {
     NoOpPreAggregateStrategy,
     type PreAggregateExecutionResolution,
@@ -6317,9 +6317,9 @@ export class AsyncQueryService extends ProjectService {
             await this.projectModel.getSummary(projectUuid);
         const effectiveMergeQuery =
             mode.type === 'export'
-                ? applyMergeExecutionMode({
+                ? applyMergeExportLimit({
                       mergeQuery,
-                      mode,
+                      requestedRows: mode.limit,
                       csvCellsLimit: (
                           await resolveOrganizationExportLimits(
                               this.organizationSettingsModel,
@@ -6428,6 +6428,8 @@ export class AsyncQueryService extends ProjectService {
                 typedColumns: compiledMerge.typedColumns,
                 columnOrder: Object.values(compiledMerge.fieldIdByColumn),
                 limit: mergeQuery.limit,
+                parameterReferences: compiledMerge.parameterReferences,
+                usedParametersValues: compiledMerge.usedParametersValues,
                 warehouseClient,
                 pivotConfiguration,
             });
