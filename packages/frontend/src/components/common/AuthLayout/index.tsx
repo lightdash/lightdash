@@ -19,6 +19,7 @@ const BRAND_HIGHLIGHTS = [
 type Props = {
     /** Document title, matching what each page passed to `Page` before. */
     pageTitle: string;
+    variant?: 'default' | 'pink';
     /** Split-layout heading. Omitted when the page renders its own heading. */
     title?: string;
     subtitle?: string;
@@ -33,6 +34,7 @@ type Props = {
 
 const AuthLayout: FC<PropsWithChildren<Props>> = ({
     pageTitle,
+    variant = 'default',
     title,
     subtitle,
     legacyTitle,
@@ -49,32 +51,34 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
 
     if (!isNewLayout) {
         return (
-            <Page title={pageTitle} withCenteredContent withNavbar={false}>
-                <Stack w={400} mt="4xl">
-                    <Box mx="auto" my="lg">
-                        <LightdashLogo />
-                    </Box>
-                    {withLegacyCard ? (
-                        <Card
-                            id={cardId}
-                            p="xl"
-                            radius="xs"
-                            withBorder
-                            shadow="xs"
-                        >
-                            {legacyTitle && (
-                                <Title order={3} ta="center" mb="md">
-                                    {legacyTitle}
-                                </Title>
-                            )}
-                            {children}
-                        </Card>
-                    ) : (
-                        children
-                    )}
-                    {footer}
-                </Stack>
-            </Page>
+            <Box className={classes.legacyRoot} data-variant={variant}>
+                <Page title={pageTitle} withCenteredContent withNavbar={false}>
+                    <Stack w={400} mt="4xl">
+                        <Box mx="auto" my="lg">
+                            <LightdashLogo />
+                        </Box>
+                        {withLegacyCard ? (
+                            <Card
+                                id={cardId}
+                                p="xl"
+                                radius="xs"
+                                withBorder
+                                shadow="xs"
+                            >
+                                {legacyTitle && (
+                                    <Title order={3} ta="center" mb="md">
+                                        {legacyTitle}
+                                    </Title>
+                                )}
+                                {children}
+                            </Card>
+                        ) : (
+                            children
+                        )}
+                        {footer}
+                    </Stack>
+                </Page>
+            </Box>
         );
     }
 
@@ -82,7 +86,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
         <>
             <DocumentTitle title={pageTitle} />
 
-            <Box className={classes.root}>
+            <Box className={classes.root} data-variant={variant}>
                 <Box className={classes.brandPanel}>
                     <Box className={classes.decorationTop} aria-hidden />
                     <Box className={classes.decorationBottom} aria-hidden />
