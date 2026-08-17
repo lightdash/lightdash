@@ -325,11 +325,10 @@ describe('useFieldValues', () => {
         },
     };
 
-    it('returns no suggestions and avoids requesting field values when autocomplete is disabled', () => {
-        const fieldWithDisabledAutocomplete: FilterableItem = {
+    it('avoids requesting field values when there is nothing to autocomplete', () => {
+        const fieldWithoutAutocompleteSource: FilterableItem = {
             ...fieldWithStaticAutocomplete,
             filterAutocomplete: {
-                enabled: false,
                 fetchFromWarehouse: false,
             },
         };
@@ -337,9 +336,9 @@ describe('useFieldValues', () => {
         const { result } = renderHookWithProviders(() =>
             useFieldValues(
                 'act',
-                ['active', 'prospect'],
+                [],
                 'project-uuid',
-                fieldWithDisabledAutocomplete,
+                fieldWithoutAutocompleteSource,
                 undefined,
                 undefined,
             ),

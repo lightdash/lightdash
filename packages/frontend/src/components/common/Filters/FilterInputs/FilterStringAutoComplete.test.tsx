@@ -56,11 +56,11 @@ describe('FilterStringAutoComplete', () => {
         vi.clearAllMocks();
     });
 
-    describe('disabled autocomplete', () => {
+    describe('manual entry when there is nothing to autocomplete', () => {
+        // No warehouse fetch and no curated values → nothing to suggest
         const fieldWithDisabledAutocomplete: FilterableItem = {
             ...mockField,
             filterAutocomplete: {
-                enabled: false,
                 fetchFromWarehouse: false,
             },
         };

@@ -704,24 +704,26 @@ export type FilterAutocompleteValue = {
 };
 
 export type FilterAutocompleteConfig = {
-    /** Absent means enabled (older cached explores predate this flag). When
-     *  false, value autocomplete is disabled entirely for this dimension —
-     *  consumers must check `enabled === false`, never truthiness. */
-    enabled?: boolean;
     values?: FilterAutocompleteValue[];
     fetchFromWarehouse: boolean;
     labelDimension?: string;
 };
 
-export const isFilterAutocompleteDisabled = (
+/**
+ * There is nothing to autocomplete: warehouse fetching is off and no curated
+ * values are provided, so filter inputs fall back to plain manual entry.
+ */
+export const isFilterAutocompleteManualOnly = (
     filterAutocomplete: FilterAutocompleteConfig | undefined,
-): boolean => filterAutocomplete?.enabled === false;
+): boolean =>
+    filterAutocomplete !== undefined &&
+    !filterAutocomplete.fetchFromWarehouse &&
+    (filterAutocomplete.values?.length ?? 0) === 0;
 
 /**
  * Whether a dimension's curated `filter_autocomplete` values can answer a value
  * search without querying the warehouse. Mirrors the Explore filter UI
- * (`useFieldValues`): always use curated values when autocomplete is disabled
- * (they are empty, so the search yields nothing) or the warehouse fetch is
+ * (`useFieldValues`): always use curated values when the warehouse fetch is
  * turned off; otherwise only as the fast path for an empty ("list all") search.
  */
 export const shouldUseStaticFilterAutocomplete = (
@@ -729,7 +731,6 @@ export const shouldUseStaticFilterAutocomplete = (
     search: string,
 ): boolean => {
     if (!filterAutocomplete) return false;
-    if (isFilterAutocompleteDisabled(filterAutocomplete)) return true;
     const hasValues = (filterAutocomplete.values?.length ?? 0) > 0;
     return (
         !filterAutocomplete.fetchFromWarehouse ||

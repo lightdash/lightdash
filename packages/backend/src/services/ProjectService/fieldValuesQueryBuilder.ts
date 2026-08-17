@@ -4,7 +4,6 @@ import {
     getItemId,
     isDimension,
     isExploreError,
-    isFilterAutocompleteDisabled,
     isFilterRule,
     NotFoundError,
     ParameterError,
@@ -107,12 +106,6 @@ export async function getFieldValuesMetricQuery({
     if (!isDimension(field)) {
         throw new ParameterError(
             `Searching by field is only available for dimensions, but ${fieldId} is a ${field.type}`,
-        );
-    }
-
-    if (isFilterAutocompleteDisabled(field.filterAutocomplete)) {
-        throw new ParameterError(
-            `Value autocomplete is disabled for field ${fieldId}`,
         );
     }
 

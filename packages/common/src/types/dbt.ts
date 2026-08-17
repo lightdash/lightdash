@@ -237,9 +237,6 @@ type DbtColumnLightdashConfig = {
 };
 
 export type DbtFilterAutocompleteConfig = {
-    /** When false, disables value autocomplete for this dimension everywhere
-     *  (no suggestions shown, no warehouse value scans). Defaults to true. */
-    enabled?: boolean;
     values?: FilterAutocompleteValue[];
     fetch_from_warehouse?: boolean;
     label_dimension?: string;

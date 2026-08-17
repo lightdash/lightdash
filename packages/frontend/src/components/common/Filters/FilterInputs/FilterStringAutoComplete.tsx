@@ -1,6 +1,6 @@
 import {
     isDimension,
-    isFilterAutocompleteDisabled,
+    isFilterAutocompleteManualOnly,
     type FilterableItem,
 } from '@lightdash/common';
 import {
@@ -322,11 +322,11 @@ const FilterStringAutoComplete: FC<Props> = ({
         [handleAdd, handleResetSearch, onInputBlur, pastePopUpOpened, search],
     );
 
-    const autocompleteDisabled =
-        isFilterAutocompleteDisabled(filterAutocomplete);
+    // Nothing to autocomplete (no warehouse fetch, no curated values):
+    // the input is plain entry with no dropdown.
+    const manualEntryOnly = isFilterAutocompleteManualOnly(filterAutocomplete);
     const searchedMaxResults = results.length >= MAX_AUTOCOMPLETE_RESULTS;
     const canRefreshAutocomplete =
-        !autocompleteDisabled &&
         filterAutocomplete?.fetchFromWarehouse !== false &&
         !((filterAutocomplete?.values?.length ?? 0) > 0 && search.length === 0);
     return (
@@ -408,7 +408,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                             placeholder={
                                 values.length > 0 || disabled
                                     ? undefined
-                                    : autocompleteDisabled
+                                    : manualEntryOnly
                                       ? 'Type a value and press Enter'
                                       : placeholder
                             }
@@ -437,7 +437,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                             onSearchChange={setSearch}
                             comboboxProps={comboboxProps}
                             onPaste={handlePaste}
-                            withDropdown={!autocompleteDisabled}
+                            withDropdown={!manualEntryOnly}
                             nothingFoundMessage={
                                 isInitialLoading
                                     ? 'Loading...'

@@ -4,7 +4,6 @@ import {
     getItemId,
     isDimension,
     isField,
-    isFilterAutocompleteDisabled,
     QueryHistoryStatus,
     type AndFilterGroup,
     type ApiError,
@@ -308,17 +307,12 @@ export const useFieldValues = (
     const filterAutocomplete = isDimension(field)
         ? field.filterAutocomplete
         : undefined;
-    const autocompleteDisabled =
-        isFilterAutocompleteDisabled(filterAutocomplete);
     const initialOptions = useMemo(
-        () =>
-            autocompleteDisabled
-                ? []
-                : [
-                      ...(filterAutocomplete?.values ?? []),
-                      ...initialData.map(normalizeFieldValue),
-                  ],
-        [autocompleteDisabled, filterAutocomplete?.values, initialData],
+        () => [
+            ...(filterAutocomplete?.values ?? []),
+            ...initialData.map(normalizeFieldValue),
+        ],
+        [filterAutocomplete?.values, initialData],
     );
     const [fieldName, setFieldName] = useState<string>(field.name);
     const [debouncedSearch, setDebouncedSearch] = useState<string>(search);
@@ -372,10 +366,9 @@ export const useFieldValues = (
     );
     const hasStaticAutocompleteValues = initialOptions.length > 0;
     const shouldUseStaticValues =
-        autocompleteDisabled ||
-        (!!filterAutocomplete &&
-            (!filterAutocomplete.fetchFromWarehouse ||
-                (hasStaticAutocompleteValues && debouncedSearch.length === 0)));
+        !!filterAutocomplete &&
+        (!filterAutocomplete.fetchFromWarehouse ||
+            (hasStaticAutocompleteValues && debouncedSearch.length === 0));
     const cachekey = [
         'project',
         projectId,

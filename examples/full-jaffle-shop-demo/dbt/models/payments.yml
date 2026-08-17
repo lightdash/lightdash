@@ -47,7 +47,7 @@ models:
           meta:
             dimension:
               filter_autocomplete:
-                enabled: false
+                fetch_from_warehouse: false
       - name: amount
         description: Total amount (AUD) of the individual payment
         config:

@@ -42,26 +42,6 @@ const exploreWithLabelDimension = (labelDimension: string): Explore => ({
     },
 });
 
-const exploreWithDisabledAutocomplete: Explore = {
-    ...validExplore,
-    tables: {
-        ...validExplore.tables,
-        a: {
-            ...validExplore.tables.a,
-            dimensions: {
-                ...validExplore.tables.a.dimensions,
-                dim1: {
-                    ...validExplore.tables.a.dimensions.dim1,
-                    filterAutocomplete: {
-                        enabled: false,
-                        fetchFromWarehouse: false,
-                    },
-                },
-            },
-        },
-    },
-};
-
 const mockExploreResolver = {
     findExploreByTableName: vi.fn(),
     findJoinAliasExplore: vi.fn(),
@@ -110,25 +90,6 @@ describe('getFieldValuesMetricQuery', () => {
             values: [],
             target: { fieldId: 'a_dim1' },
         });
-    });
-
-    test('throws ParameterError when filter autocomplete is disabled for the field', async () => {
-        mockExploreResolver.findExploreByTableName.mockResolvedValue(
-            exploreWithDisabledAutocomplete,
-        );
-
-        await expect(
-            getFieldValuesMetricQuery({
-                projectUuid: 'project-uuid',
-                table: 'a',
-                initialFieldId: 'a_dim1',
-                search: 'test',
-                limit: 10,
-                maxLimit: 5000,
-                filters: undefined,
-                exploreResolver: mockExploreResolver,
-            }),
-        ).rejects.toThrow(ParameterError);
     });
 
     test('includes compatible filters from input', async () => {
