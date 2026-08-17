@@ -1444,10 +1444,6 @@ const scopes: Scope[] = [
             { name: 'view:Project' },
             { name: 'create:Project@preview' },
             {
-                name: 'manage:Explore@self',
-                description: 'Run apps that query data in your preview',
-            },
-            {
                 name: 'view:ExternalConnection',
                 description: 'Link external connections while building',
             },
