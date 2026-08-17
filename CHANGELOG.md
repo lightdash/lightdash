@@ -1,3 +1,10 @@
+# [1.166.0](https://github.com/lightdash/lightdash/compare/1.165.0...1.166.0) (2026-08-17)
+
+
+### Features
+
+* add persistent chart slug aliases ([#27474](https://github.com/lightdash/lightdash/issues/27474)) ([20e1b44](https://github.com/lightdash/lightdash/commit/20e1b443a9527b38d02ab4d9b4bfd060907b991a))
+
 # [1.165.0](https://github.com/lightdash/lightdash/compare/1.164.1...1.165.0) (2026-08-17)
 
 
