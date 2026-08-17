@@ -103,7 +103,10 @@ export const useProjectDbtSource = (
         enabled: !!projectDbtSourceUuid,
     });
 
-export const useUpdateProjectDbtSourceMutation = (projectUuid: string) => {
+export const useUpdateProjectDbtSourceMutation = (
+    projectUuid: string,
+    options?: { onSuccess?: (source: ProjectDbtSourceSummary) => void },
+) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
@@ -115,7 +118,8 @@ export const useUpdateProjectDbtSourceMutation = (projectUuid: string) => {
             updateProjectDbtSource(projectUuid, projectDbtSourceUuid, data),
         {
             mutationKey: ['update_project_dbt_source', projectUuid],
-            onSuccess: async () => {
+            onSuccess: async (source) => {
+                options?.onSuccess?.(source);
                 await queryClient.invalidateQueries([
                     'project_dbt_sources',
                     projectUuid,

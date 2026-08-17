@@ -71,6 +71,7 @@ type UpdateDbProject = Partial<
         | 'name'
         | 'dbt_connection'
         | 'dbt_connection_type'
+        | 'dbt_source_name'
         | 'organization_warehouse_credentials_uuid'
         | 'table_selection_type'
         | 'table_selection_value'
