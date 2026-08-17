@@ -142,6 +142,7 @@ describe('MotherDuck instance cache config', () => {
 test('Should default results S3 config to S3 config', () => {
     process.env.S3_ACCESS_KEY = 'mock_access_key';
     process.env.S3_SECRET_KEY = 'mock_secret_key';
+    process.env.S3_FORCE_PATH_STYLE = 'true';
     const config = parseConfig();
     expect(config.results.s3).toEqual({
         endpoint: 'mock_endpoint',
@@ -149,24 +150,34 @@ test('Should default results S3 config to S3 config', () => {
         region: 'mock_region',
         accessKey: 'mock_access_key',
         secretKey: 'mock_secret_key',
-        forcePathStyle: false,
+        forcePathStyle: true,
     });
 });
 
 test('Should use explicit results S3 config when set', () => {
+    process.env.S3_FORCE_PATH_STYLE = 'true';
+    process.env.RESULTS_S3_ENDPOINT = 'new_endpoint';
+    process.env.RESULTS_S3_FORCE_PATH_STYLE = 'false';
     process.env.RESULTS_S3_BUCKET = 'new_bucket';
     process.env.RESULTS_S3_REGION = 'new_region';
     process.env.RESULTS_S3_ACCESS_KEY = 'new_access_key';
     process.env.RESULTS_S3_SECRET_KEY = 'new_secret_key';
     const config = parseConfig();
     expect(config.results.s3).toEqual({
-        endpoint: 'mock_endpoint',
+        endpoint: 'new_endpoint',
         bucket: 'new_bucket',
         region: 'new_region',
         accessKey: 'new_access_key',
         secretKey: 'new_secret_key',
         forcePathStyle: false,
     });
+});
+
+test('Should treat an empty results S3 force path style as unset', () => {
+    process.env.S3_FORCE_PATH_STYLE = 'true';
+    process.env.RESULTS_S3_FORCE_PATH_STYLE = '';
+
+    expect(parseConfig().results.s3?.forcePathStyle).toBe(true);
 });
 
 test('Should prioritize new results S3 config over deprecated config when both are set', () => {
