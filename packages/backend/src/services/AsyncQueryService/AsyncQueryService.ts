@@ -4950,17 +4950,23 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
         );
 
-        const { metricQuery, explore, field, fieldId, labelFieldId, staticResults } =
-            await getFieldValuesMetricQuery({
-                projectUuid,
-                table,
-                initialFieldId,
-                search,
-                limit,
-                maxLimit,
-                filters,
-                exploreResolver: this.projectModel,
-            });
+        const {
+            metricQuery,
+            explore,
+            field,
+            fieldId,
+            labelFieldId,
+            staticResults,
+        } = await getFieldValuesMetricQuery({
+            projectUuid,
+            table,
+            initialFieldId,
+            search,
+            limit,
+            maxLimit,
+            filters,
+            exploreResolver: this.projectModel,
+        });
 
         // The field's config turns warehouse fetching off: serve curated
         // values (empty when none) as an immediately-READY query instead of
@@ -4982,22 +4988,19 @@ export class AsyncQueryService extends ProjectService {
                     forceRefresh,
                     parameters: combinedParameters,
                 };
-            const { queryUuid } = await this.queryHistoryModel.create(
-                account,
-                {
-                    projectUuid,
-                    organizationUuid,
-                    context,
-                    fields: { [fieldId]: field },
-                    compiledSql:
-                        '-- served from curated filter_autocomplete values, no warehouse query',
-                    requestParameters: staticRequestParameters,
-                    metricQuery,
-                    cacheKey: `static-autocomplete-${fieldId}`,
-                    pivotConfiguration: null,
-                    originalColumns: null,
-                },
-            );
+            const { queryUuid } = await this.queryHistoryModel.create(account, {
+                projectUuid,
+                organizationUuid,
+                context,
+                fields: { [fieldId]: field },
+                compiledSql:
+                    '-- served from curated filter_autocomplete values, no warehouse query',
+                requestParameters: staticRequestParameters,
+                metricQuery,
+                cacheKey: `static-autocomplete-${fieldId}`,
+                pivotConfiguration: null,
+                originalColumns: null,
+            });
 
             const fileName = QueryHistoryModel.createUniqueResultsFileName(
                 `static-autocomplete-${fieldId}`,

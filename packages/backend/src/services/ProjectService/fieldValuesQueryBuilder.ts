@@ -229,5 +229,12 @@ export async function getFieldValuesMetricQuery({
               ).slice(0, parsedLimit)
             : null;
 
-    return { metricQuery, explore, field, fieldId, labelFieldId, staticResults };
+    return {
+        metricQuery,
+        explore,
+        field,
+        fieldId,
+        labelFieldId,
+        staticResults,
+    };
 }
