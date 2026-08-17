@@ -2,6 +2,11 @@
 
 This example keeps a self-hosted Lightdash deployment on the newest release that the public release-safety gate can reach. It is intentionally generic, has no telemetry, and stores its evidence only in the consumer repository.
 
+> [!NOTE]
+> This example is in [Beta](https://docs.lightdash.com/references/workspace/feature-maturity-levels), together with the release-safety artifact that it reads. The workflow runs today and we use this approach on our own instance, but the artifact fields, the verdict shape and the action inputs can still change.
+>
+> Pin the composite actions to a reviewed commit SHA, which the steps below require anyway, and read this page again when you move that pin. Feedback shapes where this goes next: tell us in a [GitHub issue](https://github.com/lightdash/lightdash/issues) if the loop does not fit your deployment.
+
 The loop is:
 
 1. Stop silently when an open issue carries the freeze label.
