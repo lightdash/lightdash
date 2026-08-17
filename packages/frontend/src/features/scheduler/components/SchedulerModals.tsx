@@ -53,6 +53,9 @@ export const DashboardSchedulersModal: FC<DashboardSchedulersProps> = ({
     const availableParameters = useDashboardContext(
         (c) => c.parameterDefinitions,
     );
+    const filterableFieldsByTileUuid = useDashboardContext(
+        (c) => c.filterableFieldsByTileUuid,
+    );
 
     return (
         <SchedulerModal
@@ -63,6 +66,7 @@ export const DashboardSchedulersModal: FC<DashboardSchedulersProps> = ({
             isChart={false}
             currentParameterValues={currentParameterValues}
             availableParameters={availableParameters}
+            filterableFieldsByTileUuid={filterableFieldsByTileUuid}
             searchQuery={searchQuery}
             onSearchQueryChange={setSearchQuery}
             {...modalProps}

@@ -323,6 +323,16 @@ export const projectMemberAbilities: Record<
             type: ProjectType.PREVIEW,
             createdByUserUuid: member.userUuid,
         });
+        can('create', 'DataApp', {
+            projectUuid: member.projectUuid,
+            projectType: ProjectType.PREVIEW,
+            projectCreatedByUserUuid: member.userUuid,
+        });
+        can('manage', 'DataApp', {
+            projectUuid: member.projectUuid,
+            projectType: ProjectType.PREVIEW,
+            projectCreatedByUserUuid: member.userUuid,
+        });
         can('view', 'JobStatus', {
             projectUuid: member.projectUuid,
         });

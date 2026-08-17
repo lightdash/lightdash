@@ -448,30 +448,6 @@ describe('AI agent memory promotion integration', () => {
         expect(projectContextEntryAuthoringCall).not.toHaveBeenCalled();
     });
 
-    it('returns a user-facing reason when authoring rejects the memory', async () => {
-        const memoryUuid = await seedMemory();
-        const { service, projectContextEntryAuthoringCall } = buildService(
-            vi.fn().mockResolvedValue({
-                type: 'rejected',
-                reason: 'not_project_context',
-            }),
-        );
-
-        const promotion = service.promoteMemory(
-            getTestContext().testUser,
-            SEED_PROJECT.project_uuid,
-            memoryUuid,
-            'Nominate personal memory',
-        );
-
-        await expect(promotion).rejects.toMatchObject({
-            message:
-                'This memory does not contain durable project context to propose.',
-            data: { reason: 'not_project_context' },
-        });
-        expect(projectContextEntryAuthoringCall).toHaveBeenCalledOnce();
-    });
-
     it('returns operational authoring failures without a service retry', async () => {
         const memoryUuid = await seedMemory();
         const { service, projectContextEntryAuthoringCall } = buildService(

@@ -71,6 +71,38 @@ models:
               - average_expression_metric
             time_dimension: order_date
             granularity: day
+          # e2e fixtures: count_distinct defs served on exact matches only,
+          # plus day/month twins for the grain-preference tie-break.
+          - name: orders_daily_unique_demo
+            dimensions:
+              - status
+            metrics:
+              - unique_order_count
+              - total_order_amount
+            time_dimension: order_date
+            granularity: day
+          - name: orders_ext_daily_unique
+            table: '"jaffle"."orders_ext_daily_unique_mv"'
+            dimensions:
+              - order_source
+            metrics:
+              - unique_order_count
+            time_dimension: order_date
+            granularity: day
+          - name: orders_source_daily_twin
+            dimensions:
+              - order_source
+            metrics:
+              - total_shipping_revenue
+            time_dimension: order_date
+            granularity: day
+          - name: orders_source_monthly_twin
+            dimensions:
+              - order_source
+            metrics:
+              - total_shipping_revenue
+            time_dimension: order_date
+            granularity: month
           - name: orders_daily_number_metric_refs_demo
             dimensions:
               - shipping_method

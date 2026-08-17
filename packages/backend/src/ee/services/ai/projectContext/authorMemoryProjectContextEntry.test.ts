@@ -76,34 +76,11 @@ describe('authorMemoryProjectContextEntry', () => {
         );
     });
 
-    it('returns a typed rejection reason', async () => {
+    it('does not allow the model to block a nomination', async () => {
         const authoringLlmCall = vi.fn().mockResolvedValue({
             result: {
                 type: 'rejected',
                 reason: 'not_project_context',
-            },
-        });
-
-        await expect(
-            authorMemoryProjectContextEntry({
-                memory,
-                nominationReason: null,
-                currentEntries,
-                model,
-                telemetry,
-                authoringLlmCall,
-            }),
-        ).resolves.toEqual({
-            type: 'rejected',
-            reason: 'not_project_context',
-        });
-    });
-
-    it('rejects unknown rejection reasons', async () => {
-        const authoringLlmCall = vi.fn().mockResolvedValue({
-            result: {
-                type: 'rejected',
-                reason: 'fake_memory',
             },
         });
 

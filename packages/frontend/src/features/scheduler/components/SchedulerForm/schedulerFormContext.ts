@@ -91,7 +91,8 @@ export const DEFAULT_VALUES: SchedulerFormValues = {
     slackTargets: [],
     msTeamsTargets: [],
     googleChatTargets: [],
-    dashboardFilters: [],
+    // undefined = not yet seeded from live dashboard filters; [] = user removed them all
+    dashboardFilters: undefined,
     chartFilters: undefined,
     parameters: undefined,
     customViewportWidth: undefined,

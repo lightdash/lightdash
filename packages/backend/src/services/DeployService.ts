@@ -33,6 +33,7 @@ type ProjectServiceInterface = {
         requestMethod?: string | null;
         projectConfigDefaults?: ProjectDefaults;
         cliVersion?: string | null;
+        complete?: boolean;
     }) => Promise<string>;
 };
 
@@ -117,6 +118,7 @@ export class DeployService extends BaseService {
         sessionUuid: string,
         explores: (Explore | ExploreError)[],
         batchNumber: number,
+        complete?: boolean,
     ): Promise<{ batchNumber: number; exploreCount: number }> {
         try {
             const session =
@@ -147,6 +149,7 @@ export class DeployService extends BaseService {
                 projectUuid,
                 explores,
                 batchNumber,
+                complete,
             );
 
             this.logger.info(
@@ -217,8 +220,9 @@ export class DeployService extends BaseService {
 
             // Get all explores from the session and enhance them
             // (e.g., EE generates virtual pre-aggregate explores from attached defs)
-            const uploadedExplores =
-                await this.deploySessionModel.getAllExplores(sessionUuid);
+            const deployData =
+                await this.deploySessionModel.getDeployData(sessionUuid);
+            const uploadedExplores = deployData.explores;
             const explores = this.exploreEnhancer(uploadedExplores, {
                 startOfWeek: project.warehouseConnection?.startOfWeek ?? null,
             });
@@ -237,6 +241,7 @@ export class DeployService extends BaseService {
                 jobUuid: null,
                 requestMethod: 'cli',
                 cliVersion,
+                complete: deployData.complete,
             });
 
             // Schedule validation (same as in original finalizeDeploy)

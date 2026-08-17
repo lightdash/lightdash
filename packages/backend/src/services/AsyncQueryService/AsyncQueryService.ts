@@ -11,6 +11,7 @@ import {
     applyDashboardFiltersForTile,
     assertIsAccountWithOrg,
     assertUnreachable,
+    buildMergeQueryFromSaved,
     buildWarehouseColumnTotals,
     buildWarehouseRowTotals,
     CalculateSubtotalsFromQuery,
@@ -96,10 +97,12 @@ import {
     UserAccessControls,
     WarehouseClient,
     WarehouseQueryError,
+    type ApiCompiledMergeQueryResults,
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
     type ApiDownloadAsyncQueryResultsAsXlsx,
     type ApiExecuteAsyncFieldValueSearchResults,
+    type ApiExecuteAsyncMergeQueryResults,
     type ApiExecuteAsyncMetricQueryResults,
     type ApiGetAsyncQueryResults,
     type CacheMetadata,
@@ -115,6 +118,7 @@ import {
     type ExecuteAsyncQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
+    type MergeQueryChart,
     type Organization,
     type ParameterDefinitions,
     type ParametersValuesMap,
@@ -173,7 +177,10 @@ import {
     streamJsonlData,
 } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import { updateExploreWithDateZoom } from '../../utils/QueryBuilder/dateZoom';
-import { MergeQueryComposer } from '../../utils/QueryBuilder/MergeQueryComposer';
+import {
+    buildMergeResultMetricQuery,
+    MergeQueryComposer,
+} from '../../utils/QueryBuilder/MergeQueryComposer';
 import { consumeMergeResultMetadata } from '../../utils/QueryBuilder/mergeQueryResults';
 import { safeReplaceParametersWithSqlBuilder } from '../../utils/QueryBuilder/parameters';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
@@ -216,6 +223,7 @@ import {
 import { getValidatedDashboardSorts } from './dashboardSorts';
 import { getPivotedColumns } from './getPivotedColumns';
 import { getUnpivotedColumns } from './getUnpivotedColumns';
+import { applyMergeExportLimit } from './mergeQueryExecution';
 import {
     NoOpPreAggregateStrategy,
     type PreAggregateExecutionResolution,
@@ -247,6 +255,40 @@ import {
     type ScheduleDownloadAsyncQueryResultsArgs,
     type UnboundedRerunFromQueryHistoryResult,
 } from './types';
+
+type RunnableCompiledMergeQuery = ApiCompiledMergeQueryResults & {
+    coreSql: string;
+    typedColumns: NonNullable<ApiCompiledMergeQueryResults['typedColumns']>;
+    terminalWrapper: NonNullable<
+        ApiCompiledMergeQueryResults['terminalWrapper']
+    >;
+};
+
+const isRunnableCompiledMergeQuery = (
+    compiled: ApiCompiledMergeQueryResults,
+): compiled is RunnableCompiledMergeQuery =>
+    compiled.errors.length === 0 &&
+    compiled.coreSql !== null &&
+    compiled.typedColumns !== null &&
+    compiled.terminalWrapper !== null;
+
+type ExecuteCompiledAsyncMergeQueryArgs = Omit<
+    ExecuteAsyncMergeQueryArgs,
+    'mode' | 'chart'
+> & {
+    organizationUuid: string;
+    compiledMerge: RunnableCompiledMergeQuery;
+    pivotConfiguration?: PivotConfiguration;
+};
+
+type ExecuteMergeQueryInternalArgs = Omit<
+    ExecuteAsyncMergeQueryArgs,
+    'chart'
+> & {
+    pivotInput?:
+        | { type: 'chart'; chart: MergeQueryChart }
+        | { type: 'resolved'; configuration: PivotConfiguration };
+};
 
 // NULL pivot keys collide with the unsuffixed base column when joined
 // (`[null].join('_') === ''`). Wrapped in `<>` so it strips cleanly via
@@ -5172,6 +5214,44 @@ export class AsyncQueryService extends ProjectService {
             dashboardFilters,
         };
 
+        if (savedChart.merge) {
+            const mergeQuery = buildMergeQueryFromSaved(
+                metricQuery,
+                savedChart.merge,
+            );
+            const combinedParameters = {
+                ...savedChartParameters,
+                ...parameters,
+            };
+            const outcome = await this.executeAsyncMergeQuery({
+                account,
+                projectUuid,
+                mergeQuery,
+                context,
+                invalidateCache,
+                parameters: combinedParameters,
+                mode:
+                    limit === undefined
+                        ? { type: 'interactive' }
+                        : { type: 'export', limit },
+                chart: pivotResults
+                    ? {
+                          chartConfig: savedChart.chartConfig,
+                          pivotConfig: savedChart.pivotConfig,
+                      }
+                    : undefined,
+            });
+            if (outcome.outcome === 'refused') {
+                throw new ParameterError(
+                    `This saved merge cannot be run: ${outcome.errors
+                        .map((error) => error.message)
+                        .join(' ')}`,
+                    { errors: outcome.errors },
+                );
+            }
+            return outcome.query;
+        }
+
         const { maxLimit, csvCellsLimit } =
             await resolveOrganizationExportLimits(
                 this.organizationSettingsModel,
@@ -6549,6 +6629,119 @@ export class AsyncQueryService extends ProjectService {
     }
 
     /**
+     * Validates, prepares and starts a merge through one interface.
+     *
+     * Validation is data rather than an HTTP failure so the editor can attach
+     * errors to the source that caused them. A valid compilation is passed
+     * into execution and never repeated.
+     */
+    async executeAsyncMergeQuery(
+        args: ExecuteAsyncMergeQueryArgs,
+    ): Promise<ApiExecuteAsyncMergeQueryResults> {
+        const { chart, ...execution } = args;
+        return this.executeAsyncMergeQueryInternal({
+            ...execution,
+            pivotInput: chart ? { type: 'chart', chart } : undefined,
+        });
+    }
+
+    /** Compatibility seam for the v1 endpoint's already-derived pivot. */
+    async executeLegacyAsyncMergeQuery({
+        pivotConfiguration,
+        ...execution
+    }: Omit<ExecuteAsyncMergeQueryArgs, 'chart'> & {
+        pivotConfiguration?: PivotConfiguration;
+    }): Promise<ApiExecuteAsyncMergeQueryResults> {
+        return this.executeAsyncMergeQueryInternal({
+            ...execution,
+            pivotInput: pivotConfiguration
+                ? { type: 'resolved', configuration: pivotConfiguration }
+                : undefined,
+        });
+    }
+
+    private async executeAsyncMergeQueryInternal({
+        account,
+        projectUuid,
+        mergeQuery,
+        context,
+        invalidateCache,
+        parameters,
+        mode,
+        pivotInput,
+    }: ExecuteMergeQueryInternalArgs): Promise<ApiExecuteAsyncMergeQueryResults> {
+        assertIsAccountWithOrg(account);
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const effectiveMergeQuery =
+            mode.type === 'export'
+                ? applyMergeExportLimit({
+                      mergeQuery,
+                      requestedRows: mode.limit,
+                      csvCellsLimit: (
+                          await resolveOrganizationExportLimits(
+                              this.organizationSettingsModel,
+                              this.lightdashConfig.query,
+                              organizationUuid,
+                          )
+                      ).csvCellsLimit,
+                  })
+                : mergeQuery;
+        const compiledMerge = await this.compileMergeQuery({
+            account,
+            projectUuid,
+            mergeQuery: effectiveMergeQuery,
+            parameters,
+        });
+        if (!isRunnableCompiledMergeQuery(compiledMerge)) {
+            return {
+                outcome: 'refused',
+                errors: compiledMerge.errors,
+                parameterReferences: compiledMerge.parameterReferences,
+                fieldOrigins: compiledMerge.fieldOrigins,
+            };
+        }
+
+        const columnOrder = Object.values(compiledMerge.fieldIdByColumn);
+        const pivotConfiguration = (() => {
+            if (pivotInput?.type === 'resolved') {
+                return pivotInput.configuration;
+            }
+            if (pivotInput?.type === 'chart') {
+                return derivePivotConfigurationFromChart(
+                    pivotInput.chart,
+                    buildMergeResultMetricQuery({
+                        itemsMap: compiledMerge.itemsMap,
+                        columnOrder,
+                        limit: effectiveMergeQuery.limit,
+                    }),
+                    compiledMerge.itemsMap,
+                );
+            }
+            return undefined;
+        })();
+
+        const query = await this.executeCompiledAsyncMergeQuery({
+            account,
+            projectUuid,
+            organizationUuid,
+            mergeQuery: effectiveMergeQuery,
+            context,
+            invalidateCache,
+            parameters,
+            pivotConfiguration,
+            compiledMerge,
+        });
+
+        return {
+            outcome: 'started',
+            query,
+            parameterReferences: compiledMerge.parameterReferences,
+            fieldOrigins: compiledMerge.fieldOrigins,
+        };
+    }
+
+    /**
      * Runs a merge as one statement on the org's own warehouse.
      *
      * The compile is the merge: both sides become CTEs of one statement in
@@ -6557,7 +6750,7 @@ export class AsyncQueryService extends ProjectService {
      * downloads all behave as for any other query. Nothing materialises to
      * S3 and nothing runs anywhere but the project warehouse.
      */
-    async executeAsyncMergeQuery({
+    private async executeCompiledAsyncMergeQuery({
         account,
         projectUuid,
         mergeQuery,
@@ -6565,30 +6758,9 @@ export class AsyncQueryService extends ProjectService {
         invalidateCache,
         pivotConfiguration,
         parameters,
-    }: ExecuteAsyncMergeQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
-        assertIsAccountWithOrg(account);
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
-
-        const compiledMerge = await this.compileMergeQuery({
-            account,
-            projectUuid,
-            mergeQuery,
-            parameters,
-        });
-        if (
-            compiledMerge.coreSql === null ||
-            compiledMerge.typedColumns === null ||
-            compiledMerge.terminalWrapper === null
-        ) {
-            throw new ParameterError(
-                `This merge cannot be run: ${compiledMerge.errors
-                    .map((error) => error.message)
-                    .join(' ')}`,
-                { errors: compiledMerge.errors },
-            );
-        }
-
+        organizationUuid,
+        compiledMerge,
+    }: ExecuteCompiledAsyncMergeQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         // Only for composing SQL — quoting and the pivot stage need the
         // dialect. The async runtime opens its own connection to execute.
         const [warehouseCredentials, userAccessControls] = await Promise.all([
@@ -6614,6 +6786,8 @@ export class AsyncQueryService extends ProjectService {
                 typedColumns: compiledMerge.typedColumns,
                 columnOrder: Object.values(compiledMerge.fieldIdByColumn),
                 limit: mergeQuery.limit,
+                parameterReferences: compiledMerge.parameterReferences,
+                usedParametersValues: compiledMerge.usedParametersValues,
                 warehouseClient,
                 pivotConfiguration,
             });
@@ -7387,6 +7561,7 @@ export class AsyncQueryService extends ProjectService {
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         displayTimezone: string | null;
         truncated: boolean;
+        metricQuery: MetricQuery;
     }> {
         const queryHistory = await this.getAsyncQueryHistory({
             account,
@@ -7433,6 +7608,7 @@ export class AsyncQueryService extends ProjectService {
                 AsyncQueryService.getPivotDetailsFromQueryHistory(queryHistory),
             displayTimezone: queryHistory.metricQuery.timezone ?? null,
             truncated,
+            metricQuery: queryHistory.metricQuery,
         };
     }
 

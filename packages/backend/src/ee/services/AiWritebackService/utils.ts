@@ -353,6 +353,40 @@ export const parseGitNameStatus = (stdout: string): StagedFileChanges => {
 };
 
 /** Caller owns the side effects (logging, counting, progress). */
+/**
+ * Collapse a flat file listing into one `dir/ (N files)` line per directory.
+ *
+ * Used when the full listing is too large to inject (see
+ * `REPO_CONTEXT_MAX_BYTES`). The digest keeps the shape of the project — where
+ * models live, how the tree is organised — at a fraction of the tokens, and the
+ * agent finds specific files with Glob/Grep from there. Derived host-side from
+ * the listing already gathered, so it costs no extra sandbox round trip.
+ */
+export const summarizeRepoListing = (
+    listing: string,
+): { digest: string; fileCount: number } => {
+    const paths = listing
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+
+    const countsByDir = new Map<string, number>();
+    for (const path of paths) {
+        const lastSlash = path.lastIndexOf('/');
+        // A path with no slash sits at the project root; group those together
+        // rather than emitting a bare "" directory.
+        const dir = lastSlash === -1 ? '.' : path.slice(0, lastSlash);
+        countsByDir.set(dir, (countsByDir.get(dir) ?? 0) + 1);
+    }
+
+    const digest = [...countsByDir.entries()]
+        .sort(([a], [b]) => (a < b ? -1 : 1))
+        .map(([dir, count]) => `${dir}/ (${count} files)`)
+        .join('\n');
+
+    return { digest, fileCount: paths.length };
+};
+
 export const interpretAgentEvent = (event: unknown): AgentStreamEvent => {
     if (!event || typeof event !== 'object') return { type: 'ignored' };
     const typed = event as {
@@ -362,6 +396,8 @@ export const interpretAgentEvent = (event: unknown): AgentStreamEvent => {
         duration_ms?: number;
         duration_api_ms?: number;
         num_turns?: number;
+        is_error?: boolean;
+        subtype?: string;
         // Token counts live nested under `usage` on the result event; the rest
         // are top-level. Same shape data apps reads in ClaudeStreamProcessor.
         usage?: {
@@ -376,6 +412,8 @@ export const interpretAgentEvent = (event: unknown): AgentStreamEvent => {
         return {
             type: 'result',
             costUsd: typed.total_cost_usd ?? null,
+            isError: typed.is_error ?? null,
+            subtype: typed.subtype ?? null,
             durationMs: typed.duration_ms ?? null,
             durationApiMs: typed.duration_api_ms ?? null,
             numTurns: typed.num_turns ?? null,

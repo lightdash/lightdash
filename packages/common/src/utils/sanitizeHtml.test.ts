@@ -1,4 +1,5 @@
 import {
+    HTML_SANITIZE_DEFAULT_RULES,
     HTML_SANITIZE_MARKDOWN_TILE_RULES,
     sanitizeHtml,
 } from './sanitizeHtml';
@@ -210,6 +211,121 @@ describe('sanitizeHtml', () => {
                     sanitizeHtml(tag, HTML_SANITIZE_MARKDOWN_TILE_RULES),
                 ).toEqual(expected);
             });
+        });
+    });
+
+    describe('hostile script URIs in scheme-carrying attributes (CVE-2026-53606)', () => {
+        const hostileCases: Array<{
+            input: string;
+            expectedDefault: string;
+            expectedMarkdown: string;
+        }> = [
+            {
+                input: '<form action="javascript:alert(1)"><input type="submit"></form>',
+                expectedDefault: '',
+                expectedMarkdown: '',
+            },
+            {
+                input: '<button formaction="javascript:alert(1)">click</button>',
+                expectedDefault: 'click',
+                expectedMarkdown: 'click',
+            },
+            {
+                input: '<object data="javascript:alert(1)"></object>',
+                expectedDefault: '',
+                expectedMarkdown: '',
+            },
+            {
+                input: '<video poster="javascript:alert(1)"></video>',
+                expectedDefault: '',
+                expectedMarkdown: '',
+            },
+            {
+                input: '<body background="javascript:alert(1)">text</body>',
+                expectedDefault: 'text',
+                expectedMarkdown: 'text',
+            },
+            {
+                input: '<table background="javascript:alert(1)"><tr><td>cell</td></tr></table>',
+                expectedDefault: '<table><tr><td>cell</td></tr></table>',
+                expectedMarkdown: '<table><tr><td>cell</td></tr></table>',
+            },
+            {
+                input: '<iframe src="javascript:alert(1)" width="400"></iframe>',
+                expectedDefault: '',
+                expectedMarkdown: '<iframe width="400"></iframe>',
+            },
+            {
+                input: '<img src="javascript:alert(1)" alt="x" />',
+                expectedDefault: '',
+                expectedMarkdown: '<img alt="x" />',
+            },
+            {
+                input: '<a href="javascript:alert(1)">link</a>',
+                expectedDefault: '<a>link</a>',
+                expectedMarkdown: '<a>link</a>',
+            },
+        ];
+
+        hostileCases.forEach(({ input, expectedDefault, expectedMarkdown }) => {
+            test(`strips javascript: URI from ${input}`, () => {
+                const defaultOutput = sanitizeHtml(
+                    input,
+                    HTML_SANITIZE_DEFAULT_RULES,
+                );
+                const markdownOutput = sanitizeHtml(
+                    input,
+                    HTML_SANITIZE_MARKDOWN_TILE_RULES,
+                );
+
+                expect(defaultOutput).toEqual(expectedDefault);
+                expect(markdownOutput).toEqual(expectedMarkdown);
+                expect(defaultOutput).not.toContain('javascript');
+                expect(markdownOutput).not.toContain('javascript');
+            });
+        });
+    });
+
+    describe('legitimate URL-bearing content is preserved', () => {
+        test('https iframe embed keeps src, dimensions and name', () => {
+            const input =
+                '<iframe src="https://www.youtube.com/embed/abc123" width="560" height="315" name="yt"></iframe>';
+            expect(
+                sanitizeHtml(input, HTML_SANITIZE_MARKDOWN_TILE_RULES),
+            ).toEqual(input);
+        });
+
+        test('protocol-relative iframe src is preserved', () => {
+            const input = '<iframe src="//example.com/embed"></iframe>';
+            expect(
+                sanitizeHtml(input, HTML_SANITIZE_MARKDOWN_TILE_RULES),
+            ).toEqual(input);
+        });
+
+        test('https img with dimensions, alt and style is preserved', () => {
+            const input =
+                '<img src="https://example.com/logo.png" width="100" height="50" alt="logo" style="max-width:100%" />';
+            expect(
+                sanitizeHtml(input, HTML_SANITIZE_MARKDOWN_TILE_RULES),
+            ).toEqual(input);
+        });
+
+        test('styled span mention survives both rule sets', () => {
+            const input = '<span style="color:red">@Foo Bar</span>';
+            expect(sanitizeHtml(input, HTML_SANITIZE_DEFAULT_RULES)).toEqual(
+                input,
+            );
+            expect(
+                sanitizeHtml(input, HTML_SANITIZE_MARKDOWN_TILE_RULES),
+            ).toEqual(input);
+        });
+
+        test('rendered markdown email body survives default rules', () => {
+            const input =
+                '<h1>Weekly report</h1><p>Hello <strong>team</strong>, see <a href="https://example.com/dashboard">the dashboard</a>.</p><ul><li>First item</li><li>Second item</li></ul>';
+            expect(sanitizeHtml(input, HTML_SANITIZE_DEFAULT_RULES)).toEqual(
+                input,
+            );
         });
     });
 });

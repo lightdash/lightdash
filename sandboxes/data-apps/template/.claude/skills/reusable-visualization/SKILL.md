@@ -123,6 +123,14 @@ container itself — pad the cells, not the scroller. A sticky header pins to th
 container's content edge, so any container padding becomes a strip that rows
 visibly scroll through above the header.
 
+The table must scroll BOTH ways: `overflow: auto` on ONE wrapper directly around the
+`<table>`, and every element between that wrapper and the dialog body a plain block
+that can shrink (`min-width: 0`; no `display: table`, no `w-max`/`width:
+max-content`). A wrapper that sizes to the table's intrinsic width makes the
+overflow container's horizontal scroll dead — the table looks clipped and viewers
+cannot reach the right-hand columns. Verify by scrolling right in the rendered
+dialog with more columns than fit.
+
 ## The declaration
 
 Alongside the component you emit one structured declaration — as **structured output, not a

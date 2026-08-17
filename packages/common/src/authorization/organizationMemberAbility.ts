@@ -389,6 +389,16 @@ export const applyOrganizationMemberStaticAbilities: Record<
             type: ProjectType.PREVIEW,
             createdByUserUuid: member.userUuid,
         });
+        can('create', 'DataApp', {
+            organizationUuid: member.organizationUuid,
+            projectType: ProjectType.PREVIEW,
+            projectCreatedByUserUuid: member.userUuid,
+        });
+        can('manage', 'DataApp', {
+            organizationUuid: member.organizationUuid,
+            projectType: ProjectType.PREVIEW,
+            projectCreatedByUserUuid: member.userUuid,
+        });
         can('view', 'JobStatus', {
             organizationUuid: member.organizationUuid,
         });

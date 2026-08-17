@@ -20,7 +20,7 @@ export type DbDeploySessionBatch = {
     deploy_session_uuid: string;
     project_uuid: string;
     batch_number: number;
-    explores: unknown; // JSONB array of Explore or ExploreError objects
+    explores: unknown;
     explore_count: number;
     created_at: Date;
 };

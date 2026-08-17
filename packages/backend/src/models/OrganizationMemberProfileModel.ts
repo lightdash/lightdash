@@ -29,6 +29,7 @@ import { UserAvatarsTableName } from '../database/entities/userAvatars';
 import { UserOAuthGrantsTableName } from '../database/entities/userOAuthGrants';
 import { DbUser, UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
+import { clearOrganizationExtraRoles } from './roleSetUtils';
 import { getColumnMatchRegexQuery } from './SearchModel/utils/search';
 import { UserModel } from './UserModel';
 
@@ -650,20 +651,35 @@ export class OrganizationMemberProfileModel {
                 userUuid,
                 role: data.role,
             };
-            await this.database.raw<
-                (DbOrganizationMemberProfile & DbOrganization & DbUser)[]
-            >(
-                `
+            // A singular write replaces the whole role set, so extras go too.
+            await this.database.transaction(async (trx) => {
+                const { rows } = await trx.raw<{
+                    rows: Pick<
+                        DbOrganizationMembership,
+                        'organization_id' | 'user_id'
+                    >[];
+                }>(
+                    `
                     UPDATE organization_memberships AS m
                     SET role = :role FROM organizations AS o, users AS u
                     WHERE o.organization_id = m.organization_id
                       AND u.user_id = m.user_id
                       AND user_uuid = :userUuid
                       AND organization_uuid = :organizationUuid
-                        RETURNING *
+                        RETURNING m.organization_id, m.user_id
                 `,
-                sqlParams,
-            );
+                    sqlParams,
+                );
+                await Promise.all(
+                    rows.map((row) =>
+                        clearOrganizationExtraRoles(
+                            trx,
+                            row.organization_id,
+                            row.user_id,
+                        ),
+                    ),
+                );
+            });
         }
         return this.getOrganizationMemberByUuid(organizationUuid, userUuid);
     }

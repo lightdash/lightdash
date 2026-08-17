@@ -195,6 +195,19 @@ export const getContentAsCodeUploadPermissions = async (
             },
         ],
     };
+    const dataAppSubject = subject('DataApp', {
+        ...baseSubject,
+        upstreamProjectUuid: project.upstreamProjectUuid,
+        projectType: project.type,
+        projectCreatedByUserUuid: project.createdByUserUuid,
+        inheritsFromOrgOrProject: true,
+        access: [
+            {
+                userUuid: user.userUuid,
+                role: SpaceMemberRole.ADMIN,
+            },
+        ],
+    });
     const canManageScheduledDeliveries = ability.can(
         'manage',
         subject('ScheduledDeliveries', {
@@ -227,14 +240,8 @@ export const getContentAsCodeUploadPermissions = async (
             (canManageScheduledDeliveries || canCreateScheduledDeliveries) &&
             ability.can('manage', subject('GoogleSheets', { ...baseSubject })),
         dataApps:
-            ability.can(
-                'create',
-                subject('DataApp', { ...accessibleResourceSubject }),
-            ) ||
-            ability.can(
-                'manage',
-                subject('DataApp', { ...accessibleResourceSubject }),
-            ),
+            ability.can('create', dataAppSubject) ||
+            ability.can('manage', dataAppSubject),
         externalConnections: ability.can(
             'manage',
             subject('ExternalConnection', { ...baseSubject }),

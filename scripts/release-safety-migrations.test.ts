@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
     analyzeMigrationSource,
+    isMigrationPath,
     readMigrationMetadata,
 } from './release-safety-migrations';
 
@@ -21,6 +22,33 @@ function test(name: string, fn: () => void): void {
         );
     }
 }
+
+const core = 'packages/backend/src/database/migrations';
+
+test('isMigrationPath accepts a timestamped migration', () => {
+    assert.strictEqual(isMigrationPath(`${core}/20260810000000_add_column.ts`), true);
+    assert.strictEqual(isMigrationPath(`${core}/20260810000000_add_column.js`), true);
+});
+
+test('isMigrationPath rejects a test knex never loads', () => {
+    assert.strictEqual(
+        isMigrationPath(`${core}/__tests__/20260810000000_add_column.test.ts`),
+        false,
+    );
+    assert.strictEqual(isMigrationPath(`${core}/__tests__/helpers.ts`), false);
+});
+
+test('isMigrationPath keeps a timestamped file knex does load, whatever it is called', () => {
+    // Directly in the migration directory, so knex runs it. Skipping it would
+    // hide a file that breaks migrations in production.
+    assert.strictEqual(isMigrationPath(`${core}/20260810000000_add_column.test.ts`), true);
+    assert.strictEqual(isMigrationPath(`${core}/20260810000000_add_column.spec.ts`), true);
+});
+
+test('isMigrationPath rejects an untimestamped file', () => {
+    assert.strictEqual(isMigrationPath(`${core}/README.md`), false);
+    assert.strictEqual(isMigrationPath(`${core}/add_column.ts`), false);
+});
 
 test('analyzer reads core tables and forward heaviness only', () => {
     const result = analyzeMigrationSource(

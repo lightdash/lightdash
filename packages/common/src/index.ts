@@ -351,6 +351,7 @@ export * from './utils/dependencyGraph';
 export * from './utils/email';
 export * from './utils/exportTabs';
 export * from './utils/fields';
+export * from './utils/filterLabels';
 export * from './utils/filters';
 export * from './utils/formatting';
 export * from './utils/github';

@@ -157,6 +157,7 @@ describe('getFindContent', () => {
         expect(mockFindContent).toHaveBeenCalledWith({
             searchQuery: { label: 'marketing' },
             spaceSlug: 'company/marketing',
+            verifiedOnly: false,
         });
     });
 
@@ -320,6 +321,7 @@ describe('getFindContent', () => {
             totalResultCount: 2,
             verifiedResultCount: 1,
             topResultVerified: true,
+            verifiedOnly: false,
         });
     });
 
@@ -336,7 +338,77 @@ describe('getFindContent', () => {
             totalResultCount: 1,
             verifiedResultCount: 0,
             topResultVerified: false,
+            verifiedOnly: false,
         });
+    });
+
+    it('forwards verifiedOnly to the search and reports it in coverage', async () => {
+        const trackCoverage = vi.fn();
+        const { tool, mockFindContent } = createTool(
+            [makeMockDashboard(0)],
+            trackCoverage,
+        );
+        await executeFindContent(tool, {
+            searchQueries: [{ label: 'revenue' }],
+            spaceSlug: null,
+            verifiedOnly: true,
+        });
+
+        expect(mockFindContent).toHaveBeenCalledWith({
+            searchQuery: { label: 'revenue' },
+            spaceSlug: null,
+            verifiedOnly: true,
+        });
+        expect(trackCoverage).toHaveBeenCalledWith(
+            expect.objectContaining({ verifiedOnly: true }),
+        );
+    });
+
+    it('returns an empty result with guidance when a verified-only search has no matches', async () => {
+        const { tool, mockFindContent } = createTool([]);
+        const output = await executeFindContent(tool, {
+            searchQueries: [{ label: 'revenue' }],
+            spaceSlug: null,
+            verifiedOnly: true,
+        });
+
+        expect(output.metadata.status).toBe('success');
+        expect(mockFindContent).toHaveBeenCalledTimes(1);
+        expect(mockFindContent).toHaveBeenCalledWith({
+            searchQuery: { label: 'revenue' },
+            spaceSlug: null,
+            verifiedOnly: true,
+        });
+        expect(output.result).toContain(
+            'No verified content matched this query',
+        );
+        expect(output.result).not.toContain('<dashboard');
+    });
+
+    it('does not show the empty-result guidance when the verified-only search has matches', async () => {
+        const { tool, mockFindContent } = createTool([
+            makeMockDashboard(0, { verification: makeVerification() }),
+        ]);
+        const output = await executeFindContent(tool, {
+            searchQueries: [{ label: 'revenue' }],
+            spaceSlug: null,
+            verifiedOnly: true,
+        });
+
+        expect(mockFindContent).toHaveBeenCalledTimes(1);
+        expect(output.result).not.toContain('No verified content matched');
+        expect(output.result).toContain('<dashboard');
+    });
+
+    it('does not show the empty-result guidance on an empty unrestricted search', async () => {
+        const { tool } = createTool([]);
+        const output = await executeFindContent(tool, {
+            searchQueries: [{ label: 'revenue' }],
+            spaceSlug: null,
+        });
+
+        expect(output.metadata.status).toBe('success');
+        expect(output.result).not.toContain('No verified content matched');
     });
 });
 

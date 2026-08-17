@@ -36,6 +36,17 @@
         ON ("customers".customer_id) = ("orders".customer_id)
       GROUP BY 1,2,3
     ') %}
-    {{ log('Created external pre-aggregate matviews: orders_ext_daily_status_mv, orders_ext_daily_joined_mv', info=True) }}
+    {# count_distinct stored as a plain fieldId column (no components). #}
+    {% do run_query('drop materialized view if exists "' ~ target.schema ~ '"."orders_ext_daily_unique_mv"') %}
+    {% do run_query('
+      create materialized view "' ~ target.schema ~ '"."orders_ext_daily_unique_mv" as
+      SELECT
+        "orders".order_source AS "orders_order_source",
+        DATE_TRUNC(\'DAY\', "orders".order_date) AS "orders_order_date_day",
+        COUNT(DISTINCT ("orders".order_id)) AS "orders_unique_order_count"
+      FROM "' ~ target.schema ~ '"."orders" AS "orders"
+      GROUP BY 1,2
+    ') %}
+    {{ log('Created external pre-aggregate matviews: orders_ext_daily_status_mv, orders_ext_daily_joined_mv, orders_ext_daily_unique_mv', info=True) }}
   {% endif %}
 {% endmacro %}

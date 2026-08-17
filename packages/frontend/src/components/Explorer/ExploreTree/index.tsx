@@ -59,6 +59,8 @@ type ExploreTreeProps = {
     explore: Explore;
     onSelectedFieldChange: (fieldId: string, isDimension: boolean) => void;
     selection?: ExploreTreeSelection;
+    selectedFieldsOverride?: SelectedField[];
+    hideSelectedFields?: boolean;
 };
 
 type Records = Record<string, AdditionalMetric | Dimension | Metric>;
@@ -72,6 +74,8 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
     explore,
     onSelectedFieldChange,
     selection,
+    selectedFieldsOverride,
+    hideSelectedFields = false,
 }) => {
     const explorerAdditionalMetrics = useExplorerSelector(
         selectAdditionalMetrics,
@@ -328,10 +332,12 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
                 data-testid="ExploreTree/SearchInput"
             />
 
-            <SelectedFieldsSection
-                fields={selectedFields}
-                onDeselect={onSelectedFieldChange}
-            />
+            {!hideSelectedFields && (
+                <SelectedFieldsSection
+                    fields={selectedFieldsOverride ?? selectedFields}
+                    onDeselect={onSelectedFieldChange}
+                />
+            )}
 
             <VirtualizedTreeList
                 data={virtualizedTreeData}

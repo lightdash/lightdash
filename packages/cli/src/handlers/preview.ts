@@ -18,7 +18,7 @@ import { getDbtContext } from '../dbt/context';
 import GlobalState from '../globalState';
 import { CliProjectType, detectProjectType } from '../lightdash/projectType';
 import * as styles from '../styles';
-import { compile } from './compile';
+import { compileProject } from './compile';
 import { createProject } from './createProject';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
@@ -334,10 +334,11 @@ export const previewHandler = async (
         },
     });
     try {
-        const explores = await compile(options);
+        const { explores, isProjectComplete } = await compileProject(options);
         await deploy(explores, {
             ...options,
             projectUuid: project.projectUuid,
+            complete: isProjectComplete,
         });
 
         await setPreviewProject(project.projectUuid, name);
@@ -407,9 +408,11 @@ export const previewHandler = async (
                     watcher!.unwatch(manifestFilePath);
                     // Deploying will change manifest.json too, so we need to stop watching the file until it is deployed
                     if (project) {
-                        await deploy(await compile(options), {
+                        const compileResult = await compileProject(options);
+                        await deploy(compileResult.explores, {
                             ...options,
                             projectUuid: project.projectUuid,
+                            complete: compileResult.isProjectComplete,
                         });
                     }
 
@@ -519,10 +522,11 @@ export const startPreviewHandler = async (
                 options.disableTimestampConversion,
                 previewProject.projectUuid,
             );
-        const explores = await compile(options);
+        const { explores, isProjectComplete } = await compileProject(options);
         await deploy(explores, {
             ...options,
             projectUuid: previewProject.projectUuid,
+            complete: isProjectComplete,
         });
         const url = await projectUrl(previewProject);
         console.error(`Project updated on ${url}`);
@@ -611,10 +615,11 @@ export const startPreviewHandler = async (
             );
         }
 
-        const explores = await compile(options);
+        const { explores, isProjectComplete } = await compileProject(options);
         await deploy(explores, {
             ...options,
             projectUuid: project.projectUuid,
+            complete: isProjectComplete,
         });
         const url = await projectUrl(project);
 

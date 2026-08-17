@@ -1,0 +1,239 @@
+# Non-destructive Docker image build test (SPK-992).
+#
+# PURPOSE
+# Prove that a change to `dockerfile` produces the same image as main, without
+# going anywhere near the release path. Future dockerfile PRs download this
+# workflow's artifacts from a main run (baseline) and from their own run
+# (candidate) and diff them with scripts/ci/compare-image-builds.py.
+#
+# SAFETY PROPERTIES
+#   * `depot build` runs with neither `--push` nor `--tag`. Depot leaves the
+#     result in the remote builder cache and `--load` pulls it to the runner's
+#     local daemon. There is no registry credential in this workflow at all —
+#     no Docker Hub login, no GCP auth — so a push is not merely disabled, it
+#     is impossible.
+#     Depot does name the loaded image itself, as
+#     `depot-project-<project>:build-<buildID>`. That name has no registry host,
+#     is derived from a build id that exists only in Depot, and dies with the
+#     ephemeral runner. It is a handle for `docker inspect`/`docker export`
+#     here, never a publish target.
+#   * Every SENTRY_* build-arg is passed explicitly empty. All Sentry work in
+#     `dockerfile` sits behind `if [ -n "${SENTRY_AUTH_TOKEN}" ] && ...` guards
+#     and sentry-cli is only installed inside those guards, so no release is
+#     created, no sourcemap is uploaded, and no deploy is recorded.
+#   * No file on the release path is touched: not `dockerfile`, not
+#     `release.yml`, not `post-release.yml`.
+#   * `permissions: contents: read` only.
+#
+# WHY THE depot CLI RATHER THAN depot/build-push-action
+# The action gives no control over BuildKit progress output and writes no log
+# file, so per-stage timings and cache-hit counts cannot be recovered from it.
+# The CLI with `--progress plain` yields both. The build itself is equivalent to
+# the release build: same Depot project (bgbbt3d0kc), same DEPOT_PROJECT_TOKEN,
+# same platform, same dockerfile, same (absent) TURBO_TOKEN secret mount.
+#
+# VERIFICATION PROTOCOL — WHAT IS AND IS NOT AUTOMATED HERE
+#   Automated by this workflow (artifacts uploaded for diffing):
+#     1. Image config    — entrypoint, cmd, env, workdir, exposed ports,
+#                          labels, user, volumes. Gated: any diff fails.
+#     2. Filesystem      — every path with size, mode, uid/gid and content
+#                          sha256, sorted. Gated: any diff fails.
+#     3. Build timing    — per-stage seconds and BuildKit cache hit/miss
+#                          counts. Informational; never fails a comparison.
+#   Enforced elsewhere, already:
+#     4. DuckDB extension/ABI match — `dockerfile` asserts at build time that
+#        the bundled extensions match @duckdb/node-api, so drift fails here
+#        by failing the build.
+#   Still manual, deliberately out of scope for v1:
+#     5. dbt --version sweep across the nine pinned venvs (dbt1.4 .. dbt1.12).
+#     6. Offline DuckDB extension load check (no network in the container).
+#     7. Container boot + health endpoint.
+#   5-7 need a running container plus a database; adding them would turn this
+#   from a build-comparison harness into an integration environment. They are
+#   run by hand against the loaded image until a follow-up ticket automates
+#   them.
+
+name: Docker Build Test
+
+on:
+  pull_request:
+    paths:
+      - dockerfile
+      - docker/**
+      - scripts/ci/**
+      - .github/workflows/docker-build-test.yml
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-describe:
+    name: Build image (no push) and describe it
+    # Fork PRs cannot see DEPOT_PROJECT_TOKEN. Skip rather than fail red.
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: depot-ubuntu-24.04-8
+    timeout-minutes: 90
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Depot CLI
+        uses: depot/setup-action@15c09a5f77a0840ad4bce955686522a257853461 # v1
+
+      - name: Report free disk before build
+        run: df -h /
+
+      - name: Build image (no push, no tags)
+        id: build
+        env:
+          DEPOT_TOKEN: ${{ secrets.DEPOT_PROJECT_TOKEN }}
+        run: |
+          set -euo pipefail
+          start=$(date +%s)
+          depot build . \
+            --project bgbbt3d0kc \
+            --platform linux/amd64 \
+            --file dockerfile \
+            --progress plain \
+            --load \
+            --iidfile image-id.txt \
+            --metadata-file build-metadata.json \
+            --build-arg SENTRY_AUTH_TOKEN= \
+            --build-arg SENTRY_ORG= \
+            --build-arg SENTRY_RELEASE_VERSION= \
+            --build-arg SENTRY_FRONTEND_PROJECT= \
+            --build-arg SENTRY_BACKEND_PROJECT= \
+            --build-arg SENTRY_ENVIRONMENT= \
+            2>&1 | tee build.log
+          echo "wall_clock=$(( $(date +%s) - start ))" >> "$GITHUB_OUTPUT"
+
+      # We pass no --tag, but depot names the loaded image after its own build id
+      # (depot-project-<project>:build-<buildID>) and reports it as `image.name`.
+      # That local name is the only reliable handle: the digests in --iidfile and
+      # containerimage.digest identify the image BuildKit built, not the id the
+      # docker daemon assigns when it imports the tarball. Every candidate is
+      # probed rather than trusted, and the runner's preinstalled images mean
+      # "the only image in the daemon" is never a safe assumption.
+      - name: Resolve loaded image
+        id: image
+        run: |
+          set -euo pipefail
+          echo "--- depot metadata (imageConfigs elided) ---"
+          jq 'del(.imageConfigs)' build-metadata.json || true
+          echo "--- images in the local daemon ---"
+          docker images --all --no-trunc --format '{{.ID}} {{.Repository}}:{{.Tag}} {{.Size}}'
+
+          from_name="$(jq -r '."image.name" // empty' build-metadata.json 2>/dev/null || true)"
+          from_iidfile="$(tr -d '[:space:]' < image-id.txt 2>/dev/null || true)"
+          from_digests="$(jq -r '[."containerimage.config.digest", ."containerimage.digest"] | map(select(type == "string")) | join(" ")' build-metadata.json 2>/dev/null || true)"
+          from_repo="$(docker images --no-trunc --format '{{.Repository}}:{{.Tag}}' --filter 'reference=depot-project-*' | head -n 1)"
+
+          image_ref=""
+          for candidate in "$from_name" "$from_iidfile" $from_digests "$from_repo"; do
+            if [ -n "$candidate" ] && docker image inspect "$candidate" > /dev/null 2>&1; then
+              image_ref="$candidate"
+              break
+            fi
+          done
+
+          if [ -z "$image_ref" ]; then
+            echo "could not resolve the loaded image from metadata, iidfile or daemon" >&2
+            exit 1
+          fi
+          echo "resolved image: $image_ref"
+          echo "ref=$image_ref" >> "$GITHUB_OUTPUT"
+
+      - name: Collect image config
+        env:
+          IMAGE_REF: ${{ steps.image.outputs.ref }}
+        run: |
+          set -euo pipefail
+          mkdir -p image-artifacts
+          docker image inspect "$IMAGE_REF" \
+            | python3 scripts/ci/image-artifacts.py config --output image-artifacts/image-config.json
+          cat image-artifacts/image-config.json
+
+      - name: Collect filesystem manifest
+        env:
+          IMAGE_REF: ${{ steps.image.outputs.ref }}
+        run: |
+          set -euo pipefail
+          container="$(docker create "$IMAGE_REF")"
+          trap 'docker rm -f "$container" > /dev/null 2>&1 || true' EXIT
+          # Streamed straight into the hasher: a multi-GB export never lands on disk.
+          docker export "$container" \
+            | python3 scripts/ci/image-artifacts.py manifest \
+                --output image-artifacts/fs-manifest.tsv.gz \
+                --summary image-artifacts/fs-summary.json
+
+      - name: Parse build log for timings and cache stats
+        env:
+          WALL_CLOCK: ${{ steps.build.outputs.wall_clock }}
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/image-artifacts.py buildlog \
+            --log build.log \
+            --wall-clock "$WALL_CLOCK" \
+            --output image-artifacts/build-timing.json
+          gzip -c build.log > image-artifacts/build.log.gz
+
+      - name: Record build identity
+        env:
+          IMAGE_REF: ${{ steps.image.outputs.ref }}
+          WALL_CLOCK: ${{ steps.build.outputs.wall_clock }}
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg sha "$GITHUB_SHA" \
+            --arg ref "$GITHUB_REF_NAME" \
+            --arg run_id "$GITHUB_RUN_ID" \
+            --arg image_ref "$IMAGE_REF" \
+            --argjson wall_clock "$WALL_CLOCK" \
+            '{sha: $sha, ref: $ref, run_id: $run_id, image_ref: $image_ref, wall_clock_seconds: $wall_clock}' \
+            > image-artifacts/build-info.json
+          cp build-metadata.json image-artifacts/build-metadata.json
+
+      - name: Job summary
+        run: |
+          set -euo pipefail
+          {
+            echo "## Docker build test"
+            echo
+            echo "Built \`dockerfile\` with \`push: false\` and empty SENTRY_* build-args. Nothing was tagged or pushed."
+            echo
+            jq -r '
+              "| metric | value |",
+              "| --- | --- |",
+              "| wall clock (s) | \(.wall_clock_seconds) |",
+              "| steps | \(.totals.steps) |",
+              "| cache hits | \(.totals.cache_hits) |",
+              "| cache misses | \(.totals.cache_misses) |",
+              "| cache hit ratio | \(.totals.cache_hit_ratio) |"
+            ' image-artifacts/build-timing.json
+            echo
+            echo "### Slowest stages"
+            echo
+            echo "| stage | seconds | steps | cached |"
+            echo "| --- | --- | --- | --- |"
+            jq -r '.per_stage | to_entries | .[:12][] | "| \(.key) | \(.value.seconds) | \(.value.steps) | \(.value.cached) |"' \
+              image-artifacts/build-timing.json
+            echo
+            jq -r '"Filesystem: \(.entries) entries, \(.total_file_bytes) bytes of file content."' \
+              image-artifacts/fs-summary.json
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: docker-image-artifacts-${{ github.run_id }}
+          path: image-artifacts/
+          retention-days: 30

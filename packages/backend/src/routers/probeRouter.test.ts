@@ -93,14 +93,20 @@ describe('probeRouter', () => {
     it('maps ready verdicts to 200 responses', async () => {
         const app = express();
         const getReadiness = vi.fn(
-            async (): Promise<ReadinessResult> => ({ status: 'ready' }),
+            async (): Promise<ReadinessResult> => ({
+                status: 'ready',
+                warnings: ['migration_parked'],
+            }),
         );
         app.use('/api/v1', createProbeRouter({ getReadiness }));
         const { server, baseUrl } = await listen(app);
 
         try {
             const response = await get(`${baseUrl}/api/v1/readyz`);
-            expect(JSON.parse(response.body)).toEqual({ status: 'ready' });
+            expect(JSON.parse(response.body)).toEqual({
+                status: 'ready',
+                warnings: ['migration_parked'],
+            });
             expect(response.statusCode).toBe(200);
         } finally {
             await close(server);

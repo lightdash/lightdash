@@ -20,6 +20,12 @@ const MAX_FILTER_VALUE_WIDTH = 250;
 type Props = {
     item: FilterableField;
     value: ResultValue;
+    onAddFilter?: (
+        item: FilterableField,
+        value: unknown,
+        timezone: string | undefined,
+        operator: QuickFilterOperator,
+    ) => void;
 };
 
 /**
@@ -27,8 +33,8 @@ type Props = {
  * Requires the explorer store (useFilters) — only render when the
  * visualization is in edit mode with an explorer store available.
  */
-const QuickFilterMenuItems: FC<Props> = ({ item, value }) => {
-    const { addFilter } = useFilters();
+const QuickFilterMenuItems: FC<Props> = ({ item, value, onAddFilter }) => {
+    const { addFilter: defaultAddFilter } = useFilters();
     const { resolvedTimezone } = useMetricQueryDataContext();
     const { track } = useTracking();
 
@@ -44,9 +50,14 @@ const QuickFilterMenuItems: FC<Props> = ({ item, value }) => {
                     ? null // Set as null if value is invalid date or undefined
                     : value.raw;
 
-            addFilter(item, filterValue, resolvedTimezone, operator);
+            (onAddFilter ?? defaultAddFilter)(
+                item,
+                filterValue,
+                resolvedTimezone,
+                operator,
+            );
         },
-        [track, addFilter, item, value, resolvedTimezone],
+        [track, onAddFilter, defaultAddFilter, item, value, resolvedTimezone],
     );
 
     return (

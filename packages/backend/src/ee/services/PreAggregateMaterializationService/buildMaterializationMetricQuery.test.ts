@@ -249,6 +249,18 @@ const getSourceExplore = (): Explore =>
                         compiledSql: 'SUM("orders".amount)',
                         tablesReferences: ['orders'],
                     },
+                    distinct_customer_count: {
+                        fieldType: FieldType.METRIC,
+                        type: MetricType.COUNT_DISTINCT,
+                        name: 'distinct_customer_count',
+                        label: 'Distinct customer count',
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        sql: '${TABLE}.customer_id',
+                        hidden: false,
+                        compiledSql: 'COUNT(DISTINCT "orders".customer_id)',
+                        tablesReferences: ['orders'],
+                    },
                 },
                 lineageGraph: {},
             },
@@ -624,6 +636,33 @@ describe('buildMaterializationMetricQuery', () => {
             ],
         });
         expect(result.timeDimensionFieldId).toBeNull();
+    });
+
+    it('stores exact-only metrics as single plain value columns', () => {
+        const preAggregateDef: PreAggregateDef = {
+            name: 'orders_rollup',
+            dimensions: ['status'],
+            metrics: ['distinct_customer_count'],
+        };
+
+        const result = buildMaterializationMetricQuery({
+            sourceExplore: getSourceExplore(),
+            preAggregateDef,
+            materializationConfig: { maxRows: null },
+        });
+
+        expect(result.metricQuery.metrics).toEqual([
+            'orders_distinct_customer_count',
+        ]);
+        expect(result.metricQuery.additionalMetrics).toBeUndefined();
+        expect(result.metricComponents).toEqual({
+            orders_distinct_customer_count: [
+                {
+                    componentFieldId: 'orders_distinct_customer_count',
+                    aggregation: MetricType.MAX,
+                },
+            ],
+        });
     });
 
     it('emits pre-aggregate filters into materialization dimension filters', () => {
@@ -1100,6 +1139,44 @@ describe('renderMaterializationSql', () => {
                 granularity: null,
                 aggregation: MetricType.COUNT,
                 parentMetricFieldId: 'orders_avg_order_amount',
+            },
+        ]);
+    });
+
+    it('includes exact-only metrics as single metric columns in the column contract', () => {
+        const sourceExplore = getSourceExplore();
+        const preAggregateDef: PreAggregateDef = {
+            name: 'orders_rollup',
+            dimensions: ['status'],
+            metrics: ['distinct_customer_count'],
+        };
+
+        const { sql, columns } =
+            preAggregateMaterialization.renderMaterializationSql({
+                sourceExplore,
+                preAggregateDef,
+                warehouseSqlBuilder: warehouseSqlBuilderFromType(
+                    SupportedDbtAdapter.POSTGRES,
+                ),
+            });
+
+        expect(normalizeSql(sql)).toContain(
+            'COUNT(DISTINCT "orders".customer_id) AS "orders_distinct_customer_count"',
+        );
+        expect(columns).toEqual([
+            {
+                name: 'orders_status',
+                role: 'dimension',
+                granularity: null,
+                aggregation: null,
+                parentMetricFieldId: null,
+            },
+            {
+                name: 'orders_distinct_customer_count',
+                role: 'metric',
+                granularity: null,
+                aggregation: MetricType.COUNT_DISTINCT,
+                parentMetricFieldId: null,
             },
         ]);
     });

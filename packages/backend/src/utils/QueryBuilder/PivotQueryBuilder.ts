@@ -29,6 +29,7 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
+import { prepareSqlForWrapping } from './sqlScript';
 import {
     applyLimitToSqlQuery,
     sortDayOfWeekName,
@@ -48,6 +49,13 @@ const DEFAULT_PIVOT_ROW_LIMIT = 500;
  */
 export class PivotQueryBuilder {
     private readonly sql: string;
+
+    /**
+     * Leading scripting statements (e.g. BigQuery `DECLARE`/`SET`) lifted out of
+     * the user's SQL, so the rest can be wrapped in a CTE. Emitted above the
+     * generated query, where the declared variables stay in scope.
+     */
+    private readonly scriptPrelude: string | null;
 
     private readonly pivotConfiguration: PivotConfiguration;
 
@@ -81,7 +89,9 @@ export class PivotQueryBuilder {
         limit?: number,
         itemsMap?: ItemsMap,
     ) {
-        this.sql = sql;
+        const script = prepareSqlForWrapping(sql);
+        this.sql = script.sql;
+        this.scriptPrelude = script.prelude;
         this.pivotConfiguration = pivotConfiguration;
         this.limit = limit;
         this.warehouseSqlBuilder = warehouseSqlBuilder;
@@ -2222,6 +2232,8 @@ export class PivotQueryBuilder {
             finalSql = this.getSimpleQuerySQL(baseSql, groupByQuery, sortBy);
         }
 
-        return finalSql;
+        return this.scriptPrelude
+            ? `${this.scriptPrelude}\n${finalSql}`
+            : finalSql;
     }
 }

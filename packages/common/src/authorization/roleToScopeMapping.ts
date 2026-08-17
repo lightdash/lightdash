@@ -130,6 +130,8 @@ const BASE_ROLE_SCOPES = {
         'manage:SavedChart@self',
         'manage:Space@self',
         'manage:Explore@self',
+        'create:DataApp@preview',
+        'manage:DataApp@preview',
         'view:JobStatus', // All jobs in project
         'view:SourceCode',
         'manage:SourceCode',
@@ -278,6 +280,8 @@ export const getNonEnterpriseScopesForRole = (
         'manage:DataApp',
         'manage:DataApp@space',
         'create:DataApp',
+        'create:DataApp@preview',
+        'manage:DataApp@preview',
         'view:DataApp@self',
         'manage:DataApp@self',
         'view:ExternalConnection',

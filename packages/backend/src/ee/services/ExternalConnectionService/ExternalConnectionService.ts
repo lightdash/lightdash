@@ -14,6 +14,7 @@ import {
     type CreateExternalConnection,
     type ExternalConnection,
     type ExternalConnectionConfigProposal,
+    type ExternalConnectionListItem,
     type ExternalConnectionMethod,
     type ExternalConnectionSample,
     type ExternalConnectionSampleRequest,
@@ -41,6 +42,7 @@ import { type OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolve
 import {
     assertCanViewApp,
     assertCanViewEmbeddedApp,
+    type DataAppProjectContext,
 } from '../AppGenerateService/appAuthz';
 import { getExternalConnectionSubject } from './externalConnectionAuthz';
 import {
@@ -128,6 +130,19 @@ export class ExternalConnectionService extends BaseService {
         }
     }
 
+    private async getDataAppProjectContext(
+        projectUuid: string,
+    ): Promise<DataAppProjectContext> {
+        const context =
+            await this.externalConnectionModel.findProjectAbilityContext(
+                projectUuid,
+            );
+        if (!context) {
+            throw new NotFoundError('Project not found');
+        }
+        return { ...context, projectUuid };
+    }
+
     /**
      * Loads the app row and asserts the caller can `manage` the DataApp,
      * mirroring AppGenerateService's assertCanManageApp pattern (space
@@ -154,14 +169,16 @@ export class ExternalConnectionService extends BaseService {
                   app.space_uuid,
               )
             : {};
+        const projectContext = await this.getDataAppProjectContext(
+            app.project_uuid,
+        );
 
         const ability = this.createAuditedAbility(account);
         if (
             ability.cannot(
                 'manage',
                 subject('DataApp', {
-                    organizationUuid: app.organization_uuid,
-                    projectUuid: app.project_uuid,
+                    ...projectContext,
                     createdByUserUuid: app.created_by_user_uuid,
                     ...spaceContext,
                 }),
@@ -219,7 +236,7 @@ export class ExternalConnectionService extends BaseService {
     async list(
         account: RegisteredAccount,
         projectUuid: string,
-    ): Promise<ExternalConnection[]> {
+    ): Promise<ExternalConnectionListItem[]> {
         // Derive the org from the project, not the caller, and filter by both,
         // so an org admin cannot list another org's project's connections.
         const organizationUuid =
@@ -611,6 +628,8 @@ export class ExternalConnectionService extends BaseService {
                             userUuid,
                             spaceUuid,
                         ),
+                    getProjectContext: (appProjectUuid) =>
+                        this.getDataAppProjectContext(appProjectUuid),
                 },
                 user,
                 app,

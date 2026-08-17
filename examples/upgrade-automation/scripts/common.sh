@@ -105,7 +105,7 @@ validate_verdict_json() {
         (.fromVersion | type == "string") and
         (.toVersion | type == "string") and
         (.safe | type == "boolean") and
-        (.verdict | type == "boolean") and
+        (.verdict | type == "boolean" or . == "unknown") and
         (.requiredStops | type == "array") and
         all(.requiredStops[]; type == "string" and test("^[0-9]+\\.[0-9]+\\.[0-9]+$")) and
         (.coveredVersions | type == "array") and

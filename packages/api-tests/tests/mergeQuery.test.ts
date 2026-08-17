@@ -1,4 +1,8 @@
-import { SEED_PROJECT } from '@lightdash/common';
+import {
+    QueryExecutionContext,
+    SEED_PROJECT,
+    type ApiExecuteAsyncMergeQueryResults,
+} from '@lightdash/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiClient, Body } from '../helpers/api-client';
 import { login } from '../helpers/auth';
@@ -123,16 +127,24 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
         expect(resp.body.results.coreSql).not.toMatch(/ORDER BY/i);
     });
 
-    it('runs a merge as one statement and pages joined rows back', async () => {
-        const runResp = await admin.post<Body<{ queryUuid: string }>>(
-            `/api/v1/projects/${projectUuid}/mergeQuery/run`,
-            { mergeQuery },
-        );
+    it('runs a merge through one v2 request and pages joined rows back', async () => {
+        const runResp = await admin.post<
+            Body<ApiExecuteAsyncMergeQueryResults>
+        >(`/api/v2/projects/${projectUuid}/query/merge-query`, {
+            mergeQuery,
+            context: QueryExecutionContext.EXPLORE,
+        });
         expect(runResp.status).toBe(200);
+        expect(runResp.body.results.outcome).toBe('started');
+        if (runResp.body.results.outcome !== 'started') {
+            throw new Error(
+                `Merge was refused: ${JSON.stringify(runResp.body.results.errors)}`,
+            );
+        }
 
         const results = await pollQueryResults(
             admin,
-            runResp.body.results.queryUuid,
+            runResp.body.results.query.queryUuid,
         );
 
         expect(results.totalResults).toBeGreaterThan(0);

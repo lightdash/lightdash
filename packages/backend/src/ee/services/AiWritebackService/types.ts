@@ -116,6 +116,7 @@ export type SetStage = (stage: AiWritebackFailureStage) => void;
  */
 export type CodingAgentSetup = {
     systemPrompt: string;
+    repoContext: RepoContext | null;
     /** Claude Code `--allowedTools` string for this mode. */
     allowedTools: string;
     /**
@@ -257,6 +258,28 @@ export type AgentToolCall = {
 };
 
 /**
+ * The repo file listing handed to the agent in its system prompt.
+ *
+ * `full` is the complete sorted listing — the agent is told to treat it as the
+ * index and not re-discover paths. `summarised` is a directory-level digest
+ * emitted when the full listing is too large to inject: on a big dbt project
+ * the listing alone can exceed the model's context window, which fails the run
+ * before any work happens. In that case the agent is pointed at `Glob`/`Grep`
+ * instead, which costs turns but actually completes.
+ */
+export type RepoContext =
+    | { kind: 'full'; listing: string }
+    | {
+          kind: 'summarised';
+          /** Directory-level digest, one `path/ (N files)` line per directory. */
+          listing: string;
+          /** Number of files in the full listing this was derived from. */
+          fileCount: number;
+          /** Size of the full listing in bytes, for logging. */
+          bytes: number;
+      };
+
+/**
  * The meaningful shapes of a Claude Code stream-json line. Everything the host
  * reacts to (assistant text, tool calls, the final cost summary) is one of
  * these; every other event type collapses to `ignored`.
@@ -267,6 +290,18 @@ export type AgentStreamEvent =
           type: 'result';
           /** Total agent wall-clock (ms) as reported by Claude Code. */
           durationMs: number | null;
+          /**
+           * Whether the CLI classified its own run as failed. When `claude -p`
+           * exits non-zero this is the only machine-readable statement of why —
+           * the subprocess writes nothing to stderr in that case.
+           */
+          isError: boolean | null;
+          /**
+           * The CLI's result classification: `success`, `error_max_turns`,
+           * `error_during_execution`, … Retained verbatim rather than mapped to
+           * an enum so a new upstream subtype reaches the logs unchanged.
+           */
+          subtype: string | null;
       } & AiWritebackUsage)
     | { type: 'ignored' };
 

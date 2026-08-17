@@ -14,6 +14,7 @@
 .panel {
     flex: 1;
     padding-top: var(--mantine-spacing-md);
+    padding-bottom: var(--mantine-spacing-4xl);
 }
 
 .content {

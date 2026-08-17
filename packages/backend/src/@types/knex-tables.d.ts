@@ -144,6 +144,10 @@ import {
     OrganizationEmailDomainsTableName,
 } from '../database/entities/organizationEmailDomains';
 import {
+    OrganizationMembershipCustomRolesTable,
+    OrganizationMembershipCustomRolesTableName,
+} from '../database/entities/organizationMembershipCustomRoles';
+import {
     OrganizationMembershipsTable,
     OrganizationMembershipsTableName,
 } from '../database/entities/organizationMemberships';
@@ -206,6 +210,14 @@ import {
     ProjectGroupAccessTableName,
 } from '../database/entities/projectGroupAccess';
 import {
+    ProjectGroupAccessCustomRolesTable,
+    ProjectGroupAccessCustomRolesTableName,
+} from '../database/entities/projectGroupAccessCustomRoles';
+import {
+    ProjectMembershipCustomRolesTable,
+    ProjectMembershipCustomRolesTableName,
+} from '../database/entities/projectMembershipCustomRoles';
+import {
     ProjectMembershipsTable,
     ProjectMembershipsTableName,
 } from '../database/entities/projectMemberships';
@@ -255,6 +267,10 @@ import {
     SavedChartVersionsTable,
     SavedChartVersionsTableName,
 } from '../database/entities/savedCharts';
+import {
+    SavedChartSlugMappingsTableName,
+    SavedChartSlugMappingTable,
+} from '../database/entities/savedChartSlugMappings';
 import {
     SavedSqlTable,
     SavedSqlTableName,
@@ -549,6 +565,7 @@ declare module 'knex/types/tables' {
         [ProjectTableName]: ProjectTable;
         [ProjectDbtSourcesTableName]: ProjectDbtSourcesTable;
         [SavedChartsTableName]: SavedChartTable;
+        [SavedChartSlugMappingsTableName]: SavedChartSlugMappingTable;
         [SavedChartVersionsTableName]: SavedChartVersionsTable;
         [SavedChartVersionFieldsTableName]: SavedChartVersionFieldsTable;
         [SavedChartVersionSortsTableName]: SavedChartVersionSortsTable;
@@ -570,6 +587,7 @@ declare module 'knex/types/tables' {
         [OnboardingTableName]: OnboardingTable;
         [OpenIdIdentitiesTableName]: OpenIdIdentitiesTable;
         [OrganizationMembershipsTableName]: OrganizationMembershipsTable;
+        [OrganizationMembershipCustomRolesTableName]: OrganizationMembershipCustomRolesTable;
         [PasswordResetTableName]: PasswordResetTable;
         [PasswordLoginTableName]: PasswordLoginTable;
         [CachedExploresTableName]: CachedExploresTable;
@@ -579,7 +597,9 @@ declare module 'knex/types/tables' {
         [JobStepsTableName]: JobStepsTable;
         [PersonalAccessTokenTableName]: PersonalAccessTokenTable;
         [ProjectMembershipsTableName]: ProjectMembershipsTable;
+        [ProjectMembershipCustomRolesTableName]: ProjectMembershipCustomRolesTable;
         [ProjectGroupAccessTableName]: ProjectGroupAccessTable;
+        [ProjectGroupAccessCustomRolesTableName]: ProjectGroupAccessCustomRolesTable;
         [ShareTableName]: ShareTable;
         [SpaceUserAccessTableName]: SpaceUserAccessTable;
         [SlackAuthTokensTableName]: SlackAuthTokensTable;

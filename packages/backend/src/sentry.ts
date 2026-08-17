@@ -9,16 +9,7 @@ import {
 import { otelTracingEnabled } from './tracing/tracing';
 import { VERSION } from './version';
 
-const spotlightEnabled =
-    process.env.NODE_ENV === 'development' && !!process.env.SENTRY_SPOTLIGHT;
-
-// Use a dummy DSN when Spotlight is enabled but no real DSN is configured.
-// This allows Sentry to initialize and send events to Spotlight locally.
-const SPOTLIGHT_DUMMY_DSN = 'https://0@o0.ingest.sentry.io/0';
-
-const sentryDsn =
-    lightdashConfig.sentry.backend.dsn ||
-    (spotlightEnabled ? SPOTLIGHT_DUMMY_DSN : '');
+const sentryDsn = lightdashConfig.sentry.backend.dsn;
 
 // Register the global OTel MeterProvider before Sentry.init() so the http
 // instrumentation emits http.server.request.duration into it. Register our own
@@ -118,10 +109,6 @@ const anrIntegrations = lightdashConfig.sentry.anr.enabled
     : [];
 
 const tracesSampler: NodeOptions['tracesSampler'] = (context) => {
-    if (spotlightEnabled) {
-        return 1.0;
-    }
-
     const request = context.normalizedRequest;
     if (
         request?.url?.endsWith('/status') ||
@@ -182,12 +169,12 @@ Sentry.init({
             : lightdashConfig.mode,
     skipOpenTelemetrySetup: otelTracingEnabled(),
     registerEsmLoaderHooks: !otelTracingEnabled(),
-    spotlight: spotlightEnabled,
     /**
-     * OTel mode (LIGHTDASH_OTEL_TRACES_ENABLED): Sentry is errors-only — span
-     * integrations are stripped and no sampler/profiler is configured; traces
-     * are owned by the OTel SDK (see tracing.ts). Otherwise Sentry tracing
-     * behaves as it always has (self-hosted, local Spotlight).
+     * OTel mode (LIGHTDASH_OTEL_TRACES_ENABLED — Lightdash Cloud, and local dev
+     * exporting to Maple): Sentry is errors-only — span integrations are
+     * stripped and no sampler/profiler is configured; traces are owned by the
+     * OTel SDK (see tracing.ts). Otherwise Sentry tracing behaves as it always
+     * has (self-hosted).
      * @ref https://docs.sentry.io/platforms/javascript/guides/node/configuration/integrations/
      */
     integrations: otelTracingEnabled()

@@ -3,30 +3,34 @@ import {
     type Filters,
     type ItemsMap,
     type MergeJoinType,
+    type MergeFieldOrigins,
     type MergeQuery,
     type MergeQueryError,
     type MetricQuery,
     type ParametersValuesMap,
+    type SavedChartDAO,
 } from '@lightdash/common';
 import { createContext } from 'react';
 import { type InfiniteQueryResults } from '../../../hooks/useQueryResults';
 
-/** Which query the field picker is currently editing. */
-export type MergeFocus = 'a' | 'b';
-
-export type MergeQueryBState = {
+export type MergeEditorSource = {
+    id: string;
     exploreName: string | null;
     dimensions: string[];
     metrics: string[];
+    filters: Filters;
     /** Keep saved-query-only fields intact while the merge is edited. */
     additionalMetrics?: MetricQuery['additionalMetrics'];
     customDimensions?: MetricQuery['customDimensions'];
 };
 
-/** One part of the join key: the field each query contributes. */
+export type MergeFocus =
+    | { kind: 'source'; sourceId: string }
+    | { kind: 'join' };
+
+/** One part of the join key: the field each source contributes. */
 export type MergeJoinPart = {
-    fieldA: string | null;
-    fieldB: string | null;
+    fieldIdBySourceId: Record<string, string | null>;
 };
 
 /**
@@ -42,11 +46,12 @@ export type MergeResults = {
     metricQuery: MetricQuery;
     /** Field ids in the order the merged statement returns them. */
     columnOrder: string[];
+    fieldOrigins: MergeFieldOrigins;
     results: InfiniteQueryResults;
 };
 
 export type MergeContextValue = {
-    /** True once a second query has been added. */
+    /** True once another source has been added to the chart query. */
     isMerging: boolean;
     /** A saved chart in view mode shows its merge; it does not edit it. */
     readOnly: boolean;
@@ -56,35 +61,47 @@ export type MergeContextValue = {
      */
     wasRestored: boolean;
     /** Runs a merge, replacing any run already on screen. */
-    run: (mergeQuery: MergeQuery, parameters?: ParametersValuesMap) => void;
+    run: (
+        mergeQuery: MergeQuery,
+        parameters?: ParametersValuesMap,
+        savedChart?: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>,
+    ) => void;
+    getDownloadQueryUuid: (
+        limit: number | null,
+        exportPivotedResults?: boolean,
+    ) => Promise<string>;
     isRunning: boolean;
     /** Why a merge was refused. Empty when it compiled. */
     runErrors: MergeQueryError[];
     /** Transport or server failure of the last run, if any. */
     runError: ApiError | null;
+    /** User parameters referenced by either source query. */
+    parameterReferences: string[];
     /** The merged run, or null when none has succeeded yet. */
     mergeResults: MergeResults | null;
     focus: MergeFocus;
-    queryB: MergeQueryBState;
-    /** Query B's own filters, pushed down into that side's compile. */
-    filtersB: Filters;
+    /** Sources owned by the merge; the chart-owned source stays in Explorer. */
+    additionalSources: MergeEditorSource[];
     joinParts: MergeJoinPart[];
     joinType: MergeJoinType;
-    /** Index of the join key part spread into columns after the join, or null. */
-    addQuery: () => void;
-    removeQuery: () => void;
+    addSource: (sourceId: string, initialFocus?: MergeFocus) => void;
+    removeSource: (sourceId: string) => void;
     setFocus: (focus: MergeFocus) => void;
-    setExploreB: (exploreName: string | null) => void;
-    toggleFieldB: (fieldId: string, isDimension: boolean) => void;
+    setSourceExplore: (sourceId: string, exploreName: string | null) => void;
+    toggleSourceField: (
+        sourceId: string,
+        fieldId: string,
+        isDimension: boolean,
+    ) => void;
     setJoinField: (
         index: number,
-        side: 'fieldA' | 'fieldB',
+        sourceId: string,
         fieldId: string | null,
     ) => void;
     addJoinPart: () => void;
     removeJoinPart: (index: number) => void;
     setJoinType: (joinType: MergeJoinType) => void;
-    setFiltersB: (filters: Filters) => void;
+    setSourceFilters: (sourceId: string, filters: Filters) => void;
 };
 
 export const MergeContext = createContext<MergeContextValue | undefined>(

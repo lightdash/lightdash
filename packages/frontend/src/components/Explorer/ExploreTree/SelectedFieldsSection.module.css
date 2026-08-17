@@ -105,6 +105,9 @@
     font-weight: 500;
     color: var(--mantine-color-ldGray-6);
     user-select: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 @keyframes row-enter {

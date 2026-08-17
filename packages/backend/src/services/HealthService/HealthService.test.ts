@@ -6,6 +6,7 @@ import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { LicenseService } from '../LicenseService/LicenseService';
+import type { ReadinessResult } from '../ReadinessService/ReadinessService';
 import { HealthService } from './HealthService';
 import { BaseResponse, userMock } from './HealthService.mock';
 
@@ -219,6 +220,31 @@ describe('health', () => {
                 requiresMigration: true,
             });
         });
+    });
+
+    it('reports a parked migration warning', async () => {
+        const getReadiness = vi.fn(
+            async (): Promise<ReadinessResult> => ({
+                status: 'ready',
+                warnings: ['migration_parked'],
+            }),
+        );
+        const service = new HealthService({
+            organizationModel:
+                organizationModel as unknown as OrganizationModel,
+            lightdashConfig: lightdashConfigMock,
+            licenseService,
+            migrationModel: migrationModel as unknown as MigrationModel,
+            organizationSettingsModel:
+                organizationSettingsModel as unknown as OrganizationSettingsModel,
+            readinessService: { getReadiness },
+        });
+
+        await expect(service.getHealthState(undefined)).resolves.toEqual({
+            ...BaseResponse,
+            migrationWarnings: ['migration_parked'],
+        });
+        expect(vi.mocked(getReadiness)).toHaveBeenCalledOnce();
     });
 
     describe('getPylonVerificationHash', () => {
