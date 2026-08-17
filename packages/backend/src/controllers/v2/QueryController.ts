@@ -199,9 +199,7 @@ export class QueryController extends BaseController {
                 invalidateCache: body.invalidateCache,
                 parameters: body.parameters,
                 mode: body.mode ?? { type: 'interactive' },
-                presentation: body.chart
-                    ? { type: 'chart', ...body.chart }
-                    : undefined,
+                chart: body.chart,
             });
 
         return { status: 'ok', results };

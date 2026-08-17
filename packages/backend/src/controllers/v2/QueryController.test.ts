@@ -49,7 +49,7 @@ describe('QueryController', () => {
                 mergeQuery: body.mergeQuery,
                 context: QueryExecutionContext.EXPLORE,
                 mode: body.mode,
-                presentation: { type: 'chart', ...body.chart },
+                chart: body.chart,
             }),
         );
     });

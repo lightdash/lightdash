@@ -594,7 +594,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         this.setStatus(200);
         const result = await this.services
             .getAsyncQueryService()
-            .executeAsyncMergeQuery({
+            .executeLegacyAsyncMergeQuery({
                 account: req.account!,
                 projectUuid,
                 mergeQuery: body.mergeQuery,
@@ -603,12 +603,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
                     body.csvLimit === undefined
                         ? { type: 'interactive' }
                         : { type: 'export', limit: body.csvLimit },
-                presentation: body.pivotConfiguration
-                    ? {
-                          type: 'resolvedPivot',
-                          configuration: body.pivotConfiguration,
-                      }
-                    : undefined,
+                pivotConfiguration: body.pivotConfiguration,
                 context:
                     getContextFromHeader(req) ?? QueryExecutionContext.EXPLORE,
             });

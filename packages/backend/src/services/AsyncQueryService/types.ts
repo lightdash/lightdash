@@ -177,9 +177,7 @@ export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
 export type ExecuteAsyncMergeQueryArgs = CommonAsyncQueryArgs & {
     mergeQuery: MergeQuery;
     mode: MergeQueryExecutionMode;
-    presentation?:
-        | ({ type: 'chart' } & MergeQueryChart)
-        | { type: 'resolvedPivot'; configuration: PivotConfiguration };
+    chart?: MergeQueryChart;
 };
 
 export type ExecuteAsyncDashboardSqlChartCommonArgs = CommonAsyncQueryArgs & {

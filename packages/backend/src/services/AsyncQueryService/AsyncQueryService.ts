@@ -115,6 +115,7 @@ import {
     type ExecuteAsyncQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
+    type MergeQueryChart,
     type Organization,
     type ParameterDefinitions,
     type ParametersValuesMap,
@@ -261,11 +262,20 @@ const isRunnableCompiledMergeQuery = (
 
 type ExecuteCompiledAsyncMergeQueryArgs = Omit<
     ExecuteAsyncMergeQueryArgs,
-    'mode' | 'presentation'
+    'mode' | 'chart'
 > & {
     organizationUuid: string;
     compiledMerge: RunnableCompiledMergeQuery;
     pivotConfiguration?: PivotConfiguration;
+};
+
+type ExecuteMergeQueryInternalArgs = Omit<
+    ExecuteAsyncMergeQueryArgs,
+    'chart'
+> & {
+    pivotInput?:
+        | { type: 'chart'; chart: MergeQueryChart }
+        | { type: 'resolved'; configuration: PivotConfiguration };
 };
 
 // NULL pivot keys collide with the unsuffixed base column when joined
@@ -5191,9 +5201,8 @@ export class AsyncQueryService extends ProjectService {
                     limit === undefined
                         ? { type: 'interactive' }
                         : { type: 'export', limit },
-                presentation: pivotResults
+                chart: pivotResults
                     ? {
-                          type: 'chart',
                           chartConfig: savedChart.chartConfig,
                           pivotConfig: savedChart.pivotConfig,
                       }
@@ -6268,7 +6277,32 @@ export class AsyncQueryService extends ProjectService {
      * errors to the source that caused them. A valid compilation is passed
      * into execution and never repeated.
      */
-    async executeAsyncMergeQuery({
+    async executeAsyncMergeQuery(
+        args: ExecuteAsyncMergeQueryArgs,
+    ): Promise<ApiExecuteAsyncMergeQueryResults> {
+        const { chart, ...execution } = args;
+        return this.executeAsyncMergeQueryInternal({
+            ...execution,
+            pivotInput: chart ? { type: 'chart', chart } : undefined,
+        });
+    }
+
+    /** Compatibility seam for the v1 endpoint's already-derived pivot. */
+    async executeLegacyAsyncMergeQuery({
+        pivotConfiguration,
+        ...execution
+    }: Omit<ExecuteAsyncMergeQueryArgs, 'chart'> & {
+        pivotConfiguration?: PivotConfiguration;
+    }): Promise<ApiExecuteAsyncMergeQueryResults> {
+        return this.executeAsyncMergeQueryInternal({
+            ...execution,
+            pivotInput: pivotConfiguration
+                ? { type: 'resolved', configuration: pivotConfiguration }
+                : undefined,
+        });
+    }
+
+    private async executeAsyncMergeQueryInternal({
         account,
         projectUuid,
         mergeQuery,
@@ -6276,8 +6310,8 @@ export class AsyncQueryService extends ProjectService {
         invalidateCache,
         parameters,
         mode,
-        presentation,
-    }: ExecuteAsyncMergeQueryArgs): Promise<ApiExecuteAsyncMergeQueryResults> {
+        pivotInput,
+    }: ExecuteMergeQueryInternalArgs): Promise<ApiExecuteAsyncMergeQueryResults> {
         assertIsAccountWithOrg(account);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -6312,12 +6346,12 @@ export class AsyncQueryService extends ProjectService {
 
         const columnOrder = Object.values(compiledMerge.fieldIdByColumn);
         const pivotConfiguration = (() => {
-            if (presentation?.type === 'resolvedPivot') {
-                return presentation.configuration;
+            if (pivotInput?.type === 'resolved') {
+                return pivotInput.configuration;
             }
-            if (presentation?.type === 'chart') {
+            if (pivotInput?.type === 'chart') {
                 return derivePivotConfigurationFromChart(
-                    presentation,
+                    pivotInput.chart,
                     buildMergeResultMetricQuery({
                         itemsMap: compiledMerge.itemsMap,
                         columnOrder,

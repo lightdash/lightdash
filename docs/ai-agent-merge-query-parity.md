@@ -14,8 +14,9 @@ Add merge support to both semantic query tools:
 - `runQuery` can execute a merge and return rows without creating a chart.
 - `generateVisualization` can execute the same merge and create a chart.
 - Existing single-explore inputs remain unchanged.
-- A merge uses two or more independently valid metric queries, shared join-key
-  parts, a join type, and optional post-merge calculations.
+- Initial parity supports exactly two independently valid metric queries,
+  matching the current validator and Explorer. The input remains N-shaped for
+  a separately verified multi-source follow-up.
 - The agent must discover and validate fields in every source explore. It must
   not invent cross-explore field IDs or use raw SQL to reproduce a supported
   merge.
