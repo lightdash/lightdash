@@ -69,6 +69,7 @@ export enum PreAggregateMissReason {
     NON_ADDITIVE_METRIC = 'non_additive_metric',
     CUSTOM_SQL_METRIC = 'custom_sql_metric',
     FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE = 'filter_dimension_not_in_pre_aggregate',
+    REQUIRED_FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE = 'required_filter_dimension_not_in_pre_aggregate',
     PRE_AGGREGATE_FILTER_NOT_SATISFIED = 'pre_aggregate_filter_not_satisfied',
     GRANULARITY_TOO_FINE = 'granularity_too_fine',
     CUSTOM_DIMENSION_PRESENT = 'custom_dimension_present',
@@ -101,6 +102,10 @@ export type PreAggregateMatchMiss =
       }
     | {
           reason: PreAggregateMissReason.FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE;
+          fieldId: FieldId;
+      }
+    | {
+          reason: PreAggregateMissReason.REQUIRED_FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE;
           fieldId: FieldId;
       }
     | {
@@ -194,6 +199,8 @@ export const preAggregateMissReasonLabels: Record<
     [PreAggregateMissReason.CUSTOM_SQL_METRIC]: 'Custom SQL metric',
     [PreAggregateMissReason.FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE]:
         'Filter dimension not in pre-aggregate',
+    [PreAggregateMissReason.REQUIRED_FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE]:
+        'Required filter dimension not in pre-aggregate',
     [PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED]:
         'Pre-aggregate filter not satisfied',
     [PreAggregateMissReason.GRANULARITY_TOO_FINE]: 'Granularity too fine',
