@@ -17,6 +17,7 @@ import {
     sensitiveDbtCredentialsFieldNames,
     UnexpectedServerError,
     validateWarehouseLocation,
+    validateProjectDbtSourceName,
     type Account,
     type WarehouseLocation,
 } from '@lightdash/common';
@@ -34,25 +35,9 @@ type ProjectDbtSourcesServiceArguments = {
     projectDbtSourcesModel: ProjectDbtSourcesModel;
 };
 
-const PROJECT_DBT_SOURCE_NAME_PATTERN = /^[a-zA-Z0-9_]+$/;
-const PROJECT_DBT_SOURCE_NAME_MAX_LENGTH = 64;
-
-export const validateProjectDbtSourceName = (name: string): void => {
-    if (!PROJECT_DBT_SOURCE_NAME_PATTERN.test(name)) {
-        throw new ParameterError(
-            `Dbt source "${name}" has invalid name. Names must contain only letters, numbers, and underscores.`,
-        );
-    }
-    if (name.length > PROJECT_DBT_SOURCE_NAME_MAX_LENGTH) {
-        throw new ParameterError(
-            `Dbt source "${name}" has invalid name. Names must be 64 characters or fewer.`,
-        );
-    }
-    if (name.includes('__')) {
-        throw new ParameterError(
-            `Dbt source "${name}" has invalid name because source names become part of qualified explore names and "__" is the separator.`,
-        );
-    }
+const assertProjectDbtSourceName = (name: string): void => {
+    const validationError = validateProjectDbtSourceName(name);
+    if (validationError) throw new ParameterError(validationError);
 };
 
 /**
@@ -230,7 +215,7 @@ export class ProjectDbtSourcesService extends BaseService {
             projectUuid,
             'manage',
         );
-        validateProjectDbtSourceName(data.name);
+        assertProjectDbtSourceName(data.name);
         // GitHub-only for now: additional sources are restricted to GitHub
         // connections until the other git providers are validated end-to-end.
         if (data.dbtConnection.type !== DbtProjectType.GITHUB) {
@@ -340,7 +325,7 @@ export class ProjectDbtSourcesService extends BaseService {
             );
         }
         if (data.name !== undefined) {
-            validateProjectDbtSourceName(data.name);
+            assertProjectDbtSourceName(data.name);
             const identity =
                 await this.projectModel.getDbtSourceIdentity(projectUuid);
             if (data.name === identity.dbtSourceName) {

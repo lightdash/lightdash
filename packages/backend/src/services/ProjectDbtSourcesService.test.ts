@@ -215,15 +215,9 @@ describe('ProjectDbtSourcesService', () => {
         });
 
         it.each([
-            [
-                'my source!',
-                'Names must contain only letters, numbers, and underscores.',
-            ],
-            ['a'.repeat(300), 'Names must be 64 characters or fewer.'],
-            [
-                'sales__orders',
-                'source names become part of qualified explore names and "__" is the separator.',
-            ],
+            ['my source!', 'Use only letters, numbers, and underscores'],
+            ['a'.repeat(300), 'Name must be 64 characters or fewer'],
+            ['sales__orders', 'Name cannot contain "__"'],
         ])('rejects invalid source name %s', async (name, message) => {
             const service = getService();
 
@@ -446,15 +440,9 @@ describe('ProjectDbtSourcesService', () => {
         });
 
         it.each([
-            [
-                'my source!',
-                'Names must contain only letters, numbers, and underscores.',
-            ],
-            ['a'.repeat(300), 'Names must be 64 characters or fewer.'],
-            [
-                'sales__orders',
-                'source names become part of qualified explore names and "__" is the separator.',
-            ],
+            ['my source!', 'Use only letters, numbers, and underscores'],
+            ['a'.repeat(300), 'Name must be 64 characters or fewer'],
+            ['sales__orders', 'Name cannot contain "__"'],
         ])('rejects invalid source name %s', async (name, message) => {
             projectDbtSourcesModel.getSource.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,

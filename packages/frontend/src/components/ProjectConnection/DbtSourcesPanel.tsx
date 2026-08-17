@@ -2,6 +2,7 @@ import {
     DbtProjectType,
     DefaultSupportedDbtVersion,
     FeatureFlags,
+    validateProjectDbtSourceName,
     WarehouseTypes,
     type CreateWarehouseCredentials,
     type DbtProjectConfig,
@@ -48,22 +49,6 @@ import classes from './DbtSourcesPanel.module.css';
 import { FormProvider, useForm, type Form } from './formContext';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
 import { ProjectFormProvider } from './ProjectFormProvider';
-
-const PROJECT_DBT_SOURCE_NAME_PATTERN = /^[a-zA-Z0-9_]+$/;
-const PROJECT_DBT_SOURCE_NAME_MAX_LENGTH = 64;
-
-const validateDbtSourceName = (value: string): string | null => {
-    const name = value.trim();
-    if (!name) return 'Name is required';
-    if (!PROJECT_DBT_SOURCE_NAME_PATTERN.test(name)) {
-        return 'Use only letters, numbers, and underscores';
-    }
-    if (name.length > PROJECT_DBT_SOURCE_NAME_MAX_LENGTH) {
-        return 'Name must be 64 characters or fewer';
-    }
-    if (name.includes('__')) return 'Name cannot contain "__"';
-    return null;
-};
 
 /**
  * The git-backed identity of a source as a single line — `repo · branch ·
@@ -220,7 +205,7 @@ const AddDbtSourceModal: FC<{
             dbtVersion: DefaultSupportedDbtVersion,
         },
         validate: {
-            name: validateDbtSourceName,
+            name: (value) => validateProjectDbtSourceName(value.trim()),
             dbt: dbtFormValidators,
         },
         validateInputOnBlur: true,
@@ -287,7 +272,7 @@ const EditDbtSourceModalInner: FC<{
             name: (value) =>
                 value.trim() === source.name
                     ? null
-                    : validateDbtSourceName(value),
+                    : validateProjectDbtSourceName(value.trim()),
             dbt: dbtFormValidators,
         },
         validateInputOnBlur: true,
