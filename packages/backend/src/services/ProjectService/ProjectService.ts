@@ -7378,7 +7378,7 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const { metricQuery, explore, field, labelFieldId } =
+        const { metricQuery, explore, field, labelFieldId, staticResults } =
             await this._getFieldValuesMetricQuery({
                 projectUuid,
                 table,
@@ -7388,6 +7388,32 @@ export class ProjectService extends BaseService {
                 filters,
                 organizationUuid,
             });
+
+        // The field's config turns warehouse fetching off: serve curated
+        // values (empty when none) instead of running a distinct-value scan.
+        if (staticResults !== null) {
+            this.analytics.track({
+                event: 'field_value.search',
+                userId: user.userUuid,
+                properties: {
+                    projectId: projectUuid,
+                    fieldId: getItemId(field),
+                    searchCharCount: search.length,
+                    resultsCount: staticResults.length,
+                    searchLimit: metricQuery.limit,
+                },
+            });
+            return {
+                search,
+                results: staticResults.map(({ value }) => value),
+                resultsWithLabels: staticResults.map(({ value, label }) => ({
+                    value,
+                    label: label ?? value,
+                })),
+                refreshedAt: new Date(),
+                cached: false,
+            };
+        }
 
         const [
             warehouseCredentials,

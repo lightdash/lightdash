@@ -4908,7 +4908,7 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
         );
 
-        const { metricQuery, explore, fieldId, labelFieldId } =
+        const { metricQuery, explore, field, fieldId, labelFieldId, staticResults } =
             await getFieldValuesMetricQuery({
                 projectUuid,
                 table,
@@ -4919,6 +4919,101 @@ export class AsyncQueryService extends ProjectService {
                 filters,
                 exploreResolver: this.projectModel,
             });
+
+        // The field's config turns warehouse fetching off: serve curated
+        // values (empty when none) as an immediately-READY query instead of
+        // running a distinct-value scan in the warehouse.
+        if (staticResults !== null) {
+            const combinedParameters = await this.combineParameters(
+                projectUuid,
+                explore,
+                parameters,
+            );
+            const staticRequestParameters: ExecuteAsyncFieldValueSearchRequestParams =
+                {
+                    context,
+                    table,
+                    fieldId: initialFieldId,
+                    search,
+                    limit,
+                    filters,
+                    forceRefresh,
+                    parameters: combinedParameters,
+                };
+            const { queryUuid } = await this.queryHistoryModel.create(
+                account,
+                {
+                    projectUuid,
+                    organizationUuid,
+                    context,
+                    fields: { [fieldId]: field },
+                    compiledSql:
+                        '-- served from curated filter_autocomplete values, no warehouse query',
+                    requestParameters: staticRequestParameters,
+                    metricQuery,
+                    cacheKey: `static-autocomplete-${fieldId}`,
+                    pivotConfiguration: null,
+                    originalColumns: null,
+                },
+            );
+
+            const fileName = QueryHistoryModel.createUniqueResultsFileName(
+                `static-autocomplete-${fieldId}`,
+            );
+            const resultsStorageClient =
+                this.getResultsStorageClientForContext(context);
+            const stream = resultsStorageClient.createUploadStream(
+                S3ResultsFileStorageClient.sanitizeFileExtension(fileName),
+                { contentType: 'application/jsonl' },
+            );
+            const staticRows = staticResults.map(({ value }) => ({
+                [fieldId]: value,
+            }));
+            await stream.write(staticRows);
+            await stream.close();
+
+            if (this.lightdashConfig.natsWorker.enabled) {
+                await this.queryHistoryModel.updateStatusToExecuting(queryUuid);
+            }
+            const createdAt = new Date();
+            const staticColumns: ResultColumns = {
+                [fieldId]: { reference: fieldId, type: field.type },
+            };
+            await this.queryHistoryModel.update(
+                queryUuid,
+                projectUuid,
+                {
+                    status: QueryHistoryStatus.READY,
+                    error: null,
+                    total_row_count: staticRows.length,
+                    columns: staticColumns,
+                    results_file_name: fileName,
+                    results_created_at: createdAt,
+                    results_updated_at: createdAt,
+                    results_expires_at: this.getCacheExpiresAt(createdAt),
+                },
+                account,
+            );
+
+            this.analytics.track({
+                event: 'field_value.search',
+                userId: account.user.id,
+                properties: {
+                    projectId: projectUuid,
+                    fieldId,
+                    searchCharCount: search.length,
+                    resultsCount: staticRows.length,
+                    searchLimit: limit,
+                },
+            });
+
+            return {
+                queryUuid,
+                cacheMetadata: { cacheHit: false },
+                valueFieldId: fieldId,
+                labelFieldId: null,
+            };
+        }
 
         const baseQueryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),

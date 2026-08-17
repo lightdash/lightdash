@@ -42,6 +42,27 @@ const exploreWithLabelDimension = (labelDimension: string): Explore => ({
     },
 });
 
+const exploreWithFilterAutocomplete = (
+    filterAutocomplete: NonNullable<
+        Explore['tables'][string]['dimensions'][string]['filterAutocomplete']
+    >,
+): Explore => ({
+    ...validExplore,
+    tables: {
+        ...validExplore.tables,
+        a: {
+            ...validExplore.tables.a,
+            dimensions: {
+                ...validExplore.tables.a.dimensions,
+                dim1: {
+                    ...validExplore.tables.a.dimensions.dim1,
+                    filterAutocomplete,
+                },
+            },
+        },
+    },
+});
+
 const mockExploreResolver = {
     findExploreByTableName: vi.fn(),
     findJoinAliasExplore: vi.fn(),
@@ -90,6 +111,68 @@ describe('getFieldValuesMetricQuery', () => {
             values: [],
             target: { fieldId: 'a_dim1' },
         });
+    });
+
+    test('returns null staticResults when warehouse fetching is on', async () => {
+        const { staticResults } = await getFieldValuesMetricQuery({
+            projectUuid: 'project-uuid',
+            table: 'a',
+            initialFieldId: 'a_dim1',
+            search: 'test',
+            limit: 10,
+            maxLimit: 5000,
+            filters: undefined,
+            exploreResolver: mockExploreResolver,
+        });
+
+        expect(staticResults).toBeNull();
+    });
+
+    test('returns matching curated values as staticResults when warehouse fetching is off', async () => {
+        mockExploreResolver.findExploreByTableName.mockResolvedValue(
+            exploreWithFilterAutocomplete({
+                fetchFromWarehouse: false,
+                values: [
+                    { value: 'active', label: 'Active customer' },
+                    { value: 'trial' },
+                    { value: 'churned' },
+                ],
+            }),
+        );
+
+        const { staticResults } = await getFieldValuesMetricQuery({
+            projectUuid: 'project-uuid',
+            table: 'a',
+            initialFieldId: 'a_dim1',
+            search: 'act',
+            limit: 10,
+            maxLimit: 5000,
+            filters: undefined,
+            exploreResolver: mockExploreResolver,
+        });
+
+        expect(staticResults).toEqual([
+            { value: 'active', label: 'Active customer' },
+        ]);
+    });
+
+    test('returns empty staticResults when warehouse fetching is off and no values are curated', async () => {
+        mockExploreResolver.findExploreByTableName.mockResolvedValue(
+            exploreWithFilterAutocomplete({ fetchFromWarehouse: false }),
+        );
+
+        const { staticResults } = await getFieldValuesMetricQuery({
+            projectUuid: 'project-uuid',
+            table: 'a',
+            initialFieldId: 'a_dim1',
+            search: 'anything',
+            limit: 10,
+            maxLimit: 5000,
+            filters: undefined,
+            exploreResolver: mockExploreResolver,
+        });
+
+        expect(staticResults).toEqual([]);
     });
 
     test('includes compatible filters from input', async () => {

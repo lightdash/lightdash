@@ -2453,7 +2453,7 @@ export class EmbedService extends BaseService {
             resolvedFieldId = fallbackFieldId;
         }
 
-        const { metricQuery, explore, field } =
+        const { metricQuery, explore, field, staticResults } =
             await this.projectService._getFieldValuesMetricQuery({
                 projectUuid,
                 table: resolvedTableName,
@@ -2463,6 +2463,17 @@ export class EmbedService extends BaseService {
                 filters,
                 organizationUuid: dashboard.organizationUuid,
             });
+
+        // The field's config turns warehouse fetching off: serve curated
+        // values (empty when none) instead of running a distinct-value scan.
+        if (staticResults !== null) {
+            return {
+                search,
+                results: staticResults.map(({ value }) => value),
+                refreshedAt: new Date(),
+                cached: false,
+            };
+        }
 
         const acceptedUserParameters =
             isParameterInteractivityEnabled(account.access.parameters) &&
