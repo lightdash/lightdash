@@ -1,6 +1,7 @@
 import {
     DashboardTileTypes,
     PreAggregateMissReason,
+    type PreAggregateMatchMiss,
     type TilePreAggregateAuditMiss,
 } from '@lightdash/common';
 import { testHelpers } from './preAggregateAudit';
@@ -10,7 +11,7 @@ vi.mock('./dbt/apiClient', () => ({
     checkLightdashVersion: vi.fn(),
 }));
 
-const { renderSingle, exitIfFailOnMiss } = testHelpers;
+const { renderSingle, exitIfFailOnMiss, formatMissDetail } = testHelpers;
 
 type MockAudit = Parameters<typeof renderSingle>[0];
 
@@ -21,6 +22,27 @@ const makeAudit = (partial: Partial<MockAudit> = {}): MockAudit => ({
     tabs: [{ tabUuid: null, tabName: null, tiles: [] }],
     summary: { hitCount: 0, missCount: 0, ineligibleCount: 0 },
     ...partial,
+});
+
+describe('formatMissDetail', () => {
+    const missingRequiredFilterDimension = {
+        reason: PreAggregateMissReason.REQUIRED_FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE,
+        fieldId: 'orders_status',
+    } satisfies PreAggregateMatchMiss;
+
+    it('explains how to make a required-filter dimension available', () => {
+        expect(
+            formatMissDetail(missingRequiredFilterDimension, 'Order status'),
+        ).toBe(
+            'Required filter dimension not in pre-aggregate (Order status) — add this field to the pre-aggregate dimensions',
+        );
+    });
+
+    it('falls back to the field ID when its label is unavailable', () => {
+        expect(formatMissDetail(missingRequiredFilterDimension, null)).toBe(
+            'Required filter dimension not in pre-aggregate (orders_status) — add this field to the pre-aggregate dimensions',
+        );
+    });
 });
 
 describe('renderSingle JSON mode', () => {

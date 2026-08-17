@@ -66,6 +66,13 @@ function formatMissDetail(
     missFieldLabel: string | null,
 ): string {
     const base = preAggregateMissReasonLabels[miss.reason];
+    if (
+        miss.reason ===
+        PreAggregateMissReason.REQUIRED_FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE
+    ) {
+        const field = missFieldLabel ?? miss.fieldId;
+        return `${base} (${field}) — add this field to the pre-aggregate dimensions`;
+    }
     if (miss.reason === PreAggregateMissReason.GRANULARITY_TOO_FINE) {
         return `${base} (query ${miss.queryGranularity}, pre-agg ${miss.preAggregateGranularity})`;
     }
