@@ -592,22 +592,30 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         results: ApiExecuteAsyncMetricQueryResults;
     }> {
         this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.services
-                .getAsyncQueryService()
-                .executeAsyncMergeQuery({
-                    account: req.account!,
-                    projectUuid,
-                    mergeQuery: body.mergeQuery,
-                    pivotConfiguration: body.pivotConfiguration,
-                    csvLimit: body.csvLimit,
-                    parameters: body.parameters,
-                    context:
-                        getContextFromHeader(req) ??
-                        QueryExecutionContext.EXPLORE,
-                }),
-        };
+        const result = await this.services
+            .getAsyncQueryService()
+            .executeLegacyAsyncMergeQuery({
+                account: req.account!,
+                projectUuid,
+                mergeQuery: body.mergeQuery,
+                parameters: body.parameters,
+                mode:
+                    body.csvLimit === undefined
+                        ? { type: 'interactive' }
+                        : { type: 'export', limit: body.csvLimit },
+                pivotConfiguration: body.pivotConfiguration,
+                context:
+                    getContextFromHeader(req) ?? QueryExecutionContext.EXPLORE,
+            });
+        if (result.outcome === 'refused') {
+            throw new ParameterError(
+                `This merge cannot be run: ${result.errors
+                    .map((error) => error.message)
+                    .join(' ')}`,
+                { errors: result.errors },
+            );
+        }
+        return { status: 'ok', results: result.query };
     }
 
     /**

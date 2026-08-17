@@ -111,6 +111,7 @@ import {
     type ApiGetComments,
 } from './api/comments';
 import { type Email } from './api/email';
+import type { ExecuteAsyncMergeQueryRequestParams } from './api/paginatedQuery';
 import {
     type ApiGetProjectParametersListResults,
     type ApiGetProjectParametersResults,
@@ -200,7 +201,11 @@ import type {
     ApiGroupListResponse,
 } from './groups';
 import { type ApiImpersonationOrganizationSettingsResponse } from './impersonationOrganizationSettings';
-import { type ApiCompiledMergeQueryResults } from './mergeQuery';
+import {
+    type ApiCompiledMergeQueryResults,
+    type MergeFieldOrigins,
+    type MergeQueryError,
+} from './mergeQuery';
 import { type MetricQuery, type QueryWarning } from './metricQuery';
 import type {
     ApiMetricsExplorerQueryResults,
@@ -287,6 +292,7 @@ import {
 import {
     type ApiCalculateSubtotalsResponse,
     type ApiCalculateTotalResponse,
+    type ChartConfig,
     type ChartHistory,
     type ChartVersion,
     type SavedChart,
@@ -871,6 +877,39 @@ export type ApiExecuteAsyncMetricQueryResults =
         warnings: QueryWarning[];
     };
 
+type ApiExecuteAsyncMergeQueryMetadata = {
+    parameterReferences: string[];
+    fieldOrigins: MergeFieldOrigins;
+};
+
+export type ApiExecuteAsyncMergeQueryResults =
+    | (ApiExecuteAsyncMergeQueryMetadata & {
+          outcome: 'started';
+          query: ApiExecuteAsyncMetricQueryResults;
+      })
+    | (ApiExecuteAsyncMergeQueryMetadata & {
+          outcome: 'refused';
+          errors: MergeQueryError[];
+      });
+
+export type MergeQueryExecutionMode =
+    | { type: 'interactive' }
+    | { type: 'export'; limit: number | null };
+
+export type MergeQueryChart = {
+    chartConfig: ChartConfig;
+    pivotConfig?: SavedChart['pivotConfig'];
+};
+
+/** One-call merge execution request. Derived pivot SQL remains server-owned. */
+export type ApiExecuteAsyncMergeQueryRequest = Omit<
+    ExecuteAsyncMergeQueryRequestParams,
+    'pivotConfiguration' | 'usePreAggregateCache'
+> & {
+    mode?: MergeQueryExecutionMode;
+    chart?: MergeQueryChart;
+};
+
 export type ApiExecuteAsyncDashboardChartQueryResults =
     ApiExecuteAsyncQueryResultsCommon & {
         metricQuery: MetricQuery;
@@ -1087,6 +1126,7 @@ type ApiResults =
     | ApiSqlQueryResults
     | ApiCompiledQueryResults
     | ApiCompiledMergeQueryResults
+    | ApiExecuteAsyncMergeQueryResults
     | ApiFormulaValidationResults
     | ApiExploresResults
     | ApiExploreResults

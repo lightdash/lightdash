@@ -1,9 +1,7 @@
 import {
     ChartType,
-    DimensionType,
-    FieldType,
     MergeJoinType,
-    MetricType,
+    QueryExecutionContext,
 } from '@lightdash/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../../api';
@@ -16,45 +14,13 @@ const api = vi.mocked(lightdashApi);
 describe('executeMergeQuery', () => {
     beforeEach(() => api.mockReset());
 
-    it('runs a merged table with its pivot configuration', async () => {
+    it('starts a merge with one v2 request', async () => {
         api.mockResolvedValueOnce({
-            sql: 'select 1',
-            coreSql: 'select 1',
-            typedColumns: [],
-            terminalWrapper: {},
-            columns: {},
-            fields: [],
-            itemsMap: {
-                merge_join_key_0: {
-                    fieldType: FieldType.DIMENSION,
-                    type: DimensionType.STRING,
-                    name: 'join_key_0',
-                    label: 'Customer',
-                    table: 'merge',
-                    tableLabel: 'Merged',
-                    sql: '',
-                    hidden: false,
-                },
-                a_orders_count: {
-                    fieldType: FieldType.METRIC,
-                    type: MetricType.COUNT,
-                    name: 'orders_count',
-                    label: 'Orders',
-                    table: 'a',
-                    tableLabel: 'Orders',
-                    sql: '',
-                    hidden: false,
-                },
-            },
+            outcome: 'started',
+            query: { queryUuid: 'query-uuid' },
             fieldOrigins: {},
             parameterReferences: ['date_dim_parameter'],
-            fieldIdByColumn: {
-                join_key_0: 'merge_join_key_0',
-                orders_count: 'a_orders_count',
-            },
-            errors: [],
         } as never);
-        api.mockResolvedValueOnce({ queryUuid: 'query-uuid' } as never);
 
         const result = await executeMergeQuery(
             'project-uuid',
@@ -79,24 +45,36 @@ describe('executeMergeQuery', () => {
             42,
         );
 
+        expect(api).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: '/projects/project-uuid/query/merge-query',
+                version: 'v2',
+            }),
+        );
         expect(
-            JSON.parse((api.mock.calls[1][0].body as string) ?? '{}'),
+            JSON.parse((api.mock.calls[0][0].body as string) ?? '{}'),
         ).toMatchObject({
-            pivotConfiguration: {
-                groupByColumns: [{ reference: 'merge_join_key_0' }],
-                valuesColumns: [
-                    { reference: 'a_orders_count', aggregation: 'any' },
-                ],
+            context: QueryExecutionContext.EXPLORE,
+            mode: { type: 'export', limit: 42 },
+            chart: {
+                chartConfig: {
+                    type: ChartType.TABLE,
+                    config: {},
+                },
+                pivotConfig: {
+                    columns: ['merge_join_key_0'],
+                    rows: [],
+                },
             },
-            csvLimit: 42,
         });
         expect(result.parameterReferences).toEqual(['date_dim_parameter']);
-        expect(api).toHaveBeenCalledTimes(2);
+        expect(api).toHaveBeenCalledTimes(1);
     });
 
     it('returns parameter references when compilation is refused', async () => {
         api.mockResolvedValueOnce({
-            sql: null,
+            outcome: 'refused',
+            fieldOrigins: {},
             parameterReferences: ['customers.customer_name'],
             errors: [{ message: 'Missing customer name' }],
         } as never);
@@ -110,7 +88,7 @@ describe('executeMergeQuery', () => {
         });
 
         expect(result).toMatchObject({
-            started: null,
+            outcome: 'refused',
             parameterReferences: ['customers.customer_name'],
         });
         expect(api).toHaveBeenCalledTimes(1);
