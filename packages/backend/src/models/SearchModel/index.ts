@@ -64,6 +64,11 @@ type SearchModelArguments = {
 
 const SEARCH_LIMIT_PER_ITEM_TYPE = 10;
 
+export type SearchContentOptions = {
+    fullTextSearchOperator?: 'OR' | 'AND';
+    verifiedOnly?: boolean;
+};
+
 export class SearchModel {
     private database: Knex;
 
@@ -133,12 +138,30 @@ export class SearchModel {
             .limit(10);
     }
 
+    // Applied inside the ranked subqueries so verified items compete for
+    // the result cap among themselves, not against unverified matches.
+    private verifiedContentExists(
+        projectUuid: string,
+        contentType: ContentType,
+        contentUuidColumn: string,
+    ) {
+        return this.database(ContentVerificationTableName)
+            .select(this.database.raw('1'))
+            .where(`${ContentVerificationTableName}.project_uuid`, projectUuid)
+            .where(`${ContentVerificationTableName}.content_type`, contentType)
+            .whereRaw(
+                `${ContentVerificationTableName}.content_uuid = ${contentUuidColumn}`,
+            );
+    }
+
     async searchDashboards(
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
-        fullTextSearchOperator: 'OR' | 'AND' = 'AND',
-        verifiedOnly: boolean = false,
+        {
+            fullTextSearchOperator = 'AND',
+            verifiedOnly = false,
+        }: SearchContentOptions = {},
     ): Promise<DashboardSearchResult[]> {
         if (!shouldSearchForType(SearchItemType.DASHBOARD, filters?.type)) {
             return [];
@@ -335,19 +358,13 @@ export class SearchModel {
             filters,
         );
 
-        // Applied inside the ranked subquery so verified items compete for
-        // the result cap among themselves, not against unverified matches.
         if (verifiedOnly) {
             subquery = subquery.whereExists(
-                this.database(ContentVerificationTableName)
-                    .select(this.database.raw('1'))
-                    .where(
-                        `${ContentVerificationTableName}.content_type`,
-                        ContentType.DASHBOARD,
-                    )
-                    .whereRaw(
-                        `${ContentVerificationTableName}.content_uuid = ${DashboardsTableName}.dashboard_uuid`,
-                    ),
+                this.verifiedContentExists(
+                    projectUuid,
+                    ContentType.DASHBOARD,
+                    `${DashboardsTableName}.dashboard_uuid`,
+                ),
             );
         }
 
@@ -1175,8 +1192,10 @@ export class SearchModel {
     async searchAllCharts(
         projectUuid: string,
         query: string,
-        fullTextSearchOperator: 'OR' | 'AND' = 'AND',
-        verifiedOnly: boolean = false,
+        {
+            fullTextSearchOperator = 'AND',
+            verifiedOnly = false,
+        }: SearchContentOptions = {},
     ): Promise<Array<AllChartsSearchResult>> {
         const savedChartsSearchRankRawSql = getFullTextSearchRankCalcSql({
             database: this.database,
@@ -1364,30 +1383,20 @@ export class SearchModel {
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .whereRaw(savedSqlSearchFilterSql);
 
-        // Applied inside the ranked subqueries so verified items compete for
-        // the result cap among themselves, not against unverified matches.
         if (verifiedOnly) {
             savedChartsSubquery.whereExists(
-                this.database(ContentVerificationTableName)
-                    .select(this.database.raw('1'))
-                    .where(
-                        `${ContentVerificationTableName}.content_type`,
-                        ContentType.CHART,
-                    )
-                    .whereRaw(
-                        `${ContentVerificationTableName}.content_uuid = ${SavedChartsTableName}.saved_query_uuid`,
-                    ),
+                this.verifiedContentExists(
+                    projectUuid,
+                    ContentType.CHART,
+                    `${SavedChartsTableName}.saved_query_uuid`,
+                ),
             );
             savedSqlSubquery.whereExists(
-                this.database(ContentVerificationTableName)
-                    .select(this.database.raw('1'))
-                    .where(
-                        `${ContentVerificationTableName}.content_type`,
-                        ContentType.CHART,
-                    )
-                    .whereRaw(
-                        `${ContentVerificationTableName}.content_uuid = ${SavedSqlTableName}.saved_sql_uuid`,
-                    ),
+                this.verifiedContentExists(
+                    projectUuid,
+                    ContentType.CHART,
+                    `${SavedSqlTableName}.saved_sql_uuid`,
+                ),
             );
         }
 

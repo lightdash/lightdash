@@ -1110,7 +1110,7 @@ export class AiAgentToolsService extends BaseService {
                     spaces.map((space) => [space.path, space]),
                 );
                 const searchQuery = args.searchQuery.label.toLowerCase();
-                const verifiedOnly = args.verifiedOnly === true;
+                const { verifiedOnly } = args;
                 const { content } = await this.searchService.findContent(
                     context.user,
                     context.projectUuid,

@@ -213,7 +213,7 @@ export type FindContentResult =
 export type FindContentFn = (args: {
     searchQuery: ToolFindContentArgs['searchQueries'][number];
     spaceSlug: ToolFindContentArgs['spaceSlug'];
-    verifiedOnly: ToolFindContentArgs['verifiedOnly'];
+    verifiedOnly: boolean;
 }) => Promise<{
     content: FindContentResult[];
 }>;

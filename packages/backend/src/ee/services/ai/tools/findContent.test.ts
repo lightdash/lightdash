@@ -157,7 +157,7 @@ describe('getFindContent', () => {
         expect(mockFindContent).toHaveBeenCalledWith({
             searchQuery: { label: 'marketing' },
             spaceSlug: 'company/marketing',
-            verifiedOnly: null,
+            verifiedOnly: false,
         });
     });
 
@@ -364,17 +364,8 @@ describe('getFindContent', () => {
         );
     });
 
-    it('falls back to unverified results when a verified-only search has no matches', async () => {
-        const mockFindContent = vi
-            .fn()
-            .mockResolvedValueOnce({ content: [] })
-            .mockResolvedValueOnce({ content: [makeMockDashboard(0)] });
-        const tool = getFindContent({
-            findContent: mockFindContent,
-            siteUrl: '',
-            toolDescriptionMaxChars: 600,
-            trackCoverage: vi.fn(),
-        });
+    it('returns an empty result with guidance when a verified-only search has no matches', async () => {
+        const { tool, mockFindContent } = createTool([]);
         const output = await executeFindContent(tool, {
             searchQueries: [{ label: 'revenue' }],
             spaceSlug: null,
@@ -382,19 +373,19 @@ describe('getFindContent', () => {
         });
 
         expect(output.metadata.status).toBe('success');
-        expect(mockFindContent).toHaveBeenCalledTimes(2);
-        expect(mockFindContent).toHaveBeenLastCalledWith({
+        expect(mockFindContent).toHaveBeenCalledTimes(1);
+        expect(mockFindContent).toHaveBeenCalledWith({
             searchQuery: { label: 'revenue' },
             spaceSlug: null,
-            verifiedOnly: null,
+            verifiedOnly: true,
         });
         expect(output.result).toContain(
-            'No verified content matched this query — showing unverified results instead.',
+            'No verified content matched this query',
         );
-        expect(output.result).toContain('<dashboard');
+        expect(output.result).not.toContain('<dashboard');
     });
 
-    it('does not fall back when the verified-only search has matches', async () => {
+    it('does not show the empty-result guidance when the verified-only search has matches', async () => {
         const { tool, mockFindContent } = createTool([
             makeMockDashboard(0, { verification: makeVerification() }),
         ]);
@@ -405,7 +396,19 @@ describe('getFindContent', () => {
         });
 
         expect(mockFindContent).toHaveBeenCalledTimes(1);
-        expect(output.result).not.toContain('showing unverified results');
+        expect(output.result).not.toContain('No verified content matched');
+        expect(output.result).toContain('<dashboard');
+    });
+
+    it('does not show the empty-result guidance on an empty unrestricted search', async () => {
+        const { tool } = createTool([]);
+        const output = await executeFindContent(tool, {
+            searchQueries: [{ label: 'revenue' }],
+            spaceSlug: null,
+        });
+
+        expect(output.metadata.status).toBe('success');
+        expect(output.result).not.toContain('No verified content matched');
     });
 });
 

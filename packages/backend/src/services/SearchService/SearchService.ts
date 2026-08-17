@@ -63,10 +63,17 @@ export class SearchService extends BaseService {
 
     // Verified matches are fetched through a dedicated capped query so they
     // are never crowded out of the per-type result caps by unverified matches.
-    private static mergeReservedVerified<T extends { uuid: string }>(
-        allResults: T[],
-        verifiedResults: T[],
-    ): T[] {
+    private static async searchReservingVerified<T extends { uuid: string }>(
+        verifiedOnly: boolean,
+        search: (opts: { verifiedOnly: boolean }) => Promise<T[]>,
+    ): Promise<T[]> {
+        if (verifiedOnly) {
+            return search({ verifiedOnly: true });
+        }
+        const [allResults, verifiedResults] = await Promise.all([
+            search({ verifiedOnly: false }),
+            search({ verifiedOnly: true }),
+        ]);
         const seenUuids = new Set(allResults.map((result) => result.uuid));
         return [
             ...allResults,
@@ -99,46 +106,22 @@ export class SearchService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const [
-            allDashboardResults,
-            verifiedDashboardResults,
-            allChartResults,
-            verifiedChartResults,
-        ] = await Promise.all([
-            verifiedOnly
-                ? []
-                : this.searchModel.searchDashboards(
-                      projectUuid,
-                      query,
-                      undefined,
-                      'OR',
-                  ),
-            this.searchModel.searchDashboards(
-                projectUuid,
-                query,
-                undefined,
-                'OR',
-                true,
+        const [dashboardSearchResults, chartSearchResults] = await Promise.all([
+            SearchService.searchReservingVerified(verifiedOnly, (opts) =>
+                this.searchModel.searchDashboards(
+                    projectUuid,
+                    query,
+                    undefined,
+                    { fullTextSearchOperator: 'OR', ...opts },
+                ),
             ),
-            verifiedOnly
-                ? []
-                : this.searchModel.searchAllCharts(projectUuid, query, 'OR'),
-            this.searchModel.searchAllCharts(projectUuid, query, 'OR', true),
+            SearchService.searchReservingVerified(verifiedOnly, (opts) =>
+                this.searchModel.searchAllCharts(projectUuid, query, {
+                    fullTextSearchOperator: 'OR',
+                    ...opts,
+                }),
+            ),
         ]);
-
-        const dashboardSearchResults = verifiedOnly
-            ? verifiedDashboardResults
-            : SearchService.mergeReservedVerified(
-                  allDashboardResults,
-                  verifiedDashboardResults,
-              );
-
-        const chartSearchResults = verifiedOnly
-            ? verifiedChartResults
-            : SearchService.mergeReservedVerified(
-                  allChartResults,
-                  verifiedChartResults,
-              );
 
         const allContent = [
             ...dashboardSearchResults,

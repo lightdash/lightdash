@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import moment from 'moment';
+import type { AiAgentFindContentCoverage } from '../../../../analytics/LightdashAnalytics';
 import type {
     FindContentChartResult,
     FindContentDashboardResult,
@@ -33,13 +34,7 @@ type Dependencies = {
     findContent: FindContentFn;
     siteUrl: string;
     toolDescriptionMaxChars: number;
-    trackCoverage: (coverage: {
-        searchQuery: string;
-        totalResultCount: number;
-        verifiedResultCount: number;
-        topResultVerified: boolean;
-        verifiedOnly: boolean;
-    }) => void;
+    trackCoverage: (coverage: AiAgentFindContentCoverage) => void;
 };
 
 const toolDefinition = findContentToolDefinition.for('agent');
@@ -212,7 +207,7 @@ const isSpaceResult = (
 const renderContent = (
     args: Awaited<ReturnType<FindContentFn>> & {
         searchQuery: string;
-        verifiedFallback: boolean;
+        verifiedOnly: boolean;
     },
     siteUrl: string,
     toolDescriptionMaxChars: number,
@@ -223,8 +218,8 @@ const renderContent = (
     );
     return (
         <searchresult searchQuery={args.searchQuery}>
-            {args.verifiedFallback
-                ? 'No verified content matched this query — showing unverified results instead. Verified content may still exist under other search terms.'
+            {args.verifiedOnly && sortedContent.length === 0
+                ? 'No verified content matched this query. Verified content may still exist under other search terms; re-run with verifiedOnly=false only if unverified content is acceptable.'
                 : null}
             {sortedContent.map((content) => {
                 if (isSpaceResult(content)) {
@@ -248,32 +243,17 @@ export const getFindContent = ({
         ...toolDefinition,
         execute: async (args) => {
             try {
-                const verifiedOnly = args.verifiedOnly === true;
+                const verifiedOnly = args.verifiedOnly ?? false;
                 const searchQueryResults = await Promise.all(
-                    args.searchQueries.map(async (searchQuery) => {
-                        const verifiedResult = await findContent({
+                    args.searchQueries.map(async (searchQuery) => ({
+                        searchQuery: searchQuery.label,
+                        verifiedOnly,
+                        ...(await findContent({
                             searchQuery,
                             spaceSlug: args.spaceSlug ?? null,
-                            verifiedOnly: args.verifiedOnly ?? null,
-                        });
-                        // A verified-only search with no matches falls back to
-                        // the unrestricted search so the model gets usable
-                        // results in one call, explicitly marked as unverified.
-                        const verifiedFallback =
-                            verifiedOnly && verifiedResult.content.length === 0;
-                        const result = verifiedFallback
-                            ? await findContent({
-                                  searchQuery,
-                                  spaceSlug: args.spaceSlug ?? null,
-                                  verifiedOnly: null,
-                              })
-                            : verifiedResult;
-                        return {
-                            searchQuery: searchQuery.label,
-                            verifiedFallback,
-                            ...result,
-                        };
-                    }),
+                            verifiedOnly,
+                        })),
+                    })),
                 );
 
                 for (const searchQueryResult of searchQueryResults) {
