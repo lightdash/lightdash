@@ -1,3 +1,10 @@
+## [1.164.1](https://github.com/lightdash/lightdash/compare/1.164.0...1.164.1) (2026-08-17)
+
+
+### Bug Fixes
+
+* show 'View full error' in error toasts only when the message is cropped ([#27473](https://github.com/lightdash/lightdash/issues/27473)) ([d0e2f62](https://github.com/lightdash/lightdash/commit/d0e2f6258b7b8a234c69d44591966af66b84046b))
+
 # [1.164.0](https://github.com/lightdash/lightdash/compare/1.163.3...1.164.0) (2026-08-17)
 
 
