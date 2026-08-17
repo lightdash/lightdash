@@ -327,6 +327,239 @@ describe('compileProject completeness', () => {
         );
     });
 
+    test('replaces the complete local source while retaining served models from other sources', async () => {
+        const projectManifest = manifest({
+            'model.local.orders': dbtNode('model.local.orders', 'model', true, {
+                description: 'Local orders description',
+            }),
+        });
+        const servedManifest = projectMergedManifest(
+            manifest({
+                'model.local.orders': dbtNode(
+                    'model.local.orders',
+                    'model',
+                    true,
+                    {
+                        description: 'Served orders description',
+                        lightdash_source_name: 'local_source',
+                    },
+                ),
+                'model.local.deleted': dbtNode(
+                    'model.local.deleted',
+                    'model',
+                    true,
+                    {
+                        lightdash_source_name: 'local_source',
+                    },
+                ),
+                'model.other.customers': dbtNode(
+                    'model.other.customers',
+                    'model',
+                    true,
+                    {
+                        lightdash_source_name: 'other_source',
+                    },
+                ),
+            }),
+        );
+        vi.mocked(loadManifest).mockResolvedValue(projectManifest);
+        vi.mocked(lightdashRawApi).mockResolvedValue(
+            new Response(JSON.stringify(servedManifest)),
+        );
+        vi.mocked(maybeCompileModelsAndJoins).mockResolvedValue({
+            compiledModelIds: ['model.local.orders'],
+            originallySelectedModelIds: undefined,
+        });
+
+        const result = await compileProject({
+            ...compileOptions(tempDir),
+            combineManifestProjectUuid: 'project-uuid',
+        });
+
+        expect(result.isProjectComplete).toBe(true);
+        expect(result.explores.map((explore) => explore.name)).toEqual([
+            'orders',
+            'customers',
+        ]);
+        const modelsForValidation =
+            vi.mocked(validateDbtModel).mock.calls[0][2];
+        expect(modelsForValidation).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    unique_id: 'model.local.orders',
+                    description: 'Local orders description',
+                    lightdash_source_name: 'local_source',
+                }),
+                expect.objectContaining({
+                    unique_id: 'model.other.customers',
+                    lightdash_source_name: 'other_source',
+                }),
+            ]),
+        );
+        expect(
+            modelsForValidation.map((model) => model.unique_id),
+        ).not.toContain('model.local.deleted');
+    });
+
+    test('additively combines selective local models with compiled served collision candidates', async () => {
+        const projectManifest = manifest({
+            'model.source_a.orders': dbtNode(
+                'model.source_a.orders',
+                'model',
+                true,
+                {
+                    description: 'Local selected orders',
+                },
+            ),
+            'model.source_a.customers': dbtNode(
+                'model.source_a.customers',
+                'model',
+                true,
+                {
+                    description: 'Local unselected customers',
+                },
+            ),
+        });
+        const servedManifest = projectMergedManifest(
+            manifest({
+                'model.source_a.orders': dbtNode(
+                    'model.source_a.orders',
+                    'model',
+                    true,
+                    {
+                        description: 'Served selected orders',
+                        lightdash_source_name: 'source_a',
+                    },
+                ),
+                'model.source_a.customers': dbtNode(
+                    'model.source_a.customers',
+                    'model',
+                    true,
+                    {
+                        description: 'Served unselected customers',
+                        lightdash_source_name: 'source_a',
+                    },
+                ),
+                'model.source_a.deleted': dbtNode(
+                    'model.source_a.deleted',
+                    'model',
+                    true,
+                    {
+                        lightdash_source_name: 'source_a',
+                    },
+                ),
+                'model.source_b.customers': dbtNode(
+                    'model.source_b.customers',
+                    'model',
+                    true,
+                    {
+                        lightdash_source_name: 'source_b',
+                    },
+                ),
+            }),
+        );
+        vi.mocked(loadManifest).mockResolvedValue(projectManifest);
+        vi.mocked(lightdashRawApi).mockResolvedValue(
+            new Response(JSON.stringify(servedManifest)),
+        );
+        vi.mocked(maybeCompileModelsAndJoins).mockResolvedValue({
+            compiledModelIds: ['model.source_a.orders'],
+            originallySelectedModelIds: ['model.source_a.orders'],
+        });
+
+        const result = await compileProject({
+            ...compileOptions(tempDir),
+            combineManifestProjectUuid: 'project-uuid',
+        });
+
+        expect(result.isProjectComplete).toBe(false);
+        const modelsForValidation =
+            vi.mocked(validateDbtModel).mock.calls[0][2];
+        expect(modelsForValidation).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    unique_id: 'model.source_a.orders',
+                    description: 'Local selected orders',
+                    lightdash_source_name: 'source_a',
+                }),
+                expect.objectContaining({
+                    unique_id: 'model.source_a.customers',
+                    description: 'Served unselected customers',
+                    compiled: true,
+                    lightdash_source_name: 'source_a',
+                }),
+                expect.objectContaining({
+                    unique_id: 'model.source_a.deleted',
+                    lightdash_source_name: 'source_a',
+                }),
+                expect.objectContaining({
+                    unique_id: 'model.source_b.customers',
+                    lightdash_source_name: 'source_b',
+                }),
+            ]),
+        );
+        const unselectedCollisionCandidates = modelsForValidation.filter(
+            (model) => model.name === 'customers',
+        ) as (DbtModelNode & { lightdash_source_name?: string })[];
+        expect(
+            unselectedCollisionCandidates.map((model) => ({
+                uniqueId: model.unique_id,
+                sourceName: model.lightdash_source_name,
+            })),
+        ).toEqual([
+            {
+                uniqueId: 'model.source_a.customers',
+                sourceName: 'source_a',
+            },
+            {
+                uniqueId: 'model.source_b.customers',
+                sourceName: 'source_b',
+            },
+        ]);
+    });
+
+    test('rejects automatic combination when overlaps identify multiple local sources', async () => {
+        const projectManifest = manifest({
+            'model.local.orders': dbtNode('model.local.orders', 'model', true),
+            'model.local.customers': dbtNode(
+                'model.local.customers',
+                'model',
+                true,
+            ),
+        });
+        const servedManifest = manifest({
+            'model.local.orders': dbtNode('model.local.orders', 'model', true, {
+                lightdash_source_name: 'source_a',
+            }),
+            'model.local.customers': dbtNode(
+                'model.local.customers',
+                'model',
+                true,
+                {
+                    lightdash_source_name: 'source_c',
+                },
+            ),
+        });
+        vi.mocked(loadManifest).mockResolvedValue(projectManifest);
+        vi.mocked(lightdashRawApi).mockResolvedValue(
+            new Response(JSON.stringify(servedManifest)),
+        );
+        vi.mocked(maybeCompileModelsAndJoins).mockResolvedValue({
+            compiledModelIds: ['model.local.orders', 'model.local.customers'],
+            originallySelectedModelIds: undefined,
+        });
+
+        await expect(
+            compileProject({
+                ...compileOptions(tempDir),
+                combineManifestProjectUuid: 'project-uuid',
+            }),
+        ).rejects.toThrow(
+            'Cannot automatically combine manifest from the server: overlapping local models match multiple Lightdash sources (source_a, source_c)',
+        );
+        expect(validateDbtModel).not.toHaveBeenCalled();
+    });
+
     test('skips automatic combination when the local dbt project is not a served source', async () => {
         const projectManifest = manifest({
             'model.local.orders': dbtNode('model.local.orders', 'model', true),
@@ -367,7 +600,9 @@ describe('compileProject completeness', () => {
             'model.test.orders': dbtNode('model.test.orders', 'model', true),
         });
         const servedManifest = manifest({
-            'model.test.orders': dbtNode('model.test.orders', 'model', false),
+            'model.test.orders': dbtNode('model.test.orders', 'model', false, {
+                lightdash_source_name: 'local_source',
+            }),
             'model.served.helper': dbtNode(
                 'model.served.helper',
                 'model',
@@ -398,7 +633,9 @@ describe('compileProject completeness', () => {
             'model.test.orders': dbtNode('model.test.orders', 'model', true),
         });
         const servedManifest = manifest({
-            'model.test.orders': dbtNode('model.test.orders', 'model', true),
+            'model.test.orders': dbtNode('model.test.orders', 'model', true, {
+                lightdash_source_name: 'local_source',
+            }),
         });
         vi.mocked(loadManifest).mockResolvedValue(projectManifest);
         vi.mocked(lightdashRawApi).mockResolvedValue(
