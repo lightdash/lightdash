@@ -463,6 +463,47 @@ describe('compileProject completeness', () => {
     });
 
     test.each([
+        ['a null response', null],
+        ['an array of nodes', { metadata: {}, nodes: [] }],
+        ['array metadata', { metadata: [], nodes: {} }],
+        ['missing metadata', { nodes: {} }],
+    ])(
+        'rejects %s from the server manifest endpoint and keeps the local manifest',
+        async (_description, invalidManifest) => {
+            vi.mocked(loadManifest).mockResolvedValue(
+                manifest({
+                    'model.test.orders': dbtNode(
+                        'model.test.orders',
+                        'model',
+                        true,
+                    ),
+                }),
+            );
+            vi.mocked(lightdashRawApi).mockResolvedValue(
+                new Response(JSON.stringify(invalidManifest)),
+            );
+            vi.mocked(maybeCompileModelsAndJoins).mockResolvedValue({
+                compiledModelIds: ['model.test.orders'],
+                originallySelectedModelIds: undefined,
+            });
+
+            const result = await compileProject({
+                ...compileOptions(tempDir),
+                combineManifestProjectUuid: 'project-uuid',
+            });
+
+            expect(result.explores.map((explore) => explore.name)).toEqual([
+                'orders',
+            ]);
+            expect(console.error).toHaveBeenCalledWith(
+                expect.stringContaining(
+                    '/api/v1/projects/project-uuid/dbt/manifest returned an invalid manifest',
+                ),
+            );
+        },
+    );
+
+    test.each([
         [
             'an authorization error',
             new LightdashError({

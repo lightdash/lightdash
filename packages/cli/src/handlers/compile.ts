@@ -101,6 +101,12 @@ type SourceAnnotatedDbtNode = DbtManifest['nodes'][string] & {
     lightdash_source_name?: unknown;
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const isServedDbtManifest = (value: unknown): value is DbtManifest =>
+    isRecord(value) && isRecord(value.nodes) && isRecord(value.metadata);
+
 const getManifestModelIds = (manifest: DbtManifest): string[] =>
     Object.entries(manifest.nodes)
         .filter(([, node]) => node.resource_type === 'model')
@@ -432,12 +438,19 @@ export const compileProject = async (
             options.combineManifestProjectUuid
         ) {
             try {
+                const manifestEndpoint = `/api/v1/projects/${options.combineManifestProjectUuid}/dbt/manifest`;
                 const response = await lightdashRawApi({
                     method: 'GET',
-                    url: `/api/v1/projects/${options.combineManifestProjectUuid}/dbt/manifest`,
+                    url: manifestEndpoint,
                     body: undefined,
                 });
-                additionalManifest = (await response.json()) as DbtManifest;
+                const servedManifest: unknown = await response.json();
+                if (!isServedDbtManifest(servedManifest)) {
+                    throw new Error(
+                        `${manifestEndpoint} returned an invalid manifest: expected an object with metadata and a nodes record`,
+                    );
+                }
+                additionalManifest = servedManifest;
                 combineSource = 'manifest from the server';
                 isAutomaticServerManifest = true;
             } catch (error) {
