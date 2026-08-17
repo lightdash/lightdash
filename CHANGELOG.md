@@ -1,3 +1,10 @@
+# [1.171.0](https://github.com/lightdash/lightdash/compare/1.170.0...1.171.0) (2026-08-17)
+
+
+### Features
+
+* **permissions:** add preview-scoped data app scopes for CLI users ([#27478](https://github.com/lightdash/lightdash/issues/27478)) ([509cdda](https://github.com/lightdash/lightdash/commit/509cddae1a1d00e0d660d4e9f67a0af34bf05d06)), closes [/linear.app/lightdash/issue/GLITCH-656/data-apps-add-a-preview-only-scope-so-cli-users-can-upload-data-apps#agent-session-ed3a9c75](https://github.com//linear.app/lightdash/issue/GLITCH-656/data-apps-add-a-preview-only-scope-so-cli-users-can-upload-data-apps/issues/agent-session-ed3a9c75)
+
 # [1.170.0](https://github.com/lightdash/lightdash/compare/1.169.1...1.170.0) (2026-08-17)
 
 
