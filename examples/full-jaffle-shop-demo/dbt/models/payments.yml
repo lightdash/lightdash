@@ -43,11 +43,6 @@ models:
         description: Foreign key to the orders table
       - name: payment_method
         description: Method of payment used, for example credit card
-        config:
-          meta:
-            dimension:
-              filter_autocomplete:
-                fetch_from_warehouse: false
       - name: amount
         description: Total amount (AUD) of the individual payment
         config:

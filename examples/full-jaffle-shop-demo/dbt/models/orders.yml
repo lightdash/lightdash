@@ -594,6 +594,9 @@ models:
         description: Shipping method selected for the order
         config:
           meta:
+            dimension:
+              filter_autocomplete:
+                fetch_from_warehouse: false
             metrics:
               avg_shipping_cost_by_method:
                 type: average
