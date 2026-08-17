@@ -390,8 +390,7 @@ export const MergeProvider: FC<
                                 error: null,
                                 unpivotedErrors: unpivoted.errors,
                                 unpivotedError: null,
-                                parameterReferences:
-                                    result.parameterReferences,
+                                parameterReferences: result.parameterReferences,
                                 fieldOrigins: result.fieldOrigins,
                             });
                             return;
