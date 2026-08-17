@@ -761,3 +761,21 @@
         transition: none;
     }
 }
+
+/* Agent reasoning markdown in the detail sidebar: match the dimmed 12px
+   metadata typography, and keep code fences (chart-as-code YAML) inside the
+   panel width. */
+.reasoningMarkdown {
+    --ai-markdown-font-size: 12px;
+    --ai-markdown-padding-left: 0;
+    min-width: 0;
+}
+
+.reasoningMarkdown p,
+.reasoningMarkdown li {
+    color: var(--mantine-color-dimmed);
+}
+
+.reasoningMarkdown pre {
+    max-width: 100%;
+}

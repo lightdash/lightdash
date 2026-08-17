@@ -74,6 +74,7 @@ import {
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useParams } from 'react-router';
 import { lightdashApi } from '../../../api';
+import { AiMarkdown } from '../../../components/common/AiMarkdown';
 import { CategoryBadge } from '../../../components/common/CategoryBadge';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { NumberInput } from '../../../components/common/NumberInput';
@@ -131,6 +132,10 @@ const runHeartbeat = async (projectUuid: string) =>
         method: 'POST',
         body: undefined,
     });
+
+// Messages can be several paragraphs of agent reasoning; the hover tooltip only
+// needs a preview, the sidebar renders the full markdown.
+const MESSAGE_TOOLTIP_MAX_LENGTH = 280;
 
 const SCHEDULE_OPTIONS = [
     { value: ManagedAgentScheduleOption.EVERY_6_HOURS, label: 'Every 6 hours' },
@@ -1231,9 +1236,9 @@ const DetailSidebar: FC<{
                 {/* Agent reasoning */}
                 <Stack gap={4}>
                     <MetadataLabel label="Agent reasoning" />
-                    <Text fz="xs" lh={1.7} c="dimmed">
+                    <AiMarkdown className={classes.reasoningMarkdown}>
                         {action.description}
-                    </Text>
+                    </AiMarkdown>
                 </Stack>
             </Stack>
         </Stack>
@@ -1897,7 +1902,12 @@ const ActionRow: FC<{
                 </Group>
             </Table.Td>
             <Table.Td className={classes.messageCell}>
-                <TruncatedText maxWidth={9999} fz="xs" c="dimmed">
+                <TruncatedText
+                    maxWidth={9999}
+                    tooltipMaxLength={MESSAGE_TOOLTIP_MAX_LENGTH}
+                    fz="xs"
+                    c="dimmed"
+                >
                     {action.description}
                 </TruncatedText>
             </Table.Td>
