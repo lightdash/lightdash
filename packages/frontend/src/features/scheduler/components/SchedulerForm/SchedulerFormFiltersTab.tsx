@@ -81,6 +81,7 @@ type SchedulerFilterItemProps = {
     onRevert: () => void;
     hasChanged: boolean;
     onRemove?: () => void;
+    removeTooltip?: string;
     tilesWithFilter?: string[];
 };
 
@@ -92,6 +93,7 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
     onRevert,
     hasChanged,
     onRemove,
+    removeTooltip = 'Remove filter',
     tilesWithFilter,
 }) => {
     const { itemsMap } =
@@ -135,7 +137,11 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                 </Paper>
                 {onRemove && (
                     <Tooltip label="Remove invalid filter" fz="xs">
-                        <ActionIcon size="xs" onClick={onRemove}>
+                        <ActionIcon
+                            size="xs"
+                            aria-label="Remove invalid filter"
+                            onClick={onRemove}
+                        >
                             <MantineIcon icon={IconTrash} />
                         </ActionIcon>
                     </Tooltip>
@@ -210,9 +216,15 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                         />
                     </ActionIcon>
                     {onRemove && (
-                        <ActionIcon size="xs" onClick={onRemove}>
-                            <MantineIcon icon={IconTrash} />
-                        </ActionIcon>
+                        <Tooltip label={removeTooltip} fz="xs">
+                            <ActionIcon
+                                size="xs"
+                                aria-label="Remove filter"
+                                onClick={onRemove}
+                            >
+                                <MantineIcon icon={IconTrash} />
+                            </ActionIcon>
+                        </Tooltip>
                     )}
                 </Group>
             </Group>
@@ -261,6 +273,52 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                 </Flex>
             )}
         </Stack>
+    );
+};
+
+type RemovedFilterItemProps = {
+    dashboardFilter: DashboardFilterRule;
+    onRestore: () => void;
+};
+
+const RemovedFilterItem: FC<RemovedFilterItemProps> = ({
+    dashboardFilter,
+    onRestore,
+}) => {
+    const { itemsMap } =
+        useFiltersContext<Record<string, FilterableDimension>>();
+    const field = itemsMap[dashboardFilter.target.fieldId];
+
+    if (!field) return null;
+
+    return (
+        <Group gap="xs" wrap="nowrap" align="flex-start">
+            <Group gap="xs" opacity={0.5} style={{ flex: 1, minWidth: 0 }}>
+                <FieldIcon item={field} />
+                <FieldLabel
+                    item={{
+                        ...field,
+                        label: dashboardFilter.label ?? field.label,
+                    }}
+                    hideTableName
+                />
+                <Text fz="xs" c="ldGray.6" span>
+                    Uses dashboard default
+                </Text>
+            </Group>
+            <Tooltip
+                label="Re-add filter to override it for this delivery"
+                fz="xs"
+            >
+                <ActionIcon
+                    size="xs"
+                    aria-label="Re-add filter"
+                    onClick={onRestore}
+                >
+                    <MantineIcon icon={IconRotate2} />
+                </ActionIcon>
+            </Tooltip>
+        </Group>
     );
 };
 
@@ -374,18 +432,20 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
             };
         }, [savedFilters, currentDashboardFilters.dimensions]);
 
-    // Initialize form with live filters if no saved filters exist
+    // Seed the form with live filters exactly once (undefined = never seeded).
+    // Checking for an empty array instead would re-seed after the user removes
+    // the last filter, resurrecting every deleted filter.
     useEffect(() => {
         if (
             !isEditMode &&
-            draftFilters?.length === 0 &&
-            currentDashboardFilters.dimensions.length > 0
+            draftFilters === undefined &&
+            !isLoadingDashboardFilters
         ) {
             onChange(currentDashboardFilters.dimensions);
         }
     }, [
         currentDashboardFilters.dimensions,
-        savedFilters,
+        isLoadingDashboardFilters,
         onChange,
         draftFilters,
         isEditMode,
@@ -421,6 +481,13 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
         [onChange, draftFilters],
     );
 
+    const handleRestoreFilter = useCallback(
+        (dashboardFilter: DashboardFilterRule) => {
+            onChange([...(draftFilters ?? []), dashboardFilter]);
+        },
+        [onChange, draftFilters],
+    );
+
     if (isInitialLoading || isLoadingDashboardFilters || !project) {
         return (
             <Center component={Stack} h={100}>
@@ -450,7 +517,8 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
             startOfWeek={project.warehouseConnection?.startOfWeek ?? undefined}
             dashboardFilters={currentDashboardFilters}
         >
-            {(draftFilters?.length ?? 0) + savedFiltersNotInDashboard?.length >
+            {currentDashboardFilters.dimensions.length +
+                savedFiltersNotInDashboard.length >
             0 ? (
                 <Stack mb="sm">
                     {hasUnmetSingles && (
@@ -464,51 +532,64 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
                             requirement group
                         </Text>
                     )}
-                    {draftFilters?.map((filter) => {
-                        const originalFilter = isEditMode
-                            ? savedFiltersInDashboard?.find(
-                                  (sf) => sf.id === filter.id,
-                              )
-                            : currentDashboardFilters.dimensions.find(
-                                  (d) => d.id === filter.id,
-                              );
+                    {currentDashboardFilters.dimensions.map(
+                        (dashboardFilterRule) => {
+                            const draftFilter = draftFilters?.find(
+                                (f) => f.id === dashboardFilterRule.id,
+                            );
 
-                        if (!originalFilter) {
-                            return null;
-                        }
+                            if (!draftFilter) {
+                                return (
+                                    <RemovedFilterItem
+                                        key={dashboardFilterRule.id}
+                                        dashboardFilter={dashboardFilterRule}
+                                        onRestore={() =>
+                                            handleRestoreFilter(
+                                                dashboardFilterRule,
+                                            )
+                                        }
+                                    />
+                                );
+                            }
 
-                        return (
-                            <FilterItem
-                                key={filter.id}
-                                dashboardFilter={originalFilter}
-                                schedulerFilter={filter}
-                                isMissingRequiredValue={isMissingRequiredValue(
-                                    originalFilter,
-                                )}
-                                onChange={(updatedFilter) =>
-                                    handleUpdateSchedulerFilter(
-                                        updatedFilter,
+                            const originalFilter = isEditMode
+                                ? (savedFiltersInDashboard?.find(
+                                      (sf) => sf.id === draftFilter.id,
+                                  ) ?? dashboardFilterRule)
+                                : dashboardFilterRule;
+
+                            return (
+                                <FilterItem
+                                    key={draftFilter.id}
+                                    dashboardFilter={originalFilter}
+                                    schedulerFilter={draftFilter}
+                                    isMissingRequiredValue={isMissingRequiredValue(
                                         originalFilter,
-                                    )
-                                }
-                                onRevert={() =>
-                                    handleUpdateSchedulerFilter(
+                                    )}
+                                    onChange={(updatedFilter) =>
+                                        handleUpdateSchedulerFilter(
+                                            updatedFilter,
+                                            originalFilter,
+                                        )
+                                    }
+                                    onRevert={() =>
+                                        handleUpdateSchedulerFilter(
+                                            originalFilter,
+                                            originalFilter,
+                                        )
+                                    }
+                                    hasChanged={hasFilterChanged(
+                                        draftFilter,
                                         originalFilter,
-                                        originalFilter,
-                                    )
-                                }
-                                hasChanged={
-                                    originalFilter
-                                        ? hasFilterChanged(
-                                              filter,
-                                              originalFilter,
-                                          )
-                                        : false
-                                }
-                                onRemove={() => handleRemoveFilter(filter.id)}
-                            />
-                        );
-                    })}
+                                    )}
+                                    onRemove={() =>
+                                        handleRemoveFilter(draftFilter.id)
+                                    }
+                                    removeTooltip="Remove filter — the delivery will use the dashboard default"
+                                />
+                            );
+                        },
+                    )}
                     {savedFiltersNotInDashboard.length > 0 && (
                         <Text fz="xs" color="ldGray.6" mt="xs">
                             The following filters are applied to this scheduled
