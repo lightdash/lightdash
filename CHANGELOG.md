@@ -1,3 +1,10 @@
+# [1.169.0](https://github.com/lightdash/lightdash/compare/1.168.0...1.169.0) (2026-08-17)
+
+
+### Features
+
+* **roles:** read and write role sets in RolesModel ([#27502](https://github.com/lightdash/lightdash/issues/27502)) ([f161063](https://github.com/lightdash/lightdash/commit/f161063c604fb37afed55886b510231874a3f256)), closes [#27500](https://github.com/lightdash/lightdash/issues/27500)
+
 # [1.168.0](https://github.com/lightdash/lightdash/compare/1.167.4...1.168.0) (2026-08-17)
 
 

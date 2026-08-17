@@ -1,33 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "1.168.0",
-  "previousVersion": "1.167.4",
-  "releaseDate": "2026-08-17T17:07:26.989Z",
+  "version": "1.169.0",
+  "previousVersion": "1.168.0",
+  "releaseDate": "2026-08-17T17:17:36.414Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260817151500_add_custom_role_join_tables.ts",
-        "edition": "core",
-        "tables": [
-          "organization_membership_custom_roles",
-          "organization_memberships",
-          "project_group_access",
-          "project_group_access_custom_roles",
-          "project_membership_custom_roles",
-          "project_memberships",
-          "roles"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": "unknown",
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
