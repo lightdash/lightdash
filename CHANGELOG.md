@@ -1,3 +1,10 @@
+## [1.172.2](https://github.com/lightdash/lightdash/compare/1.172.1...1.172.2) (2026-08-17)
+
+
+### Bug Fixes
+
+* **merge-query:** complete feature parity ([#27514](https://github.com/lightdash/lightdash/issues/27514)) ([47a205a](https://github.com/lightdash/lightdash/commit/47a205aab6ac2d038dd2bccbd485dc2f862dd431))
+
 ## [1.172.1](https://github.com/lightdash/lightdash/compare/1.172.0...1.172.1) (2026-08-17)
 
 
