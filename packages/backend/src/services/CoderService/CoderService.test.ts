@@ -1250,6 +1250,7 @@ describe('CoderService', () => {
                     find: vi.fn(async () => [
                         { uuid: 'chart-uuid', slug: 'revenue-chart' },
                     ]),
+                    getSlugAliasMappingsForUuids: vi.fn(async () => []),
                 } as AnyType,
                 savedSqlModel: { find: vi.fn(async () => []) } as AnyType,
                 appModel: {
@@ -1301,6 +1302,60 @@ describe('CoderService', () => {
             expect(tiles[1].properties).toMatchObject({
                 appUuid: 'target-app-uuid',
                 appSlug: 'revenue-explorer',
+            });
+        });
+
+        it('resolves a historical chart slug to the existing chart UUID', async () => {
+            const service = new CoderService({
+                analytics: {} as AnyType,
+                contentVerificationModel: {} as AnyType,
+                dashboardModel: {} as AnyType,
+                lightdashConfig: {} as AnyType,
+                projectModel: {} as AnyType,
+                promoteService: {} as AnyType,
+                savedChartModel: {
+                    find: vi.fn(async () => [
+                        { uuid: 'chart-uuid', slug: 'new-revenue-chart' },
+                    ]),
+                    getSlugAliasMappingsForUuids: vi.fn(async () => [
+                        {
+                            slug: 'old-revenue-chart',
+                            savedChartUuid: 'chart-uuid',
+                        },
+                    ]),
+                } as AnyType,
+                savedSqlModel: { find: vi.fn(async () => []) } as AnyType,
+                appModel: {
+                    findAppsBySlugs: vi.fn(async () => []),
+                    findAppsByUuids: vi.fn(async () => []),
+                } as AnyType,
+                schedulerModel: {} as AnyType,
+                schedulerService: {} as AnyType,
+                savedChartService: {} as AnyType,
+                dashboardService: {} as AnyType,
+                schedulerClient: {} as AnyType,
+                spaceModel: {} as AnyType,
+                spacePermissionService: {} as AnyType,
+                groupsModel: {} as AnyType,
+                organizationMemberProfileModel: {} as AnyType,
+                userModel: {} as AnyType,
+            });
+
+            const { tiles, warnings } =
+                await service.convertTileWithSlugsToUuids('project-uuid', [
+                    {
+                        type: DashboardTileTypes.SAVED_CHART,
+                        properties: {
+                            chartSlug: 'old-revenue-chart',
+                            chartName: 'Revenue',
+                        },
+                    },
+                ] as AnyType);
+
+            expect(warnings).toEqual([]);
+            expect(tiles[0].properties).toMatchObject({
+                chartSlug: 'old-revenue-chart',
+                savedChartUuid: 'chart-uuid',
             });
         });
 

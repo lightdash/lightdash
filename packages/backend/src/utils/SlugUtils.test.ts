@@ -16,6 +16,10 @@ describe('generateUniqueSlugScopedToProject', () => {
         tracker = getTracker();
     });
 
+    beforeEach(() => {
+        tracker.on.select('pg_advisory_xact_lock').response({});
+    });
+
     afterEach(() => {
         tracker.reset();
     });
@@ -31,9 +35,13 @@ describe('generateUniqueSlugScopedToProject', () => {
             'Orders',
         );
 
-        const [query] = tracker.history.select;
-        expect(query.sql).toContain(`"${SavedChartsTableName}"."project_uuid"`);
-        expect(query.sql).not.toContain('join');
+        const query = tracker.history.select.find(({ sql }) =>
+            sql.includes(SavedChartsTableName),
+        );
+        expect(query?.sql).toContain(
+            `"${SavedChartsTableName}"."project_uuid"`,
+        );
+        expect(query?.sql).not.toContain('join');
         expect(slug).toBe('orders');
     });
 
@@ -72,11 +80,12 @@ describe('generateUniqueSlugScopedToProject', () => {
 
         expect(slug).toHaveLength(255);
         expect(slug.endsWith('-2')).toBe(true);
-        expect(tracker.history.select).toHaveLength(4);
-        expect(tracker.history.select[1].sql).toContain('"slug" = $2');
-        expect(tracker.history.select[1].bindings).toContain(
-            `${'a'.repeat(253)}-1`,
+        const slugQueries = tracker.history.select.filter(
+            ({ sql }) => !sql.includes('pg_advisory_xact_lock'),
         );
+        expect(slugQueries).toHaveLength(4);
+        expect(slugQueries[1].sql).toContain('"slug" = $2');
+        expect(slugQueries[1].bindings).toContain(`${'a'.repeat(253)}-1`);
     });
 
     it('detects collisions for long names with the same bounded prefix', async () => {

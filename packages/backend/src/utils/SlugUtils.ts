@@ -95,6 +95,16 @@ export async function generateUniqueSlugScopedToProject(
     let increment = 0;
     for (;;) {
         const candidate = getSlugCandidate(tableName, baseSlug, increment);
+        if (tableName === SavedChartsTableName) {
+            // Alias and canonical rows cannot share a database constraint, so
+            // all chart writers lock the exact candidate before checking both.
+            // eslint-disable-next-line no-await-in-loop
+            await acquireProjectSlugLock(
+                trx,
+                projectOwner as string,
+                candidate,
+            );
+        }
         const ownerColumn =
             tableName === SpaceTableName
                 ? `${SpaceTableName}.project_id`

@@ -400,6 +400,161 @@ describe('createSavedChart', () => {
     });
 });
 
+describe('renameSlug', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const model = new SavedChartModel({
+        database,
+        lightdashConfig: lightdashConfigMock,
+    });
+    const projectUuid = '22222222-2222-4222-8222-222222222222';
+    const chartUuid = '11111111-1111-4111-8111-111111111111';
+    let tracker: Tracker;
+
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+
+    beforeEach(() => {
+        tracker.on.select('pg_advisory_xact_lock').response({});
+        vi.spyOn(database, 'transaction').mockImplementation(((
+            callback: AnyType,
+        ) => callback(database)) as AnyType);
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+        tracker.reset();
+    });
+
+    test('renames the canonical slug and records the previous slug as an alias', async () => {
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([{ saved_query_uuid: chartUuid, deleted_at: null }]);
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([{ slug: 'old-orders' }]);
+        tracker.on.select(SavedChartsTableName).responseOnce([]);
+        tracker.on.select(SavedChartSlugMappingsTableName).responseOnce([]);
+        tracker.on
+            .insert(SavedChartSlugMappingsTableName)
+            .responseOnce([{ saved_query_uuid: chartUuid }]);
+        tracker.on.update(SavedChartsTableName).responseOnce(1);
+
+        await model.renameSlug({
+            projectUuid,
+            savedChartUuid: chartUuid,
+            from: 'old-orders',
+            to: 'new-orders',
+        });
+
+        const aliasInsert = tracker.history.insert.find((query) =>
+            query.sql.includes(SavedChartSlugMappingsTableName),
+        );
+        expect(aliasInsert?.bindings).toEqual(
+            expect.arrayContaining([projectUuid, chartUuid, 'old-orders']),
+        );
+        const [chartUpdate] = tracker.history.update;
+        expect(chartUpdate.bindings).toEqual(
+            expect.arrayContaining([
+                'new-orders',
+                projectUuid,
+                chartUuid,
+                'old-orders',
+            ]),
+        );
+    });
+
+    test('treats an alias-to-current replay as idempotent', async () => {
+        tracker.on.select(SavedChartsTableName).responseOnce([]);
+        tracker.on
+            .select(SavedChartSlugMappingsTableName)
+            .responseOnce([{ saved_query_uuid: chartUuid, deleted_at: null }]);
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([{ slug: 'new-orders' }]);
+
+        await model.renameSlug({
+            projectUuid,
+            savedChartUuid: chartUuid,
+            from: 'old-orders',
+            to: 'new-orders',
+        });
+
+        expect(tracker.history.insert).toHaveLength(0);
+        expect(tracker.history.update).toHaveLength(0);
+        expect(tracker.history.delete).toHaveLength(0);
+    });
+
+    test('rejects a target slug owned by another chart before writing', async () => {
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([{ saved_query_uuid: chartUuid, deleted_at: null }]);
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([{ slug: 'old-orders' }]);
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([
+                { saved_query_uuid: 'another-chart-uuid', deleted_at: null },
+            ]);
+
+        await expect(
+            model.renameSlug({
+                projectUuid,
+                savedChartUuid: chartUuid,
+                from: 'old-orders',
+                to: 'existing-orders',
+            }),
+        ).rejects.toThrow(
+            'Chart slug "existing-orders" is already in use in this project',
+        );
+
+        expect(tracker.history.insert).toHaveLength(0);
+        expect(tracker.history.update).toHaveLength(0);
+        expect(tracker.history.delete).toHaveLength(0);
+    });
+
+    test('renames back to an alias owned by the same chart', async () => {
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([{ saved_query_uuid: chartUuid, deleted_at: null }]);
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([{ slug: 'new-orders' }]);
+        tracker.on.select(SavedChartsTableName).responseOnce([]);
+        tracker.on
+            .select(SavedChartSlugMappingsTableName)
+            .responseOnce([{ saved_query_uuid: chartUuid, deleted_at: null }]);
+        tracker.on.delete(SavedChartSlugMappingsTableName).responseOnce(1);
+        tracker.on
+            .insert(SavedChartSlugMappingsTableName)
+            .responseOnce([{ saved_query_uuid: chartUuid }]);
+        tracker.on.update(SavedChartsTableName).responseOnce(1);
+
+        await model.renameSlug({
+            projectUuid,
+            savedChartUuid: chartUuid,
+            from: 'new-orders',
+            to: 'old-orders',
+        });
+
+        expect(tracker.history.delete).toHaveLength(1);
+        const [aliasInsert] = tracker.history.insert;
+        expect(aliasInsert.bindings).toEqual(
+            expect.arrayContaining([projectUuid, chartUuid, 'new-orders']),
+        );
+        const [chartUpdate] = tracker.history.update;
+        expect(chartUpdate.bindings).toEqual(
+            expect.arrayContaining([
+                'old-orders',
+                projectUuid,
+                chartUuid,
+                'new-orders',
+            ]),
+        );
+    });
+});
+
 describe('get', () => {
     const database = knex({ client: MockClient, dialect: 'pg' });
     const model = new SavedChartModel({

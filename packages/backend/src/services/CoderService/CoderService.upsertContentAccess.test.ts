@@ -77,6 +77,7 @@ const buildService = () =>
         } as AnyType,
         savedChartModel: {
             find: vi.fn(async () => []),
+            getSlugAliasMappingsForUuids: vi.fn(async () => []),
             get: vi.fn(),
             create: vi.fn(),
         } as AnyType,
