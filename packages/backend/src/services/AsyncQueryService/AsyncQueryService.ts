@@ -6326,6 +6326,14 @@ export class AsyncQueryService extends ProjectService {
         const validUuid =
             /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
+        // Each reference costs a DB lookup and authorization check in parallel
+        const MAX_REFERENCES = 20;
+        if (Object.keys(references).length > MAX_REFERENCES) {
+            throw new ParameterError(
+                `Too many references: maximum allowed is ${MAX_REFERENCES}`,
+            );
+        }
+
         return Promise.all(
             Object.entries(references).map(async ([tableName, queryUuid]) => {
                 if (!validTableName.test(tableName)) {
