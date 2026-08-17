@@ -95,4 +95,11 @@ services:
             S3_REGION: ${S3_REGION}
             S3_BUCKET: ${S3_BUCKET}
 
+            # Pre-aggregates always on in agent dev sessions (materializations
+            # and the compose-sql DuckDB engine share the okteto bucket;
+            # credentials fall back to the base S3 config)
+            PRE_AGGREGATES_ENABLED: true
+            PRE_AGGREGATE_RESULTS_S3_BUCKET: ${S3_BUCKET}
+            PRE_AGGREGATE_RESULTS_S3_REGION: ${S3_REGION}
+
             LIGHTDASH_LOG_LEVEL: debug
