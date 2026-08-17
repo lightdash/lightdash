@@ -186,7 +186,7 @@ describe('ProjectModel', () => {
             await expect(
                 model.getExploreFromCache(projectUuid, 'orders'),
             ).rejects.toMatchObject({
-                name: 'ExploreSplitError',
+                name: 'NotFoundError',
                 statusCode: 404,
                 data: {
                     exploreName: 'orders',

@@ -11,6 +11,7 @@ import React, {
     type FC,
     type ReactNode,
 } from 'react';
+import { getCandidateExploreNames } from '../../../utils/exploreSplitError';
 import CodeBlock from '../CodeBlock/CodeBlock';
 import SuboptimalState from '../SuboptimalState/SuboptimalState';
 
@@ -50,14 +51,26 @@ const ErrorState: FC<{
                     )}
                 </>
             );
-            const candidateExploreNames = Array.isArray(
-                error.data?.candidateExploreNames,
-            )
-                ? error.data.candidateExploreNames.filter(
-                      (candidate): candidate is string =>
-                          typeof candidate === 'string',
-                  )
-                : [];
+            const candidateExploreNames = getCandidateExploreNames(error.data);
+            const isExploreSplitError =
+                error.statusCode === 404 &&
+                typeof error.data?.exploreName === 'string' &&
+                candidateExploreNames.length >= 2;
+            if (isExploreSplitError) {
+                return {
+                    icon: IconMoodPuzzled,
+                    title: 'Explore was split',
+                    description: (
+                        <Stack gap="xs" align="center">
+                            <Text maw={400}>{error.message}</Text>
+                            {candidateExploreNames.map((candidate) => (
+                                <Code key={candidate}>{candidate}</Code>
+                            ))}
+                        </Stack>
+                    ),
+                    action,
+                };
+            }
             switch (error.name) {
                 case 'ForbiddenError':
                     return {
@@ -76,20 +89,6 @@ const ErrorState: FC<{
                         icon: IconMoodPuzzled,
                         title: 'Not found',
                         description,
-                    };
-                case 'ExploreSplitError':
-                    return {
-                        icon: IconMoodPuzzled,
-                        title: 'Explore was split',
-                        description: (
-                            <Stack gap="xs" align="center">
-                                <Text maw={400}>{error.message}</Text>
-                                {candidateExploreNames.map((candidate) => (
-                                    <Code key={candidate}>{candidate}</Code>
-                                ))}
-                            </Stack>
-                        ),
-                        action,
                     };
                 default:
                     return {

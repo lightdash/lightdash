@@ -193,7 +193,7 @@ describe('SavedChartService - Content Verification', () => {
                 { projectUuid: 'project-uuid' },
             ),
         ).rejects.toMatchObject({
-            name: 'ExploreSplitError',
+            name: 'NotFoundError',
             data: {
                 exploreName: 'test_table',
                 candidateExploreNames: [
