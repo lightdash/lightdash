@@ -442,6 +442,7 @@ export const compileProject = async (
             getCompiledModels(projectManifestModels, compiledModelIds)
                 .length === projectManifestModels.length;
         let effectiveCompiledModelIds = compiledModelIds;
+        const servedModelIds = new Set<string>();
         let additionalManifest: DbtManifest | undefined;
         let combineSource: string | undefined;
         let isAutomaticServerManifest = false;
@@ -501,6 +502,11 @@ export const compileProject = async (
                 const { manifest: merged, addedModelIds } =
                     combinePreviewManifests(manifest, additionalManifest);
                 manifest = merged;
+                if (isAutomaticServerManifest) {
+                    addedModelIds.forEach((modelId) => {
+                        servedModelIds.add(modelId);
+                    });
+                }
                 if (
                     effectiveCompiledModelIds !== undefined &&
                     addedModelIds.length > 0
@@ -551,6 +557,7 @@ export const compileProject = async (
                 adapterType,
                 manifestVersion,
                 modelsForValidation,
+                servedModelIds,
             );
 
         if (failedExplores.length > 0) {

@@ -322,6 +322,9 @@ describe('compileProject completeness', () => {
         expect(
             modelsForValidation.map((model) => model.unique_id),
         ).not.toContain('model.served.customer_helper');
+        expect(vi.mocked(validateDbtModel).mock.calls[0][3]).toEqual(
+            new Set(['model.served.customers']),
+        );
     });
 
     test('skips automatic combination when the local dbt project is not a served source', async () => {
