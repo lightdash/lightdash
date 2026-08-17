@@ -1,3 +1,10 @@
+## [1.167.3](https://github.com/lightdash/lightdash/compare/1.167.2...1.167.3) (2026-08-17)
+
+
+### Bug Fixes
+
+* prompt caching not working on Bedrock ([#27485](https://github.com/lightdash/lightdash/issues/27485)) ([474b8bd](https://github.com/lightdash/lightdash/commit/474b8bde9d50f880aef039363cc130965ff60617))
+
 ## [1.167.2](https://github.com/lightdash/lightdash/compare/1.167.1...1.167.2) (2026-08-17)
 
 
