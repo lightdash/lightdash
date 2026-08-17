@@ -3,6 +3,7 @@ import {
     AiResultType,
     convertAiTableCalcsSchemaToTableCalcs,
     filterAggregationCustomMetrics,
+    generateVisualizationToolDefinition,
     getReferencedExploreParameterDefinitions,
     getSlackAiEchartsConfig,
     getTotalFilterRules,
@@ -20,6 +21,7 @@ import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type {
     CreateOrUpdateArtifactFn,
     GetPromptFn,
+    RunAsyncMergeQueryFn,
     RunAsyncQueryFn,
     SendFileFn,
     UpdateProgressFn,
@@ -67,6 +69,8 @@ type Dependencies = {
     enableDataAccess: boolean;
     // Project-level parameter definitions; model-level ones come from the explore.
     projectParameterDefinitions: ParameterDefinitions;
+    enableMergeQueries?: boolean;
+    runAsyncMergeQuery?: RunAsyncMergeQueryFn;
 };
 
 // The parameter state a query actually ran with — explicit vs
@@ -113,8 +117,6 @@ export const summarizeAppliedParameters = (
         ? ` Parameter values this query ran with — ${parts.join('; ')}.`
         : '';
 };
-
-const toolDefinition = runQueryToolDefinition.for('agent');
 
 export const validateRunQueryTool = (
     queryTool: ToolRunQueryArgsTransformed,
@@ -232,9 +234,13 @@ export const getRunQuery = ({
     exposeQueryUuid,
     enableDataAccess,
     projectParameterDefinitions,
+    enableMergeQueries = false,
+    runAsyncMergeQuery,
 }: Dependencies) =>
     tool({
-        ...toolDefinition,
+        ...(enableMergeQueries
+            ? generateVisualizationToolDefinition.for('agent')
+            : runQueryToolDefinition.for('agent')),
         execute: async (toolArgs, { experimental_context: context }) => {
             try {
                 await updateProgress('Running your query...');
@@ -246,14 +252,251 @@ export const getRunQuery = ({
                     queryTool.queryConfig.exploreName,
                 );
 
-                validateRunQueryTool(queryTool, explore);
-                validateQueryParameters(
-                    queryTool.queryConfig.parameters,
-                    explore,
-                    projectParameterDefinitions,
-                );
+                if (!queryTool.mergeConfig) {
+                    validateRunQueryTool(queryTool, explore);
+                    validateQueryParameters(
+                        queryTool.queryConfig.parameters,
+                        explore,
+                        projectParameterDefinitions,
+                    );
+                }
 
                 const prompt = await getPrompt();
+
+                if (queryTool.mergeConfig) {
+                    if (!enableMergeQueries || !runAsyncMergeQuery) {
+                        throw new AiAgentValidatorError(
+                            'Merge queries are not enabled for this organization.',
+                        );
+                    }
+
+                    const requestedLimit = queryTool.queryConfig.limit;
+                    const effectiveLimit = getValidAiQueryLimit(
+                        requestedLimit,
+                        maxLimit,
+                    );
+                    const sourceConfigs = [
+                        {
+                            id: queryTool.mergeConfig.primarySourceId,
+                            queryConfig: queryTool.queryConfig,
+                        },
+                        ...queryTool.mergeConfig.additionalSources.map(
+                            (source) => ({
+                                id: source.id,
+                                queryConfig: {
+                                    ...source.queryConfig,
+                                    limit: requestedLimit,
+                                    parameters:
+                                        queryTool.queryConfig.parameters,
+                                    tableCalculations: [],
+                                },
+                            }),
+                        ),
+                    ];
+
+                    const sources = sourceConfigs.map(({ id, queryConfig }) => {
+                        const sourceExplore = ctx.getExplore(
+                            queryConfig.exploreName,
+                        );
+                        const sourceTool = {
+                            ...queryTool,
+                            queryConfig,
+                            chartConfig: null,
+                            mergeConfig: null,
+                        };
+                        validateRunQueryTool(sourceTool, sourceExplore);
+                        validateQueryParameters(
+                            queryConfig.parameters,
+                            sourceExplore,
+                            projectParameterDefinitions,
+                        );
+                        const customMetrics = populateCustomMetricsSQL(
+                            queryConfig.customMetrics,
+                            sourceExplore,
+                        );
+                        return {
+                            id,
+                            metricQuery: {
+                                exploreName: queryConfig.exploreName,
+                                dimensions: queryConfig.dimensions,
+                                metrics: expandMetricsWithPopAdditionalMetrics(
+                                    queryConfig.metrics,
+                                    customMetrics,
+                                ),
+                                sorts: queryConfig.sorts.map((sort) => ({
+                                    ...sort,
+                                    nullsFirst: sort.nullsFirst ?? undefined,
+                                })),
+                                limit: effectiveLimit,
+                                filters: queryConfig.filters,
+                                additionalMetrics: customMetrics,
+                                tableCalculations: [],
+                            },
+                        };
+                    });
+
+                    if (queryTool.chartConfig) {
+                        const dimensionIds = queryTool.mergeConfig.joinKey.map(
+                            (part) =>
+                                `merge_${part.name.replaceAll('.', '__')}`,
+                        );
+                        const metricIds = sources.flatMap((source) =>
+                            source.metricQuery.metrics.map(
+                                (metricId) =>
+                                    `${source.id}_${metricId.replaceAll(
+                                        '.',
+                                        '__',
+                                    )}`,
+                            ),
+                        );
+                        const selected = new Set([
+                            ...dimensionIds,
+                            ...metricIds,
+                        ]);
+                        const configuredFields = [
+                            queryTool.chartConfig.xAxisDimension,
+                            ...(queryTool.chartConfig.yAxisMetrics ?? []),
+                            ...(queryTool.chartConfig.groupBy ?? []),
+                            queryTool.chartConfig.secondaryYAxisMetric,
+                        ].filter((field): field is string => field !== null);
+                        const unknownFields = configuredFields.filter(
+                            (field) => !selected.has(field),
+                        );
+                        if (unknownFields.length > 0) {
+                            throw new AiAgentValidatorError(
+                                `Merged chart references unknown fields: ${unknownFields.join(
+                                    ', ',
+                                )}. Available fields: ${[
+                                    ...dimensionIds,
+                                    ...metricIds,
+                                ].join(', ')}.`,
+                            );
+                        }
+                    }
+
+                    const createMergeArtifactHook = () =>
+                        createOrUpdateArtifact({
+                            threadUuid: prompt.threadUuid,
+                            promptUuid: prompt.promptUuid,
+                            artifactType: 'chart',
+                            title: toolArgs.title,
+                            description: toolArgs.description,
+                            vizConfig: {
+                                source: 'merge',
+                                schemaVersion: 1,
+                                config: toolArgs,
+                            },
+                        });
+
+                    if (!enableDataAccess && !isSlackPrompt(prompt)) {
+                        await createMergeArtifactHook();
+                        return {
+                            result: 'Success',
+                            metadata: { status: 'success' },
+                        };
+                    }
+
+                    const queryResults = await runAsyncMergeQuery(
+                        {
+                            sources,
+                            joinKey: queryTool.mergeConfig.joinKey.map(
+                                (part) => ({
+                                    name: part.name,
+                                    fieldIdBySourceId: Object.fromEntries(
+                                        part.fields.map((field) => [
+                                            field.sourceId,
+                                            field.fieldId,
+                                        ]),
+                                    ),
+                                }),
+                            ),
+                            joinType: queryTool.mergeConfig.joinType,
+                            tableCalculations: [],
+                            limit: effectiveLimit,
+                        },
+                        queryTool.queryConfig.parameters ?? undefined,
+                    );
+
+                    if (queryResults.rows.length === 0) {
+                        return {
+                            result: NO_RESULTS_RETRY_PROMPT,
+                            metadata: { status: 'success' },
+                        };
+                    }
+
+                    await createMergeArtifactHook();
+
+                    let chartImageUrl: string | undefined;
+                    if (isSlackPrompt(prompt)) {
+                        const echartsOptions = await getSlackAiEchartsConfig({
+                            toolArgs: {
+                                type: AiResultType.QUERY_RESULT,
+                                tool: queryTool,
+                            },
+                            queryResults,
+                            getPivotedResults,
+                        });
+                        if (echartsOptions) {
+                            const chartImage =
+                                await renderEcharts(echartsOptions);
+                            chartImageUrl = await sendFile({
+                                channelId: prompt.slackChannelId,
+                                threadTs: prompt.slackThreadTs,
+                                organizationUuid: prompt.organizationUuid,
+                                title:
+                                    toolArgs.title || 'Generated by Lightdash',
+                                comment:
+                                    toolArgs.description ||
+                                    'Chart generated by Lightdash',
+                                filename: 'lightdash-chart.png',
+                                file: chartImage,
+                            });
+                        } else {
+                            await sendFile({
+                                channelId: prompt.slackChannelId,
+                                threadTs: prompt.slackThreadTs,
+                                organizationUuid: prompt.organizationUuid,
+                                title:
+                                    toolArgs.title || 'Generated by Lightdash',
+                                comment:
+                                    toolArgs.description ||
+                                    'Table generated by Lightdash',
+                                filename: 'lightdash-results.csv',
+                                file: Buffer.from(
+                                    convertQueryResultsToCsv(queryResults),
+                                    'utf-8',
+                                ),
+                            });
+                        }
+                    }
+
+                    const resultSummary = getQueryResultSummary({
+                        rowCount: queryResults.rows.length,
+                        requestedLimit,
+                        effectiveLimit,
+                        maxLimit,
+                    });
+                    const csv = convertQueryResultsToCsv(
+                        queryResults,
+                        maxContextRows,
+                    );
+                    return {
+                        result: enableDataAccess
+                            ? [
+                                  `${resultSummary}${getContextTruncationNote({
+                                      rowCount: queryResults.rows.length,
+                                      maxContextRows,
+                                  })}`,
+                                  serializeData(csv, 'csv'),
+                              ].join('\n\n')
+                            : `Success. ${resultSummary}`,
+                        metadata: {
+                            status: 'success',
+                            chartImageUrl,
+                            queryUuid: queryResults.queryUuid,
+                        },
+                    };
+                }
 
                 const populatedCustomMetrics = populateCustomMetricsSQL(
                     queryTool.queryConfig.customMetrics,

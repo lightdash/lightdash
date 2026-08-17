@@ -6758,6 +6758,47 @@ export class AsyncQueryService extends ProjectService {
         });
     }
 
+    /** Execute a merge query and wait for all results. */
+    async executeMergeQueryAndGetResults(
+        args: ExecuteAsyncMergeQueryArgs,
+        pollingOptions?: PollingOptions,
+    ): Promise<{
+        queryUuid: string;
+        rows: Record<string, unknown>[];
+        cacheMetadata: CacheMetadata;
+        fields: ItemsMap;
+        pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        displayTimezone: string | null;
+        metricQuery: MetricQuery;
+    }> {
+        const { account, projectUuid } = args;
+        const outcome = await this.executeAsyncMergeQuery(args);
+        if (outcome.outcome === 'refused') {
+            throw new ParameterError(
+                `This merge cannot be run: ${outcome.errors
+                    .map((error) => error.message)
+                    .join(' ')}`,
+                { errors: outcome.errors },
+            );
+        }
+
+        const { queryUuid, cacheMetadata, fields, metricQuery } = outcome.query;
+        await this.pollForQueryCompletion({
+            account,
+            projectUuid,
+            queryUuid,
+            ...pollingOptions,
+        });
+        const results = await this.getReadyQueryResults({
+            account,
+            projectUuid,
+            queryUuid,
+            cacheMetadata,
+            fields,
+        });
+        return { queryUuid, metricQuery, ...results };
+    }
+
     /** Compatibility seam for the v1 endpoint's already-derived pivot. */
     async executeLegacyAsyncMergeQuery({
         pivotConfiguration,

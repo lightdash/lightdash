@@ -255,6 +255,8 @@ import {
     toolRenderChartArgsSchemaTransformed,
     toolRunQueryArgsSchema,
     toolRunQueryArgsSchemaTransformed,
+    toolRunQueryArgsSchemaV2,
+    toolRunQueryArgsSchemaV2Transformed,
     toolRunQueryOutputSchema,
 } from './toolRunQueryArgs';
 import {
@@ -526,8 +528,8 @@ export const generateVisualizationToolDefinition: ToolDefinitionWithoutMcpOutput
 
 export const runQueryToolDefinition: ToolDefinitionWithMcpOutput<
     'runQuery',
-    typeof toolRunQueryArgsSchema,
-    typeof toolRunQueryArgsSchemaTransformed,
+    typeof toolRunQueryArgsSchemaV2,
+    typeof toolRunQueryArgsSchemaV2Transformed,
     typeof toolRunQueryOutputSchema,
     typeof mcpRunMetricQueryStructuredOutputSchema
 > = defineTool({
@@ -535,8 +537,8 @@ export const runQueryToolDefinition: ToolDefinitionWithMcpOutput<
     title: 'Run query',
     description: TOOL_RUN_QUERY_DESCRIPTION,
     availability: ['agent', 'mcp'],
-    inputSchema: toolRunQueryArgsSchema,
-    inputSchemaTransformed: toolRunQueryArgsSchemaTransformed,
+    inputSchema: toolRunQueryArgsSchemaV2,
+    inputSchemaTransformed: toolRunQueryArgsSchemaV2Transformed,
     agent: { outputSchema: toolRunQueryOutputSchema },
     mcp: {
         name: 'run_metric_query',

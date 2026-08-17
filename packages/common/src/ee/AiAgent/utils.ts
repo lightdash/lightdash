@@ -3,6 +3,7 @@ import type {
     AiChartArtifactConfig,
     AiLegacySemanticChartArtifactConfig,
 } from './index';
+import type { ToolRunQueryArgsV3 } from './schemas';
 import {
     convertAiTableCalcsSchemaToTableCalcs,
     filterAggregationCustomMetrics,
@@ -149,6 +150,26 @@ export const parseAiArtifactChartConfig = (
     config: unknown,
 ): AiChartArtifactConfig | null => {
     if (!config || typeof config !== 'object') return null;
+
+    if (
+        'source' in config &&
+        config.source === 'merge' &&
+        'schemaVersion' in config &&
+        config.schemaVersion === 1 &&
+        'config' in config &&
+        config.config &&
+        typeof config.config === 'object'
+    ) {
+        const parsed = parsePersistedRunQueryArgs(config.config);
+        if (parsed?.mergeConfig) {
+            return {
+                source: 'merge',
+                schemaVersion: 1,
+                config: config.config as ToolRunQueryArgsV3,
+            };
+        }
+        return null;
+    }
 
     if (
         'source' in config &&

@@ -105,6 +105,7 @@ import {
     LoadAgentSkillFn,
     ReadContentFn,
     ResolveUrlFn,
+    RunAsyncMergeQueryFn,
     RunAsyncQueryFn,
     RunSavedChartQueryFn,
     RunSqlJobFn,
@@ -203,6 +204,7 @@ export type AiAgentToolsRuntime = {
     analyzeFieldImpact: AnalyzeFieldImpactFn;
     syncDbtProject: SyncDbtProjectFn;
     runAsyncQuery: RunAsyncQueryFn;
+    runAsyncMergeQuery: RunAsyncMergeQueryFn;
     runSavedChartQuery: RunSavedChartQueryFn;
     runSqlJob: RunSqlJobFn;
     listWarehouseTables: ListWarehouseTablesFn;
@@ -568,6 +570,8 @@ export class AiAgentToolsService extends BaseService {
                     additionalMetrics,
                     parameters,
                 ),
+            runAsyncMergeQuery: (mergeQuery, parameters) =>
+                this.runAsyncMergeQuery(context, mergeQuery, parameters),
             runSavedChartQuery: (args) =>
                 this.runSavedChartQuery(context, args),
             runSqlJob: (args) => this.runSqlJob(context, args),
@@ -1941,6 +1945,45 @@ export class AiAgentToolsService extends BaseService {
                     });
                 }
 
+                return result;
+            },
+        );
+    }
+
+    private runAsyncMergeQuery(
+        context: AiAgentToolsRuntimeContext,
+        mergeQuery: Parameters<RunAsyncMergeQueryFn>[0],
+        parameters: Parameters<RunAsyncMergeQueryFn>[1],
+    ): ReturnType<RunAsyncMergeQueryFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.runAsyncMergeQuery`,
+            mergeQuery,
+            async () => {
+                await context.onWarehouseQuery?.();
+                const result =
+                    await this.asyncQueryService.executeMergeQueryAndGetResults(
+                        {
+                            account: context.account,
+                            projectUuid: context.projectUuid,
+                            mergeQuery,
+                            context: context.defaultQueryExecutionContext,
+                            parameters,
+                            mode: { type: 'interactive' },
+                            userAttributeOverrides:
+                                context.userAttributeOverrides,
+                        },
+                    );
+
+                if (context.queryResultsExpirationMs) {
+                    await this.asyncQueryService.extendQueryResultsExpiration({
+                        account: context.account,
+                        projectUuid: context.projectUuid,
+                        queryUuid: result.queryUuid,
+                        expiresAt: new Date(
+                            Date.now() + context.queryResultsExpirationMs,
+                        ),
+                    });
+                }
                 return result;
             },
         );

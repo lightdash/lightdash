@@ -23,6 +23,8 @@ import {
     Filters,
     ItemsMap,
     KnexPaginateArgs,
+    MergeQuery,
+    MetricQuery,
     ParameterDefinitions,
     ParametersValuesMap,
     PreviewDeploySetupResult,
@@ -382,6 +384,17 @@ export type RunAsyncQueryFn = (
     rows: Record<string, AnyType>[];
     cacheMetadata: CacheMetadata;
     fields: ItemsMap;
+}>;
+
+export type RunAsyncMergeQueryFn = (
+    mergeQuery: MergeQuery,
+    parameters?: ParametersValuesMap,
+) => Promise<{
+    queryUuid: string;
+    rows: Record<string, AnyType>[];
+    cacheMetadata: CacheMetadata;
+    fields: ItemsMap;
+    metricQuery: MetricQuery;
 }>;
 
 export type RunSavedChartQueryFn = (args: {

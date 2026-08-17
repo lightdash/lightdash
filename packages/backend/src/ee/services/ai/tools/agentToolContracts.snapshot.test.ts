@@ -161,11 +161,13 @@ const makeAgentTools = () => {
         generateVisualization: getGenerateVisualization({
             createOrUpdateArtifact: noop,
             enableDataAccess: true,
+            enableMergeQueries: true,
             getPrompt: noop,
             maxLimit: 500,
             projectParameterDefinitions: {},
             maxContextRows: Number.POSITIVE_INFINITY,
             exposeQueryUuid: false,
+            runAsyncMergeQuery: noop,
             runAsyncQuery: noop,
             sendFile: noop,
             updateProgress: noopAsync,

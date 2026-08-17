@@ -70,6 +70,7 @@ import {
     getGroupByDimensions,
     getItemId,
     getItemMap,
+    getValidAiQueryLimit,
     getWebAiChartConfig,
     GITHUB_MCP_SERVER_NAME,
     GITHUB_MCP_SERVER_URL,
@@ -77,6 +78,7 @@ import {
     InsufficientGitPermissionsError,
     isAgentToolName,
     isAiDeepResearchRunTerminal,
+    isAiMergeChartArtifactConfig,
     isAiSqlChartArtifactConfig,
     isAiWritebackRunInProgress,
     isGithubMcpServerUrl,
@@ -92,6 +94,7 @@ import {
     OpenIdIdentityIssuerType,
     ParameterError,
     ParametersValuesMap,
+    parsePersistedRunQueryArgs,
     parseVizConfig,
     PersistentDownloadFileAccessMode,
     ProjectType,
@@ -126,6 +129,7 @@ import {
     type AiWebAppThreadCreatedFrom,
     type SessionUser,
     type SuggestionValidationCatalog,
+    type ToolRunQueryArgsTransformed,
     type VerifiedContentListItem,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -2338,6 +2342,100 @@ export class AiAgentService extends BaseService {
         );
 
         return asyncQuery;
+    }
+
+    private async executeAsyncAiMergeQuery(
+        user: SessionUser,
+        projectUuid: string,
+        toolArgs: ToolRunQueryArgsTransformed,
+    ) {
+        const { mergeConfig } = toolArgs;
+        if (!mergeConfig) {
+            throw new ParameterError('Merge config not found');
+        }
+        const effectiveLimit = getValidAiQueryLimit(
+            toolArgs.queryConfig.limit,
+            this.lightdashConfig.ai.copilot.maxQueryLimit,
+        );
+        const sourceConfigs = [
+            {
+                id: mergeConfig.primarySourceId,
+                queryConfig: toolArgs.queryConfig,
+            },
+            ...mergeConfig.additionalSources.map((source) => ({
+                id: source.id,
+                queryConfig: {
+                    ...source.queryConfig,
+                    limit: toolArgs.queryConfig.limit,
+                    parameters: toolArgs.queryConfig.parameters,
+                    tableCalculations: [],
+                },
+            })),
+        ];
+        const sources = await Promise.all(
+            sourceConfigs.map(async ({ id, queryConfig }) => {
+                const explore = await this.getExplore(
+                    user,
+                    projectUuid,
+                    null,
+                    queryConfig.exploreName,
+                );
+                const additionalMetrics = populateCustomMetricsSQL(
+                    queryConfig.customMetrics,
+                    explore,
+                );
+                return {
+                    id,
+                    metricQuery: {
+                        exploreName: queryConfig.exploreName,
+                        dimensions: queryConfig.dimensions,
+                        metrics: expandMetricsWithPopAdditionalMetrics(
+                            queryConfig.metrics,
+                            additionalMetrics,
+                        ),
+                        sorts: queryConfig.sorts.map((sort) => ({
+                            ...sort,
+                            nullsFirst: sort.nullsFirst ?? undefined,
+                        })),
+                        limit: effectiveLimit,
+                        filters: queryConfig.filters,
+                        additionalMetrics,
+                        tableCalculations: [],
+                    },
+                };
+            }),
+        );
+        const outcome = await this.asyncQueryService.executeAsyncMergeQuery({
+            account: fromSession(user),
+            projectUuid,
+            mergeQuery: {
+                sources,
+                joinKey: mergeConfig.joinKey.map((part) => ({
+                    name: part.name,
+                    fieldIdBySourceId: Object.fromEntries(
+                        part.fields.map((field) => [
+                            field.sourceId,
+                            field.fieldId,
+                        ]),
+                    ),
+                })),
+                joinType: mergeConfig.joinType,
+                tableCalculations: [],
+                limit: effectiveLimit,
+            },
+            context: QueryExecutionContext.AI,
+            parameters: toolArgs.queryConfig.parameters ?? undefined,
+            mode: { type: 'interactive' },
+        });
+        if (outcome.outcome === 'refused') {
+            throw new ParameterError(
+                `This merge cannot be run: ${outcome.errors
+                    .map((error) => error.message)
+                    .join(' ')}`,
+                { errors: outcome.errors },
+            );
+        }
+        return outcome.query;
     }
 
     public async getAgent(
@@ -6462,6 +6560,51 @@ export class AiAgentService extends BaseService {
             );
         }
 
+        if (isAiMergeChartArtifactConfig(artifact.chartConfig)) {
+            const { enabled: mergeQueriesEnabled } =
+                await this.featureFlagService.get({
+                    user,
+                    featureFlagId: FeatureFlags.MergeQueries,
+                });
+            if (!mergeQueriesEnabled) {
+                throw new ForbiddenError('Merge queries are not enabled');
+            }
+            const parsed = parsePersistedRunQueryArgs(
+                artifact.chartConfig.config,
+            );
+            if (!parsed?.mergeConfig) {
+                throw new ParameterError('Invalid merge visualization config');
+            }
+            const query = await this.executeAsyncAiMergeQuery(
+                user,
+                projectUuid,
+                parsed,
+            );
+            this.analytics.track({
+                event: 'ai_agent.artifact_viz_query',
+                userId: user.userUuid,
+                properties: {
+                    projectId: projectUuid,
+                    organizationId: organizationUuid,
+                    agentId: agent.uuid,
+                    agentName: agent.name,
+                    artifactId: artifactUuid,
+                    artifactVersionId: versionUuid,
+                    vizType: AiResultType.QUERY_RESULT,
+                    source: 'semantic',
+                },
+            });
+            return {
+                source: 'semantic',
+                type: AiResultType.QUERY_RESULT,
+                query,
+                metadata: {
+                    title: artifact.title,
+                    description: artifact.description,
+                },
+            };
+        }
+
         if (isAiSqlChartArtifactConfig(artifact.chartConfig)) {
             // Embed viewers are scoped by user attributes, which raw SQL bypasses.
             if (runtimeOptions) {
@@ -9417,6 +9560,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updateProgress,
             getPrompt,
             runAsyncQuery: toolsRuntime.runAsyncQuery,
+            runAsyncMergeQuery: toolsRuntime.runAsyncMergeQuery,
             runSavedChartQuery: toolsRuntime.runSavedChartQuery,
             runSqlJob: toolsRuntime.runSqlJob,
             listWarehouseTables: toolsRuntime.listWarehouseTables,
@@ -9618,6 +9762,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updateProgress,
             getPrompt,
             runAsyncQuery,
+            runAsyncMergeQuery,
             runSavedChartQuery,
             runSqlJob,
             listWarehouseTables,
@@ -9804,6 +9949,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     : undefined,
             ),
         });
+        const { enabled: mergeQueriesEnabled } =
+            await this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.MergeQueries,
+            });
         let aiWritebackEnabled = hasTrustedPromptUserIdentity;
         if (!aiWritebackEnabled) {
             this.logger.info(
@@ -10065,6 +10215,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableCodingAgent: codingAgentEnabled,
             enablePreviewDeploySetup: aiPreviewDeploySetupEnabled,
             enableRepoDiscovery: repoDiscoveryEnabled,
+            enableMergeQueries: mergeQueriesEnabled,
             repoFsRoot,
             repoFsSupportsCodeSearch,
             canRunSql,
@@ -10162,6 +10313,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             analyzeFieldImpact,
             syncDbtProject,
             runAsyncQuery,
+            runAsyncMergeQuery,
             runSavedChartQuery,
             runSqlJob,
             listWarehouseTables,
