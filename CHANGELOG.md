@@ -1,3 +1,10 @@
+## [1.166.1](https://github.com/lightdash/lightdash/compare/1.166.0...1.166.1) (2026-08-17)
+
+
+### Bug Fixes
+
+* keep guided tour card on screen for tall targets ([#27315](https://github.com/lightdash/lightdash/issues/27315)) ([cd9cfab](https://github.com/lightdash/lightdash/commit/cd9cfaba055a22ca3657019dc77a190ed0a8974f))
+
 # [1.166.0](https://github.com/lightdash/lightdash/compare/1.165.0...1.166.0) (2026-08-17)
 
 
