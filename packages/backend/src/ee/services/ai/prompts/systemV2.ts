@@ -356,6 +356,7 @@ export const getSystemPromptV2 = (args: {
         content: finalContent,
         providerOptions: {
             anthropic: { cacheControl: { type: 'ephemeral' } },
+            bedrock: { cachePoint: { type: 'default' } },
         },
     };
 };
