@@ -1,3 +1,18 @@
+# [1.165.0](https://github.com/lightdash/lightdash/compare/1.164.1...1.165.0) (2026-08-17)
+
+
+### Bug Fixes
+
+* creating an AI agent issue with related content failed with a 500 ([#27477](https://github.com/lightdash/lightdash/issues/27477)) ([6278b19](https://github.com/lightdash/lightdash/commit/6278b1981bc480f8fd28e4de0f7d790174a3511d))
+* **frontend:** delay null filter option until values load ([#27463](https://github.com/lightdash/lightdash/issues/27463)) ([6fbcaf6](https://github.com/lightdash/lightdash/commit/6fbcaf69ea11a095a0c8043b55d0be2b1c7bc28c))
+* **pre-aggregates:** prefer specific miss reason over metric-not-in-pre-aggregate ([#27461](https://github.com/lightdash/lightdash/issues/27461)) ([ef27cc9](https://github.com/lightdash/lightdash/commit/ef27cc954f22415a204dd4e947792ad2864a8229)), closes [#27406](https://github.com/lightdash/lightdash/issues/27406)
+* preserve distinct keys in period comparisons ([#27459](https://github.com/lightdash/lightdash/issues/27459)) ([e328cfd](https://github.com/lightdash/lightdash/commit/e328cfd2932b1ca9b56bc87d5e7c9217ff3e5285))
+
+
+### Features
+
+* **pre-aggregates:** serve non-additive metrics on exact matches ([#27406](https://github.com/lightdash/lightdash/issues/27406)) ([47e104b](https://github.com/lightdash/lightdash/commit/47e104b696a4e338b634e638b32da2bec659ddf1))
+
 ## [1.164.1](https://github.com/lightdash/lightdash/compare/1.164.0...1.164.1) (2026-08-17)
 
 

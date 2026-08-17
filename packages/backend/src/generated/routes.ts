@@ -14548,6 +14548,11 @@ const models: TsoaRoute.Models = {
         enums: ['non_additive_metric'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'PreAggregateMissReason.NON_ADDITIVE_METRIC_REQUIRES_EXACT_MATCH': {
+        dataType: 'refEnum',
+        enums: ['non_additive_metric_requires_exact_match'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'PreAggregateMissReason.CUSTOM_SQL_METRIC': {
         dataType: 'refEnum',
         enums: ['custom_sql_metric'],
@@ -14638,6 +14643,16 @@ const models: TsoaRoute.Models = {
                         fieldId: { ref: 'FieldId', required: true },
                         reason: {
                             ref: 'PreAggregateMissReason.NON_ADDITIVE_METRIC',
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        fieldId: { ref: 'FieldId', required: true },
+                        reason: {
+                            ref: 'PreAggregateMissReason.NON_ADDITIVE_METRIC_REQUIRES_EXACT_MATCH',
                             required: true,
                         },
                     },

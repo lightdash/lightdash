@@ -15725,6 +15725,10 @@
                 "enum": ["non_additive_metric"],
                 "type": "string"
             },
+            "PreAggregateMissReason.NON_ADDITIVE_METRIC_REQUIRES_EXACT_MATCH": {
+                "enum": ["non_additive_metric_requires_exact_match"],
+                "type": "string"
+            },
             "PreAggregateMissReason.CUSTOM_SQL_METRIC": {
                 "enum": ["custom_sql_metric"],
                 "type": "string"
@@ -15807,6 +15811,18 @@
                             },
                             "reason": {
                                 "$ref": "#/components/schemas/PreAggregateMissReason.NON_ADDITIVE_METRIC"
+                            }
+                        },
+                        "required": ["fieldId", "reason"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fieldId": {
+                                "$ref": "#/components/schemas/FieldId"
+                            },
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.NON_ADDITIVE_METRIC_REQUIRES_EXACT_MATCH"
                             }
                         },
                         "required": ["fieldId", "reason"],
@@ -53411,7 +53427,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.164.1",
+        "version": "1.165.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
