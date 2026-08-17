@@ -8,6 +8,7 @@ import {
     ApiGetAsyncQueryResults,
     ApiSuccess,
     ApiSuccessEmpty,
+    assertRegisteredAccount,
     DownloadAsyncQueryResultsRequestParams,
     ExecuteAsyncSqlQueryRequestParams,
     ForbiddenError,
@@ -185,11 +186,12 @@ export class QueryController extends BaseController {
         @Path() projectUuid: UUID,
         @Request() req: express.Request,
     ): Promise<ApiSuccess<ApiExecuteAsyncMergeQueryResults>> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const results = await this.services
             .getAsyncQueryService()
             .executeAsyncMergeQuery({
-                account: req.account!,
+                account: req.account,
                 projectUuid,
                 mergeQuery: body.mergeQuery,
                 context:

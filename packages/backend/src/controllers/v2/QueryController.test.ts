@@ -21,7 +21,7 @@ describe('QueryController', () => {
         } as unknown as ConstructorParameters<typeof QueryController>[0]);
         controller.setStatus = vi.fn();
         const req = {
-            account: {},
+            account: { user: { type: 'registered' } },
             headers: {},
             header: vi.fn(),
         } as unknown as express.Request;
