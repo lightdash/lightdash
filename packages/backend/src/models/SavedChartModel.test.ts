@@ -8,6 +8,7 @@ import {
     DashboardTileChartTableName,
 } from '../database/entities/dashboards';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
+import { SavedChartSlugMappingsTableName } from '../database/entities/savedChartSlugMappings';
 import { SpaceTableName } from '../database/entities/spaces';
 import { createSavedChart, SavedChartModel } from './SavedChartModel';
 import { chartSummary } from './SavedChartModel.mock';
@@ -61,6 +62,7 @@ describe('createSavedChart', () => {
         const spaceUuid = '33333333-3333-4333-8333-333333333333';
 
         tracker.on.select(SavedChartsTableName).responseOnce([]);
+        tracker.on.select(SavedChartSlugMappingsTableName).responseOnce([]);
         tracker.on.select(SpaceTableName).responseOnce([{ space_id: 7 }]);
         tracker.on
             .insert(SavedChartsTableName)
@@ -100,6 +102,7 @@ describe('createSavedChart', () => {
         const dashboardUuid = '44444444-4444-4444-8444-444444444444';
 
         tracker.on.select(SavedChartsTableName).responseOnce([]);
+        tracker.on.select(SavedChartSlugMappingsTableName).responseOnce([]);
         tracker.on
             .select(DashboardsTableName)
             .responseOnce([{ dashboard_uuid: dashboardUuid }]);
@@ -144,6 +147,7 @@ describe('createSavedChart', () => {
             .select(SavedChartsTableName)
             .responseOnce([{ slug: 'orders' }]);
         tracker.on.select(SavedChartsTableName).responseOnce([]);
+        tracker.on.select(SavedChartSlugMappingsTableName).responseOnce([]);
         tracker.on.select(SpaceTableName).responseOnce([{ space_id: 7 }]);
         tracker.on
             .insert(SavedChartsTableName)
@@ -203,6 +207,36 @@ describe('createSavedChart', () => {
         expect(tracker.history.insert).toHaveLength(0);
     });
 
+    test('returns an active chart that owns a forced historical slug', async () => {
+        tracker.on.select(SavedChartsTableName).responseOnce([]);
+        tracker.on.select(SavedChartSlugMappingsTableName).responseOnce([
+            {
+                saved_query_uuid: 'existing-chart-uuid',
+                deleted_at: null,
+            },
+        ]);
+
+        const result = await createSavedChart(
+            database,
+            '22222222-2222-4222-8222-222222222222',
+            '11111111-1111-4111-8111-111111111111',
+            {
+                ...chartInput,
+                spaceUuid: '33333333-3333-4333-8333-333333333333',
+                dashboardUuid: null,
+                forceSlug: true,
+            },
+        );
+
+        expect(result).toBe('existing-chart-uuid');
+        expect(tracker.history.insert).toHaveLength(0);
+        expect(
+            tracker.history.select.some((query) =>
+                query.sql.includes(SavedChartSlugMappingsTableName),
+            ),
+        ).toBe(true);
+    });
+
     test('rejects a forced slug owned by a deleted chart', async () => {
         tracker.on.select(SavedChartsTableName).responseOnce([
             {
@@ -258,10 +292,12 @@ describe('createSavedChart', () => {
         const spaceUuid = '33333333-3333-4333-8333-333333333333';
 
         tracker.on.select(SavedChartsTableName).responseOnce([]);
+        tracker.on.select(SavedChartSlugMappingsTableName).responseOnce([]);
         tracker.on
             .select(SavedChartsTableName)
             .responseOnce([{ saved_query_id: 10 }]);
         tracker.on.select(SavedChartsTableName).responseOnce([]);
+        tracker.on.select(SavedChartSlugMappingsTableName).responseOnce([]);
         tracker.on.select(SpaceTableName).responseOnce([{ space_id: 7 }]);
         tracker.on.select(SpaceTableName).responseOnce([{ space_id: 7 }]);
         tracker.on
@@ -294,6 +330,7 @@ describe('createSavedChart', () => {
 
     test('resolves a forced-slug race to the chart committed by the other writer', async () => {
         tracker.on.select(SavedChartsTableName).responseOnce([]);
+        tracker.on.select(SavedChartSlugMappingsTableName).responseOnce([]);
         tracker.on.select(SpaceTableName).responseOnce([{ space_id: 7 }]);
         tracker.on.select(SavedChartsTableName).responseOnce([
             {
@@ -324,6 +361,7 @@ describe('createSavedChart', () => {
     test('reconciles a forced slug after the final retry loses a race', async () => {
         for (let attempt = 0; attempt < 3; attempt += 1) {
             tracker.on.select(SavedChartsTableName).responseOnce([]);
+            tracker.on.select(SavedChartSlugMappingsTableName).responseOnce([]);
             tracker.on.select(SpaceTableName).responseOnce([{ space_id: 7 }]);
             tracker.on
                 .insert(SavedChartsTableName)
@@ -338,6 +376,11 @@ describe('createSavedChart', () => {
                       ]
                     : [],
             );
+            if (attempt < 2) {
+                tracker.on
+                    .select(SavedChartSlugMappingsTableName)
+                    .responseOnce([]);
+            }
         }
 
         const result = await createSavedChart(
@@ -354,6 +397,54 @@ describe('createSavedChart', () => {
 
         expect(result).toBe('final-racing-chart-uuid');
         expect(tracker.history.insert).toHaveLength(3);
+    });
+});
+
+describe('get', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const model = new SavedChartModel({
+        database,
+        lightdashConfig: lightdashConfigMock,
+    });
+    let tracker: Tracker;
+
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+
+    afterEach(() => {
+        tracker.reset();
+    });
+
+    test('looks up non-UUID chart identifiers by canonical and historical slug', async () => {
+        const projectUuid = '22222222-2222-4222-8222-222222222222';
+        tracker.on.select(SavedChartsTableName).responseOnce([]);
+
+        await expect(
+            model.get('old-orders', undefined, { projectUuid }),
+        ).rejects.toThrow('Saved query not found');
+
+        const [query] = tracker.history.select;
+        expect(query.sql).toContain(`"${SavedChartsTableName}"."slug" in`);
+        expect(query.sql).toContain(SavedChartSlugMappingsTableName);
+        expect(query.sql).toContain('exists');
+        expect(
+            query.bindings.filter((value) => value === 'old-orders'),
+        ).toHaveLength(2);
+        expect(query.bindings).toContain(projectUuid);
+    });
+
+    test('returns aliases for downloaded chart UUIDs', async () => {
+        tracker.on
+            .select(SavedChartSlugMappingsTableName)
+            .responseOnce([{ slug: 'old-orders' }, { slug: 'older-orders' }]);
+
+        const aliases = await model.getSlugAliasesForUuids(['chart-uuid']);
+
+        expect(aliases).toEqual(['old-orders', 'older-orders']);
+        const [query] = tracker.history.select;
+        expect(query.sql).toContain(SavedChartSlugMappingsTableName);
+        expect(query.bindings).toContain('chart-uuid');
     });
 });
 

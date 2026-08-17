@@ -256,6 +256,10 @@ import {
     SavedChartVersionsTableName,
 } from '../database/entities/savedCharts';
 import {
+    SavedChartSlugMappingsTableName,
+    SavedChartSlugMappingTable,
+} from '../database/entities/savedChartSlugMappings';
+import {
     SavedSqlTable,
     SavedSqlTableName,
     SavedSqlVersionsTable,
@@ -549,6 +553,7 @@ declare module 'knex/types/tables' {
         [ProjectTableName]: ProjectTable;
         [ProjectDbtSourcesTableName]: ProjectDbtSourcesTable;
         [SavedChartsTableName]: SavedChartTable;
+        [SavedChartSlugMappingsTableName]: SavedChartSlugMappingTable;
         [SavedChartVersionsTableName]: SavedChartVersionsTable;
         [SavedChartVersionFieldsTableName]: SavedChartVersionFieldsTable;
         [SavedChartVersionSortsTableName]: SavedChartVersionSortsTable;
