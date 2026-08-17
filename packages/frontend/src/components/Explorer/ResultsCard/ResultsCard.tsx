@@ -22,6 +22,7 @@ import {
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
+import { resolveMergeColumnOrder } from '../../../features/mergeQuery/utils/resolveMergeColumnOrder';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -73,7 +74,9 @@ const ResultsCard: FC = memo(() => {
     const merge = useMergeSafe();
     const mergeResults = merge?.mergeResults;
 
-    const mergedTotalResults = mergeResults?.results.totalResults;
+    const mergedTotalResults =
+        mergeResults?.unpivotedResults?.totalResults ??
+        mergeResults?.results.totalResults;
     const totalResults = mergeResults
         ? (mergedTotalResults ?? mergeResults.metricQuery.limit)
         : queryResults.totalResults;
@@ -120,7 +123,9 @@ const ResultsCard: FC = memo(() => {
         [getDownloadQueryUuid, merge, mergeResults],
     );
 
-    const exportColumnOrder = mergeResults?.columnOrder ?? columnOrder;
+    const exportColumnOrder = mergeResults
+        ? resolveMergeColumnOrder(mergeResults.columnOrder, columnOrder)
+        : columnOrder;
 
     return (
         <CollapsableCard

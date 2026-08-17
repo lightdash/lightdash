@@ -1,4 +1,5 @@
 import {
+    derivePivotConfigurationFromChart,
     MergeJoinType,
     type ApiCompiledMergeQueryResults,
     type ApiError,
@@ -93,14 +94,20 @@ export const MergeProvider: FC<
         isRunning: boolean;
         errors: MergeQueryError[];
         started: ApiExecuteAsyncMetricQueryResults | null;
+        unpivotedStarted: ApiExecuteAsyncMetricQueryResults | null;
         error: ApiError | null;
+        unpivotedErrors: MergeQueryError[];
+        unpivotedError: ApiError | null;
         parameterReferences: string[];
         fieldOrigins: ApiCompiledMergeQueryResults['fieldOrigins'];
     }>({
         isRunning: false,
         errors: [],
         started: null,
+        unpivotedStarted: null,
         error: null,
+        unpivotedErrors: [],
+        unpivotedError: null,
         parameterReferences: [],
         fieldOrigins: {},
     });
@@ -151,7 +158,10 @@ export const MergeProvider: FC<
             isRunning: false,
             errors: [],
             started: null,
+            unpivotedStarted: null,
             error: null,
+            unpivotedErrors: [],
+            unpivotedError: null,
             parameterReferences: [],
             fieldOrigins: {},
         });
@@ -315,28 +325,84 @@ export const MergeProvider: FC<
                 isRunning: true,
                 errors: [],
                 started: null,
+                unpivotedStarted: null,
                 error: null,
+                unpivotedErrors: [],
+                unpivotedError: null,
                 parameterReferences: current.parameterReferences,
                 fieldOrigins: current.fieldOrigins,
             }));
             executeMergeQuery(projectUuid, mergeQuery, parameters, savedChart)
-                .then((result) => {
+                .then(async (result) => {
                     if (activeRun.current !== runId) return;
                     if (result.outcome === 'refused') {
                         setRunState({
                             isRunning: false,
                             errors: result.errors,
                             started: null,
+                            unpivotedStarted: null,
                             error: null,
+                            unpivotedErrors: [],
+                            unpivotedError: null,
                             parameterReferences: result.parameterReferences,
                             fieldOrigins: result.fieldOrigins,
                         });
                     } else {
+                        const pivotConfiguration = savedChart
+                            ? derivePivotConfigurationFromChart(
+                                  savedChart,
+                                  result.query.metricQuery,
+                                  result.query.fields,
+                              )
+                            : undefined;
+                        let unpivoted = null;
+                        if (pivotConfiguration) {
+                            try {
+                                unpivoted = await executeMergeQuery(
+                                    projectUuid,
+                                    mergeQuery,
+                                    parameters,
+                                );
+                            } catch (error) {
+                                if (activeRun.current !== runId) return;
+                                setRunState({
+                                    isRunning: false,
+                                    errors: [],
+                                    started: result.query,
+                                    unpivotedStarted: null,
+                                    error: null,
+                                    unpivotedErrors: [],
+                                    unpivotedError: error as ApiError,
+                                    parameterReferences:
+                                        result.parameterReferences,
+                                    fieldOrigins: result.fieldOrigins,
+                                });
+                                return;
+                            }
+                        }
+                        if (activeRun.current !== runId) return;
+                        if (unpivoted?.outcome === 'refused') {
+                            setRunState({
+                                isRunning: false,
+                                errors: [],
+                                started: result.query,
+                                unpivotedStarted: null,
+                                error: null,
+                                unpivotedErrors: unpivoted.errors,
+                                unpivotedError: null,
+                                parameterReferences: result.parameterReferences,
+                                fieldOrigins: result.fieldOrigins,
+                            });
+                            return;
+                        }
                         setRunState({
                             isRunning: false,
                             errors: [],
                             started: result.query,
+                            unpivotedStarted: unpivoted?.query ?? null,
                             error: null,
+                            unpivotedErrors: [],
+                            unpivotedError: null,
                             parameterReferences: result.parameterReferences,
                             fieldOrigins: result.fieldOrigins,
                         });
@@ -348,7 +414,10 @@ export const MergeProvider: FC<
                         isRunning: false,
                         errors: [],
                         started: null,
+                        unpivotedStarted: null,
                         error,
+                        unpivotedErrors: [],
+                        unpivotedError: null,
                         parameterReferences: current.parameterReferences,
                         fieldOrigins: current.fieldOrigins,
                     }));
@@ -380,8 +449,12 @@ export const MergeProvider: FC<
         [projectUuid],
     );
 
-    const { started } = runState;
+    const { started, unpivotedStarted } = runState;
     const results = useInfiniteQueryResults(projectUuid, started?.queryUuid);
+    const unpivotedResults = useInfiniteQueryResults(
+        projectUuid,
+        unpivotedStarted?.queryUuid,
+    );
 
     const mergeResults = useMemo(
         () =>
@@ -398,10 +471,20 @@ export const MergeProvider: FC<
                           ...started.metricQuery.metrics,
                       ],
                       fieldOrigins: runState.fieldOrigins,
+                      usedParametersValues: started.usedParametersValues,
                       results,
+                      unpivotedResults: unpivotedStarted
+                          ? unpivotedResults
+                          : null,
                   }
                 : null,
-        [started, results, runState.fieldOrigins],
+        [
+            started,
+            unpivotedStarted,
+            results,
+            unpivotedResults,
+            runState.fieldOrigins,
+        ],
     );
 
     const value = useMemo(
@@ -414,6 +497,8 @@ export const MergeProvider: FC<
             isRunning: runState.isRunning,
             runErrors: runState.errors,
             runError: runState.error,
+            unpivotedRunErrors: runState.unpivotedErrors,
+            unpivotedRunError: runState.unpivotedError,
             parameterReferences: runState.parameterReferences,
             mergeResults,
             focus,
@@ -440,6 +525,8 @@ export const MergeProvider: FC<
             runState.isRunning,
             runState.errors,
             runState.error,
+            runState.unpivotedErrors,
+            runState.unpivotedError,
             runState.parameterReferences,
             mergeResults,
             focus,

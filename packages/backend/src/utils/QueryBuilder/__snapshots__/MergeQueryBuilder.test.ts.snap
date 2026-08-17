@@ -187,11 +187,11 @@ SELECT status, 1 AS new_organic FROM followers GROUP BY 1
 merge_1_b AS (
 SELECT status, 2 AS total_followers FROM follower_snapshots GROUP BY 1
 )
-SELECT COALESCE(merge_0_a.\`status\`, merge_1_b.\`status\`) AS \`status\`,
+SELECT COALESCE(CAST(merge_0_a.\`status\` AS STRING), CAST(merge_1_b.\`status\` AS STRING)) AS \`status\`,
        merge_0_a.\`new_organic\` AS \`c0_0\`,
        merge_1_b.\`total_followers\` AS \`c1_0\`
 FROM merge_0_a
-FULL OUTER JOIN merge_1_b ON (merge_0_a.\`status\` IS NULL) = (merge_1_b.\`status\` IS NULL) AND COALESCE(merge_0_a.\`status\`, '') = COALESCE(merge_1_b.\`status\`, '')
+FULL OUTER JOIN merge_1_b ON (CAST(merge_0_a.\`status\` AS STRING) IS NULL) = (CAST(merge_1_b.\`status\` AS STRING) IS NULL) AND COALESCE(CAST(merge_0_a.\`status\` AS STRING), '') = COALESCE(CAST(merge_1_b.\`status\` AS STRING), '')
 ORDER BY \`status\`"
 `;
 
@@ -202,11 +202,11 @@ SELECT status, 1 AS new_organic FROM followers GROUP BY 1
 merge_1_b AS (
 SELECT status, 2 AS total_followers FROM follower_snapshots GROUP BY 1
 )
-SELECT COALESCE(merge_0_a.\`status\`, merge_1_b.\`status\`) AS \`status\`,
+SELECT COALESCE(CAST(merge_0_a.\`status\` AS STRING), CAST(merge_1_b.\`status\` AS STRING)) AS \`status\`,
        merge_0_a.\`new_organic\` AS \`c0_0\`,
        merge_1_b.\`total_followers\` AS \`c1_0\`
 FROM merge_0_a
-FULL OUTER JOIN merge_1_b ON (merge_0_a.\`status\` IS NULL) = (merge_1_b.\`status\` IS NULL) AND COALESCE(merge_0_a.\`status\`, '') = COALESCE(merge_1_b.\`status\`, '')
+FULL OUTER JOIN merge_1_b ON (CAST(merge_0_a.\`status\` AS STRING) IS NULL) = (CAST(merge_1_b.\`status\` AS STRING) IS NULL) AND COALESCE(CAST(merge_0_a.\`status\` AS STRING), '') = COALESCE(CAST(merge_1_b.\`status\` AS STRING), '')
 ORDER BY \`status\`"
 `;
 
@@ -217,11 +217,11 @@ SELECT status, 1 AS new_organic FROM followers GROUP BY 1
 merge_1_b AS (
 SELECT status, 2 AS total_followers FROM follower_snapshots GROUP BY 1
 )
-SELECT COALESCE(merge_0_a."status", merge_1_b."status") AS "status",
+SELECT COALESCE(CAST(merge_0_a."status" AS VARCHAR), CAST(merge_1_b."status" AS VARCHAR)) AS "status",
        merge_0_a."new_organic" AS "c0_0",
        merge_1_b."total_followers" AS "c1_0"
 FROM merge_0_a
-FULL OUTER JOIN merge_1_b ON (merge_0_a."status" IS NULL) = (merge_1_b."status" IS NULL) AND COALESCE(merge_0_a."status", '') = COALESCE(merge_1_b."status", '')
+FULL OUTER JOIN merge_1_b ON (CAST(merge_0_a."status" AS VARCHAR) IS NULL) = (CAST(merge_1_b."status" AS VARCHAR) IS NULL) AND COALESCE(CAST(merge_0_a."status" AS VARCHAR), '') = COALESCE(CAST(merge_1_b."status" AS VARCHAR), '')
 ORDER BY "status""
 `;
 
@@ -232,11 +232,11 @@ SELECT status, 1 AS new_organic FROM followers GROUP BY 1
 merge_1_b AS (
 SELECT status, 2 AS total_followers FROM follower_snapshots GROUP BY 1
 )
-SELECT COALESCE(merge_0_a."status", merge_1_b."status") AS "status",
+SELECT COALESCE(CAST(merge_0_a."status" AS VARCHAR), CAST(merge_1_b."status" AS VARCHAR)) AS "status",
        merge_0_a."new_organic" AS "c0_0",
        merge_1_b."total_followers" AS "c1_0"
 FROM merge_0_a
-FULL OUTER JOIN merge_1_b ON (merge_0_a."status" IS NULL) = (merge_1_b."status" IS NULL) AND COALESCE(merge_0_a."status", '') = COALESCE(merge_1_b."status", '')
+FULL OUTER JOIN merge_1_b ON (CAST(merge_0_a."status" AS VARCHAR) IS NULL) = (CAST(merge_1_b."status" AS VARCHAR) IS NULL) AND COALESCE(CAST(merge_0_a."status" AS VARCHAR), '') = COALESCE(CAST(merge_1_b."status" AS VARCHAR), '')
 ORDER BY "status""
 `;
 
@@ -247,11 +247,11 @@ SELECT status, 1 AS new_organic FROM followers GROUP BY 1
 merge_1_b AS (
 SELECT status, 2 AS total_followers FROM follower_snapshots GROUP BY 1
 )
-SELECT COALESCE(merge_0_a."status", merge_1_b."status") AS "status",
+SELECT COALESCE(CAST(merge_0_a."status" AS VARCHAR), CAST(merge_1_b."status" AS VARCHAR)) AS "status",
        merge_0_a."new_organic" AS "c0_0",
        merge_1_b."total_followers" AS "c1_0"
 FROM merge_0_a
-FULL OUTER JOIN merge_1_b ON (merge_0_a."status" IS NULL) = (merge_1_b."status" IS NULL) AND COALESCE(merge_0_a."status", '') = COALESCE(merge_1_b."status", '')
+FULL OUTER JOIN merge_1_b ON (CAST(merge_0_a."status" AS VARCHAR) IS NULL) = (CAST(merge_1_b."status" AS VARCHAR) IS NULL) AND COALESCE(CAST(merge_0_a."status" AS VARCHAR), '') = COALESCE(CAST(merge_1_b."status" AS VARCHAR), '')
 ORDER BY "status""
 `;
 
@@ -262,10 +262,10 @@ SELECT status, 1 AS new_organic FROM followers GROUP BY 1
 merge_1_b AS (
 SELECT status, 2 AS total_followers FROM follower_snapshots GROUP BY 1
 )
-SELECT COALESCE(merge_0_a."status", merge_1_b."status") AS "status",
+SELECT COALESCE(CAST(merge_0_a."status" AS VARCHAR), CAST(merge_1_b."status" AS VARCHAR)) AS "status",
        merge_0_a."new_organic" AS "c0_0",
        merge_1_b."total_followers" AS "c1_0"
 FROM merge_0_a
-FULL OUTER JOIN merge_1_b ON (merge_0_a."status" IS NULL) = (merge_1_b."status" IS NULL) AND COALESCE(merge_0_a."status", '') = COALESCE(merge_1_b."status", '')
+FULL OUTER JOIN merge_1_b ON (CAST(merge_0_a."status" AS VARCHAR) IS NULL) = (CAST(merge_1_b."status" AS VARCHAR) IS NULL) AND COALESCE(CAST(merge_0_a."status" AS VARCHAR), '') = COALESCE(CAST(merge_1_b."status" AS VARCHAR), '')
 ORDER BY "status""
 `;

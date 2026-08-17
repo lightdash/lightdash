@@ -42,6 +42,7 @@ import {
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
+import { resolveMergeColumnOrder } from '../../../features/mergeQuery/utils/resolveMergeColumnOrder';
 import { useColorPalettes } from '../../../hooks/appearance/useOrganizationAppearance';
 import { useProjectColorPalette } from '../../../hooks/appearance/useProjectColorPalette';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
@@ -160,9 +161,19 @@ const VisualizationCard: FC<Props> = memo((props) => {
         !mergeResults &&
         !merge.runError &&
         merge.runErrors.length === 0;
+    const suppressPrimaryResults =
+        awaitingRestoredMerge ||
+        (!!merge?.isMerging &&
+            !mergeResults &&
+            (merge.isRunning ||
+                !!merge.runError ||
+                merge.runErrors.length > 0));
     const isLoadingQueryResults = mergeResults
         ? mergeResults.results.isFetchingRows
-        : awaitingRestoredMerge || isLoading || queryResults.isFetchingRows;
+        : !!merge?.isRunning ||
+          awaitingRestoredMerge ||
+          isLoading ||
+          queryResults.isFetchingRows;
 
     const resultsData = useMemo(() => {
         if (mergeResults) {
@@ -177,7 +188,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
         // chart config validates its layout against whatever fields it is
         // given, and primary-source fields would fail the saved merged layout and
         // rebuild it from defaults — silently discarding the saved config.
-        if (awaitingRestoredMerge) {
+        if (suppressPrimaryResults) {
             return {
                 ...queryResults,
                 rows: [],
@@ -192,12 +203,18 @@ const VisualizationCard: FC<Props> = memo((props) => {
             fields: query.data?.fields,
             resolvedTimezone: query.data?.resolvedTimezone ?? undefined,
         };
-    }, [query.data, queryResults, mergeResults, awaitingRestoredMerge]);
+    }, [query.data, queryResults, mergeResults, suppressPrimaryResults]);
 
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
-    const visualizationMetricQuery = awaitingRestoredMerge
+    const visualizationMetricQuery = suppressPrimaryResults
         ? undefined
         : (mergeResults?.metricQuery ?? unsavedChartVersion.metricQuery);
+    const visualizationColumnOrder = mergeResults
+        ? resolveMergeColumnOrder(
+              mergeResults.columnOrder,
+              unsavedChartVersion.tableConfig.columnOrder,
+          )
+        : unsavedChartVersion.tableConfig.columnOrder;
 
     const handleSetPivotFields = useCallback(
         (fields: FieldId[] = []) => {
@@ -315,6 +332,18 @@ const VisualizationCard: FC<Props> = memo((props) => {
     const apiErrorDetail = useMemo(() => {
         const queryError = query.error?.error ?? queryResults.error?.error;
 
+        if (merge?.runError) return merge.runError.error;
+        if (merge?.runErrors.length) {
+            return {
+                message: merge.runErrors
+                    .map((error) => error.message)
+                    .join(' '),
+                name: 'Error',
+                statusCode: 400,
+                data: {},
+            } satisfies ApiErrorDetail;
+        }
+
         return !missingRequiredParameters?.length
             ? queryError
             : // Mimicking an API Error Detail so it can be used in the EmptyState component
@@ -328,6 +357,8 @@ const VisualizationCard: FC<Props> = memo((props) => {
         query.error?.error,
         queryResults.error?.error,
         missingRequiredParameters,
+        merge?.runError,
+        merge?.runErrors,
     ]);
 
     const dirtyPivotConfiguration = useMemo(() => {
@@ -398,10 +429,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
                 resultsData={resultsData}
                 apiErrorDetail={apiErrorDetail}
                 isLoading={isLoadingQueryResults}
-                columnOrder={
-                    mergeResults?.columnOrder ??
-                    unsavedChartVersion.tableConfig.columnOrder
-                }
+                columnOrder={visualizationColumnOrder}
                 onSeriesContextMenu={onSeriesContextMenu}
                 savedChartUuid={isEditMode ? undefined : savedChart?.uuid}
                 onChartConfigChange={handleSetChartConfig}
@@ -410,7 +438,10 @@ const VisualizationCard: FC<Props> = memo((props) => {
                 onPivotRowsChange={handleSetPivotRows}
                 colorPalette={colorPalette}
                 tableCalculationsMetadata={tableCalculationsMetadata}
-                parameters={query.data?.usedParametersValues}
+                parameters={
+                    mergeResults?.usedParametersValues ??
+                    query.data?.usedParametersValues
+                }
                 containerWidth={containerWidth}
                 containerHeight={containerHeight}
                 isDashboard={false}
