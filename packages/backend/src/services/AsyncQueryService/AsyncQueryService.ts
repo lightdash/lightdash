@@ -6406,6 +6406,16 @@ export class AsyncQueryService extends ProjectService {
      * (read_parquet, read_json, ...) in the user SQL is rejected, so
      * referenced results are the only data this endpoint can reach — which
      * is why run-queries access (interactive viewer and up) suffices.
+     *
+     * Threat model: the user authors the whole statement by design, so SQL
+     * injection in the classic sense does not apply — the boundaries are
+     * which data the statement can reach and what statement kinds run. The
+     * textual file-access block on the raw SQL is backed by execution-time
+     * validation inside the DuckDB client, which parses the final statement
+     * with DuckDB itself (extractStatements) and rejects multiple
+     * statements, non-SELECT statement types, and blocked functions;
+     * escaping the CTE wrapper still lands inside that same sandbox on a
+     * hardened instance (no extension autoload, no attach/install).
      */
     async executeAsyncComposeSqlQuery({
         account,
