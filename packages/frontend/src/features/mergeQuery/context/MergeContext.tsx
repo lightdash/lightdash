@@ -96,6 +96,8 @@ export const MergeProvider: FC<
         started: ApiExecuteAsyncMetricQueryResults | null;
         unpivotedStarted: ApiExecuteAsyncMetricQueryResults | null;
         error: ApiError | null;
+        unpivotedErrors: MergeQueryError[];
+        unpivotedError: ApiError | null;
         parameterReferences: string[];
         fieldOrigins: ApiCompiledMergeQueryResults['fieldOrigins'];
     }>({
@@ -104,6 +106,8 @@ export const MergeProvider: FC<
         started: null,
         unpivotedStarted: null,
         error: null,
+        unpivotedErrors: [],
+        unpivotedError: null,
         parameterReferences: [],
         fieldOrigins: {},
     });
@@ -156,6 +160,8 @@ export const MergeProvider: FC<
             started: null,
             unpivotedStarted: null,
             error: null,
+            unpivotedErrors: [],
+            unpivotedError: null,
             parameterReferences: [],
             fieldOrigins: {},
         });
@@ -321,6 +327,8 @@ export const MergeProvider: FC<
                 started: null,
                 unpivotedStarted: null,
                 error: null,
+                unpivotedErrors: [],
+                unpivotedError: null,
                 parameterReferences: current.parameterReferences,
                 fieldOrigins: current.fieldOrigins,
             }));
@@ -334,6 +342,8 @@ export const MergeProvider: FC<
                             started: null,
                             unpivotedStarted: null,
                             error: null,
+                            unpivotedErrors: [],
+                            unpivotedError: null,
                             parameterReferences: result.parameterReferences,
                             fieldOrigins: result.fieldOrigins,
                         });
@@ -345,24 +355,44 @@ export const MergeProvider: FC<
                                   result.query.fields,
                               )
                             : undefined;
-                        const unpivoted = pivotConfiguration
-                            ? await executeMergeQuery(
-                                  projectUuid,
-                                  mergeQuery,
-                                  parameters,
-                              )
-                            : null;
+                        let unpivoted = null;
+                        if (pivotConfiguration) {
+                            try {
+                                unpivoted = await executeMergeQuery(
+                                    projectUuid,
+                                    mergeQuery,
+                                    parameters,
+                                );
+                            } catch (error) {
+                                if (activeRun.current !== runId) return;
+                                setRunState({
+                                    isRunning: false,
+                                    errors: [],
+                                    started: result.query,
+                                    unpivotedStarted: null,
+                                    error: null,
+                                    unpivotedErrors: [],
+                                    unpivotedError: error as ApiError,
+                                    parameterReferences:
+                                        result.parameterReferences,
+                                    fieldOrigins: result.fieldOrigins,
+                                });
+                                return;
+                            }
+                        }
                         if (activeRun.current !== runId) return;
                         if (unpivoted?.outcome === 'refused') {
                             setRunState({
                                 isRunning: false,
-                                errors: unpivoted.errors,
-                                started: null,
+                                errors: [],
+                                started: result.query,
                                 unpivotedStarted: null,
                                 error: null,
+                                unpivotedErrors: unpivoted.errors,
+                                unpivotedError: null,
                                 parameterReferences:
-                                    unpivoted.parameterReferences,
-                                fieldOrigins: unpivoted.fieldOrigins,
+                                    result.parameterReferences,
+                                fieldOrigins: result.fieldOrigins,
                             });
                             return;
                         }
@@ -372,6 +402,8 @@ export const MergeProvider: FC<
                             started: result.query,
                             unpivotedStarted: unpivoted?.query ?? null,
                             error: null,
+                            unpivotedErrors: [],
+                            unpivotedError: null,
                             parameterReferences: result.parameterReferences,
                             fieldOrigins: result.fieldOrigins,
                         });
@@ -385,6 +417,8 @@ export const MergeProvider: FC<
                         started: null,
                         unpivotedStarted: null,
                         error,
+                        unpivotedErrors: [],
+                        unpivotedError: null,
                         parameterReferences: current.parameterReferences,
                         fieldOrigins: current.fieldOrigins,
                     }));
@@ -464,6 +498,8 @@ export const MergeProvider: FC<
             isRunning: runState.isRunning,
             runErrors: runState.errors,
             runError: runState.error,
+            unpivotedRunErrors: runState.unpivotedErrors,
+            unpivotedRunError: runState.unpivotedError,
             parameterReferences: runState.parameterReferences,
             mergeResults,
             focus,
@@ -490,6 +526,8 @@ export const MergeProvider: FC<
             runState.isRunning,
             runState.errors,
             runState.error,
+            runState.unpivotedErrors,
+            runState.unpivotedError,
             runState.parameterReferences,
             mergeResults,
             focus,

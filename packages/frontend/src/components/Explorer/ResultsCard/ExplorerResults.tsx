@@ -122,6 +122,31 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
         // A configured merge is the explorer's result, so the table reads it
         // instead of the query it was built from.
         if (mergeResults) {
+            const unpivotedRunError = merge?.unpivotedRunError;
+            const unpivotedRunErrors = merge?.unpivotedRunErrors ?? [];
+            if (unpivotedRunError || unpivotedRunErrors.length > 0) {
+                return {
+                    rows: [],
+                    totalResults: 0,
+                    isFetchingRows: false,
+                    fetchMoreRows: () => {},
+                    status: 'error' as const,
+                    apiError:
+                        unpivotedRunError ??
+                        ({
+                            status: 'error',
+                            error: {
+                                name: 'Error',
+                                statusCode: 400,
+                                message: unpivotedRunErrors
+                                    .map((error) => error.message)
+                                    .join(' '),
+                                data: {},
+                            },
+                        } as const),
+                    queryStatus: undefined,
+                };
+            }
             const rawResults =
                 mergeResults.unpivotedResults ?? mergeResults.results;
             return {
@@ -248,6 +273,8 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
         merge?.wasRestored,
         merge?.runError,
         merge?.runErrors,
+        merge?.unpivotedRunError,
+        merge?.unpivotedRunErrors,
         unpivotedQuery,
         hasPivotConfig,
         unpivotedEnabled,

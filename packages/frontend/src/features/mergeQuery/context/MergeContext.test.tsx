@@ -4,6 +4,8 @@ import {
     FieldType,
     MergeJoinType,
     MetricType,
+    MergeQueryErrorKind,
+    type ApiError,
     type ApiExecuteAsyncMergeQueryResults,
     type ItemsMap,
     type MergeQuery,
@@ -241,5 +243,69 @@ describe('MergeProvider', () => {
             mergeQuery,
             undefined,
         );
+    });
+
+    it('keeps the pivoted chart when the raw Results query is refused', async () => {
+        executeMergeQuery
+            .mockResolvedValueOnce(startedResult('pivoted-query'))
+            .mockResolvedValueOnce({
+                outcome: 'refused',
+                errors: [
+                    {
+                        kind: MergeQueryErrorKind.UNRESOLVED_COLUMN_TYPE,
+                        sourceId: null,
+                        fieldIds: ['merge_status'],
+                        message: 'Could not compile raw results',
+                    },
+                ],
+                parameterReferences: [],
+                fieldOrigins: {},
+            });
+        const { result } = renderHook(() => useMerge(), { wrapper });
+        const savedChart = {
+            chartConfig: { type: ChartType.TABLE },
+            pivotConfig: { columns: ['merge_status'] },
+        } satisfies Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>;
+
+        act(() => result.current.run(mergeQuery, undefined, savedChart));
+
+        await waitFor(() =>
+            expect(result.current.mergeResults?.queryUuid).toBe(
+                'pivoted-query',
+            ),
+        );
+        expect(result.current.mergeResults?.unpivotedResults).toBeNull();
+        expect(result.current.runErrors).toEqual([]);
+        expect(result.current.unpivotedRunErrors).toHaveLength(1);
+    });
+
+    it('keeps the pivoted chart when the raw Results request fails', async () => {
+        const rawResultsError: ApiError = {
+            status: 'error',
+            error: {
+                name: 'NetworkError',
+                statusCode: 500,
+                message: 'Could not start raw results',
+                data: {},
+            },
+        };
+        executeMergeQuery
+            .mockResolvedValueOnce(startedResult('pivoted-query'))
+            .mockRejectedValueOnce(rawResultsError);
+        const { result } = renderHook(() => useMerge(), { wrapper });
+        const savedChart = {
+            chartConfig: { type: ChartType.TABLE },
+            pivotConfig: { columns: ['merge_status'] },
+        } satisfies Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>;
+
+        act(() => result.current.run(mergeQuery, undefined, savedChart));
+
+        await waitFor(() =>
+            expect(result.current.mergeResults?.queryUuid).toBe(
+                'pivoted-query',
+            ),
+        );
+        expect(result.current.runError).toBeNull();
+        expect(result.current.unpivotedRunError).toBe(rawResultsError);
     });
 });
