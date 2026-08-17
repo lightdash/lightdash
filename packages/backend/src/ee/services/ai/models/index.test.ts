@@ -11,6 +11,8 @@ import { lightdashConfigMock } from '../../../../config/lightdashConfig.mock';
 import {
     applyStreamingCapability,
     filterModelsForOrg,
+    getAvailableModels,
+    getCompactionModelMetadata,
     getDefaultModel,
     getFastModelForAccessibleKey,
     getModel,
@@ -281,13 +283,114 @@ describe('getModel', () => {
     });
 });
 
+describe('custom OpenAI-compatible gateway models', () => {
+    const gatewayConfig = (
+        openaiOverrides: Partial<
+            NonNullable<typeof baseCopilotConfig.providers.openai>
+        > & { baseUrl?: string },
+    ) => ({
+        ...baseCopilotConfig,
+        providers: {
+            openai: {
+                ...baseCopilotConfig.providers.openai!,
+                baseUrl: 'https://litellm.example.com',
+                ...openaiOverrides,
+            },
+        },
+    });
+
+    const customModelName = 'bedrock/eu.anthropic.claude-sonnet-4-6';
+
+    it('surfaces a non-preset OPENAI_MODEL_NAME as a selectable pass-through model', () => {
+        const models = getAvailableModels(
+            gatewayConfig({ modelName: customModelName }),
+        );
+
+        expect(models[0]).toMatchObject({
+            provider: 'openai',
+            name: customModelName,
+            modelId: customModelName,
+            contextWindowTokens: null,
+        });
+        // presets remain available alongside the configured model
+        expect(models.map((m) => m.name)).toContain('gpt-5.5');
+    });
+
+    it('resolves OPENAI_AVAILABLE_MODELS entries to presets or pass-through models', () => {
+        const models = getAvailableModels(
+            gatewayConfig({
+                modelName: customModelName,
+                availableModels: ['gpt-5.5', customModelName],
+            }),
+        );
+
+        expect(models).toHaveLength(2);
+        expect(models.find((m) => m.name === 'gpt-5.5')?.modelId).toBe(
+            'gpt-5.5-2026-04-23',
+        );
+        expect(models.find((m) => m.name === customModelName)?.modelId).toBe(
+            customModelName,
+        );
+    });
+
+    it('keeps dropping unknown names when no custom base URL is configured', () => {
+        const withoutBaseUrl = getAvailableModels(
+            gatewayConfig({
+                baseUrl: undefined,
+                modelName: customModelName,
+                availableModels: [customModelName, 'gpt-5.5'],
+            }),
+        );
+
+        expect(withoutBaseUrl.map((m) => m.name)).toEqual(['gpt-5.5']);
+    });
+
+    it('sends the configured custom model name to the endpoint', () => {
+        const { model } = getModel(
+            gatewayConfig({ modelName: customModelName }),
+        );
+
+        expect(model.modelId).toBe(customModelName);
+    });
+
+    it('resolves a custom model requested by name (e.g. from an agent setting)', () => {
+        const { model } = getModel(
+            gatewayConfig({
+                availableModels: [customModelName, 'gpt-5.5'],
+            }),
+            { modelName: customModelName },
+        );
+
+        expect(model.modelId).toBe(customModelName);
+    });
+
+    it('disables compaction for custom models with unknown context windows', () => {
+        expect(
+            getCompactionModelMetadata(
+                gatewayConfig({ modelName: customModelName }),
+            ),
+        ).toEqual({
+            supportsCompaction: false,
+            contextWindowTokens: null,
+        });
+    });
+
+    it('keeps compaction metadata for preset models on a custom gateway', () => {
+        expect(
+            getCompactionModelMetadata(gatewayConfig({ modelName: 'gpt-5.5' })),
+        ).toEqual({
+            supportsCompaction: true,
+            contextWindowTokens: 265000,
+        });
+    });
+});
+
 describe('filterModelsForOrg', () => {
     const preset = (
         overrides: Pick<
             ModelPreset<'openai' | 'anthropic' | 'bedrock'>,
             'name' | 'provider' | 'modelId'
-        > &
-            Partial<ModelPreset<'openai' | 'anthropic' | 'bedrock'>>,
+        > & { hiddenUnlessKeyAccess?: boolean },
     ): ModelPreset<'openai' | 'anthropic' | 'bedrock'> => ({
         displayName: overrides.name,
         description: 'test preset',
