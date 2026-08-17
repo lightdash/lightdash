@@ -12,15 +12,6 @@ import { defaultAgentOptions } from '../agents/agentV2';
 import type { getModel } from '../models';
 import type { getAiCallTelemetry } from '../utils/aiCallTelemetry';
 
-export const memoryProjectContextRejectionReasons = [
-    'not_project_context',
-    'insufficient_context',
-    'conflicts_with_project_context',
-] as const;
-
-export type MemoryProjectContextRejectionReason =
-    (typeof memoryProjectContextRejectionReasons)[number];
-
 const proposedEntrySchema = z
     .object({
         op: z.enum(['create', 'update']),
@@ -41,20 +32,12 @@ const proposedEntrySchema = z
 
 export const memoryProjectContextAuthoringResultSchema = z
     .object({
-        result: z.discriminatedUnion('type', [
-            z
-                .object({
-                    type: z.literal('proposal'),
-                    entry: proposedEntrySchema,
-                })
-                .strict(),
-            z
-                .object({
-                    type: z.literal('rejected'),
-                    reason: z.enum(memoryProjectContextRejectionReasons),
-                })
-                .strict(),
-        ]),
+        result: z
+            .object({
+                type: z.literal('proposal'),
+                entry: proposedEntrySchema,
+            })
+            .strict(),
     })
     .strict();
 
@@ -91,12 +74,7 @@ const callAuthoringLlm: MemoryProjectContextAuthoringLlmCall = async ({
     return result.object;
 };
 
-const systemPrompt = `Decide whether a personal Lightdash memory can become one proposed project-context entry. The proposal will be human-reviewed before publication.
-
-Return a proposal only for durable, project-wide knowledge. Otherwise return rejected with exactly one reason:
-- not_project_context: personal, temporary, fake, test-only, or explicitly marked to ignore.
-- insufficient_context: potentially useful, but no clear standalone guideline can be authored outside ## Evidence.
-- conflicts_with_project_context: it cannot safely create or update an entry because it conflicts with current project context.
+const systemPrompt = `Turn a personal Lightdash memory into one proposed project-context entry. The nominator has intentionally requested human review, so always return a proposal. The reviewer decides whether it should become shared project context.
 
 For a proposal:
 - op: "update" when a current entry should be refined; otherwise "create".

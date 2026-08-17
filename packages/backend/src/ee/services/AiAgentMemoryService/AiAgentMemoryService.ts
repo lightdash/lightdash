@@ -73,7 +73,6 @@ import { getModel } from '../ai/models';
 import {
     authorMemoryProjectContextEntry,
     type MemoryProjectContextAuthoringResult,
-    type MemoryProjectContextRejectionReason,
 } from '../ai/projectContext/authorMemoryProjectContextEntry';
 import {
     resolveReviewJudgeModel,
@@ -156,18 +155,6 @@ export type AiAgentMemoryPromotionAuthoringCall = (args: {
     nominationReason: string | null;
     currentEntries: ProjectContextEntry[];
 }) => Promise<MemoryProjectContextAuthoringResult>;
-
-const memoryPromotionRejectionMessages: Record<
-    MemoryProjectContextRejectionReason,
-    string
-> = {
-    not_project_context:
-        'This memory does not contain durable project context to propose.',
-    insufficient_context:
-        'This memory does not contain enough standalone information to draft a project-context proposal.',
-    conflicts_with_project_context:
-        'This memory conflicts with existing project context and could not be proposed safely.',
-};
 
 export { type AiAgentMemoryConsolidateOutcome };
 
@@ -808,30 +795,6 @@ export class AiAgentMemoryService extends BaseService {
                 "We couldn't automatically draft a project-context proposal from this memory. Try again.",
                 { attempts: 1 },
             );
-        }
-        if (authoringResult.type === 'rejected') {
-            const rejectionMessage =
-                memoryPromotionRejectionMessages[authoringResult.reason];
-            this.logger.warn('AI agent memory promotion authoring rejected', {
-                organizationUuid,
-                projectUuid,
-                memoryUuid,
-                reason: authoringResult.reason,
-            });
-            this.track({
-                event: 'ai_agent_memory.promotion_authoring_failed',
-                userId: user.userUuid,
-                properties: {
-                    organizationId: organizationUuid,
-                    projectId: projectUuid,
-                    memoryId: memoryUuid,
-                    attempts: 1,
-                    reasons: [authoringResult.reason],
-                },
-            });
-            throw new ParameterError(rejectionMessage, {
-                reason: authoringResult.reason,
-            });
         }
         const projectContextEntry = buildMemoryPromotionEntry({
             proposal: authoringResult.entry,
