@@ -14,7 +14,7 @@ interface TruncatedTextProps extends Omit<TextProps, 'truncate'> {
     tooltipMaxLength?: number;
 }
 
-const TOOLTIP_MAX_WIDTH = 420;
+const TOOLTIP_MAX_WIDTH = 400;
 
 /**
  * Renders text truncated with an ellipsis at the given maxWidth.

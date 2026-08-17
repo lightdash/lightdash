@@ -1,8 +1,8 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../../../testing/testUtils';
 import TruncatedText from '.';
+import { renderWithProviders } from '../../../testing/testUtils';
 
 // jsdom has no layout, so the truncation detection never fires on its own.
 vi.mock('../../../hooks/useIsTruncated', () => ({
