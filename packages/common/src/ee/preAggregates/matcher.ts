@@ -1119,6 +1119,9 @@ export const findMatch = (
 
     const matchedDefs: PreAggregateDef[] = [];
     let firstMiss: PreAggregateMatchMiss | null = null;
+    // A miss from a def that covers the queried metrics is more actionable
+    // than "metric not in pre-aggregate" from an unrelated def.
+    let firstSpecificMiss: PreAggregateMatchMiss | null = null;
 
     explore.preAggregates.forEach((preAggregateDef) => {
         const miss = getMissForDef({
@@ -1139,19 +1142,26 @@ export const findMatch = (
         if (!firstMiss) {
             firstMiss = miss;
         }
+        if (
+            !firstSpecificMiss &&
+            miss.reason !== PreAggregateMissReason.METRIC_NOT_IN_PRE_AGGREGATE
+        ) {
+            firstSpecificMiss = miss;
+        }
     });
 
     if (matchedDefs.length === 0) {
         return {
             hit: false,
             preAggregateName: null,
-            miss: firstMiss ?? {
-                reason: PreAggregateMissReason.DIMENSION_NOT_IN_PRE_AGGREGATE,
-                fieldId:
-                    metricQuery.dimensions[0] ??
-                    metricQuery.metrics[0] ??
-                    'unknown',
-            },
+            miss: firstSpecificMiss ??
+                firstMiss ?? {
+                    reason: PreAggregateMissReason.DIMENSION_NOT_IN_PRE_AGGREGATE,
+                    fieldId:
+                        metricQuery.dimensions[0] ??
+                        metricQuery.metrics[0] ??
+                        'unknown',
+                },
         };
     }
 
