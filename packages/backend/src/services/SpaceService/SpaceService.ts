@@ -112,7 +112,8 @@ export class SpaceService
         this.projectModel = args.projectModel;
         this.spaceModel = args.spaceModel;
         this.organizationModel = args.organizationModel;
-        this.organizationMemberProfileModel = args.organizationMemberProfileModel;
+        this.organizationMemberProfileModel =
+            args.organizationMemberProfileModel;
         this.pinnedListModel = args.pinnedListModel;
         this.spacePermissionService = args.spacePermissionService;
         this.savedChartService = args.savedChartService;

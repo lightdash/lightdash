@@ -1738,19 +1738,23 @@ describe('SpaceService - space share target validation', () => {
             );
 
             await expect(
-                service.createSpace('test-project-uuid', mockUser as unknown as SessionUser, {
-                    name: 'New space',
-                    access: [
-                        {
-                            userUuid: 'member-user-uuid',
-                            role: SpaceMemberRole.VIEWER,
-                        },
-                        {
-                            userUuid: 'other-org-user-uuid',
-                            role: SpaceMemberRole.VIEWER,
-                        },
-                    ],
-                }),
+                service.createSpace(
+                    'test-project-uuid',
+                    mockUser as unknown as SessionUser,
+                    {
+                        name: 'New space',
+                        access: [
+                            {
+                                userUuid: 'member-user-uuid',
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                            {
+                                userUuid: 'other-org-user-uuid',
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    },
+                ),
             ).rejects.toThrowError(NotFoundError);
 
             expect(
