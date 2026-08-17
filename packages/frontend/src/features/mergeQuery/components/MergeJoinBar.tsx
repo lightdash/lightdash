@@ -54,12 +54,8 @@ type JoinTypeOption = {
     help: string;
 };
 
-const SourceLabel: FC<{ side: 'primary' | 'additional'; label: string }> = ({
-    side,
-    label,
-}) => (
+const SourceLabel: FC<{ label: string }> = ({ label }) => (
     <Group gap={6} wrap="nowrap" className={styles.sourceLabel}>
-        <Box className={styles.sourceDot} data-side={side} />
         <Text size="xs" fw={600} truncate title={label}>
             {label}
         </Text>
@@ -78,7 +74,7 @@ const JoinTypeDiagram: FC<{ type: MergeJoinType }> = ({ type }) => {
             </defs>
             {type === MergeJoinType.LEFT ? (
                 <circle
-                    className={styles.primaryRegion}
+                    className={styles.retainedRegion}
                     cx="18"
                     cy="14"
                     r="10"
@@ -87,13 +83,13 @@ const JoinTypeDiagram: FC<{ type: MergeJoinType }> = ({ type }) => {
             {type === MergeJoinType.FULL ? (
                 <>
                     <circle
-                        className={styles.primaryRegion}
+                        className={styles.retainedRegion}
                         cx="18"
                         cy="14"
                         r="10"
                     />
                     <circle
-                        className={styles.additionalRegion}
+                        className={styles.retainedRegion}
                         cx="30"
                         cy="14"
                         r="10"
@@ -102,20 +98,15 @@ const JoinTypeDiagram: FC<{ type: MergeJoinType }> = ({ type }) => {
             ) : null}
             {type === MergeJoinType.INNER ? (
                 <circle
-                    className={styles.overlapRegion}
+                    className={styles.retainedRegion}
                     cx="30"
                     cy="14"
                     r="10"
                     clipPath={`url(#${clipId})`}
                 />
             ) : null}
-            <circle className={styles.primaryOutline} cx="18" cy="14" r="10" />
-            <circle
-                className={styles.additionalOutline}
-                cx="30"
-                cy="14"
-                r="10"
-            />
+            <circle className={styles.circleOutline} cx="18" cy="14" r="10" />
+            <circle className={styles.circleOutline} cx="30" cy="14" r="10" />
         </svg>
     );
 };
@@ -409,10 +400,7 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                     )}
                                 <Box className={styles.pairFields}>
                                     <Stack gap={4} className={styles.fieldSide}>
-                                        <SourceLabel
-                                            side="primary"
-                                            label={thisQuery}
-                                        />
+                                        <SourceLabel label={thisQuery} />
                                         <FieldSelect
                                             aria-label={`${thisQuery} join field`}
                                             size="xs"
@@ -461,10 +449,7 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                         =
                                     </Text>
                                     <Stack gap={4} className={styles.fieldSide}>
-                                        <SourceLabel
-                                            side="additional"
-                                            label={otherQuery}
-                                        />
+                                        <SourceLabel label={otherQuery} />
                                         <FieldSelect
                                             aria-label={`${otherQuery} join field`}
                                             size="xs"

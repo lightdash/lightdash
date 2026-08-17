@@ -47,7 +47,7 @@
 
 .headerButton {
     display: grid;
-    grid-template-columns: 8px minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: 9px;
     min-width: 0;
@@ -59,20 +59,6 @@
 .headerCopy {
     min-width: 0;
     line-height: 1.15;
-}
-
-.dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 2px;
-}
-
-.dot[data-side='a'] {
-    background: var(--mantine-color-blue-6);
-}
-
-.dot[data-side='b'] {
-    background: var(--mantine-color-orange-6);
 }
 
 .remove {
