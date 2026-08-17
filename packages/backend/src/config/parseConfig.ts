@@ -979,10 +979,15 @@ export const parseResultsS3Config = (): LightdashConfig['results']['s3'] => {
         process.env.RESULTS_S3_SECRET_KEY ||
         process.env.RESULTS_CACHE_S3_SECRET_KEY || // Deprecated
         baseSecretKey;
+    const endpoint = process.env.RESULTS_S3_ENDPOINT || baseEndpoint;
+    const resultsForcePathStyle = process.env.RESULTS_S3_FORCE_PATH_STYLE;
+    const forcePathStyle = resultsForcePathStyle
+        ? resultsForcePathStyle === 'true'
+        : baseForcePathStyle;
 
     return {
-        endpoint: baseEndpoint, // ! For now we keep reusing the S3_ENDPOINT like we have been so far, we are just going to enforce it
-        forcePathStyle: baseForcePathStyle, // ! For now we keep reusing the S3_FORCE_PATH_STYLE like we have been so far, we are just going to enforce it
+        endpoint,
+        forcePathStyle,
         bucket,
         region,
         accessKey,
