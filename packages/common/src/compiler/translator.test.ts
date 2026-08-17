@@ -9,6 +9,7 @@ import {
 import { DEFAULT_SPOTLIGHT_CONFIG } from '../types/lightdashProjectConfig';
 import { TimeFrames } from '../types/timeFrames';
 import { warehouseClientMock } from './exploreCompiler.mock';
+import { getExploreParameterDefinitions } from './parameters';
 import {
     attachTypesToModels,
     convertExplores,
@@ -1438,6 +1439,71 @@ describe('merged manifest model qualification', () => {
         expect(customers.joinedTables[0].compiledSqlOn).toBe(
             '("customers".id) = ("orders".id)',
         );
+    });
+
+    it('keeps qualified join parameters scoped to the authored alias', async () => {
+        const subscriptionsModel = buildMergedModel({
+            sourceName: 'finance',
+            packageName: 'finance',
+            name: 'subscriptions',
+            joins: [
+                {
+                    join: 'customers',
+                    sql_on: '${subscriptions.id} = ${customers.id}',
+                },
+            ],
+        });
+        subscriptionsModel.meta.metrics = {
+            customer_metric: {
+                type: MetricType.NUMBER,
+                sql: '${ld.parameters.customers.customer_name}',
+            },
+        };
+
+        const financeCustomersModel = buildMergedModel({
+            sourceName: 'finance',
+            packageName: 'finance',
+            name: 'customers',
+        });
+        financeCustomersModel.meta.parameters = {
+            customer_name: {
+                label: 'Customer name',
+                default: 'Alice',
+            },
+        };
+
+        const explores = await convertExplores(
+            [
+                subscriptionsModel,
+                financeCustomersModel,
+                buildMergedModel({
+                    sourceName: 'marketing',
+                    packageName: 'marketing',
+                    name: 'customers',
+                }),
+            ],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+            { allowPartialCompilation: true },
+        );
+
+        const subscriptions = explores.find(
+            (explore) => explore.name === 'subscriptions',
+        ) as Explore;
+
+        expect(
+            subscriptions.tables.subscriptions.metrics.customer_metric
+                .parameterReferences,
+        ).toEqual(['customers.customer_name']);
+        expect(subscriptions.warnings ?? []).toEqual([]);
+        expect(getExploreParameterDefinitions(subscriptions)).toHaveProperty(
+            'customers.customer_name',
+        );
+        expect(
+            getExploreParameterDefinitions(subscriptions),
+        ).not.toHaveProperty('finance__customers.customer_name');
     });
 
     it('rejects a qualified name that collides with a genuine model name', async () => {
