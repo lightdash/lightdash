@@ -688,14 +688,14 @@ export type ApiMyAppsResponse = ApiSuccess<{
 }>;
 
 /**
- * What one generation cost, aggregated across every `claude` CLI invocation in
- * that version's pipeline — including build-fix retries.
+ * Usage for one generation, aggregated across every coding-agent invocation in
+ * that version's pipeline, including build-fix retries.
  *
  * This is spend attributable to a generation, not all data-app AI spend: the
  * short prompt-clarification and app-naming calls happen outside any version.
  *
- * `costUsd` is the CLI's own figure, computed from public list prices, so treat
- * it as an estimate rather than an invoice.
+ * `costUsd` is an estimate rather than an invoice. It is null when the coding
+ * agent reports tokens without a trustworthy price.
  */
 export type DataAppGenerationUsage = {
     inputTokens: number;
@@ -704,7 +704,7 @@ export type DataAppGenerationUsage = {
     cacheCreationInputTokens: number;
     numTurns: number;
     durationApiMs: number;
-    costUsd: number;
+    costUsd: number | null;
 };
 
 /**
@@ -722,9 +722,11 @@ export type DataAppActivityEvent = {
     version: number;
     status: AppVersionStatus;
     prompt: string;
-    // Versions built before the model picker shipped carry no model on their
-    // resources; they ran on the default, so that is what we report.
-    claudeModel: DataAppClaudeModel;
+    codingAgent: DataAppCodingAgent;
+    codingAgentModel: DataAppCodingAgentModel;
+    // Backwards-compatible Claude-only field. Codex activity omits it rather
+    // than reporting the Claude default for a model that did not run.
+    claudeModel?: DataAppClaudeModel;
     createdAt: Date;
     projectUuid: string;
     projectName: string;
@@ -745,7 +747,7 @@ export type DataAppActivityFilters = {
     // Matches the model as reported, so filtering on the default model also
     // returns versions that carry no model of their own — the ones that ran on
     // the default before the picker shipped.
-    models?: DataAppClaudeModel[];
+    models?: DataAppCodingAgentModel[];
     // ISO-8601, inclusive.
     dateFrom?: string;
     dateTo?: string;

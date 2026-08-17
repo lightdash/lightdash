@@ -84,9 +84,11 @@ import {
     type DataAppCodeFile,
     type DataAppCodexModel,
     type DataAppCodingAgent,
+    type DataAppCodingAgentModel,
     type DataAppContext,
     type DataAppCreationExperience,
     type DataAppDependencies,
+    type DataAppGenerationUsage,
     type DataAppManifestExternalConnection,
     type DataAppTemplate,
     type DataAppViz,
@@ -407,7 +409,7 @@ type ModelFile = {
 type DataAppVersionFailureTelemetry = {
     wasResumed?: boolean;
     codingAgent?: DataAppCodingAgent;
-    codingAgentModel?: string;
+    codingAgentModel?: DataAppCodingAgentModel;
     claudeProvider?: 'anthropic' | 'bedrock' | 'openai';
     keyManagement?: AiKeyManagement;
     schedulerWaitMs?: number;
@@ -1921,7 +1923,7 @@ export class AppGenerateService extends BaseService {
 
     private static emitDataAppAiUsage(
         payload: AppGeneratePipelineJobPayload,
-        model: string,
+        model: DataAppCodingAgentModel,
         provider: 'anthropic' | 'bedrock' | 'openai',
         keyManagement: AiKeyManagement,
         usage: ClaudeGenerationUsage,
@@ -1969,10 +1971,15 @@ export class AppGenerateService extends BaseService {
         usage: ClaudeGenerationUsage,
     ): Promise<void> {
         try {
+            const persistedUsage: DataAppGenerationUsage = {
+                ...usage,
+                costUsd:
+                    this.dataAppCodingAgent === 'codex' ? null : usage.costUsd,
+            };
             await this.appModel.recordVersionGenerationUsage(
                 payload.appUuid,
                 payload.version,
-                usage,
+                persistedUsage,
             );
         } catch (error) {
             this.logger.warn(
@@ -2001,6 +2008,12 @@ export class AppGenerateService extends BaseService {
         const { generationUsage } = telemetry;
         const claudeModel =
             payload.claudeModel ?? DEFAULT_DATA_APP_CLAUDE_MODEL;
+        const codingAgent = telemetry.codingAgent ?? this.dataAppCodingAgent;
+        const codingAgentModel =
+            telemetry.codingAgentModel ??
+            (codingAgent === 'codex'
+                ? (payload.codexModel ?? DEFAULT_DATA_APP_CODEX_MODEL)
+                : claudeModel);
 
         if (
             generationUsage &&
@@ -2013,7 +2026,7 @@ export class AppGenerateService extends BaseService {
         ) {
             AppGenerateService.emitDataAppAiUsage(
                 payload,
-                telemetry.codingAgentModel ?? claudeModel,
+                codingAgentModel,
                 telemetry.claudeProvider ?? 'anthropic',
                 telemetry.keyManagement ?? 'lightdash-managed',
                 generationUsage,
@@ -2036,9 +2049,9 @@ export class AppGenerateService extends BaseService {
                 isIteration: payload.isIteration,
                 isUpgrade: payload.isUpgrade ?? false,
                 creationExperience: payload.creationExperience ?? null,
-                claudeModel,
-                codingAgent: telemetry.codingAgent,
-                codingAgentModel: telemetry.codingAgentModel,
+                ...(codingAgent === 'claude' ? { claudeModel } : {}),
+                codingAgent,
+                codingAgentModel,
                 claudeProvider: telemetry.claudeProvider,
                 schedulerWaitMs: telemetry.schedulerWaitMs,
                 claudeEffort,
@@ -2071,7 +2084,8 @@ export class AppGenerateService extends BaseService {
                     generationUsage?.cacheCreationInputTokens,
                 numTurns: generationUsage?.numTurns,
                 durationApiMs: generationUsage?.durationApiMs,
-                totalCostUsd: generationUsage?.costUsd,
+                totalCostUsd:
+                    codingAgent === 'codex' ? null : generationUsage?.costUsd,
                 generationAttemptCount: telemetry.generationAttemptCount,
                 timeToFirstTokenMs: telemetry.timeToFirstTokenMs,
                 slowestTurnMs: telemetry.slowestTurnMs,
@@ -3692,8 +3706,8 @@ export class AppGenerateService extends BaseService {
                     try {
                         structuredOutput = JSON.parse(responseText);
                     } catch (error) {
-                        throw new Error(
-                            `Codex returned invalid structured output: ${getErrorMessage(error)}`,
+                        this.logger.warn(
+                            `App ${appUuid}: Codex returned invalid structured output; leaving viz_schema null: ${getErrorMessage(error)}`,
                         );
                     }
                 }
@@ -4642,9 +4656,9 @@ export class AppGenerateService extends BaseService {
             payload.claudeModel ?? DEFAULT_DATA_APP_CLAUDE_MODEL;
         const claudeEffort = payloadClaudeEffort(payload, pipelineApp.template);
         const claudeProvider = this.getCodingAgentProvider(codingAgentEnv);
-        const codingAgentModel =
+        const codingAgentModel: DataAppCodingAgentModel =
             this.dataAppCodingAgent === 'codex'
-                ? codingAgentEnv.DATA_APP_CODEX_MODEL
+                ? (payload.codexModel ?? DEFAULT_DATA_APP_CODEX_MODEL)
                 : claudeModel;
         const claudeKeyManagement = resolveKeyManagement(
             copilot,
@@ -5262,7 +5276,9 @@ export class AppGenerateService extends BaseService {
                 isIteration: payload.isIteration,
                 isUpgrade: payload.isUpgrade ?? false,
                 creationExperience: payload.creationExperience ?? null,
-                claudeModel,
+                ...(this.dataAppCodingAgent === 'claude'
+                    ? { claudeModel }
+                    : {}),
                 codingAgent: this.dataAppCodingAgent,
                 codingAgentModel,
                 claudeProvider,
@@ -5289,7 +5305,10 @@ export class AppGenerateService extends BaseService {
                     generationUsage.cacheCreationInputTokens,
                 numTurns: generationUsage.numTurns,
                 durationApiMs: generationUsage.durationApiMs,
-                totalCostUsd: generationUsage.costUsd,
+                totalCostUsd:
+                    this.dataAppCodingAgent === 'codex'
+                        ? null
+                        : generationUsage.costUsd,
                 generationAttemptCount,
                 timeToFirstTokenMs,
                 slowestTurnMs,
@@ -6097,7 +6116,11 @@ export class AppGenerateService extends BaseService {
                 imageCount: stagedFiles.filter((f) => f.isImage).length,
                 fileCount: stagedFiles.filter((f) => !f.isImage).length,
                 template: template ?? null,
-                claudeModel,
+                ...(this.dataAppCodingAgent === 'claude'
+                    ? { claudeModel }
+                    : {}),
+                codingAgent: this.dataAppCodingAgent,
+                codingAgentModel,
                 claudeEffort,
                 samplesRequested: sampleStats.requested,
                 samplesAvailable: sampleStats.available,
@@ -6314,7 +6337,11 @@ export class AppGenerateService extends BaseService {
                 promptLength: prompt.length,
                 imageCount: stagedFiles.filter((f) => f.isImage).length,
                 fileCount: stagedFiles.filter((f) => !f.isImage).length,
-                claudeModel,
+                ...(this.dataAppCodingAgent === 'claude'
+                    ? { claudeModel }
+                    : {}),
+                codingAgent: this.dataAppCodingAgent,
+                codingAgentModel,
                 claudeEffort,
                 themeChanged: isThemeChange,
                 designUuid: effectiveDesignUuid,
@@ -8447,6 +8474,10 @@ export class AppGenerateService extends BaseService {
     private static toActivityEvent(
         row: DbAppActivityRow,
     ): DataAppActivityEvent {
+        const codexModel = row.resources?.codexModel;
+        const claudeModel =
+            row.resources?.claudeModel ?? DEFAULT_DATA_APP_CLAUDE_MODEL;
+        const codingAgent = codexModel ? 'codex' : 'claude';
         return {
             appUuid: row.app_id,
             appName: row.app_name,
@@ -8454,8 +8485,9 @@ export class AppGenerateService extends BaseService {
             version: row.version,
             status: row.status,
             prompt: row.prompt,
-            claudeModel:
-                row.resources?.claudeModel ?? DEFAULT_DATA_APP_CLAUDE_MODEL,
+            codingAgent,
+            codingAgentModel: codexModel ?? claudeModel,
+            ...(codingAgent === 'claude' ? { claudeModel } : {}),
             createdAt: row.created_at,
             projectUuid: row.project_uuid,
             projectName: row.project_name,
@@ -8470,7 +8502,16 @@ export class AppGenerateService extends BaseService {
                           firstName: row.created_by_user_first_name,
                           lastName: row.created_by_user_last_name,
                       },
-            usage: row.generation_usage,
+            usage:
+                row.generation_usage === null
+                    ? null
+                    : {
+                          ...row.generation_usage,
+                          costUsd:
+                              codingAgent === 'codex'
+                                  ? null
+                                  : row.generation_usage.costUsd,
+                      },
         };
     }
 

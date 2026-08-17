@@ -96,4 +96,43 @@ describe('CodexStreamProcessor', () => {
         expect(processor.timeToFirstTokenMs).toBe(50);
         expect(processor.turnDurationsMs).toEqual([100]);
     });
+
+    test('maps file change paths from the Codex changes array', () => {
+        const processor = new CodexStreamProcessor();
+        const events = processor.feedChunk(
+            line({
+                type: 'item.started',
+                item: {
+                    id: 'change-1',
+                    type: 'file_change',
+                    changes: [
+                        { path: 'src/App.tsx', kind: 'update' },
+                        { path: 'src/index.css', kind: 'update' },
+                    ],
+                    status: 'in_progress',
+                },
+            }) +
+                line({
+                    type: 'item.completed',
+                    item: {
+                        id: 'change-1',
+                        type: 'file_change',
+                        changes: [
+                            { path: 'src/App.tsx', kind: 'update' },
+                            { path: 'src/index.css', kind: 'update' },
+                        ],
+                        status: 'completed',
+                    },
+                }),
+        );
+
+        expect(events).toEqual([
+            {
+                kind: 'tool_use',
+                index: 1,
+                description: 'Edit src/App.tsx, src/index.css',
+            },
+        ]);
+        expect(processor.totalToolCalls).toBe(1);
+    });
 });

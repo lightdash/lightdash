@@ -13,6 +13,16 @@ const compact = (value: string, maxLength = 180): string => {
     return flat.length > maxLength ? `${flat.slice(0, maxLength - 1)}…` : flat;
 };
 
+const describeFileChanges = (item: Record<string, unknown>): string => {
+    const changes = Array.isArray(item.changes)
+        ? (item.changes as Array<{ path?: unknown }>)
+        : [];
+    const paths = changes
+        .map(({ path }) => (typeof path === 'string' ? path : null))
+        .filter((path): path is string => path !== null);
+    return paths.length > 0 ? compact(paths.join(', ')) : 'files';
+};
+
 /** Parses the stable JSONL event stream emitted by `codex exec --json`. */
 export class CodexStreamProcessor {
     private lineBuffer = '';
@@ -111,7 +121,7 @@ export class CodexStreamProcessor {
                 const description =
                     itemType === 'command_execution'
                         ? `Command ${compact(String(item.command ?? ''))}`
-                        : `Edit ${String(item.path ?? item.file_path ?? 'files')}`;
+                        : `Edit ${describeFileChanges(item)}`;
                 events.push({
                     kind: 'tool_use',
                     index: this.toolCallCount,
