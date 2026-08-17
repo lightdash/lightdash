@@ -19,5 +19,5 @@ describeContentAsCodeSchemaContract({
         'userUpdatedAt',
         'userUuid',
     ],
-    documentOnlyFields: ['disabled', 'version'],
+    documentOnlyFields: ['additionalRoles', 'disabled', 'version'],
 });

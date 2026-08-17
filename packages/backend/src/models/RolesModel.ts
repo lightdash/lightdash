@@ -558,7 +558,7 @@ export class RolesModel {
         }, tx);
     }
 
-    private async getUserProjectRoles(
+    async getUserProjectRoles(
         userUuid: string,
         tx?: Knex.Transaction,
     ): Promise<
@@ -1401,6 +1401,66 @@ export class RolesModel {
             .andWhere('role', 'admin')
             .select(`${UserTableName}.user_uuid as userUuid`);
         return results.map((u) => u.userUuid);
+    }
+
+    /**
+     * Role-set analogue of `setUserOrgAndProjectRoles`: replaces the organization
+     * role set and every listed project role set, and removes direct access to
+     * projects not listed (preview projects excluded when requested).
+     */
+    async setUserOrgAndProjectRoleSets(
+        organizationUuid: string,
+        userUuid: string,
+        orgRoleSet: OrganizationRoleSet,
+        projectRoleSets: Array<{
+            projectUuid: string;
+            roleSet: ProjectRoleSet;
+        }>,
+        excludeProjectPreviews: boolean,
+        tx?: Knex.Transaction,
+    ): Promise<void> {
+        await this.runInTransaction(async (trx) => {
+            await this.replaceOrganizationUserRoleSet(
+                organizationUuid,
+                userUuid,
+                orgRoleSet,
+                trx,
+            );
+            const desired = new Map(
+                projectRoleSets.map(({ projectUuid, roleSet }) => [
+                    projectUuid,
+                    roleSet,
+                ]),
+            );
+            const current = await this.getUserProjectRoles(userUuid, trx);
+            await Promise.all(
+                current
+                    .filter(
+                        (membership) =>
+                            !desired.has(membership.projectUuid) &&
+                            !(
+                                excludeProjectPreviews &&
+                                membership.type === ProjectType.PREVIEW
+                            ),
+                    )
+                    .map((membership) =>
+                        this.removeUserProjectAccess(
+                            userUuid,
+                            membership.projectUuid,
+                            trx,
+                        ),
+                    ),
+            );
+            for (const [projectUuid, roleSet] of desired.entries()) {
+                // eslint-disable-next-line no-await-in-loop
+                await this.replaceProjectUserRoleSet(
+                    projectUuid,
+                    userUuid,
+                    roleSet,
+                    trx,
+                );
+            }
+        }, tx);
     }
 
     /**
