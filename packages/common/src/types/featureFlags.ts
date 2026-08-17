@@ -320,6 +320,15 @@ export enum FeatureFlags {
        explorer. Gated because it compiles novel SQL shapes (multi-CTE joins,
        conditional-aggregation widening) that no other path exercises. */
     MergeQueries = 'merge-queries',
+
+    /**
+     * Enable the async pre-aggregate DuckDB SQL endpoint
+     * (POST /api/v2/projects/{projectUuid}/query/pre-aggregate-sql), which
+     * runs DuckDB SQL over lightdash_query('<queryUuid>') result references.
+     * Off by default; on in preview/dev environments via
+     * PREVIEW_ENABLED_FEATURE_FLAGS.
+     */
+    PreAggregateSqlRunner = 'pre-aggregate-sql-runner',
 }
 
 export type FeatureFlag = {

@@ -6330,7 +6330,8 @@ export class AsyncQueryService extends ProjectService {
      * results file, gated by the exact access checks of the results-by-uuid
      * endpoint. Direct file access (read_parquet, read_json, ...) in the
      * user SQL is rejected, so referenced results are the only data this
-     * endpoint can reach — which is why view-project access suffices.
+     * endpoint can reach — which is why run-queries access (interactive
+     * viewer and up) suffices.
      */
     async executeAsyncPreAggregateSqlQuery({
         account,
@@ -6340,14 +6341,30 @@ export class AsyncQueryService extends ProjectService {
         limit,
     }: ExecuteAsyncPreAggregateSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
         assertIsAccountWithOrg(account);
+
+        const { enabled: isEndpointEnabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+            },
+            featureFlagId: FeatureFlags.PreAggregateSqlRunner,
+        });
+        if (!isEndpointEnabled) {
+            throw new ForbiddenError(
+                'Pre-aggregate SQL queries are not enabled',
+            );
+        }
+
         const projectSummary = await this.projectModel.getSummary(projectUuid);
         const { organizationUuid } = projectSummary;
 
+        // Same ability that gates running a metric query from the explorer:
+        // interactive viewers and up, but not plain viewers.
         const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
-                'view',
-                subject('Project', {
+                'manage',
+                subject('Explore', {
                     organizationUuid,
                     projectUuid,
                 }),

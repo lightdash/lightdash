@@ -436,7 +436,7 @@ export class QueryController extends BaseController {
     }
 
     /**
-     * Executes a DuckDB SQL query asynchronously on the pre-aggregate DuckDB engine. Use lightdash_query('queryUuid') in the SQL to read the results of a previous async query; each reference is authorized with the same access checks as Get results, so you can reference any query you can already fetch by uuid. Direct file access in the SQL is rejected. Returns a queryUuid to poll for results via Get results.
+     * Executes a DuckDB SQL query asynchronously on the pre-aggregate DuckDB engine. Requires run-queries access (interactive viewer and up) and the pre-aggregate-sql-runner feature flag. Use lightdash_query('queryUuid') in the SQL to read the results of a previous async query; each reference is authorized with the same access checks as Get results, so you can reference any query you can already fetch by uuid. Direct file access in the SQL is rejected. Returns a queryUuid to poll for results via Get results.
      * @summary Execute pre-aggregate SQL query
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
