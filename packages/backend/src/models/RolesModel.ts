@@ -6,20 +6,28 @@ import {
     isSystemRole,
     NotFoundError,
     OrganizationMemberRole,
+    OrganizationRoleSet,
+    ParameterError,
     Project,
     ProjectAccess,
     ProjectMemberProfile,
     ProjectMemberRole,
+    ProjectRoleSet,
     ProjectType,
     Role,
     RoleAssignee,
     RoleAssignment,
+    RoleLevel,
     RoleWithScopes,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { validate as isValidUuid } from 'uuid';
 import { GroupTableName } from '../database/entities/groups';
+import { OrganizationMembershipCustomRolesTableName } from '../database/entities/organizationMembershipCustomRoles';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import { ProjectGroupAccessTableName } from '../database/entities/projectGroupAccess';
+import { ProjectGroupAccessCustomRolesTableName } from '../database/entities/projectGroupAccessCustomRoles';
+import { ProjectMembershipCustomRolesTableName } from '../database/entities/projectMembershipCustomRoles';
 import {
     DbProjectMembership,
     ProjectMembershipsTableName,
@@ -34,6 +42,17 @@ import {
 } from '../database/entities/roles';
 import { UserTableName } from '../database/entities/users';
 import { isUniqueConstraintViolation } from '../database/errors';
+import {
+    clearGroupExtraRoles,
+    clearOrganizationExtraRoles,
+    clearProjectExtraRoles,
+    joinRoleSet,
+    normalizeRoleSet,
+    ORGANIZATION_PLACEHOLDER_ROLE,
+    PROJECT_PLACEHOLDER_ROLE,
+    replaceExtraRoles,
+    splitRoleSet,
+} from './roleSetUtils';
 
 type DbRoleWithScopes = DbRole & {
     scopes: string;
@@ -333,7 +352,24 @@ export class RolesModel {
                 'service_accounts.service_account_user_uuid',
                 `${UserTableName}.user_uuid`,
             )
-            .where(`${OrganizationMembershipsTableName}.role_uuid`, roleUuid)
+            .where((qb) =>
+                qb
+                    .where(
+                        `${OrganizationMembershipsTableName}.role_uuid`,
+                        roleUuid,
+                    )
+                    .orWhereIn(
+                        [
+                            `${OrganizationMembershipsTableName}.organization_id`,
+                            `${OrganizationMembershipsTableName}.user_id`,
+                        ],
+                        this.database(
+                            OrganizationMembershipCustomRolesTableName,
+                        )
+                            .select('organization_id', 'user_id')
+                            .where('role_uuid', roleUuid),
+                    ),
+            )
             .select<
                 Array<{
                     userUuid: string;
@@ -361,7 +397,19 @@ export class RolesModel {
                 `${ProjectMembershipsTableName}.project_id`,
                 `${ProjectTableName}.project_id`,
             )
-            .where(`${ProjectMembershipsTableName}.role_uuid`, roleUuid)
+            .where((qb) =>
+                qb
+                    .where(`${ProjectMembershipsTableName}.role_uuid`, roleUuid)
+                    .orWhereIn(
+                        [
+                            `${ProjectMembershipsTableName}.project_id`,
+                            `${ProjectMembershipsTableName}.user_id`,
+                        ],
+                        this.database(ProjectMembershipCustomRolesTableName)
+                            .select('project_id', 'user_id')
+                            .where('role_uuid', roleUuid),
+                    ),
+            )
             .select<
                 Array<{
                     userUuid: string;
@@ -391,7 +439,19 @@ export class RolesModel {
                 `${ProjectGroupAccessTableName}.project_uuid`,
                 `${ProjectTableName}.project_uuid`,
             )
-            .where(`${ProjectGroupAccessTableName}.role_uuid`, roleUuid)
+            .where((qb) =>
+                qb
+                    .where(`${ProjectGroupAccessTableName}.role_uuid`, roleUuid)
+                    .orWhereIn(
+                        [
+                            `${ProjectGroupAccessTableName}.project_uuid`,
+                            `${ProjectGroupAccessTableName}.group_uuid`,
+                        ],
+                        this.database(ProjectGroupAccessCustomRolesTableName)
+                            .select('project_uuid', 'group_uuid')
+                            .where('role_uuid', roleUuid),
+                    ),
+            )
             .select<
                 Array<{
                     groupUuid: string;
@@ -485,10 +545,13 @@ export class RolesModel {
             );
         }
 
-        await (tx || this.database)(ProjectMembershipsTableName)
-            .where('user_id', userId)
-            .where('project_id', project.project_id)
-            .update({ role_uuid: null });
+        await this.runInTransaction(async (trx) => {
+            await trx(ProjectMembershipsTableName)
+                .where('user_id', userId)
+                .where('project_id', project.project_id)
+                .update({ role_uuid: null });
+            await clearProjectExtraRoles(trx, project.project_id, userId);
+        }, tx);
     }
 
     private async getUserProjectRoles(
@@ -564,15 +627,18 @@ export class RolesModel {
         role: ProjectMemberRole,
         tx?: Knex.Transaction,
     ): Promise<void> {
-        await (tx || this.database)('project_group_access')
-            .insert({
-                group_uuid: groupUuid,
-                project_uuid: projectUuid,
-                role,
-                role_uuid: null,
-            })
-            .onConflict(['group_uuid', 'project_uuid'])
-            .merge(['role', 'role_uuid']);
+        await this.runInTransaction(async (trx) => {
+            await trx('project_group_access')
+                .insert({
+                    group_uuid: groupUuid,
+                    project_uuid: projectUuid,
+                    role,
+                    role_uuid: null,
+                })
+                .onConflict(['group_uuid', 'project_uuid'])
+                .merge(['role', 'role_uuid']);
+            await clearGroupExtraRoles(trx, projectUuid, groupUuid);
+        }, tx);
     }
 
     async upsertCustomRoleGroupAccess(
@@ -581,15 +647,18 @@ export class RolesModel {
         roleUuid: string,
         tx?: Knex.Transaction,
     ): Promise<void> {
-        await (tx || this.database)('project_group_access')
-            .insert({
-                group_uuid: groupUuid,
-                project_uuid: projectUuid,
-                role_uuid: roleUuid,
-                role: ProjectMemberRole.VIEWER,
-            })
-            .onConflict(['group_uuid', 'project_uuid'])
-            .merge(['role_uuid', 'role']);
+        await this.runInTransaction(async (trx) => {
+            await trx('project_group_access')
+                .insert({
+                    group_uuid: groupUuid,
+                    project_uuid: projectUuid,
+                    role_uuid: roleUuid,
+                    role: ProjectMemberRole.VIEWER,
+                })
+                .onConflict(['group_uuid', 'project_uuid'])
+                .merge(['role_uuid', 'role']);
+            await clearGroupExtraRoles(trx, projectUuid, groupUuid);
+        }, tx);
     }
 
     async assignRoleToGroup(
@@ -598,29 +667,30 @@ export class RolesModel {
         projectUuid: string,
         tx?: Knex.Transaction,
     ): Promise<void> {
-        const existingAccess = await (tx || this.database)(
-            'project_group_access',
-        )
-            .where('group_uuid', groupUuid)
-            .where('project_uuid', projectUuid)
-            .first();
-
-        if (existingAccess) {
-            await (tx || this.database)('project_group_access')
+        await this.runInTransaction(async (trx) => {
+            const existingAccess = await trx('project_group_access')
                 .where('group_uuid', groupUuid)
                 .where('project_uuid', projectUuid)
-                .update({
+                .first();
+
+            if (existingAccess) {
+                await trx('project_group_access')
+                    .where('group_uuid', groupUuid)
+                    .where('project_uuid', projectUuid)
+                    .update({
+                        role_uuid: roleUuid,
+                        role: ProjectMemberRole.VIEWER,
+                    });
+            } else {
+                await trx('project_group_access').insert({
+                    group_uuid: groupUuid,
+                    project_uuid: projectUuid,
                     role_uuid: roleUuid,
-                    role: ProjectMemberRole.VIEWER,
+                    role: 'viewer' as ProjectMemberRole, // Default role when using custom role_uuid
                 });
-        } else {
-            await (tx || this.database)('project_group_access').insert({
-                group_uuid: groupUuid,
-                project_uuid: projectUuid,
-                role_uuid: roleUuid,
-                role: 'viewer' as ProjectMemberRole, // Default role when using custom role_uuid
-            });
-        }
+            }
+            await clearGroupExtraRoles(trx, projectUuid, groupUuid);
+        }, tx);
     }
 
     async unassignRoleFromGroup(
@@ -724,15 +794,18 @@ export class RolesModel {
         const userId = await this.getUserId(userUuid, tx);
         const projectId = await this.getProjectId(projectUuid, tx);
 
-        await (tx || this.database)(ProjectMembershipsTableName)
-            .insert({
-                project_id: projectId,
-                user_id: userId,
-                role,
-                role_uuid: null,
-            })
-            .onConflict(['project_id', 'user_id'])
-            .merge(['role', 'role_uuid']);
+        await this.runInTransaction(async (trx) => {
+            await trx(ProjectMembershipsTableName)
+                .insert({
+                    project_id: projectId,
+                    user_id: userId,
+                    role,
+                    role_uuid: null,
+                })
+                .onConflict(['project_id', 'user_id'])
+                .merge(['role', 'role_uuid']);
+            await clearProjectExtraRoles(trx, projectId, userId);
+        }, tx);
     }
 
     async upsertCustomRoleProjectAccess(
@@ -744,15 +817,18 @@ export class RolesModel {
         const userId = await this.getUserId(userUuid, tx);
         const projectId = await this.getProjectId(projectUuid, tx);
 
-        await (tx || this.database)(ProjectMembershipsTableName)
-            .insert({
-                project_id: projectId,
-                user_id: userId,
-                role_uuid: roleUuid,
-                role: ProjectMemberRole.VIEWER,
-            })
-            .onConflict(['project_id', 'user_id'])
-            .merge(['role_uuid', 'role']);
+        await this.runInTransaction(async (trx) => {
+            await trx(ProjectMembershipsTableName)
+                .insert({
+                    project_id: projectId,
+                    user_id: userId,
+                    role_uuid: roleUuid,
+                    role: ProjectMemberRole.VIEWER,
+                })
+                .onConflict(['project_id', 'user_id'])
+                .merge(['role_uuid', 'role']);
+            await clearProjectExtraRoles(trx, projectId, userId);
+        }, tx);
     }
 
     async removeUserAccessFromAllProjects(
@@ -903,17 +979,357 @@ export class RolesModel {
 
         const isSystemOrganizationRole = isOrganizationMemberRole(roleId);
 
-        await (tx || this.database)(OrganizationMembershipsTableName)
-            .where({
-                organization_id: orgId,
-                user_id: userId,
-            })
-            .update({
-                role: isSystemOrganizationRole
-                    ? roleId
-                    : OrganizationMemberRole.MEMBER,
-                role_uuid: isSystemOrganizationRole ? null : roleId,
-            });
+        await this.runInTransaction(async (trx) => {
+            await trx(OrganizationMembershipsTableName)
+                .where({
+                    organization_id: orgId,
+                    user_id: userId,
+                })
+                .update({
+                    role: isSystemOrganizationRole
+                        ? roleId
+                        : OrganizationMemberRole.MEMBER,
+                    role_uuid: isSystemOrganizationRole ? null : roleId,
+                });
+            await clearOrganizationExtraRoles(trx, orgId, userId);
+        }, tx);
+    }
+
+    private async getProjectOrganizationUuid(
+        projectUuid: string,
+        tx?: Knex.Transaction,
+    ): Promise<string> {
+        const row = await (tx || this.database)(ProjectTableName)
+            .join(
+                'organizations',
+                `${ProjectTableName}.organization_id`,
+                'organizations.organization_id',
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .first<{ organization_uuid: string }>(
+                'organizations.organization_uuid',
+            );
+        if (!row) {
+            throw new NotFoundError(
+                `Project with uuid ${projectUuid} not found`,
+            );
+        }
+        return row.organization_uuid;
+    }
+
+    private async assertGroupInOrganization(
+        groupUuid: string,
+        orgUuid: string,
+        tx?: Knex.Transaction,
+    ): Promise<void> {
+        const row = await (tx || this.database)(GroupTableName)
+            .join(
+                'organizations',
+                `${GroupTableName}.organization_id`,
+                'organizations.organization_id',
+            )
+            .where(`${GroupTableName}.group_uuid`, groupUuid)
+            .first<{ organization_uuid: string }>(
+                'organizations.organization_uuid',
+            );
+        if (!row || row.organization_uuid !== orgUuid) {
+            throw new NotFoundError(`Group with uuid ${groupUuid} not found`);
+        }
+    }
+
+    private async getOrganizationMemberUserId(
+        orgUuid: string,
+        userUuid: string,
+        tx?: Knex.Transaction,
+    ): Promise<number> {
+        const row = await (tx || this.database)(UserTableName)
+            .join(
+                OrganizationMembershipsTableName,
+                `${OrganizationMembershipsTableName}.user_id`,
+                `${UserTableName}.user_id`,
+            )
+            .join(
+                'organizations',
+                'organizations.organization_id',
+                `${OrganizationMembershipsTableName}.organization_id`,
+            )
+            .where(`${UserTableName}.user_uuid`, userUuid)
+            .where('organizations.organization_uuid', orgUuid)
+            .first<{ user_id: number }>(`${UserTableName}.user_id`);
+        if (!row) {
+            throw new NotFoundError(
+                `User ${userUuid} is not a member of the project's organization`,
+            );
+        }
+        return row.user_id;
+    }
+
+    /**
+     * Ensures every custom role exists, belongs to the organization and has
+     * the expected level. Missing or foreign roles are reported as not found.
+     */
+    private async validateCustomRoles(
+        orgUuid: string,
+        customRoleUuids: string[],
+        level: RoleLevel,
+        tx?: Knex.Transaction,
+    ): Promise<void> {
+        if (customRoleUuids.length === 0) {
+            return;
+        }
+        const malformed = customRoleUuids.filter((u) => !isValidUuid(u));
+        if (malformed.length > 0) {
+            throw new ParameterError(
+                `Invalid custom role id(s): ${malformed.join(', ')}`,
+            );
+        }
+        const rows = await (tx || this.database)(RolesTableName)
+            .select<Pick<DbRole, 'role_uuid' | 'level'>[]>('role_uuid', 'level')
+            .where('organization_uuid', orgUuid)
+            .where('owner_type', 'user')
+            .whereIn('role_uuid', customRoleUuids);
+        const byUuid = new Map(rows.map((r) => [r.role_uuid, r.level]));
+        const missing = customRoleUuids.filter((u) => !byUuid.has(u));
+        if (missing.length > 0) {
+            throw new NotFoundError(
+                `Custom role(s) not found in organization: ${missing.join(', ')}`,
+            );
+        }
+        const wrongLevel = customRoleUuids.filter(
+            (u) => byUuid.get(u) !== level,
+        );
+        if (wrongLevel.length > 0) {
+            throw new ParameterError(
+                `Custom role(s) are not ${level}-level roles: ${wrongLevel.join(', ')}`,
+            );
+        }
+    }
+
+    async getOrganizationUserRoleSet(
+        orgUuid: string,
+        userUuid: string,
+        tx?: Knex.Transaction,
+    ): Promise<OrganizationRoleSet> {
+        const userId = await this.getUserId(userUuid, tx);
+        const orgId = await this.getOrganizationId(orgUuid, tx);
+        const membership = await (tx || this.database)(
+            OrganizationMembershipsTableName,
+        )
+            .where({ organization_id: orgId, user_id: userId })
+            .first('role', 'role_uuid');
+        if (!membership) {
+            throw new NotFoundError(
+                `User ${userUuid} is not a member of organization ${orgUuid}`,
+            );
+        }
+        const extras = await (tx || this.database)(
+            OrganizationMembershipCustomRolesTableName,
+        )
+            .where({ organization_id: orgId, user_id: userId })
+            .orderBy([{ column: 'created_at' }, { column: 'role_uuid' }])
+            .pluck('role_uuid');
+        return joinRoleSet(
+            { role: membership.role, roleUuid: membership.role_uuid ?? null },
+            extras,
+        );
+    }
+
+    async getProjectUserRoleSet(
+        projectUuid: string,
+        userUuid: string,
+        tx?: Knex.Transaction,
+    ): Promise<ProjectRoleSet> {
+        const userId = await this.getUserId(userUuid, tx);
+        const projectId = await this.getProjectId(projectUuid, tx);
+        const membership = await (tx || this.database)(
+            ProjectMembershipsTableName,
+        )
+            .where({ project_id: projectId, user_id: userId })
+            .first('role', 'role_uuid');
+        if (!membership) {
+            throw new NotFoundError(
+                `User ${userUuid} has no direct access to project ${projectUuid}`,
+            );
+        }
+        const extras = await (tx || this.database)(
+            ProjectMembershipCustomRolesTableName,
+        )
+            .where({ project_id: projectId, user_id: userId })
+            .orderBy([{ column: 'created_at' }, { column: 'role_uuid' }])
+            .pluck('role_uuid');
+        return joinRoleSet(
+            {
+                role: membership.role ?? PROJECT_PLACEHOLDER_ROLE,
+                roleUuid: membership.role_uuid ?? null,
+            },
+            extras,
+        );
+    }
+
+    async getProjectGroupRoleSet(
+        projectUuid: string,
+        groupUuid: string,
+        tx?: Knex.Transaction,
+    ): Promise<ProjectRoleSet> {
+        const access = await (tx || this.database)(ProjectGroupAccessTableName)
+            .where({ project_uuid: projectUuid, group_uuid: groupUuid })
+            .first('role', 'role_uuid');
+        if (!access) {
+            throw new NotFoundError(
+                `Group ${groupUuid} has no access to project ${projectUuid}`,
+            );
+        }
+        const extras = await (tx || this.database)(
+            ProjectGroupAccessCustomRolesTableName,
+        )
+            .where({ project_uuid: projectUuid, group_uuid: groupUuid })
+            .orderBy([{ column: 'created_at' }, { column: 'role_uuid' }])
+            .pluck('role_uuid');
+        return joinRoleSet(
+            { role: access.role, roleUuid: access.role_uuid ?? null },
+            extras,
+        );
+    }
+
+    /** Atomically replaces the user's organization role set (membership must exist). */
+    async replaceOrganizationUserRoleSet(
+        orgUuid: string,
+        userUuid: string,
+        roleSet: OrganizationRoleSet,
+        tx?: Knex.Transaction,
+    ): Promise<void> {
+        const set = normalizeRoleSet(roleSet);
+        const runner = async (trx: Knex.Transaction) => {
+            await this.validateCustomRoles(
+                orgUuid,
+                set.customRoleUuids,
+                'organization',
+                trx,
+            );
+            const userId = await this.getUserId(userUuid, trx);
+            const orgId = await this.getOrganizationId(orgUuid, trx);
+            const { slot, extraRoleUuids } = splitRoleSet(
+                set,
+                ORGANIZATION_PLACEHOLDER_ROLE,
+            );
+            const updated = await trx(OrganizationMembershipsTableName)
+                .where({ organization_id: orgId, user_id: userId })
+                .update({ role: slot.role, role_uuid: slot.roleUuid });
+            if (updated === 0) {
+                throw new NotFoundError(
+                    `User ${userUuid} is not a member of organization ${orgUuid}`,
+                );
+            }
+            await replaceExtraRoles(
+                trx,
+                OrganizationMembershipCustomRolesTableName,
+                { organization_id: orgId, user_id: userId },
+                extraRoleUuids,
+            );
+        };
+        await this.runInTransaction(runner, tx);
+    }
+
+    /** Atomically replaces the user's direct project role set, creating access if needed. */
+    async replaceProjectUserRoleSet(
+        projectUuid: string,
+        userUuid: string,
+        roleSet: ProjectRoleSet,
+        tx?: Knex.Transaction,
+    ): Promise<void> {
+        const set = normalizeRoleSet(roleSet);
+        const runner = async (trx: Knex.Transaction) => {
+            const orgUuid = await this.getProjectOrganizationUuid(
+                projectUuid,
+                trx,
+            );
+            await this.validateCustomRoles(
+                orgUuid,
+                set.customRoleUuids,
+                'project',
+                trx,
+            );
+            const userId = await this.getOrganizationMemberUserId(
+                orgUuid,
+                userUuid,
+                trx,
+            );
+            const projectId = await this.getProjectId(projectUuid, trx);
+            const { slot, extraRoleUuids } = splitRoleSet(
+                set,
+                PROJECT_PLACEHOLDER_ROLE,
+            );
+            await trx(ProjectMembershipsTableName)
+                .insert({
+                    project_id: projectId,
+                    user_id: userId,
+                    role: slot.role,
+                    role_uuid: slot.roleUuid,
+                })
+                .onConflict(['project_id', 'user_id'])
+                .merge(['role', 'role_uuid']);
+            await replaceExtraRoles(
+                trx,
+                ProjectMembershipCustomRolesTableName,
+                { project_id: projectId, user_id: userId },
+                extraRoleUuids,
+            );
+        };
+        await this.runInTransaction(runner, tx);
+    }
+
+    /** Atomically replaces the group's project role set, creating access if needed. */
+    async replaceProjectGroupRoleSet(
+        projectUuid: string,
+        groupUuid: string,
+        roleSet: ProjectRoleSet,
+        tx?: Knex.Transaction,
+    ): Promise<void> {
+        const set = normalizeRoleSet(roleSet);
+        const runner = async (trx: Knex.Transaction) => {
+            const orgUuid = await this.getProjectOrganizationUuid(
+                projectUuid,
+                trx,
+            );
+            await this.assertGroupInOrganization(groupUuid, orgUuid, trx);
+            await this.validateCustomRoles(
+                orgUuid,
+                set.customRoleUuids,
+                'project',
+                trx,
+            );
+            const { slot, extraRoleUuids } = splitRoleSet(
+                set,
+                PROJECT_PLACEHOLDER_ROLE,
+            );
+            await trx(ProjectGroupAccessTableName)
+                .insert({
+                    project_uuid: projectUuid,
+                    group_uuid: groupUuid,
+                    role: slot.role,
+                    role_uuid: slot.roleUuid,
+                })
+                .onConflict(['project_uuid', 'group_uuid'])
+                .merge(['role', 'role_uuid']);
+            await replaceExtraRoles(
+                trx,
+                ProjectGroupAccessCustomRolesTableName,
+                { project_uuid: projectUuid, group_uuid: groupUuid },
+                extraRoleUuids,
+            );
+        };
+        await this.runInTransaction(runner, tx);
+    }
+
+    private async runInTransaction(
+        runner: (trx: Knex.Transaction) => Promise<void>,
+        tx?: Knex.Transaction,
+    ): Promise<void> {
+        if (tx) {
+            await runner(tx);
+        } else {
+            await this.database.transaction(runner);
+        }
     }
 
     async getOrganizationAdmins(

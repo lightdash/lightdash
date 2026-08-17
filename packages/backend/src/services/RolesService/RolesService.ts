@@ -1578,10 +1578,12 @@ export class RolesService extends BaseService {
                 },
             });
         } catch (error) {
-            const foreignKeyViolation = '23503';
+            // 23503 = foreign_key_violation, 23001 = restrict_violation
+            // (raised by the ON DELETE RESTRICT role_uuid foreign keys)
+            const foreignKeyViolations = ['23503', '23001'];
             if (
                 error instanceof DatabaseError &&
-                error.code === foreignKeyViolation
+                foreignKeyViolations.includes(error.code ?? '')
             ) {
                 this.logger.error('Role deletion blocked by FK constraint', {
                     roleUuid,
