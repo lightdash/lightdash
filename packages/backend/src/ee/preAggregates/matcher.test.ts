@@ -1130,6 +1130,51 @@ describe('findMatch', () => {
         });
     });
 
+    it('reports a specific miss over metric-not-in-pre-aggregate from unrelated defs', () => {
+        const base = baseExplore();
+        const explore = {
+            ...base,
+            tables: {
+                ...base.tables,
+                orders: {
+                    ...base.tables.orders,
+                    metrics: {
+                        ...base.tables.orders.metrics,
+                        running_total_amount: makeMetric({
+                            name: 'running_total_amount',
+                            type: MetricType.RUNNING_TOTAL,
+                        }),
+                    },
+                },
+            },
+            preAggregates: [
+                {
+                    name: 'additive_only',
+                    dimensions: ['status'],
+                    metrics: ['order_count'],
+                },
+                {
+                    name: 'orders_running',
+                    dimensions: ['status'],
+                    metrics: ['running_total_amount'],
+                },
+            ],
+        };
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_status'],
+                metrics: ['orders_running_total_amount'],
+            }),
+            explore,
+        );
+
+        expect(result.miss).toStrictEqual({
+            reason: PreAggregateMissReason.NON_ADDITIVE_METRIC,
+            fieldId: 'orders_running_total_amount',
+        });
+    });
+
     it('allows type:number metrics when they are explicitly included in the pre-aggregate definition', () => {
         const explore = {
             ...baseExplore(),
