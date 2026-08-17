@@ -6,6 +6,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { PRIMARY_SOURCE_ID } from '../constants';
 import { useMergeSafe } from '../context/useMerge';
 import { useMergeSetup } from '../hooks/useMergeSetup';
+import { getJoinClauseLabel } from './mergeJoinLabels';
 
 /**
  * One line for the saved-chart view: what this chart is merged with and on
@@ -37,11 +38,14 @@ export const MergeReadOnlyBar: FC = () => {
                 ? labelFor(additionalFieldId)
                 : '?';
 
-            return primaryField === additionalField
-                ? primaryField
-                : `${primaryField} ↔ ${additionalField}`;
+            return getJoinClauseLabel(
+                primaryExploreLabel ?? 'First data',
+                primaryField,
+                additionalExploreLabel ?? 'Combined data',
+                additionalField,
+            );
         })
-        .join(' + ');
+        .join(' AND ');
     const keepLabel =
         merge.joinType === MergeJoinType.LEFT
             ? `Keep ${primaryExploreLabel}`
