@@ -1,3 +1,10 @@
+## [1.167.1](https://github.com/lightdash/lightdash/compare/1.167.0...1.167.1) (2026-08-17)
+
+
+### Bug Fixes
+
+* keep deleted scheduler filters restorable instead of resurrecting them ([#27479](https://github.com/lightdash/lightdash/issues/27479)) ([ba5d2e8](https://github.com/lightdash/lightdash/commit/ba5d2e831b6532ae0da057e56f3249c33dd72363))
+
 # [1.167.0](https://github.com/lightdash/lightdash/compare/1.166.1...1.167.0) (2026-08-17)
 
 
