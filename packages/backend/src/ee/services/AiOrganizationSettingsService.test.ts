@@ -284,9 +284,6 @@ describe('upsertSettings model validation', () => {
             commercialFeatureFlagModel: {
                 get: async () => ({ enabled: true }),
             },
-            featureFlagService: {
-                get: async () => ({ enabled: false }),
-            },
             lightdashConfig: ANTHROPIC_ONLY_CONFIG,
             orgAiCopilotConfigResolver: {
                 // Writing modelVisibility is gated on the BYO-keys flag.
@@ -480,54 +477,35 @@ describe('upsertSettings model validation', () => {
 });
 
 describe('isAiAgentMemoryEnabled', () => {
-    const buildService = (
-        settingEnabled: boolean | null,
-        flagEnabled: boolean,
-    ) => {
-        const getFlag = vi.fn().mockResolvedValue({ enabled: flagEnabled });
-        const service = new AiOrganizationSettingsService({
+    const buildService = (settingEnabled: boolean | null) =>
+        new AiOrganizationSettingsService({
             organizationModel: {
                 getAiAgentMemoryEnabled: vi
                     .fn()
                     .mockResolvedValue(settingEnabled),
             },
-            featureFlagService: {
-                get: getFlag,
-            },
         } as never);
-        return { getFlag, service };
-    };
 
     it.each([
-        [null, false, false],
-        [null, true, true],
-        [false, true, false],
-        [true, false, true],
-        [true, true, true],
-    ])(
-        'resolves persisted=%s with flag=%s as %s',
-        async (settingEnabled, flagEnabled, expected) => {
-            await expect(
-                buildService(
-                    settingEnabled,
-                    flagEnabled,
-                ).service.isAiAgentMemoryEnabled({
-                    organizationUuid: 'org-uuid',
-                    userUuid: 'user-uuid',
-                }),
-            ).resolves.toBe(expected);
-        },
-    );
+        [null, false],
+        [false, false],
+        [true, true],
+    ])('resolves persisted=%s as %s', async (settingEnabled, expected) => {
+        await expect(
+            buildService(settingEnabled).isAiAgentMemoryEnabled({
+                organizationUuid: 'org-uuid',
+                userUuid: 'user-uuid',
+            }),
+        ).resolves.toBe(expected);
+    });
 
-    it('does not read the flag after an explicit choice', async () => {
-        const { getFlag, service } = buildService(false, true);
-
-        await service.isAiAgentMemoryEnabled({
-            organizationUuid: 'org-uuid',
-            userUuid: 'user-uuid',
-        });
-
-        expect(getFlag).not.toHaveBeenCalled();
+    it('is disabled for a user without an organization', async () => {
+        await expect(
+            buildService(true).isAiAgentMemoryEnabled({
+                organizationUuid: undefined,
+                userUuid: 'user-uuid',
+            }),
+        ).resolves.toBe(false);
     });
 });
 

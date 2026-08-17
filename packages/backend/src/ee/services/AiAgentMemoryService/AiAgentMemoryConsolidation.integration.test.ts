@@ -2,7 +2,6 @@ import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     AI_AGENT_MEMORY_PROMOTION_MIN_CITED_COUNT,
     CommercialFeatureFlags,
-    FeatureFlags,
     SEED_ORG_1,
     SEED_PROJECT,
     type AiAgentMemoryConsolidationOperation,
@@ -59,6 +58,12 @@ describe('AI agent memory consolidation integration', () => {
     const createdUserUuids: string[] = [];
     const createdThreadUuids: string[] = [];
 
+    const setOrgMemoryEnabled = async (enabled: boolean) => {
+        await database('organizations')
+            .where('organization_uuid', SEED_ORG_1.organization_uuid)
+            .update({ ai_agent_memory_enabled: enabled });
+    };
+
     const setFeatureFlag = async (flagId: string, enabled: boolean) => {
         await database<FeatureFlagsTable>(FeatureFlagsTableName)
             .insert({ flag_id: flagId, default_enabled: enabled })
@@ -87,8 +92,6 @@ describe('AI agent memory consolidation integration', () => {
             .app.getModels()
             .getAiAgentMemoryModel<AiAgentMemoryModel>();
         const lightdashConfig = parseConfig();
-        lightdashConfig.enabledFeatureFlags.delete(FeatureFlags.AiAgentMemory);
-        lightdashConfig.disabledFeatureFlags.delete(FeatureFlags.AiAgentMemory);
         const featureFlagModel = new CommercialFeatureFlagModel({
             database,
             lightdashConfig,
@@ -112,10 +115,7 @@ describe('AI agent memory consolidation integration', () => {
             featureFlagModel,
         });
 
-        const flagIds = [
-            FeatureFlags.AiAgentMemory,
-            CommercialFeatureFlags.AiCopilot,
-        ];
+        const flagIds = [CommercialFeatureFlags.AiCopilot];
         const storedFlags = await Promise.all(
             flagIds.map((flagId) =>
                 database<FeatureFlagsTable>(FeatureFlagsTableName)
@@ -129,6 +129,7 @@ describe('AI agent memory consolidation integration', () => {
         await Promise.all(
             flagIds.map((flagId) => setFeatureFlag(flagId, true)),
         );
+        await setOrgMemoryEnabled(true);
 
         ownerUuid = await createUser('Owner');
         otherOwnerUuid = await createUser('Other');
@@ -168,7 +169,7 @@ describe('AI agent memory consolidation integration', () => {
     });
 
     afterEach(async () => {
-        await setFeatureFlag(FeatureFlags.AiAgentMemory, true);
+        await setOrgMemoryEnabled(true);
         await database(AiAgentMemoryConsolidationRunTableName)
             .whereIn('user_uuid', createdUserUuids)
             .delete();
@@ -319,13 +320,13 @@ describe('AI agent memory consolidation integration', () => {
             },
             featureFlagService,
             aiOrganizationSettingsService: {
-                isAiAgentMemoryEnabled: async (user) =>
-                    (
-                        await featureFlagService.get({
-                            user,
-                            featureFlagId: FeatureFlags.AiAgentMemory,
-                        })
-                    ).enabled,
+                isAiAgentMemoryEnabled: async ({ organizationUuid }) => {
+                    const org = await database('organizations')
+                        .select('ai_agent_memory_enabled')
+                        .where('organization_uuid', organizationUuid)
+                        .first();
+                    return org?.ai_agent_memory_enabled ?? false;
+                },
                 isAiAgentReviewsEnabled: vi
                     .fn()
                     .mockResolvedValue(reviewsEnabled),
@@ -1828,13 +1829,13 @@ describe('AI agent memory consolidation integration', () => {
         expect(runs[2]!.input_hash).toBe(runs[1]!.input_hash);
     });
 
-    it('records nothing for a manual run in a flag-off organization', async () => {
+    it('records nothing for a manual run in a memory-off organization', async () => {
         const slugs = await seedPartition({
             userUuid: ownerUuid,
             count: FLOOR,
             prefix: 'manualflag',
         });
-        await setFeatureFlag(FeatureFlags.AiAgentMemory, false);
+        await setOrgMemoryEnabled(false);
         const call = cannedCall([
             { type: 'retire', slug: slugs[0]!, reason: 'Its explore is gone.' },
         ]);
@@ -1957,13 +1958,13 @@ describe('AI agent memory consolidation integration', () => {
         ]);
     });
 
-    it('does nothing for an organization whose memory flag is off', async () => {
+    it('does nothing for an organization whose memory setting is off', async () => {
         await seedPartition({
             userUuid: ownerUuid,
             count: FLOOR,
             prefix: 'flagoff',
         });
-        await setFeatureFlag(FeatureFlags.AiAgentMemory, false);
+        await setOrgMemoryEnabled(false);
         const enqueue = stubSchedulerClient();
         const call = cannedCall([]);
         const service = buildService(call, {
