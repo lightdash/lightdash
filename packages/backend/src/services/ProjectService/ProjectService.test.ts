@@ -88,6 +88,7 @@ import { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
+import * as projectAdapterModule from '../../projectAdapters/projectAdapter';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import type { ProjectAdapter } from '../../types';
 import { metricQueryWithLimit } from '../../utils/csvLimitUtils';
@@ -228,6 +229,8 @@ const projectModel = {
     getAllExploresFromCache: vi.fn(async () => ({})),
     getTableGroups: vi.fn(async () => ({})),
     getCachedExploreNames: vi.fn(async () => []),
+    getWarehouseFromCache: vi.fn(async () => undefined),
+    saveWarehouseToCache: vi.fn(async () => undefined),
     saveExploresToCache: vi.fn(async () => ({ cachedExploreUuids: [] })),
     setTableGroups: vi.fn(async () => undefined),
     updateProjectDefaults: vi.fn(async () => undefined),
@@ -386,6 +389,8 @@ const getMockedProjectService = (
             | 'getAiAgentService'
             | 'organizationWarehouseCredentialsModel'
             | 'getDataAppCustomSqlProvenance'
+            | 'featureFlagModel'
+            | 'projectDbtSourcesModel'
         >
     > = {},
 ) =>
@@ -393,7 +398,9 @@ const getMockedProjectService = (
         lightdashConfig,
         analytics: analyticsMock,
         projectModel: projectModel as unknown as ProjectModel,
-        projectDbtSourcesModel: {} as unknown as ProjectDbtSourcesModel,
+        projectDbtSourcesModel:
+            overrides.projectDbtSourcesModel ??
+            ({} as unknown as ProjectDbtSourcesModel),
         preAggregateModel: preAggregateModel as unknown as PreAggregateModel,
         onboardingModel: onboardingModel as unknown as OnboardingModel,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
@@ -426,20 +433,26 @@ const getMockedProjectService = (
         } as unknown as EncryptionUtil,
         userModel: {} as UserModel,
         userOAuthGrantsModel: {} as UserOAuthGrantsModel,
-        featureFlagModel: {
-            // Mirror production behaviour: ResultsCacheEnabled resolves from
-            // the env-derived lightdashConfig.results.cacheEnabled when there
-            // is no DB row.
-            get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => {
-                if (featureFlagId === FeatureFlags.ResultsCacheEnabled) {
-                    return {
-                        id: featureFlagId,
-                        enabled: lightdashConfig.results.cacheEnabled,
-                    };
-                }
-                return { id: featureFlagId, enabled: false };
-            }),
-        } as unknown as FeatureFlagModel,
+        featureFlagModel:
+            overrides.featureFlagModel ??
+            ({
+                // Mirror production behaviour: ResultsCacheEnabled resolves from
+                // the env-derived lightdashConfig.results.cacheEnabled when there
+                // is no DB row.
+                get: vi.fn(
+                    async ({ featureFlagId }: { featureFlagId: string }) => {
+                        if (
+                            featureFlagId === FeatureFlags.ResultsCacheEnabled
+                        ) {
+                            return {
+                                id: featureFlagId,
+                                enabled: lightdashConfig.results.cacheEnabled,
+                            };
+                        }
+                        return { id: featureFlagId, enabled: false };
+                    },
+                ),
+            } as unknown as FeatureFlagModel),
         projectParametersModel: {
             find: vi.fn(async () => []),
             replace: vi.fn(async () => undefined),
@@ -4784,6 +4797,11 @@ type BuildMergedManifestAdapterArgs = {
     manifestFetchAdapters: ProjectAdapter[];
 };
 
+type ResolvedCompileAdapter = {
+    adapter: ProjectAdapter;
+    stagedMergedManifest?: Buffer;
+};
+
 // resolveCompileAdapter/buildMergedManifestAdapter/featureFlagModel/
 // projectDbtSourcesModel are private members; this narrow view exposes only
 // what these tests need to call/override, avoiding `any`.
@@ -4792,10 +4810,10 @@ type ProjectServiceInternals = {
     projectDbtSourcesModel: { getSources: (projectUuid: string) => unknown };
     resolveCompileAdapter: (
         args: ResolveCompileAdapterArgs,
-    ) => Promise<ProjectAdapter>;
+    ) => Promise<ResolvedCompileAdapter>;
     buildMergedManifestAdapter: (
         args: BuildMergedManifestAdapterArgs,
-    ) => Promise<ProjectAdapter>;
+    ) => Promise<ResolvedCompileAdapter>;
     buildSourceAdapter: (...args: unknown[]) => Promise<ProjectAdapter>;
     logger: { warn: (...args: unknown[]) => void };
 };
@@ -4808,6 +4826,10 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         projectModel.upsertMergedManifest
             .mockReset()
             .mockResolvedValue(undefined);
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     const primaryAdapter = {
@@ -5407,7 +5429,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         );
     });
 
-    it('persists the projected merged manifest for a multi-source deploy', async () => {
+    it('BC-7: stages the projected merged manifest without publishing it during adapter construction', async () => {
         const primaryManifest = buildManifest([
             {
                 uniqueId: 'model.pkg_a.orders',
@@ -5423,14 +5445,19 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             },
         ]);
 
-        await buildMergedAdapter(primaryManifest, sourceManifest);
+        const { adapter: buildMergedAdapterResult } =
+            buildMergedAdapterWithService(
+            primaryManifest,
+            sourceManifest,
+        );
+        const { stagedMergedManifest } = await buildMergedAdapterResult;
 
-        expect(projectModel.upsertMergedManifest).toHaveBeenCalledTimes(1);
-        const [, compressedManifest] = vi.mocked(
-            projectModel.upsertMergedManifest,
-        ).mock.calls[0];
+        expect(projectModel.upsertMergedManifest).not.toHaveBeenCalled();
+        if (!stagedMergedManifest) {
+            throw new Error('Expected a staged merged manifest');
+        }
         const persisted = JSON.parse(
-            gunzipSync(compressedManifest).toString('utf8'),
+            gunzipSync(stagedMergedManifest).toString('utf8'),
         ) as DbtManifest;
         expect(Object.keys(persisted.nodes)).toEqual([
             'model.pkg_a.orders',
@@ -5486,16 +5513,20 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             },
         ]);
 
-        await buildMergedAdapterWithService(primaryManifest, sourceManifest, {
-            primary: ['model.pkg_a.orders'],
-            source: ['model.pkg_b.customers'],
-        }).adapter;
-
-        const [, compressedManifest] = vi.mocked(
-            projectModel.upsertMergedManifest,
-        ).mock.calls[0];
+        const { stagedMergedManifest } = await buildMergedAdapterWithService(
+            primaryManifest,
+            sourceManifest,
+            {
+                primary: ['model.pkg_a.orders'],
+                source: ['model.pkg_b.customers'],
+            },
+        ).adapter;
+        expect(projectModel.upsertMergedManifest).not.toHaveBeenCalled();
+        if (!stagedMergedManifest) {
+            throw new Error('Expected a staged merged manifest');
+        }
         const persisted = JSON.parse(
-            gunzipSync(compressedManifest).toString('utf8'),
+            gunzipSync(stagedMergedManifest).toString('utf8'),
         ) as DbtManifest;
         const compiledNodes = getCompiledModels(
             getModelsFromManifest(persisted),
@@ -5541,7 +5572,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             },
         ]);
 
-        const mergedAdapter = await buildMergedAdapterWithService(
+        const { adapter: mergedAdapter } = await buildMergedAdapterWithService(
             primaryManifest,
             sourceManifest,
             { primary: [], source: [] },
@@ -5557,7 +5588,99 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         ).toHaveProperty('compiled', false);
     });
 
-    it('continues the deploy and logs a warning when persistence fails', async () => {
+    it('flag OFF returns the primary adapter by identity and never queries getSources', async () => {
+        const { projectService, getSources } = buildServiceWithMocks(false, [
+            { name: 'jaffle-2' },
+        ]);
+
+        const result = await projectService.resolveCompileAdapter(baseArgs);
+
+        expect(result.adapter).toBe(primaryAdapter);
+        expect(getSources).not.toHaveBeenCalled();
+        expect(projectModel.deleteMergedManifest).toHaveBeenCalledWith(
+            'project-uuid',
+        );
+    });
+
+    it('flag ON with zero sources (N=0) returns the primary adapter by identity', async () => {
+        const { projectService, getSources } = buildServiceWithMocks(true, []);
+
+        const result = await projectService.resolveCompileAdapter(baseArgs);
+
+        expect(result.adapter).toBe(primaryAdapter);
+        expect(getSources).toHaveBeenCalledTimes(1);
+        expect(projectModel.deleteMergedManifest).toHaveBeenCalledWith(
+            'project-uuid',
+        );
+        expect(projectModel.upsertMergedManifest).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        { path: 'feature flag off', flagEnabled: false, sources: [] },
+        { path: 'zero additional sources', flagEnabled: true, sources: [] },
+    ])(
+        'BC-6: $path returns the primary adapter when stale manifest deletion fails',
+        async ({ flagEnabled, sources }) => {
+            const { projectService } = buildServiceWithMocks(
+                flagEnabled,
+                sources,
+            );
+            const warn = vi.spyOn(projectService.logger, 'warn');
+            projectModel.deleteMergedManifest.mockRejectedValueOnce(
+                new Error('database unavailable'),
+            );
+
+            const result = await projectService.resolveCompileAdapter(baseArgs);
+
+            expect(result.adapter).toBe(primaryAdapter);
+            expect(warn).toHaveBeenCalledWith(
+                'Failed to delete merged dbt manifest for project project-uuid: database unavailable',
+            );
+        },
+    );
+
+    it('BC-7: carries the staged merged manifest through adapter resolution', async () => {
+        const mergedAdapter = {
+            id: 'merged-adapter',
+        } as unknown as ProjectAdapter;
+        const stagedMergedManifest = Buffer.from('staged-manifest');
+        const { projectService } = buildServiceWithMocks(true, [
+            { name: 'jaffle-2' },
+        ]);
+        const buildMergedManifestAdapterSpy = vi
+            .spyOn(projectService, 'buildMergedManifestAdapter')
+            .mockResolvedValue({
+                adapter: mergedAdapter,
+                stagedMergedManifest,
+            });
+
+        const result = await projectService.resolveCompileAdapter(baseArgs);
+
+        expect(result).toEqual({
+            adapter: mergedAdapter,
+            stagedMergedManifest,
+        });
+        expect(result.adapter).not.toBe(primaryAdapter);
+        expect(buildMergedManifestAdapterSpy).toHaveBeenCalledTimes(1);
+    });
+
+    const compileUser: SessionUser = {
+        ...user,
+        organizationUuid: 'organizationUuid',
+        organizationName: 'organizationName',
+        organizationCreatedAt: new Date('2026-08-16T00:00:00.000Z'),
+        ability: new Ability<PossibleAbilities>([
+            { subject: 'Project', action: ['update', 'view'] },
+            { subject: 'Job', action: ['create'] },
+            { subject: 'CompileProject', action: ['manage'] },
+        ]),
+    };
+
+    const buildCompilationBoundaryService = (
+        compileAllExplores: ProjectAdapter['compileAllExplores'] = vi.fn(
+            async () => [validExplore],
+        ),
+    ) => {
         const primaryManifest = buildManifest([
             {
                 uniqueId: 'model.pkg_a.orders',
@@ -5572,64 +5695,221 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 packageName: 'pkg_b',
             },
         ]);
+        const primaryCompileAdapter = {
+            test: vi.fn(async () => undefined),
+            getDbtManifest: vi.fn(async () => ({
+                manifest: primaryManifest,
+            })),
+            destroy: vi.fn(async () => undefined),
+            dbtProjectDir: '/tmp/primary-dbt-project',
+        } as unknown as ProjectAdapter;
+        const sourceAdapter = {
+            getDbtManifest: vi.fn(async () => ({ manifest: sourceManifest })),
+            destroy: vi.fn(async () => undefined),
+        } as unknown as ProjectAdapter;
+        const mergedAdapter = {
+            compileAllExplores,
+            getDbtPackages: vi.fn(async () => ({})),
+            getLightdashProjectConfig: vi.fn(async () => ({
+                spotlight: {},
+                parameters: {},
+                table_groups: {},
+            })),
+            destroy: vi.fn(async () => undefined),
+        } as unknown as ProjectAdapter;
+        vi.spyOn(projectAdapterModule, 'projectAdapterFromConfig')
+            .mockResolvedValueOnce(primaryCompileAdapter)
+            .mockResolvedValueOnce(sourceAdapter)
+            .mockResolvedValueOnce(mergedAdapter);
+
+        const compiledProject: Project = {
+            ...projectWithSensitiveFields,
+            dbtConnection: {
+                type: DbtProjectType.MANIFEST,
+                manifest: JSON.stringify(primaryManifest),
+                hideRefreshButton: true,
+            },
+            warehouseConnection: warehouseClientMock.credentials,
+        };
+        projectModel.getWithSensitiveFields
+            .mockReset()
+            .mockResolvedValue(compiledProject);
+        projectModel.get.mockReset().mockResolvedValue(compiledProject);
+        projectModel.getSummary.mockReset().mockResolvedValue(projectSummary);
+        projectModel.getWarehouseFromCache
+            .mockReset()
+            .mockResolvedValue(undefined);
+        projectModel.upsertMergedManifest
+            .mockReset()
+            .mockResolvedValue(undefined);
+
+        const featureFlagModel = {
+            get: vi.fn(
+                async ({ featureFlagId }: { featureFlagId: string }) => ({
+                    id: featureFlagId,
+                    enabled: featureFlagId === FeatureFlags.MultiDbtSources,
+                }),
+            ),
+        } as unknown as FeatureFlagModel;
+        const projectDbtSourcesModel = {
+            getSources: vi.fn(async () => [buildSource('source-b')]),
+        } as unknown as ProjectDbtSourcesModel;
+
+        return getMockedProjectService(lightdashConfigMock, {
+            featureFlagModel,
+            projectDbtSourcesModel,
+        });
+    };
+
+    it('BC-7: test and deploy publishes the staged manifest only after cache completion', async () => {
+        let cacheCompleted = false;
+        let persistedManifest: Buffer | undefined;
+        const projectService = buildCompilationBoundaryService();
+        projectModel.saveExploresToCache
+            .mockReset()
+            .mockImplementationOnce(async () => {
+                await Promise.resolve();
+                cacheCompleted = true;
+                return { cachedExploreUuids: [] };
+            });
+        projectModel.upsertMergedManifest.mockImplementationOnce(
+            async (_projectUuid, manifest) => {
+                if (!cacheCompleted) {
+                    throw new Error(
+                        'cache did not complete before publication',
+                    );
+                }
+                persistedManifest = manifest;
+            },
+        );
+
+        await projectService.testAndCompileProject(
+            compileUser,
+            'projectUuid',
+            RequestMethod.WEB_APP,
+            'compile-job-uuid',
+        );
+
+        expect(projectModel.saveExploresToCache).toHaveBeenCalledTimes(1);
+        expect(projectModel.upsertMergedManifest).toHaveBeenCalledTimes(1);
+        expect(
+            vi.mocked(projectModel.saveExploresToCache).mock
+                .invocationCallOrder[0],
+        ).toBeLessThan(
+            vi.mocked(projectModel.upsertMergedManifest).mock
+                .invocationCallOrder[0],
+        );
+        expect(persistedManifest).toBeDefined();
+    });
+
+    it('BC-7: refresh publishes the staged manifest only after cache completion', async () => {
+        let cacheCompleted = false;
+        let persistedManifest: Buffer | undefined;
+        const projectService = buildCompilationBoundaryService();
+        projectModel.saveExploresToCache
+            .mockReset()
+            .mockImplementationOnce(async () => {
+                await Promise.resolve();
+                cacheCompleted = true;
+                return { cachedExploreUuids: [] };
+            });
+        projectModel.upsertMergedManifest.mockImplementationOnce(
+            async (_projectUuid, manifest) => {
+                if (!cacheCompleted) {
+                    throw new Error(
+                        'cache did not complete before publication',
+                    );
+                }
+                persistedManifest = manifest;
+            },
+        );
+
+        await projectService.compileProject(
+            compileUser,
+            'projectUuid',
+            RequestMethod.WEB_APP,
+            'compile-job-uuid',
+        );
+
+        expect(projectModel.saveExploresToCache).toHaveBeenCalledTimes(1);
+        expect(projectModel.upsertMergedManifest).toHaveBeenCalledTimes(1);
+        expect(
+            vi.mocked(projectModel.saveExploresToCache).mock
+                .invocationCallOrder[0],
+        ).toBeLessThan(
+            vi.mocked(projectModel.upsertMergedManifest).mock
+                .invocationCallOrder[0],
+        );
+        expect(persistedManifest).toBeDefined();
+    });
+
+    it('BC-7: test and deploy remains successful and warns when manifest publication fails', async () => {
+        const projectService = buildCompilationBoundaryService();
+        const warn = vi.spyOn(
+            (projectService as unknown as ProjectServiceInternals).logger,
+            'warn',
+        );
+        projectModel.saveExploresToCache
+            .mockReset()
+            .mockResolvedValueOnce({ cachedExploreUuids: [] });
         projectModel.upsertMergedManifest.mockRejectedValueOnce(
             new Error('database unavailable'),
         );
-        const { projectService, adapter } = buildMergedAdapterWithService(
-            primaryManifest,
-            sourceManifest,
-        );
-        const warn = vi.spyOn(projectService.logger, 'warn');
 
-        await expect(adapter).resolves.toBeDefined();
+        await expect(
+            projectService.testAndCompileProject(
+                compileUser,
+                'projectUuid',
+                RequestMethod.WEB_APP,
+                'compile-job-uuid',
+            ),
+        ).resolves.toBeUndefined();
         expect(warn).toHaveBeenCalledWith(
-            'Failed to persist merged dbt manifest for project project-uuid: database unavailable',
+            'Failed to persist merged dbt manifest for project projectUuid: database unavailable',
         );
     });
 
-    it('flag OFF returns the primary adapter by identity and never queries getSources', async () => {
-        const { projectService, getSources } = buildServiceWithMocks(false, [
-            { name: 'jaffle-2' },
-        ]);
-
-        const result = await projectService.resolveCompileAdapter(baseArgs);
-
-        expect(result).toBe(primaryAdapter);
-        expect(getSources).not.toHaveBeenCalled();
-        expect(projectModel.deleteMergedManifest).toHaveBeenCalledWith(
-            'project-uuid',
+    it('BC-7: a failed test and deploy compile preserves the previously served manifest bytes', async () => {
+        const previousManifest = Buffer.from('previous-manifest');
+        let persistedManifest = previousManifest;
+        const compileAllExplores = vi.fn<ProjectAdapter['compileAllExplores']>(
+            async () => {
+                throw new Error('compile failed');
+            },
         );
-    });
-
-    it('flag ON with zero sources (N=0) returns the primary adapter by identity', async () => {
-        const { projectService, getSources } = buildServiceWithMocks(true, []);
-
-        const result = await projectService.resolveCompileAdapter(baseArgs);
-
-        expect(result).toBe(primaryAdapter);
-        expect(getSources).toHaveBeenCalledTimes(1);
-        expect(projectModel.deleteMergedManifest).toHaveBeenCalledWith(
-            'project-uuid',
+        const projectService =
+            buildCompilationBoundaryService(compileAllExplores);
+        projectModel.getMergedManifest
+            .mockReset()
+            .mockImplementation(async () => persistedManifest);
+        projectModel.upsertMergedManifest.mockImplementation(
+            async (_projectUuid, manifest) => {
+                persistedManifest = Buffer.from(manifest);
+            },
         );
+        const deployAccount = {
+            ...buildAccount(),
+            user: {
+                ...buildAccount().user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'DeployProject', action: ['manage'] },
+                ]),
+            },
+        } as RegisteredAccount;
+
+        await expect(
+            projectService.testAndCompileProject(
+                compileUser,
+                'projectUuid',
+                RequestMethod.WEB_APP,
+                'compile-job-uuid',
+            ),
+        ).rejects.toThrow('compile failed');
+
+        await expect(
+            projectService.getMergedManifest(deployAccount, 'projectUuid'),
+        ).resolves.toBe(previousManifest);
         expect(projectModel.upsertMergedManifest).not.toHaveBeenCalled();
-    });
-
-    it('flag ON with >=1 source delegates to buildMergedManifestAdapter instead of returning the primary adapter', async () => {
-        const mergedAdapter = {
-            id: 'merged-adapter',
-        } as unknown as ProjectAdapter;
-        const { projectService } = buildServiceWithMocks(true, [
-            { name: 'jaffle-2' },
-        ]);
-        const buildMergedManifestAdapterSpy = vi
-            .spyOn(projectService, 'buildMergedManifestAdapter')
-            .mockResolvedValue(mergedAdapter);
-
-        const result = await projectService.resolveCompileAdapter(baseArgs);
-
-        expect(result).toBe(mergedAdapter);
-        expect(result).not.toBe(primaryAdapter);
-        expect(buildMergedManifestAdapterSpy).toHaveBeenCalledTimes(1);
     });
 
     it('propagates a ParameterError from buildMergedManifestAdapter when sources collide', async () => {
