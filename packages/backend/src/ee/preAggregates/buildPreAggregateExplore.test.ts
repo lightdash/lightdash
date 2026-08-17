@@ -495,14 +495,68 @@ describe('buildPreAggregateExplore', () => {
             buildExplore(sourceExplore(), {
                 name: 'invalid_rollup',
                 dimensions: ['status'],
+                metrics: ['custom_sql'],
+            }),
+        ).toThrow(
+            'Pre-aggregate "invalid_rollup" references unsupported metrics: "custom_sql" (number). Supported metric types: sum, count, min, max, average, count_distinct, sum_distinct, average_distinct, median, percentile',
+        );
+    });
+
+    it('rewrites exact-only metrics to MAX over the stored value column and hides them from the explore', () => {
+        const result = buildExplore(sourceExplore(), {
+            name: 'unique_rollup',
+            dimensions: ['status'],
+            metrics: ['distinct_customer_count', 'median_order_amount'],
+        });
+
+        expect(
+            result.tables.orders.metrics.distinct_customer_count.compiledSql,
+        ).toBe('MAX(orders.orders_distinct_customer_count)');
+        expect(
+            result.tables.orders.metrics.distinct_customer_count.hidden,
+        ).toBe(true);
+        expect(
+            result.tables.orders.metrics.median_order_amount.compiledSql,
+        ).toBe('MAX(orders.orders_median_order_amount)');
+        expect(result.tables.orders.metrics.median_order_amount.hidden).toBe(
+            true,
+        );
+    });
+
+    it('keeps re-aggregatable metrics visible alongside hidden exact-only metrics', () => {
+        const result = buildExplore(sourceExplore(), {
+            name: 'mixed_rollup',
+            dimensions: ['status'],
+            metrics: ['distinct_customer_count', 'order_count'],
+        });
+
+        expect(result.tables.orders.metrics.order_count.hidden).toBe(false);
+        expect(
+            result.tables.orders.metrics.distinct_customer_count.hidden,
+        ).toBe(true);
+    });
+
+    it('rejects number metrics that reference exact-only metrics', () => {
+        const explore = sourceExplore();
+        explore.tables.orders.metrics.distinct_plus_total = makeCustomMetric({
+            name: 'distinct_plus_total',
+            table: 'orders',
+            type: MetricType.NUMBER,
+            sql: '${distinct_customer_count} + ${total_order_amount}',
+        });
+
+        expect(() =>
+            buildExplore(explore, {
+                name: 'invalid_number_rollup',
+                dimensions: ['status'],
                 metrics: [
+                    'distinct_plus_total',
                     'distinct_customer_count',
-                    'median_order_amount',
-                    'custom_sql',
+                    'total_order_amount',
                 ],
             }),
         ).toThrow(
-            'Pre-aggregate "invalid_rollup" references unsupported metrics: "distinct_customer_count" (count_distinct), "median_order_amount" (median), "custom_sql" (number). Supported metric types: sum, count, min, max, average',
+            'Pre-aggregate "invalid_number_rollup" references unsupported metrics: "distinct_plus_total" (number)',
         );
     });
 

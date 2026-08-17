@@ -360,7 +360,7 @@ describe('pre-aggregate virtual explore generation', () => {
         ).toBe(true);
     });
 
-    it('surfaces unsupported pre-aggregate metric types in explore warnings', async () => {
+    it('accepts non-additive metric definitions without warnings', async () => {
         process.env.PRE_AGGREGATES_ENABLED = 'true';
 
         const explores = await convertExplores(
@@ -370,7 +370,7 @@ describe('pre-aggregate virtual explore generation', () => {
                     meta: {
                         pre_aggregates: [
                             {
-                                name: 'broken_rollup',
+                                name: 'unique_rollup',
                                 dimensions: ['user_id'],
                                 metrics: ['myTable_user_count'],
                             },
@@ -387,13 +387,12 @@ describe('pre-aggregate virtual explore generation', () => {
             { postProcessors: [preAggregatePostProcessor] },
         );
 
-        expect(explores).toHaveLength(1);
-        expect((explores[0] as Explore).name).toBe('myTable');
-        expect((explores[0] as Explore).warnings).toContainEqual({
-            type: InlineErrorType.FIELD_ERROR,
-            message:
-                'Pre-aggregate "broken_rollup" references unsupported metrics: "user_count" (count_distinct). Supported metric types: sum, count, min, max, average',
-        });
+        expect(explores).toHaveLength(2);
+        const baseExplore = explores.find(
+            (explore) => explore.name === 'myTable',
+        ) as Explore;
+        expect(baseExplore.warnings ?? []).toStrictEqual([]);
+        expect(baseExplore.preAggregates).toHaveLength(1);
     });
 
     it('keeps only successfully generated pre-aggregates on the base explore', async () => {

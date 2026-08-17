@@ -6,11 +6,19 @@ export type PreAggregateSupportedMetricType =
     | MetricType.COUNT
     | MetricType.MIN
     | MetricType.MAX
-    | MetricType.AVERAGE;
+    | MetricType.AVERAGE
+    | MetricType.COUNT_DISTINCT
+    | MetricType.SUM_DISTINCT
+    | MetricType.AVERAGE_DISTINCT
+    | MetricType.MEDIAN
+    | MetricType.PERCENTILE;
 
 export enum PreAggregateMetricRepresentationKind {
     DIRECT = 'direct',
     DECOMPOSED = 'decomposed',
+    // Stored as a single plain value column; servable only on an exact match,
+    // where each result row maps to one materialization row.
+    EXACT_ONLY = 'exact_only',
     UNSUPPORTED = 'unsupported',
 }
 
@@ -25,6 +33,9 @@ export type PreAggregateMetricRepresentation =
           components: readonly ['sum', 'count'];
       }
     | {
+          kind: PreAggregateMetricRepresentationKind.EXACT_ONLY;
+      }
+    | {
           kind: PreAggregateMetricRepresentationKind.UNSUPPORTED;
       };
 
@@ -34,6 +45,11 @@ export const supportedMetricTypes: PreAggregateSupportedMetricType[] = [
     MetricType.MIN,
     MetricType.MAX,
     MetricType.AVERAGE,
+    MetricType.COUNT_DISTINCT,
+    MetricType.SUM_DISTINCT,
+    MetricType.AVERAGE_DISTINCT,
+    MetricType.MEDIAN,
+    MetricType.PERCENTILE,
 ];
 
 export const getMetricRepresentation = (
@@ -67,6 +83,9 @@ export const getMetricRepresentation = (
         case MetricType.AVERAGE_DISTINCT:
         case MetricType.MEDIAN:
         case MetricType.PERCENTILE:
+            return {
+                kind: PreAggregateMetricRepresentationKind.EXACT_ONLY,
+            };
         case MetricType.NUMBER:
         case MetricType.STRING:
         case MetricType.DATE:
@@ -88,3 +107,13 @@ export const isSupportedMetricType = (
 ): metricType is PreAggregateSupportedMetricType =>
     getMetricRepresentation(metricType).kind !==
     PreAggregateMetricRepresentationKind.UNSUPPORTED;
+
+// Re-aggregatable = safe to combine across materialization rows (direct or
+// decomposed). Exact-only metrics are supported but never re-aggregatable.
+export const isReAggregatableMetricType = (metricType: MetricType): boolean => {
+    const { kind } = getMetricRepresentation(metricType);
+    return (
+        kind === PreAggregateMetricRepresentationKind.DIRECT ||
+        kind === PreAggregateMetricRepresentationKind.DECOMPOSED
+    );
+};

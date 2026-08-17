@@ -374,6 +374,24 @@ export const buildMaterializationMetricQuery = ({
                 ];
 
                 return acc;
+            case PreAggregateMetricRepresentationKind.EXACT_ONLY:
+                // Stored as a single plain value column named by the field id;
+                // served with MAX, which is exact on the exact matches the
+                // matcher restricts these metrics to.
+                assertUniqueMetricFieldId({
+                    preAggregateName: preAggregateDef.name,
+                    fieldId: metricFieldId,
+                    selectedMetricFieldIds,
+                });
+
+                acc[metricFieldId] = [
+                    {
+                        componentFieldId: metricFieldId,
+                        aggregation: MetricType.MAX,
+                    },
+                ];
+
+                return acc;
             default:
                 return assertUnreachable(
                     representation,
