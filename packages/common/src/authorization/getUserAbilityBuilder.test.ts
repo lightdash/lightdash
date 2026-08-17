@@ -428,3 +428,174 @@ describe('getUserAbilityBuilder — org-level role resolution', () => {
         });
     });
 });
+
+describe('getUserAbilityBuilder — role sets (extra custom roles)', () => {
+    const EXTRA_ROLE_UUID = '22222222-2222-4222-a222-222222222222';
+    const PROJECT_UUID = 'project-uuid';
+    const PROJECT_EXTRA_ROLE_UUID = '33333333-3333-4333-a333-333333333333';
+
+    it('unions an extra org custom role on top of a system role', () => {
+        const { builder } = getUserAbilityBuilder({
+            user: {
+                role: OrganizationMemberRole.VIEWER,
+                organizationUuid: ORG_UUID,
+                userUuid: USER_UUID,
+                roleUuid: undefined,
+            },
+            orgExtraRoleUuids: [EXTRA_ROLE_UUID],
+            projectProfiles: [],
+            permissionsConfig: PERMISSIONS_CONFIG,
+            customRoleScopes: { [EXTRA_ROLE_UUID]: ['view:Roadmap'] },
+            customRolesEnabled: true,
+            isEnterprise: true,
+        });
+        const ability = builder.build();
+        // Base viewer abilities are kept…
+        expect(
+            ability.can(
+                'view',
+                subject('Dashboard', {
+                    organizationUuid: ORG_UUID,
+                    inheritsFromOrgOrProject: true,
+                }),
+            ),
+        ).toBe(true);
+        // …and the extra role adds on top (viewer alone cannot view the roadmap)
+        expect(
+            ability.can(
+                'view',
+                subject('Roadmap', { organizationUuid: ORG_UUID }),
+            ),
+        ).toBe(true);
+        expect(
+            buildExpected(OrganizationMemberRole.VIEWER).some(
+                (r) => r.subject === 'Roadmap',
+            ),
+        ).toBe(false);
+    });
+
+    it('unions an extra org custom role on top of a custom-only slot', () => {
+        const { builder } = getUserAbilityBuilder({
+            user: {
+                role: OrganizationMemberRole.MEMBER, // placeholder
+                organizationUuid: ORG_UUID,
+                userUuid: USER_UUID,
+                roleUuid: CUSTOM_ROLE_UUID,
+            },
+            orgExtraRoleUuids: [EXTRA_ROLE_UUID],
+            projectProfiles: [],
+            permissionsConfig: PERMISSIONS_CONFIG,
+            customRoleScopes: {
+                [CUSTOM_ROLE_UUID]: ['view:Dashboard'],
+                [EXTRA_ROLE_UUID]: ['view:Roadmap'],
+            },
+            customRolesEnabled: true,
+            isEnterprise: true,
+        });
+        const ability = builder.build();
+        expect(ability.rules.some((r) => r.subject === 'Dashboard')).toBe(true);
+        expect(ability.rules.some((r) => r.subject === 'Roadmap')).toBe(true);
+        // still no admin/system abilities leaking in
+        expect(ability.rules.some((r) => r.subject === 'InviteLink')).toBe(
+            false,
+        );
+    });
+
+    it('ignores extra roles when custom roles are disabled or scopes are missing', () => {
+        const disabled = getUserAbilityBuilder({
+            user: {
+                role: OrganizationMemberRole.VIEWER,
+                organizationUuid: ORG_UUID,
+                userUuid: USER_UUID,
+                roleUuid: undefined,
+            },
+            orgExtraRoleUuids: [EXTRA_ROLE_UUID],
+            projectProfiles: [],
+            permissionsConfig: PERMISSIONS_CONFIG,
+            customRoleScopes: { [EXTRA_ROLE_UUID]: ['view:Roadmap'] },
+            customRolesEnabled: false,
+        });
+        ruleSetEqual(
+            disabled.builder.build().rules,
+            buildExpected(OrganizationMemberRole.VIEWER),
+        );
+
+        const missing = getUserAbilityBuilder({
+            user: {
+                role: OrganizationMemberRole.VIEWER,
+                organizationUuid: ORG_UUID,
+                userUuid: USER_UUID,
+                roleUuid: undefined,
+            },
+            orgExtraRoleUuids: [EXTRA_ROLE_UUID],
+            projectProfiles: [],
+            permissionsConfig: PERMISSIONS_CONFIG,
+            customRoleScopes: {},
+            customRolesEnabled: true,
+        });
+        ruleSetEqual(
+            missing.builder.build().rules,
+            buildExpected(OrganizationMemberRole.VIEWER),
+        );
+    });
+
+    it('unions extra project custom roles on top of a project system role', () => {
+        const { builder } = getUserAbilityBuilder({
+            user: {
+                role: OrganizationMemberRole.MEMBER,
+                organizationUuid: ORG_UUID,
+                userUuid: USER_UUID,
+                roleUuid: undefined,
+            },
+            projectProfiles: [
+                {
+                    projectUuid: PROJECT_UUID,
+                    role: ProjectMemberRole.VIEWER,
+                    userUuid: USER_UUID,
+                    roleUuid: undefined,
+                    projectType: ProjectType.DEFAULT,
+                    extraRoleUuids: [PROJECT_EXTRA_ROLE_UUID],
+                },
+            ],
+            permissionsConfig: PERMISSIONS_CONFIG,
+            customRoleScopes: {
+                [PROJECT_EXTRA_ROLE_UUID]: ['manage:SqlRunner'],
+            },
+            customRolesEnabled: true,
+        });
+        const ability = builder.build();
+        expect(
+            ability.can(
+                'view',
+                subject('Dashboard', {
+                    projectUuid: PROJECT_UUID,
+                    inheritsFromOrgOrProject: true,
+                }),
+            ),
+        ).toBe(true);
+        expect(
+            ability.can(
+                'manage',
+                subject('SqlRunner', { projectUuid: PROJECT_UUID }),
+            ),
+        ).toBe(true);
+    });
+
+    it('rules stay collapsible (no inverted rules) with extras present', () => {
+        const { builder } = getUserAbilityBuilder({
+            user: {
+                role: OrganizationMemberRole.VIEWER,
+                organizationUuid: ORG_UUID,
+                userUuid: USER_UUID,
+                roleUuid: undefined,
+            },
+            orgExtraRoleUuids: [EXTRA_ROLE_UUID],
+            projectProfiles: [],
+            permissionsConfig: PERMISSIONS_CONFIG,
+            customRoleScopes: { [EXTRA_ROLE_UUID]: ['view:Roadmap'] },
+            customRolesEnabled: true,
+            isEnterprise: true,
+        });
+        expect(builder.rules.some((r) => r.inverted)).toBe(false);
+    });
+});

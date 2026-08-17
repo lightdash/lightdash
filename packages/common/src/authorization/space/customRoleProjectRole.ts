@@ -1,5 +1,9 @@
 import { OrganizationMemberRole } from '../../types/organizationMemberProfile';
-import { ProjectMemberRole } from '../../types/projectMemberRole';
+import {
+    ProjectMemberRole,
+    ProjectRoleOrder,
+} from '../../types/projectMemberRole';
+import { convertOrganizationRoleToProjectRole } from '../../utils/projectMemberRole';
 
 /**
  * Project-role equivalent of a custom role for space-access resolution.
@@ -40,4 +44,63 @@ export const getOrganizationRoleForSpaceAccess = (
         default:
             return OrganizationMemberRole.VIEWER;
     }
+};
+
+/**
+ * Space-access role for a complete project role set: the system role (if any)
+ * or the role derived from the union of all held custom-role scopes,
+ * whichever is higher. Roles are additive, so a system base is never lowered.
+ */
+export const getProjectRoleForRoleSetSpaceAccess = ({
+    systemRole,
+    customRoleScopes,
+}: {
+    systemRole: ProjectMemberRole | null;
+    customRoleScopes: string[];
+}): ProjectMemberRole => {
+    const derived =
+        customRoleScopes.length > 0
+            ? getProjectRoleForSpaceAccess(customRoleScopes)
+            : null;
+    if (systemRole === null) {
+        return derived ?? ProjectMemberRole.VIEWER;
+    }
+    if (derived === null) {
+        return systemRole;
+    }
+    return ProjectRoleOrder[derived] > ProjectRoleOrder[systemRole]
+        ? derived
+        : systemRole;
+};
+
+export const getOrganizationRoleForRoleSetSpaceAccess = ({
+    systemRole,
+    customRoleScopes,
+}: {
+    systemRole: OrganizationMemberRole | null;
+    customRoleScopes: string[];
+}): OrganizationMemberRole => {
+    const derived =
+        customRoleScopes.length > 0
+            ? getOrganizationRoleForSpaceAccess(customRoleScopes)
+            : null;
+    if (systemRole === null) {
+        return derived ?? OrganizationMemberRole.VIEWER;
+    }
+    if (derived === null) {
+        return systemRole;
+    }
+    // Compare through the project-role order; `member` maps to no project role.
+    const systemProjectRole = convertOrganizationRoleToProjectRole(systemRole);
+    const derivedProjectRole = convertOrganizationRoleToProjectRole(derived);
+    if (systemProjectRole === undefined) {
+        return derived;
+    }
+    if (derivedProjectRole === undefined) {
+        return systemRole;
+    }
+    return ProjectRoleOrder[derivedProjectRole] >
+        ProjectRoleOrder[systemProjectRole]
+        ? derived
+        : systemRole;
 };
