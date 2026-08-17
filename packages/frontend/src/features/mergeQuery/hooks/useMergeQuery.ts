@@ -1,14 +1,10 @@
 import {
-    derivePivotConfigurationFromChart,
-    isDimension,
-    MERGE_TABLE_NAME,
     type ApiCompiledMergeQueryResults,
-    type ApiExecuteAsyncMetricQueryResults,
+    type ApiExecuteAsyncMergeQueryRequest,
+    type ApiExecuteAsyncMergeQueryResults,
     type CompileMergeQueryRequest,
     type MergeQuery,
     type ParametersValuesMap,
-    type PivotConfiguration,
-    type RunMergeQueryRequest,
     type SavedChartDAO,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
@@ -29,41 +25,31 @@ export const compileMergeQuery = (
         } satisfies CompileMergeQueryRequest),
     });
 
-export type MergeQueryRun = {
-    /** Errors that stopped the merge running. Empty when `started` is set. */
-    errors: CompiledMergeQuery['errors'];
-    /** The query to page results from, or null when the merge was refused. */
-    started: ApiExecuteAsyncMetricQueryResults | null;
-    parameterReferences: string[];
-    fieldOrigins: ApiCompiledMergeQueryResults['fieldOrigins'];
-};
+export type MergeQueryRun = ApiExecuteAsyncMergeQueryResults;
 
 const runMergeQuery = (
     projectUuid: string,
     mergeQuery: MergeQuery,
     parameters: ParametersValuesMap | undefined,
-    pivotConfiguration: PivotConfiguration | undefined,
+    savedChart: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'> | undefined,
     csvLimit?: number | null,
 ) =>
-    lightdashApi<ApiExecuteAsyncMetricQueryResults>({
-        url: `/projects/${projectUuid}/mergeQuery/run`,
+    lightdashApi<ApiExecuteAsyncMergeQueryResults>({
+        url: `/projects/${projectUuid}/query/merge-query`,
+        version: 'v2',
         method: 'POST',
         body: JSON.stringify({
             mergeQuery,
             parameters,
-            pivotConfiguration,
+            chartConfig: savedChart?.chartConfig,
+            pivotConfig: savedChart?.pivotConfig,
             csvLimit,
-        } satisfies RunMergeQueryRequest),
+        } satisfies ApiExecuteAsyncMergeQueryRequest),
     });
 
 /**
- * Compiles a merge, then runs it as an ordinary async query.
- *
- * Compiling first is what lets a refusal be shown against the query row that
- * caused it: a merge that would produce wrong numbers is a result to render,
- * not a failure to throw. A plain async function rather than a mutation —
- * the caller owns the state, and there is no cache identity for a run that
- * only ever belongs to the screen that started it.
+ * Starts a merge through the async query interface. Validation failures are
+ * returned as data so the caller can render them against their source rows.
  */
 export const executeMergeQuery = async (
     projectUuid: string,
@@ -72,51 +58,11 @@ export const executeMergeQuery = async (
     savedChart?: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>,
     csvLimit?: number | null,
 ): Promise<MergeQueryRun> => {
-    const compiled = await compileMergeQuery(
+    return runMergeQuery(
         projectUuid,
         mergeQuery,
         parameters,
+        savedChart,
+        csvLimit,
     );
-    if (!compiled.sql) {
-        return {
-            errors: compiled.errors,
-            started: null,
-            parameterReferences: compiled.parameterReferences,
-            fieldOrigins: compiled.fieldOrigins,
-        };
-    }
-
-    const columnOrder = Object.values(compiled.fieldIdByColumn);
-    const dimensions = columnOrder.filter((fieldId) =>
-        isDimension(compiled.itemsMap[fieldId]),
-    );
-    const metricQuery = {
-        exploreName: MERGE_TABLE_NAME,
-        dimensions,
-        metrics: columnOrder.filter((fieldId) => !dimensions.includes(fieldId)),
-        filters: {},
-        sorts: [],
-        limit: mergeQuery.limit,
-        tableCalculations: [],
-    };
-    const pivotConfiguration = savedChart
-        ? derivePivotConfigurationFromChart(
-              savedChart,
-              metricQuery,
-              compiled.itemsMap,
-          )
-        : undefined;
-
-    return {
-        errors: [],
-        parameterReferences: compiled.parameterReferences,
-        fieldOrigins: compiled.fieldOrigins,
-        started: await runMergeQuery(
-            projectUuid,
-            mergeQuery,
-            parameters,
-            pivotConfiguration,
-            csvLimit,
-        ),
-    };
 };

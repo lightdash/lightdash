@@ -21,6 +21,8 @@ import {
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
     type ApiDownloadAsyncQueryResultsAsXlsx,
+    type ApiExecuteAsyncMergeQueryRequest,
+    type ApiExecuteAsyncMergeQueryResults,
     type ApiExecuteAsyncMetricQueryResults,
     type ApiJobScheduledResponse,
     type ExecuteAsyncCalculateTotalRequestParams,
@@ -167,6 +169,41 @@ export class QueryController extends BaseController {
             status: 'ok',
             results,
         };
+    }
+
+    /**
+     * Validates and executes a merge as one asynchronous query request.
+     * @summary Execute merge query
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/merge-query')
+    @OperationId('executeAsyncMergeQuery')
+    async executeAsyncMergeQuery(
+        @Body() body: ApiExecuteAsyncMergeQueryRequest,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<ApiExecuteAsyncMergeQueryResults>> {
+        this.setStatus(200);
+        const results = await this.services
+            .getAsyncQueryService()
+            .executeAsyncMergeQuery({
+                account: req.account!,
+                projectUuid,
+                mergeQuery: body.mergeQuery,
+                context:
+                    body.context ??
+                    getContextFromHeader(req) ??
+                    QueryExecutionContext.API,
+                invalidateCache: body.invalidateCache,
+                parameters: body.parameters,
+                csvLimit: body.csvLimit,
+                chartConfig: body.chartConfig,
+                pivotConfig: body.pivotConfig,
+                pivotConfiguration: body.pivotConfiguration,
+            });
+
+        return { status: 'ok', results };
     }
 
     /**

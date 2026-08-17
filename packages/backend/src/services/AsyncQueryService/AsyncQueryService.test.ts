@@ -9,8 +9,10 @@ import {
     ExecuteAsyncQueryRequestParams,
     ExploreType,
     FeatureFlags,
+    FieldType,
     FilterOperator,
     ForbiddenError,
+    MetricType,
     NotFoundError,
     OrganizationAccessStatus,
     PersistentDownloadFileAccessMode,
@@ -408,6 +410,108 @@ type JwtDashboardQueryContextTestService = {
 };
 
 describe('AsyncQueryService', () => {
+    describe('executeAsyncMergeQuery', () => {
+        const mergeQuery = {
+            sources: [],
+            joinKey: [],
+            joinType: 'full',
+            tableCalculations: [],
+            limit: 500,
+        } as never;
+
+        test('passes the validated compilation into execution', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const compiledMerge = {
+                sql: 'select 1',
+                coreSql: 'select 1',
+                typedColumns: [],
+                terminalWrapper: {},
+                fieldIdByColumn: {
+                    join_key: 'merge_join_key_0',
+                    orders_count: 'a_orders_count',
+                },
+                itemsMap: {
+                    merge_join_key_0: {
+                        fieldType: FieldType.DIMENSION,
+                        type: DimensionType.STRING,
+                    },
+                    a_orders_count: {
+                        fieldType: FieldType.METRIC,
+                        type: MetricType.COUNT,
+                    },
+                },
+                fieldOrigins: {},
+                parameterReferences: [],
+                errors: [],
+            } as never;
+            const compile = vi
+                .spyOn(service, 'compileMergeQuery')
+                .mockResolvedValue(compiledMerge);
+            const execute = vi
+                .spyOn(service as AnyType, 'executeCompiledAsyncMergeQuery')
+                .mockResolvedValue({ queryUuid: 'query-uuid' } as never);
+
+            const result = await service.executeAsyncMergeQuery({
+                account: sessionAccount,
+                projectUuid,
+                mergeQuery,
+                context: QueryExecutionContext.EXPLORE,
+                chartConfig: { type: ChartType.TABLE, config: {} },
+                pivotConfig: {
+                    columns: ['merge_join_key_0'],
+                    rows: [],
+                },
+            });
+
+            expect(compile).toHaveBeenCalledTimes(1);
+            expect(execute).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    precompiledMerge: compiledMerge,
+                    pivotConfiguration: expect.objectContaining({
+                        groupByColumns: [{ reference: 'merge_join_key_0' }],
+                        valuesColumns: [
+                            {
+                                aggregation: 'any',
+                                reference: 'a_orders_count',
+                            },
+                        ],
+                    }),
+                }),
+            );
+            expect(result.started).toMatchObject({ queryUuid: 'query-uuid' });
+        });
+
+        test('returns validation errors without starting execution', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            vi.spyOn(service, 'compileMergeQuery').mockResolvedValue({
+                coreSql: null,
+                typedColumns: null,
+                terminalWrapper: null,
+                errors: [{ message: 'Fan-out' }],
+                parameterReferences: ['date'],
+                fieldOrigins: {},
+            } as never);
+            const execute = vi.spyOn(
+                service as AnyType,
+                'executeCompiledAsyncMergeQuery',
+            );
+
+            const result = await service.executeAsyncMergeQuery({
+                account: sessionAccount,
+                projectUuid,
+                mergeQuery,
+                context: QueryExecutionContext.EXPLORE,
+            });
+
+            expect(execute).not.toHaveBeenCalled();
+            expect(result).toMatchObject({
+                started: null,
+                parameterReferences: ['date'],
+                errors: [{ message: 'Fan-out' }],
+            });
+        });
+    });
+
     describe('getJwtDashboardQueryContext', () => {
         const buildDashboardEmbedAccount = () =>
             ({

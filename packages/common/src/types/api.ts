@@ -111,6 +111,7 @@ import {
     type ApiGetComments,
 } from './api/comments';
 import { type Email } from './api/email';
+import type { ExecuteAsyncMergeQueryRequestParams } from './api/paginatedQuery';
 import {
     type ApiGetProjectParametersListResults,
     type ApiGetProjectParametersResults,
@@ -200,7 +201,11 @@ import type {
     ApiGroupListResponse,
 } from './groups';
 import { type ApiImpersonationOrganizationSettingsResponse } from './impersonationOrganizationSettings';
-import { type ApiCompiledMergeQueryResults } from './mergeQuery';
+import {
+    type ApiCompiledMergeQueryResults,
+    type MergeFieldOrigins,
+    type MergeQueryError,
+} from './mergeQuery';
 import { type MetricQuery, type QueryWarning } from './metricQuery';
 import type {
     ApiMetricsExplorerQueryResults,
@@ -287,6 +292,7 @@ import {
 import {
     type ApiCalculateSubtotalsResponse,
     type ApiCalculateTotalResponse,
+    type ChartConfig,
     type ChartHistory,
     type ChartVersion,
     type SavedChart,
@@ -871,6 +877,23 @@ export type ApiExecuteAsyncMetricQueryResults =
         warnings: QueryWarning[];
     };
 
+export type ApiExecuteAsyncMergeQueryResults = {
+    /** Validation errors that prevented execution. Empty when started is set. */
+    errors: MergeQueryError[];
+    started: ApiExecuteAsyncMetricQueryResults | null;
+    parameterReferences: string[];
+    fieldOrigins: MergeFieldOrigins;
+};
+
+/** One-call merge execution request. Chart state stays optional for exports without pivoting. */
+export type ApiExecuteAsyncMergeQueryRequest =
+    ExecuteAsyncMergeQueryRequestParams & {
+        chartConfig?: ChartConfig;
+        pivotConfig?: SavedChart['pivotConfig'];
+        /** Export row limit. Null means all rows within the organization's cell cap. */
+        csvLimit?: number | null;
+    };
+
 export type ApiExecuteAsyncDashboardChartQueryResults =
     ApiExecuteAsyncQueryResultsCommon & {
         metricQuery: MetricQuery;
@@ -1087,6 +1110,7 @@ type ApiResults =
     | ApiSqlQueryResults
     | ApiCompiledQueryResults
     | ApiCompiledMergeQueryResults
+    | ApiExecuteAsyncMergeQueryResults
     | ApiFormulaValidationResults
     | ApiExploresResults
     | ApiExploreResults

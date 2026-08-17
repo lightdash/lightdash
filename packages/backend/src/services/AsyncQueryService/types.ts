@@ -1,5 +1,6 @@
 import {
     Account,
+    ApiCompiledMergeQueryResults,
     DownloadFileType,
     MergeQuery,
     MetricQuery,
@@ -174,9 +175,19 @@ export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
 
 export type ExecuteAsyncMergeQueryArgs = CommonAsyncQueryArgs & {
     mergeQuery: MergeQuery;
+    csvLimit?: number | null;
+    /** Legacy callers may already have derived the standard pivot stage. */
+    pivotConfiguration?: PivotConfiguration;
+} & Partial<Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>>;
+
+export type ExecuteCompiledAsyncMergeQueryArgs = Omit<
+    ExecuteAsyncMergeQueryArgs,
+    'chartConfig' | 'pivotConfig' | 'pivotConfiguration'
+> & {
     /** Standard pivot stage over the merged rows. */
     pivotConfiguration?: PivotConfiguration;
-    csvLimit?: number | null;
+    /** Server-owned compilation reused by execution. */
+    precompiledMerge: ApiCompiledMergeQueryResults;
 };
 
 export type ExecuteAsyncDashboardSqlChartCommonArgs = CommonAsyncQueryArgs & {

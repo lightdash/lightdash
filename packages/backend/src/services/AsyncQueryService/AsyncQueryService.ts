@@ -97,10 +97,12 @@ import {
     UnexpectedServerError,
     UserAccessControls,
     WarehouseClient,
+    type ApiCompiledMergeQueryResults,
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
     type ApiDownloadAsyncQueryResultsAsXlsx,
     type ApiExecuteAsyncFieldValueSearchResults,
+    type ApiExecuteAsyncMergeQueryResults,
     type ApiExecuteAsyncMetricQueryResults,
     type ApiGetAsyncQueryResults,
     type CacheMetadata,
@@ -229,6 +231,7 @@ import {
     type ExecuteAsyncSavedChartQueryArgs,
     type ExecuteAsyncSqlChartArgs,
     type ExecuteAsyncUnderlyingDataQueryArgs,
+    type ExecuteCompiledAsyncMergeQueryArgs,
     type GetAsyncQueryResultsArgs,
     type PollingOptions,
     type PreAggregateExecutionEngine,
@@ -5158,17 +5161,19 @@ export class AsyncQueryService extends ProjectService {
                 ...savedChartParameters,
                 ...parameters,
             };
+            const precompiledMerge = await this.compileMergeQuery({
+                account,
+                projectUuid,
+                mergeQuery,
+                parameters: combinedParameters,
+            });
             let pivotConfiguration: PivotConfiguration | undefined;
             if (pivotResults) {
-                const compiled = await this.compileMergeQuery({
-                    account,
-                    projectUuid,
-                    mergeQuery,
-                    parameters: combinedParameters,
-                });
-                const columnOrder = Object.values(compiled.fieldIdByColumn);
+                const columnOrder = Object.values(
+                    precompiledMerge.fieldIdByColumn,
+                );
                 const dimensions = columnOrder.filter((fieldId) =>
-                    isDimension(compiled.itemsMap[fieldId]),
+                    isDimension(precompiledMerge.itemsMap[fieldId]),
                 );
                 const mergedMetricQuery: MetricQuery = {
                     exploreName: MERGE_TABLE_NAME,
@@ -5184,11 +5189,11 @@ export class AsyncQueryService extends ProjectService {
                 pivotConfiguration = derivePivotConfigurationFromChart(
                     savedChart,
                     mergedMetricQuery,
-                    compiled.itemsMap,
+                    precompiledMerge.itemsMap,
                 );
             }
 
-            return this.executeAsyncMergeQuery({
+            return this.executeCompiledAsyncMergeQuery({
                 account,
                 projectUuid,
                 mergeQuery,
@@ -5197,6 +5202,7 @@ export class AsyncQueryService extends ProjectService {
                 parameters: combinedParameters,
                 pivotConfiguration,
                 csvLimit: limit,
+                precompiledMerge,
             });
         }
 
@@ -6245,6 +6251,89 @@ export class AsyncQueryService extends ProjectService {
     }
 
     /**
+     * Validates, prepares and starts a merge through one interface.
+     *
+     * Validation is data rather than an HTTP failure so the editor can attach
+     * errors to the source that caused them. A valid compilation is passed
+     * into execution and never repeated.
+     */
+    async executeAsyncMergeQuery({
+        account,
+        projectUuid,
+        mergeQuery,
+        context,
+        invalidateCache,
+        parameters,
+        csvLimit,
+        chartConfig,
+        pivotConfig,
+        pivotConfiguration: suppliedPivotConfiguration,
+    }: ExecuteAsyncMergeQueryArgs): Promise<ApiExecuteAsyncMergeQueryResults> {
+        const compiledMerge = await this.compileMergeQuery({
+            account,
+            projectUuid,
+            mergeQuery,
+            parameters,
+        });
+        if (
+            compiledMerge.coreSql === null ||
+            compiledMerge.typedColumns === null ||
+            compiledMerge.terminalWrapper === null
+        ) {
+            return {
+                errors: compiledMerge.errors,
+                started: null,
+                parameterReferences: compiledMerge.parameterReferences,
+                fieldOrigins: compiledMerge.fieldOrigins,
+            };
+        }
+
+        const columnOrder = Object.values(compiledMerge.fieldIdByColumn);
+        const dimensions = columnOrder.filter((fieldId) =>
+            isDimension(compiledMerge.itemsMap[fieldId]),
+        );
+        const metricQuery: MetricQuery = {
+            exploreName: MERGE_TABLE_NAME,
+            dimensions,
+            metrics: columnOrder.filter(
+                (fieldId) => !dimensions.includes(fieldId),
+            ),
+            filters: {},
+            sorts: [],
+            limit: mergeQuery.limit,
+            tableCalculations: [],
+        };
+        const pivotConfiguration =
+            suppliedPivotConfiguration ??
+            (chartConfig
+                ? derivePivotConfigurationFromChart(
+                      { chartConfig, pivotConfig },
+                      metricQuery,
+                      compiledMerge.itemsMap,
+                  )
+                : undefined);
+
+        const started = await this.executeCompiledAsyncMergeQuery({
+            account,
+            projectUuid,
+            mergeQuery,
+            context,
+            invalidateCache,
+            parameters,
+            csvLimit,
+            pivotConfiguration,
+            precompiledMerge: compiledMerge,
+        });
+
+        return {
+            errors: [],
+            started,
+            parameterReferences: compiledMerge.parameterReferences,
+            fieldOrigins: compiledMerge.fieldOrigins,
+        };
+    }
+
+    /**
      * Runs a merge as one statement on the org's own warehouse.
      *
      * The compile is the merge: both sides become CTEs of one statement in
@@ -6253,7 +6342,7 @@ export class AsyncQueryService extends ProjectService {
      * downloads all behave as for any other query. Nothing materialises to
      * S3 and nothing runs anywhere but the project warehouse.
      */
-    async executeAsyncMergeQuery({
+    private async executeCompiledAsyncMergeQuery({
         account,
         projectUuid,
         mergeQuery,
@@ -6262,18 +6351,14 @@ export class AsyncQueryService extends ProjectService {
         pivotConfiguration,
         parameters,
         csvLimit,
-    }: ExecuteAsyncMergeQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
+        precompiledMerge,
+    }: ExecuteCompiledAsyncMergeQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
         let effectiveMergeQuery = mergeQuery;
-        let compiledMerge = await this.compileMergeQuery({
-            account,
-            projectUuid,
-            mergeQuery: effectiveMergeQuery,
-            parameters,
-        });
+        let compiledMerge = precompiledMerge;
         if (
             compiledMerge.coreSql === null ||
             compiledMerge.typedColumns === null ||
