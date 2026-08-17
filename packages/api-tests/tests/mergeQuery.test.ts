@@ -74,11 +74,22 @@ type QueryResultsBody = Body<{
     totalResults: number;
 }>;
 
-type MergeTestContext = { client: ApiClient; projectUuid: string };
+// hasSubscriptionsModel: whether the warehouse dataset carries a current
+// build of the jaffle `subscriptions` model. The staging datasets reliably
+// mirror only the core models (customers/orders/payments) — BigQuery never
+// built `subscriptions` and Trino's build predates the mrr columns — so the
+// parameterized merge compiles everywhere but executes only where the model
+// exists.
+type MergeTestContext = {
+    client: ApiClient;
+    projectUuid: string;
+    hasSubscriptionsModel: boolean;
+};
 
 function registerMergeQueryTests(getContext: () => MergeTestContext) {
     let admin: ApiClient;
     let projectUuid: string;
+    let hasSubscriptionsModel: boolean;
 
     async function pollQueryResults(
         client: ApiClient,
@@ -107,7 +118,7 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
     // The merge-queries flag gates only the frontend entry point; the API
     // endpoints are always available.
     beforeAll(() => {
-        ({ client: admin, projectUuid } = getContext());
+        ({ client: admin, projectUuid, hasSubscriptionsModel } = getContext());
     });
 
     it('compiles the merge for the project warehouse without errors', async () => {
@@ -364,9 +375,6 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
         expect(await rowCountFor('inner')).toBe(intersection.length);
     }, 90_000);
 
-    // The date-spine fill, generated natively on the project warehouse: every
-    // period between the first and last key exists as a row, so the pages
-    // come back gap-free in key order.
     // The jaffle subscriptions explore's customers join carries a Lightdash
     // parameter, so selecting orders_status through it forces the
     // parameterized join in. The single-query path refuses to run without a
@@ -452,6 +460,10 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
         expect(supplied.body.results.usedParametersValues).toEqual(
             expect.objectContaining({ 'customers.customer_name': 'Ken' }),
         );
+
+        // Executing reads the subscriptions model on the warehouse, which
+        // only some staging datasets have built; compiling above does not.
+        if (!hasSubscriptionsModel) return;
 
         const runResp = await admin.post<
             Body<ApiExecuteAsyncMergeQueryResults>
@@ -555,6 +567,10 @@ const mergeWarehouseEntries = getAvailableWarehouseConfigs({
     includeDatabricks: false,
 });
 
+// Staging datasets with a current build of the `subscriptions` model; see
+// MergeTestContext.hasSubscriptionsModel.
+const WAREHOUSES_WITH_SUBSCRIPTIONS = new Set(['snowflake']);
+
 describe('Merge queries on the project warehouse', () => {
     // Postgres: reuse the already-seeded project (no create/refresh needed).
     describe('postgres (seed project)', () => {
@@ -567,6 +583,7 @@ describe('Merge queries on the project warehouse', () => {
         registerMergeQueryTests(() => ({
             client: admin,
             projectUuid: SEED_PROJECT.project_uuid,
+            hasSubscriptionsModel: true,
         }));
     });
 
@@ -596,6 +613,7 @@ describe('Merge queries on the project warehouse', () => {
             registerMergeQueryTests(() => ({
                 client: admin,
                 projectUuid,
+                hasSubscriptionsModel: WAREHOUSES_WITH_SUBSCRIPTIONS.has(name),
             }));
         });
     }
