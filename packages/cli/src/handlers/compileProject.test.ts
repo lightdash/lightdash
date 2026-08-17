@@ -1,10 +1,13 @@
 import {
     DimensionType,
+    LightdashError,
+    projectMergedManifest,
     SupportedDbtVersions,
     type DbtManifest,
     type DbtModelNode,
 } from '@lightdash/common';
 import fs from 'fs/promises';
+import { Response } from 'node-fetch';
 import os from 'os';
 import path from 'path';
 import { getDbtContext } from '../dbt/context';
@@ -12,6 +15,7 @@ import { loadCombineManifest, loadManifest } from '../dbt/manifest';
 import { validateDbtModel } from '../dbt/validation';
 import { loadLightdashModels } from '../lightdash/loader';
 import { compileProject, type CompileHandlerOptions } from './compile';
+import { lightdashRawApi } from './dbt/apiClient';
 import { maybeCompileModelsAndJoins } from './dbt/compile';
 import { tryGetDbtVersion } from './dbt/getDbtVersion';
 
@@ -29,11 +33,16 @@ vi.mock('../dbt/validation');
 vi.mock('../lightdash/loader');
 vi.mock('./dbt/compile');
 vi.mock('./dbt/getDbtVersion');
+vi.mock('./dbt/apiClient', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('./dbt/apiClient')>()),
+    lightdashRawApi: vi.fn(),
+}));
 
 const dbtNode = (
     uniqueId: string,
     resourceType: 'model' | 'seed',
     compiled: boolean,
+    extra: Record<string, unknown> = {},
 ) => ({
     unique_id: uniqueId,
     name: uniqueId.split('.').at(-1) ?? uniqueId,
@@ -65,6 +74,7 @@ const dbtNode = (
     relation_name: `"db"."public"."${uniqueId}"`,
     config: { materialized: 'table' },
     compiled,
+    ...extra,
 });
 
 const manifest = (
@@ -149,6 +159,7 @@ describe('compileProject completeness', () => {
             }),
         );
         vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        vi.spyOn(console, 'info').mockImplementation(() => undefined);
     });
 
     afterEach(async () => {
@@ -222,8 +233,364 @@ describe('compileProject completeness', () => {
         const result = await compileProject({
             ...compileOptions(tempDir),
             combineManifest: 'external-manifest.json',
+            combineManifestProjectUuid: 'project-uuid',
         });
 
         expect(result.isProjectComplete).toBe(true);
+        expect(result.explores.map((explore) => explore.name)).toEqual([
+            'orders',
+            'compiled',
+        ]);
+        expect(lightdashRawApi).not.toHaveBeenCalled();
+        expect(console.info).toHaveBeenCalledWith(
+            expect.stringContaining('Combined external manifest from'),
+        );
+    });
+
+    test('projects, merges, and compiles served-only models while preserving local precedence and source identity', async () => {
+        const projectManifest = manifest({
+            'model.test.orders': dbtNode('model.test.orders', 'model', true, {
+                description: 'Local orders description',
+            }),
+        });
+        const servedManifest = projectMergedManifest(
+            manifest({
+                'model.test.orders': dbtNode(
+                    'model.test.orders',
+                    'model',
+                    true,
+                    {
+                        description: 'Served orders description',
+                        lightdash_source_name: 'local_source',
+                    },
+                ),
+                'model.served.customers': dbtNode(
+                    'model.served.customers',
+                    'model',
+                    true,
+                    {
+                        package_name: 'served',
+                        lightdash_source_name: 'served_source',
+                    },
+                ),
+                'model.served.customer_helper': dbtNode(
+                    'model.served.customer_helper',
+                    'model',
+                    false,
+                    {
+                        package_name: 'served',
+                        lightdash_source_name: 'served_source',
+                    },
+                ),
+            }),
+        );
+        vi.mocked(loadManifest).mockResolvedValue(projectManifest);
+        vi.mocked(lightdashRawApi).mockResolvedValue(
+            new Response(JSON.stringify(servedManifest)),
+        );
+        vi.mocked(maybeCompileModelsAndJoins).mockResolvedValue({
+            compiledModelIds: ['model.test.orders'],
+            originallySelectedModelIds: undefined,
+        });
+
+        const result = await compileProject({
+            ...compileOptions(tempDir),
+            combineManifestProjectUuid: 'project-uuid',
+        });
+
+        expect(result.explores.map((explore) => explore.name)).toEqual([
+            'orders',
+            'customers',
+        ]);
+        expect(result.isProjectComplete).toBe(true);
+        expect(lightdashRawApi).toHaveBeenCalledWith({
+            method: 'GET',
+            url: '/api/v1/projects/project-uuid/dbt/manifest',
+            body: undefined,
+        });
+        expect(console.info).toHaveBeenCalledWith(
+            expect.stringMatching(/added [1-9]\d* model\(s\)/),
+        );
+
+        const modelsForValidation =
+            vi.mocked(validateDbtModel).mock.calls[0][2];
+        const localModel = modelsForValidation.find(
+            (model) => model.unique_id === 'model.test.orders',
+        ) as DbtModelNode & { lightdash_source_name?: string };
+        expect(localModel.description).toBe('Local orders description');
+        expect(localModel.lightdash_source_name).toBe('local_source');
+        expect(
+            modelsForValidation.map((model) => model.unique_id),
+        ).not.toContain('model.served.customer_helper');
+        expect(vi.mocked(validateDbtModel).mock.calls[0][3]).toEqual(
+            new Set(['model.served.customers']),
+        );
+    });
+
+    test('skips automatic combination when the local dbt project is not a served source', async () => {
+        const projectManifest = manifest({
+            'model.local.orders': dbtNode('model.local.orders', 'model', true),
+        });
+        const servedManifest = manifest({
+            'model.served.customers': dbtNode(
+                'model.served.customers',
+                'model',
+                true,
+            ),
+        });
+        vi.mocked(loadManifest).mockResolvedValue(projectManifest);
+        vi.mocked(lightdashRawApi).mockResolvedValue(
+            new Response(JSON.stringify(servedManifest)),
+        );
+        vi.mocked(maybeCompileModelsAndJoins).mockResolvedValue({
+            compiledModelIds: ['model.local.orders'],
+            originallySelectedModelIds: undefined,
+        });
+
+        const result = await compileProject({
+            ...compileOptions(tempDir),
+            combineManifestProjectUuid: 'project-uuid',
+        });
+
+        expect(result.explores.map((explore) => explore.name)).toEqual([
+            'orders',
+        ]);
+        expect(console.info).toHaveBeenCalledWith(
+            expect.stringContaining(
+                'the local dbt project is not a source of this Lightdash project',
+            ),
+        );
+    });
+
+    test('explains when a matching served manifest has no compiled models', async () => {
+        const projectManifest = manifest({
+            'model.test.orders': dbtNode('model.test.orders', 'model', true),
+        });
+        const servedManifest = manifest({
+            'model.test.orders': dbtNode('model.test.orders', 'model', false),
+            'model.served.helper': dbtNode(
+                'model.served.helper',
+                'model',
+                false,
+            ),
+        });
+        vi.mocked(loadManifest).mockResolvedValue(projectManifest);
+        vi.mocked(lightdashRawApi).mockResolvedValue(
+            new Response(JSON.stringify(servedManifest)),
+        );
+        vi.mocked(maybeCompileModelsAndJoins).mockResolvedValue({
+            compiledModelIds: ['model.test.orders'],
+            originallySelectedModelIds: undefined,
+        });
+
+        await compileProject({
+            ...compileOptions(tempDir),
+            combineManifestProjectUuid: 'project-uuid',
+        });
+
+        expect(console.info).toHaveBeenCalledWith(
+            expect.stringContaining('contains no compiled models'),
+        );
+    });
+
+    test('explains when all compiled served models already overlap locally', async () => {
+        const projectManifest = manifest({
+            'model.test.orders': dbtNode('model.test.orders', 'model', true),
+        });
+        const servedManifest = manifest({
+            'model.test.orders': dbtNode('model.test.orders', 'model', true),
+        });
+        vi.mocked(loadManifest).mockResolvedValue(projectManifest);
+        vi.mocked(lightdashRawApi).mockResolvedValue(
+            new Response(JSON.stringify(servedManifest)),
+        );
+        vi.mocked(maybeCompileModelsAndJoins).mockResolvedValue({
+            compiledModelIds: ['model.test.orders'],
+            originallySelectedModelIds: undefined,
+        });
+
+        await compileProject({
+            ...compileOptions(tempDir),
+            combineManifestProjectUuid: 'project-uuid',
+        });
+
+        expect(console.info).toHaveBeenCalledWith(
+            expect.stringContaining(
+                'all compiled models already exist in the preview manifest',
+            ),
+        );
+    });
+
+    test('notices when no served manifest exists and keeps the local manifest', async () => {
+        vi.mocked(loadManifest).mockResolvedValue(
+            manifest({
+                'model.test.orders': dbtNode(
+                    'model.test.orders',
+                    'model',
+                    true,
+                ),
+            }),
+        );
+        vi.mocked(lightdashRawApi).mockRejectedValue(
+            new LightdashError({
+                message: 'Manifest not found',
+                name: 'NotFoundError',
+                statusCode: 404,
+                data: {},
+            }),
+        );
+        vi.mocked(maybeCompileModelsAndJoins).mockResolvedValue({
+            compiledModelIds: ['model.test.orders'],
+            originallySelectedModelIds: undefined,
+        });
+
+        const result = await compileProject({
+            ...compileOptions(tempDir),
+            combineManifestProjectUuid: 'project-uuid',
+        });
+
+        expect(result.explores.map((explore) => explore.name)).toEqual([
+            'orders',
+        ]);
+        expect(console.error).not.toHaveBeenCalledWith(
+            expect.stringContaining('Could not fetch the server manifest'),
+        );
+        expect(console.info).toHaveBeenCalledWith(
+            expect.stringContaining(
+                'No server manifest found; continuing with the preview manifest',
+            ),
+        );
+    });
+
+    test.each([
+        ['a null response', null],
+        ['an array of nodes', { metadata: {}, nodes: [] }],
+        ['array metadata', { metadata: [], nodes: {} }],
+        ['missing metadata', { nodes: {} }],
+    ])(
+        'rejects %s from the server manifest endpoint and keeps the local manifest',
+        async (_description, invalidManifest) => {
+            vi.mocked(loadManifest).mockResolvedValue(
+                manifest({
+                    'model.test.orders': dbtNode(
+                        'model.test.orders',
+                        'model',
+                        true,
+                    ),
+                }),
+            );
+            vi.mocked(lightdashRawApi).mockResolvedValue(
+                new Response(JSON.stringify(invalidManifest)),
+            );
+            vi.mocked(maybeCompileModelsAndJoins).mockResolvedValue({
+                compiledModelIds: ['model.test.orders'],
+                originallySelectedModelIds: undefined,
+            });
+
+            const result = await compileProject({
+                ...compileOptions(tempDir),
+                combineManifestProjectUuid: 'project-uuid',
+            });
+
+            expect(result.explores.map((explore) => explore.name)).toEqual([
+                'orders',
+            ]);
+            expect(console.error).toHaveBeenCalledWith(
+                expect.stringContaining(
+                    '/api/v1/projects/project-uuid/dbt/manifest returned an invalid manifest',
+                ),
+            );
+        },
+    );
+
+    test.each([
+        [
+            'an authorization error',
+            new LightdashError({
+                message: 'Not authorized',
+                name: 'AuthorizationError',
+                statusCode: 401,
+                data: {},
+            }),
+        ],
+        [
+            'a server error',
+            new LightdashError({
+                message: 'Server unavailable',
+                name: 'InternalServerError',
+                statusCode: 500,
+                data: {},
+            }),
+        ],
+        [
+            'a permission error',
+            new LightdashError({
+                message: 'Forbidden',
+                name: 'ForbiddenError',
+                statusCode: 403,
+                data: {},
+            }),
+        ],
+        ['a network error', new Error('Connection refused')],
+    ])(
+        'warns once and keeps the local manifest after %s',
+        async (_description, error) => {
+            vi.mocked(loadManifest).mockResolvedValue(
+                manifest({
+                    'model.test.orders': dbtNode(
+                        'model.test.orders',
+                        'model',
+                        true,
+                    ),
+                }),
+            );
+            vi.mocked(lightdashRawApi).mockRejectedValue(error);
+            vi.mocked(maybeCompileModelsAndJoins).mockResolvedValue({
+                compiledModelIds: ['model.test.orders'],
+                originallySelectedModelIds: undefined,
+            });
+
+            const result = await compileProject({
+                ...compileOptions(tempDir),
+                combineManifestProjectUuid: 'project-uuid',
+            });
+
+            expect(result.explores.map((explore) => explore.name)).toEqual([
+                'orders',
+            ]);
+            expect(
+                vi
+                    .mocked(console.error)
+                    .mock.calls.filter(([message]) =>
+                        String(message).includes(
+                            'Could not fetch the server manifest',
+                        ),
+                    ),
+            ).toHaveLength(1);
+        },
+    );
+
+    test('does not fetch a served manifest when manifest combining is disabled', async () => {
+        vi.mocked(loadManifest).mockResolvedValue(
+            manifest({
+                'model.test.orders': dbtNode(
+                    'model.test.orders',
+                    'model',
+                    true,
+                ),
+            }),
+        );
+        vi.mocked(maybeCompileModelsAndJoins).mockResolvedValue({
+            compiledModelIds: ['model.test.orders'],
+            originallySelectedModelIds: undefined,
+        });
+
+        await compileProject({
+            ...compileOptions(tempDir),
+            combine: false,
+            combineManifestProjectUuid: 'project-uuid',
+        });
+
+        expect(lightdashRawApi).not.toHaveBeenCalled();
     });
 });
