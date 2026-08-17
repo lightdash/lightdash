@@ -13,8 +13,8 @@ import {
     ProjectDbtSourceWithConnection,
     sensitiveDbtCredentialsFieldNames,
     UnexpectedServerError,
-    validateProjectDbtSourceName,
     validateGithubToken,
+    validateProjectDbtSourceName,
     type Account,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
