@@ -7547,7 +7547,7 @@ export class ProjectService extends BaseService {
 
         // The field's config turns warehouse fetching off: serve curated
         // values (empty when none) instead of running a distinct-value scan.
-        if (staticResults !== null) {
+        if (staticResults) {
             this.analytics.track({
                 event: 'field_value.search',
                 userId: user.userUuid,

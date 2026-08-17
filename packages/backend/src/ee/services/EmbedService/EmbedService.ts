@@ -2466,7 +2466,7 @@ export class EmbedService extends BaseService {
 
         // The field's config turns warehouse fetching off: serve curated
         // values (empty when none) instead of running a distinct-value scan.
-        if (staticResults !== null) {
+        if (staticResults) {
             return {
                 search,
                 results: staticResults.map(({ value }) => value),

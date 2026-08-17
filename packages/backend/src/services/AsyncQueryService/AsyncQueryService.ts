@@ -4971,7 +4971,7 @@ export class AsyncQueryService extends ProjectService {
         // The field's config turns warehouse fetching off: serve curated
         // values (empty when none) as an immediately-READY query instead of
         // running a distinct-value scan in the warehouse.
-        if (staticResults !== null) {
+        if (staticResults) {
             const combinedParameters = await this.combineParameters(
                 projectUuid,
                 explore,
