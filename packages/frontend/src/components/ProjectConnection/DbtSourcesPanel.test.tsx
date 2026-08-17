@@ -138,7 +138,7 @@ describe('DbtSourcesPanel', () => {
 
         expect(
             within(dialog).getByText(
-                "Connect another git-backed dbt project. Its models are merged with the primary source on every deploy, using the project's warehouse and dbt version.",
+                "Connect another git-backed dbt project. Its models are merged with this project's dbt connection on every deploy.",
             ),
         ).toBeInTheDocument();
     });

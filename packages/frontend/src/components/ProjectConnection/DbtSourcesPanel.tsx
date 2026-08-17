@@ -210,7 +210,7 @@ const AddDbtSourceModal: FC<{
         >
             <DbtSourceFields
                 form={form}
-                intro="Connect another git-backed dbt project. Its models are merged with the primary source on every deploy, using the project's warehouse and dbt version."
+                intro="Connect another git-backed dbt project. Its models are merged with this project's dbt connection on every deploy."
             />
         </MantineModal>
     );
