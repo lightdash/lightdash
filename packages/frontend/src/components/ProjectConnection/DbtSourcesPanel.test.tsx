@@ -1,7 +1,16 @@
 import { DbtProjectType } from '@lightdash/common';
+import { QueryClient } from '@tanstack/react-query';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+import {
+    afterEach,
+    beforeEach,
+    describe,
+    expect,
+    it,
+    vi,
+    type Mock,
+} from 'vitest';
 import { lightdashApi } from '../../api';
 import { renderWithProviders } from '../../testing/testUtils';
 import DbtSourcesPanel from './DbtSourcesPanel';
@@ -42,13 +51,32 @@ const connection = {
     host_domain: 'github.com',
 };
 
-const routeApi = (sourceName = source.name) => {
+const routeApi = (sourceName?: string) => {
     mockApi.mockImplementation(
         ({ url, method }: { url: string; method: string }) => {
             if (url === '/projects/project-uuid/dbt-sources') {
-                return Promise.resolve([{ ...source, name: sourceName }]);
+                if (method === 'POST') {
+                    return Promise.resolve({
+                        projectDbtSourceUuid: 'source-uuid',
+                        name: 'marketing',
+                        isPrimary: false,
+                        hasCredentialError: false,
+                        type: DbtProjectType.GITHUB,
+                        repository: 'org/repo',
+                        branch: 'main',
+                        projectSubPath: '/',
+                    });
+                }
+                return Promise.resolve(
+                    sourceName === undefined
+                        ? []
+                        : [{ ...source, name: sourceName }],
+                );
             }
-            if (url === '/projects/project-uuid/dbt-sources/source-uuid') {
+            if (
+                url === '/projects/project-uuid/dbt-sources/source-uuid' &&
+                sourceName !== undefined
+            ) {
                 if (method === 'GET') {
                     return Promise.resolve({
                         ...source,
@@ -59,11 +87,28 @@ const routeApi = (sourceName = source.name) => {
                 return Promise.resolve({ ...source, name: sourceName });
             }
             if (url === '/github/config') {
-                return Promise.resolve({ enabled: false });
+                return Promise.resolve({
+                    enabled: true,
+                    installationId: 'installation-id',
+                });
+            }
+            if (url === '/github/repos/list') {
+                return Promise.resolve([{ fullName: 'org/repo' }]);
             }
             return Promise.resolve(undefined);
         },
     );
+};
+
+const openAddSourceModal = async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<DbtSourcesPanel projectUuid="project-uuid" />);
+    await user.click(await screen.findByRole('button', { name: 'Add source' }));
+    await screen.findByText('Add a dbt source');
+    return {
+        dialog: await screen.findByRole('dialog'),
+        user,
+    };
 };
 
 const openEditSourceModal = async (sourceName: string) => {
@@ -81,10 +126,57 @@ const openEditSourceModal = async (sourceName: string) => {
 describe('DbtSourcesPanel', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        routeApi();
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it('describes additional sources as merged on every deploy', async () => {
+        const { dialog } = await openAddSourceModal();
+
+        expect(
+            within(dialog).getByText(
+                "Connect another git-backed dbt project. Its models are merged with this project's dbt connection on every deploy.",
+            ),
+        ).toBeInTheDocument();
+    });
+
+    it('closes after a source is created without waiting for list invalidation', async () => {
+        vi.spyOn(QueryClient.prototype, 'invalidateQueries').mockReturnValue(
+            new Promise(() => {}),
+        );
+        const { dialog, user } = await openAddSourceModal();
+
+        await user.type(
+            within(dialog).getByRole('textbox', { name: /Name/ }),
+            'marketing',
+        );
+        await waitFor(() =>
+            expect(mockApi).toHaveBeenCalledWith(
+                expect.objectContaining({ url: '/github/repos/list' }),
+            ),
+        );
+        await user.click(
+            within(dialog).getByRole('button', { name: 'Add source' }),
+        );
+
+        await waitFor(() =>
+            expect(mockApi).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    url: '/projects/project-uuid/dbt-sources',
+                    method: 'POST',
+                }),
+            ),
+        );
+        await waitFor(() =>
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+        );
     });
 
     it('updates a legacy source connection without resubmitting its invalid name', async () => {
-        routeApi();
+        routeApi(source.name);
         const { dialog, user } = await openEditSourceModal(source.name);
         const repository = within(dialog).getByRole('textbox', {
             name: 'Repository',

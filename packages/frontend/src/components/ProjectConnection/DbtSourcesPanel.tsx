@@ -162,7 +162,6 @@ const AddDbtSourceModal: FC<{
     opened: boolean;
     onClose: () => void;
 }> = ({ projectUuid, opened, onClose }) => {
-    const createMutation = useCreateProjectDbtSourceMutation(projectUuid);
     const form = useForm({
         initialValues: {
             name: '',
@@ -185,17 +184,17 @@ const AddDbtSourceModal: FC<{
         form.reset();
         onClose();
     };
+    const createMutation = useCreateProjectDbtSourceMutation(projectUuid, {
+        onSuccess: handleClose,
+    });
 
     const handleSubmit = () => {
         const { hasErrors } = form.validate();
         if (hasErrors) return;
-        createMutation.mutate(
-            {
-                name: form.values.name.trim(),
-                dbtConnection: form.values.dbt,
-            },
-            { onSuccess: handleClose },
-        );
+        createMutation.mutate({
+            name: form.values.name.trim(),
+            dbtConnection: form.values.dbt,
+        });
     };
 
     return (
@@ -211,7 +210,7 @@ const AddDbtSourceModal: FC<{
         >
             <DbtSourceFields
                 form={form}
-                intro="Connect another git-backed dbt project. Its models are merged with the primary source on every deploy and preview, using the project's warehouse and dbt version."
+                intro="Connect another git-backed dbt project. Its models are merged with this project's dbt connection on every deploy."
             />
         </MantineModal>
     );
