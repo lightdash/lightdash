@@ -138,10 +138,7 @@ const getResultJsonCellValue = (
 ) => {
     if (!cellValue) return;
 
-    const rawJsonValue = getJsonCellValue(cellValue.value.raw);
-    if (rawJsonValue) return rawJsonValue;
-
-    return getJsonLikeString(cellValue.value.raw);
+    return getJsonCellValue(cellValue.value.raw);
 };
 
 const isBarDisplay = (
@@ -467,7 +464,7 @@ export const getValueCell = (
     }
 
     if (options?.enableJsonViewer) {
-        const jsonValue = getJsonCellValue(value) ?? getJsonLikeString(value);
+        const jsonValue = getJsonCellValue(value);
         if (jsonValue) {
             return <JsonCellPreview value={jsonValue} />;
         }
