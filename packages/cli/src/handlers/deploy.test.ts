@@ -1,5 +1,6 @@
 import {
     DeploySessionStatus,
+    LightdashError,
     SupportedDbtAdapter,
     type Explore,
 } from '@lightdash/common';
@@ -66,7 +67,7 @@ describe('deploy completeness transport', () => {
         { complete: false, expected: 'false' },
         { complete: undefined, expected: 'false' },
     ])(
-        'sends complete=$expected on the default upload',
+        'sends complete=$expected when batched deploy is disabled',
         async ({ complete, expected }) => {
             vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
                 if (url.includes('/explores?')) {
@@ -84,6 +85,7 @@ describe('deploy completeness transport', () => {
             await deploy([compiledExplore], {
                 ...deployOptions,
                 complete,
+                batchedDeploy: false,
             });
 
             expect(lightdashApi).toHaveBeenCalledWith(
@@ -96,7 +98,7 @@ describe('deploy completeness transport', () => {
         },
     );
 
-    test('includes the completeness assertion in every batch body', async () => {
+    test('uses batched deploy by default and includes the completeness assertion in every batch body', async () => {
         vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
             if (url.endsWith('/deploy')) {
                 return {
@@ -122,7 +124,6 @@ describe('deploy completeness transport', () => {
         await deploy([compiledExplore], {
             ...deployOptions,
             complete: false,
-            useBatchedDeploy: true,
         });
 
         expect(lightdashApi).toHaveBeenCalledWith({
@@ -134,5 +135,62 @@ describe('deploy completeness transport', () => {
                 complete: false,
             }),
         });
+    });
+
+    test('falls back to the legacy deploy when session creation returns 404', async () => {
+        vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
+            if (url.endsWith('/deploy')) {
+                throw new LightdashError({
+                    message: 'Not found',
+                    name: 'NotFoundError',
+                    statusCode: 404,
+                    data: {},
+                });
+            }
+            if (url.includes('/explores?')) {
+                return {
+                    exploreCount: 1,
+                    warnings: {
+                        warningCount: 0,
+                        exploresWithWarnings: [],
+                    },
+                } as never;
+            }
+            return null as never;
+        });
+
+        await deploy([compiledExplore], deployOptions);
+
+        expect(lightdashApi).toHaveBeenCalledWith({
+            method: 'PUT',
+            url: '/api/v1/projects/project-uuid/explores?complete=false',
+            body: JSON.stringify([compiledExplore]),
+        });
+    });
+
+    test('propagates non-404 session creation errors', async () => {
+        const serverError = new LightdashError({
+            message: 'Server unavailable',
+            name: 'InternalServerError',
+            statusCode: 500,
+            data: {},
+        });
+        vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
+            if (url.endsWith('/deploy')) {
+                throw serverError;
+            }
+            return null as never;
+        });
+
+        await expect(deploy([compiledExplore], deployOptions)).rejects.toBe(
+            serverError,
+        );
+
+        expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                method: 'PUT',
+                url: expect.stringContaining('/explores?'),
+            }),
+        );
     });
 });
