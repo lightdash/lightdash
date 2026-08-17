@@ -598,7 +598,7 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         errorMessage: string,
         extraContext: Record<string, unknown> = {},
-    ): Promise<void> {
+    ): Promise<DataAppProjectContext> {
         const projectContext = await this.getDataAppProjectContext(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
         if (
@@ -622,6 +622,7 @@ export class AppGenerateService extends BaseService {
             }
             throw new ForbiddenError(errorMessage);
         }
+        return projectContext;
     }
 
     /**
@@ -703,14 +704,14 @@ export class AppGenerateService extends BaseService {
         },
         errorMessage: string,
         extraContext: Record<string, unknown> = {},
-    ): Promise<void> {
+    ): Promise<DataAppProjectContext> {
         const spaceContext = app.space_uuid
             ? await this.spacePermissionService.getSpaceAccessContext(
                   user.userUuid,
                   app.space_uuid,
               )
             : {};
-        await this.assertDataAppAbility(
+        return this.assertDataAppAbility(
             user,
             'manage',
             app.project_uuid,
@@ -5241,9 +5242,7 @@ export class AppGenerateService extends BaseService {
         fileIds?: string[],
     ): Promise<{ questions: string[] }> {
         await this.assertDataAppsEnabled(user);
-        const { organizationUuid } =
-            await this.getDataAppProjectContext(projectUuid);
-        await this.assertDataAppAbility(
+        const { organizationUuid } = await this.assertDataAppAbility(
             user,
             'create',
             projectUuid,
@@ -5566,9 +5565,7 @@ export class AppGenerateService extends BaseService {
         const { creationExperience, designUuidInput, externalConnections } =
             options;
         await this.assertDataAppsEnabled(user);
-        const { organizationUuid } =
-            await this.getDataAppProjectContext(projectUuid);
-        await this.assertDataAppAbility(
+        const { organizationUuid } = await this.assertDataAppAbility(
             user,
             'create',
             projectUuid,
@@ -5793,7 +5790,7 @@ export class AppGenerateService extends BaseService {
         AppGenerateService.validateFileIds(fileIds);
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
-        await this.assertCanManageApp(
+        const { organizationUuid } = await this.assertCanManageApp(
             user,
             app,
             'Insufficient permissions to modify data apps',
@@ -5816,7 +5813,7 @@ export class AppGenerateService extends BaseService {
         // 403 rather than a model-visibility error. Scoped to the project's
         // organization (not the caller's) to match generateApp.
         const claudeModel = await this.resolveClaudeModel(
-            (await this.getDataAppProjectContext(projectUuid)).organizationUuid,
+            organizationUuid,
             claudeModelInput,
         );
 
@@ -9841,9 +9838,7 @@ export class AppGenerateService extends BaseService {
         designUuid: string | null,
     ): Promise<DataAppContext> {
         await this.assertDataAppsEnabled(user);
-        const { organizationUuid } =
-            await this.getDataAppProjectContext(projectUuid);
-        await this.assertDataAppAbility(
+        const { organizationUuid } = await this.assertDataAppAbility(
             user,
             'create',
             projectUuid,

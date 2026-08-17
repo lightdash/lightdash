@@ -74,7 +74,7 @@ type AssertFn = (
     projectUuid: string,
     errorMessage: string,
     extraContext?: Record<string, unknown>,
-) => Promise<void>;
+) => Promise<{ projectUuid: string }>;
 
 const buildService = () =>
     new AppGenerateService({
@@ -143,12 +143,12 @@ describe('DataApp preview scopes', () => {
 
         await expect(
             assertDataAppAbility(user, 'create', OWN_PREVIEW_UUID, 'denied'),
-        ).resolves.toBeUndefined();
+        ).resolves.toMatchObject({ projectUuid: OWN_PREVIEW_UUID });
         await expect(
             assertDataAppAbility(user, 'manage', OWN_PREVIEW_UUID, 'denied', {
                 createdByUserUuid: USER_UUID,
             }),
-        ).resolves.toBeUndefined();
+        ).resolves.toMatchObject({ projectUuid: OWN_PREVIEW_UUID });
     });
 
     it('allows viewing apps in a preview the user created', async () => {
@@ -236,6 +236,6 @@ describe('DataApp preview scopes', () => {
                 PRODUCTION_PROJECT_UUID,
                 'denied',
             ),
-        ).resolves.toBeUndefined();
+        ).resolves.toMatchObject({ projectUuid: PRODUCTION_PROJECT_UUID });
     });
 });
