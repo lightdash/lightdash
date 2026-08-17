@@ -47,7 +47,11 @@ export type MergeResults = {
     /** Field ids in the order the merged statement returns them. */
     columnOrder: string[];
     fieldOrigins: MergeFieldOrigins;
+    /** Parameter values embedded in this merged run. */
+    usedParametersValues: ParametersValuesMap;
     results: InfiniteQueryResults;
+    /** Raw rows for the Results tab when the chart run is pivoted. */
+    unpivotedResults: InfiniteQueryResults | null;
 };
 
 export type MergeContextValue = {

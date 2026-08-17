@@ -1,4 +1,5 @@
 import {
+    derivePivotConfigurationFromChart,
     MergeJoinType,
     type ApiCompiledMergeQueryResults,
     type ApiError,
@@ -93,6 +94,7 @@ export const MergeProvider: FC<
         isRunning: boolean;
         errors: MergeQueryError[];
         started: ApiExecuteAsyncMetricQueryResults | null;
+        unpivotedStarted: ApiExecuteAsyncMetricQueryResults | null;
         error: ApiError | null;
         parameterReferences: string[];
         fieldOrigins: ApiCompiledMergeQueryResults['fieldOrigins'];
@@ -100,6 +102,7 @@ export const MergeProvider: FC<
         isRunning: false,
         errors: [],
         started: null,
+        unpivotedStarted: null,
         error: null,
         parameterReferences: [],
         fieldOrigins: {},
@@ -151,6 +154,7 @@ export const MergeProvider: FC<
             isRunning: false,
             errors: [],
             started: null,
+            unpivotedStarted: null,
             error: null,
             parameterReferences: [],
             fieldOrigins: {},
@@ -315,27 +319,58 @@ export const MergeProvider: FC<
                 isRunning: true,
                 errors: [],
                 started: null,
+                unpivotedStarted: null,
                 error: null,
                 parameterReferences: current.parameterReferences,
                 fieldOrigins: current.fieldOrigins,
             }));
             executeMergeQuery(projectUuid, mergeQuery, parameters, savedChart)
-                .then((result) => {
+                .then(async (result) => {
                     if (activeRun.current !== runId) return;
                     if (result.outcome === 'refused') {
                         setRunState({
                             isRunning: false,
                             errors: result.errors,
                             started: null,
+                            unpivotedStarted: null,
                             error: null,
                             parameterReferences: result.parameterReferences,
                             fieldOrigins: result.fieldOrigins,
                         });
                     } else {
+                        const pivotConfiguration = savedChart
+                            ? derivePivotConfigurationFromChart(
+                                  savedChart,
+                                  result.query.metricQuery,
+                                  result.query.fields,
+                              )
+                            : undefined;
+                        const unpivoted = pivotConfiguration
+                            ? await executeMergeQuery(
+                                  projectUuid,
+                                  mergeQuery,
+                                  parameters,
+                              )
+                            : null;
+                        if (activeRun.current !== runId) return;
+                        if (unpivoted?.outcome === 'refused') {
+                            setRunState({
+                                isRunning: false,
+                                errors: unpivoted.errors,
+                                started: null,
+                                unpivotedStarted: null,
+                                error: null,
+                                parameterReferences:
+                                    unpivoted.parameterReferences,
+                                fieldOrigins: unpivoted.fieldOrigins,
+                            });
+                            return;
+                        }
                         setRunState({
                             isRunning: false,
                             errors: [],
                             started: result.query,
+                            unpivotedStarted: unpivoted?.query ?? null,
                             error: null,
                             parameterReferences: result.parameterReferences,
                             fieldOrigins: result.fieldOrigins,
@@ -348,6 +383,7 @@ export const MergeProvider: FC<
                         isRunning: false,
                         errors: [],
                         started: null,
+                        unpivotedStarted: null,
                         error,
                         parameterReferences: current.parameterReferences,
                         fieldOrigins: current.fieldOrigins,
@@ -380,8 +416,12 @@ export const MergeProvider: FC<
         [projectUuid],
     );
 
-    const { started } = runState;
+    const { started, unpivotedStarted } = runState;
     const results = useInfiniteQueryResults(projectUuid, started?.queryUuid);
+    const unpivotedResults = useInfiniteQueryResults(
+        projectUuid,
+        unpivotedStarted?.queryUuid,
+    );
 
     const mergeResults = useMemo(
         () =>
@@ -398,10 +438,20 @@ export const MergeProvider: FC<
                           ...started.metricQuery.metrics,
                       ],
                       fieldOrigins: runState.fieldOrigins,
+                      usedParametersValues: started.usedParametersValues,
                       results,
+                      unpivotedResults: unpivotedStarted
+                          ? unpivotedResults
+                          : null,
                   }
                 : null,
-        [started, results, runState.fieldOrigins],
+        [
+            started,
+            unpivotedStarted,
+            results,
+            unpivotedResults,
+            runState.fieldOrigins,
+        ],
     );
 
     const value = useMemo(

@@ -5516,6 +5516,15 @@ export class ProjectService extends BaseService {
             ),
             tableCalculations: mergeQuery.tableCalculations,
             nullPlaceholderByKeyName,
+            stringJoinKeyNames: mergeQuery.joinKey.flatMap((part) => {
+                const meta = Object.entries(part.fieldIdBySourceId)
+                    .map(
+                        ([sourceId, fieldId]) =>
+                            fieldTypes[sourceId]?.[fieldId],
+                    )
+                    .find((candidate) => candidate !== undefined);
+                return meta?.type === DimensionType.STRING ? [part.name] : [];
+            }),
             // Each query is bounded, but reaching the bound is reported rather
             // than trimmed: a join over a trimmed side returns numbers that
             // look complete and are not.

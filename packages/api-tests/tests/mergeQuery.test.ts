@@ -1,6 +1,8 @@
 import {
+    FilterOperator,
     QueryExecutionContext,
     SEED_PROJECT,
+    type ApiCompiledMergeQueryResults,
     type ApiExecuteAsyncMergeQueryResults,
 } from '@lightdash/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -256,6 +258,78 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
         });
     }, 60_000);
 
+    it('applies each source filter before aggregation and merging', async () => {
+        const completedOnly = {
+            dimensions: {
+                id: 'merge-status-filter-group',
+                and: [
+                    {
+                        id: 'merge-status-filter',
+                        target: { fieldId: 'orders_status' },
+                        operator: FilterOperator.EQUALS,
+                        values: ['completed'],
+                    },
+                ],
+            },
+        };
+        const filteredOrders = {
+            ...ordersByMonth,
+            filters: completedOnly,
+        };
+        const filteredPayments = {
+            ...paymentsByMonth,
+            filters: completedOnly,
+        };
+        const filteredMerge = {
+            ...mergeQuery,
+            sources: [
+                { id: 'orders', metricQuery: filteredOrders },
+                { id: 'payments', metricQuery: filteredPayments },
+            ],
+        };
+
+        const [ordersRows, paymentsRows, runResp] = await Promise.all([
+            runSourceQuery(filteredOrders),
+            runSourceQuery(filteredPayments),
+            admin.post<Body<{ queryUuid: string }>>(
+                `/api/v1/projects/${projectUuid}/mergeQuery/run`,
+                { mergeQuery: filteredMerge },
+            ),
+        ]);
+        const ordersByKey = new Map(
+            ordersRows.map((row) => [
+                monthOf(row.orders_order_date_month),
+                row.orders_total_order_amount,
+            ]),
+        );
+        const paymentsByKey = new Map(
+            paymentsRows.map((row) => [
+                monthOf(row.orders_order_date_month),
+                row.payments_unique_payment_count,
+            ]),
+        );
+        const results = await pollQueryResults(
+            admin,
+            runResp.body.results.queryUuid,
+        );
+
+        expect(results.totalResults).toBe(
+            new Set([...ordersByKey.keys(), ...paymentsByKey.keys()]).size,
+        );
+        results.rows.forEach((row) => {
+            const key = monthOf(
+                (row[KEY_FIELD_ID] as { value: { raw: unknown } }).value.raw,
+            );
+            expect(
+                (row[ORDERS_FIELD_ID] as { value: { raw: unknown } }).value.raw,
+            ).toEqual(ordersByKey.get(key) ?? null);
+            expect(
+                (row[PAYMENTS_FIELD_ID] as { value: { raw: unknown } }).value
+                    .raw,
+            ).toEqual(paymentsByKey.get(key) ?? null);
+        });
+    }, 60_000);
+
     it('keeps the key sets each join type promises', async () => {
         const [ordersRows, paymentsRows] = await Promise.all([
             runSourceQuery(ordersByMonth),
@@ -298,7 +372,7 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
     // parameterized join in. The single-query path refuses to run without a
     // value; the merge must refuse the same way instead of shipping a
     // literal `${ld.parameters...}` placeholder to the warehouse.
-    it('refuses a merge whose source is missing a parameter value, by name', async () => {
+    it('refuses a missing parameter and applies a supplied value', async () => {
         const parameterized = {
             sources: [
                 {
@@ -349,10 +423,7 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
             limit: 500,
         };
 
-        type CompileBody = Body<{
-            sql: string | null;
-            errors: { kind: string; sourceId: string | null }[];
-        }>;
+        type CompileBody = Body<ApiCompiledMergeQueryResults>;
         const refused = await admin.post<CompileBody>(
             `/api/v1/projects/${projectUuid}/mergeQuery/compile`,
             { mergeQuery: parameterized },
@@ -375,7 +446,38 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
         );
         expect(supplied.body.results.errors).toEqual([]);
         expect(supplied.body.results.sql).not.toContain('${ld.parameters');
-    });
+        expect(supplied.body.results.parameterReferences).toContain(
+            'customers.customer_name',
+        );
+        expect(supplied.body.results.usedParametersValues).toEqual(
+            expect.objectContaining({ 'customers.customer_name': 'Ken' }),
+        );
+
+        const runResp = await admin.post<
+            Body<ApiExecuteAsyncMergeQueryResults>
+        >(`/api/v2/projects/${projectUuid}/query/merge-query`, {
+            mergeQuery: parameterized,
+            parameters: { 'customers.customer_name': 'Ken' },
+            context: QueryExecutionContext.EXPLORE,
+        });
+        expect(runResp.body.results.outcome).toBe('started');
+        expect(runResp.body.results.parameterReferences).toContain(
+            'customers.customer_name',
+        );
+        if (runResp.body.results.outcome !== 'started') {
+            throw new Error(
+                `Parameterized merge was refused: ${JSON.stringify(runResp.body.results.errors)}`,
+            );
+        }
+        expect(runResp.body.results.query.usedParametersValues).toEqual(
+            expect.objectContaining({ 'customers.customer_name': 'Ken' }),
+        );
+        const results = await pollQueryResults(
+            admin,
+            runResp.body.results.query.queryUuid,
+        );
+        expect(results.totalResults).toBeGreaterThan(0);
+    }, 60_000);
 
     it('runs a pivoted merge through the standard pivot stage', async () => {
         // Widen the key with the order status, shared by both explores, and
