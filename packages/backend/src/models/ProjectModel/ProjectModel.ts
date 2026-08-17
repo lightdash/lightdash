@@ -395,7 +395,7 @@ export class ProjectModel {
         dbtSourceName: string;
     }> {
         const [project] = await this.database(ProjectTableName)
-            .select('dbt_source_uuid', 'dbt_source_name')
+            .select('project_uuid', 'dbt_source_uuid', 'dbt_source_name')
             .where('project_uuid', projectUuid);
 
         if (!project) {
@@ -405,7 +405,7 @@ export class ProjectModel {
         }
 
         return {
-            dbtSourceUuid: project.dbt_source_uuid,
+            dbtSourceUuid: project.dbt_source_uuid ?? project.project_uuid,
             dbtSourceName: project.dbt_source_name,
         };
     }

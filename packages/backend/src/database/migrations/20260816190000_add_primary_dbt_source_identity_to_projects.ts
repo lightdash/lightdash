@@ -4,6 +4,23 @@ const tableName = 'projects';
 const projectDbtSourcesTableName = 'project_dbt_sources';
 const DEFAULT_PROJECT_DBT_SOURCE_NAME = 'dbt_project';
 
+export const getAvailablePrimaryDbtSourceName = (
+    sourceNames: ReadonlySet<string>,
+): string => {
+    if (!sourceNames.has(DEFAULT_PROJECT_DBT_SOURCE_NAME)) {
+        return DEFAULT_PROJECT_DBT_SOURCE_NAME;
+    }
+
+    let suffix = 1;
+    let sourceName = `${DEFAULT_PROJECT_DBT_SOURCE_NAME}_${suffix}`;
+    while (sourceNames.has(sourceName)) {
+        suffix += 1;
+        sourceName = `${DEFAULT_PROJECT_DBT_SOURCE_NAME}_${suffix}`;
+    }
+
+    return sourceName;
+};
+
 export const classification = {
     kind: 'safe',
     reason: 'Adds and backfills new project dbt source identity columns without removing or reinterpreting existing data',
@@ -47,15 +64,13 @@ export async function up(knex: Knex): Promise<void> {
     await Promise.all(
         projects.flatMap(({ project_uuid: projectUuid }) => {
             const sourceNames = sourceNamesByProject.get(projectUuid);
-            if (!sourceNames?.has(DEFAULT_PROJECT_DBT_SOURCE_NAME)) {
+            if (!sourceNames) {
                 return [];
             }
 
-            let suffix = 1;
-            let sourceName = `${DEFAULT_PROJECT_DBT_SOURCE_NAME}_${suffix}`;
-            while (sourceNames.has(sourceName)) {
-                suffix += 1;
-                sourceName = `${DEFAULT_PROJECT_DBT_SOURCE_NAME}_${suffix}`;
+            const sourceName = getAvailablePrimaryDbtSourceName(sourceNames);
+            if (sourceName === DEFAULT_PROJECT_DBT_SOURCE_NAME) {
+                return [];
             }
 
             return [
@@ -69,7 +84,7 @@ export async function up(knex: Knex): Promise<void> {
     await knex.schema.alterTable(tableName, (tableBuilder) => {
         tableBuilder
             .uuid('dbt_source_uuid')
-            .notNullable()
+            .nullable()
             .defaultTo(knex.raw('uuid_generate_v4()'))
             .alter();
     });
