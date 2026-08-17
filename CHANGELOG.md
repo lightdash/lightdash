@@ -1,3 +1,10 @@
+## [1.172.1](https://github.com/lightdash/lightdash/compare/1.172.0...1.172.1) (2026-08-17)
+
+
+### Bug Fixes
+
+* validate space share targets are organization members ([#27518](https://github.com/lightdash/lightdash/issues/27518)) ([cca63a0](https://github.com/lightdash/lightdash/commit/cca63a054f56e34547da099e2437b17d9cac3c41))
+
 # [1.172.0](https://github.com/lightdash/lightdash/compare/1.171.1...1.172.0) (2026-08-17)
 
 
