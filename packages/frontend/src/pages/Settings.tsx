@@ -156,7 +156,6 @@ const Settings: FC = () => {
         isDataAppsFlagLoading,
         isAiCopilotEnabledOrTrial,
         shouldShowAiAgentReviews,
-        shouldShowAiAgentMemories,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
         isAiOrganizationSettingsLoading,
@@ -702,16 +701,14 @@ const Settings: FC = () => {
                     </AiSettingsProviders>
                 ),
             });
-            if (shouldShowAiAgentMemories) {
-                allowedRoutes.push({
-                    path: '/ai/memories',
-                    element: (
-                        <AiSettingsProviders>
-                            <AiMemoriesSettingsPage />
-                        </AiSettingsProviders>
-                    ),
-                });
-            }
+            allowedRoutes.push({
+                path: '/ai/memories',
+                element: (
+                    <AiSettingsProviders>
+                        <AiMemoriesSettingsPage />
+                    </AiSettingsProviders>
+                ),
+            });
             if (shouldShowAiAgentReviews) {
                 allowedRoutes.push({
                     path: '/ai/issues',
@@ -785,7 +782,6 @@ const Settings: FC = () => {
         isLeaveOrganizationEnabled,
         isAiCopilotEnabledOrTrial,
         shouldShowAiAgentReviews,
-        shouldShowAiAgentMemories,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
     ]);
