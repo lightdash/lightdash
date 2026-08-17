@@ -277,6 +277,26 @@ export class OrganizationMemberProfileModel {
         );
     }
 
+    /** Returns the subset of the given user uuids that are members of the organization. */
+    async findOrganizationMemberUuids(
+        organizationUuid: string,
+        userUuids: string[],
+    ): Promise<string[]> {
+        if (userUuids.length === 0) return [];
+
+        const members = await this.queryBuilder()
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .whereIn(`${UserTableName}.user_uuid`, userUuids)
+            .select<Pick<DbOrganizationMemberProfile, 'user_uuid'>[]>(
+                `${UserTableName}.user_uuid`,
+            );
+
+        return members.map((member) => member.user_uuid);
+    }
+
     async findOrganizationMembersByEmails(
         organizationUuid: string,
         emails: string[],
