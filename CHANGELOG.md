@@ -1,3 +1,10 @@
+## [1.169.1](https://github.com/lightdash/lightdash/compare/1.169.0...1.169.1) (2026-08-17)
+
+
+### Bug Fixes
+
+* keep working pods ready during a parked migration ([#27476](https://github.com/lightdash/lightdash/issues/27476)) ([3d4b9d1](https://github.com/lightdash/lightdash/commit/3d4b9d17a9b4bf710a864ed144b23e6655a8ec2d))
+
 # [1.169.0](https://github.com/lightdash/lightdash/compare/1.168.0...1.169.0) (2026-08-17)
 
 

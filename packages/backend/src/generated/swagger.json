@@ -42717,6 +42717,10 @@
                         "$ref": "#/components/schemas/Record_string.FieldId_",
                         "description": "Field id for each column the statement returns. Warehouse aliases are\nshort and positional so they cannot breach an identifier length limit;\nidentity lives in `itemsMap`, and rows are rekeyed through this map\nbefore anything downstream sees them."
                     },
+                    "usedParametersValues": {
+                        "$ref": "#/components/schemas/ParametersValuesMap",
+                        "description": "Resolved parameter values embedded in the compiled source queries."
+                    },
                     "parameterReferences": {
                         "items": {
                             "type": "string"
@@ -42777,6 +42781,7 @@
                 "required": [
                     "errors",
                     "fieldIdByColumn",
+                    "usedParametersValues",
                     "parameterReferences",
                     "fieldOrigins",
                     "itemsMap",
@@ -50802,6 +50807,84 @@
                 "required": ["kind"],
                 "type": "object"
             },
+            "ApiExecuteAsyncMergeQueryMetadata": {
+                "properties": {
+                    "fieldOrigins": {
+                        "$ref": "#/components/schemas/MergeFieldOrigins"
+                    },
+                    "parameterReferences": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["fieldOrigins", "parameterReferences"],
+                "type": "object"
+            },
+            "ApiExecuteAsyncMergeQueryResults": {
+                "anyOf": [
+                    {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ApiExecuteAsyncMergeQueryMetadata"
+                            },
+                            {
+                                "properties": {
+                                    "query": {
+                                        "$ref": "#/components/schemas/ApiExecuteAsyncMetricQueryResults"
+                                    },
+                                    "outcome": {
+                                        "type": "string",
+                                        "enum": ["started"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["query", "outcome"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ApiExecuteAsyncMergeQueryMetadata"
+                            },
+                            {
+                                "properties": {
+                                    "errors": {
+                                        "items": {
+                                            "$ref": "#/components/schemas/MergeQueryError"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "outcome": {
+                                        "type": "string",
+                                        "enum": ["refused"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["errors", "outcome"],
+                                "type": "object"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "ApiSuccess_ApiExecuteAsyncMergeQueryResults_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiExecuteAsyncMergeQueryResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "QueryExecutionContext": {
                 "enum": [
                     "dashboardView",
@@ -50836,6 +50919,108 @@
                     "dataAppSample"
                 ],
                 "type": "string"
+            },
+            "Pick_ExecuteAsyncMergeQueryRequestParams.Exclude_keyofExecuteAsyncMergeQueryRequestParams.pivotConfiguration-or-usePreAggregateCache__": {
+                "properties": {
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "invalidateCache": {
+                        "type": "boolean"
+                    },
+                    "context": {
+                        "$ref": "#/components/schemas/QueryExecutionContext"
+                    },
+                    "mergeQuery": {
+                        "$ref": "#/components/schemas/MergeQuery"
+                    }
+                },
+                "required": ["mergeQuery"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_ExecuteAsyncMergeQueryRequestParams.pivotConfiguration-or-usePreAggregateCache_": {
+                "$ref": "#/components/schemas/Pick_ExecuteAsyncMergeQueryRequestParams.Exclude_keyofExecuteAsyncMergeQueryRequestParams.pivotConfiguration-or-usePreAggregateCache__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "MergeQueryExecutionMode": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": ["interactive"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "limit": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["export"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["limit", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "MergeQueryChart": {
+                "properties": {
+                    "pivotConfig": {
+                        "properties": {
+                            "rows": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "description": "Ordered fields to render on the pivot row axis"
+                            },
+                            "columns": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "description": "Fields to use as pivot columns"
+                            }
+                        },
+                        "required": ["columns"],
+                        "type": "object"
+                    },
+                    "chartConfig": {
+                        "$ref": "#/components/schemas/ChartConfig"
+                    }
+                },
+                "required": ["chartConfig"],
+                "type": "object"
+            },
+            "ApiExecuteAsyncMergeQueryRequest": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_ExecuteAsyncMergeQueryRequestParams.pivotConfiguration-or-usePreAggregateCache_"
+                    },
+                    {
+                        "properties": {
+                            "chart": {
+                                "$ref": "#/components/schemas/MergeQueryChart"
+                            },
+                            "mode": {
+                                "$ref": "#/components/schemas/MergeQueryExecutionMode"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ],
+                "description": "One-call merge execution request. Derived pivot SQL remains server-owned."
             },
             "CommonExecuteQueryRequestParams": {
                 "properties": {
@@ -53427,7 +53612,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.169.0",
+        "version": "1.169.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -85566,6 +85751,57 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ExecuteAsyncCalculateTotalRequestParams"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/merge-query": {
+            "post": {
+                "operationId": "executeAsyncMergeQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_ApiExecuteAsyncMergeQueryResults_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Validates and executes a merge as one asynchronous query request.",
+                "summary": "Execute merge query",
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiExecuteAsyncMergeQueryRequest"
                             }
                         }
                     }
