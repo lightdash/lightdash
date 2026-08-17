@@ -178,8 +178,7 @@ export const useSchedulerFormModal = ({
                 },
             },
             dashboardFilters: (value, values) => {
-                if (!value) {
-                    // Dashboard filters are undefined/null for charts
+                if (!isDashboard) {
                     return null;
                 }
                 const { unmetRequirements, filtersWithUnmetRequirements } =
@@ -220,7 +219,7 @@ export const useSchedulerFormModal = ({
                     ? 'Instructions are required'
                     : null,
         }),
-        [dashboard?.filters, filterableTiles],
+        [isDashboard, dashboard?.filters, filterableTiles],
     );
 
     const form = useSchedulerForm({
