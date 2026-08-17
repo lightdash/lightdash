@@ -1,3 +1,10 @@
+## [1.167.2](https://github.com/lightdash/lightdash/compare/1.167.1...1.167.2) (2026-08-17)
+
+
+### Bug Fixes
+
+* render JSON-like strings literally ([#27482](https://github.com/lightdash/lightdash/issues/27482)) ([f8d8d0a](https://github.com/lightdash/lightdash/commit/f8d8d0a56ad3a1398c7e035923536a02ba2a1a68))
+
 ## [1.167.1](https://github.com/lightdash/lightdash/compare/1.167.0...1.167.1) (2026-08-17)
 
 
