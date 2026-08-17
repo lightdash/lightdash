@@ -1,3 +1,10 @@
+# [1.168.0](https://github.com/lightdash/lightdash/compare/1.167.4...1.168.0) (2026-08-17)
+
+
+### Features
+
+* **roles:** add custom-role join tables and multiple-roles flag ([#27500](https://github.com/lightdash/lightdash/issues/27500)) ([98b7f17](https://github.com/lightdash/lightdash/commit/98b7f17a60e157930342ed6b8336ba34fe886689))
+
 ## [1.167.4](https://github.com/lightdash/lightdash/compare/1.167.3...1.167.4) (2026-08-17)
 
 
