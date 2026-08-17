@@ -772,14 +772,7 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        if (
-            !(await this.aiOrganizationSettingsService.isAiAgentMemoryEnabled(
-                user,
-            ))
-        ) {
-            throw new ForbiddenError('AI agent memory is not enabled');
-        }
-
+        // No memory-enabled gate: stored memories stay reviewable when disabled
         const scope = await this.resolveReadScope(user, organizationUuid);
         const { filters: scopedFilters, empty } =
             AiAgentAdminService.restrictFiltersToScope(scope, filters);

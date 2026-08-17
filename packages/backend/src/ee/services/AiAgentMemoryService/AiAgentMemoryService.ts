@@ -547,8 +547,9 @@ export class AiAgentMemoryService extends BaseService {
         }
     }
 
-    /** Shared gate for every memory read: project access + both feature flags. */
-    private async getMemoryAccessContext(
+    /** Read gate: project access + copilot flag. Stored memories stay readable
+     * after the org disables memory generation. */
+    private async getMemoryReadContext(
         user: SessionUser,
         projectUuid: string,
         notFoundMessage: string,
@@ -564,17 +565,36 @@ export class AiAgentMemoryService extends BaseService {
             throw new ForbiddenError('Cannot view project');
         }
 
-        const [copilot, memoryEnabled] = await Promise.all([
-            this.featureFlagService.get({
-                user,
-                featureFlagId: CommercialFeatureFlags.AiCopilot,
-            }),
-            this.aiOrganizationSettingsService.isAiAgentMemoryEnabled(user),
-        ]);
-        if (!copilot.enabled || !memoryEnabled) {
+        const copilot = await this.featureFlagService.get({
+            user,
+            featureFlagId: CommercialFeatureFlags.AiCopilot,
+        });
+        if (!copilot.enabled) {
             throw new NotFoundError(notFoundMessage);
         }
 
+        return organizationUuid;
+    }
+
+    /** Gate for generation paths (promotion, distill): read gate + the
+     * memory setting. */
+    private async getMemoryGenerationContext(
+        user: SessionUser,
+        projectUuid: string,
+        notFoundMessage: string,
+    ): Promise<string> {
+        const organizationUuid = await this.getMemoryReadContext(
+            user,
+            projectUuid,
+            notFoundMessage,
+        );
+        if (
+            !(await this.aiOrganizationSettingsService.isAiAgentMemoryEnabled(
+                user,
+            ))
+        ) {
+            throw new NotFoundError(notFoundMessage);
+        }
         return organizationUuid;
     }
 
@@ -605,7 +625,7 @@ export class AiAgentMemoryService extends BaseService {
         projectUuid: string,
         slug: string,
     ): Promise<AiAgentMemory> {
-        const organizationUuid = await this.getMemoryAccessContext(
+        const organizationUuid = await this.getMemoryReadContext(
             user,
             projectUuid,
             `Memory not found: ${slug}`,
@@ -732,7 +752,7 @@ export class AiAgentMemoryService extends BaseService {
         reason?: string,
     ): Promise<MemoryReviewItemUpsert> {
         const nominationReason = reason?.trim() || null;
-        const organizationUuid = await this.getMemoryAccessContext(
+        const organizationUuid = await this.getMemoryGenerationContext(
             user,
             projectUuid,
             `Memory not found: ${memoryUuid}`,
@@ -902,7 +922,7 @@ export class AiAgentMemoryService extends BaseService {
         projectUuid: string,
         paginateArgs: KnexPaginateArgs,
     ): Promise<KnexPaginatedData<AiAgentUserMemoriesSummary>> {
-        const organizationUuid = await this.getMemoryAccessContext(
+        const organizationUuid = await this.getMemoryReadContext(
             user,
             projectUuid,
             `Memories not found for project: ${projectUuid}`,
@@ -922,7 +942,7 @@ export class AiAgentMemoryService extends BaseService {
         memoryUuid: string,
         status: AiAgentMemoryEditableStatus,
     ): Promise<void> {
-        const organizationUuid = await this.getMemoryAccessContext(
+        const organizationUuid = await this.getMemoryReadContext(
             user,
             projectUuid,
             `Memory not found: ${memoryUuid}`,
@@ -1011,7 +1031,7 @@ export class AiAgentMemoryService extends BaseService {
         threadUuid: UUID,
     ): Promise<{ jobId: string }> {
         const notFoundMessage = `Thread not found: ${threadUuid}`;
-        const organizationUuid = await this.getMemoryAccessContext(
+        const organizationUuid = await this.getMemoryGenerationContext(
             user,
             projectUuid,
             notFoundMessage,

@@ -14,7 +14,6 @@ import { IconArrowRight } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useParams } from 'react-router';
 import { useAiAgentMemory } from '../../hooks/useAiAgentMemory';
-import { useAiAgentMemoryEnabled } from '../../hooks/useAiOrganizationSettings';
 import { MemoryDetailsModal } from '../MemoryDetails/MemoryDetails';
 import styles from './MemoryCitation.module.css';
 
@@ -31,22 +30,14 @@ export const MemoryCitation = ({
     const [detailsOpened, { open: openDetails, close: closeDetails }] =
         useDisclosure(false);
     const { projectUuid, agentUuid } = useParams();
-    const memoryEnabled = useAiAgentMemoryEnabled();
     const slug = id?.replace(/^user-content-/, '');
+    // Citations in old threads keep resolving after memories are disabled
     const memoryQuery = useAiAgentMemory({
         projectUuid,
         agentUuid,
         slug,
-        enabled: memoryEnabled && hasOpened,
+        enabled: hasOpened,
     });
-
-    if (!memoryEnabled) {
-        return (
-            <span className={styles.marker} aria-hidden="true">
-                {memoryIndex ?? '·'}
-            </span>
-        );
-    }
 
     return (
         <>

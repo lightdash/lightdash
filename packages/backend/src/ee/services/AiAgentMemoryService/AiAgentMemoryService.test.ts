@@ -150,6 +150,7 @@ describe('AiAgentMemoryService', () => {
     const build = ({
         enabledOrganization = 'org-enabled',
         consolidationDryRun = false,
+        memorySettingEnabled = true,
     } = {}) => {
         const getFlag = vi.fn(async ({ user, featureFlagId }) => ({
             id: featureFlagId,
@@ -275,6 +276,7 @@ describe('AiAgentMemoryService', () => {
             featureFlagService: { get: getFlag } as AnyType,
             aiOrganizationSettingsService: {
                 isAiAgentMemoryEnabled: async (user) =>
+                    memorySettingEnabled &&
                     (
                         await getFlag({
                             user,
@@ -2348,7 +2350,7 @@ describe('AiAgentMemoryService', () => {
         ).toHaveBeenCalledOnce();
     });
 
-    it('returns not found without reading rows when the flag is off', async () => {
+    it('returns not found without reading rows when copilot is off', async () => {
         const { service, findByProjectAndSlug } = build({
             enabledOrganization: 'none',
         });
@@ -2358,6 +2360,78 @@ describe('AiAgentMemoryService', () => {
             service.getMemory(user, 'project-enabled', 'net-revenue'),
         ).rejects.toThrow('Memory not found: net-revenue');
         expect(findByProjectAndSlug).not.toHaveBeenCalled();
+    });
+
+    it('still returns a memory after the org disables the memory setting', async () => {
+        const { service, findByProjectAndSlug } = build({
+            memorySettingEnabled: false,
+        });
+        findByProjectAndSlug.mockResolvedValue({
+            memory: memoryRow({ user_uuid: 'current-user' }),
+            sources: [lineageSource()],
+            replacement: null,
+        });
+
+        await expect(
+            service.getMemory(
+                buildUser(true),
+                'project-enabled',
+                'net-revenue-ab12cd34',
+            ),
+        ).resolves.toMatchObject({ uuid: 'memory-1' });
+    });
+
+    it('still lets the owner retire a memory after the org disables the memory setting', async () => {
+        const { service, findByProjectAndUuid, updateStatus } = build({
+            memorySettingEnabled: false,
+        });
+        findByProjectAndUuid.mockResolvedValue(
+            memoryRow({ user_uuid: 'current-user' }),
+        );
+
+        await expect(
+            service.updateMemoryStatus(
+                buildUser(true),
+                'project-enabled',
+                'memory-1',
+                'retired',
+            ),
+        ).resolves.toBeUndefined();
+        expect(updateStatus).toHaveBeenCalledWith({
+            memoryUuid: 'memory-1',
+            status: 'retired',
+        });
+    });
+
+    it('refuses a promotion when the memory setting is off', async () => {
+        const { service, findByProjectAndUuid } = build({
+            memorySettingEnabled: false,
+        });
+
+        await expect(
+            service.promoteMemory(
+                buildUser(true),
+                'project-enabled',
+                'memory-1',
+            ),
+        ).rejects.toThrow('Memory not found: memory-1');
+        expect(findByProjectAndUuid).not.toHaveBeenCalled();
+    });
+
+    it('refuses a manual distill when the memory setting is off', async () => {
+        const { service, findThreadForDistill, aiAgentMemoryDistill } = build({
+            memorySettingEnabled: false,
+        });
+
+        await expect(
+            service.triggerThreadDistill(
+                buildUser(true, { canManageAgents: true }),
+                'project-enabled',
+                'thread-enabled',
+            ),
+        ).rejects.toThrow('Thread not found: thread-enabled');
+        expect(findThreadForDistill).not.toHaveBeenCalled();
+        expect(aiAgentMemoryDistill).not.toHaveBeenCalled();
     });
 
     it('rejects users who cannot view the project before checking flags', async () => {
@@ -2411,7 +2485,21 @@ describe('AiAgentMemoryService', () => {
         ]);
     });
 
-    it('returns not found for the memory list when the flag is off', async () => {
+    it('still lists memories after the org disables the memory setting', async () => {
+        const { service, findUserMemoriesPaginated } = build({
+            memorySettingEnabled: false,
+        });
+        const user = buildUser(true);
+
+        await service.listMyMemories(user, 'project-enabled', {
+            page: 1,
+            pageSize: 50,
+        });
+
+        expect(findUserMemoriesPaginated).toHaveBeenCalled();
+    });
+
+    it('returns not found for the memory list when copilot is off', async () => {
         const { service, findUserMemoriesPaginated } = build({
             enabledOrganization: 'none',
         });
