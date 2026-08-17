@@ -65,6 +65,7 @@ import { ProjectService } from './ProjectService/ProjectService';
 import { PromoteService } from './PromoteService/PromoteService';
 import { PromptService } from './PromptService/PromptService';
 import { PullRequestsService } from './PullRequestsService/PullRequestsService';
+import type { ReadinessService } from './ReadinessService/ReadinessService';
 import { RenameService } from './RenameService/RenameService';
 import { RolesService } from './RolesService/RolesService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
@@ -289,6 +290,11 @@ abstract class ServiceRepositoryBase {
 
     protected readonly prometheusMetrics?: PrometheusMetrics;
 
+    protected readonly readinessService?: Pick<
+        ReadinessService,
+        'getReadiness'
+    >;
+
     constructor({
         serviceProviders,
         context,
@@ -296,6 +302,7 @@ abstract class ServiceRepositoryBase {
         models,
         utils,
         prometheusMetrics,
+        readinessService,
     }: {
         serviceProviders?: ServiceProviderMap<ServiceManifest>;
         context: OperationContext;
@@ -303,6 +310,7 @@ abstract class ServiceRepositoryBase {
         models: ModelRepository;
         utils: UtilRepository;
         prometheusMetrics?: PrometheusMetrics;
+        readinessService?: Pick<ReadinessService, 'getReadiness'>;
     }) {
         this.providers = serviceProviders ?? {};
         this.context = context;
@@ -310,6 +318,7 @@ abstract class ServiceRepositoryBase {
         this.models = models;
         this.utils = utils;
         this.prometheusMetrics = prometheusMetrics;
+        this.readinessService = readinessService;
     }
 }
 
@@ -592,6 +601,7 @@ export class ServiceRepository
                     migrationModel: this.models.getMigrationModel(),
                     organizationSettingsModel:
                         this.models.getOrganizationSettingsModel(),
+                    readinessService: this.readinessService,
                 }),
         );
     }
