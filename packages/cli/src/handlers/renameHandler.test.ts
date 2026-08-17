@@ -1,4 +1,10 @@
-import { RenameType, SchedulerJobStatus } from '@lightdash/common';
+import {
+    RenameChange,
+    RenameType,
+    SchedulerJobStatus,
+} from '@lightdash/common';
+import fs from 'fs';
+import path from 'path';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig } from '../config';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
@@ -24,7 +30,14 @@ const baseOptions: RenameOptions = {
     validate: true,
 };
 
-const emptyResults = {
+type RenameResults = {
+    charts: RenameChange[];
+    dashboards: RenameChange[];
+    alerts: RenameChange[];
+    dashboardSchedulers: RenameChange[];
+};
+
+const emptyResults: RenameResults = {
     charts: [],
     dashboards: [],
     alerts: [],
@@ -37,7 +50,10 @@ const VALIDATION_JOB_ID = 'validation-job-id';
 describe('renameHandler follow-up validation', () => {
     let errorOutput: string[];
 
-    const mockApi = (failingJobId: string | null) => {
+    const mockApi = (
+        failingJobId: string | null,
+        results: RenameResults = emptyResults,
+    ) => {
         vi.mocked(lightdashApi).mockImplementation(async ({ method, url }) => {
             if (method === 'POST' && url.endsWith('/rename')) {
                 return { jobId: RENAME_JOB_ID };
@@ -54,7 +70,7 @@ describe('renameHandler follow-up validation', () => {
             if (url.includes('/schedulers/job/')) {
                 return {
                     status: SchedulerJobStatus.COMPLETED,
-                    details: { results: emptyResults },
+                    details: { results },
                 };
             }
             if (url.includes('/validate?jobId=')) {
@@ -163,6 +179,55 @@ describe('renameHandler follow-up validation', () => {
         const output = errorOutput.join('\n');
         expect(output).not.toContain('failed');
         expect(output).not.toContain('unexpected error');
+        expect(trackedEvents()).toEqual([
+            {
+                event: 'rename.completed',
+                properties: expect.objectContaining({
+                    validationStatus: 'skipped',
+                }),
+            },
+        ]);
+    });
+
+    test('saves rename changes in the current working directory', async () => {
+        const results = {
+            ...emptyResults,
+            charts: [{ uuid: 'chart-uuid', name: 'renamed chart' }],
+        };
+        mockApi(null, results);
+        const writeFileSync = vi
+            .spyOn(fs, 'writeFileSync')
+            .mockImplementation(() => undefined);
+
+        await renameHandler({ ...baseOptions, validate: false });
+
+        expect(writeFileSync).toHaveBeenCalledWith(
+            path.join(
+                process.cwd(),
+                `rename old_name to new_name ${
+                    new Date().toISOString().split('T')[0]
+                }.json`,
+            ),
+            JSON.stringify(results, null, 2),
+            'utf-8',
+        );
+    });
+
+    test('reports a changelog write failure without reporting the committed rename as failed', async () => {
+        mockApi(null, {
+            ...emptyResults,
+            charts: [{ uuid: 'chart-uuid', name: 'renamed chart' }],
+        });
+        vi.spyOn(fs, 'writeFileSync').mockImplementation(() => {
+            throw new Error('read-only bundle');
+        });
+
+        await renameHandler({ ...baseOptions, validate: false });
+
+        const output = errorOutput.join('\n');
+        expect(output).toContain('Rename completed');
+        expect(output).toContain('read-only bundle');
+        expect(output).not.toContain('Unable to rename');
         expect(trackedEvents()).toEqual([
             {
                 event: 'rename.completed',

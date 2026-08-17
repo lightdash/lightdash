@@ -210,17 +210,29 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
         } else if (hasResults) {
             const currentDate = new Date().toISOString().split('T')[0];
             const filePath = path.join(
-                __dirname,
+                process.cwd(),
                 `rename ${options.from} to ${options.to} ${currentDate}.json`,
             );
-            fs.writeFileSync(
-                filePath,
-                JSON.stringify(results, null, 2),
-                'utf-8',
-            );
-            console.info(
-                `Rename changes saved to: ${styles.success(` ${filePath}`)}`,
-            );
+            try {
+                fs.writeFileSync(
+                    filePath,
+                    JSON.stringify(results, null, 2),
+                    'utf-8',
+                );
+                console.info(
+                    `Rename changes saved to: ${styles.success(
+                        ` ${filePath}`,
+                    )}`,
+                );
+            } catch (e: unknown) {
+                console.error(
+                    styles.warning(
+                        `Rename completed, but the changes could not be saved to ${filePath}: ${getErrorMessage(
+                            e,
+                        )}`,
+                    ),
+                );
+            }
         }
 
         let validationStatus: 'skipped' | 'passed' | 'failed' = 'skipped';
