@@ -80,6 +80,7 @@ import {
 } from '../../database/entities/dashboards';
 import { GroupMembershipTableName } from '../../database/entities/groupMemberships';
 import { GroupTableName } from '../../database/entities/groups';
+import { OrganizationMembershipCustomRolesTableName } from '../../database/entities/organizationMembershipCustomRoles';
 import { OrganizationMembershipsTableName } from '../../database/entities/organizationMemberships';
 import {
     DbOrganization,
@@ -87,6 +88,8 @@ import {
 } from '../../database/entities/organizations';
 import { PinnedListTableName } from '../../database/entities/pinnedList';
 import { ProjectGroupAccessTableName } from '../../database/entities/projectGroupAccess';
+import { ProjectGroupAccessCustomRolesTableName } from '../../database/entities/projectGroupAccessCustomRoles';
+import { ProjectMembershipCustomRolesTableName } from '../../database/entities/projectMembershipCustomRoles';
 import {
     DbProjectMembership,
     ProjectMembershipsTableName,
@@ -140,6 +143,7 @@ import {
     acquireProjectSlugLock,
     generateUniqueSlugScopedToProject,
 } from '../../utils/SlugUtils';
+import { clearProjectExtraRoles } from '../roleSetUtils';
 import { omitProjectUuid, replaceProjectUuid } from './previewContent';
 import Transaction = Knex.Transaction;
 
@@ -2038,6 +2042,27 @@ export class ProjectModel {
                     )
                     .onConflict(['user_id', 'project_id'])
                     .merge(['role', 'role_uuid']);
+                // Extra custom roles follow their membership into the preview.
+                const eligibleUserIds = eligibleProjectAccesses.map(
+                    ({ user_id }) => user_id,
+                );
+                await trx(ProjectMembershipCustomRolesTableName)
+                    .where('project_id', previewProject.project_id)
+                    .whereIn('user_id', eligibleUserIds)
+                    .delete();
+                await trx.raw(
+                    `INSERT INTO ?? (project_id, user_id, role_uuid)
+                     SELECT ?, user_id, role_uuid FROM ??
+                     WHERE project_id = ? AND user_id = ANY(?)
+                     ON CONFLICT DO NOTHING`,
+                    [
+                        ProjectMembershipCustomRolesTableName,
+                        previewProject.project_id,
+                        ProjectMembershipCustomRolesTableName,
+                        upstreamProject.project_id,
+                        eligibleUserIds,
+                    ],
+                );
             }
             if (groupAccesses.length > 0) {
                 await trx(ProjectGroupAccessTableName)
@@ -2053,6 +2078,26 @@ export class ProjectModel {
                     )
                     .onConflict(['project_uuid', 'group_uuid'])
                     .merge(['role', 'role_uuid']);
+                const groupUuids = groupAccesses.map(
+                    ({ group_uuid }) => group_uuid,
+                );
+                await trx(ProjectGroupAccessCustomRolesTableName)
+                    .where('project_uuid', previewProjectUuid)
+                    .whereIn('group_uuid', groupUuids)
+                    .delete();
+                await trx.raw(
+                    `INSERT INTO ?? (project_uuid, group_uuid, role_uuid)
+                     SELECT ?, group_uuid, role_uuid FROM ??
+                     WHERE project_uuid = ? AND group_uuid = ANY(?)
+                     ON CONFLICT DO NOTHING`,
+                    [
+                        ProjectGroupAccessCustomRolesTableName,
+                        previewProjectUuid,
+                        ProjectGroupAccessCustomRolesTableName,
+                        upstreamProjectUuid,
+                        groupUuids,
+                    ],
+                );
             }
 
             return {
@@ -2122,18 +2167,28 @@ export class ProjectModel {
     ): Promise<void> {
         // Clear role_uuid when switching to a system role so that stale FK
         // references don't prevent custom role deletion later (see #20690).
-        await this.database.raw<(DbProjectMembership & DbProject & DbUser)[]>(
-            `
+        // A singular write replaces the whole role set, so extras go too.
+        await this.database.transaction(async (trx) => {
+            const { rows } = await trx.raw<{
+                rows: Pick<DbProjectMembership, 'project_id' | 'user_id'>[];
+            }>(
+                `
                 UPDATE project_memberships AS m
                 SET role = :role, role_uuid = NULL FROM projects AS p, users AS u
                 WHERE p.project_id = m.project_id
                   AND u.user_id = m.user_id
                   AND user_uuid = :userUuid
                   AND p.project_uuid = :projectUuid
-                    RETURNING *
+                    RETURNING m.project_id, m.user_id
             `,
-            { projectUuid, userUuid, role },
-        );
+                { projectUuid, userUuid, role },
+            );
+            await Promise.all(
+                rows.map((row) =>
+                    clearProjectExtraRoles(trx, row.project_id, row.user_id),
+                ),
+            );
+        });
     }
 
     async updateMetadata(
@@ -2557,6 +2612,10 @@ export class ProjectModel {
                         role: OrganizationMemberRole.MEMBER,
                         role_uuid: null,
                     });
+                // A singular write replaces the whole role set, so extras go too.
+                await trx(OrganizationMembershipCustomRolesTableName)
+                    .where('user_id', sa.user_id)
+                    .delete();
             }
         });
     }
