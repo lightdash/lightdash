@@ -84,11 +84,6 @@ const DbtSourceRow: FC<{
                 <Text fw={600} size="sm" truncate>
                     {source.name}
                 </Text>
-                {source.isPrimary && (
-                    <Badge variant="light" color="gray" size="xs">
-                        Primary
-                    </Badge>
-                )}
                 {source.hasCredentialError && (
                     <Tooltip
                         multiline
@@ -357,7 +352,7 @@ const RenamePrimaryDbtSourceModal: FC<{
         <MantineModal
             opened
             onClose={onClose}
-            title="Rename primary dbt source"
+            title="Rename dbt source"
             confirmLabel="Save changes"
             onConfirm={handleSubmit}
             confirmLoading={updateMutation.isLoading}
@@ -457,7 +452,7 @@ const DbtSourcesPanel: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                 {!isInitialLoading && !isError && primarySource && (
                     <Stack gap={4}>
                         <Text size="sm" fw={600}>
-                            Primary dbt source
+                            Source name
                         </Text>
                         <div className={classes.rows}>
                             <DbtSourceRow

@@ -301,12 +301,20 @@ describe('DbtSourcesPanel', () => {
         renderWithProviders(<DbtSourcesPanel projectUuid="project-uuid" />);
 
         expect(await screen.findByText('dbt_project')).toBeInTheDocument();
+        expect(screen.getByText('Source name')).toBeInTheDocument();
+        expect(screen.queryByText('Primary')).not.toBeInTheDocument();
+        expect(
+            screen.queryByText('Primary dbt source'),
+        ).not.toBeInTheDocument();
         await user.click(
             screen.getByRole('button', { name: 'Actions for dbt_project' }),
         );
         await user.click(await screen.findByRole('menuitem', { name: 'Edit' }));
 
         const dialog = await screen.findByRole('dialog');
+        expect(
+            within(dialog).getByText('Rename dbt source'),
+        ).toBeInTheDocument();
         expect(
             within(dialog).getByText(
                 'Renaming this source changes qualified explore names on the next deploy.',
