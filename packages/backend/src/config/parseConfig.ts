@@ -1266,7 +1266,7 @@ export const getAiConfig = () => ({
                   embeddingModelName:
                       process.env.OPENAI_EMBEDDING_MODEL ||
                       DEFAULT_OPENAI_EMBEDDING_MODEL,
-                  baseUrl: process.env.OPENAI_BASE_URL,
+                  baseUrl: process.env.OPENAI_BASE_URL?.trim() || undefined,
                   availableModels: getArrayFromCommaSeparatedList(
                       'OPENAI_AVAILABLE_MODELS',
                   ),
