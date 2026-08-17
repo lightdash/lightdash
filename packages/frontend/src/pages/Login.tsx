@@ -5,26 +5,30 @@ import AuthLayout from '../components/common/AuthLayout';
 import LightdashLogo from '../components/LightdashLogo/LightdashLogo';
 import LoginLanding from '../features/users/components/LoginLanding';
 
+const LOGIN_BACKGROUND_COLOR = 'pink.1';
+
 const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
     if (minimal) {
         return (
-            <Stack m="xl">
-                <Box mx="auto" my="lg">
-                    <LightdashLogo />
-                </Box>
-                <Card
-                    id={LOGIN_PAGE_ID}
-                    p="xl"
-                    radius="xs"
-                    withBorder
-                    shadow="xs"
-                >
-                    <Title order={3} ta="center" mb="md">
-                        Sign in
-                    </Title>
-                    <LoginLanding />
-                </Card>
-            </Stack>
+            <Box bg={LOGIN_BACKGROUND_COLOR} mih="100vh" p="xl">
+                <Stack>
+                    <Box mx="auto" my="lg">
+                        <LightdashLogo />
+                    </Box>
+                    <Card
+                        id={LOGIN_PAGE_ID}
+                        p="xl"
+                        radius="xs"
+                        withBorder
+                        shadow="xs"
+                    >
+                        <Title order={3} ta="center" mb="md">
+                            Sign in
+                        </Title>
+                        <LoginLanding />
+                    </Card>
+                </Stack>
+            </Box>
         );
     }
 
@@ -35,6 +39,7 @@ const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
             subtitle="Welcome back — pick up where you left off."
             legacyTitle="Sign in"
             cardId={LOGIN_PAGE_ID}
+            backgroundColor={LOGIN_BACKGROUND_COLOR}
         >
             <LoginLanding />
         </AuthLayout>
