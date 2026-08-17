@@ -2803,7 +2803,7 @@ describe('ProjectService', () => {
             await expect(
                 service.getExplore(account, projectUuid, 'orders'),
             ).rejects.toMatchObject({
-                name: 'ExploreSplitError',
+                name: 'NotFoundError',
                 data: {
                     exploreName: 'orders',
                     candidateExploreNames: [

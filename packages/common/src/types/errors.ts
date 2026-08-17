@@ -325,7 +325,6 @@ export class ExploreSplitError extends NotFoundError {
             `Explore "${exploreName}" was split into ${candidateList}. Pick one.`,
             { exploreName, candidateExploreNames },
         );
-        this.name = 'ExploreSplitError';
     }
 }
 

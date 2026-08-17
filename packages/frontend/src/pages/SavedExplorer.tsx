@@ -21,6 +21,7 @@ import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import useApp from '../providers/App/useApp';
 import { ExplorerSection } from '../providers/Explorer/types';
+import { getCandidateExploreNames } from '../utils/exploreSplitError';
 
 const LazyExplorePanel = lazy(
     () => import('../components/Explorer/ExplorePanel'),
@@ -114,16 +115,11 @@ const SavedExplorer = () => {
     // Check for error first
     if (error) {
         const exploreName = error.error.data?.exploreName;
-        const candidateExploreNames = Array.isArray(
-            error.error.data?.candidateExploreNames,
-        )
-            ? error.error.data.candidateExploreNames.filter(
-                  (candidate): candidate is string =>
-                      typeof candidate === 'string',
-              )
-            : [];
+        const candidateExploreNames = getCandidateExploreNames(
+            error.error.data,
+        );
         const isSplitExploreError =
-            error.error.name === 'ExploreSplitError' &&
+            error.error.statusCode === 404 &&
             typeof exploreName === 'string' &&
             candidateExploreNames.length >= 2;
 

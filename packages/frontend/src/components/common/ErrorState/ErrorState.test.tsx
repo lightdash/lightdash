@@ -8,7 +8,7 @@ describe('ErrorState', () => {
             <MantineProvider>
                 <ErrorState
                     error={{
-                        name: 'ExploreSplitError',
+                        name: 'NotFoundError',
                         statusCode: 404,
                         message:
                             'Explore "orders" was split. Pick a replacement.',
