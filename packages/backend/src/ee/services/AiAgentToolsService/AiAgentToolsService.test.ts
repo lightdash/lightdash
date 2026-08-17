@@ -613,6 +613,79 @@ describe('AiAgentToolsService', () => {
         expect(searchFieldUniqueValues).not.toHaveBeenCalled();
     });
 
+    it('returns a note with the empty result when there is nothing to autocomplete', async () => {
+        const searchFieldUniqueValues = vi.fn();
+        const service = makeService({
+            explores: {
+                payments: makeExplore({
+                    name: 'payments',
+                    dimensions: {
+                        payment_method: {
+                            fieldType: FieldType.DIMENSION,
+                            type: DimensionType.STRING,
+                            name: 'payment_method',
+                            table: 'payments',
+                            filterAutocomplete: {
+                                fetchFromWarehouse: false,
+                            },
+                        },
+                    },
+                }),
+            },
+            searchFieldUniqueValues,
+        });
+        const runtime = service.createRuntime(makeRuntimeContext());
+
+        await expect(
+            runtime.searchFieldValues({
+                table: 'payments',
+                fieldId: 'payments_payment_method',
+                query: 'credit',
+            }),
+        ).resolves.toEqual({
+            results: [],
+            note: expect.stringContaining('Value suggestions are disabled'),
+        });
+        expect(searchFieldUniqueValues).not.toHaveBeenCalled();
+    });
+
+    it('returns curated values without a note when values are configured', async () => {
+        const searchFieldUniqueValues = vi.fn();
+        const service = makeService({
+            explores: {
+                orders: makeExplore({
+                    name: 'orders',
+                    dimensions: {
+                        status: {
+                            fieldType: FieldType.DIMENSION,
+                            type: DimensionType.STRING,
+                            name: 'status',
+                            table: 'orders',
+                            filterAutocomplete: {
+                                fetchFromWarehouse: false,
+                                values: [
+                                    { value: 'shipped' },
+                                    { value: 'placed' },
+                                ],
+                            },
+                        },
+                    },
+                }),
+            },
+            searchFieldUniqueValues,
+        });
+        const runtime = service.createRuntime(makeRuntimeContext());
+
+        await expect(
+            runtime.searchFieldValues({
+                table: 'orders',
+                fieldId: 'orders_status',
+                query: 'ship',
+            }),
+        ).resolves.toEqual(['shipped']);
+        expect(searchFieldUniqueValues).not.toHaveBeenCalled();
+    });
+
     it('returns the boolean domain without applying warehouse filters', async () => {
         const searchFieldUniqueValues = vi.fn();
         const service = makeService({
