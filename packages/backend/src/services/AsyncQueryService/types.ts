@@ -175,6 +175,8 @@ export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
 export type ExecuteAsyncPreAggregateSqlQueryArgs = CommonAsyncQueryArgs & {
     sql: string;
     limit?: number;
+    /** Table name -> queryUuid of a previous async query to expose as that table. */
+    references?: Record<string, string>;
 };
 
 export type ExecuteAsyncMergeQueryArgs = CommonAsyncQueryArgs & {

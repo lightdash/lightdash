@@ -163,7 +163,10 @@ import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { traceSpan } from '../../tracing/tracing';
 import { wrapSentryTransaction } from '../../utils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
-import { getJsonlSqlTable } from '../../utils/duckdb/duckdbSqlTables';
+import {
+    getJsonlSqlTable,
+    quoteDuckdbIdentifier,
+} from '../../utils/duckdb/duckdbSqlTables';
 import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
 import {
     processFieldsForExport,
@@ -6221,103 +6224,94 @@ export class AsyncQueryService extends ProjectService {
     }
 
     /**
-     * Replaces lightdash_query('<queryUuid>') references in DuckDB SQL with
-     * reads of the referenced query's results file. Each reference is
-     * authorized with the exact checks used when fetching that query's
-     * results by uuid: the creator-scoped QueryHistoryModel.get lookup plus
+     * Builds one CTE per referenced query so the user SQL can select from
+     * semantically-named tables: {"orders": "<queryUuid>"} exposes that
+     * query's results as `orders`. Each reference is authorized with the
+     * exact checks used when fetching that query's results by uuid: the
+     * creator-scoped QueryHistoryModel.get lookup plus
      * throwIfCannotReadQueryHistory.
      */
-    private async resolveQueryReferencesForDuckdbSql({
+    private async buildQueryReferenceCtes({
         account,
         projectUuid,
         organizationUuid,
-        sql,
+        references,
     }: {
         account: Account;
         projectUuid: string;
         organizationUuid: string;
-        sql: string;
-    }): Promise<{ sql: string; referencedQueryUuids: string[] }> {
-        const referencePattern =
-            /lightdash_query\(\s*'([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})'\s*\)/g;
+        references: Record<string, string>;
+    }): Promise<string[]> {
+        const validTableName = /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/;
+        const validUuid =
+            /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
-        const referencedQueryUuids = [
-            ...new Set(
-                Array.from(sql.matchAll(referencePattern), (match) =>
-                    match[1].toLowerCase(),
-                ),
-            ),
-        ];
-
-        if (referencedQueryUuids.length === 0) {
-            return { sql, referencedQueryUuids };
-        }
-
-        const tablesByQueryUuid = new Map<string, string>(
-            await Promise.all(
-                referencedQueryUuids.map(async (queryUuid) => {
-                    const queryHistory = await this.queryHistoryModel.get(
-                        queryUuid,
-                        projectUuid,
-                        account,
+        return Promise.all(
+            Object.entries(references).map(async ([tableName, queryUuid]) => {
+                if (!validTableName.test(tableName)) {
+                    throw new ParameterError(
+                        `Invalid reference table name "${tableName}": use letters, digits and underscores, starting with a letter or underscore`,
                     );
-
-                    this.throwIfCannotReadQueryHistory(
-                        account,
-                        projectUuid,
-                        organizationUuid,
-                        queryHistory,
+                }
+                if (!validUuid.test(queryUuid)) {
+                    throw new ParameterError(
+                        `Invalid query uuid "${queryUuid}" for reference "${tableName}"`,
                     );
+                }
 
-                    if (queryHistory.status !== QueryHistoryStatus.READY) {
-                        throw new ParameterError(
-                            `Results for query ${queryUuid} are not ready (status: ${queryHistory.status})`,
-                        );
-                    }
+                const queryHistory = await this.queryHistoryModel.get(
+                    queryUuid,
+                    projectUuid,
+                    account,
+                );
 
-                    if (
-                        queryHistory.resultsExpiresAt &&
-                        queryHistory.resultsExpiresAt < new Date()
-                    ) {
-                        throw new ResultsExpiredError();
-                    }
+                this.throwIfCannotReadQueryHistory(
+                    account,
+                    projectUuid,
+                    organizationUuid,
+                    queryHistory,
+                );
 
-                    if (!queryHistory.resultsFileName) {
-                        throw new NotFoundError(
-                            `Result file not found for query ${queryUuid}`,
-                        );
-                    }
-
-                    const storageClient =
-                        this.getResultsStorageClientForContext(
-                            queryHistory.context,
-                        );
-                    const bucket = storageClient.configuration?.bucket;
-                    if (!storageClient.isEnabled || !bucket) {
-                        throw new S3Error('S3 is not enabled');
-                    }
-
-                    const key = S3ResultsFileStorageClient.sanitizeFileExtension(
-                        queryHistory.resultsFileName,
+                if (queryHistory.status !== QueryHistoryStatus.READY) {
+                    throw new ParameterError(
+                        `Results for query ${queryUuid} are not ready (status: ${queryHistory.status})`,
                     );
-                    const table = getJsonlSqlTable(
-                        `s3://${bucket}/${key}`,
-                        queryHistory.columns,
-                    );
+                }
 
-                    return [queryUuid, table] as const;
-                }),
-            ),
+                if (
+                    queryHistory.resultsExpiresAt &&
+                    queryHistory.resultsExpiresAt < new Date()
+                ) {
+                    throw new ResultsExpiredError();
+                }
+
+                if (!queryHistory.resultsFileName) {
+                    throw new NotFoundError(
+                        `Result file not found for query ${queryUuid}`,
+                    );
+                }
+
+                const storageClient = this.getResultsStorageClientForContext(
+                    queryHistory.context,
+                );
+                const bucket = storageClient.configuration?.bucket;
+                if (!storageClient.isEnabled || !bucket) {
+                    throw new S3Error('S3 is not enabled');
+                }
+
+                const key = S3ResultsFileStorageClient.sanitizeFileExtension(
+                    queryHistory.resultsFileName,
+                );
+                const table = getJsonlSqlTable(
+                    `s3://${bucket}/${key}`,
+                    queryHistory.columns,
+                );
+
+                return `${quoteDuckdbIdentifier(
+                    tableName,
+                )} AS (SELECT * FROM ${table})`;
+            }),
         );
-
-        return {
-            sql: sql.replace(
-                referencePattern,
-                (_match, queryUuid: string) =>
-                    tablesByQueryUuid.get(queryUuid.toLowerCase())!,
-            ),
-            referencedQueryUuids,
-        };
     }
 
     /**
@@ -6326,12 +6320,12 @@ export class AsyncQueryService extends ProjectService {
      * the standard async query pipeline, so results are polled with
      * getAsyncQueryResults like any other async query.
      *
-     * lightdash_query('<queryUuid>') references read the referenced query's
-     * results file, gated by the exact access checks of the results-by-uuid
-     * endpoint. Direct file access (read_parquet, read_json, ...) in the
-     * user SQL is rejected, so referenced results are the only data this
-     * endpoint can reach — which is why run-queries access (interactive
-     * viewer and up) suffices.
+     * The references map ({"orders": "<queryUuid>"}) exposes previous
+     * queries' results files as named tables, gated by the exact access
+     * checks of the results-by-uuid endpoint. Direct file access
+     * (read_parquet, read_json, ...) in the user SQL is rejected, so
+     * referenced results are the only data this endpoint can reach — which
+     * is why run-queries access (interactive viewer and up) suffices.
      */
     async executeAsyncPreAggregateSqlQuery({
         account,
@@ -6339,6 +6333,7 @@ export class AsyncQueryService extends ProjectService {
         sql,
         context,
         limit,
+        references,
     }: ExecuteAsyncPreAggregateSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
         assertIsAccountWithOrg(account);
 
@@ -6374,21 +6369,32 @@ export class AsyncQueryService extends ProjectService {
         }
 
         // Blocks read_parquet/read_json/... and file table paths in the raw
-        // user SQL; the only file reads in the executed SQL are the ones
-        // resolveQueryReferencesForDuckdbSql injects after authorizing them.
+        // user SQL; the only file reads in the executed SQL are the reference
+        // CTEs injected below after authorizing them.
         try {
             DuckdbWarehouseClient.validateUserSqlFileAccess(sql);
         } catch (e) {
             throw new ParameterError(getErrorMessage(e));
         }
 
-        const { sql: resolvedSql } =
-            await this.resolveQueryReferencesForDuckdbSql({
-                account,
-                projectUuid,
-                organizationUuid,
-                sql,
-            });
+        const referenceCtes =
+            references && Object.keys(references).length > 0
+                ? await this.buildQueryReferenceCtes({
+                      account,
+                      projectUuid,
+                      organizationUuid,
+                      references,
+                  })
+                : [];
+
+        // The wrap keeps the reference CTEs valid for user SQL that starts
+        // with its own WITH chain.
+        const resolvedSql =
+            referenceCtes.length > 0
+                ? `WITH ${referenceCtes.join(
+                      ',\n',
+                  )}\nSELECT * FROM (\n${sql}\n) AS lightdash_user_query`
+                : sql;
 
         // Throws NotImplementedError when pre-aggregate execution is unavailable
         const warehouseClient =
@@ -6468,6 +6474,7 @@ export class AsyncQueryService extends ProjectService {
                 sql,
                 limit,
                 context,
+                references,
             };
 
         const queryCreatedAt = new Date();

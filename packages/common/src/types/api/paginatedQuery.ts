@@ -75,6 +75,13 @@ export type ExecuteAsyncPreAggregateSqlQueryRequestParams =
     CommonExecuteQueryRequestParams & {
         sql: string;
         limit?: number;
+        /**
+         * Results of previous async queries exposed to the SQL as tables,
+         * keyed by table name: {"orders": "<queryUuid>"} lets the SQL run
+         * SELECT * FROM orders. Each referenced query is authorized with the
+         * same access checks as fetching its results by uuid.
+         */
+        references?: Record<string, string>;
     };
 
 export type ExecuteAsyncUnderlyingDataRequestParams =
