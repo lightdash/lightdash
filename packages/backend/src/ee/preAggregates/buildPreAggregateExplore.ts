@@ -2,9 +2,11 @@ import {
     assertUnreachable,
     ExploreType,
     getItemId,
+    getParsedReference,
     getPreAggregateExploreName,
     getPreAggregateMetricColumnName,
     getPreAggregateMetricComponentColumnName,
+    getReferencedDimension,
     lightdashVariablePattern,
     MetricType,
     PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER,
@@ -364,6 +366,54 @@ const getIncludedDimensions = (
     });
 };
 
+// Recompile sql_filter onto materialized columns (${lightdash.*} kept for
+// query-time substitution); unresolved refs keep a missing column: fail closed.
+const rewriteSqlWhereForPreAggregate = ({
+    sourceExplore,
+    preAggregateDef,
+    servingAdapter,
+}: {
+    sourceExplore: Explore;
+    preAggregateDef: PreAggregateDef;
+    servingAdapter: SupportedDbtAdapter;
+}): string | undefined => {
+    const uncompiledSqlWhere =
+        sourceExplore.tables[sourceExplore.baseTable]?.uncompiledSqlWhere;
+    if (!uncompiledSqlWhere) {
+        return undefined;
+    }
+
+    const quoteChar =
+        warehouseSqlBuilderFromType(servingAdapter).getFieldQuoteChar();
+
+    return uncompiledSqlWhere.replace(
+        lightdashVariablePattern,
+        (_, ref: string) => {
+            if (ref === 'TABLE') {
+                return `${quoteChar}${sourceExplore.baseTable}${quoteChar}`;
+            }
+
+            const { refTable, refName } = getParsedReference(
+                ref,
+                sourceExplore.baseTable,
+            );
+            const dimension = getReferencedDimension<
+                CompiledTable,
+                CompiledDimension
+            >(refTable, refName, sourceExplore.tables);
+            const materializedColumnName = dimension
+                ? getMaterializedDimensionColumnName({
+                      sourceExplore,
+                      dimension,
+                      preAggregateDef,
+                  })
+                : getItemId({ table: refTable, name: refName });
+
+            return `${sourceExplore.baseTable}.${materializedColumnName}`;
+        },
+    );
+};
+
 const getEmptyTable = (
     sourceTable: CompiledTable,
     sqlTable: string,
@@ -416,6 +466,19 @@ export const buildPreAggregateExplore = (
         acc[tableName] = getEmptyTable(sourceTable, sqlTable);
         return acc;
     }, {});
+
+    const rewrittenSqlWhere = rewriteSqlWhereForPreAggregate({
+        sourceExplore,
+        preAggregateDef,
+        servingAdapter,
+    });
+    if (rewrittenSqlWhere !== undefined) {
+        tables[sourceExplore.baseTable] = {
+            ...tables[sourceExplore.baseTable],
+            sqlWhere: rewrittenSqlWhere,
+            uncompiledSqlWhere: rewrittenSqlWhere,
+        };
+    }
 
     includedDimensions.forEach((dimension) => {
         const compiledSql = buildDimensionSql({
