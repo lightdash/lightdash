@@ -30,6 +30,10 @@ import MantineModal from '../../../../../components/common/MantineModal';
 import { SaveToSpaceOrDashboard } from '../../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
 import { useVisualizationContext } from '../../../../../components/LightdashVisualization/useVisualizationContext';
 import useEmbed from '../../../../../ee/providers/Embed/useEmbed';
+import {
+    MERGE_URL_PARAM,
+    serializeMergeState,
+} from '../../../../../features/mergeQuery/context/mergeUrlState';
 import { toSavedMerge } from '../../../../../features/mergeQuery/hooks/useSavedMerge';
 import useToaster from '../../../../../hooks/toaster/useToaster';
 import useCreateInAnySpaceAccess from '../../../../../hooks/user/useCreateInAnySpaceAccess';
@@ -51,6 +55,10 @@ import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
+import {
+    canonicalizeAiMerge,
+    remapFieldIdsDeep,
+} from '../../utils/canonicalizeAiMerge';
 import { AiScheduleDeliveryModal } from './AiScheduleDeliveryModal';
 
 type Props = {
@@ -158,22 +166,43 @@ export const AiChartQuickOptions = ({
 
     const isDisabled = !metricQuery || !type || !visualizationConfig;
 
+    // Renamed to the merge editor's conventions so the saved chart and the
+    // explore link are indistinguishable from a merge built by hand.
+    const canonicalMerge = useMemo(
+        () =>
+            mergeArtifact && mergeQuery
+                ? canonicalizeAiMerge(mergeQuery)
+                : null,
+        [mergeArtifact, mergeQuery],
+    );
+
     const savedData = useMemo(() => {
         if (!metricQuery) return undefined;
         // A merged result's own metricQuery is synthetic; the chart persists
         // the primary source's query (always first) plus the stored merge.
         if (mergeArtifact) {
-            if (!mergeQuery) return undefined;
-            const [primary] = mergeQuery.sources;
+            if (!canonicalMerge) return undefined;
+            const { fieldIdByAiFieldId } = canonicalMerge;
+            const [primary] = canonicalMerge.mergeQuery.sources;
             return {
                 metricQuery: primary.metricQuery,
                 tableName: primary.metricQuery.exploreName,
-                chartConfig,
-                tableConfig: { columnOrder },
+                chartConfig: remapFieldIdsDeep(chartConfig, fieldIdByAiFieldId),
+                tableConfig: {
+                    columnOrder: remapFieldIdsDeep(
+                        columnOrder,
+                        fieldIdByAiFieldId,
+                    ),
+                },
                 pivotConfig: pivotDimensions?.length
-                    ? { columns: pivotDimensions }
+                    ? {
+                          columns: remapFieldIdsDeep(
+                              pivotDimensions,
+                              fieldIdByAiFieldId,
+                          ),
+                      }
                     : undefined,
-                merge: toSavedMerge(mergeQuery, primary.id),
+                merge: toSavedMerge(canonicalMerge.mergeQuery),
                 parameters: mergeParameters,
             };
         }
@@ -192,7 +221,7 @@ export const AiChartQuickOptions = ({
         columnOrder,
         pivotDimensions,
         mergeArtifact,
-        mergeQuery,
+        canonicalMerge,
         mergeParameters,
     ]);
 
@@ -289,6 +318,49 @@ export const AiChartQuickOptions = ({
 
     const openInExploreUrl = useMemo(() => {
         if (isDisabled) return undefined;
+        // A merge opens on its primary source with the whole merge carried in
+        // the merge search param, landing in the merge editor fully set up.
+        if (mergeArtifact) {
+            if (!canonicalMerge || !projectUuid) return undefined;
+            const { fieldIdByAiFieldId } = canonicalMerge;
+            const [primary, additional] = canonicalMerge.mergeQuery.sources;
+            const url = getOpenInExploreUrl({
+                metricQuery: primary.metricQuery,
+                projectUuid,
+                columnOrder: remapFieldIdsDeep(columnOrder, fieldIdByAiFieldId),
+                chartConfig: remapFieldIdsDeep(chartConfig, fieldIdByAiFieldId),
+                pivotColumns: pivotDimensions?.length
+                    ? remapFieldIdsDeep(pivotDimensions, fieldIdByAiFieldId)
+                    : undefined,
+            });
+            const search = new URLSearchParams(url.search);
+            search.set(
+                MERGE_URL_PARAM,
+                serializeMergeState({
+                    focus: { kind: 'source', sourceId: primary.id },
+                    additionalSources: [
+                        {
+                            id: additional.id,
+                            exploreName: additional.metricQuery.exploreName,
+                            dimensions: additional.metricQuery.dimensions,
+                            metrics: additional.metricQuery.metrics,
+                            filters: additional.metricQuery.filters,
+                            additionalMetrics:
+                                additional.metricQuery.additionalMetrics,
+                            customDimensions:
+                                additional.metricQuery.customDimensions,
+                        },
+                    ],
+                    joinParts: canonicalMerge.mergeQuery.joinKey.map(
+                        (part) => ({
+                            fieldIdBySourceId: part.fieldIdBySourceId,
+                        }),
+                    ),
+                    joinType: canonicalMerge.mergeQuery.joinType,
+                }),
+            );
+            return { pathname: url.pathname, search: search.toString() };
+        }
         return getOpenInExploreUrl({
             metricQuery,
             projectUuid,
@@ -298,6 +370,8 @@ export const AiChartQuickOptions = ({
         });
     }, [
         isDisabled,
+        mergeArtifact,
+        canonicalMerge,
         metricQuery,
         projectUuid,
         columnOrder,
@@ -398,11 +472,14 @@ export const AiChartQuickOptions = ({
     const canVerify = !!artifactData && canManageAgent;
     const hasSavedChartAction = !!message.savedQueryUuid && !isEmbed;
     const hasSaveActions =
-        !message.savedQueryUuid && (!mergeArtifact || !!mergeQuery);
+        !message.savedQueryUuid && (!mergeArtifact || !!canonicalMerge);
     const canExploreFromEmbed =
         content?.type === 'aiAgent' && content.canExplore === true;
-    const hasExploreAction =
-        (!isEmbed || canExploreFromEmbed) && !mergeArtifact;
+    // The embedded explorer has not been exercised with merge state, so merge
+    // artifacts only offer the explore action in the full app.
+    const hasExploreAction = mergeArtifact
+        ? !isEmbed && !!canonicalMerge
+        : !isEmbed || canExploreFromEmbed;
     const hasSqlActions = !!compiledSql;
     const hasQuickActions =
         hasSavedChartAction ||
