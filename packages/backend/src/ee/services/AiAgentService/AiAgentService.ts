@@ -75,6 +75,7 @@ import {
     GITHUB_MCP_SERVER_URL,
     hasAiAgentAccessToSpace,
     InsufficientGitPermissionsError,
+    isAgentToolName,
     isAiDeepResearchRunTerminal,
     isAiSqlChartArtifactConfig,
     isAiWritebackRunInProgress,
@@ -112,6 +113,7 @@ import {
     UserAttributeValueMap,
     validateAgentSuggestion,
     type AgentSuggestionTool,
+    type AgentToolName,
     type AiAgentEditDbtProjectPipelineJobPayload,
     type AiAgentModelConfig,
     type AiClonedThreadCreatedFrom,
@@ -9397,7 +9399,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getAiAgentMemoryContextEntries,
             incrementAiAgentMemoryPulls,
             resolveThreadMemoryOwnerUuid,
-            getExplore: toolsRuntime.getExplore,
             listContent: toolsRuntime.listContent,
             findContent: toolsRuntime.findContent,
             readContent: toolsRuntime.readContent,
@@ -9408,7 +9409,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updateUserName: toolsRuntime.updateUserName,
             validateContent: toolsRuntime.validateContent,
             getDashboardCharts: toolsRuntime.getDashboardCharts,
-            findFields: toolsRuntime.findFields,
             findExplores: toolsRuntime.findExplores,
             getVerifiedFieldUsage: toolsRuntime.getVerifiedFieldUsage,
             searchSemanticLayer: toolsRuntime.searchSemanticLayer,
@@ -9600,7 +9600,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getAiAgentMemoryContextEntries,
             incrementAiAgentMemoryPulls,
             resolveThreadMemoryOwnerUuid,
-            getExplore,
             listContent,
             findContent,
             readContent,
@@ -9611,7 +9610,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updateUserName,
             validateContent,
             getDashboardCharts,
-            findFields,
             findExplores,
             getVerifiedFieldUsage,
             searchSemanticLayer,
@@ -9806,11 +9804,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     : undefined,
             ),
         });
-        const { enabled: grepFieldsEnabled } =
-            await this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.AiGrepFields,
-            });
         let aiWritebackEnabled = hasTrustedPromptUserIdentity;
         if (!aiWritebackEnabled) {
             this.logger.info(
@@ -10072,7 +10065,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableCodingAgent: codingAgentEnabled,
             enablePreviewDeploySetup: aiPreviewDeploySetupEnabled,
             enableRepoDiscovery: repoDiscoveryEnabled,
-            enableGrepFields: grepFieldsEnabled,
             repoFsRoot,
             repoFsSupportsCodeSearch,
             canRunSql,
@@ -10091,8 +10083,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             availableSkills,
             modelReasoningEnabled: prompt.modelConfig?.reasoning ?? null,
 
-            findExploresFieldSearchSize: 200,
-            findFieldsPageSize: 30,
             toolDescriptionMaxChars:
                 this.lightdashConfig.ai.copilot.toolDescriptionMaxChars,
             getDashboardChartsPageSize: 20,
@@ -10156,7 +10146,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getProjectContextDocument,
             getAiAgentMemoryContextEntries,
             incrementAiAgentMemoryPulls,
-            getExplore,
             listContent,
             findContent,
             readContent,
@@ -10167,7 +10156,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updateUserName,
             validateContent,
             getDashboardCharts,
-            findFields,
             findExplores,
             getVerifiedFieldUsage,
             searchSemanticLayer,
@@ -11552,38 +11540,85 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 });
         };
 
-        const getSlackReasoningDetails = (toolName?: string): string => {
+        const getBuiltInSlackReasoningDetails = (
+            toolName: AgentToolName,
+        ): string => {
             switch (toolName) {
+                case 'grepFields':
                 case 'discoverFields':
                 case 'findFields':
                 case 'findExplores':
+                case 'getMetadata':
+                case 'analyzeFieldImpact':
+                case 'searchFieldValues':
                     return 'Analyzing the available fields...';
                 case 'searchSemanticLayer':
+                case 'listWarehouseTables':
+                case 'describeWarehouseTable':
                     return 'Reviewing the semantic layer...';
                 case 'generateVisualization':
                 case 'generateDashboard':
+                case 'generateBarVizConfig':
+                case 'generateTableVizConfig':
+                case 'generateTimeSeriesVizConfig':
                     return 'Preparing the answer...';
                 case 'runSql':
                 case 'runContentQuery':
                 case 'runSavedChart':
+                case 'runQuery':
                     return 'Reviewing the results...';
                 case 'editDbtProject':
+                case 'editProjectContext':
+                case 'syncDbtProject':
                     return 'Preparing the semantic-layer changes...';
                 case 'setupPreviewDeploy':
                     return 'Setting up the preview...';
-                case 'repoShell':
+                case 'exploreRepo':
+                case 'discoverRepos':
+                case 'getPullRequestDiff':
+                case 'listWorkstreams':
                     return 'Inspecting the project files...';
+                case 'editRepo':
+                case 'closePullRequest':
                 case 'editContent':
                 case 'createContent':
+                case 'createScheduledDelivery':
                     return 'Saving the changes...';
                 case 'loadProjectContext':
                     return 'Reviewing the project context...';
-                case 'validateContent':
-                    return 'Validating the changes...';
-                default:
+                case 'findContent':
+                case 'findCharts':
+                case 'findDashboards':
+                case 'generateHashes':
+                case 'generateUuids':
+                case 'getDashboardCharts':
+                case 'getKnowledgeDocumentContent':
+                case 'getProjectInfo':
+                case 'listContent':
+                case 'listKnowledgeDocuments':
+                case 'listProjects':
+                case 'loadMcpTools':
+                case 'loadSkill':
+                case 'readContent':
+                case 'readPinnedThread':
+                case 'resolveUrl':
+                case 'submitResearchReport':
+                case 'delegateResearchTask':
+                case 'submitWorkerFindings':
+                case 'updateUserName':
                     return 'Answering your question';
+                default:
+                    return assertUnreachable(
+                        toolName,
+                        `Unhandled agent tool: ${toolName}`,
+                    );
             }
         };
+
+        const getSlackReasoningDetails = (toolName?: string): string =>
+            toolName && isAgentToolName(toolName)
+                ? getBuiltInSlackReasoningDetails(toolName)
+                : 'Answering your question';
 
         const appendTaskUpdate = (
             progress: string,

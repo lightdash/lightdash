@@ -164,8 +164,8 @@ describe('MCP tool contracts', () => {
         expect(sharedMcpToolDefinitionNames).toMatchSnapshot();
     });
 
-    it('uses the grep-fields MCP analyst prompt when ai-grep-fields is enabled', () => {
-        const prompt = getMcpAnalystPrompt({ enableGrepFields: true });
+    it('uses the grep-fields MCP analyst prompt', () => {
+        const prompt = getMcpAnalystPrompt();
 
         expect(prompt).toContain('grep_fields');
         expect(prompt).toContain('get_metadata');
@@ -220,12 +220,6 @@ describe('MCP tool contracts', () => {
 
         await mcpService.createServer({
             aiWritebackEnabled: true,
-            grepFieldsEnabled: false,
-            runSqlEnabled: true,
-        });
-        await mcpService.createServer({
-            aiWritebackEnabled: true,
-            grepFieldsEnabled: true,
             runSqlEnabled: true,
         });
 

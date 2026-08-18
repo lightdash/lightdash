@@ -8,72 +8,7 @@ const RUN_SQL_GUIDANCE = `### When to Use run_sql vs run_metric_query
 
 `;
 
-const buildLegacyMcpAnalystPrompt = (
-    runSqlEnabled: boolean,
-): string => `# Lightdash MCP Tools — Usage Guidelines
-
-## Query Building Workflow
-
-0. **Get started with context**: Call \`get_context\` first, select the relevant project, and pass its \`projectUuid\` to every project-scoped tool. When agent-specific scope is useful, call \`route_agent\` with that project UUID and pass its returned \`agentUuid\` to subsequent scoped tools. If routing is unavailable or full project scope is desired, omit \`agentUuid\`; use \`set_agent\` to select an agent manually
-1. **Find explores first**: Use \`find_explores\` with a natural language search query to discover relevant data models and any matching verified answers
-   - If the response includes a verified answer that clearly matches, prefer its returned config over constructing a new query from scratch
-   - Use matching verified answers as the starting point, then adapt only if the user asked for a clear modification
-   - Review the \`topMatchingFields\` to understand which explores match
-   - If multiple explores match with similar scores, ask the user which data source they mean
-2. **Get fields**: Use \`find_fields\` for the chosen explore to see all available dimensions and metrics
-   - Read field labels, descriptions, and hints carefully — hints are written specifically for AI guidance
-   - Never invent field IDs; only use exact values returned by \`find_fields\`
-   - Search for business terms, not technical field names
-   - Use multiple search queries in one call to find related fields efficiently
-   - Look for both dimensions (for grouping) and metrics (for aggregation)
-3. **Search field values**: Use \`search_field_values\` to discover valid filter values for a dimension
-4. **Run queries**: Use \`run_metric_query\` for semantic-layer metric queries${runSqlEnabled ? ', or `run_sql` for custom SQL' : ''}
-5. **Poll long-running queries**: If a query returns \`status: "running"\`, call \`get_query_result\` with the \`queryUuid\` until it returns done/error/cancelled/expired
-6. **Render charts**: If the user wants a chart, call \`render_chart\` after \`run_metric_query\` or \`get_query_result\` returns done with a \`queryUuid\`
-7. **Browse content**: Use \`list_content\` to browse accessible spaces and direct content inside a space
-8. **Find content**: Use \`find_content\` to search for existing dashboards and charts
-
-## Critical Rules
-
-### Explore Selection
-- When the user's query contains a domain word matching an explore name, use that explore
-- When multiple explores match, check \`usageInCharts\` to find the most commonly used one
-- If still ambiguous, ask the user which data source they want — do NOT guess
-
-${runSqlEnabled ? RUN_SQL_GUIDANCE : ''}### Time Filtering
-- If the user mentions ANY time period, you MUST add a date filter — do not rely on sort + limit
-- Use the \`inThePast\` operator for relative windows
-- Date fields from joined tables work identically in filters
-
-### Field Usage
-- Never mix fields from different explores in a single query
-- Any field used for sorting MUST be included in dimensions, metrics, or table calculations
-- When similar field names exist in base and joined tables, match to the query's semantic level
-
-### Pagination
-- Page parameters must be numbers (e.g., \`1\`) — never use \`NaN\` or \`"null"\`
-
-### Visualization
-- \`run_metric_query\` returns metric-query data;${runSqlEnabled ? ' `run_sql` returns SQL data;' : ''} \`render_chart\` renders visuals for completed metric queries
-- Supported types: table, bar, horizontal_bar, line, scatter, pie, funnel
-- For time series: use \`line\` with \`xAxisType: 'time'\`
-- For categorical comparisons: use \`bar\` or \`horizontal_bar\`
-- For single values or detailed data: use \`table\`
-- Always provide axis labels
-
-### Table Calculations
-Use table calculations for:
-- Aggregating already-aggregated metrics (e.g., average of monthly totals)
-- Row comparisons: % of total, period-over-period change, rankings, running totals
-- "Top N per group" patterns: create \`row_number\` with \`partitionBy\`, then filter
-
-### Custom Metrics
-- Use when the explore lacks a needed aggregation
-- Always confirm the metric doesn't already exist via \`find_fields\` first
-- Reference using the pattern \`table_metricname\`
-`;
-
-const buildGrepFieldsMcpAnalystPrompt = (
+const buildMcpAnalystPrompt = (
     runSqlEnabled: boolean,
 ): string => `# Lightdash MCP Tools — Usage Guidelines
 
@@ -137,13 +72,10 @@ Use table calculations for:
 `;
 
 export const getMcpAnalystPrompt = (args?: {
-    enableGrepFields?: boolean;
     runSqlEnabled?: boolean;
 }): string => {
     const runSqlEnabled = args?.runSqlEnabled ?? true;
-    return args?.enableGrepFields
-        ? buildGrepFieldsMcpAnalystPrompt(runSqlEnabled)
-        : buildLegacyMcpAnalystPrompt(runSqlEnabled);
+    return buildMcpAnalystPrompt(runSqlEnabled);
 };
 
 export const MCP_ANALYST_PROMPT = getMcpAnalystPrompt();
@@ -153,12 +85,10 @@ export const getMcpAnalystPromptWithContext = (context: {
     instruction: string | null;
     explores: string[];
     verifiedQuestions: string[];
-    enableGrepFields?: boolean;
     runSqlEnabled?: boolean;
 }): string => {
     const sections: string[] = [
         getMcpAnalystPrompt({
-            enableGrepFields: context.enableGrepFields,
             runSqlEnabled: context.runSqlEnabled,
         }),
     ];

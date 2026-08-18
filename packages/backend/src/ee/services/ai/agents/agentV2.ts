@@ -109,7 +109,6 @@ import {
     summarizeToolCall,
     summarizeToolResult,
 } from '../utils/toolSummaries';
-import { getDiscoverFields } from './discoverFields/tool';
 import { getMcpActiveTools } from './mcpToolGating';
 import { buildQueryRetryStepOverride } from './queryRetryCap';
 import { getAgentTelemetryConfig, getAiAgentModelName } from './telemetry';
@@ -159,7 +158,6 @@ export const AGENT_FINAL_STEP_INSTRUCTION =
  */
 export const DEEP_RESEARCH_WORKER_TOOL_NAMES = new Set([
     'describeWarehouseTable',
-    'discoverFields',
     'generateVisualization',
     'getMetadata',
     'grepFields',
@@ -172,7 +170,6 @@ export const DEEP_RESEARCH_WORKER_TOOL_NAMES = new Set([
 export const DEEP_RESEARCH_COORDINATOR_TOOL_NAMES = new Set([
     'analyzeFieldImpact',
     'describeWarehouseTable',
-    'discoverFields',
     'findContent',
     'generateVisualization',
     'getDashboardCharts',
@@ -779,52 +776,18 @@ export const getAgentTools = (
         `Getting agent tools for agent: ${args.agentSettings.name}`,
     );
 
-    const discoverFields = getDiscoverFields(
-        {
-            model: args.model,
-            callOptions: args.callOptions,
-            providerOptions: args.providerOptions,
-            availableExplores,
-            findExploresFieldSearchSize: args.findExploresFieldSearchSize,
-            findFieldsPageSize: args.findFieldsPageSize,
-            toolDescriptionMaxChars: args.toolDescriptionMaxChars,
-            promptUuid: args.promptUuid,
-            telemetry: {
-                agentSettings: args.agentSettings,
-                threadUuid: args.threadUuid,
-                promptUuid: args.promptUuid,
-                organizationId: args.organizationId,
-                userId: args.userId,
-                telemetryEnabled: args.telemetryEnabled,
-                model: args.model,
-                keyManagement: args.keyManagement,
-            },
-        },
-        {
-            findExplores: dependencies.findExplores,
-            findFields: dependencies.findFields,
-            getExplore: dependencies.getExplore,
-            updateProgress: dependencies.updateProgress,
-            storeToolCall: dependencies.storeToolCall,
-            storeToolResults: dependencies.storeToolResults,
-        },
-    );
-
-    // Experimental swap: when on, the main agent greps the in-memory annotated
-    // explores itself instead of delegating to the discoverFields sub-agent.
-    const grepFields = args.enableGrepFields
-        ? getGrepFields({
-              availableExplores,
-              findExplores: dependencies.findExplores,
-              verifiedFieldUsage,
-          })
-        : null;
+    const grepFields = getGrepFields({
+        availableExplores,
+        findExplores: dependencies.findExplores,
+        verifiedFieldUsage,
+    });
 
     // Companion to grepFields: rich detail for the explores/fields the agent
     // selected (joined tables, required filters, filter types, hints).
-    const getMetadata = args.enableGrepFields
-        ? getGetMetadata({ availableExplores, projectParameterDefinitions })
-        : null;
+    const getMetadata = getGetMetadata({
+        availableExplores,
+        projectParameterDefinitions,
+    });
 
     const findContent = getFindContent({
         findContent: dependencies.findContent,
@@ -1108,10 +1071,8 @@ export const getAgentTools = (
 
     const tools: ToolSet = {
         findContent,
-        // grepFields replaces discoverFields when the ai-grep-fields flag is on,
-        // with getMetadata as its rich-detail companion.
-        ...(grepFields ? { grepFields } : { discoverFields }),
-        ...(getMetadata ? { getMetadata } : {}),
+        grepFields,
+        getMetadata,
         analyzeFieldImpact,
         searchSemanticLayer,
         listProjects,
@@ -1390,13 +1351,11 @@ export const getAgentMessages = (
         args.execution.research?.role === 'worker';
     let { messageHistory } = scopedConversation;
     if (!isDeepResearchWorker) {
-        messageHistory = args.enableGrepFields
-            ? withPreGrepCandidates(
-                  withToolHints(messageHistory, args.toolHints),
-                  availableExplores,
-                  verifiedFieldUsage,
-              )
-            : withToolHints(messageHistory, args.toolHints);
+        messageHistory = withPreGrepCandidates(
+            withToolHints(messageHistory, args.toolHints),
+            availableExplores,
+            verifiedFieldUsage,
+        );
     }
 
     // Project context is loaded on demand via the loadProjectContext tool; the
@@ -1461,7 +1420,6 @@ export const getAgentMessages = (
         enableRepoDiscovery: args.enableRepoDiscovery,
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
-        enableGrepFields: args.enableGrepFields,
         enableContentTools: args.enableDataAccess && args.enableContentTools,
         slackChannelId: args.slackChannelId,
         canRunSql: args.canRunSql,
@@ -1556,11 +1514,9 @@ export const generateAgentResponse = async ({
             ]);
         // Verified-chart usage powers verified-first ranking in grep discovery;
         // degrade to an empty map if it can't be fetched.
-        const verifiedFieldUsage = args.enableGrepFields
-            ? await dependencies
-                  .getVerifiedFieldUsage()
-                  .catch(() => new Map<string, number>())
-            : new Map<string, number>();
+        const verifiedFieldUsage = await dependencies
+            .getVerifiedFieldUsage()
+            .catch(() => new Map<string, number>());
         const tools = withEarlyToolProgress(
             getAgentTools(
                 args,
@@ -1915,11 +1871,9 @@ export const streamAgentResponse = async ({
                 getMemoryBlock(args, dependencies),
                 dependencies.getProjectParameterDefinitions(),
             ]);
-        const verifiedFieldUsage = args.enableGrepFields
-            ? await dependencies
-                  .getVerifiedFieldUsage()
-                  .catch(() => new Map<string, number>())
-            : new Map<string, number>();
+        const verifiedFieldUsage = await dependencies
+            .getVerifiedFieldUsage()
+            .catch(() => new Map<string, number>());
         const tools = getAgentTools(
             args,
             dependencies,
@@ -2087,12 +2041,8 @@ export const streamAgentResponse = async ({
                         break;
 
                     case 'tool-result':
-                        // The discoverFields tool emits preliminary
-                        // tool-result chunks as it streams subagent progress.
-                        // Only persist the final, non-preliminary one — N
-                        // intermediate rows for the same toolCallId would be
-                        // wasteful and the intermediate output shapes carry
-                        // streaming state, not the parent-facing result.
+                        // Only persist final tool results. Preliminary chunks
+                        // contain transient streaming state.
                         if (event.chunk.preliminary) {
                             break;
                         }

@@ -60,7 +60,6 @@ const createMcpService = () =>
             projectUuid: PROJECT_UUID,
             agentUuid: 'agent-uuid',
         }),
-        isAiGrepFieldsEnabled: vi.fn().mockResolvedValue(false),
         isContentToolsEnabled: vi.fn().mockResolvedValue(false),
         isCreateScheduledDeliveryEnabled: vi.fn().mockResolvedValue(false),
         isEnabled: vi.fn().mockResolvedValue(true),

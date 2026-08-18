@@ -52,9 +52,6 @@ export const getSystemPromptV2 = (args: {
     // Whether the repo host supports server-side code search (GitHub yes,
     // GitLab no). Defaults true; when false the prompt steers off `search`.
     repoFsSupportsCodeSearch?: boolean;
-    // Experimental: steer field discovery to the grepFields tool instead of
-    // discoverFields (the ai-grep-fields flag).
-    enableGrepFields?: boolean;
     enableContentTools?: boolean;
     enableAiAgentMemory?: boolean;
     // Originating Slack channel for "this channel" scheduling targets; null on
@@ -82,7 +79,6 @@ export const getSystemPromptV2 = (args: {
         enableRepoDiscovery = false,
         repoFsRoot = null,
         repoFsSupportsCodeSearch = true,
-        enableGrepFields = false,
         enableContentTools = false,
         enableAiAgentMemory = false,
         slackChannelId = null,
@@ -198,7 +194,7 @@ export const getSystemPromptV2 = (args: {
               ].join('\n');
 
     const projectContextContent = args.hasProjectContext
-        ? 'This project has curated business context (acronyms, definitions, rules). Call the `loadProjectContext` tool BEFORE findExplores/findFields/discoverFields — it can change which explore, field, or filter value you should use. Treat it as authoritative over your own assumptions.'
+        ? 'This project has curated business context (acronyms, definitions, rules). Call the `loadProjectContext` tool BEFORE grepFields — it can change which explore, field, or filter value you should use. Treat it as authoritative over your own assumptions.'
         : 'No project context has been configured for this project.';
 
     const AVAILABLE_EXPLORES_INLINE_LIMIT = 15;
@@ -214,7 +210,7 @@ export const getSystemPromptV2 = (args: {
             args.availableExplores,
         ).toString();
     } else {
-        availableExploresContent = `This agent has access to ${args.availableExplores.length} explores. Use findExplores to discover the relevant one for each request.`;
+        availableExploresContent = `This agent has access to ${args.availableExplores.length} explores. Use grepFields to discover the relevant one for each request.`;
     }
 
     const content = SYSTEM_PROMPT_TEMPLATE.replace(
@@ -321,24 +317,20 @@ export const getSystemPromptV2 = (args: {
               ].join('\n')
             : '';
 
-    // Experimental: when grepFields replaces discoverFields, override the
-    // discovery guidance so the agent greps the field catalog itself.
-    const grepFieldsSection = enableGrepFields
-        ? [
-              '## Finding fields (grepFields)',
-              'To find which explore and fields can answer a question, use the `grepFields` tool instead of any other discovery step. It greps the field catalog (names, labels, descriptions, hints, tags) with case-insensitive keyword patterns (`|` for OR, space or .* between words for AND) and returns `explore/fieldId  [kind type]` lines grouped by explore.',
-              '- The user message may already include a "Candidate fields pre-grepped from the catalog" block. Read it FIRST — if it contains the fields you need, use them directly and skip calling grepFields. Only call grepFields when those candidates do not cover the question or you need a different angle.',
-              '- When you do call grepFields, pass several patterns in ONE call (the `patterns` array) covering the different angles of the question at once — e.g. `["revenue|sales", "country|region"]`. Do not grep one pattern, wait, then grep another.',
-              '- Use meaningful keywords, not long natural-language phrases. Read the returned fieldIds and pick the single explore that answers at the right grain before building a query.',
-              "- Once you have narrowed down to the explore(s) and field(s) you intend to use, call `getMetadata` (batching all of them in one call) to get the detail you need to build a correct query — an explore's joined tables and table filters, and a field's filter type, case-sensitivity, default time dimension and hints. grepFields tells you what exists; getMetadata tells you how to use it.",
-              '- A description or hint ending in "...(truncated)" is incomplete — call getMetadata to read the full text before using that field.',
-              "- Respect a metric's default time dimension, if it has one, unless the user explicitly requests a different time dimension.",
-              '- Table filters marked `required` are hard constraints: they are always applied to queries on that table. You may provide a compatible filter on the same field when the user asks for a specific range, e.g. if `created_at inThePast [4 weeks]` is required, `created_at inThePast [10 months]` or `created_at inThePast [2 days]` is compatible.',
-              '- Table filters marked `suggested` are soft suggestions: apply them unless the user asks for a different range or scope.',
-              '- If your literal patterns miss, grepFields automatically returns the closest catalog matches (fuzzy search, verified fields first) under "No exact grep matches" — use those rather than re-grepping a long list of synonyms.',
-              '- Once you have the fieldIds you need, build the query. Do NOT re-grep for fields you already found, and do not call grepFields again between generateVisualization attempts — if a query fails, fix the query itself (filters, metric, grain), not the discovery. If you need a filter value you are unsure of (e.g. which status string exists), use searchFieldValues rather than guessing.',
-          ].join('\n')
-        : '';
+    const grepFieldsSection = [
+        '## Finding fields (grepFields)',
+        'To find which explore and fields can answer a question, use the `grepFields` tool instead of any other discovery step. It greps the field catalog (names, labels, descriptions, hints, tags) with case-insensitive keyword patterns (`|` for OR, space or .* between words for AND) and returns `explore/fieldId  [kind type]` lines grouped by explore.',
+        '- The user message may already include a "Candidate fields pre-grepped from the catalog" block. Read it FIRST — if it contains the fields you need, use them directly and skip calling grepFields. Only call grepFields when those candidates do not cover the question or you need a different angle.',
+        '- When you do call grepFields, pass several patterns in ONE call (the `patterns` array) covering the different angles of the question at once — e.g. `["revenue|sales", "country|region"]`. Do not grep one pattern, wait, then grep another.',
+        '- Use meaningful keywords, not long natural-language phrases. Read the returned fieldIds and pick the single explore that answers at the right grain before building a query.',
+        "- Once you have narrowed down to the explore(s) and field(s) you intend to use, call `getMetadata` (batching all of them in one call) to get the detail you need to build a correct query — an explore's joined tables and table filters, and a field's filter type, case-sensitivity, default time dimension and hints. grepFields tells you what exists; getMetadata tells you how to use it.",
+        '- A description or hint ending in "...(truncated)" is incomplete — call getMetadata to read the full text before using that field.',
+        "- Respect a metric's default time dimension, if it has one, unless the user explicitly requests a different time dimension.",
+        '- Table filters marked `required` are hard constraints: they are always applied to queries on that table. You may provide a compatible filter on the same field when the user asks for a specific range, e.g. if `created_at inThePast [4 weeks]` is required, `created_at inThePast [10 months]` or `created_at inThePast [2 days]` is compatible.',
+        '- Table filters marked `suggested` are soft suggestions: apply them unless the user asks for a different range or scope.',
+        '- If your literal patterns miss, grepFields automatically returns the closest catalog matches (fuzzy search, verified fields first) under "No exact grep matches" — use those rather than re-grepping a long list of synonyms.',
+        '- Once you have the fieldIds you need, build the query. Do NOT re-grep for fields you already found, and do not call grepFields again between generateVisualization attempts — if a query fails, fix the query itself (filters, metric, grain), not the discovery. If you need a filter value you are unsure of (e.g. which status string exists), use searchFieldValues rather than guessing.',
+    ].join('\n');
 
     const finalContent = [
         content,
