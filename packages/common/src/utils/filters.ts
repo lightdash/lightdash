@@ -1591,24 +1591,25 @@ export const applyDefaultTimeDimensionTileTargets = (
             return filter;
         }
 
-        const tileTargets = Object.entries(defaultTimeDimensions).reduce(
-            (targets, [tileUuid, defaultTimeDimensionTarget]) => {
-                if (targets[tileUuid] !== undefined) {
-                    return targets;
-                }
-                const tileHasSourceField = filterableFieldsByTileUuid[
-                    tileUuid
-                ]?.some((field) => getItemId(field) === filter.target.fieldId);
-                if (tileHasSourceField) {
-                    return targets;
-                }
-                return {
-                    ...targets,
-                    [tileUuid]: defaultTimeDimensionTarget,
-                };
-            },
-            { ...filter.tileTargets },
-        );
+        const tileTargets = filter.tileTargets
+            ? filter.tileTargets
+            : Object.entries(defaultTimeDimensions).reduce(
+                  (targets, [tileUuid, defaultTimeDimensionTarget]) => {
+                      const tileHasSourceField = filterableFieldsByTileUuid[
+                          tileUuid
+                      ]?.some(
+                          (field) => getItemId(field) === filter.target.fieldId,
+                      );
+                      if (tileHasSourceField) {
+                          return targets;
+                      }
+                      return {
+                          ...targets,
+                          [tileUuid]: defaultTimeDimensionTarget,
+                      };
+                  },
+                  {},
+              );
 
         return {
             ...filter,
@@ -1637,22 +1638,31 @@ export const applyDashboardFiltersForTile = ({
 } => {
     const availableFieldIds = getAvailableFilterFieldIds(explore);
     const defaultTimeDimension = getExploreDefaultTimeDimension(explore);
-    const dimensionFilters = dashboardFilters.dimensions.map((filter) => {
+    const dimensionFilters = dashboardFilters.dimensions.flatMap((filter) => {
         const tileTarget = filter.tileTargets?.[tileUuid];
+        if (
+            filter.tileTargets !== undefined &&
+            tileTarget === undefined &&
+            isDateDimensionType(filter.target.fallbackType)
+        ) {
+            return [];
+        }
         if (
             tileTarget !== undefined ||
             availableFieldIds.includes(filter.target.fieldId) ||
             !isDateDimensionType(filter.target.fallbackType) ||
             !defaultTimeDimension
         ) {
-            return filter;
+            return [filter];
         }
-        return {
-            ...filter,
-            target: {
-                ...getDashboardFieldTarget(defaultTimeDimension),
+        return [
+            {
+                ...filter,
+                target: {
+                    ...getDashboardFieldTarget(defaultTimeDimension),
+                },
             },
-        };
+        ];
     });
     const appliedDashboardFilters = getDashboardFiltersForTileAndTables(
         tileUuid,
