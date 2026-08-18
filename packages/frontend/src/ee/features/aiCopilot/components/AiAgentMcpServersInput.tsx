@@ -1859,7 +1859,6 @@ export const AiAgentMcpServersInput = ({
                         <Anchor
                             href="/generalSettings/integrations"
                             target="_blank"
-                            fz="inherit"
                         >
                             Organization settings → Integrations
                         </Anchor>

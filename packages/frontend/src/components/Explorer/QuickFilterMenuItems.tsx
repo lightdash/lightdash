@@ -82,7 +82,7 @@ const QuickFilterMenuItems: FC<Props> = ({ item, value, onAddFilter }) => {
                     onClick={() => handleFilterByValue(operator)}
                 >
                     <Group gap={4} wrap="nowrap">
-                        <Text span fz="inherit" lh="inherit">
+                        <Text span lh="inherit">
                             {label}
                         </Text>
                         <TruncatedText

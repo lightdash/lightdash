@@ -301,7 +301,6 @@ export const AiGeneralSettingsPage = () => {
                                                 <Anchor
                                                     component={Link}
                                                     to="/generalSettings/ai/issues"
-                                                    fz="inherit"
                                                 >
                                                     Ask AI &gt; Issues
                                                 </Anchor>
@@ -368,7 +367,6 @@ export const AiGeneralSettingsPage = () => {
                                             <Anchor
                                                 component={Link}
                                                 to="/generalSettings/ai/memories"
-                                                fz="inherit"
                                             >
                                                 Ask AI &gt; Memories
                                             </Anchor>

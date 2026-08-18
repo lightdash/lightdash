@@ -311,12 +311,12 @@ const ReviewConceptHelp = () => (
                 <Stack gap={4}>
                     <Text fz="xs" c="dimmed">
                         A{' '}
-                        <Text span fw={600} c="ldGray.9" fz="inherit">
+                        <Text span fw={600} c="ldGray.9">
                             turn
                         </Text>{' '}
                         is one question and answer. When a turn shows a clear
                         issue, it becomes a{' '}
-                        <Text span fw={600} c="ldGray.9" fz="inherit">
+                        <Text span fw={600} c="ldGray.9">
                             finding
                         </Text>{' '}
                         so you can review it here and decide what to fix next.
@@ -344,12 +344,7 @@ const ReviewConceptHelp = () => (
                             <Text fz="xs" c="dimmed">
                                 {rootCauseHelp[cause].desc}
                                 {rootCauseHelp[cause].opensPr && (
-                                    <Text
-                                        span
-                                        fz="inherit"
-                                        c="ldGray.7"
-                                        fw={600}
-                                    >
+                                    <Text span c="ldGray.7" fw={600}>
                                         {' '}
                                         · fixable here
                                     </Text>

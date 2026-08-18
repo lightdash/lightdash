@@ -100,11 +100,9 @@ const PinnedParameter: FC<PinnedParameterProps> = ({
                         ) : undefined
                     }
                 >
-                    <Text fz="inherit" truncate>
-                        <Text fz="inherit" span>
-                            {parameter.label || parameterKey}:
-                        </Text>{' '}
-                        <Text fz="inherit" fw={700} span>
+                    <Text truncate>
+                        <Text span>{parameter.label || parameterKey}:</Text>{' '}
+                        <Text fw={700} span>
                             {displayValue}
                         </Text>
                     </Text>

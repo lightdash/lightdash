@@ -78,9 +78,9 @@ export const ReviewsLoopDiagram: FC = () => (
         </Box>
         <Box className={styles.loop}>
             <MantineIcon icon={IconReload} size={13} />
-            <Text span fz="inherit" c="inherit" fw="inherit">
+            <Text span c="inherit" fw="inherit">
                 The agent picks this up{' '}
-                <Text span className={styles.loopMuted} fz="inherit">
+                <Text span className={styles.loopMuted}>
                     on its next answer.
                 </Text>
             </Text>

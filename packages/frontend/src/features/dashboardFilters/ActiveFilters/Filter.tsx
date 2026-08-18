@@ -446,15 +446,11 @@ const Filter: FC<Props> = ({
                                         openDelay={1000}
                                         offset={8}
                                         label={
-                                            <Text fz="inherit">
+                                            <Text>
                                                 {filterRuleTables?.length === 1
                                                     ? 'Table: '
                                                     : 'Tables: '}
-                                                <Text
-                                                    span
-                                                    fw={600}
-                                                    fz="inherit"
-                                                >
+                                                <Text span fw={600}>
                                                     {filterRuleTables?.join(
                                                         ', ',
                                                     )}
@@ -462,12 +458,7 @@ const Filter: FC<Props> = ({
                                             </Text>
                                         }
                                     >
-                                        <Text
-                                            fz="inherit"
-                                            fw={600}
-                                            span
-                                            truncate
-                                        >
+                                        <Text fw={600} span truncate>
                                             {filterRule?.label ||
                                                 filterRuleLabels?.field}{' '}
                                         </Text>
@@ -477,32 +468,17 @@ const Filter: FC<Props> = ({
                                         isEmptyDashboardFilterRule(
                                             filterRule,
                                         )) ? (
-                                        <Text
-                                            span
-                                            fz="inherit"
-                                            c="ldGray.6"
-                                            truncate
-                                        >
+                                        <Text span c="ldGray.6" truncate>
                                             is any value
                                         </Text>
                                     ) : (
                                         <>
-                                            <Text
-                                                span
-                                                fz="inherit"
-                                                c="dimmed"
-                                                truncate
-                                            >
+                                            <Text span c="dimmed" truncate>
                                                 {
                                                     filterRuleLabels?.operator
                                                 }{' '}
                                             </Text>
-                                            <Text
-                                                fw={500}
-                                                fz="inherit"
-                                                span
-                                                truncate
-                                            >
+                                            <Text fw={500} span truncate>
                                                 {truncatedValuesDisplay
                                                     .displayedValues.length > 0
                                                     ? truncatedValuesDisplay.displayedValues.join(
