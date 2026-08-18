@@ -289,6 +289,8 @@ import { type ApiRoadmapResponse } from './roadmap';
 import {
     type ApiCustomRoleAsCodeListResponse,
     type ApiCustomRoleAsCodeUpsertResponse,
+    type ApiOrganizationRoleSetResponse,
+    type ApiProjectRoleSetResponse,
 } from './roles';
 import {
     type ApiCalculateSubtotalsResponse,
@@ -1276,6 +1278,8 @@ type ApiResults =
     | ApiAgentAsCodeUpsertResponse['results']
     | ApiCustomRoleAsCodeListResponse['results']
     | ApiCustomRoleAsCodeUpsertResponse['results']
+    | ApiOrganizationRoleSetResponse['results']
+    | ApiProjectRoleSetResponse['results']
     | ApiUserAsCodeListResponse['results']
     | ApiUserAsCodeUpsertResponse['results']
     | ApiAlertAsCodeListResponse['results']

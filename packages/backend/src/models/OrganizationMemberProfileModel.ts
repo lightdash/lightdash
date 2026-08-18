@@ -54,6 +54,16 @@ type DbOrganizationMemberProfile = {
     avatar_content_hash: string | null;
 };
 
+const hasExtraRolesColumn = (db: Knex) =>
+    db.raw(
+        `EXISTS (SELECT 1 FROM ?? AS x WHERE x.organization_id = ??.organization_id AND x.user_id = ??.user_id) AS has_extra_roles`,
+        [
+            OrganizationMembershipCustomRolesTableName,
+            OrganizationMembershipsTableName,
+            OrganizationMembershipsTableName,
+        ],
+    );
+
 const selectColumns = (db: Knex) => [
     `${UserTableName}.user_uuid`,
     `${UserTableName}.user_id`,
@@ -69,14 +79,7 @@ const selectColumns = (db: Knex) => [
     `${UserTableName}.updated_at as user_updated_at`,
     `${UserTableName}.avatar_gradient`,
     `${UserAvatarsTableName}.content_hash as avatar_content_hash`,
-    db.raw(
-        `EXISTS (SELECT 1 FROM ?? AS x WHERE x.organization_id = ??.organization_id AND x.user_id = ??.user_id) AS has_extra_roles`,
-        [
-            OrganizationMembershipCustomRolesTableName,
-            OrganizationMembershipsTableName,
-            OrganizationMembershipsTableName,
-        ],
-    ),
+    hasExtraRolesColumn(db),
 ];
 
 export class OrganizationMemberProfileModel {
@@ -411,6 +414,8 @@ export class OrganizationMemberProfileModel {
                 `${UserTableName}.is_active`,
                 `${EmailTableName}.email`,
                 `${OrganizationTableName}.organization_uuid`,
+                `${OrganizationMembershipsTableName}.organization_id`,
+                `${OrganizationMembershipsTableName}.user_id`,
                 `${OrganizationMembershipsTableName}.role`,
                 `${OrganizationMembershipsTableName}.role_uuid`,
                 `${InviteLinkTableName}.expires_at`,
@@ -432,6 +437,7 @@ export class OrganizationMemberProfileModel {
                 `${UserTableName}.updated_at as user_updated_at`,
                 `${UserTableName}.avatar_gradient`,
                 `${UserAvatarsTableName}.content_hash as avatar_content_hash`,
+                hasExtraRolesColumn(this.database),
             )
             .select<DbOrganizationMemberProfile[]>(
                 this.database.raw(

@@ -5,6 +5,7 @@ import {
     OrganizationMemberRoleLabels,
     type OrganizationMemberProfile,
     type OrganizationMemberProfileWithGroups,
+    type OrganizationRoleSet,
     type Role,
 } from '@lightdash/common';
 import {
@@ -28,6 +29,11 @@ import {
     useState,
     type FC,
 } from 'react';
+import { OrganizationRoleSetCell } from '../../../features/roleSets/components/OrganizationRoleSetCell';
+import {
+    useMultipleRolesEnabled,
+    useReplaceOrganizationUserRoleSetMutation,
+} from '../../../features/roleSets/hooks/useRoleSets';
 import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import {
@@ -51,10 +57,9 @@ import { UsersTopToolbar } from './UsersTopToolbar';
 
 const fetchSize = 50;
 
-type PendingRoleChange = {
-    userId: string;
-    roleId: string;
-};
+type PendingRoleChange =
+    | { userId: string; roleId: string }
+    | { userId: string; roleSet: OrganizationRoleSet };
 
 const UsersTable: FC = () => {
     const theme = useMantineTheme();
@@ -124,6 +129,8 @@ const UsersTable: FC = () => {
     }, [debouncedSearchValue, scrollToTop]);
 
     const updateUserRole = useUpsertOrganizationUserRoleAssignmentMutation();
+    const replaceRoleSet = useReplaceOrganizationUserRoleSetMutation();
+    const multipleRolesEnabled = useMultipleRolesEnabled();
     const organizationRolesQuery = useOrganizationRoles();
 
     const handleRoleChange = useCallback(
@@ -150,17 +157,40 @@ const UsersTable: FC = () => {
         [activeUser.data?.userUuid, updateUserRole],
     );
 
+    const handleRoleSetChange = useCallback(
+        (user: OrganizationMemberProfile, roleSet: OrganizationRoleSet) => {
+            const isCurrentUser = activeUser.data?.userUuid === user.userUuid;
+            const isAdminSelfDowngrade =
+                isCurrentUser &&
+                user.role === OrganizationMemberRole.ADMIN &&
+                roleSet.systemRole !== OrganizationMemberRole.ADMIN;
+
+            if (isAdminSelfDowngrade) {
+                setPendingRoleChange({ userId: user.userUuid, roleSet });
+                return;
+            }
+            replaceRoleSet.mutate({ userUuid: user.userUuid, roleSet });
+        },
+        [activeUser.data?.userUuid, replaceRoleSet],
+    );
+
     const handleConfirmAdminSelfDowngrade = useCallback(() => {
         if (!pendingRoleChange) {
             return;
         }
-
-        updateUserRole.mutate(pendingRoleChange, {
-            onSuccess: () => {
-                setPendingRoleChange(null);
-            },
-        });
-    }, [pendingRoleChange, updateUserRole]);
+        const onSuccess = () => setPendingRoleChange(null);
+        if ('roleSet' in pendingRoleChange) {
+            replaceRoleSet.mutate(
+                {
+                    userUuid: pendingRoleChange.userId,
+                    roleSet: pendingRoleChange.roleSet,
+                },
+                { onSuccess },
+            );
+            return;
+        }
+        updateUserRole.mutate(pendingRoleChange, { onSuccess });
+    }, [pendingRoleChange, updateUserRole, replaceRoleSet]);
 
     const organizationRoleOptions = useMemo(() => {
         const systemRoles = Object.values(OrganizationMemberRole).map(
@@ -284,6 +314,21 @@ const UsersTable: FC = () => {
                 size: 200,
                 Cell: ({ row }) => {
                     const user = row.original;
+                    if (multipleRolesEnabled) {
+                        return (
+                            <OrganizationRoleSetCell
+                                user={user}
+                                organizationRoles={organizationRolesQuery.data}
+                                disabled={
+                                    organizationRolesQuery.isLoading ||
+                                    replaceRoleSet.isLoading
+                                }
+                                onChange={(roleSet) =>
+                                    handleRoleSetChange(user, roleSet)
+                                }
+                            />
+                        );
+                    }
                     return (
                         <Select
                             data={organizationRoleOptions}
@@ -389,7 +434,11 @@ const UsersTable: FC = () => {
         inviteSuccessFor,
         isGroupManagementEnabled,
         handleRoleChange,
+        handleRoleSetChange,
+        multipleRolesEnabled,
+        replaceRoleSet.isLoading,
         organizationRoleOptions,
+        organizationRolesQuery.data,
         organizationRolesQuery.isLoading,
         activeUser.data?.userUuid,
         flatData.length,
@@ -498,7 +547,7 @@ const UsersTable: FC = () => {
             <ContentTable table={table} />
             <ConfirmAdminSelfDowngradeModal
                 opened={pendingRoleChange !== null}
-                loading={updateUserRole.isLoading}
+                loading={updateUserRole.isLoading || replaceRoleSet.isLoading}
                 onClose={() => setPendingRoleChange(null)}
                 onConfirm={handleConfirmAdminSelfDowngrade}
             />
