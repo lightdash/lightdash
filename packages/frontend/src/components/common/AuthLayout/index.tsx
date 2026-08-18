@@ -1,5 +1,6 @@
 import { Box, Card, Group, Stack, Text, Title } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
+import { clsx } from 'clsx';
 import { type FC, type PropsWithChildren, type ReactNode } from 'react';
 import LightdashLogo from '../../LightdashLogo/LightdashLogo';
 import PageSpinner from '../../PageSpinner';
@@ -28,6 +29,7 @@ type Props = {
     cardId?: string;
     /** Pages that bring their own cards (Invite) opt out of the legacy card. */
     withLegacyCard?: boolean;
+    variant?: 'default' | 'pink';
     footer?: ReactNode;
 };
 
@@ -38,6 +40,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
     legacyTitle,
     cardId,
     withLegacyCard = true,
+    variant = 'default',
     footer,
     children,
 }) => {
@@ -49,32 +52,34 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
 
     if (!isNewLayout) {
         return (
-            <Page title={pageTitle} withCenteredContent withNavbar={false}>
-                <Stack w={400} mt="4xl">
-                    <Box mx="auto" my="lg">
-                        <LightdashLogo />
-                    </Box>
-                    {withLegacyCard ? (
-                        <Card
-                            id={cardId}
-                            p="xl"
-                            radius="xs"
-                            withBorder
-                            shadow="xs"
-                        >
-                            {legacyTitle && (
-                                <Title order={3} ta="center" mb="md">
-                                    {legacyTitle}
-                                </Title>
-                            )}
-                            {children}
-                        </Card>
-                    ) : (
-                        children
-                    )}
-                    {footer}
-                </Stack>
-            </Page>
+            <Box className={clsx({ [classes.pink]: variant === 'pink' })}>
+                <Page title={pageTitle} withCenteredContent withNavbar={false}>
+                    <Stack w={400} mt="4xl">
+                        <Box mx="auto" my="lg">
+                            <LightdashLogo />
+                        </Box>
+                        {withLegacyCard ? (
+                            <Card
+                                id={cardId}
+                                p="xl"
+                                radius="xs"
+                                withBorder
+                                shadow="xs"
+                            >
+                                {legacyTitle && (
+                                    <Title order={3} ta="center" mb="md">
+                                        {legacyTitle}
+                                    </Title>
+                                )}
+                                {children}
+                            </Card>
+                        ) : (
+                            children
+                        )}
+                        {footer}
+                    </Stack>
+                </Page>
+            </Box>
         );
     }
 
@@ -82,7 +87,11 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
         <>
             <DocumentTitle title={pageTitle} />
 
-            <Box className={classes.root}>
+            <Box
+                className={clsx(classes.root, {
+                    [classes.pink]: variant === 'pink',
+                })}
+            >
                 <Box className={classes.brandPanel}>
                     <Box className={classes.decorationTop} aria-hidden />
                     <Box className={classes.decorationBottom} aria-hidden />
