@@ -17184,6 +17184,10 @@
                 "type": "string",
                 "enum": ["opus", "sonnet", "haiku"]
             },
+            "DataAppCodexModel": {
+                "type": "string",
+                "enum": ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"]
+            },
             "AppExternalConnectionReference": {
                 "properties": {
                     "alias": {
@@ -17208,6 +17212,9 @@
                     "designUuid": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "codexModel": {
+                        "$ref": "#/components/schemas/DataAppCodexModel"
                     },
                     "claudeModel": {
                         "$ref": "#/components/schemas/DataAppClaudeModel"
@@ -17739,6 +17746,9 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "codexModel": {
+                        "$ref": "#/components/schemas/DataAppCodexModel"
                     },
                     "claudeModel": {
                         "$ref": "#/components/schemas/DataAppClaudeModel"
@@ -19282,11 +19292,26 @@
                 "type": "string",
                 "enum": ["createdAt", "latestActivity"]
             },
+            "DataAppCodingAgent": {
+                "type": "string",
+                "enum": ["claude", "codex"]
+            },
+            "DataAppCodingAgentModel": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/DataAppClaudeModel"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DataAppCodexModel"
+                    }
+                ]
+            },
             "DataAppGenerationUsage": {
                 "properties": {
                     "costUsd": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "nullable": true
                     },
                     "durationApiMs": {
                         "type": "number",
@@ -19323,7 +19348,7 @@
                     "inputTokens"
                 ],
                 "type": "object",
-                "description": "What one generation cost, aggregated across every `claude` CLI invocation in\nthat version's pipeline — including build-fix retries.\n\nThis is spend attributable to a generation, not all data-app AI spend: the\nshort prompt-clarification and app-naming calls happen outside any version.\n\n`costUsd` is the CLI's own figure, computed from public list prices, so treat\nit as an estimate rather than an invoice."
+                "description": "Usage for one generation, aggregated across every coding-agent invocation in\nthat version's pipeline, including build-fix retries.\n\nThis is spend attributable to a generation, not all data-app AI spend: the\nshort prompt-clarification and app-naming calls happen outside any version.\n\n`costUsd` is an estimate rather than an invoice. It is null when the coding\nagent reports tokens without a trustworthy price."
             },
             "DataAppActivityEvent": {
                 "properties": {
@@ -19364,6 +19389,12 @@
                     "claudeModel": {
                         "$ref": "#/components/schemas/DataAppClaudeModel"
                     },
+                    "codingAgentModel": {
+                        "$ref": "#/components/schemas/DataAppCodingAgentModel"
+                    },
+                    "codingAgent": {
+                        "$ref": "#/components/schemas/DataAppCodingAgent"
+                    },
                     "prompt": {
                         "type": "string"
                     },
@@ -19390,7 +19421,8 @@
                     "projectName",
                     "projectUuid",
                     "createdAt",
-                    "claudeModel",
+                    "codingAgentModel",
+                    "codingAgent",
                     "prompt",
                     "status",
                     "version",
@@ -31310,6 +31342,9 @@
                         },
                         "type": "array"
                     },
+                    "dataAppCodingAgent": {
+                        "$ref": "#/components/schemas/DataAppCodingAgent"
+                    },
                     "defaultAiAgentModelOptions": {
                         "items": {
                             "$ref": "#/components/schemas/AiModelOption"
@@ -31345,6 +31380,7 @@
                 },
                 "required": [
                     "visibleDataAppModels",
+                    "dataAppCodingAgent",
                     "defaultAiAgentModelOptions",
                     "defaultAiAgentModelConfig",
                     "aiAgentReviewsAvailable",
@@ -53987,7 +54023,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.191.2",
+        "version": "1.192.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

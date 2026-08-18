@@ -1,3 +1,10 @@
+# [1.192.0](https://github.com/lightdash/lightdash/compare/1.191.2...1.192.0) (2026-08-18)
+
+
+### Features
+
+* **data-apps:** support Codex coding agent ([#27435](https://github.com/lightdash/lightdash/issues/27435)) ([54ef315](https://github.com/lightdash/lightdash/commit/54ef315dff5aca5910c545b4d546941363a30c44))
+
 ## [1.191.2](https://github.com/lightdash/lightdash/compare/1.191.1...1.191.2) (2026-08-18)
 
 

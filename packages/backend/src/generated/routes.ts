@@ -15825,6 +15825,19 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppCodexModel: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['gpt-5.6-sol'] },
+                { dataType: 'enum', enums: ['gpt-5.6-terra'] },
+                { dataType: 'enum', enums: ['gpt-5.6-luna'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AppExternalConnectionReference: {
         dataType: 'refAlias',
         type: {
@@ -15856,6 +15869,7 @@ const models: TsoaRoute.Models = {
                         { dataType: 'enum', enums: [null] },
                     ],
                 },
+                codexModel: { ref: 'DataAppCodexModel' },
                 claudeModel: { ref: 'DataAppClaudeModel' },
                 spaceUuid: { dataType: 'string' },
                 clarifications: {
@@ -16340,6 +16354,7 @@ const models: TsoaRoute.Models = {
                         { dataType: 'enum', enums: [null] },
                     ],
                 },
+                codexModel: { ref: 'DataAppCodexModel' },
                 claudeModel: { ref: 'DataAppClaudeModel' },
                 clarifications: {
                     dataType: 'array',
@@ -17711,12 +17726,43 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppCodingAgent: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['claude'] },
+                { dataType: 'enum', enums: ['codex'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppCodingAgentModel: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'DataAppClaudeModel' },
+                { ref: 'DataAppCodexModel' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DataAppGenerationUsage: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                costUsd: { dataType: 'double', required: true },
+                costUsd: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 durationApiMs: { dataType: 'double', required: true },
                 numTurns: { dataType: 'double', required: true },
                 cacheCreationInputTokens: {
@@ -17771,7 +17817,12 @@ const models: TsoaRoute.Models = {
                 projectName: { dataType: 'string', required: true },
                 projectUuid: { dataType: 'string', required: true },
                 createdAt: { dataType: 'datetime', required: true },
-                claudeModel: { ref: 'DataAppClaudeModel', required: true },
+                claudeModel: { ref: 'DataAppClaudeModel' },
+                codingAgentModel: {
+                    ref: 'DataAppCodingAgentModel',
+                    required: true,
+                },
+                codingAgent: { ref: 'DataAppCodingAgent', required: true },
                 prompt: { dataType: 'string', required: true },
                 status: { ref: 'AppVersionStatus', required: true },
                 version: { dataType: 'double', required: true },
@@ -30945,6 +30996,10 @@ const models: TsoaRoute.Models = {
                 visibleDataAppModels: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'DataAppClaudeModel' },
+                    required: true,
+                },
+                dataAppCodingAgent: {
+                    ref: 'DataAppCodingAgent',
                     required: true,
                 },
                 defaultAiAgentModelOptions: {
@@ -65429,7 +65484,7 @@ export function RegisterRoutes(app: Router) {
             in: 'query',
             name: 'models',
             dataType: 'array',
-            array: { dataType: 'refAlias', ref: 'DataAppClaudeModel' },
+            array: { dataType: 'refAlias', ref: 'DataAppCodingAgentModel' },
         },
         dateFrom: { in: 'query', name: 'dateFrom', dataType: 'string' },
         dateTo: { in: 'query', name: 'dateTo', dataType: 'string' },
