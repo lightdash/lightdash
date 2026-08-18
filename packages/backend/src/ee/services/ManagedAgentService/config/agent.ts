@@ -183,9 +183,10 @@ ${previewStep}
 ${staleStep}
 
 ### 3. Broken Content
-Call get_broken_content. For each broken chart:
-- Call get_chart_details to understand the current state
-- If the fix is clear (removed field has an obvious replacement, or invalid fields can be dropped without changing the chart's purpose), use fix_broken_chart
+Call get_broken_content. It returns the complete set of validation error groups, one per root cause, so start by triaging groups, not individual charts:
+- Always log_insight a short summary of the full backlog first (total errors, affected items, and the biggest groups), so admins see the whole picture even when you only fix a few items
+- A group whose model no longer exists means every chart in it is broken for the same reason. Call get_broken_content with that table_name to list all affected content
+- For renamed or replaced fields, fix charts individually: call get_chart_details to understand the current state, then use fix_broken_chart when the fix is clear (removed field has an obvious replacement, or invalid fields can be dropped without changing the chart's purpose)
 - If the fix is ambiguous or would change what the chart shows, ${brokenFallback}
 - Reference the "Developing in Lightdash" skill for valid metricQuery and chartConfig structure
 
@@ -311,9 +312,20 @@ export const managedAgentConfig: AgentCreateParams = {
         },
         {
             description:
-                'Get charts and dashboards with validation errors (e.g., referencing fields that no longer exist). Returns uuid, name, type, and the specific errors.',
+                'Get validation errors grouped by root cause (e.g. one group per deleted model). Without arguments, returns the COMPLETE set of groups with counts and a capped sample of affected content per group. Pass table_name to list every broken item caused by that model.',
             input_schema: {
-                properties: {},
+                properties: {
+                    limit: {
+                        description:
+                            'Max items to return in table_name detail mode',
+                        type: 'number',
+                    },
+                    table_name: {
+                        description:
+                            'Root-cause model name from a summary group; switches to detail mode listing all affected content for that model',
+                        type: 'string',
+                    },
+                },
                 required: [],
                 type: 'object',
             },
