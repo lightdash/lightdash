@@ -652,7 +652,19 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        const scope = await this.resolveReadScope(user, organizationUuid);
+        // Deliberately narrower than the rest of the admin threads surface:
+        // a dump exports conversation data off the instance, so project-scoped
+        // AI admins are not enough.
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('OrganizationAiAgent', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Insufficient permissions to download AI thread dumps',
+            );
+        }
         const data = await this.aiAgentModel.findThreadForDump({
             threadUuid,
             organizationUuid,
@@ -660,10 +672,6 @@ export class AiAgentAdminService extends BaseService {
         if (!data) {
             throw new NotFoundError('Thread not found');
         }
-        AiAgentAdminService.assertProjectInScope(
-            scope,
-            data.thread.projectUuid,
-        );
 
         // agent_uuid is nullable on ai_thread, but when set the agent row
         // exists: the FK cascades thread deletion on agent deletion.
@@ -707,6 +715,18 @@ export class AiAgentAdminService extends BaseService {
                 artifacts: turn.artifacts,
             })),
         );
+
+        this.analytics.track({
+            event: 'ai_agent.thread_dump_downloaded',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: data.thread.projectUuid,
+                threadId: data.thread.threadUuid,
+                agentId: data.thread.agentUuid,
+                turnCount: turns.length,
+            },
+        });
 
         return {
             schemaVersion: 1,
