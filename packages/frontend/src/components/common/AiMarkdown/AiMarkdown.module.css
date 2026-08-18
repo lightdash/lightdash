@@ -116,6 +116,54 @@
     line-height: 1.5;
 }
 
+/* Streamdown styles its code blocks with Tailwind utilities on
+ *   [data-streamdown='code-block'] > header + body > pre > code > span-per-line
+ * and we don't ship Tailwind, so all of them are inert: the card is unstyled
+ * and the per-line `block` class is dropped, collapsing the whole snippet onto
+ * one very long line. Restyle the structure here. */
+.aiMarkdown [data-streamdown='code-block'] {
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: 8px;
+    background-color: var(--mantine-color-ldGray-0);
+}
+
+.aiMarkdown [data-streamdown='code-block-header'] {
+    padding: 5px 12px;
+    border-bottom: 1px solid var(--mantine-color-ldGray-2);
+    font-family: var(--mantine-font-family-monospace);
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--mantine-color-ldGray-6);
+}
+
+/* Fenced blocks with no language would otherwise get an empty header strip. */
+.aiMarkdown [data-streamdown='code-block-header'][data-language=''] {
+    display: none;
+}
+
+.aiMarkdown [data-streamdown='code-block-body'] {
+    min-width: 0;
+}
+
+.aiMarkdown [data-streamdown='code-block'] pre {
+    border-radius: 0;
+    background-color: transparent;
+    /* Wrap rather than scroll: these blocks live in narrow panels. */
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    tab-size: 2;
+}
+
+/* One span per source line — `display: block` restores the line breaks, and the
+ * hanging indent keeps a wrapped line from reading as a new YAML key. */
+.aiMarkdown [data-streamdown='code-block'] pre code > span {
+    display: block;
+    padding-left: 2ch;
+    text-indent: -2ch;
+}
+
 .aiMarkdown pre code {
     font-family: var(--mantine-font-family-monospace);
     background: transparent;
