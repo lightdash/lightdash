@@ -110,6 +110,7 @@ const vizQueryData = {
         usedParametersValues: {},
         warnings: [],
     },
+    mergeQuery: null,
     metadata: { title: 'Revenue trend', description: 'Revenue by month.' },
 } as ApiAiAgentThreadMessageVizQuery;
 
