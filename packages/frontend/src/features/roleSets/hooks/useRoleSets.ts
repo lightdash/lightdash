@@ -86,13 +86,26 @@ export const useReplaceOrganizationUserRoleSetMutation = () => {
         ApiError,
         { userUuid: string; roleSet: OrganizationRoleSet }
     >(
-        ({ userUuid, roleSet }) =>
-            lightdashApi<ApiOrganizationRoleSetResponse['results']>({
+        ({ userUuid, roleSet }) => {
+            if (!organizationUuid) {
+                const notLoaded: ApiError = {
+                    status: 'error',
+                    error: {
+                        name: 'Error',
+                        statusCode: 400,
+                        message: 'Organization is not loaded yet',
+                        data: {},
+                    },
+                };
+                return Promise.reject(notLoaded);
+            }
+            return lightdashApi<ApiOrganizationRoleSetResponse['results']>({
                 url: `/orgs/${organizationUuid}/roles/assignments/user/${userUuid}/set`,
                 version: 'v2',
                 method: 'PUT',
                 body: JSON.stringify(roleSet),
-            }),
+            });
+        },
         {
             onSuccess: async (_data, { userUuid }) => {
                 await Promise.all([
