@@ -88,6 +88,7 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     LightdashUser,
+    MergeQuery,
     NotFoundError,
     NotImplementedError,
     OpenIdIdentity,
@@ -339,6 +340,10 @@ import {
 } from '../ai/types/aiAgentDependencies';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
 import { AiCallAttribution } from '../ai/utils/aiCallTelemetry';
+import {
+    buildAiMergeQuery,
+    buildAiMergeSourceConfigs,
+} from '../ai/utils/buildAiMergeQuery';
 import {
     classifyWritebackError,
     GIT_WRITE_PERMISSION_AGENT_MESSAGE,
@@ -2344,85 +2349,49 @@ export class AiAgentService extends BaseService {
         return asyncQuery;
     }
 
+    /** The AI tool's merge shape as the core MergeQuery the engine executes. */
+    private async buildAiMergeQuery(
+        user: SessionUser,
+        projectUuid: string,
+        toolArgs: ToolRunQueryArgsTransformed,
+    ): Promise<MergeQuery> {
+        const exploreByName = Object.fromEntries(
+            await Promise.all(
+                buildAiMergeSourceConfigs(toolArgs).map(
+                    async ({ queryConfig }) =>
+                        [
+                            queryConfig.exploreName,
+                            await this.getExplore(
+                                user,
+                                projectUuid,
+                                null,
+                                queryConfig.exploreName,
+                            ),
+                        ] as const,
+                ),
+            ),
+        );
+        return buildAiMergeQuery({
+            toolArgs,
+            getExplore: (exploreName) => exploreByName[exploreName],
+            maxQueryLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
+        });
+    }
+
     private async executeAsyncAiMergeQuery(
         user: SessionUser,
         projectUuid: string,
         toolArgs: ToolRunQueryArgsTransformed,
     ) {
-        const { mergeConfig } = toolArgs;
-        if (!mergeConfig) {
-            throw new ParameterError('Merge config not found');
-        }
-        const effectiveLimit = getValidAiQueryLimit(
-            toolArgs.queryConfig.limit,
-            this.lightdashConfig.ai.copilot.maxQueryLimit,
-        );
-        const sourceConfigs = [
-            {
-                id: mergeConfig.primarySourceId,
-                queryConfig: toolArgs.queryConfig,
-            },
-            ...mergeConfig.additionalSources.map((source) => ({
-                id: source.id,
-                queryConfig: {
-                    ...source.queryConfig,
-                    limit: toolArgs.queryConfig.limit,
-                    parameters: toolArgs.queryConfig.parameters,
-                    tableCalculations: [],
-                },
-            })),
-        ];
-        const sources = await Promise.all(
-            sourceConfigs.map(async ({ id, queryConfig }) => {
-                const explore = await this.getExplore(
-                    user,
-                    projectUuid,
-                    null,
-                    queryConfig.exploreName,
-                );
-                const additionalMetrics = populateCustomMetricsSQL(
-                    queryConfig.customMetrics,
-                    explore,
-                );
-                return {
-                    id,
-                    metricQuery: {
-                        exploreName: queryConfig.exploreName,
-                        dimensions: queryConfig.dimensions,
-                        metrics: expandMetricsWithPopAdditionalMetrics(
-                            queryConfig.metrics,
-                            additionalMetrics,
-                        ),
-                        sorts: queryConfig.sorts.map((sort) => ({
-                            ...sort,
-                            nullsFirst: sort.nullsFirst ?? undefined,
-                        })),
-                        limit: effectiveLimit,
-                        filters: queryConfig.filters,
-                        additionalMetrics,
-                        tableCalculations: [],
-                    },
-                };
-            }),
+        const mergeQuery = await this.buildAiMergeQuery(
+            user,
+            projectUuid,
+            toolArgs,
         );
         const outcome = await this.asyncQueryService.executeAsyncMergeQuery({
             account: fromSession(user),
             projectUuid,
-            mergeQuery: {
-                sources,
-                joinKey: mergeConfig.joinKey.map((part) => ({
-                    name: part.name,
-                    fieldIdBySourceId: Object.fromEntries(
-                        part.fields.map((field) => [
-                            field.sourceId,
-                            field.fieldId,
-                        ]),
-                    ),
-                })),
-                joinType: mergeConfig.joinType,
-                tableCalculations: [],
-                limit: effectiveLimit,
-            },
+            mergeQuery,
             context: QueryExecutionContext.AI,
             parameters: toolArgs.queryConfig.parameters ?? undefined,
             mode: { type: 'interactive' },
@@ -2435,7 +2404,7 @@ export class AiAgentService extends BaseService {
                 { errors: outcome.errors },
             );
         }
-        return outcome.query;
+        return { query: outcome.query, mergeQuery };
     }
 
     public async getAgent(
@@ -6575,7 +6544,7 @@ export class AiAgentService extends BaseService {
             if (!parsed?.mergeConfig) {
                 throw new ParameterError('Invalid merge visualization config');
             }
-            const query = await this.executeAsyncAiMergeQuery(
+            const { query, mergeQuery } = await this.executeAsyncAiMergeQuery(
                 user,
                 projectUuid,
                 parsed,
@@ -6598,6 +6567,7 @@ export class AiAgentService extends BaseService {
                 source: 'semantic',
                 type: AiResultType.QUERY_RESULT,
                 query,
+                mergeQuery,
                 metadata: {
                     title: artifact.title,
                     description: artifact.description,
@@ -6693,6 +6663,7 @@ export class AiAgentService extends BaseService {
             source: 'semantic',
             type: parsedVizConfig.type,
             query,
+            mergeQuery: null,
             metadata,
         };
     }
@@ -6834,6 +6805,7 @@ export class AiAgentService extends BaseService {
             source: 'semantic',
             type: parsedVizConfig.type,
             query,
+            mergeQuery: null,
             metadata,
         };
     }

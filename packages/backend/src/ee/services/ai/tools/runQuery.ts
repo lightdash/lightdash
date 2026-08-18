@@ -27,6 +27,10 @@ import type {
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
 import { AgentContext } from '../utils/AgentContext';
+import {
+    buildAiMergeQuery,
+    buildAiMergeSourceConfigs,
+} from '../utils/buildAiMergeQuery';
 import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
 import { getPivotedResults } from '../utils/getPivotedResults';
 import {
@@ -270,69 +274,30 @@ export const getRunQuery = ({
                         );
                     }
 
-                    const requestedLimit = queryTool.queryConfig.limit;
-                    const effectiveLimit = getValidAiQueryLimit(
-                        requestedLimit,
-                        maxLimit,
-                    );
-                    const sourceConfigs = [
-                        {
-                            id: queryTool.mergeConfig.primarySourceId,
-                            queryConfig: queryTool.queryConfig,
+                    buildAiMergeSourceConfigs(queryTool).forEach(
+                        ({ queryConfig }) => {
+                            const sourceExplore = ctx.getExplore(
+                                queryConfig.exploreName,
+                            );
+                            const sourceTool = {
+                                ...queryTool,
+                                queryConfig,
+                                chartConfig: null,
+                                mergeConfig: null,
+                            };
+                            validateRunQueryTool(sourceTool, sourceExplore);
+                            validateQueryParameters(
+                                queryConfig.parameters,
+                                sourceExplore,
+                                projectParameterDefinitions,
+                            );
                         },
-                        ...queryTool.mergeConfig.additionalSources.map(
-                            (source) => ({
-                                id: source.id,
-                                queryConfig: {
-                                    ...source.queryConfig,
-                                    limit: requestedLimit,
-                                    parameters:
-                                        queryTool.queryConfig.parameters,
-                                    tableCalculations: [],
-                                },
-                            }),
-                        ),
-                    ];
-
-                    const sources = sourceConfigs.map(({ id, queryConfig }) => {
-                        const sourceExplore = ctx.getExplore(
-                            queryConfig.exploreName,
-                        );
-                        const sourceTool = {
-                            ...queryTool,
-                            queryConfig,
-                            chartConfig: null,
-                            mergeConfig: null,
-                        };
-                        validateRunQueryTool(sourceTool, sourceExplore);
-                        validateQueryParameters(
-                            queryConfig.parameters,
-                            sourceExplore,
-                            projectParameterDefinitions,
-                        );
-                        const customMetrics = populateCustomMetricsSQL(
-                            queryConfig.customMetrics,
-                            sourceExplore,
-                        );
-                        return {
-                            id,
-                            metricQuery: {
-                                exploreName: queryConfig.exploreName,
-                                dimensions: queryConfig.dimensions,
-                                metrics: expandMetricsWithPopAdditionalMetrics(
-                                    queryConfig.metrics,
-                                    customMetrics,
-                                ),
-                                sorts: queryConfig.sorts.map((sort) => ({
-                                    ...sort,
-                                    nullsFirst: sort.nullsFirst ?? undefined,
-                                })),
-                                limit: effectiveLimit,
-                                filters: queryConfig.filters,
-                                additionalMetrics: customMetrics,
-                                tableCalculations: [],
-                            },
-                        };
+                    );
+                    const mergeQuery = buildAiMergeQuery({
+                        toolArgs: queryTool,
+                        getExplore: (exploreName) =>
+                            ctx.getExplore(exploreName),
+                        maxQueryLimit: maxLimit,
                     });
 
                     if (queryTool.chartConfig) {
@@ -340,7 +305,7 @@ export const getRunQuery = ({
                             (part) =>
                                 `merge_${part.name.replaceAll('.', '__')}`,
                         );
-                        const metricIds = sources.flatMap((source) =>
+                        const metricIds = mergeQuery.sources.flatMap((source) =>
                             source.metricQuery.metrics.map(
                                 (metricId) =>
                                     `${source.id}_${metricId.replaceAll(
@@ -397,23 +362,7 @@ export const getRunQuery = ({
                     }
 
                     const queryResults = await runAsyncMergeQuery(
-                        {
-                            sources,
-                            joinKey: queryTool.mergeConfig.joinKey.map(
-                                (part) => ({
-                                    name: part.name,
-                                    fieldIdBySourceId: Object.fromEntries(
-                                        part.fields.map((field) => [
-                                            field.sourceId,
-                                            field.fieldId,
-                                        ]),
-                                    ),
-                                }),
-                            ),
-                            joinType: queryTool.mergeConfig.joinType,
-                            tableCalculations: [],
-                            limit: effectiveLimit,
-                        },
+                        mergeQuery,
                         queryTool.queryConfig.parameters ?? undefined,
                     );
 
@@ -472,8 +421,8 @@ export const getRunQuery = ({
 
                     const resultSummary = getQueryResultSummary({
                         rowCount: queryResults.rows.length,
-                        requestedLimit,
-                        effectiveLimit,
+                        requestedLimit: queryTool.queryConfig.limit,
+                        effectiveLimit: mergeQuery.limit,
                         maxLimit,
                     });
                     const csv = convertQueryResultsToCsv(

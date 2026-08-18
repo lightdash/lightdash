@@ -8,6 +8,7 @@ import type {
     CacheMetadata,
     ItemsMap,
     KnexPaginatedData,
+    MergeQuery,
     ToolDashboardArgs,
     ToolName,
     ToolRunQueryArgs,
@@ -868,6 +869,12 @@ export type ApiAiAgentThreadMessageVizQuery = {
     source: 'semantic';
     type: AiResultType;
     query: ApiExecuteAsyncMetricQueryResults;
+    /**
+     * The core MergeQuery a merged visualization executed, so clients can
+     * compile its SQL, open it in the explorer, or save it without
+     * re-deriving the merge from the tool args. Null for ordinary queries.
+     */
+    mergeQuery: MergeQuery | null;
     metadata: AiVizMetadata;
 };
 
