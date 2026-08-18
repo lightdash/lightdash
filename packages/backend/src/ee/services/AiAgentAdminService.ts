@@ -23,6 +23,7 @@ import {
     AiAgentReviewSignalSummary,
     AiAgentReviewWritebackJobPayload,
     AiAgentSummary,
+    AiAgentThreadDump,
     AiReviewNotificationSettings,
     AlreadyExistsError,
     assertUnreachable,
@@ -75,6 +76,9 @@ import {
 import { type SlackClient } from '../../clients/Slack/SlackClient';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { isUniqueConstraintViolation } from '../../database/errors';
+import { createAuditLogEvent } from '../../logging/auditLog';
+import { createActorFromUser } from '../../logging/caslAuditWrapper';
+import { logAuditEvent } from '../../logging/winston';
 import { type GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { type GitlabAppInstallationsModel } from '../../models/GitlabAppInstallations/GitlabAppInstallationsModel';
 import { type JobModel } from '../../models/JobModel/JobModel';
@@ -84,6 +88,7 @@ import { type UserModel } from '../../models/UserModel';
 import { BaseService } from '../../services/BaseService';
 import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { type ProjectService } from '../../services/ProjectService/ProjectService';
+import { VERSION } from '../../version';
 import { type AiAgentMemoryModel } from '../models/AiAgentMemoryModel';
 import { AiAgentModel } from '../models/AiAgentModel';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
@@ -95,6 +100,7 @@ import {
     planReviewWriteback,
     PROJECT_CONTEXT_WORK_THREAD_INSTRUCTION,
 } from './ai/reviewWriteback/buildReviewWritebackPrompt';
+import { sanitizeToolResultForDump } from './ai/utils/threadDumpSanitizer';
 import { type AiAgentReviewClassifierService } from './AiAgentReviewClassifierService';
 import { type AiAgentReviewNotificationService } from './AiAgentReviewNotificationService';
 import { type AiAgentService } from './AiAgentService/AiAgentService';
@@ -629,6 +635,165 @@ export class AiAgentAdminService extends BaseService {
             filters: scopedFilters,
             sort,
         });
+    }
+
+    /**
+     * Build a sanitized, downloadable dump of a thread for vendor
+     * troubleshooting. Tool results go through an allowlist sanitizer so
+     * warehouse data (query rows, field values) never leaves the instance.
+     */
+    async getThreadDump(
+        user: SessionUser,
+        threadUuid: string,
+    ): Promise<AiAgentThreadDump> {
+        if (!this.lightdashConfig.ai.copilot.threadDumpEnabled) {
+            throw new ForbiddenError(
+                'AI thread dump is not enabled on this instance',
+            );
+        }
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        // Deliberately narrower than the rest of the admin threads surface:
+        // a dump exports conversation data off the instance, so project-scoped
+        // AI admins are not enough.
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('OrganizationAiAgent', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Insufficient permissions to download AI thread dumps',
+            );
+        }
+        const data = await this.aiAgentModel.findThreadForDump({
+            threadUuid,
+            organizationUuid,
+        });
+        if (!data) {
+            throw new NotFoundError('Thread not found');
+        }
+
+        // agent_uuid is nullable on ai_thread, but when set the agent row
+        // exists: the FK cascades thread deletion on agent deletion.
+        const agent = data.thread.agentUuid
+            ? await this.aiAgentModel.getAgent({
+                  organizationUuid,
+                  agentUuid: data.thread.agentUuid,
+              })
+            : null;
+
+        const turns = await Promise.all(
+            data.turns.map(async (turn) => ({
+                promptUuid: turn.promptUuid,
+                createdAt: turn.createdAt.toISOString(),
+                respondedAt: turn.respondedAt?.toISOString() ?? null,
+                hidden: turn.hidden,
+                user: turn.userText,
+                assistant: turn.assistantText,
+                error: turn.errorMessage,
+                interrupted: turn.interrupted,
+                feedback: turn.feedback,
+                steers: turn.steers,
+                modelConfig: turn.modelConfig,
+                tokenUsage: turn.tokenUsage,
+                toolCalls: await Promise.all(
+                    turn.toolCalls.map(async (toolCall) => {
+                        const sanitized =
+                            await sanitizeToolResultForDump(toolCall);
+                        return {
+                            toolCallId: toolCall.toolCallId,
+                            parentToolCallId: toolCall.parentToolCallId,
+                            name: toolCall.name,
+                            source: toolCall.source,
+                            args: toolCall.args,
+                            result: sanitized.result,
+                            resultOmitted: sanitized.resultOmitted,
+                            isError: toolCall.isError,
+                        };
+                    }),
+                ),
+                artifacts: turn.artifacts,
+            })),
+        );
+
+        this.analytics.track({
+            event: 'ai_agent.thread_dump_downloaded',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: data.thread.projectUuid,
+                threadId: data.thread.threadUuid,
+                agentId: data.thread.agentUuid,
+                turnCount: turns.length,
+            },
+        });
+        // Instance-local audit record: conversation data leaves the instance
+        // as a file, so the export must be traceable in the customer's own
+        // logs independent of telemetry settings.
+        try {
+            logAuditEvent(
+                createAuditLogEvent(
+                    createActorFromUser(user),
+                    'download',
+                    {
+                        type: 'AiAgentThreadDump',
+                        organizationUuid,
+                        projectUuid: data.thread.projectUuid,
+                        metadata: {
+                            threadUuid: data.thread.threadUuid,
+                            agentUuid: data.thread.agentUuid,
+                            turnCount: turns.length,
+                        },
+                    },
+                    {
+                        ip: user.requestContext?.ip,
+                        userAgent: user.requestContext?.userAgent,
+                        requestId: user.requestContext?.requestId,
+                    },
+                    'allowed',
+                ),
+            );
+        } catch (error) {
+            this.logger.warn('Failed to log thread dump audit event', {
+                error: getErrorMessage(error),
+                threadUuid: data.thread.threadUuid,
+            });
+        }
+
+        return {
+            schemaVersion: 1,
+            generatedAt: new Date().toISOString(),
+            lightdashVersion: VERSION,
+            defaultProvider: this.lightdashConfig.ai.copilot.defaultProvider,
+            organizationUuid,
+            projectUuid: data.thread.projectUuid,
+            threadUuid: data.thread.threadUuid,
+            agentUuid: data.thread.agentUuid,
+            userUuid: data.thread.userUuid,
+            createdFrom: data.thread.createdFrom,
+            title: data.thread.title,
+            agent: agent
+                ? {
+                      uuid: agent.uuid,
+                      name: agent.name,
+                      instruction: agent.instruction,
+                      tags: agent.tags,
+                      integrations: agent.integrations,
+                      modelConfig: agent.modelConfig,
+                      enableDataAccess: agent.enableDataAccess,
+                      enableSelfImprovement: agent.enableSelfImprovement,
+                      enableContentTools: agent.enableContentTools,
+                      enableUserContext: agent.enableUserContext,
+                      enableSqlMode: agent.enableSqlMode,
+                      adminOnly: agent.adminOnly,
+                      version: agent.version,
+                  }
+                : null,
+            turns,
+        };
     }
 
     async getAllEvals(

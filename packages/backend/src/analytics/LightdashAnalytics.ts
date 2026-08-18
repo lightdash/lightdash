@@ -3048,6 +3048,19 @@ export type AiAgentReviewItemWritebackFailedEvent = BaseTrack & {
     };
 };
 
+// Audit trail for conversation data leaving the instance as a debug dump.
+export type AiAgentThreadDumpDownloadedEvent = BaseTrack & {
+    event: 'ai_agent.thread_dump_downloaded';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        threadId: string;
+        agentId: string | null;
+        turnCount: number;
+    };
+};
+
 export type AiAgentReviewEvent =
     | AiAgentReviewItemsListedEvent
     | AiAgentReviewItemStatusChangedEvent
@@ -3445,6 +3458,7 @@ type TypedEvent =
     | AiAgentSuggestionSubmitEvent
     | AiAgentPullRequestViewedEvent
     | AiAgentReviewEvent
+    | AiAgentThreadDumpDownloadedEvent
     | AiAgentMemoryEvent
     | AiRouterConfigUpdatedEvent
     | AiRouterInstructionsUpdatedEvent

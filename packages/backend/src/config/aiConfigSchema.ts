@@ -156,6 +156,7 @@ export const aiCopilotConfigSchema = z
         enabled: z.boolean(),
         requiresFeatureFlag: z.boolean(),
         telemetryEnabled: z.boolean(),
+        threadDumpEnabled: z.boolean(),
         debugLoggingEnabled: z.boolean(),
         askAiButtonEnabled: z.boolean(),
         embeddingEnabled: z.boolean(),

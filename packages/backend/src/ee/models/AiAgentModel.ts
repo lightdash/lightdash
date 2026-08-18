@@ -309,6 +309,52 @@ type DbAiAgentToolCallWithMcpServer = DbAiAgentToolCall & {
     mcp_server_icon_url: string | null;
 };
 
+export type AiAgentThreadDumpData = {
+    thread: {
+        threadUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+        agentUuid: string | null;
+        createdFrom: AiThreadCreatedFrom;
+        title: string | null;
+        createdAt: Date;
+        userUuid: string | null;
+    };
+    turns: Array<{
+        promptUuid: string;
+        createdAt: Date;
+        respondedAt: Date | null;
+        hidden: boolean;
+        userText: string;
+        assistantText: string | null;
+        errorMessage: string | null;
+        interrupted: boolean;
+        feedback: { score: number; comment: string | null } | null;
+        steers: string[];
+        modelConfig: DbAiPrompt['model_config'];
+        tokenUsage: DbAiPrompt['token_usage'];
+        toolCalls: Array<{
+            toolCallId: string;
+            parentToolCallId: string | null;
+            name: string;
+            args: unknown;
+            result: string | null;
+            isError: boolean;
+            source: 'lightdash' | 'mcp';
+        }>;
+        artifacts: Array<{
+            artifactUuid: string;
+            versionUuid: string;
+            versionNumber: number;
+            artifactType: 'chart' | 'dashboard';
+            title: string | null;
+            description: string | null;
+            chartConfig: Record<string, unknown> | null;
+            dashboardConfig: Record<string, unknown> | null;
+        }>;
+    }>;
+};
+
 export type CreateAiThreadShareResult = {
     uuid: string;
     nanoid: string;
@@ -3716,6 +3762,243 @@ export class AiAgentModel {
         }
 
         return rows[0];
+    }
+
+    async findThreadForDump({
+        threadUuid,
+        organizationUuid,
+    }: {
+        threadUuid: string;
+        organizationUuid: string;
+    }): Promise<AiAgentThreadDumpData | undefined> {
+        const threadRow = await this.database(AiThreadTableName)
+            .where('ai_thread_uuid', threadUuid)
+            .where('organization_uuid', organizationUuid)
+            .first<
+                | {
+                      threadUuid: string;
+                      organizationUuid: string;
+                      projectUuid: string;
+                      agentUuid: string | null;
+                      createdFrom: AiThreadCreatedFrom;
+                      title: string | null;
+                      createdAt: Date;
+                  }
+                | undefined
+            >({
+                threadUuid: 'ai_thread_uuid',
+                organizationUuid: 'organization_uuid',
+                projectUuid: 'project_uuid',
+                agentUuid: 'agent_uuid',
+                createdFrom: 'created_from',
+                title: 'title',
+                createdAt: 'created_at',
+            });
+        if (!threadRow) return undefined;
+
+        const promptRows = await this.database(`${AiPromptTableName} as prompt`)
+            .leftJoin(
+                `${AiPromptInterruptTableName} as interrupt`,
+                'interrupt.ai_prompt_uuid',
+                'prompt.ai_prompt_uuid',
+            )
+            .where('prompt.ai_thread_uuid', threadUuid)
+            .orderBy('prompt.created_at', 'asc')
+            .select<
+                Array<{
+                    promptUuid: string;
+                    createdAt: Date;
+                    respondedAt: Date | null;
+                    hidden: boolean;
+                    userUuid: string | null;
+                    prompt: string;
+                    response: string | null;
+                    errorMessage: string | null;
+                    humanScore: number | null;
+                    humanFeedback: string | null;
+                    modelConfig: DbAiPrompt['model_config'];
+                    tokenUsage: DbAiPrompt['token_usage'];
+                    interruptUuid: string | null;
+                }>
+            >({
+                promptUuid: 'prompt.ai_prompt_uuid',
+                createdAt: 'prompt.created_at',
+                respondedAt: 'prompt.responded_at',
+                hidden: 'prompt.hidden',
+                userUuid: 'prompt.created_by_user_uuid',
+                prompt: 'prompt.prompt',
+                response: 'prompt.response',
+                errorMessage: 'prompt.error_message',
+                humanScore: 'prompt.human_score',
+                humanFeedback: 'prompt.human_feedback',
+                modelConfig: 'prompt.model_config',
+                tokenUsage: 'prompt.token_usage',
+                interruptUuid: 'interrupt.ai_prompt_uuid',
+            });
+        const promptUuids = promptRows.map((row) => row.promptUuid);
+
+        type DumpSteerRow = { promptUuid: string; message: string };
+        const steerRows =
+            promptUuids.length > 0
+                ? await this.database(AiPromptSteerTableName)
+                      .whereIn('ai_prompt_uuid', promptUuids)
+                      .orderBy('created_at', 'asc')
+                      .select<DumpSteerRow[]>({
+                          promptUuid: 'ai_prompt_uuid',
+                          message: 'message',
+                      })
+                : [];
+        const steersByPrompt = steerRows.reduce((map, row) => {
+            map.set(row.promptUuid, [
+                ...(map.get(row.promptUuid) ?? []),
+                row.message,
+            ]);
+            return map;
+        }, new Map<string, string[]>());
+
+        type DumpToolRow = {
+            promptUuid: string;
+            toolCallId: string;
+            parentToolCallId: string | null;
+            name: string;
+            args: unknown;
+            result: string | null;
+            isError: boolean;
+            mcpServerUuid: string | null;
+        };
+        const toolRows: DumpToolRow[] =
+            promptUuids.length > 0
+                ? await this.database(
+                      `${AiAgentToolCallTableName} as tool_call`,
+                  )
+                      .leftJoin(
+                          `${AiAgentToolResultTableName} as tool_result`,
+                          function joinToolResult() {
+                              this.on(
+                                  'tool_result.tool_call_id',
+                                  '=',
+                                  'tool_call.tool_call_id',
+                              ).andOn(
+                                  'tool_result.ai_prompt_uuid',
+                                  '=',
+                                  'tool_call.ai_prompt_uuid',
+                              );
+                          },
+                      )
+                      .whereIn('tool_call.ai_prompt_uuid', promptUuids)
+                      .orderBy('tool_call.created_at', 'asc')
+                      .select({
+                          promptUuid: 'tool_call.ai_prompt_uuid',
+                          toolCallId: 'tool_call.tool_call_id',
+                          parentToolCallId: 'tool_call.parent_tool_call_id',
+                          name: 'tool_call.tool_name',
+                          args: 'tool_call.tool_args',
+                          result: 'tool_result.result',
+                          isError: this.database.raw(
+                              "COALESCE(tool_result.metadata->>'status' = 'error', false)",
+                          ),
+                          mcpServerUuid: 'tool_call.ai_mcp_server_uuid',
+                      })
+                : [];
+        const toolsByPrompt = toolRows.reduce((map, row) => {
+            map.set(row.promptUuid, [...(map.get(row.promptUuid) ?? []), row]);
+            return map;
+        }, new Map<string, DumpToolRow[]>());
+
+        type DumpArtifactRow = {
+            promptUuid: string;
+            artifactUuid: string;
+            versionUuid: string;
+            versionNumber: number;
+            artifactType: 'chart' | 'dashboard';
+            title: string | null;
+            description: string | null;
+            chartConfig: Record<string, unknown> | null;
+            dashboardConfig: Record<string, unknown> | null;
+        };
+        const artifactRows =
+            promptUuids.length > 0
+                ? await this.database(
+                      `${AiArtifactVersionsTableName} as artifact_version`,
+                  )
+                      .join(
+                          `${AiArtifactsTableName} as artifact`,
+                          'artifact.ai_artifact_uuid',
+                          'artifact_version.ai_artifact_uuid',
+                      )
+                      .whereIn('artifact_version.ai_prompt_uuid', promptUuids)
+                      .orderBy('artifact_version.created_at', 'asc')
+                      .select<DumpArtifactRow[]>({
+                          promptUuid: 'artifact_version.ai_prompt_uuid',
+                          artifactUuid: 'artifact.ai_artifact_uuid',
+                          versionUuid:
+                              'artifact_version.ai_artifact_version_uuid',
+                          versionNumber: 'artifact_version.version_number',
+                          artifactType: 'artifact.artifact_type',
+                          title: 'artifact_version.title',
+                          description: 'artifact_version.description',
+                          chartConfig: 'artifact_version.chart_config',
+                          dashboardConfig: 'artifact_version.dashboard_config',
+                      })
+                : [];
+        const artifactsByPrompt = artifactRows.reduce((map, row) => {
+            map.set(row.promptUuid, [...(map.get(row.promptUuid) ?? []), row]);
+            return map;
+        }, new Map<string, DumpArtifactRow[]>());
+
+        return {
+            thread: {
+                ...threadRow,
+                userUuid:
+                    promptRows.find((row) => row.userUuid !== null)?.userUuid ??
+                    null,
+            },
+            turns: promptRows.map((row) => ({
+                promptUuid: row.promptUuid,
+                createdAt: row.createdAt,
+                respondedAt: row.respondedAt,
+                hidden: row.hidden,
+                userText: row.prompt,
+                assistantText: row.response,
+                errorMessage: row.errorMessage,
+                interrupted: row.interruptUuid !== null,
+                feedback:
+                    row.humanScore !== null && row.humanScore !== 0
+                        ? {
+                              score: row.humanScore,
+                              comment: row.humanFeedback,
+                          }
+                        : null,
+                steers: steersByPrompt.get(row.promptUuid) ?? [],
+                modelConfig: row.modelConfig,
+                tokenUsage: row.tokenUsage,
+                toolCalls: (toolsByPrompt.get(row.promptUuid) ?? []).map(
+                    (tool) => ({
+                        toolCallId: tool.toolCallId,
+                        parentToolCallId: tool.parentToolCallId,
+                        name: tool.name,
+                        args: tool.args,
+                        result: tool.result,
+                        isError: tool.isError,
+                        source: (tool.mcpServerUuid !== null
+                            ? 'mcp'
+                            : 'lightdash') as 'lightdash' | 'mcp',
+                    }),
+                ),
+                artifacts: (artifactsByPrompt.get(row.promptUuid) ?? []).map(
+                    (artifact) => ({
+                        artifactUuid: artifact.artifactUuid,
+                        versionUuid: artifact.versionUuid,
+                        versionNumber: artifact.versionNumber ?? 1,
+                        artifactType: artifact.artifactType,
+                        title: artifact.title,
+                        description: artifact.description,
+                        chartConfig: artifact.chartConfig,
+                        dashboardConfig: artifact.dashboardConfig,
+                    }),
+                ),
+            })),
+        };
     }
 
     async findThreadMessages({
