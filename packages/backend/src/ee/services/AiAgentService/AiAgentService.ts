@@ -65,11 +65,13 @@ import {
     Explore,
     FeatureFlags,
     ForbiddenError,
+    formatMergeQueryRefusal,
     GenerateArtifactQuestionJobPayload,
     getErrorMessage,
     getGroupByDimensions,
     getItemId,
     getItemMap,
+    getValidAiQueryLimit,
     getWebAiChartConfig,
     GITHUB_MCP_SERVER_NAME,
     GITHUB_MCP_SERVER_URL,
@@ -77,6 +79,7 @@ import {
     InsufficientGitPermissionsError,
     isAgentToolName,
     isAiDeepResearchRunTerminal,
+    isAiMergeChartArtifactConfig,
     isAiSqlChartArtifactConfig,
     isAiWritebackRunInProgress,
     isGithubMcpServerUrl,
@@ -86,12 +89,14 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     LightdashUser,
+    MergeQuery,
     NotFoundError,
     NotImplementedError,
     OpenIdIdentity,
     OpenIdIdentityIssuerType,
     ParameterError,
     ParametersValuesMap,
+    parsePersistedRunQueryArgs,
     parseVizConfig,
     PersistentDownloadFileAccessMode,
     ProjectType,
@@ -126,6 +131,7 @@ import {
     type AiWebAppThreadCreatedFrom,
     type SessionUser,
     type SuggestionValidationCatalog,
+    type ToolRunQueryArgsTransformed,
     type VerifiedContentListItem,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -335,6 +341,10 @@ import {
 } from '../ai/types/aiAgentDependencies';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
 import { AiCallAttribution } from '../ai/utils/aiCallTelemetry';
+import {
+    buildAiMergeQuery,
+    buildAiMergeSourceConfigs,
+} from '../ai/utils/buildAiMergeQuery';
 import {
     classifyWritebackError,
     GIT_WRITE_PERMISSION_AGENT_MESSAGE,
@@ -2338,6 +2348,61 @@ export class AiAgentService extends BaseService {
         );
 
         return asyncQuery;
+    }
+
+    /** The AI tool's merge shape as the core MergeQuery the engine executes. */
+    private async buildAiMergeQuery(
+        user: SessionUser,
+        projectUuid: string,
+        toolArgs: ToolRunQueryArgsTransformed,
+    ): Promise<MergeQuery> {
+        const exploreByName = Object.fromEntries(
+            await Promise.all(
+                buildAiMergeSourceConfigs(toolArgs).map(
+                    async ({ queryConfig }) =>
+                        [
+                            queryConfig.exploreName,
+                            await this.getExplore(
+                                user,
+                                projectUuid,
+                                null,
+                                queryConfig.exploreName,
+                            ),
+                        ] as const,
+                ),
+            ),
+        );
+        return buildAiMergeQuery({
+            toolArgs,
+            getExplore: (exploreName) => exploreByName[exploreName],
+            maxQueryLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
+        });
+    }
+
+    private async executeAsyncAiMergeQuery(
+        user: SessionUser,
+        projectUuid: string,
+        toolArgs: ToolRunQueryArgsTransformed,
+    ) {
+        const mergeQuery = await this.buildAiMergeQuery(
+            user,
+            projectUuid,
+            toolArgs,
+        );
+        const outcome = await this.asyncQueryService.executeAsyncMergeQuery({
+            account: fromSession(user),
+            projectUuid,
+            mergeQuery,
+            context: QueryExecutionContext.AI,
+            parameters: toolArgs.queryConfig.parameters ?? undefined,
+            mode: { type: 'interactive' },
+        });
+        if (outcome.outcome === 'refused') {
+            throw new ParameterError(formatMergeQueryRefusal(outcome.errors), {
+                errors: outcome.errors,
+            });
+        }
+        return { query: outcome.query, mergeQuery };
     }
 
     public async getAgent(
@@ -6462,6 +6527,52 @@ export class AiAgentService extends BaseService {
             );
         }
 
+        if (isAiMergeChartArtifactConfig(artifact.chartConfig)) {
+            const { enabled: mergeQueriesEnabled } =
+                await this.featureFlagService.get({
+                    user,
+                    featureFlagId: FeatureFlags.MergeQueries,
+                });
+            if (!mergeQueriesEnabled) {
+                throw new ForbiddenError('Merge queries are not enabled');
+            }
+            const parsed = parsePersistedRunQueryArgs(
+                artifact.chartConfig.config,
+            );
+            if (!parsed?.mergeConfig) {
+                throw new ParameterError('Invalid merge visualization config');
+            }
+            const { query, mergeQuery } = await this.executeAsyncAiMergeQuery(
+                user,
+                projectUuid,
+                parsed,
+            );
+            this.analytics.track({
+                event: 'ai_agent.artifact_viz_query',
+                userId: user.userUuid,
+                properties: {
+                    projectId: projectUuid,
+                    organizationId: organizationUuid,
+                    agentId: agent.uuid,
+                    agentName: agent.name,
+                    artifactId: artifactUuid,
+                    artifactVersionId: versionUuid,
+                    vizType: AiResultType.QUERY_RESULT,
+                    source: 'semantic',
+                },
+            });
+            return {
+                source: 'semantic',
+                type: AiResultType.QUERY_RESULT,
+                query,
+                mergeQuery,
+                metadata: {
+                    title: artifact.title,
+                    description: artifact.description,
+                },
+            };
+        }
+
         if (isAiSqlChartArtifactConfig(artifact.chartConfig)) {
             // Embed viewers are scoped by user attributes, which raw SQL bypasses.
             if (runtimeOptions) {
@@ -6550,6 +6661,7 @@ export class AiAgentService extends BaseService {
             source: 'semantic',
             type: parsedVizConfig.type,
             query,
+            mergeQuery: null,
             metadata,
         };
     }
@@ -6691,6 +6803,7 @@ export class AiAgentService extends BaseService {
             source: 'semantic',
             type: parsedVizConfig.type,
             query,
+            mergeQuery: null,
             metadata,
         };
     }
@@ -9417,6 +9530,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updateProgress,
             getPrompt,
             runAsyncQuery: toolsRuntime.runAsyncQuery,
+            runAsyncMergeQuery: toolsRuntime.runAsyncMergeQuery,
             runSavedChartQuery: toolsRuntime.runSavedChartQuery,
             runSqlJob: toolsRuntime.runSqlJob,
             listWarehouseTables: toolsRuntime.listWarehouseTables,
@@ -9618,6 +9732,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updateProgress,
             getPrompt,
             runAsyncQuery,
+            runAsyncMergeQuery,
             runSavedChartQuery,
             runSqlJob,
             listWarehouseTables,
@@ -9804,6 +9919,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     : undefined,
             ),
         });
+        const { enabled: mergeQueriesEnabled } =
+            await this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.MergeQueries,
+            });
         let aiWritebackEnabled = hasTrustedPromptUserIdentity;
         if (!aiWritebackEnabled) {
             this.logger.info(
@@ -10065,6 +10185,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableCodingAgent: codingAgentEnabled,
             enablePreviewDeploySetup: aiPreviewDeploySetupEnabled,
             enableRepoDiscovery: repoDiscoveryEnabled,
+            enableMergeQueries: mergeQueriesEnabled,
             repoFsRoot,
             repoFsSupportsCodeSearch,
             canRunSql,
@@ -10162,6 +10283,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             analyzeFieldImpact,
             syncDbtProject,
             runAsyncQuery,
+            runAsyncMergeQuery,
             runSavedChartQuery,
             runSqlJob,
             listWarehouseTables,

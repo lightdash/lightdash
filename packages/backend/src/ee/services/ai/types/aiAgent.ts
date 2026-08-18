@@ -68,6 +68,7 @@ import {
     ReadPinnedThreadFn,
     RecordSqlApprovalFn,
     ResolveUrlFn,
+    RunAsyncMergeQueryFn,
     RunAsyncQueryFn,
     RunSavedChartQueryFn,
     RunSqlJobFn,
@@ -220,6 +221,7 @@ export type AiAgentArgs = AnyAiModel & {
     writebackAttribution: AiWritebackAttribution | null;
     enablePreviewDeploySetup: boolean;
     enableRepoDiscovery: boolean;
+    enableMergeQueries: boolean;
     // Whether the general-purpose coding agent (`editRepo`) is available — the
     // CodingAgent flag, the org has a writable Git installation, and (in Slack)
     // a trusted prompt identity. Independent of enableAiWriteback.
@@ -302,6 +304,7 @@ export type AiAgentDependencies = {
     searchSemanticLayer: SearchSemanticLayerFn;
     analyzeFieldImpact: AnalyzeFieldImpactFn;
     runAsyncQuery: RunAsyncQueryFn;
+    runAsyncMergeQuery: RunAsyncMergeQueryFn;
     runSavedChartQuery: RunSavedChartQueryFn;
     runSqlJob: RunSqlJobFn;
     listWarehouseTables: ListWarehouseTablesFn;

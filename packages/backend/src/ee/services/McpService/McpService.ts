@@ -996,6 +996,7 @@ export class McpService extends BaseService {
                 filters: metricQuery.filters,
             },
             chartConfig: renderTool.chartConfig,
+            mergeConfig: null,
         };
     }
 

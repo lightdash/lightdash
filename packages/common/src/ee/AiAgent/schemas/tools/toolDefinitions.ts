@@ -13,8 +13,10 @@ import {
     mcpRunAiWritebackArgsSchema,
     mcpRunAiWritebackStructuredOutputSchema,
 } from '../../../aiWriteback/types';
+import { createAgentInputSchema } from '../agentInputSchema';
 import {
     defineTool,
+    type AgentToolView,
     type McpToolAnnotations,
     type ToolDefinition,
     type ToolDefinitionInstance,
@@ -255,6 +257,9 @@ import {
     toolRenderChartArgsSchemaTransformed,
     toolRunQueryArgsSchema,
     toolRunQueryArgsSchemaTransformed,
+    toolRunQueryArgsSchemaV2,
+    toolRunQueryArgsSchemaV2RejectingMerge,
+    toolRunQueryArgsSchemaV2Transformed,
     toolRunQueryOutputSchema,
 } from './toolRunQueryArgs';
 import {
@@ -526,8 +531,8 @@ export const generateVisualizationToolDefinition: ToolDefinitionWithoutMcpOutput
 
 export const runQueryToolDefinition: ToolDefinitionWithMcpOutput<
     'runQuery',
-    typeof toolRunQueryArgsSchema,
-    typeof toolRunQueryArgsSchemaTransformed,
+    typeof toolRunQueryArgsSchemaV2,
+    typeof toolRunQueryArgsSchemaV2Transformed,
     typeof toolRunQueryOutputSchema,
     typeof mcpRunMetricQueryStructuredOutputSchema
 > = defineTool({
@@ -535,14 +540,26 @@ export const runQueryToolDefinition: ToolDefinitionWithMcpOutput<
     title: 'Run query',
     description: TOOL_RUN_QUERY_DESCRIPTION,
     availability: ['agent', 'mcp'],
-    inputSchema: toolRunQueryArgsSchema,
-    inputSchemaTransformed: toolRunQueryArgsSchemaTransformed,
+    inputSchema: toolRunQueryArgsSchemaV2,
+    inputSchemaTransformed: toolRunQueryArgsSchemaV2Transformed,
     agent: { outputSchema: toolRunQueryOutputSchema },
     mcp: {
         name: 'run_metric_query',
         annotations: readOnlyAnnotations,
         structuredContentSchema: mcpRunMetricQueryStructuredOutputSchema,
     },
+});
+
+// The agent view of runQuery for runtimes without merge queries: identical
+// contract, but a merge-shaped payload fails validation instead of being
+// stripped to the primary query by Zod. Lazy, like `.for('agent')`.
+export const getRunQueryAgentViewRejectingMerge = (): AgentToolView<
+    'runQuery',
+    typeof toolRunQueryArgsSchemaV2,
+    typeof toolRunQueryOutputSchema
+> => ({
+    ...runQueryToolDefinition.for('agent'),
+    inputSchema: createAgentInputSchema(toolRunQueryArgsSchemaV2RejectingMerge),
 });
 
 export const runSqlToolDefinition: ToolDefinitionWithMcpOutput<

@@ -212,6 +212,9 @@ export type MergeQueryError = {
     message: string;
 };
 
+export const formatMergeQueryRefusal = (errors: MergeQueryError[]): string =>
+    `This merge cannot be run: ${errors.map((error) => error.message).join(' ')}`;
+
 const getJoinKeyFieldIdsForSource = (
     joinKey: MergeJoinKeyPart[],
     sourceId: string,

@@ -41,6 +41,34 @@ describe('getSystemPromptV2 project context', () => {
     });
 });
 
+describe('getSystemPromptV2 merge queries', () => {
+    test('directs cross-explore questions to generateVisualization when enabled', () => {
+        const content = promptText({
+            availableExplores: [],
+            canRunSql: true,
+            enableMergeQueries: true,
+        });
+
+        expect(content).toContain('use generateVisualization with mergeConfig');
+        expect(content).toContain(
+            'Do not use runSql merely to combine explores',
+        );
+    });
+
+    test('keeps the SQL fallback when merge queries are disabled', () => {
+        const content = promptText({
+            availableExplores: [],
+            canRunSql: true,
+            enableMergeQueries: false,
+        });
+
+        expect(content).toContain(
+            'use the runSql tool to write raw SQL across those tables',
+        );
+        expect(content).not.toContain('mergeConfig');
+    });
+});
+
 describe('getSystemPromptV2 memories', () => {
     test('includes the memory section when enabled', () => {
         const content = promptText({

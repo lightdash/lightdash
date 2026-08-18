@@ -34,6 +34,7 @@ import {
     FieldType,
     ForbiddenError,
     formatItemValue,
+    formatMergeQueryRefusal,
     formatRawRows,
     formatRawValue,
     formatRow,
@@ -6758,6 +6759,44 @@ export class AsyncQueryService extends ProjectService {
         });
     }
 
+    /** Execute a merge query and wait for all results. */
+    async executeMergeQueryAndGetResults(
+        args: ExecuteAsyncMergeQueryArgs,
+        pollingOptions?: PollingOptions,
+    ): Promise<{
+        queryUuid: string;
+        rows: Record<string, unknown>[];
+        cacheMetadata: CacheMetadata;
+        fields: ItemsMap;
+        pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        displayTimezone: string | null;
+        metricQuery: MetricQuery;
+    }> {
+        const { account, projectUuid } = args;
+        const outcome = await this.executeAsyncMergeQuery(args);
+        if (outcome.outcome === 'refused') {
+            throw new ParameterError(formatMergeQueryRefusal(outcome.errors), {
+                errors: outcome.errors,
+            });
+        }
+
+        const { queryUuid, cacheMetadata, fields, metricQuery } = outcome.query;
+        await this.pollForQueryCompletion({
+            account,
+            projectUuid,
+            queryUuid,
+            ...pollingOptions,
+        });
+        const results = await this.getReadyQueryResults({
+            account,
+            projectUuid,
+            queryUuid,
+            cacheMetadata,
+            fields,
+        });
+        return { queryUuid, metricQuery, ...results };
+    }
+
     /** Compatibility seam for the v1 endpoint's already-derived pivot. */
     async executeLegacyAsyncMergeQuery({
         pivotConfiguration,
@@ -6782,6 +6821,7 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         mode,
         pivotInput,
+        userAttributeOverrides,
     }: ExecuteMergeQueryInternalArgs): Promise<ApiExecuteAsyncMergeQueryResults> {
         assertIsAccountWithOrg(account);
         const { organizationUuid } =
@@ -6805,6 +6845,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             mergeQuery: effectiveMergeQuery,
             parameters,
+            userAttributeOverrides,
         });
         if (!isRunnableCompiledMergeQuery(compiledMerge)) {
             return {
@@ -6844,6 +6885,7 @@ export class AsyncQueryService extends ProjectService {
             parameters,
             pivotConfiguration,
             compiledMerge,
+            userAttributeOverrides,
         });
 
         return {
@@ -6873,6 +6915,7 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         organizationUuid,
         compiledMerge,
+        userAttributeOverrides,
     }: ExecuteCompiledAsyncMergeQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         // Only for composing SQL — quoting and the pivot stage need the
         // dialect. The async runtime opens its own connection to execute.
@@ -6917,7 +6960,15 @@ export class AsyncQueryService extends ProjectService {
         };
         const queryTags = AsyncQueryService.addUserAttributeQueryTags(
             baseQueryTags,
-            userAccessControls,
+            userAttributeOverrides
+                ? {
+                      ...userAccessControls,
+                      userAttributes: {
+                          ...userAccessControls.userAttributes,
+                          ...userAttributeOverrides,
+                      },
+                  }
+                : userAccessControls,
         );
         const requestParameters: ExecuteAsyncMergeQueryRequestParams = {
             context,

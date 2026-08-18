@@ -10,6 +10,7 @@ import {
     metricQueryTimeSeriesViz,
     metricQueryVerticalBarViz,
     parsePersistedRunQueryArgs,
+    toolRunQueryArgsSchemaV3,
     toolTableVizArgsSchemaTransformed,
     toolTimeSeriesArgsSchemaTransformed,
     toolVerticalBarArgsSchemaTransformed,
@@ -149,6 +150,24 @@ export const parseAiArtifactChartConfig = (
     config: unknown,
 ): AiChartArtifactConfig | null => {
     if (!config || typeof config !== 'object') return null;
+
+    if (
+        'source' in config &&
+        config.source === 'merge' &&
+        'schemaVersion' in config &&
+        config.schemaVersion === 1 &&
+        'config' in config
+    ) {
+        const parsed = toolRunQueryArgsSchemaV3.safeParse(config.config);
+        if (parsed.success && parsed.data.mergeConfig) {
+            return {
+                source: 'merge',
+                schemaVersion: 1,
+                config: parsed.data,
+            };
+        }
+        return null;
+    }
 
     if (
         'source' in config &&

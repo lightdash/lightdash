@@ -1056,6 +1056,7 @@ export class AiDeepResearchService extends BaseService {
         return {
             source: 'semantic',
             type: AiResultType.QUERY_RESULT,
+            mergeQuery: null,
             query: {
                 queryUuid: query.queryUuid,
                 cacheMetadata: query.cacheMetadata,

@@ -12,6 +12,8 @@ import {
     toolRunQueryArgsSchemaTransformed,
     toolRunQueryArgsSchemaV1,
     toolRunQueryArgsSchemaV2,
+    toolRunQueryArgsSchemaV2RejectingMerge,
+    toolRunQueryArgsSchemaV3,
 } from './toolRunQueryArgs';
 
 const baseQueryConfig = {
@@ -65,10 +67,43 @@ const buildV1Args = (overrides: Record<string, unknown> = {}) => ({
     ...overrides,
 });
 
+const buildV3MergeArgs = () => ({
+    ...buildV2Args(),
+    mergeConfig: {
+        primarySourceId: 'orders',
+        additionalSources: [
+            {
+                id: 'targets',
+                queryConfig: {
+                    exploreName: 'targets',
+                    dimensions: ['targets_month'],
+                    metrics: ['targets_target'],
+                    sorts: [],
+                    customMetrics: null,
+                    filters: null,
+                },
+            },
+        ],
+        joinKey: [
+            {
+                name: 'month',
+                fields: [
+                    {
+                        sourceId: 'orders',
+                        fieldId: 'orders_order_date_month',
+                    },
+                    { sourceId: 'targets', fieldId: 'targets_month' },
+                ],
+            },
+        ],
+        joinType: 'full',
+    },
+});
+
 const getDimensionFilterFieldIds = (filters: Filters) =>
     getTotalFilterRules(filters).map((rule) => rule.target.fieldId);
 
-describe('toolRunQueryArgsSchemaTransformed (V2 only)', () => {
+describe('toolRunQueryArgsSchemaTransformed (V3)', () => {
     it('parses V2 args into the nested internal shape', () => {
         const parsed = toolRunQueryArgsSchemaTransformed.parse(buildV2Args());
 
@@ -84,6 +119,19 @@ describe('toolRunQueryArgsSchemaTransformed (V2 only)', () => {
         });
     });
 
+    it('parses merge config while defaulting old V2 calls to no merge', () => {
+        expect(
+            toolRunQueryArgsSchemaTransformed.parse(buildV2Args()).mergeConfig,
+        ).toBeNull();
+        expect(
+            toolRunQueryArgsSchemaTransformed.parse(buildV3MergeArgs())
+                .mergeConfig?.primarySourceId,
+        ).toBe('orders');
+        expect(
+            toolRunQueryArgsSchemaV3.safeParse(buildV3MergeArgs()).success,
+        ).toBe(true);
+    });
+
     it('rejects V1-shaped args (the tool only accepts V2)', () => {
         expect(
             toolRunQueryArgsSchemaTransformed.safeParse(buildV1Args()).success,
@@ -94,6 +142,29 @@ describe('toolRunQueryArgsSchemaTransformed (V2 only)', () => {
         expect(toolRunQueryArgsSchemaV1.safeParse(buildV1Args()).success).toBe(
             true,
         );
+    });
+});
+
+describe('toolRunQueryArgsSchemaV2RejectingMerge', () => {
+    it('accepts ordinary V2 payloads, including an explicit null mergeConfig', () => {
+        expect(
+            toolRunQueryArgsSchemaV2RejectingMerge.safeParse(buildV2Args())
+                .success,
+        ).toBe(true);
+        expect(
+            toolRunQueryArgsSchemaV2RejectingMerge.safeParse({
+                ...buildV2Args(),
+                mergeConfig: null,
+            }).success,
+        ).toBe(true);
+    });
+
+    it('rejects a merge-shaped payload instead of stripping mergeConfig', () => {
+        const result =
+            toolRunQueryArgsSchemaV2RejectingMerge.safeParse(
+                buildV3MergeArgs(),
+            );
+        expect(result.success).toBe(false);
     });
 });
 
@@ -145,6 +216,15 @@ describe('parsePersistedRunQueryArgs', () => {
 
     it('returns null for unparseable input', () => {
         expect(parsePersistedRunQueryArgs({ nonsense: true })).toBeNull();
+    });
+
+    it('fails closed instead of dropping an invalid merge config', () => {
+        expect(
+            parsePersistedRunQueryArgs({
+                ...buildV2Args(),
+                mergeConfig: { primarySourceId: 'orders' },
+            }),
+        ).toBeNull();
     });
 });
 

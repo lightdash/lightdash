@@ -831,6 +831,7 @@ export const getAgentTools = (
     const generateVisualization = getGenerateVisualization({
         updateProgress: dependencies.updateProgress,
         runAsyncQuery: dependencies.runAsyncQuery,
+        runAsyncMergeQuery: dependencies.runAsyncMergeQuery,
         getPrompt: dependencies.getPrompt,
         sendFile: dependencies.sendFile,
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
@@ -839,6 +840,7 @@ export const getAgentTools = (
         exposeQueryUuid: args.execution.mode === 'deep_research',
         enableDataAccess: args.enableDataAccess,
         projectParameterDefinitions,
+        enableMergeQueries: args.enableMergeQueries,
     });
 
     const runSavedChart = getRunSavedChart({
@@ -1423,6 +1425,7 @@ export const getAgentMessages = (
         enableContentTools: args.enableDataAccess && args.enableContentTools,
         slackChannelId: args.slackChannelId,
         canRunSql: args.canRunSql,
+        enableMergeQueries: args.enableMergeQueries,
         warehouseType: args.warehouseType,
         warehouseSchema: args.warehouseSchema,
         sqlScope: args.sqlScope,

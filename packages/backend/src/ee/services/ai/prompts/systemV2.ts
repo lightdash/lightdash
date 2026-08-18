@@ -58,6 +58,7 @@ export const getSystemPromptV2 = (args: {
     // web and MCP prompts.
     slackChannelId?: string | null;
     canRunSql?: boolean;
+    enableMergeQueries?: boolean;
     warehouseType?: WarehouseTypes | null;
     warehouseSchema?: string | null;
     sqlScope?: AgentSqlScope | null;
@@ -83,6 +84,7 @@ export const getSystemPromptV2 = (args: {
         enableAiAgentMemory = false,
         slackChannelId = null,
         canRunSql = false,
+        enableMergeQueries = false,
         warehouseType = null,
         warehouseSchema = null,
         sqlScope = null,
@@ -91,9 +93,17 @@ export const getSystemPromptV2 = (args: {
         mcpServers = [],
     } = args;
 
-    const crossExploreJoinRule = canRunSql
-        ? '  - You cannot mix fields from different explores in a single generateVisualization call. When the user needs data combined across explores that are not joined in the semantic layer, use the runSql tool to write raw SQL across those tables.'
-        : '  - You can not mix fields from different explores.';
+    let crossExploreJoinRule: string;
+    if (enableMergeQueries) {
+        crossExploreJoinRule =
+            '  - To combine fields from two explores that are not joined in the semantic layer, use generateVisualization with mergeConfig. Keep the primary query in queryConfig, put exactly one additional query in mergeConfig.additionalSources, and join dimensions at the same type and grain. Do not use runSql merely to combine explores.';
+    } else if (canRunSql) {
+        crossExploreJoinRule =
+            '  - You cannot mix fields from different explores in a single generateVisualization call. When the user needs data combined across explores that are not joined in the semantic layer, use the runSql tool to write raw SQL across those tables.';
+    } else {
+        crossExploreJoinRule =
+            '  - You can not mix fields from different explores.';
+    }
 
     const customSqlLimitation = canRunSql
         ? ''

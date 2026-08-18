@@ -5066,6 +5066,7 @@ export class ProjectService extends BaseService {
              * in an outer statement (a merge) that orders and limits once.
              */
             asCteBody?: boolean;
+            userAttributeOverrides?: UserAttributeValueMap;
         } & ({ exploreName: string } | { explore: Explore }),
     ) {
         const {
@@ -5145,8 +5146,11 @@ export class ProjectService extends BaseService {
             warehouseCredentials.startOfWeek,
         );
 
-        const { userAttributes, intrinsicUserAttributes } =
+        const { userAttributes: baseUserAttributes, intrinsicUserAttributes } =
             await this.getUserAttributes({ account });
+        const userAttributes = args.userAttributeOverrides
+            ? { ...baseUserAttributes, ...args.userAttributeOverrides }
+            : baseUserAttributes;
 
         const availableParameterDefinitions = await this.getAvailableParameters(
             projectUuid,
@@ -5289,8 +5293,15 @@ export class ProjectService extends BaseService {
         mergeQuery: MergeQuery;
         /** One map for every source: sides of one question share their values. */
         parameters?: ParametersValuesMap;
+        userAttributeOverrides?: UserAttributeValueMap;
     }): Promise<ApiCompiledMergeQueryResults> {
-        const { account, projectUuid, mergeQuery, parameters } = args;
+        const {
+            account,
+            projectUuid,
+            mergeQuery,
+            parameters,
+            userAttributeOverrides,
+        } = args;
 
         // One metadata load feeds validation, output typing and display labels.
         // Query-defined fields belong in the same item map as explore fields,
@@ -5382,6 +5393,7 @@ export class ProjectService extends BaseService {
                     projectUuid,
                     exploreName: source.metricQuery.exploreName,
                     body: { ...source.metricQuery, parameters },
+                    userAttributeOverrides,
                     // A pre-aggregate compiles to a placeholder table name
                     // that only the pre-aggregate execution path resolves.
                     // A merge embeds this SQL as a CTE and runs it itself,

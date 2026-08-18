@@ -3,6 +3,7 @@ import {
     getGroupByDimensions,
     getWebAiChartConfig,
     isAiAgentSqlArtifactVizQuery,
+    isAiMergeChartArtifactConfig,
     isAiSqlChartArtifactConfig,
     parseVizConfig,
     type AiAgentChartTypeOption,
@@ -106,10 +107,18 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
         const isSqlArtifact = isAiSqlChartArtifactConfig(
             artifactData?.chartConfig,
         );
+        const mergeChartConfig = isAiMergeChartArtifactConfig(
+            artifactData?.chartConfig,
+        )
+            ? artifactData?.chartConfig
+            : null;
+        const isMergeArtifact = mergeChartConfig !== null;
         const semanticChartConfig =
             artifactData?.chartConfig?.source === 'semantic'
                 ? artifactData.chartConfig.config
-                : null;
+                : mergeChartConfig
+                  ? mergeChartConfig.config
+                  : null;
 
         const vizConfig = useMemo(() => {
             if (!isFloatingChart || !semanticChartConfig) return null;
@@ -147,9 +156,13 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
         );
 
         const { data: compiledSql } = useCompiledSqlFromMetricQuery({
-            tableName: semanticVizQueryData?.query.metricQuery?.exploreName,
+            tableName: isMergeArtifact
+                ? undefined
+                : semanticVizQueryData?.query.metricQuery?.exploreName,
             projectUuid: artifact.projectUuid,
-            metricQuery: semanticVizQueryData?.query.metricQuery,
+            metricQuery: isMergeArtifact
+                ? undefined
+                : semanticVizQueryData?.query.metricQuery,
         });
 
         // Same parse the renderer does — needed so the floating pill can
@@ -326,7 +339,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                             description={description}
                             columns={Object.values(queryResults.columns ?? {})}
                         />
-                    ) : (
+                    ) : !isMergeArtifact ? (
                         <AiChartQuickOptions
                             message={message}
                             projectUuid={artifact.projectUuid}
@@ -339,7 +352,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                             }}
                             compiledSql={compiledSql?.query}
                         />
-                    )}
+                    ) : null}
                     {showCloseButton && (
                         <>
                             <Divider
