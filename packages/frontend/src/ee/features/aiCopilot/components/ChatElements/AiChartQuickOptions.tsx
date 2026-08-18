@@ -72,17 +72,11 @@ type Props = {
     message: AiAgentMessageAssistant;
     compiledSql?: string;
     artifactData?: AiArtifact;
-    /**
-     * Merged results have no single source explore, so the explore action
-     * does not apply. Saving persists the primary source as the chart's own
-     * query with the rest of the merge beside it, exactly as the explorer
-     * saves a hand-built merge.
-     */
-    mergeArtifact?: boolean;
-    /** The executed merge, from the artifact viz query. Null while loading. */
-    mergeQuery?: MergeQuery | null;
-    /** Parameter values the merge ran with, persisted onto the saved chart. */
-    mergeParameters?: ParametersValuesMap;
+    /** Set for merge artifacts; `query` is null until the viz query loads. */
+    merge: {
+        query: MergeQuery | null;
+        parameters: ParametersValuesMap | undefined;
+    } | null;
 };
 
 export const AiChartQuickOptions = ({
@@ -92,9 +86,7 @@ export const AiChartQuickOptions = ({
     message,
     compiledSql,
     artifactData,
-    mergeArtifact = false,
-    mergeQuery = null,
-    mergeParameters,
+    merge,
 }: Props) => {
     const { track } = useTracking();
     const { user } = useApp();
@@ -169,18 +161,15 @@ export const AiChartQuickOptions = ({
     // Renamed to the merge editor's conventions so the saved chart and the
     // explore link are indistinguishable from a merge built by hand.
     const canonicalMerge = useMemo(
-        () =>
-            mergeArtifact && mergeQuery
-                ? canonicalizeAiMerge(mergeQuery)
-                : null,
-        [mergeArtifact, mergeQuery],
+        () => (merge?.query ? canonicalizeAiMerge(merge.query) : null),
+        [merge],
     );
 
     const savedData = useMemo(() => {
         if (!metricQuery) return undefined;
         // A merged result's own metricQuery is synthetic; the chart persists
         // the primary source's query (always first) plus the stored merge.
-        if (mergeArtifact) {
+        if (merge) {
             if (!canonicalMerge) return undefined;
             const { fieldIdByAiFieldId } = canonicalMerge;
             const [primary] = canonicalMerge.mergeQuery.sources;
@@ -203,7 +192,7 @@ export const AiChartQuickOptions = ({
                       }
                     : undefined,
                 merge: toSavedMerge(canonicalMerge.mergeQuery),
-                parameters: mergeParameters,
+                parameters: merge.parameters,
             };
         }
         return {
@@ -220,9 +209,8 @@ export const AiChartQuickOptions = ({
         chartConfig,
         columnOrder,
         pivotDimensions,
-        mergeArtifact,
+        merge,
         canonicalMerge,
-        mergeParameters,
     ]);
 
     const trackChartCreated = useCallback(() => {
@@ -320,7 +308,7 @@ export const AiChartQuickOptions = ({
         if (isDisabled) return undefined;
         // A merge opens on its primary source with the whole merge carried in
         // the merge search param, landing in the merge editor fully set up.
-        if (mergeArtifact) {
+        if (merge) {
             if (!canonicalMerge || !projectUuid) return undefined;
             const { fieldIdByAiFieldId } = canonicalMerge;
             const [primary, additional] = canonicalMerge.mergeQuery.sources;
@@ -370,7 +358,7 @@ export const AiChartQuickOptions = ({
         });
     }, [
         isDisabled,
-        mergeArtifact,
+        merge,
         canonicalMerge,
         metricQuery,
         projectUuid,
@@ -472,12 +460,12 @@ export const AiChartQuickOptions = ({
     const canVerify = !!artifactData && canManageAgent;
     const hasSavedChartAction = !!message.savedQueryUuid && !isEmbed;
     const hasSaveActions =
-        !message.savedQueryUuid && (!mergeArtifact || !!canonicalMerge);
+        !message.savedQueryUuid && (!merge || !!canonicalMerge);
     const canExploreFromEmbed =
         content?.type === 'aiAgent' && content.canExplore === true;
     // The embedded explorer has not been exercised with merge state, so merge
     // artifacts only offer the explore action in the full app.
-    const hasExploreAction = mergeArtifact
+    const hasExploreAction = merge
         ? !isEmbed && !!canonicalMerge
         : !isEmbed || canExploreFromEmbed;
     const hasSqlActions = !!compiledSql;

@@ -1,4 +1,8 @@
-import { MERGE_TABLE_NAME, type MergeQuery } from '@lightdash/common';
+import {
+    getItemId,
+    MERGE_TABLE_NAME,
+    type MergeQuery,
+} from '@lightdash/common';
 import {
     DEFAULT_ADDITIONAL_SOURCE_ID,
     JOIN_KEY,
@@ -11,17 +15,16 @@ export type CanonicalAiMerge = {
     fieldIdByAiFieldId: Record<string, string>;
 };
 
-const mergedColumnId = (prefix: string, name: string) =>
-    `${prefix}_${name.replaceAll('.', '__')}`;
+// Merged output columns are fields of the merge/source "tables", so getItemId
+// is the naming authority.
+const mergedColumnId = (table: string, name: string) =>
+    getItemId({ table, name });
 
 /**
- * The AI names merge sources and join keys freely; the explorer's merge
- * editor addresses the primary source and join keys by its own fixed
- * conventions. Renaming to those conventions up front means everything
- * downstream — the merge editor, saved charts, re-saves from the editor —
- * treats an AI merge exactly like one built by hand. Merged output column
- * ids embed the renamed parts, so chart configs referencing the AI's ids
- * must be remapped with `fieldIdByAiFieldId`.
+ * Renames the AI's free-form source and join-key names to the merge editor's
+ * fixed conventions, so everything downstream treats an AI merge exactly like
+ * one built by hand. Chart configs referencing the AI's merged column ids must
+ * be remapped with `fieldIdByAiFieldId`.
  */
 export const canonicalizeAiMerge = (
     mergeQuery: MergeQuery,
