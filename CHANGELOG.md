@@ -1,3 +1,15 @@
+# [1.196.0](https://github.com/lightdash/lightdash/compare/1.195.0...1.196.0) (2026-08-18)
+
+
+### Bug Fixes
+
+* **autopilot:** never-viewed content must exceed the staleness window before counting as stale ([#27529](https://github.com/lightdash/lightdash/issues/27529)) ([7637fd2](https://github.com/lightdash/lightdash/commit/7637fd22ba2c44dcc828f4397eec3d10cfe911c8))
+
+
+### Features
+
+* show chart type build traces ([#27595](https://github.com/lightdash/lightdash/issues/27595)) ([c38236e](https://github.com/lightdash/lightdash/commit/c38236eb28ac327dc709d5a710128b4b43125d71))
+
 # [1.195.0](https://github.com/lightdash/lightdash/compare/1.194.1...1.195.0) (2026-08-18)
 
 
