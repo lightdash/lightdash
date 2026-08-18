@@ -171,6 +171,13 @@ const sourceExplore = (): Explore => ({
                     timeInterval: TimeFrames.MONTH,
                     timeIntervalBaseDimensionName: 'order_date',
                 }),
+                order_date_month_name: makeDimension({
+                    name: 'order_date_month_name',
+                    table: 'orders',
+                    type: DimensionType.STRING,
+                    timeInterval: TimeFrames.MONTH_NAME,
+                    timeIntervalBaseDimensionName: 'order_date',
+                }),
             },
             metrics: {
                 total_order_amount: makeMetric({
@@ -362,11 +369,11 @@ describe('buildPreAggregateExplore', () => {
         );
 
         expect(result.tables.orders.dimensions.order_date_day.compiledSql).toBe(
-            'CAST(orders.orders_order_date_day AS TIMESTAMP)',
+            'orders.orders_order_date_day',
         );
         expect(
             result.tables.orders.dimensions.order_date_month.compiledSql,
-        ).toContain('CAST(orders.orders_order_date_day AS TIMESTAMP)');
+        ).toContain('orders.orders_order_date_day');
         expect(result.tables.orders.dimensions.order_date_hour).toBeUndefined();
     });
 
@@ -381,9 +388,7 @@ describe('buildPreAggregateExplore', () => {
 
         expect(
             result.tables.orders.dimensions.order_date_month.compiledSql,
-        ).toContain(
-            "DATE_TRUNC('MONTH', CAST(orders.orders_order_date_day AS TIMESTAMP))",
-        );
+        ).toContain("DATE_TRUNC('MONTH', orders.orders_order_date_day)");
     });
 
     it('applies startOfWeek to week re-truncation', () => {
@@ -396,7 +401,7 @@ describe('buildPreAggregateExplore', () => {
         expect(
             result.tables.orders.dimensions.order_date_week.compiledSql,
         ).toBe(
-            "(DATE_TRUNC('WEEK', (CAST(orders.orders_order_date_day AS TIMESTAMP) - interval '6 days')) + interval '6 days')",
+            "(DATE_TRUNC('WEEK', (orders.orders_order_date_day - interval '6 days')) + interval '6 days')",
         );
     });
 
@@ -408,9 +413,18 @@ describe('buildPreAggregateExplore', () => {
 
         expect(
             result.tables.orders.dimensions.order_date_week.compiledSql,
-        ).toBe(
-            "DATE_TRUNC('WEEK', CAST(orders.orders_order_date_day AS TIMESTAMP))",
+        ).toBe("DATE_TRUNC('WEEK', orders.orders_order_date_day)");
+    });
+
+    it('derives named time frames with the serving warehouse function', () => {
+        const result = buildExplore(
+            sourceExplore(),
+            sourceExplore().preAggregates![0],
         );
+
+        expect(
+            result.tables.orders.dimensions.order_date_month_name.compiledSql,
+        ).toBe("TO_CHAR(orders.orders_order_date_day, 'FMMonth')");
     });
 
     describe('external pre-aggregates', () => {
@@ -474,9 +488,36 @@ describe('buildPreAggregateExplore', () => {
             // BigQuery argument order, not DuckDB's DATE_TRUNC('MONTH', x)
             expect(
                 result.tables.orders.dimensions.order_date_month.compiledSql,
-            ).toBe(
-                'DATE_TRUNC(CAST(orders.orders_order_date_day AS TIMESTAMP), MONTH)',
+            ).toBe('DATE_TRUNC(orders.orders_order_date_day, MONTH)');
+        });
+
+        it('derives named time frames with the project warehouse function', () => {
+            const result = buildExplore(
+                {
+                    ...sourceExplore(),
+                    targetDatabase: SupportedDbtAdapter.BIGQUERY,
+                },
+                externalDef(),
             );
+
+            expect(
+                result.tables.orders.dimensions.order_date_month_name
+                    .compiledSql,
+            ).toBe("FORMAT_DATE('%B', orders.orders_order_date_day)");
+        });
+
+        it('preserves timestamp materialization types for named time frames', () => {
+            const explore = sourceExplore();
+            explore.targetDatabase = SupportedDbtAdapter.BIGQUERY;
+            explore.tables.orders.dimensions.order_date.type =
+                DimensionType.TIMESTAMP;
+
+            const result = buildExplore(explore, externalDef());
+
+            expect(
+                result.tables.orders.dimensions.order_date_month_name
+                    .compiledSql,
+            ).toBe("FORMAT_DATETIME('%B', orders.orders_order_date_day)");
         });
     });
 
@@ -623,7 +664,7 @@ describe('buildPreAggregateExplore', () => {
 
         expect(result.tables.orders.dimensions.order_date_day).toBeDefined();
         expect(result.tables.orders.dimensions.order_date_day.compiledSql).toBe(
-            'CAST(orders.orders_order_date_day AS TIMESTAMP)',
+            'orders.orders_order_date_day',
         );
         expect(result.tables.orders.dimensions.status).toBeDefined();
     });
