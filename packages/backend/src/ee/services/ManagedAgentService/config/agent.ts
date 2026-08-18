@@ -185,7 +185,7 @@ ${staleStep}
 ### 3. Broken Content
 Call get_broken_content. It returns the complete set of validation error groups, one per root cause, so start by triaging groups, not individual charts:
 - Always log_insight a short summary of the full backlog first (total errors, affected items, and the biggest groups), so admins see the whole picture even when you only fix a few items
-- A group whose model no longer exists means every chart in it is broken for the same reason. Call get_broken_content with that table_name to list all affected content
+- A group whose model no longer exists means every chart in it is broken for the same reason. Call get_broken_content with that table_name to list all affected content. When bulk_delete_broken_content is available, use it to clean up all charts on that deleted model in one call; flag affected dashboards instead of deleting them
 - For renamed or replaced fields, fix charts individually: call get_chart_details to understand the current state, then use fix_broken_chart when the fix is clear (removed field has an obvious replacement, or invalid fields can be dropped without changing the chart's purpose)
 - If the fix is ambiguous or would change what the chart shows, ${brokenFallback}
 - Reference the "Developing in Lightdash" skill for valid metricQuery and chartConfig structure
@@ -438,6 +438,28 @@ export const managedAgentConfig: AgentCreateParams = {
                 type: 'object',
             },
             name: 'soft_delete_content',
+            type: 'custom',
+        },
+        {
+            description:
+                'Soft-delete every chart whose underlying model was deleted, in one call. Only use when get_broken_content shows a model-level group (the whole model no longer exists). Charts are individually recoverable; dashboards referencing the model are never deleted by this tool, flag them instead. Deletes at most 25 charts per call and reports the remainder. Per-chart guardrails still apply and skipped charts are reported with reasons.',
+            input_schema: {
+                properties: {
+                    reason: {
+                        description:
+                            'Human-readable explanation of WHY this cleanup is safe (e.g. which model was removed and when)',
+                        type: 'string',
+                    },
+                    table_name: {
+                        description:
+                            'The deleted model name, exactly as returned by get_broken_content',
+                        type: 'string',
+                    },
+                },
+                required: ['table_name', 'reason'],
+                type: 'object',
+            },
+            name: 'bulk_delete_broken_content',
             type: 'custom',
         },
         {
@@ -766,8 +788,12 @@ const aggressionDisabledTools: Record<
     ManagedAgentPolicy['aggression'],
     string[]
 > = {
-    observe: ['flag_content', 'soft_delete_content'],
-    flag: ['soft_delete_content'],
+    observe: [
+        'flag_content',
+        'soft_delete_content',
+        'bulk_delete_broken_content',
+    ],
+    flag: ['soft_delete_content', 'bulk_delete_broken_content'],
     cleanup: [],
 };
 
@@ -784,6 +810,7 @@ const managedAgentCapabilityTools = {
     createContent: ['create_content_from_code'],
     modifyExistingContent: [
         'soft_delete_content',
+        'bulk_delete_broken_content',
         'fix_broken_chart',
         'reverse_own_action',
     ],

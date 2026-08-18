@@ -8,6 +8,7 @@ import {
 export const MANAGED_AGENT_TOOL_RESULT_ITEM_LIMIT = 100;
 export const MANAGED_AGENT_BROKEN_CONTENT_ERROR_LIMIT = 10;
 export const MANAGED_AGENT_BROKEN_CONTENT_GROUP_ITEM_LIMIT = 10;
+export const MANAGED_AGENT_BULK_DELETE_RUN_LIMIT = 25;
 
 // Root-cause model of a validation row. Guard order matters: table responses
 // are structurally assignable from the others, so they are the fallback.

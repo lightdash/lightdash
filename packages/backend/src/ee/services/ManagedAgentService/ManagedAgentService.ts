@@ -65,6 +65,7 @@ import {
     getManagedAgentToolResultLimit,
     getValidationRootCauseTableName,
     MANAGED_AGENT_BROKEN_CONTENT_GROUP_ITEM_LIMIT,
+    MANAGED_AGENT_BULK_DELETE_RUN_LIMIT,
     MANAGED_AGENT_TOOL_RESULT_ITEM_LIMIT,
     summarizeManagedAgentBrokenContent,
 } from './toolResults';
@@ -2009,6 +2010,14 @@ export class ManagedAgentService extends BaseService {
                     runUuid,
                     input,
                 );
+            case 'bulk_delete_broken_content':
+                return this.handleBulkDeleteBrokenContent(
+                    actor,
+                    projectUuid,
+                    sessionId,
+                    runUuid,
+                    input,
+                );
             case 'log_insight':
                 return this.handleLogInsight(
                     actor,
@@ -2995,6 +3004,86 @@ chartConfig:
         return null;
     }
 
+    // Full chart soft-delete guard chain shared by soft_delete_content and
+    // bulk_delete_broken_content. Returns a blocked JSON payload, or null
+    // after a successful soft delete.
+    private async guardAndSoftDeleteChart(args: {
+        actor: SessionUser;
+        projectUuid: string;
+        sessionId: string;
+        runUuid: string;
+        chartUuid: string;
+        chartName: string;
+        policy: ManagedAgentPolicy;
+        actorUuid: string;
+        attemptedAction: 'fix' | 'flag' | 'soft-delete';
+    }): Promise<string | null> {
+        const {
+            actor,
+            projectUuid,
+            sessionId,
+            runUuid,
+            chartUuid,
+            chartName,
+            policy,
+            actorUuid,
+            attemptedAction,
+        } = args;
+
+        const deleteProtectionBlock = await this.checkTargetProtectionGuard(
+            projectUuid,
+            ManagedAgentTargetType.CHART,
+            chartUuid,
+            chartName,
+            { actor, sessionId, runUuid, attemptedAction },
+        );
+        if (deleteProtectionBlock) {
+            return deleteProtectionBlock;
+        }
+
+        const protectCutoff = new Date();
+        protectCutoff.setDate(
+            protectCutoff.getDate() - policy.protectRecentDays,
+        );
+
+        const chart = await this.savedChartModel.get(chartUuid);
+        ManagedAgentService.assertProjectOwnership(
+            chart.projectUuid,
+            projectUuid,
+            'Chart',
+            chartUuid,
+        );
+        await this.assertActorCanDeleteChart(actor, chart);
+        // Hard guardrail: never delete agent-created charts
+        if (chart.slug?.startsWith('agent-')) {
+            return JSON.stringify({
+                error: `Chart "${chartName}" was created by the agent (slug: ${chart.slug}). Cannot soft-delete own content.`,
+                blocked: true,
+            });
+        }
+        // Hard guardrail: never delete recently created or edited charts
+        const chartModifiedAt =
+            await this.managedAgentModel.getChartLastModifiedAt(chartUuid);
+        if (chartModifiedAt && chartModifiedAt > protectCutoff) {
+            return JSON.stringify({
+                error: `Chart "${chartName}" was created or last edited on ${chartModifiedAt.toISOString().split('T')[0]}, less than ${policy.protectRecentDays} days ago. Cannot soft-delete recently touched content.`,
+                blocked: true,
+            });
+        }
+        const chartEscalationBlock = await this.checkEscalationGuard(
+            projectUuid,
+            ManagedAgentTargetType.CHART,
+            chartUuid,
+            chartName,
+            policy,
+        );
+        if (chartEscalationBlock) {
+            return chartEscalationBlock;
+        }
+        await this.savedChartModel.softDelete(chartUuid, actorUuid);
+        return null;
+    }
+
     private async handleSoftDelete(
         actor: SessionUser,
         projectUuid: string,
@@ -3031,60 +3120,38 @@ chartConfig:
             });
         }
 
-        const deleteProtectionBlock = await this.checkTargetProtectionGuard(
-            projectUuid,
-            targetType,
-            targetUuid,
-            targetName,
-            { actor, sessionId, runUuid, attemptedAction: 'soft-delete' },
-        );
-        if (deleteProtectionBlock) {
-            return deleteProtectionBlock;
-        }
-
-        const protectCutoff = new Date();
-        protectCutoff.setDate(
-            protectCutoff.getDate() - policy.protectRecentDays,
-        );
-
         // Verify entity exists, belongs to this project, and apply guardrails
         if (targetType === ManagedAgentTargetType.CHART) {
-            const chart = await this.savedChartModel.get(targetUuid);
-            ManagedAgentService.assertProjectOwnership(
-                chart.projectUuid,
+            const chartBlock = await this.guardAndSoftDeleteChart({
+                actor,
                 projectUuid,
-                'Chart',
-                targetUuid,
-            );
-            await this.assertActorCanDeleteChart(actor, chart);
-            // Hard guardrail: never delete agent-created charts
-            if (chart.slug?.startsWith('agent-')) {
-                return JSON.stringify({
-                    error: `Chart "${targetName}" was created by the agent (slug: ${chart.slug}). Cannot soft-delete own content.`,
-                    blocked: true,
-                });
+                sessionId,
+                runUuid,
+                chartUuid: targetUuid,
+                chartName: targetName,
+                policy,
+                actorUuid,
+                attemptedAction: 'soft-delete',
+            });
+            if (chartBlock) {
+                return chartBlock;
             }
-            // Hard guardrail: never delete recently created or edited charts
-            const chartModifiedAt =
-                await this.managedAgentModel.getChartLastModifiedAt(targetUuid);
-            if (chartModifiedAt && chartModifiedAt > protectCutoff) {
-                return JSON.stringify({
-                    error: `Chart "${targetName}" was created or last edited on ${chartModifiedAt.toISOString().split('T')[0]}, less than ${policy.protectRecentDays} days ago. Cannot soft-delete recently touched content.`,
-                    blocked: true,
-                });
-            }
-            const chartEscalationBlock = await this.checkEscalationGuard(
+        } else if (targetType === ManagedAgentTargetType.DASHBOARD) {
+            const deleteProtectionBlock = await this.checkTargetProtectionGuard(
                 projectUuid,
                 targetType,
                 targetUuid,
                 targetName,
-                policy,
+                { actor, sessionId, runUuid, attemptedAction: 'soft-delete' },
             );
-            if (chartEscalationBlock) {
-                return chartEscalationBlock;
+            if (deleteProtectionBlock) {
+                return deleteProtectionBlock;
             }
-            await this.savedChartModel.softDelete(targetUuid, actorUuid);
-        } else if (targetType === ManagedAgentTargetType.DASHBOARD) {
+
+            const protectCutoff = new Date();
+            protectCutoff.setDate(
+                protectCutoff.getDate() - policy.protectRecentDays,
+            );
             const dashboard =
                 await this.dashboardModel.getByIdOrSlug(targetUuid);
             ManagedAgentService.assertProjectOwnership(
@@ -3137,6 +3204,148 @@ chartConfig:
         return JSON.stringify({
             action_uuid: action.actionUuid,
             recoverable: true,
+        });
+    }
+
+    private async handleBulkDeleteBrokenContent(
+        actor: SessionUser,
+        projectUuid: string,
+        sessionId: string,
+        runUuid: string,
+        input: Record<string, unknown>,
+    ): Promise<string> {
+        const tableName = input.table_name as string;
+        const reason = input.reason as string;
+        if (!tableName || !reason) {
+            throw new Error('table_name and reason are required');
+        }
+
+        await this.assertActorCanManageProject(actor, projectUuid);
+        const settings = await this.managedAgentModel.getSettings(projectUuid);
+        const actorUuid = settings?.enabledByUserUuid ?? projectUuid;
+        const policy = settings?.policy ?? DEFAULT_MANAGED_AGENT_POLICY;
+
+        // Hard guardrail: aggression below 'cleanup' never deletes
+        if (policy.aggression !== 'cleanup') {
+            return JSON.stringify({
+                error: `Bulk delete is disabled by project policy (cleanup mode: ${policy.aggression}). Flag or log an insight instead.`,
+                blocked: true,
+            });
+        }
+
+        // Candidates: charts whose whole model is gone. Dashboards referencing
+        // the model are never bulk-deleted; they usually have healthy tiles
+        const validations = await this.validationModel.get(projectUuid);
+        const candidates = new Map<string, string>();
+        validations.forEach((validation) => {
+            if (
+                validation.source === ValidationSourceType.Chart &&
+                validation.errorType === ValidationErrorType.Model &&
+                'chartUuid' in validation &&
+                validation.chartUuid &&
+                getValidationRootCauseTableName(validation) === tableName
+            ) {
+                candidates.set(validation.chartUuid, validation.name);
+            }
+        });
+
+        if (candidates.size === 0) {
+            return JSON.stringify({
+                error: `No charts with a model-level validation error were found for model '${tableName}'. Run get_broken_content to see current groups.`,
+            });
+        }
+
+        const entries = [...candidates.entries()];
+        const toProcess = entries.slice(0, MANAGED_AGENT_BULK_DELETE_RUN_LIMIT);
+        const remaining = entries.length - toProcess.length;
+
+        const deleted: { uuid: string; name: string; action_uuid: string }[] =
+            [];
+        const blocked: { uuid: string; name: string; reason: string }[] = [];
+
+        // Sequential on purpose: each delete runs the full guard chain and
+        // writes an action row
+        for (const [chartUuid, chartName] of toProcess) {
+            // eslint-disable-next-line no-await-in-loop
+            const chart = await this.savedChartModel.get(chartUuid);
+            // Defense against stale validation rows: the chart must still
+            // reference the deleted model
+            if (chart.tableName !== tableName) {
+                blocked.push({
+                    uuid: chartUuid,
+                    name: chartName,
+                    reason: `Chart no longer references model '${tableName}'`,
+                });
+            } else {
+                // eslint-disable-next-line no-await-in-loop
+                const chartBlock = await this.guardAndSoftDeleteChart({
+                    actor,
+                    projectUuid,
+                    sessionId,
+                    runUuid,
+                    chartUuid,
+                    chartName,
+                    policy,
+                    actorUuid,
+                    attemptedAction: 'soft-delete',
+                });
+                if (chartBlock) {
+                    let blockReason = chartBlock;
+                    try {
+                        const parsed: unknown = JSON.parse(chartBlock);
+                        if (
+                            parsed !== null &&
+                            typeof parsed === 'object' &&
+                            'error' in parsed &&
+                            typeof parsed.error === 'string'
+                        ) {
+                            blockReason = parsed.error;
+                        }
+                    } catch {
+                        // keep the raw payload as the reason
+                    }
+                    blocked.push({
+                        uuid: chartUuid,
+                        name: chartName,
+                        reason: blockReason,
+                    });
+                } else {
+                    // eslint-disable-next-line no-await-in-loop
+                    const action = await this.managedAgentModel.createAction({
+                        projectUuid,
+                        sessionId,
+                        managedAgentRunUuid: runUuid,
+                        actionType: ManagedAgentActionType.SOFT_DELETED,
+                        targetType: ManagedAgentTargetType.CHART,
+                        targetUuid: chartUuid,
+                        targetName: chartName,
+                        description: reason,
+                        metadata: {
+                            bulk: true,
+                            table_name: tableName,
+                            reason,
+                        },
+                    });
+                    this.trackActionCreated(actor, runUuid, action);
+                    deleted.push({
+                        uuid: chartUuid,
+                        name: chartName,
+                        action_uuid: action.actionUuid,
+                    });
+                }
+            }
+        }
+
+        return JSON.stringify({
+            deleted_count: deleted.length,
+            deleted,
+            blocked,
+            remaining,
+            recoverable: true,
+            note:
+                remaining > 0
+                    ? `Run cap reached: ${remaining} more broken charts remain for model '${tableName}'. They will be picked up on the next run.`
+                    : undefined,
         });
     }
 
