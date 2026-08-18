@@ -3,7 +3,8 @@ import {
     ChartKind,
     type ChartContent,
     type AiModelOption,
-    type DataAppClaudeModel,
+    type DataAppCodingAgent,
+    type DataAppCodingAgentModel,
     type ExternalConnection,
 } from '@lightdash/common';
 import {
@@ -184,7 +185,7 @@ export const InspectButton: FC<{
 );
 
 type ModelOption = {
-    value: DataAppClaudeModel;
+    value: DataAppCodingAgentModel;
     label: string;
     // Short advantage line shown in the popover. Together with the order
     // below, these form a capability spectrum (premium → balanced → budget)
@@ -196,7 +197,7 @@ type ModelOption = {
 // Order: capability descending — Opus (highest quality) → Sonnet (default) →
 // Haiku (fastest). The "Default" tag on Sonnet anchors the recommendation
 // without forcing it to position 0.
-const MODEL_OPTIONS: ModelOption[] = [
+const CLAUDE_MODEL_OPTIONS: ModelOption[] = [
     {
         value: 'opus',
         label: 'Opus',
@@ -215,69 +216,97 @@ const MODEL_OPTIONS: ModelOption[] = [
     },
 ];
 
-// Lookup helper. The type union and MODEL_OPTIONS are kept in sync via
-// DATA_APP_CLAUDE_MODELS, but the underlying value can ultimately come from
-// the JSONB `resources.claudeModel` column — so a stale or hand-edited row
+const CODEX_MODEL_OPTIONS: ModelOption[] = [
+    {
+        value: 'gpt-5.6-sol',
+        label: 'Sol',
+        tagline: 'Highest quality. Best for complex builds.',
+    },
+    {
+        value: 'gpt-5.6-terra',
+        label: 'Terra',
+        tagline: 'Balanced intelligence and cost. Good fit for most work.',
+        isDefault: true,
+    },
+    {
+        value: 'gpt-5.6-luna',
+        label: 'Luna',
+        tagline: 'Lowest cost. Best for simple iterations and high volume.',
+    },
+];
+
+// Lookup helper. The underlying value ultimately comes from JSONB version
+// resources, so a stale or hand-edited row
 // could land here as a string outside the union at runtime. Fall back to the
 // default option rather than throw, so a corrupt row never crashes the
 // AppGenerate page; the user can still pick a valid model from the popover.
-const findModelOption = (value: DataAppClaudeModel): ModelOption =>
-    MODEL_OPTIONS.find((o) => o.value === value) ??
-    MODEL_OPTIONS.find((o) => o.isDefault) ??
-    MODEL_OPTIONS[0];
+const findModelOption = (
+    value: DataAppCodingAgentModel,
+    options: ModelOption[],
+): ModelOption =>
+    options.find((o) => o.value === value) ??
+    options.find((o) => o.isDefault) ??
+    options[0];
 
-// All data-app models are Anthropic's; the shared selector keys models by
-// "provider:name".
-const DATA_APP_MODEL_PROVIDER = 'anthropic';
+const toModelKey = (
+    value: DataAppCodingAgentModel,
+    provider: 'anthropic' | 'openai',
+): string => `${provider}:${value}`;
 
-const toModelKey = (value: DataAppClaudeModel): string =>
-    `${DATA_APP_MODEL_PROVIDER}:${value}`;
-
-const toModelOption = (opt: ModelOption): AiModelOption => ({
+const toModelOption = (
+    opt: ModelOption,
+    provider: 'anthropic' | 'openai',
+): AiModelOption => ({
     name: opt.value,
     modelId: opt.value,
     displayName: opt.label,
     description: opt.tagline,
-    provider: DATA_APP_MODEL_PROVIDER,
+    provider,
     default: opt.isDefault === true,
     supportsReasoning: false,
     deprecated: false,
 });
 
 /**
- * Picker for the Claude model the agent uses to build the data app.
+ * Picker for the configured coding agent's model.
  *
  * Inline next to the send button so the choice is visible at submit time;
- * also editable mid-iteration — `claude --continue` accepts a fresh
- * `--model` flag each turn while preserving the prior conversation context.
+ * also editable mid-iteration.
  *
  * Renders the shared `ModelSelector` so the data-app composer and the AI
  * agent chat offer the same control; the data-app model union is mapped onto
  * the provider-qualified model options that selector expects.
  */
 export const ModelPicker: FC<{
-    value: DataAppClaudeModel;
-    onChange: (value: DataAppClaudeModel) => void;
+    value: DataAppCodingAgentModel;
+    onChange: (value: DataAppCodingAgentModel) => void;
     disabled?: boolean;
     /** Restrict the picker to these models (org admin visibility settings).
      *  Defaults to all models when omitted. */
-    visibleModels?: DataAppClaudeModel[];
-}> = ({ value, onChange, disabled, visibleModels }) => {
+    visibleModels?: DataAppCodingAgentModel[];
+    codingAgent?: DataAppCodingAgent;
+}> = ({ value, onChange, disabled, visibleModels, codingAgent = 'claude' }) => {
+    const options =
+        codingAgent === 'codex' ? CODEX_MODEL_OPTIONS : CLAUDE_MODEL_OPTIONS;
+    const provider = codingAgent === 'codex' ? 'openai' : 'anthropic';
     const models = useMemo(
         () =>
-            MODEL_OPTIONS.filter(
-                (opt) => !visibleModels || visibleModels.includes(opt.value),
-            ).map(toModelOption),
-        [visibleModels],
+            options
+                .filter(
+                    (opt) =>
+                        !visibleModels || visibleModels.includes(opt.value),
+                )
+                .map((option) => toModelOption(option, provider)),
+        [options, provider, visibleModels],
     );
 
     return (
         <ModelSelector
             models={models}
-            value={toModelKey(findModelOption(value).value)}
+            value={toModelKey(findModelOption(value, options).value, provider)}
             onChange={(modelKey) => {
-                const picked = MODEL_OPTIONS.find(
-                    (opt) => toModelKey(opt.value) === modelKey,
+                const picked = options.find(
+                    (opt) => toModelKey(opt.value, provider) === modelKey,
                 );
                 if (picked) onChange(picked.value);
             }}

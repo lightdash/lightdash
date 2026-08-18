@@ -12,7 +12,6 @@ import {
     type AppDashboardReference,
     type AppExternalConnectionReference,
     type AppVersionDependencyEntry,
-    type DataAppClaudeModel,
     type DataAppTemplate,
     type DataAppVizContext,
 } from '@lightdash/common';
@@ -113,7 +112,10 @@ import { useAppThumbnailUpload } from '../features/apps/hooks/useAppThumbnail';
 import { useBuildNotification } from '../features/apps/hooks/useBuildNotification';
 import { useCancelAppVersion } from '../features/apps/hooks/useCancelAppVersion';
 import { useClarifyApp } from '../features/apps/hooks/useClarifyApp';
-import { useDataAppModelSelection } from '../features/apps/hooks/useDataAppModelSelection';
+import {
+    useDataAppModelSelection,
+    type DataAppModelSelection,
+} from '../features/apps/hooks/useDataAppModelSelection';
 import { useGenerateApp } from '../features/apps/hooks/useGenerateApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useIterateApp } from '../features/apps/hooks/useIterateApp';
@@ -560,11 +562,11 @@ const AppGenerate: FC = () => {
         dashboard: AppDashboardReference | undefined;
         externalConnections: AppExternalConnectionReference[] | undefined;
         spaceUuid: string | undefined;
-        // Snapshot of `selectedModel` at submit time so a mid-clarification
+        // Snapshot of the provider-specific model request at submit time so a mid-clarification
         // model switch doesn't change which model the build kicks off with —
         // the user's intent was captured when they pressed send.
-        claudeModel: DataAppClaudeModel;
-        // Same intent-snapshot reasoning as claudeModel — capture the picked
+        modelRequest: DataAppModelSelection['modelRequest'];
+        // Same intent-snapshot reasoning as modelRequest — capture the picked
         // theme at submit time so flipping the picker mid-clarification
         // doesn't change what the build runs against.
         designUuid: string | null;
@@ -917,13 +919,18 @@ const AppGenerate: FC = () => {
     }, [allVersions]);
 
     const {
+        codingAgent,
         selectedModel,
+        modelRequest,
         visibleModels,
         isLoading: isModelVisibilityLoading,
         setModel: handleModelChange,
     } = useDataAppModelSelection({
         appUuid: activeAppUuid ?? null,
-        latestVersionModel: latestVersion?.resources?.claudeModel ?? null,
+        latestVersionModel:
+            latestVersion?.resources?.codexModel ??
+            latestVersion?.resources?.claudeModel ??
+            null,
     });
 
     // Theme (org design) picker state. New apps pre-populate with the org's
@@ -994,7 +1001,7 @@ const AppGenerate: FC = () => {
                     appUuid: activeAppUuid,
                     prompt,
                     creationExperience: 'app_builder',
-                    claudeModel: selectedModel,
+                    ...modelRequest,
                     designUuid,
                 },
                 {
@@ -1034,7 +1041,7 @@ const AppGenerate: FC = () => {
             projectUuid,
             invalidateAppData,
             resetIterate,
-            selectedModel,
+            modelRequest,
             user.data?.firstName,
             user.data?.lastName,
         ],
@@ -1706,7 +1713,7 @@ const AppGenerate: FC = () => {
                             dashboard,
                             externalConnections,
                             spaceUuid: targetSpaceUuid,
-                            claudeModel: selectedModel,
+                            modelRequest,
                             designUuid: selectedThemeUuid,
                         });
                         setClarificationAnswers(
@@ -1739,7 +1746,7 @@ const AppGenerate: FC = () => {
                         fileIds,
                         charts,
                         dashboard,
-                        claudeModel: selectedModel,
+                        ...modelRequest,
                         externalConnections,
                     },
                     callbacks,
@@ -1756,7 +1763,7 @@ const AppGenerate: FC = () => {
                         charts,
                         dashboard,
                         spaceUuid: targetSpaceUuid,
-                        claudeModel: selectedModel,
+                        ...modelRequest,
                         designUuid: selectedThemeUuid,
                         externalConnections,
                     },
@@ -1828,7 +1835,7 @@ const AppGenerate: FC = () => {
                 clarifications:
                     clarifications.length > 0 ? clarifications : undefined,
                 spaceUuid: captured.spaceUuid,
-                claudeModel: captured.claudeModel,
+                ...captured.modelRequest,
                 designUuid: captured.designUuid,
             },
             buildSubmitCallbacks(),
@@ -3065,6 +3072,7 @@ const AppGenerate: FC = () => {
                                                 <ModelPicker
                                                     value={selectedModel}
                                                     onChange={handleModelChange}
+                                                    codingAgent={codingAgent}
                                                     disabled={
                                                         isSubmitting ||
                                                         isModelVisibilityLoading

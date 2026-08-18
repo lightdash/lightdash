@@ -64,6 +64,7 @@ function buildService(opts: { canManage?: boolean } = {}) {
     const lightdashConfig = {
         appRuntime: {
             dependencyRegistryHosts: ['registry.npmjs.org'],
+            dataAppCodingAgent: 'claude',
         },
     };
 

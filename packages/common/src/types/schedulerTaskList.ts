@@ -13,6 +13,7 @@ import {
     type DashboardBlueprint,
     type DataAppClaudeEffort,
     type DataAppClaudeModel,
+    type DataAppCodexModel,
     type DataAppCreationExperience,
     type DataAppTemplate,
     type EmbedArtifactVersionJobPayload,
@@ -82,6 +83,9 @@ export type AppGeneratePipelineJobPayload = TraceTaskBase & {
     // before the picker shipped — the pipeline falls back to
     // DEFAULT_DATA_APP_CLAUDE_MODEL in that case.
     claudeModel?: DataAppClaudeModel;
+    // Codex model selected for this version. Only used by Codex workers;
+    // absent jobs fall back to DEFAULT_DATA_APP_CODEX_MODEL.
+    codexModel?: DataAppCodexModel;
     // Reasoning effort resolved at enqueue time, where the app's template is
     // known. Absent on jobs enqueued before this field shipped — the pipeline
     // resolves it from the app row instead.

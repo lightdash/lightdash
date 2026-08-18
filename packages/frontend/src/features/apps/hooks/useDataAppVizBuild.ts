@@ -4,6 +4,7 @@ import {
     type ApiAppVersionSummary,
     type AppClarification,
     type DataAppClaudeModel,
+    type DataAppCodexModel,
     type DataAppVizFieldMapping,
     type ItemsMap,
 } from '@lightdash/common';
@@ -33,11 +34,13 @@ type Args = {
 export type VizBuildRequest = {
     description: string;
     fileIds: string[];
-    claudeModel: DataAppClaudeModel;
     /** Answers to the pre-build clarifying round; empty when it was skipped,
      *  fell through, or never ran. Only a first build can carry them. */
     clarifications: AppClarification[];
-};
+} & (
+    | { claudeModel: DataAppClaudeModel; codexModel?: never }
+    | { codexModel: DataAppCodexModel; claudeModel?: never }
+);
 
 /** The app claimed by a build before it has a renderable version. */
 export type DataAppVizDraft = {
@@ -178,7 +181,9 @@ export const useDataAppVizBuild = ({
                         creationExperience: 'chart_type_builder',
                         appUuid: draftAppUuid,
                         fileIds: files,
-                        claudeModel: request.claudeModel,
+                        ...(request.codexModel
+                            ? { codexModel: request.codexModel }
+                            : { claudeModel: request.claudeModel }),
                         clarifications:
                             request.clarifications.length > 0
                                 ? request.clarifications
@@ -206,7 +211,9 @@ export const useDataAppVizBuild = ({
                     prompt,
                     creationExperience: 'chart_type_builder',
                     fileIds: files,
-                    claudeModel: request.claudeModel,
+                    ...(request.codexModel
+                        ? { codexModel: request.codexModel }
+                        : { claudeModel: request.claudeModel }),
                 },
                 {
                     onSuccess: ({ version }) =>

@@ -99,6 +99,7 @@ export class AppGenerateController extends BaseController {
                 creationExperience: body.creationExperience,
                 designUuidInput: body.designUuid,
                 externalConnections: body.externalConnections,
+                codexModelInput: body.codexModel,
             },
         );
         return {
@@ -505,6 +506,7 @@ export class AppGenerateController extends BaseController {
                 creationExperience: body.creationExperience,
                 designUuidInput: body.designUuid,
                 externalConnections: body.externalConnections,
+                codexModelInput: body.codexModel,
             },
         );
         return {

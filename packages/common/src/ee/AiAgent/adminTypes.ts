@@ -1,6 +1,10 @@
 import type { ApiSuccess, KnexPaginatedData } from '../..';
 import type { AiDeepResearchLimits } from '../aiDeepResearch/types';
-import type { DataAppClaudeModel, DataAppModelVisibility } from '../apps/types';
+import type {
+    DataAppClaudeModel,
+    DataAppCodingAgent,
+    DataAppModelVisibility,
+} from '../apps/types';
 import type {
     AiAgentEvaluationRunSummary,
     AiAgentMemoryScope,
@@ -375,6 +379,7 @@ export type AiOrganizationRuntimeSettings = {
     aiAgentReviewsAvailable: boolean;
     defaultAiAgentModelConfig: AiAgentModelConfig | null;
     defaultAiAgentModelOptions: AiModelOption[];
+    dataAppCodingAgent: DataAppCodingAgent;
     visibleDataAppModels: DataAppClaudeModel[];
 };
 

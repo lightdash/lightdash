@@ -192,7 +192,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                     attachments.fileIds.length > 0
                         ? attachments.fileIds
                         : (editing?.request.fileIds ?? []),
-                claudeModel: modelSelection.selectedModel,
+                ...modelSelection.modelRequest,
                 clarifications: [],
             };
             const queuedPrompt: QueuedPrompt = {
@@ -225,7 +225,9 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                 current.filter((queued) => queued.id !== item.id),
             );
             editingPrompt.current = item;
-            modelSelection.setModel(item.request.claudeModel);
+            modelSelection.setModel(
+                item.request.codexModel ?? item.request.claudeModel,
+            );
             composerRef.current?.clear();
             composerRef.current?.insertContent([
                 { type: 'text', text: item.request.description },
@@ -527,6 +529,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                     onChange={modelSelection.setModel}
                                     disabled={modelSelection.isLoading}
                                     visibleModels={modelSelection.visibleModels}
+                                    codingAgent={modelSelection.codingAgent}
                                 />
                             )}
                             <input

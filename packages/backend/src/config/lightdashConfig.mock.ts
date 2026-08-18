@@ -414,6 +414,7 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     appRuntime: {
         enabled: false,
+        dataAppCodingAgent: 'claude',
         lightdashOrigin: 'https://test.lightdash.cloud',
         cdnOrigin: null,
         previewOrigin: null,

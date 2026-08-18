@@ -21,6 +21,7 @@ function buildService(
     overrides: {
         appModel?: Record<string, unknown>;
         schedulerClient?: Record<string, unknown>;
+        codingAgent?: 'claude' | 'codex';
     } = {},
 ) {
     const analytics = { track: vi.fn() };
@@ -47,7 +48,10 @@ function buildService(
     };
     const service = new AppGenerateService({
         lightdashConfig: {
-            appRuntime: { sampleDataEnabled: true },
+            appRuntime: {
+                sampleDataEnabled: true,
+                dataAppCodingAgent: overrides.codingAgent,
+            },
         } as never,
         analytics: analytics as never,
         analyticsModel: {} as never,
@@ -185,6 +189,35 @@ describe('AppGenerateService.generateApp with the data app viz template', () => 
                 }),
             }),
         );
+    });
+
+    it('tracks the selected Codex model without a fake Claude model', async () => {
+        const { service, analytics } = buildService({ codingAgent: 'codex' });
+
+        await service.generateApp(
+            USER,
+            'project-1',
+            'Build a visualization',
+            [],
+            'app-1',
+            undefined,
+            undefined,
+            DATA_APP_VIZ_TEMPLATE,
+            undefined,
+            undefined,
+            undefined,
+            { codexModelInput: 'gpt-5.6-sol' },
+        );
+
+        const event = analytics.track.mock.calls[0][0];
+        expect(event).toMatchObject({
+            event: 'data_app.created',
+            properties: {
+                codingAgent: 'codex',
+                codingAgentModel: 'gpt-5.6-sol',
+            },
+        });
+        expect(event.properties).not.toHaveProperty('claudeModel');
     });
 });
 

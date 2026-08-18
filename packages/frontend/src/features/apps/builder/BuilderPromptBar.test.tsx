@@ -1,3 +1,7 @@
+import {
+    type DataAppClaudeModel,
+    type DataAppCodexModel,
+} from '@lightdash/common';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { forwardRef, useImperativeHandle, useRef, type ReactNode } from 'react';
@@ -112,9 +116,18 @@ const buildState = (
 
 const modelSelection = (
     selectedModel: DataAppModelSelection['selectedModel'],
+    codingAgent: DataAppModelSelection['codingAgent'] = 'claude',
 ): DataAppModelSelection => ({
+    codingAgent,
     selectedModel,
-    visibleModels: ['opus', 'sonnet', 'haiku'],
+    modelRequest:
+        codingAgent === 'codex'
+            ? { codexModel: selectedModel as DataAppCodexModel }
+            : { claudeModel: selectedModel as DataAppClaudeModel },
+    visibleModels:
+        codingAgent === 'codex'
+            ? ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna']
+            : ['opus', 'sonnet', 'haiku'],
     isLoading: false,
     setModel: vi.fn(),
     clearPick: vi.fn(),
@@ -181,6 +194,29 @@ describe('BuilderPromptBar', () => {
         renderWithProviders(promptBar({ model: modelSelection('opus') }));
 
         expect(screen.getByText('Opus')).toBeInTheDocument();
+    });
+
+    it('builds with the picked Codex model', async () => {
+        const send = vi.fn();
+        renderWithProviders(
+            promptBar({
+                build: buildState({ send }),
+                model: modelSelection('gpt-5.6-sol', 'codex'),
+            }),
+        );
+
+        await userEvent.type(
+            screen.getByPlaceholderText('Ask for a change…'),
+            'a complex cohort analysis',
+        );
+        await userEvent.click(screen.getByLabelText('Send'));
+
+        expect(send).toHaveBeenCalledWith({
+            description: 'a complex cohort analysis',
+            fileIds: [],
+            codexModel: 'gpt-5.6-sol',
+            clarifications: [],
+        });
     });
 
     it('queues a prompt during a build and drains it when the build finishes', async () => {
