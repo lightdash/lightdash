@@ -48,7 +48,6 @@ export const AiGeneralSettingsPage = () => {
         FeatureFlags.OrgAiProviderApiKeys,
     );
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
-    const aiAgentMemoryFlag = useServerFeatureFlag(FeatureFlags.AiAgentMemory);
 
     const aiRouterQuery = useAiRouterConfig();
     const isRouterEnabled = aiRouterQuery.data?.enabled ?? false;
@@ -62,10 +61,7 @@ export const AiGeneralSettingsPage = () => {
     const reviewsPausedByByok = settings?.aiAgentReviewsPausedByByok ?? false;
     const reviewsEffectivelyOn =
         Boolean(settings?.aiAgentReviewsEnabled) && !reviewsPausedByByok;
-    const aiAgentMemoryEnabled = resolveAiAgentMemoryEnabled(
-        settings,
-        aiAgentMemoryFlag.data,
-    );
+    const aiAgentMemoryEnabled = resolveAiAgentMemoryEnabled(settings);
     const {
         fallbackModelLabel: systemDefaultModelLabel,
         selectedModel: selectedDefaultModel,

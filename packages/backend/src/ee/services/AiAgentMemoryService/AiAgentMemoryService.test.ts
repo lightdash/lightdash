@@ -2,7 +2,6 @@ import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     CommercialFeatureFlags,
     DimensionType,
-    FeatureFlags,
     FieldType,
     ForbiddenError,
     NotFoundError,
@@ -156,8 +155,7 @@ describe('AiAgentMemoryService', () => {
             id: featureFlagId,
             enabled:
                 user.organizationUuid === enabledOrganization &&
-                (featureFlagId === FeatureFlags.AiAgentMemory ||
-                    featureFlagId === CommercialFeatureFlags.AiCopilot),
+                featureFlagId === CommercialFeatureFlags.AiCopilot,
         }));
         const findByProjectAndSlug = vi.fn();
         const findByProjectAndUuid = vi.fn();
@@ -275,14 +273,11 @@ describe('AiAgentMemoryService', () => {
             userModel: { findSessionUserAndOrgByUuid } as AnyType,
             featureFlagService: { get: getFlag } as AnyType,
             aiOrganizationSettingsService: {
-                isAiAgentMemoryEnabled: async (user) =>
+                isAiAgentMemoryEnabled: async (user: {
+                    organizationUuid?: string;
+                }) =>
                     memorySettingEnabled &&
-                    (
-                        await getFlag({
-                            user,
-                            featureFlagId: FeatureFlags.AiAgentMemory,
-                        })
-                    ).enabled,
+                    user.organizationUuid === enabledOrganization,
                 isAiAgentReviewsEnabled: vi.fn().mockResolvedValue(true),
             },
             schedulerClient: {

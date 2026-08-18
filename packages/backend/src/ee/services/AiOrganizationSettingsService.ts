@@ -6,7 +6,6 @@ import {
     BYO_AI_PROVIDERS,
     CommercialFeatureFlags,
     ComputedAiOrganizationSettings,
-    FeatureFlags,
     ForbiddenError,
     getVisibleDataAppClaudeModels,
     LightdashUser,
@@ -23,7 +22,6 @@ import {
 import { LightdashConfig } from '../../config/parseConfig';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { BaseService } from '../../services/BaseService';
-import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
 import { CommercialFeatureFlagModel } from '../models/CommercialFeatureFlagModel';
 import {
@@ -137,7 +135,6 @@ type AiOrganizationSettingsServiceDependencies = {
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
     organizationModel: OrganizationModel;
     commercialFeatureFlagModel: CommercialFeatureFlagModel;
-    featureFlagService: FeatureFlagService;
     lightdashConfig: LightdashConfig;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 };
@@ -148,8 +145,6 @@ export class AiOrganizationSettingsService extends BaseService {
     private readonly organizationModel: OrganizationModel;
 
     private readonly commercialFeatureFlagModel: CommercialFeatureFlagModel;
-
-    private readonly featureFlagService: FeatureFlagService;
 
     private readonly lightdashConfig: LightdashConfig;
 
@@ -165,7 +160,6 @@ export class AiOrganizationSettingsService extends BaseService {
         this.organizationModel = dependencies.organizationModel;
         this.commercialFeatureFlagModel =
             dependencies.commercialFeatureFlagModel;
-        this.featureFlagService = dependencies.featureFlagService;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.orgAiCopilotConfigResolver =
             dependencies.orgAiCopilotConfigResolver;
@@ -320,12 +314,7 @@ export class AiOrganizationSettingsService extends BaseService {
             await this.organizationModel.getAiAgentMemoryEnabled(
                 user.organizationUuid,
             );
-        if (settingEnabled !== null) return settingEnabled;
-        const flag = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.AiAgentMemory,
-        });
-        return flag.enabled;
+        return settingEnabled ?? false;
     }
 
     private async resolveSettings(

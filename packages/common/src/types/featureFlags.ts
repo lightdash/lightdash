@@ -133,9 +133,6 @@ export enum FeatureFlags {
      */
     AiDeepResearch = 'ai-deep-research',
 
-    /** Enable project-scoped AI agent memory runtime. */
-    AiAgentMemory = 'ai-agent-memory',
-
     /**
      * Enable the Hexbin (H3 hexagonal binning) layer type for Map charts.
      * Gates the option in the Map Type segmented control. Existing charts
