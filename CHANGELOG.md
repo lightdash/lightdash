@@ -1,3 +1,10 @@
+# [1.180.0](https://github.com/lightdash/lightdash/compare/1.179.0...1.180.0) (2026-08-18)
+
+
+### Features
+
+* **autopilot:** cap individual soft-deletes per run and clear validation rows on delete ([#27530](https://github.com/lightdash/lightdash/issues/27530)) ([54afcd4](https://github.com/lightdash/lightdash/commit/54afcd4ae3c9fc3d7a931817f3737edf8a96a754)), closes [#27529](https://github.com/lightdash/lightdash/issues/27529)
+
 # [1.179.0](https://github.com/lightdash/lightdash/compare/1.178.0...1.179.0) (2026-08-18)
 
 
