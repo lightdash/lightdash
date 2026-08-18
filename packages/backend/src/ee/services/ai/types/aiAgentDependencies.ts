@@ -474,7 +474,10 @@ export type SearchFieldValuesFn = (args: {
     fieldId: string;
     query: string;
     filters?: Filters;
-}) => Promise<Array<string | number | boolean>>;
+}) => Promise<
+    | Array<string | number | boolean>
+    | { results: Array<string | number | boolean>; note: string }
+>;
 
 export type CreateOrUpdateArtifactFn = (data: {
     threadUuid: string;

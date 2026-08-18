@@ -22,6 +22,7 @@ import {
     isDashboardChartTileType,
     isDimension,
     isExploreError,
+    isFilterAutocompleteManualOnly,
     isGitProjectType,
     JobStatusType,
     NotFoundError,
@@ -2265,8 +2266,12 @@ export class AiAgentToolsService extends BaseService {
                             `static values source=${context.source} ` +
                             `table=${args.table} fieldId=${args.fieldId}`,
                     );
-                    return context.source === 'mcp'
-                        ? curatedResult
+                    if (context.source === 'mcp') return curatedResult;
+                    return curatedResult.note
+                        ? {
+                              results: curatedResult.results,
+                              note: curatedResult.note,
+                          }
                         : curatedResult.results;
                 }
 
@@ -2381,6 +2386,11 @@ export class AiAgentToolsService extends BaseService {
                 results,
                 cached: false,
                 refreshedAt: new Date(),
+                ...(isFilterAutocompleteManualOnly(field.filterAutocomplete)
+                    ? {
+                          note: 'Value suggestions are disabled for this field, so an empty result does NOT mean the value is missing. Filter using the exact value from the user request instead of relying on this search.',
+                      }
+                    : {}),
             };
         }
         if (field.type === DimensionType.BOOLEAN) {

@@ -617,6 +617,9 @@ models:
         description: Promotional code applied to the order
         config:
           meta:
+            dimension:
+              filter_autocomplete:
+                fetch_from_warehouse: false
             metrics:
               promo_usage_rate:
                 type: number

@@ -710,6 +710,17 @@ export type FilterAutocompleteConfig = {
 };
 
 /**
+ * There is nothing to autocomplete: warehouse fetching is off and no curated
+ * values are provided, so filter inputs fall back to plain manual entry.
+ */
+export const isFilterAutocompleteManualOnly = (
+    filterAutocomplete: FilterAutocompleteConfig | undefined,
+): boolean =>
+    filterAutocomplete !== undefined &&
+    !filterAutocomplete.fetchFromWarehouse &&
+    (filterAutocomplete.values?.length ?? 0) === 0;
+
+/**
  * Whether a dimension's curated `filter_autocomplete` values can answer a value
  * search without querying the warehouse. Mirrors the Explore filter UI
  * (`useFieldValues`): always use curated values when the warehouse fetch is
@@ -727,10 +738,10 @@ export const shouldUseStaticFilterAutocomplete = (
     );
 };
 
-export const filterStaticFilterAutocompleteValues = (
+export const searchFilterAutocompleteValues = (
     values: FilterAutocompleteValue[],
     search: string,
-): string[] => {
+): FilterAutocompleteValue[] => {
     const normalizedSearch = search.trim().toLowerCase();
     const matched =
         normalizedSearch.length === 0
@@ -743,14 +754,19 @@ export const filterStaticFilterAutocompleteValues = (
               );
     const seen = new Set<string>();
     return matched
-        .map(({ value }) => value)
-        .filter((value) => {
+        .filter(({ value }) => {
             if (seen.has(value)) return false;
             seen.add(value);
             return true;
         })
-        .sort((a, b) => a.localeCompare(b));
+        .sort((a, b) => a.value.localeCompare(b.value));
 };
+
+export const filterStaticFilterAutocompleteValues = (
+    values: FilterAutocompleteValue[],
+    search: string,
+): string[] =>
+    searchFilterAutocompleteValues(values, search).map(({ value }) => value);
 
 export interface Dimension extends Field {
     fieldType: FieldType.DIMENSION;

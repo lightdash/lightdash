@@ -325,6 +325,29 @@ describe('useFieldValues', () => {
         },
     };
 
+    it('avoids requesting field values when there is nothing to autocomplete', () => {
+        const fieldWithoutAutocompleteSource: FilterableItem = {
+            ...fieldWithStaticAutocomplete,
+            filterAutocomplete: {
+                fetchFromWarehouse: false,
+            },
+        };
+
+        const { result } = renderHookWithProviders(() =>
+            useFieldValues(
+                'act',
+                [],
+                'project-uuid',
+                fieldWithoutAutocompleteSource,
+                undefined,
+                undefined,
+            ),
+        );
+
+        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(result.current.results).toEqual([]);
+    });
+
     it('uses local filter autocomplete values and avoids requesting field values', () => {
         const { result } = renderHookWithProviders(() =>
             useFieldValues(

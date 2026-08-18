@@ -714,6 +714,7 @@ describe('EmbedService', () => {
                             },
                             explore: validExplore,
                             field,
+                            staticResults: null,
                         }),
                         combineParameters,
                         isTimezoneSupportEnabled: vi
