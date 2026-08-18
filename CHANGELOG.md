@@ -1,3 +1,10 @@
+# [1.191.0](https://github.com/lightdash/lightdash/compare/1.190.0...1.191.0) (2026-08-18)
+
+
+### Features
+
+* ask clarifying questions before the first chart type build ([#27555](https://github.com/lightdash/lightdash/issues/27555)) ([339efb2](https://github.com/lightdash/lightdash/commit/339efb2bd76e8ab050a954e2f89d72002b70b02d))
+
 # [1.190.0](https://github.com/lightdash/lightdash/compare/1.189.0...1.190.0) (2026-08-18)
 
 
