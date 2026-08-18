@@ -33,7 +33,6 @@ import {
     IconCheck,
     IconArrowUp,
     IconBrush,
-    IconHammer,
     IconExternalLink,
     IconArrowBackUp,
     IconFileDescription,
@@ -77,7 +76,6 @@ import {
 } from '../components/common/PromptComposer';
 import { getChartIcon } from '../components/common/ResourceIcon/utils';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
-import { ReasoningHistoryRow } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/LiveActivityCard';
 import { type AppIframePreviewHandle } from '../features/apps/AppIframePreview';
 import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import {
@@ -99,6 +97,7 @@ import AppBuilderSidebarToggle from '../features/apps/components/AppBuilderSideb
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
 import AppPreview from '../features/apps/components/AppPreview';
+import AppVersionNarration from '../features/apps/components/AppVersionNarration';
 import ClarificationQuestionList from '../features/apps/components/ClarificationQuestionList';
 import LoadingDots from '../features/apps/components/LoadingDots';
 import RecentAppSuggestions from '../features/apps/components/RecentAppSuggestions';
@@ -145,10 +144,8 @@ import {
     refToWireString,
     type ElementRef,
 } from '../features/apps/utils/elementRefs';
-import {
-    versionNarrationTexts,
-    versionsToChatMessages,
-} from '../features/apps/utils/versionsToChatMessages';
+import { getVersionNarration } from '../features/apps/utils/versionNarration';
+import { versionsToChatMessages } from '../features/apps/utils/versionsToChatMessages';
 import DataAppVizResultCard from '../features/chartTypes/components/DataAppVizResultCard';
 import DataAppVizTestPanel from '../features/chartTypes/components/DataAppVizTestPanel';
 import { useAppExternalConnections } from '../features/externalConnections/hooks/useAppExternalConnections';
@@ -839,18 +836,8 @@ const AppGenerate: FC = () => {
         return null;
     }, [appData]);
     const isBuilding = latestBuildingVersion !== null;
-    // Accumulated narration for the live build's Reasoning / Activity rows.
-    const reasoningTexts = useMemo<string[]>(
-        () =>
-            versionNarrationTexts(
-                latestBuildingVersion?.statusHistory,
-                'thinking',
-            ),
-        [latestBuildingVersion],
-    );
-    const activityTexts = useMemo<string[]>(
-        () =>
-            versionNarrationTexts(latestBuildingVersion?.statusHistory, 'tool'),
+    const liveNarration = useMemo(
+        () => getVersionNarration(latestBuildingVersion?.statusHistory),
         [latestBuildingVersion],
     );
     // Clarifying counts as loading for the chat input (disable send; typing
@@ -2230,28 +2217,15 @@ const AppGenerate: FC = () => {
                                                             renderVersionDepsChip(
                                                                 msg.version,
                                                             )}
-                                                        {msg.reasoning.length >
-                                                            0 && (
-                                                            <ReasoningHistoryRow
-                                                                texts={
-                                                                    msg.reasoning
-                                                                }
-                                                                isLive={false}
-                                                            />
-                                                        )}
-                                                        {msg.activity.length >
-                                                            0 && (
-                                                            <ReasoningHistoryRow
-                                                                texts={
-                                                                    msg.activity
-                                                                }
-                                                                isLive={false}
-                                                                icon={
-                                                                    IconHammer
-                                                                }
-                                                                label="Activity"
-                                                            />
-                                                        )}
+                                                        <AppVersionNarration
+                                                            narration={{
+                                                                reasoning:
+                                                                    msg.reasoning,
+                                                                activity:
+                                                                    msg.activity,
+                                                            }}
+                                                            isLive={false}
+                                                        />
                                                         {msg.vizSchema ? (
                                                             msg.version !==
                                                                 null &&
@@ -2358,28 +2332,12 @@ const AppGenerate: FC = () => {
                                                             </Text>
                                                         ) : (
                                                             <>
-                                                                {reasoningTexts.length >
-                                                                    0 && (
-                                                                    <ReasoningHistoryRow
-                                                                        texts={
-                                                                            reasoningTexts
-                                                                        }
-                                                                        isLive
-                                                                    />
-                                                                )}
-                                                                {activityTexts.length >
-                                                                    0 && (
-                                                                    <ReasoningHistoryRow
-                                                                        texts={
-                                                                            activityTexts
-                                                                        }
-                                                                        isLive
-                                                                        icon={
-                                                                            IconHammer
-                                                                        }
-                                                                        label="Activity"
-                                                                    />
-                                                                )}
+                                                                <AppVersionNarration
+                                                                    narration={
+                                                                        liveNarration
+                                                                    }
+                                                                    isLive
+                                                                />
                                                                 {latestBuildingVersion?.status ===
                                                                 'generating' ? (
                                                                     // A status line here would duplicate the live

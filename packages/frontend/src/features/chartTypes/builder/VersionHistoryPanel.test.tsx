@@ -108,6 +108,16 @@ describe('VersionHistoryPanel', () => {
         expect(styles).not.toMatch(/animation:\s*ldPulse/);
     });
 
+    it('uses the theme-aware neutral selection surface', () => {
+        const activeEntryStyles = styles.match(
+            /\.entry\[data-active='true'\]\s*\{([^}]*)\}/s,
+        )?.[1];
+
+        expect(activeEntryStyles).toContain('var(--mantine-color-ldGray-1)');
+        expect(activeEntryStyles).toContain('var(--mantine-color-dark-5)');
+        expect(styles).not.toContain('ldBrandViolet');
+    });
+
     it('writes a live entry for a build not yet in history', () => {
         renderWithProviders(
             <VersionHistoryPanel
@@ -147,6 +157,61 @@ describe('VersionHistoryPanel', () => {
 
         fireEvent.click(screen.getByLabelText('View v3'));
         expect(onView).not.toHaveBeenCalled();
+    });
+
+    it.each(['ready', 'error'] as const)(
+        'reveals recorded build details for a %s version',
+        async (status) => {
+            renderWithProviders(
+                <VersionHistoryPanel
+                    {...defaultProps}
+                    versions={[
+                        appVersion({
+                            version: 3,
+                            status,
+                            statusHistory: [
+                                {
+                                    kind: 'thinking',
+                                    message: 'Choosing a horizontal layout',
+                                    timestamp: '2026-05-15T10:00:10Z',
+                                },
+                                {
+                                    kind: 'tool',
+                                    message: 'Updating Chart.tsx',
+                                    timestamp: '2026-05-15T10:00:20Z',
+                                },
+                            ],
+                        }),
+                        ...twoVersions,
+                    ]}
+                />,
+            );
+
+            expect(
+                screen.queryByText('Choosing a horizontal layout'),
+            ).not.toBeInTheDocument();
+
+            fireEvent.click(
+                screen.getByRole('button', {
+                    name: 'Build details for v3',
+                }),
+            );
+
+            expect(
+                screen.getAllByText('Choosing a horizontal layout').length,
+            ).toBeGreaterThan(0);
+            expect(
+                screen.getAllByText('Updating Chart.tsx').length,
+            ).toBeGreaterThan(0);
+        },
+    );
+
+    it('leaves versions without a recorded trace unchanged', () => {
+        renderWithProviders(
+            <VersionHistoryPanel {...defaultProps} versions={twoVersions} />,
+        );
+
+        expect(screen.queryByText('Build details')).not.toBeInTheDocument();
     });
 
     it('loads earlier versions on demand', () => {

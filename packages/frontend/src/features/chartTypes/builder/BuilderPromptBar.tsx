@@ -32,8 +32,13 @@ import {
     ModelPicker,
     SelectedAttachmentSection,
 } from '../../apps/AppResourcePicker';
+import AppVersionNarration from '../../apps/components/AppVersionNarration';
 import { type ClarificationRound } from '../../apps/hooks/useClarificationRound';
 import { type DataAppModelSelection } from '../../apps/hooks/useDataAppModelSelection';
+import {
+    hasVersionNarration,
+    type AppVersionNarrationData,
+} from '../../apps/utils/versionNarration';
 import {
     type DataAppVizBuildState,
     type VizBuildRequest,
@@ -55,6 +60,7 @@ type Props = {
     latestReadyVersion: number | null;
     build: DataAppVizBuildState;
     onCancelBuild: (() => void) | null;
+    narration: AppVersionNarrationData;
     modelSelection: DataAppModelSelection;
     /** The pre-build clarifying round every send passes through. */
     clarification: ClarificationRound<VizBuildRequest>;
@@ -145,6 +151,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             latestReadyVersion,
             build,
             onCancelBuild,
+            narration,
             modelSelection,
             clarification,
         },
@@ -311,6 +318,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
         const queuedStackSize =
             queuedPrompts.length + (visibleSendingPrompt ? 1 : 0);
         const isClarifying = clarification.clarifyingPrompt !== null;
+        const hasNarration = hasVersionNarration(narration);
         const questions = clarification.pending;
         const hasStack = queuedStackSize > 0 || isBuilding || isClarifying;
         // Read-only, not just unsubmittable: text typed here would be lost.
@@ -337,6 +345,9 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                     <Box
                         className={classes.queue}
                         data-building={isBuilding || isClarifying || undefined}
+                        data-narration={
+                            (isBuilding && hasNarration) || undefined
+                        }
                     >
                         {isClarifying && (
                             <Box
@@ -370,6 +381,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                         {isBuilding && (
                             <Box
                                 className={`${classes.stackRow} ${classes.buildingStatus}`}
+                                data-has-narration={hasNarration || undefined}
                             >
                                 <Loader size={13} color="ldGray.6" />
                                 <Text fz="xs" fw={600} c="ldGray.9" inherit>
@@ -423,6 +435,13 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                     </Anchor>
                                 )}
                             </Box>
+                        )}
+                        {isBuilding && hasNarration && (
+                            <AppVersionNarration
+                                narration={narration}
+                                isLive
+                                className={classes.liveNarration}
+                            />
                         )}
                         {queuedStackSize > 0 && (
                             <Box

@@ -11,13 +11,18 @@ import {
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
-import { IconX } from '@tabler/icons-react';
+import { IconChevronRight, IconX } from '@tabler/icons-react';
 import { format } from 'date-fns';
 import { useState, type FC } from 'react';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
+import AppVersionNarration from '../../apps/components/AppVersionNarration';
 import { getAppVersionFailureMessage } from '../../apps/getAppVersionFailureMessage';
+import {
+    getVersionNarration,
+    hasVersionNarration,
+} from '../../apps/utils/versionNarration';
 import { getVersionAuthorName } from '../../apps/utils/versionsToChatMessages';
 import { type DataAppVizBuildState } from '../hooks/useDataAppVizBuild';
 import RestoreVersionModal from './RestoreVersionModal';
@@ -68,6 +73,43 @@ const AuthorLine: FC<{ version: ApiAppVersionSummary }> = ({ version }) => {
                 {name}
             </Text>
         </>
+    );
+};
+
+const VersionBuildDetails: FC<{ version: ApiAppVersionSummary }> = ({
+    version,
+}) => {
+    const [open, setOpen] = useState(false);
+    const narration = getVersionNarration(version.statusHistory);
+
+    if (!hasVersionNarration(narration)) return null;
+
+    return (
+        <Box className={classes.buildDetails}>
+            <UnstyledButton
+                className={classes.buildDetailsToggle}
+                aria-label={`Build details for v${version.version}`}
+                aria-expanded={open}
+                onClick={() => setOpen((current) => !current)}
+            >
+                <MantineIcon
+                    icon={IconChevronRight}
+                    size={12}
+                    className={classes.buildDetailsChevron}
+                    data-open={open || undefined}
+                />
+                <Text fz={11} fw={600}>
+                    Build details
+                </Text>
+            </UnstyledButton>
+            {open && (
+                <AppVersionNarration
+                    narration={narration}
+                    isLive={false}
+                    className={classes.buildDetailsNarration}
+                />
+            )}
+        </Box>
     );
 };
 
@@ -138,12 +180,12 @@ const VersionHistoryPanel: FC<Props> = ({
                             {label}
                         </Text>
                         {isCurrent && (
-                            <Badge size="xs" variant="outline" color="violet">
+                            <Badge size="xs" variant="outline" color="blue">
                                 Current
                             </Badge>
                         )}
                         {isActive && !isCurrent && (
-                            <Badge size="xs" variant="outline" color="violet">
+                            <Badge size="xs" variant="outline" color="blue">
                                 Viewing
                             </Badge>
                         )}
@@ -153,7 +195,7 @@ const VersionHistoryPanel: FC<Props> = ({
                             </Badge>
                         )}
                         {isBuilding && (
-                            <Badge size="xs" variant="outline" color="violet">
+                            <Badge size="xs" variant="outline" color="blue">
                                 Building…
                             </Badge>
                         )}
@@ -181,6 +223,8 @@ const VersionHistoryPanel: FC<Props> = ({
                         </Text>
                     </Box>
                 )}
+
+                {!isBuilding && <VersionBuildDetails version={version} />}
 
                 <Box className={classes.row}>
                     <AuthorLine version={version} />
@@ -237,11 +281,7 @@ const VersionHistoryPanel: FC<Props> = ({
                                     : `v${build.claimedVersion}`}
                             </Text>
                             {build.claimedVersion !== null && (
-                                <Badge
-                                    size="xs"
-                                    variant="outline"
-                                    color="violet"
-                                >
+                                <Badge size="xs" variant="outline" color="blue">
                                     Building…
                                 </Badge>
                             )}

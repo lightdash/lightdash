@@ -403,6 +403,47 @@ describe('ChartTypeBuilder', () => {
         ).toBeEnabled();
     });
 
+    it('shows the polled trace when reopening an in-progress build', () => {
+        setApp(appMeta({ latestReadyVersion: 1 }));
+        vi.mocked(useAppVersionHistory).mockReturnValue(
+            historyStub(
+                [
+                    appVersion({
+                        version: 2,
+                        status: 'generating',
+                        statusHistory: [
+                            {
+                                kind: 'thinking',
+                                message: 'Choosing a horizontal layout',
+                                timestamp: '2026-05-15T10:00:10Z',
+                            },
+                            {
+                                kind: 'tool',
+                                message: 'Updating Chart.tsx',
+                                timestamp: '2026-05-15T10:00:20Z',
+                            },
+                        ],
+                    }),
+                    appVersion({ version: 1 }),
+                ],
+                1,
+            ),
+        );
+
+        renderBuilder(
+            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+        );
+
+        expect(screen.getByText('Reasoning')).toBeInTheDocument();
+        expect(
+            screen.getAllByText('Choosing a horizontal layout').length,
+        ).toBeGreaterThan(0);
+        expect(screen.getByText('Activity')).toBeInTheDocument();
+        expect(
+            screen.getAllByText('Updating Chart.tsx').length,
+        ).toBeGreaterThan(0);
+    });
+
     it('renders the current version and lists its history on demand', () => {
         setApp(appMeta());
         vi.mocked(useAppVersionHistory).mockReturnValue(
@@ -427,6 +468,11 @@ describe('ChartTypeBuilder', () => {
 
         fireEvent.click(screen.getByText('History'));
         expect(screen.getByLabelText('Version history')).toBeInTheDocument();
+        expect(
+            screen.getByRole('separator', {
+                name: 'Resize version history',
+            }),
+        ).toBeInTheDocument();
         expect(screen.getByLabelText('View v1')).toBeInTheDocument();
     });
 

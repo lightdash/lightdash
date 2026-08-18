@@ -90,6 +90,23 @@
     opacity: 0;
 }
 
+/* Narration makes the active build taller than one queue row. Keep the first
+   queued prompt above that card, then fan the remaining prompts behind it. */
+.queue[data-narration] .queuedPrompt:first-child {
+    z-index: 2;
+    transform: none;
+}
+
+.queue[data-narration] .queuedPrompt:nth-child(2) {
+    z-index: 1;
+    opacity: 1;
+    transform: translateY(var(--queue-row-height)) scale(0.982);
+}
+
+.queue[data-narration] .queuedPrompt:nth-child(n + 3) {
+    opacity: 0;
+}
+
 .queue:hover .queueList .stackRow,
 .queue:focus-within .queueList .stackRow {
     opacity: 1;
@@ -120,6 +137,22 @@
 
 .buildingStatus {
     min-width: 0;
+}
+
+.buildingStatus[data-has-narration='true'] {
+    border-radius: 0 0 var(--mantine-radius-lg) var(--mantine-radius-lg);
+}
+
+.liveNarration {
+    position: relative;
+    z-index: 3;
+    padding: 5px 6px;
+    margin-bottom: calc(-1 * var(--queue-row-gap));
+    background: var(--mantine-color-ldGray-0);
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-bottom: 0;
+    border-radius: var(--mantine-radius-lg) var(--mantine-radius-lg) 0 0;
+    box-shadow: var(--mantine-shadow-subtle);
 }
 
 .buildingPrompt {
