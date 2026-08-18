@@ -35937,6 +35937,9 @@
                             "lastUpdatedBy": {
                                 "type": "string"
                             },
+                            "tableName": {
+                                "type": "string"
+                            },
                             "fieldName": {
                                 "type": "string"
                             },
@@ -36141,9 +36144,12 @@
                 "required": ["status"],
                 "type": "object"
             },
-            "Pick_ValidationErrorChartResponse.error-or-errorType-or-fieldName-or-name-or-projectUuid-or-chartUuid-or-source-or-chartName_": {
+            "Pick_ValidationErrorChartResponse.error-or-errorType-or-fieldName-or-tableName-or-name-or-projectUuid-or-chartUuid-or-source-or-chartName_": {
                 "properties": {
                     "name": {
+                        "type": "string"
+                    },
+                    "tableName": {
                         "type": "string"
                     },
                     "chartName": {
@@ -36173,7 +36179,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "CreateChartValidation": {
-                "$ref": "#/components/schemas/Pick_ValidationErrorChartResponse.error-or-errorType-or-fieldName-or-name-or-projectUuid-or-chartUuid-or-source-or-chartName_"
+                "$ref": "#/components/schemas/Pick_ValidationErrorChartResponse.error-or-errorType-or-fieldName-or-tableName-or-name-or-projectUuid-or-chartUuid-or-source-or-chartName_"
             },
             "ApiSuccess__errors-CreateChartValidation-Array__": {
                 "properties": {
@@ -36201,9 +36207,12 @@
             "ApiChartValidationResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__errors-CreateChartValidation-Array__"
             },
-            "Pick_ValidationErrorDashboardResponse.error-or-errorType-or-fieldName-or-name-or-projectUuid-or-dashboardUuid-or-chartName-or-source_": {
+            "Pick_ValidationErrorDashboardResponse.error-or-errorType-or-fieldName-or-tableName-or-name-or-projectUuid-or-dashboardUuid-or-chartName-or-source_": {
                 "properties": {
                     "name": {
+                        "type": "string"
+                    },
+                    "tableName": {
                         "type": "string"
                     },
                     "chartName": {
@@ -36233,7 +36242,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "CreateDashboardValidation": {
-                "$ref": "#/components/schemas/Pick_ValidationErrorDashboardResponse.error-or-errorType-or-fieldName-or-name-or-projectUuid-or-dashboardUuid-or-chartName-or-source_"
+                "$ref": "#/components/schemas/Pick_ValidationErrorDashboardResponse.error-or-errorType-or-fieldName-or-tableName-or-name-or-projectUuid-or-dashboardUuid-or-chartName-or-source_"
             },
             "ApiSuccess__errors-CreateDashboardValidation-Array__": {
                 "properties": {
@@ -50407,6 +50416,132 @@
             "ApiPaginatedValidateResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_ValidationResponse-Array__"
             },
+            "ValidationAffectedContent": {
+                "properties": {
+                    "errorCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/ValidationSourceType"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["errorCount", "views", "source", "name", "uuid"],
+                "type": "object"
+            },
+            "ValidationErrorGroup": {
+                "properties": {
+                    "hasMoreAffectedContent": {
+                        "type": "boolean"
+                    },
+                    "affectedContent": {
+                        "items": {
+                            "$ref": "#/components/schemas/ValidationAffectedContent"
+                        },
+                        "type": "array"
+                    },
+                    "sampleError": {
+                        "type": "string"
+                    },
+                    "affectedDataApps": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "affectedTables": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "affectedDashboards": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "affectedCharts": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "errorCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "fieldName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "tableName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "errorType": {
+                        "$ref": "#/components/schemas/ValidationErrorType"
+                    },
+                    "groupKey": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "hasMoreAffectedContent",
+                    "affectedContent",
+                    "sampleError",
+                    "affectedDataApps",
+                    "affectedTables",
+                    "affectedDashboards",
+                    "affectedCharts",
+                    "errorCount",
+                    "fieldName",
+                    "tableName",
+                    "errorType",
+                    "groupKey"
+                ],
+                "type": "object"
+            },
+            "ValidationGroupedSummary": {
+                "properties": {
+                    "groups": {
+                        "items": {
+                            "$ref": "#/components/schemas/ValidationErrorGroup"
+                        },
+                        "type": "array"
+                    },
+                    "totalAffectedItems": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "totalErrors": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["groups", "totalAffectedItems", "totalErrors"],
+                "type": "object"
+            },
+            "ApiSuccess_ValidationGroupedSummary_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ValidationGroupedSummary"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiValidationSummaryResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_ValidationGroupedSummary_"
+            },
             "ApiSuccess_ValidationResponse_": {
                 "properties": {
                     "results": {
@@ -53650,7 +53785,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.174.0",
+        "version": "1.175.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -85339,6 +85474,15 @@
                         }
                     },
                     {
+                        "description": "filter to errors caused by this model/table",
+                        "in": "query",
+                        "name": "tableName",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
                         "description": "whether to include chart configuration warnings",
                         "in": "query",
                         "name": "includeChartConfigWarnings",
@@ -85354,6 +85498,48 @@
                         "required": false,
                         "schema": {
                             "type": "boolean"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/validate/summary": {
+            "get": {
+                "operationId": "GetValidationSummary",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiValidationSummaryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get validation errors grouped by root cause (e.g. all errors caused by\none deleted model), with counts and a capped list of affected content.",
+                "summary": "Get validation summary",
+                "tags": ["v2", "Validation"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the projectId for the validation",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 ]

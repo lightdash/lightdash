@@ -1,3 +1,16 @@
+# [1.175.0](https://github.com/lightdash/lightdash/compare/1.174.0...1.175.0) (2026-08-18)
+
+
+### Bug Fixes
+
+* **ai:** render streamdown link buttons as inline links, not native buttons ([#27528](https://github.com/lightdash/lightdash/issues/27528)) ([e2e5cc0](https://github.com/lightdash/lightdash/commit/e2e5cc02df85ffdeb8e0ae5a4b37acaef1236569))
+
+
+### Features
+
+* **validation:** add grouped-by-root-cause validation summary API ([#27523](https://github.com/lightdash/lightdash/issues/27523)) ([9cb59d3](https://github.com/lightdash/lightdash/commit/9cb59d3594f4aea203125eb77103710560bfaa15)), closes [#24712](https://github.com/lightdash/lightdash/issues/24712) [#27522](https://github.com/lightdash/lightdash/issues/27522) [#27522](https://github.com/lightdash/lightdash/issues/27522)
+* **validation:** record broken model structurally and collapse deleted-model chart errors ([#27522](https://github.com/lightdash/lightdash/issues/27522)) ([bdaec73](https://github.com/lightdash/lightdash/commit/bdaec735f148fb3ac8fac9e60b7e96746c03c5b8)), closes [#24712](https://github.com/lightdash/lightdash/issues/24712)
+
 # [1.174.0](https://github.com/lightdash/lightdash/compare/1.173.0...1.174.0) (2026-08-18)
 
 

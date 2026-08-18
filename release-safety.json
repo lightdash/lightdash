@@ -1,14 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "1.174.0",
-  "previousVersion": "1.173.0",
-  "releaseDate": "2026-08-18T03:15:18.841Z",
+  "version": "1.175.0",
+  "previousVersion": "1.174.0",
+  "releaseDate": "2026-08-18T04:43:45.248Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20260817100000_add_table_name_to_validations.ts",
+        "edition": "core",
+        "tables": [
+          "validations"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,
