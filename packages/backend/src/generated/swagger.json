@@ -42262,6 +42262,10 @@
                     "email": {
                         "type": "string"
                     },
+                    "hasMultipleRoles": {
+                        "type": "boolean",
+                        "description": "True when the member holds extra custom roles beyond `role`/`roleUuid` (see role sets)."
+                    },
                     "roleUuid": {
                         "type": "string"
                     },
@@ -45792,6 +45796,10 @@
                     "isActive": {
                         "type": "boolean",
                         "description": "Whether the user can login"
+                    },
+                    "hasMultipleRoles": {
+                        "type": "boolean",
+                        "description": "True when the member holds extra custom roles beyond `role`/`roleUuid` (see role sets)."
                     },
                     "roleUuid": {
                         "type": "string"
@@ -50222,6 +50230,10 @@
             },
             "RoleAssignment": {
                 "properties": {
+                    "hasMultipleRoles": {
+                        "type": "boolean",
+                        "description": "True when the assignee holds extra custom roles beyond `roleId` (see role sets)."
+                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
@@ -50312,6 +50324,40 @@
                 "required": ["roleId"],
                 "type": "object"
             },
+            "ProjectRoleSet": {
+                "properties": {
+                    "customRoleUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "systemRole": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ProjectMemberRole"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": ["customRoleUuids", "systemRole"],
+                "type": "object"
+            },
+            "ApiProjectRoleSetResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ProjectRoleSet"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "UpdateRoleAssignmentRequest": {
                 "properties": {
                     "roleId": {
@@ -50371,6 +50417,41 @@
                 "properties": {
                     "results": {
                         "$ref": "#/components/schemas/RoleWithScopes"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "OrganizationRoleSet": {
+                "properties": {
+                    "customRoleUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "systemRole": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/OrganizationMemberRole"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": ["customRoleUuids", "systemRole"],
+                "type": "object",
+                "description": "Complete set of roles held at one level: at most one system role plus any\nnumber of custom roles. Permissions are the union of all held roles."
+            },
+            "ApiOrganizationRoleSetResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/OrganizationRoleSet"
                     },
                     "status": {
                         "type": "string",
@@ -53883,7 +53964,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.188.0",
+        "version": "1.189.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -85186,6 +85267,218 @@
                 ]
             }
         },
+        "/api/v2/projects/{projectId}/roles/assignments/user/{userId}/set": {
+            "get": {
+                "operationId": "GetProjectUserRoleSet",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiProjectRoleSetResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the complete role set a user holds directly on the project.\nRequires the `multiple-roles` feature.",
+                "summary": "Get project role set for user",
+                "tags": ["v2", "Project Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "userId",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "ReplaceProjectUserRoleSet",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiProjectRoleSetResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Atomically replace the complete role set a user holds directly on the project.\nAt most one system role plus any number of custom roles; the set must not be empty.\nRequires the `multiple-roles` feature.",
+                "summary": "Replace project role set for user",
+                "tags": ["v2", "Project Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "userId",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ProjectRoleSet"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectId}/roles/assignments/group/{groupId}/set": {
+            "get": {
+                "operationId": "GetProjectGroupRoleSet",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiProjectRoleSetResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the complete role set a group holds on the project.\nRequires the `multiple-roles` feature.",
+                "summary": "Get project role set for group",
+                "tags": ["v2", "Project Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "groupId",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "ReplaceProjectGroupRoleSet",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiProjectRoleSetResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Atomically replace the complete role set a group holds on the project.\nAt most one system role plus any number of custom roles; the set must not be empty.\nRequires the `multiple-roles` feature.",
+                "summary": "Replace project role set for group",
+                "tags": ["v2", "Project Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "groupId",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ProjectRoleSet"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/projects/{projectId}/roles/assignments/group/{groupId}": {
             "post": {
                 "operationId": "UpsertProjectGroupRoleAssignment",
@@ -85449,6 +85742,112 @@
                                 },
                                 "required": ["roleId"],
                                 "type": "object"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/orgs/{orgUuid}/roles/assignments/user/{userId}/set": {
+            "get": {
+                "operationId": "GetOrganizationUserRoleSet",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationRoleSetResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the complete role set (system role plus custom roles) a user holds in the organization.\nRequires the `multiple-roles` feature.",
+                "summary": "Get organization role set for user",
+                "tags": ["v2", "Organization Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "orgUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "userId",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "ReplaceOrganizationUserRoleSet",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationRoleSetResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Atomically replace the complete role set a user holds in the organization.\nAt most one system role plus any number of custom roles; the set must not be empty.\nRequires the `multiple-roles` feature.",
+                "summary": "Replace organization role set for user",
+                "tags": ["v2", "Organization Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "orgUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "userId",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OrganizationRoleSet"
                             }
                         }
                     }

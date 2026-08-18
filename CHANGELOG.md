@@ -1,3 +1,10 @@
+# [1.189.0](https://github.com/lightdash/lightdash/compare/1.188.0...1.189.0) (2026-08-18)
+
+
+### Features
+
+* **roles:** add role-set APIs with legacy compatibility ([#27516](https://github.com/lightdash/lightdash/issues/27516)) ([c58ff5a](https://github.com/lightdash/lightdash/commit/c58ff5a78beb32d689b7779cc9d5ad7e5aac1f58)), closes [#27515](https://github.com/lightdash/lightdash/issues/27515)
+
 # [1.188.0](https://github.com/lightdash/lightdash/compare/1.187.0...1.188.0) (2026-08-18)
 
 
