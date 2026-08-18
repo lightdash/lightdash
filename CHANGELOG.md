@@ -1,3 +1,10 @@
+## [1.191.1](https://github.com/lightdash/lightdash/compare/1.191.0...1.191.1) (2026-08-18)
+
+
+### Bug Fixes
+
+* **pre-aggregates:** use `timeFrameConfigs` for named time frame SQL without redundant CAST ([#27540](https://github.com/lightdash/lightdash/issues/27540)) ([9875ca9](https://github.com/lightdash/lightdash/commit/9875ca9a29798fec5206532fad068a5ca0933d9f))
+
 # [1.191.0](https://github.com/lightdash/lightdash/compare/1.190.0...1.191.0) (2026-08-18)
 
 
