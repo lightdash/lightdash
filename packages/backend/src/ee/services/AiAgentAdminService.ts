@@ -76,6 +76,9 @@ import {
 import { type SlackClient } from '../../clients/Slack/SlackClient';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { isUniqueConstraintViolation } from '../../database/errors';
+import { createAuditLogEvent } from '../../logging/auditLog';
+import { createActorFromUser } from '../../logging/caslAuditWrapper';
+import { logAuditEvent } from '../../logging/winston';
 import { type GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { type GitlabAppInstallationsModel } from '../../models/GitlabAppInstallations/GitlabAppInstallationsModel';
 import { type JobModel } from '../../models/JobModel/JobModel';
@@ -727,6 +730,38 @@ export class AiAgentAdminService extends BaseService {
                 turnCount: turns.length,
             },
         });
+        // Instance-local audit record: conversation data leaves the instance
+        // as a file, so the export must be traceable in the customer's own
+        // logs independent of telemetry settings.
+        try {
+            logAuditEvent(
+                createAuditLogEvent(
+                    createActorFromUser(user),
+                    'download',
+                    {
+                        type: 'AiAgentThreadDump',
+                        organizationUuid,
+                        projectUuid: data.thread.projectUuid,
+                        metadata: {
+                            threadUuid: data.thread.threadUuid,
+                            agentUuid: data.thread.agentUuid,
+                            turnCount: turns.length,
+                        },
+                    },
+                    {
+                        ip: user.requestContext?.ip,
+                        userAgent: user.requestContext?.userAgent,
+                        requestId: user.requestContext?.requestId,
+                    },
+                    'allowed',
+                ),
+            );
+        } catch (error) {
+            this.logger.warn('Failed to log thread dump audit event', {
+                error: getErrorMessage(error),
+                threadUuid: data.thread.threadUuid,
+            });
+        }
 
         return {
             schemaVersion: 1,
