@@ -1,3 +1,10 @@
+# [1.187.0](https://github.com/lightdash/lightdash/compare/1.186.0...1.187.0) (2026-08-18)
+
+
+### Features
+
+* pause automatic chart version bumps ([#27550](https://github.com/lightdash/lightdash/issues/27550)) ([9ed4bd2](https://github.com/lightdash/lightdash/commit/9ed4bd2f9a19bdd8cfacdb5bdd08113fe1a61f56))
+
 # [1.186.0](https://github.com/lightdash/lightdash/compare/1.185.0...1.186.0) (2026-08-18)
 
 
