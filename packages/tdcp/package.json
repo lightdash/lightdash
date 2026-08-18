@@ -1,0 +1,18 @@
+{
+    "name": "@lightdash/tdcp",
+    "version": "0.0.1",
+    "private": true,
+    "license": "MIT",
+    "description": "Tabular Data Context Protocol (draft): spec, JSON schemas, and the server/client TypeScript SDK. Deliberately dependency-free so it can move to a standalone repo unchanged.",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "scripts": {
+        "build": "tsc --build",
+        "typecheck": "tsc --project tsconfig.json --noEmit",
+        "format": "oxfmt ./src --check",
+        "fix-format": "oxfmt ./src"
+    },
+    "devDependencies": {
+        "typescript": "7.0.2"
+    }
+}
