@@ -7,19 +7,15 @@ import { EventName } from '../../../types/Events';
 import MantineLinkButton from '../../common/MantineLinkButton';
 
 interface Props {
-    userName: string | undefined;
     projectUuid: string;
 }
 
-const LandingPanel: FC<Props> = ({ userName, projectUuid }) => {
+const LandingPanel: FC<Props> = ({ projectUuid }) => {
     const { user } = useApp();
     return (
         <Group justify="space-between" my="xl">
             <Stack justify="flex-start" gap="xs">
-                <Title order={3}>
-                    {`Welcome${userName ? ', ' + userName : ' to Lightdash'}!`}{' '}
-                    ⚡️
-                </Title>
+                <Title order={3}>Welcome to Lightdash 💖</Title>
                 <Text c="ldGray.7">
                     Run a query to ask a business question or browse your data
                     below:
