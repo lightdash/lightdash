@@ -1910,7 +1910,16 @@ export class ProjectModel {
                 'project_memberships.project_id',
                 'projects.project_id',
             )
-            .select<QueryResult[]>()
+            .select<(QueryResult & { has_extra_roles: boolean })[]>(
+                'project_memberships.*',
+                'users.*',
+                'emails.*',
+                'projects.*',
+                this.database.raw(
+                    `EXISTS (SELECT 1 FROM ?? AS x WHERE x.project_id = project_memberships.project_id AND x.user_id = project_memberships.user_id) AS has_extra_roles`,
+                    [ProjectMembershipCustomRolesTableName],
+                ),
+            )
             .where('project_uuid', projectUuid)
             .andWhere('is_primary', true);
 
@@ -1922,6 +1931,7 @@ export class ProjectModel {
             projectUuid,
             lastName: membership.last_name,
             roleUuid: membership.role_uuid || undefined,
+            hasMultipleRoles: membership.has_extra_roles,
         }));
     }
 

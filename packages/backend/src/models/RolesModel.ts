@@ -70,6 +70,7 @@ type DbOrganizationRoleAssignment = {
     organizationId: string;
     createdAt: Date;
     ownerType: string | null;
+    hasExtraRoles: boolean;
 };
 
 export class RolesModel {
@@ -736,6 +737,14 @@ export class RolesModel {
                 `${ProjectMembershipsTableName}.role as role`,
                 `${UserTableName}.first_name as firstName`,
                 `${UserTableName}.last_name as lastName`,
+                (tx || this.database).raw(
+                    `EXISTS (SELECT 1 FROM ?? AS x WHERE x.project_id = ??.project_id AND x.user_id = ??.user_id) AS "hasExtraRoles"`,
+                    [
+                        ProjectMembershipCustomRolesTableName,
+                        ProjectMembershipsTableName,
+                        ProjectMembershipsTableName,
+                    ],
+                ),
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid);
 
@@ -746,6 +755,7 @@ export class RolesModel {
             roleName: ac.roleName || ac.role,
             firstName: ac.firstName,
             lastName: ac.lastName,
+            hasMultipleRoles: ac.hasExtraRoles,
         }));
     }
 
@@ -776,6 +786,10 @@ export class RolesModel {
                 `${RolesTableName}.name as roleName`,
                 `project_group_access.role as role`,
                 `${GroupTableName}.name as groupName`,
+                (tx || this.database).raw(
+                    `EXISTS (SELECT 1 FROM ?? AS x WHERE x.project_uuid = project_group_access.project_uuid AND x.group_uuid = project_group_access.group_uuid) AS "hasExtraRoles"`,
+                    [ProjectGroupAccessCustomRolesTableName],
+                ),
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid);
 
@@ -785,6 +799,7 @@ export class RolesModel {
             roleUuid: ac.roleUuid || ac.role,
             roleName: ac.roleName || ac.role,
             groupName: ac.groupName,
+            hasMultipleRoles: ac.hasExtraRoles,
         }));
     }
 
@@ -925,6 +940,7 @@ export class RolesModel {
                 organizationId: assignment.organizationId,
                 createdAt: assignment.createdAt,
                 updatedAt: assignment.createdAt, // Use createdAt since updatedAt doesn't exist
+                hasMultipleRoles: assignment.hasExtraRoles,
             }),
         );
         return formattedUserAssignments;
@@ -965,6 +981,10 @@ export class RolesModel {
                 ),
                 'organizations.organization_uuid as organizationId',
                 'organization_memberships.created_at as createdAt',
+                (tx || this.database).raw(
+                    `EXISTS (SELECT 1 FROM ?? AS x WHERE x.organization_id = organization_memberships.organization_id AND x.user_id = organization_memberships.user_id) AS "hasExtraRoles"`,
+                    [OrganizationMembershipCustomRolesTableName],
+                ),
             )
             .where('organizations.organization_uuid', orgUuid);
 

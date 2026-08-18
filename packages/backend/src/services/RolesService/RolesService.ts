@@ -1269,6 +1269,7 @@ export class RolesService extends BaseService {
                 assigneeType: 'user',
                 assigneeId: userAccess.userUuid,
                 assigneeName: `${userAccess.firstName} ${userAccess.lastName}`,
+                hasMultipleRoles: userAccess.hasMultipleRoles,
                 projectId: userAccess.projectUuid,
                 createdAt: new Date(), // TODO: Get actual dates from DB
                 updatedAt: new Date(),
@@ -1286,6 +1287,7 @@ export class RolesService extends BaseService {
                 assigneeType: 'group',
                 assigneeId: groupAccess.groupUuid,
                 assigneeName: groupAccess.groupName,
+                hasMultipleRoles: groupAccess.hasMultipleRoles,
                 projectId: groupAccess.projectUuid,
                 createdAt: new Date(), // TODO: Get actual dates from DB
                 updatedAt: new Date(),
