@@ -70,6 +70,13 @@ dev:
         # only syncs the branch diff and builds incrementally
         image: ${DEV_WARM_IMAGE:-okteto.global/lightdash-dev-warm:latest}
         command: bash scripts/okteto-dev-up.sh
+        # Pre-aggregates always on in dev sessions, mirroring the deployed
+        # service env (docker/docker-compose.okteto-dev.yml) so namespaces
+        # claimed before that change also get it on `okteto up`
+        environment:
+            - PRE_AGGREGATES_ENABLED=true
+            - PRE_AGGREGATE_RESULTS_S3_BUCKET=${S3_BUCKET}
+            - PRE_AGGREGATE_RESULTS_S3_REGION=${S3_REGION}
         sync:
             folders:
                 - .:/usr/app

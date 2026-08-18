@@ -1478,6 +1478,12 @@ describe('DuckdbWarehouseClient', () => {
             'read_blob',
             'read_xlsx',
             'parquet_scan',
+            'parquet_metadata',
+            'parquet_schema',
+            'parquet_file_metadata',
+            'parquet_kv_metadata',
+            'parquet_bloom_probe',
+            'sniff_csv',
             'glob',
             'sqlite_scan',
             'postgres_scan',
@@ -1612,6 +1618,52 @@ describe('DuckdbWarehouseClient', () => {
                 ),
             ).rejects.toThrow(
                 "SQL validation error: function 'current_setting' is not allowed",
+            );
+            expect(streamMock).not.toHaveBeenCalled();
+        });
+
+        it.each(['read_parquet', 'read_json_auto'])(
+            'should reject quoted-identifier calls to "%s"()',
+            async (blockedFunction) => {
+                const streamMock = vi.fn(async () =>
+                    getMockStreamResult(
+                        [[{ val: 1 }]],
+                        [DUCKDB_TYPE_IDS.INTEGER],
+                    ),
+                );
+
+                createInstanceMock.mockResolvedValue(
+                    createMockConnection(streamMock),
+                );
+
+                const client = new DuckdbWarehouseClient();
+                await expect(
+                    client.runQuery(
+                        `SELECT * FROM "${blockedFunction}"('/tmp/a')`,
+                    ),
+                ).rejects.toThrow(
+                    `SQL validation error: function '${blockedFunction}' is not allowed`,
+                );
+                expect(streamMock).not.toHaveBeenCalled();
+            },
+        );
+
+        it('should reject schema-qualified calls to file functions', async () => {
+            const streamMock = vi.fn(async () =>
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock),
+            );
+
+            const client = new DuckdbWarehouseClient();
+            await expect(
+                client.runQuery(
+                    "SELECT * FROM main.read_json_auto('/tmp/a.json')",
+                ),
+            ).rejects.toThrow(
+                "SQL validation error: function 'read_json_auto' is not allowed",
             );
             expect(streamMock).not.toHaveBeenCalled();
         });

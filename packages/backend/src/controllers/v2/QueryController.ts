@@ -27,6 +27,7 @@ import {
     type ApiExecuteAsyncMetricQueryResults,
     type ApiJobScheduledResponse,
     type ExecuteAsyncCalculateTotalRequestParams,
+    type ExecuteAsyncComposeSqlQueryRequestParams,
     type ExecuteAsyncDashboardChartRequestParams,
     type ExecuteAsyncDashboardSqlChartRequestParams,
     type ExecuteAsyncFieldValueSearchRequestParams,
@@ -464,6 +465,40 @@ export class QueryController extends BaseController {
                 pivotConfiguration: body.pivotConfiguration,
                 limit: body.limit,
                 parameters: body.parameters,
+            });
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Executes a DuckDB SQL query asynchronously on the pre-aggregate DuckDB engine. Requires run-queries access (interactive viewer and up) and the compose-sql-runner feature flag. The references map exposes previous async queries' results as named tables the SQL can select from ({"orders": "queryUuid"} lets the SQL run SELECT * FROM orders); each referenced query is authorized with the same access checks as Get results, so you can reference any query you can already fetch by uuid. Direct file access in the SQL is rejected. Returns a queryUuid to poll for results via Get results.
+     * @summary Execute compose SQL query
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/compose-sql')
+    @OperationId('executeAsyncComposeSqlQuery')
+    async executeAsyncComposeSqlQuery(
+        @Body()
+        body: ExecuteAsyncComposeSqlQueryRequestParams,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<ApiExecuteAsyncSqlQueryResults>> {
+        this.setStatus(200);
+        const context = body.context ?? getContextFromHeader(req);
+
+        const results = await this.services
+            .getAsyncQueryService()
+            .executeAsyncComposeSqlQuery({
+                account: req.account!,
+                projectUuid,
+                sql: body.sql,
+                limit: body.limit,
+                references: body.references,
+                context: context ?? QueryExecutionContext.COMPOSE_SQL_RUNNER,
             });
 
         return {

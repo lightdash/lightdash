@@ -7,6 +7,7 @@ import { type MergeQuery } from '../mergeQuery';
 import type { MetricQueryRequest, SortField } from '../metricQuery';
 import type { PivotConfig } from '../pivot';
 import type { DateGranularity } from '../timeFrames';
+import type { UUID } from './uuid';
 
 type CommonExecuteQueryRequestParams = {
     context?: QueryExecutionContext;
@@ -69,6 +70,24 @@ export type ExecuteAsyncSqlQueryRequestParams =
         sql: string;
         limit?: number;
         pivotConfiguration?: PivotConfiguration;
+    };
+
+export type ExecuteAsyncComposeSqlQueryRequestParams =
+    CommonExecuteQueryRequestParams & {
+        sql: string;
+        limit?: number;
+        /**
+         * Results of previous async queries exposed to the SQL as tables,
+         * keyed by table name: {"orders": "<queryUuid>"} lets the SQL run
+         * SELECT * FROM orders. Each referenced query is authorized with the
+         * same access checks as fetching its results by uuid.
+         *
+         * Typed Record<string, UUID> (not Record<string, string>) on purpose:
+         * TSOA compiles a string-valued record to an empty object literal and
+         * validation then strips every key; a ref-aliased value type keeps
+         * additionalProperties intact (and validates the uuid format).
+         */
+        references?: Record<string, UUID>;
     };
 
 export type ExecuteAsyncUnderlyingDataRequestParams =
@@ -159,6 +178,7 @@ export type ExecuteAsyncQueryRequestParams =
     | ExecuteAsyncMetricQueryRequestParams
     | ExecuteAsyncMergeQueryRequestParams
     | ExecuteAsyncSqlQueryRequestParams
+    | ExecuteAsyncComposeSqlQueryRequestParams
     | ExecuteAsyncSavedChartRequestParams
     | ExecuteAsyncDashboardChartRequestParams
     | ExecuteAsyncUnderlyingDataRequestParams
