@@ -492,7 +492,25 @@ jobs:
           token: ${{ secrets.CI_GITHUB_TOKEN }}
           path: helm-charts
 
+      - name: Check whether chart auto-bump is paused
+        id: pause
+        working-directory: helm-charts
+        run: |
+          if [ -f .chart-bump-paused ]; then
+            echo "paused=true" >> "$GITHUB_OUTPUT"
+            echo "Chart auto-bump is paused by .chart-bump-paused; skipping the version bump."
+          else
+            CURRENT_CHART_VERSION=$(awk '/^version:/{print $2}' charts/lightdash/Chart.yaml)
+            if [[ ! "$CURRENT_CHART_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "paused=true" >> "$GITHUB_OUTPUT"
+              echo "Chart version $CURRENT_CHART_VERSION is not a release version; non-release versions are not auto-bumped."
+            else
+              echo "paused=false" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
       - name: Bump chart version and appVersion
+        if: steps.pause.outputs.paused != 'true'
         working-directory: helm-charts
         run: |
           TAG="${{ github.event.release.tag_name }}"
@@ -500,6 +518,10 @@ jobs:
           CHART=charts/lightdash/Chart.yaml
 
           CURRENT_CHART_VERSION=$(awk '/^version:/{print $2}' "$CHART")
+          if [[ ! "$CURRENT_CHART_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Chart version $CURRENT_CHART_VERSION is not a release version; non-release versions are not auto-bumped."
+            exit 0
+          fi
           IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_CHART_VERSION"
           NEW_CHART_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
 
@@ -511,10 +533,12 @@ jobs:
       # Same helm-docs version as helm-charts' own generate-helm-docs workflow,
       # which only runs on PRs and so won't cover a direct push to main
       - name: Regenerate chart README
+        if: steps.pause.outputs.paused != 'true'
         run: |
           docker run --rm -v "$PWD/helm-charts:/helm-docs" jnorwood/helm-docs:v1.7.0
 
       - name: Commit and push to main
+        if: steps.pause.outputs.paused != 'true'
         working-directory: helm-charts
         run: |
           TAG="${{ github.event.release.tag_name }}"
