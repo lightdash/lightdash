@@ -35,6 +35,17 @@ const ErrorMessageByType: FC<{
                 </Text>
             );
         }
+        // Model-level errors: the whole model is gone or failed to compile
+        if (validationError.errorType === ValidationErrorType.Model) {
+            return (
+                <Text fz={11}>
+                    Model <CustomMark>{validationError.tableName}</CustomMark>{' '}
+                    {validationError.error.includes('failed to compile')
+                        ? 'failed to compile'
+                        : 'no longer exists'}
+                </Text>
+            );
+        }
         return (
             <Text fz={11}>
                 <CustomMark>{validationError.fieldName}</CustomMark> no longer

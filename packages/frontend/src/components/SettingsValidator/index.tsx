@@ -103,6 +103,7 @@ export const SettingsValidator: FC<{
     const content = (
         <>
             <FixValidationErrorModal
+                key={selectedValidationError?.validationUuid}
                 validationError={selectedValidationError}
                 allValidationErrors={flatData}
                 onClose={() => {
