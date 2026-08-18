@@ -178,10 +178,15 @@ jobs:
             core.setOutput('base', m ? m[2] : '');
             core.setOutput('gate', m ? m[3] : '');
 
+      # Full commit graph (merge-base needs ancestry) but no blobs: this job only
+      # ever reads one file, `.github/file-filters.yml`, which the partial clone
+      # fetches on demand. A blobful `fetch-depth: 0` of this repo was the single
+      # most expensive step in the job (55s median, 2m52s observed).
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         if: steps.watched.outputs.watched == 'true'
         with:
           fetch-depth: 0
+          filter: blob:none
 
       # Resolved once, here, and reused by every job: the spec pair, the migration
       # diff and the comment's base label all have to describe the same comparison.
@@ -302,12 +307,28 @@ jobs:
             }
             core.info(`Sticky comment marked pending for ${short}.`);
 
+  # PROD-10253: the two sides used to be generated back-to-back in one job —
+  # checkout base, install, generate, checkout PR, install, generate — so the
+  # critical path carried both. They share nothing (each side is built from its
+  # own revision's sources AND its own revision's dependencies; sharing one
+  # install across both would be a faithful build of neither), so they run as two
+  # legs of a matrix instead and the job costs one generation, not two.
+  #
+  # `needs.openapi-specs.result` in `preview` keeps its meaning: a matrix job
+  # reports success only when every leg succeeded, and skipped only when all were
+  # skipped — so a half-generated pair can never be read as a usable pair.
   openapi-specs:
-    name: Generate API snapshots
+    name: Generate API snapshots (${{ matrix.side }})
     needs: changes
     if: needs.changes.outputs.open == 'true' && needs.changes.outputs.openapi == 'true' && needs.changes.outputs.fresh != 'true'
     runs-on: depot-ubuntu-24.04-4
     timeout-minutes: 30
+    strategy:
+      # One leg failing must not cancel the other: the surviving leg's snapshot is
+      # still uploaded, and `preview` decides what to do with an incomplete pair.
+      fail-fast: false
+      matrix:
+        side: [base, pr]
     env:
       NODE_OPTIONS: '--max-old-space-size=8192'
     steps:
@@ -315,50 +336,54 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Checkout base
+      # The base snapshot is a pure function of the base commit, so it is reusable
+      # across every revision of the PR that keeps the same comparison base — the
+      # common case, since most pushes don't move the merge-base. Restored BEFORE
+      # the checkout so a hit skips the clone and the install too.
+      - name: Restore the base API snapshots
+        id: snapshot-cache
+        if: matrix.side == 'base'
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+        with:
+          path: /tmp/api-snapshots
+          key: release-safety-api-snapshots-base-${{ needs.changes.outputs.base_sha }}
+
+      # `github.ref` on a pull_request event is refs/pull/N/merge — the merged
+      # result, which is what the base SHA (the merge-base with the live base
+      # branch) is the right comparison point for.
+      - name: Checkout ${{ matrix.side }}
+        if: steps.snapshot-cache.outputs.cache-hit != 'true'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
-          ref: ${{ needs.changes.outputs.base_sha }}
+          ref: ${{ matrix.side == 'base' && needs.changes.outputs.base_sha || github.ref }}
 
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        if: steps.snapshot-cache.outputs.cache-hit != 'true'
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        if: steps.snapshot-cache.outputs.cache-hit != 'true'
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
           cache-dependency-path: 'pnpm-lock.yaml'
 
-      # Each side is built from its own revision's sources AND its own revision's
-      # dependencies — sharing one install across both would be a faithful build of
-      # neither. `generate-api:backend` is the script the release job runs before
-      # computing the marker; the root `generate-api` adds post-hooks that write
-      # the chart/dashboard/MCP schemas, none of which feed the OpenAPI spec.
-      # /tmp survives the second checkout's clean; the workspace does not.
-      - name: Generate base API snapshots
+      # `generate-api:backend` is the script the release job runs before computing
+      # the marker; the root `generate-api` adds post-hooks that write the
+      # chart/dashboard/MCP schemas, none of which feed the OpenAPI spec.
+      - name: Generate ${{ matrix.side }} API snapshots
+        if: steps.snapshot-cache.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
           pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
           pnpm generate-api:backend
           pnpm generate:mcp-tools-snapshot
           mkdir -p /tmp/api-snapshots
-          cp packages/backend/src/generated/swagger.json /tmp/api-snapshots/base-swagger.json
-          cp packages/common/src/schemas/json/mcp-tools-1.0.json /tmp/api-snapshots/base-mcp-tools.json
+          cp packages/backend/src/generated/swagger.json "/tmp/api-snapshots/${{ matrix.side }}-swagger.json"
+          cp packages/common/src/schemas/json/mcp-tools-1.0.json "/tmp/api-snapshots/${{ matrix.side }}-mcp-tools.json"
 
-      - name: Checkout PR
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Generate PR API snapshots
-        run: |
-          set -euo pipefail
-          pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
-          pnpm generate-api:backend
-          pnpm generate:mcp-tools-snapshot
-          cp packages/backend/src/generated/swagger.json /tmp/api-snapshots/pr-swagger.json
-          cp packages/common/src/schemas/json/mcp-tools-1.0.json /tmp/api-snapshots/pr-mcp-tools.json
-
-      - name: Upload the API snapshot pairs
+      - name: Upload the ${{ matrix.side }} API snapshots
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
-          name: release-safety-api-snapshots
+          name: release-safety-api-snapshots-${{ matrix.side }}
           path: /tmp/api-snapshots/
           retention-days: 1
 
@@ -380,9 +405,20 @@ jobs:
         with:
           egress-policy: audit
 
+      # PROD-10253: everything here diffs exactly two commits — the base and the
+      # merged head — so it needs those two commits' trees, not the repo's whole
+      # history. A blobful `fetch-depth: 0` cost 56s-2m52s of a ~2min job; a
+      # depth-1 checkout plus a depth-1 fetch of the base commit costs seconds.
+      # The one code path that does want history (expand/contract tracing, below)
+      # unshallows on demand.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
-          fetch-depth: 0
+          fetch-depth: 1
+
+      - name: Fetch the comparison base commit
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "${{ needs.changes.outputs.base_sha }}"
 
       # SPK-1021: pnpm is set up BEFORE setup-node so that `cache: 'pnpm'` can
       # resolve the store path — setup-node shells out to pnpm to find it, and
@@ -422,11 +458,14 @@ jobs:
           sudo install -m 0755 /tmp/oasdiff /usr/local/bin/oasdiff
           oasdiff --version
 
+      # One artifact per matrix leg, merged back into the single directory the
+      # generator's flags point at.
       - name: Download the generated API snapshot pairs
         if: ${{ needs.openapi-specs.result == 'success' }}
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
-          name: release-safety-api-snapshots
+          pattern: release-safety-api-snapshots-*
+          merge-multiple: true
           path: /tmp/api-snapshots
 
       # A spec job that reported success but shipped no usable pair is broken
@@ -454,6 +493,35 @@ jobs:
           else
             echo "expected=false" >> "$GITHUB_OUTPUT"
             echo "flags=" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Runs before the marker: its verdict decides both the comment's
+      # expand/contract attribution and whether the marker step needs history.
+      - name: Capture raw SQL-linter verdict (for expand/contract attribution)
+        id: lint
+        run: |
+          set -euo pipefail
+          tsx scripts/sql-migration-lint.ts --last-tag "${{ needs.changes.outputs.base_sha }}" > /tmp/sql-lint.json
+          BREAKING=$(node -e 'const r=JSON.parse(require("fs").readFileSync("/tmp/sql-lint.json","utf8"));process.stdout.write(String(r.breaking===true))')
+          echo "breaking=${BREAKING}" >> "$GITHUB_OUTPUT"
+
+      # scripts/expand-version.ts traces, across release tags, the earliest
+      # release the app stopped referencing a dropped object — the only thing here
+      # that reads more than the two compared commits. It fires solely when the
+      # linter flagged a drop/rename on a ready PR (where the AI review can clear
+      # it), so the full clone is paid there and nowhere else. Without it the
+      # tracing would silently degrade to the conservative floor and the preview
+      # would disagree with the release.
+      - name: Deepen history for expand/contract tracing
+        if: ${{ steps.lint.outputs.breaking == 'true' && github.event.pull_request.draft != true }}
+        # A failed deepen costs a more conservative floor, nothing worse, so it
+        # warns rather than failing a required check on a network hiccup.
+        run: |
+          set -uo pipefail
+          if git fetch --unshallow --no-tags origin && git fetch --tags origin; then
+            echo "Full history and tags available for expand/contract tracing."
+          else
+            echo "::warning::could not deepen history; expand/contract tracing stays conservative"
           fi
 
       - name: Compute release-safety marker
@@ -545,14 +613,6 @@ jobs:
           else
             echo "broken=false" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Capture raw SQL-linter verdict (for expand/contract attribution)
-        id: lint
-        run: |
-          set -euo pipefail
-          tsx scripts/sql-migration-lint.ts --last-tag "${{ needs.changes.outputs.base_sha }}" > /tmp/sql-lint.json
-          BREAKING=$(node -e 'const r=JSON.parse(require("fs").readFileSync("/tmp/sql-lint.json","utf8"));process.stdout.write(String(r.breaking===true))')
-          echo "breaking=${BREAKING}" >> "$GITHUB_OUTPUT"
 
       - name: Render PR comment
         run: |

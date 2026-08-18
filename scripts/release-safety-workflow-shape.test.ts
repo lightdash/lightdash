@@ -132,4 +132,55 @@ assert.ok(
     'pnpm must be set up before setup-node, or cache: pnpm cannot resolve the store path (SPK-1021)',
 );
 
+// PROD-10253: the base and PR snapshots are generated as two parallel matrix
+// legs. Generating them back-to-back in one job put both on the critical path of
+// a required check.
+const specsJob = configOnly.slice(
+    configOnly.indexOf('\n  openapi-specs:'),
+    configOnly.indexOf('\n  preview:'),
+);
+assert.ok(
+    /side:\s*\[base,\s*pr\]/.test(specsJob),
+    'the base and PR API snapshots must be generated as parallel matrix legs (PROD-10253)',
+);
+assert.ok(
+    /fail-fast:\s*false/.test(specsJob),
+    'one snapshot leg failing must not cancel the other (PROD-10253)',
+);
+
+// The base snapshot cache is keyed on the RESOLVED comparison base. A key that
+// omits it — the PR number, a lockfile hash, a constant — would serve one base's
+// spec as another's and certify a break the diff never looked at.
+assert.ok(
+    specsJob.includes(
+        'key: release-safety-api-snapshots-base-${{ needs.changes.outputs.base_sha }}',
+    ),
+    'the base snapshot cache must be keyed on the resolved base SHA (PROD-10253)',
+);
+
+// Each leg uploads its own artifact, so the download must merge every leg's
+// artifact. A `name:` download would silently deliver one side of the pair.
+assert.ok(
+    /pattern:\s*release-safety-api-snapshots-\*/.test(previewJob) &&
+        /merge-multiple:\s*true/.test(previewJob),
+    "the preview job must merge every snapshot leg's artifact (PROD-10253)",
+);
+
+// The preview job clones shallow, so the base commit it diffs against has to be
+// fetched explicitly, and the one path that reads release history — expand/
+// contract tracing in scripts/expand-version.ts — has to unshallow first or it
+// degrades to a more conservative floor than the release will report.
+assert.ok(
+    /git fetch --no-tags --depth=1 origin/.test(previewJob),
+    'the preview job must fetch the comparison base commit (PROD-10253)',
+);
+assert.ok(
+    /git fetch --unshallow/.test(previewJob) && /git fetch --tags/.test(previewJob),
+    'the preview job must unshallow before expand/contract tracing (PROD-10253)',
+);
+assert.ok(
+    previewJob.indexOf('id: lint') < previewJob.indexOf('git fetch --unshallow'),
+    "the linter's verdict is what decides whether history is needed, so it must run first (PROD-10253)",
+);
+
 process.stdout.write('release-safety workflow shape tests passed\n');

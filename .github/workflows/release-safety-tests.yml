@@ -11,6 +11,9 @@ on:
       - 'scripts/**'
       - 'package.json'
       - '.github/workflows/release-safety-tests.yml'
+      # release-safety-workflow-shape.test.ts asserts the shape of this workflow,
+      # so a change to it alone must still run the suite.
+      - '.github/workflows/release-safety-pr.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
