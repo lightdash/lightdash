@@ -19,6 +19,7 @@ import {
     ProjectType,
     ServiceAccountScope,
     ValidationErrorType,
+    ValidationSourceType,
     type ChartConfig,
     type ManagedAgentAction,
     type ManagedAgentActionFilters,
@@ -50,6 +51,7 @@ import type { ValidationModel } from '../../../models/ValidationModel/Validation
 import { SchedulerClient } from '../../../scheduler/SchedulerClient';
 import { BaseService } from '../../../services/BaseService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
+import { ValidationService } from '../../../services/ValidationService/ValidationService';
 import {
     ManagedAgentClient,
     type ManagedAgentSessionConfig,
@@ -61,6 +63,9 @@ import {
     buildManagedAgentToolListResult,
     formatManagedAgentToolListResult,
     getManagedAgentToolResultLimit,
+    getValidationRootCauseTableName,
+    MANAGED_AGENT_BROKEN_CONTENT_GROUP_ITEM_LIMIT,
+    MANAGED_AGENT_TOOL_RESULT_ITEM_LIMIT,
     summarizeManagedAgentBrokenContent,
 } from './toolResults';
 
@@ -1983,7 +1988,7 @@ export class ManagedAgentService extends BaseService {
                     'dashboards',
                 );
             case 'get_broken_content':
-                return this.handleGetBrokenContent(actor, projectUuid);
+                return this.handleGetBrokenContent(actor, projectUuid, input);
             case 'get_preview_projects':
                 return this.handleGetPreviewProjects(actor, projectUuid);
             case 'get_popular_content':
@@ -2143,23 +2148,15 @@ export class ManagedAgentService extends BaseService {
         );
     }
 
-    private async handleGetBrokenContent(
+    private async mapVisibleBrokenContentRows(
         actor: SessionUser,
         projectUuid: string,
-    ): Promise<string> {
-        const validations: ValidationResponse[] = (
-            await this.validationModel.get(projectUuid)
-        ).filter(
-            // Exclude advisory "unused field" warnings so Autopilot does not
-            // remove valid fields or table calculations that are merely flagged
-            // as unused. These are the only validations using ChartConfiguration.
-            (validation) =>
-                validation.errorType !== ValidationErrorType.ChartConfiguration,
-        );
+        validations: ValidationResponse[],
+    ) {
         const { canViewChartUuid, canViewDashboardUuid } =
             this.createContentVisibilityChecker(actor, projectUuid);
 
-        const visibleValidations = (
+        return (
             await Promise.all(
                 validations.map(async (validation) => {
                     if ('chartUuid' in validation && validation.chartUuid) {
@@ -2201,9 +2198,118 @@ export class ManagedAgentService extends BaseService {
                 }),
             )
         ).filter((validation) => validation !== null);
-        return formatManagedAgentToolListResult(
-            summarizeManagedAgentBrokenContent(visibleValidations),
+    }
+
+    private async handleGetBrokenContent(
+        actor: SessionUser,
+        projectUuid: string,
+        input: Record<string, unknown>,
+    ): Promise<string> {
+        const validations: ValidationResponse[] = (
+            await this.validationModel.get(projectUuid)
+        ).filter(
+            // Exclude advisory "unused field" warnings so Autopilot does not
+            // remove valid fields or table calculations that are merely flagged
+            // as unused. These are the only validations using ChartConfiguration.
+            (validation) =>
+                validation.errorType !== ValidationErrorType.ChartConfiguration,
         );
+
+        // Detail mode: full item list for one root-cause model. Scoping by
+        // model keeps every item reachable without raising the global cap.
+        const tableNameFilter =
+            typeof input.table_name === 'string' && input.table_name.length > 0
+                ? input.table_name
+                : undefined;
+        if (tableNameFilter) {
+            const matching = validations.filter(
+                (validation) =>
+                    getValidationRootCauseTableName(validation) ===
+                    tableNameFilter,
+            );
+            const visibleValidations = await this.mapVisibleBrokenContentRows(
+                actor,
+                projectUuid,
+                matching,
+            );
+            return formatManagedAgentToolListResult(
+                summarizeManagedAgentBrokenContent(visibleValidations),
+                getManagedAgentToolResultLimit(
+                    input.limit,
+                    MANAGED_AGENT_TOOL_RESULT_ITEM_LIMIT,
+                ),
+            );
+        }
+
+        // Summary mode: EVERY root-cause group with complete counts (never
+        // truncated), plus a capped sample of affected content per group
+        const summary =
+            ValidationService.groupValidationsByRootCause(validations);
+        const { canViewChartUuid, canViewDashboardUuid } =
+            this.createContentVisibilityChecker(actor, projectUuid);
+
+        const groups = await Promise.all(
+            summary.groups.map(async (group) => {
+                const visibleContent = (
+                    await Promise.all(
+                        group.affectedContent.map(async (content) => {
+                            if (content.uuid === null) return null;
+                            if (
+                                content.source === ValidationSourceType.Chart &&
+                                !(await canViewChartUuid(content.uuid))
+                            ) {
+                                return null;
+                            }
+                            if (
+                                content.source ===
+                                    ValidationSourceType.Dashboard &&
+                                !(await canViewDashboardUuid(content.uuid))
+                            ) {
+                                return null;
+                            }
+                            return {
+                                uuid: content.uuid,
+                                name: content.name,
+                                source: content.source,
+                                views: content.views,
+                                error_count: content.errorCount,
+                            };
+                        }),
+                    )
+                ).filter((content) => content !== null);
+
+                const items = visibleContent.slice(
+                    0,
+                    MANAGED_AGENT_BROKEN_CONTENT_GROUP_ITEM_LIMIT,
+                );
+                const totalItems =
+                    group.affectedCharts +
+                    group.affectedDashboards +
+                    group.affectedTables +
+                    group.affectedDataApps;
+                return {
+                    group_key: group.groupKey,
+                    error_type: group.errorType,
+                    table_name: group.tableName,
+                    field_name: group.fieldName,
+                    error_count: group.errorCount,
+                    affected_charts: group.affectedCharts,
+                    affected_dashboards: group.affectedDashboards,
+                    affected_tables: group.affectedTables,
+                    affected_data_apps: group.affectedDataApps,
+                    sample_error: group.sampleError,
+                    items,
+                    items_truncated: items.length < totalItems,
+                };
+            }),
+        );
+
+        return JSON.stringify({
+            total_errors: summary.totalErrors,
+            total_affected_items: summary.totalAffectedItems,
+            groups,
+            note: 'This is the COMPLETE set of validation error groups. To list every affected item for one group, call get_broken_content again with table_name set to that group. Counts include content outside your visibility scope; items only list content you can act on.',
+        });
     }
 
     private async handleGetPreviewProjects(
