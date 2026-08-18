@@ -8,8 +8,9 @@ import {
     type SourceQuery,
     type TdcpSourceQuery,
 } from '@lightdash/common';
-import { TdcpClient } from '@lightdash/tdcp';
+import { TdcpClient, TdcpMethods } from '@lightdash/tdcp';
 import type { AsyncQueryService } from '../../AsyncQueryService/AsyncQueryService';
+import { tdcpSourceQueryToDataRequest } from '../tdcp/dataRequest';
 import { createTdcpGuardedFetch } from '../tdcp/guardedFetch';
 import { tdcpTypeToDimensionType } from '../tdcp/typeMapping';
 import type {
@@ -98,11 +99,19 @@ export class RemoteTdcpQuerySource implements QuerySourceClient {
             fetchImpl: this.fetchImpl,
         });
 
-        const descriptor = await client.query({
-            dialect: sourceQuery.dialect,
-            query: sourceQuery.query,
-            limit: sourceQuery.limit,
-        });
+        const request = tdcpSourceQueryToDataRequest(sourceQuery);
+        const descriptor =
+            request.method === TdcpMethods.READ
+                ? await client.read({
+                      table: request.table,
+                      limit: request.limit,
+                  })
+                : await client.query({
+                      dialect: request.dialect,
+                      query: request.query,
+                      references: request.references,
+                      limit: request.limit,
+                  });
 
         const jsonlLink = descriptor.links?.find(
             (link) => link.encoding === 'jsonl',
