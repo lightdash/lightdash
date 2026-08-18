@@ -5,12 +5,15 @@ import {
     assertUnreachable,
     BulkActionable,
     ChartSourceType,
+    ContentActionDelete,
     ContentActionMove,
+    ContentBulkDeleteResults,
     ContentType,
     DeletedContentFilters,
     DeletedContentItem,
     DeletedContentWithDescendants,
     ForbiddenError,
+    getErrorMessage,
     KnexPaginateArgs,
     KnexPaginatedData,
     NotFoundError,
@@ -30,6 +33,7 @@ import {
 } from '../../models/ContentModel/ContentModelTypes';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
 import { wrapSentryTransaction } from '../../utils';
 import { BaseService } from '../BaseService';
 import { DashboardService } from '../DashboardService/DashboardService';
@@ -48,6 +52,7 @@ type ContentServiceArguments = {
     savedChartService: SavedChartService;
     savedSqlService: SavedSqlService;
     spacePermissionService: SpacePermissionService;
+    validationModel: ValidationModel;
     appMoveService: BulkActionable<Knex> | undefined;
     appGenerateService: AppGenerateService | undefined;
 };
@@ -71,6 +76,8 @@ export class ContentService extends BaseService {
 
     spacePermissionService: SpacePermissionService;
 
+    validationModel: ValidationModel;
+
     appMoveService: BulkActionable<Knex> | undefined;
 
     appGenerateService: AppGenerateService | undefined;
@@ -88,6 +95,7 @@ export class ContentService extends BaseService {
         this.savedChartService = args.savedChartService;
         this.savedSqlService = args.savedSqlService;
         this.spacePermissionService = args.spacePermissionService;
+        this.validationModel = args.validationModel;
         this.appMoveService = args.appMoveService;
         this.appGenerateService = args.appGenerateService;
     }
@@ -439,6 +447,134 @@ export class ContentService extends BaseService {
             default:
                 return assertUnreachable(item, 'Unknown content type');
         }
+    }
+
+    private async assertProjectViewAccess(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
+        if (user.organizationUuid === undefined) {
+            throw new NotFoundError('Organization not found');
+        }
+
+        const { organizationUuid, name: projectName } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid, projectName },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+    }
+
+    // Per-item permission checks, analytics, soft/permanent-delete branching
+    // and cascades all live in each service's delete()
+    private async deleteContentItem(
+        user: SessionUser,
+        projectUuid: string,
+        item: ApiContentActionBody<ContentActionDelete>['item'],
+    ): Promise<void> {
+        switch (item.contentType) {
+            case ContentType.CHART:
+                switch (item.source) {
+                    case ChartSourceType.DBT_EXPLORE:
+                        await this.savedChartService.delete(user, item.uuid, {
+                            projectUuid,
+                        });
+                        // Clear the chart's validation errors so the Validator
+                        // list updates without waiting for the next run
+                        await this.validationModel.deleteChartValidations(
+                            item.uuid,
+                            projectUuid,
+                        );
+                        return;
+                    case ChartSourceType.SQL:
+                        await this.savedSqlService.delete(user, item.uuid);
+                        return;
+                    default:
+                        return assertUnreachable(
+                            item.source,
+                            `Unknown chart source in content delete: ${item.source}`,
+                        );
+                }
+            case ContentType.DASHBOARD:
+                await this.dashboardService.delete(user, item.uuid, {
+                    projectUuid,
+                });
+                await this.validationModel.deleteDashboardValidations(
+                    item.uuid,
+                    projectUuid,
+                );
+                return;
+            case ContentType.SPACE:
+                await this.spaceService.delete(user, item.uuid);
+                return;
+            case ContentType.DATA_APP:
+                throw new ParameterError(
+                    'Data apps cannot be deleted via content actions',
+                );
+            default:
+                return assertUnreachable(item, 'Unknown content type');
+        }
+    }
+
+    async delete(
+        user: SessionUser,
+        projectUuid: string,
+        item: ApiContentActionBody<ContentActionDelete>['item'],
+    ): Promise<void> {
+        await this.assertProjectViewAccess(user, projectUuid);
+        await this.deleteContentItem(user, projectUuid, item);
+    }
+
+    async bulkDelete(
+        user: SessionUser,
+        projectUuid: string,
+        content: ApiContentBulkActionBody<ContentActionDelete>['content'],
+    ): Promise<ContentBulkDeleteResults> {
+        await this.assertProjectViewAccess(user, projectUuid);
+
+        const skipped: ContentBulkDeleteResults['skipped'] = [];
+        let deletedCount = 0;
+
+        // Sequential on purpose: deletes cascade (spaces delete their charts
+        // and dashboards), so parallel deletes over overlapping trees race
+        for (const item of content) {
+            try {
+                // eslint-disable-next-line no-await-in-loop
+                await this.deleteContentItem(user, projectUuid, item);
+                deletedCount += 1;
+            } catch (error: unknown) {
+                skipped.push({
+                    uuid: item.uuid,
+                    contentType: item.contentType,
+                    reason:
+                        error instanceof ForbiddenError
+                            ? 'You do not have permission to delete this content'
+                            : getErrorMessage(error),
+                });
+            }
+        }
+
+        this.analytics.track({
+            event: 'content.bulk_delete',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                contentCount: content.length,
+                deletedCount,
+                skippedCount: skipped.length,
+            },
+        });
+
+        return { deletedCount, skipped };
     }
 
     /**

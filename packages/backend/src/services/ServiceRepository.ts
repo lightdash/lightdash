@@ -1368,6 +1368,7 @@ export class ServiceRepository
                     savedChartService: this.getSavedChartService(),
                     savedSqlService: this.getSavedSqlService(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    validationModel: this.models.getValidationModel(),
                     // Only wired when EE license is active. Core builds get
                     // undefined and fail DATA_APP moves with a clear error.
                     appMoveService: this.providers.appGenerateService
