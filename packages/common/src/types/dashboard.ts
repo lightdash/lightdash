@@ -1,6 +1,6 @@
 import { type ContentVerificationInfo } from './contentVerification';
 import { type FilterableDimension, type Metric } from './field';
-import { type DashboardFieldTarget, type DashboardFilters } from './filter';
+import { type DashboardFilters } from './filter';
 import { type KnexPaginatedData } from './knex-paginate';
 import { type DashboardParameters } from './parameters';
 import {
@@ -335,7 +335,6 @@ export type DashboardAvailableFilters = {
     allFilterableFields: FilterableDimension[];
     allFilterableMetrics: Metric[];
     savedQueryMetricFilters: Record<string, number[]>;
-    defaultTimeDimensions: Record<string, DashboardFieldTarget>;
 };
 
 export type SavedChartsInfoForDashboardAvailableFilters = {
