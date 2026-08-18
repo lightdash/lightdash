@@ -6,6 +6,7 @@ import {
     analyzeRelease,
     calculateCvss31BaseScore,
     createEligibleDrafts,
+    extractJson,
     findingFingerprint,
     GitHubAdvisoryClient,
     isFindingEligibleForVerification,
@@ -117,6 +118,27 @@ async function run(): Promise<void> {
     ]) {
         assert.strictEqual(isSafeRepoPath(unsafe), false, unsafe);
     }
+
+    assert.deepStrictEqual(
+        extractJson(
+            'The `${user}` interpolation is fixed.\n{"schemaVersion": 1, "findings": []}',
+        ),
+        { schemaVersion: 1, findings: [] },
+    );
+    assert.deepStrictEqual(
+        extractJson('```json\n{"schemaVersion": 1}\n```\nNo findings remain.'),
+        { schemaVersion: 1 },
+    );
+    assert.deepStrictEqual(
+        extractJson('{"example": true} and the result:\n{"schemaVersion": 1}'),
+        { schemaVersion: 1 },
+    );
+    assert.deepStrictEqual(
+        extractJson('{"nested": {"value": "a \\"quoted { brace\\""}} trailing prose }'),
+        { nested: { value: 'a "quoted { brace"' } },
+    );
+    assert.throws(() => extractJson('no json here {broken'), /did not return JSON/);
+    assert.throws(() => extractJson('[1, 2, 3]'), /did not return JSON/);
 
     const parsed = validateAnalysisShape(
         {
@@ -639,6 +661,51 @@ async function run(): Promise<void> {
             }),
             /JSON/,
         );
+
+        let parseRetryCalls = 0;
+        let correctiveMessage = '';
+        const retried = await analyzeRelease({
+            apiKey: 'test',
+            previousTag: stableTags[1],
+            releaseTag: stableTags[0],
+            fetchImpl: async (_input, init) => {
+                parseRetryCalls += 1;
+                if (parseRetryCalls === 2) {
+                    const body = JSON.parse(String(init?.body));
+                    correctiveMessage =
+                        body.messages[body.messages.length - 1].content[0].text;
+                }
+                return new Response(
+                    JSON.stringify({
+                        stop_reason: 'end_turn',
+                        content:
+                            parseRetryCalls === 1
+                                ? [
+                                      {
+                                          type: 'text',
+                                          text: 'I found no issues in this release.',
+                                      },
+                                  ]
+                                : [
+                                      { type: 'text', text: 'Final result:' },
+                                      {
+                                          type: 'text',
+                                          text: JSON.stringify({
+                                              schemaVersion: 1,
+                                              previousTag: stableTags[1],
+                                              releaseTag: stableTags[0],
+                                              findings: [],
+                                          }),
+                                      },
+                                  ],
+                    }),
+                    { status: 200 },
+                );
+            },
+        });
+        assert.deepStrictEqual(retried.findings, []);
+        assert.strictEqual(parseRetryCalls, 2);
+        assert.match(correctiveMessage, /exactly one valid JSON object/);
 
         const verifierCandidate = finding({
             introducedVersion: stableTags[1],

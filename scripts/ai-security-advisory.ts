@@ -11,6 +11,7 @@ const MAX_DIFF_CHARS = 20_000;
 const MAX_SEARCH_LINES = 100;
 const MAX_CHANGED_FILES = 500;
 const MAX_TOKENS = 16_000;
+const MAX_PARSE_RETRIES = 2;
 const API_VERSION = '2026-03-10';
 const MARKER_PREFIX = 'lightdash-ai-security-draft:v1';
 
@@ -640,11 +641,48 @@ function getReleaseContext(previousRef: string, releaseRef: string): string {
     ].join('\n');
 }
 
-function extractJson(text: string): unknown {
-    const start = text.indexOf('{');
-    const end = text.lastIndexOf('}');
-    if (start < 0 || end <= start) throw new Error('Model did not return JSON');
-    return JSON.parse(text.slice(start, end + 1));
+function balancedObjectEnd(text: string, start: number): number {
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    for (let index = start; index < text.length; index += 1) {
+        const char = text[index];
+        if (inString) {
+            if (escaped) escaped = false;
+            else if (char === '\\') escaped = true;
+            else if (char === '"') inString = false;
+        } else if (char === '"') inString = true;
+        else if (char === '{') depth += 1;
+        else if (char === '}') {
+            depth -= 1;
+            if (depth === 0) return index;
+        }
+    }
+    return -1;
+}
+
+// Model text may wrap the JSON object in prose or fences that contain braces.
+export function extractJson(text: string): unknown {
+    let fallback: unknown;
+    for (
+        let start = text.indexOf('{');
+        start >= 0;
+        start = text.indexOf('{', start + 1)
+    ) {
+        const end = balancedObjectEnd(text, start);
+        if (end < 0) continue;
+        let parsed: unknown;
+        try {
+            parsed = JSON.parse(text.slice(start, end + 1));
+        } catch {
+            continue;
+        }
+        if (!isRecord(parsed)) continue;
+        if ('schemaVersion' in parsed) return parsed;
+        if (fallback === undefined) fallback = parsed;
+    }
+    if (fallback !== undefined) return fallback;
+    throw new Error('Model did not return JSON');
 }
 
 async function callAnthropic(
@@ -974,10 +1012,11 @@ async function runReadOnlyReview(options: {
     releaseRef: string;
     label: string;
     requireOldCodeInspection?: boolean;
-}): Promise<string> {
+}): Promise<unknown> {
     const messages = [...options.messages];
     let toolCalls = 0;
     let inspectedOldCode = false;
+    let parseRetries = 0;
 
     for (let iteration = 0; iteration < MAX_ITERATIONS; iteration += 1) {
         const response = await callAnthropic(
@@ -994,10 +1033,11 @@ async function runReadOnlyReview(options: {
             if (response.stop_reason === 'max_tokens') {
                 throw new Error(`AI ${options.label} reached its output limit`);
             }
-            const textBlock = response.content.find(
-                (block) => block.type === 'text' && block.text,
-            );
-            if (!textBlock?.text) {
+            const text = response.content
+                .filter((block) => block.type === 'text' && block.text)
+                .map((block) => block.text)
+                .join('\n');
+            if (!text) {
                 throw new Error(`AI ${options.label} returned no result`);
             }
             if (options.requireOldCodeInspection && !inspectedOldCode) {
@@ -1005,7 +1045,30 @@ async function runReadOnlyReview(options: {
                     `AI ${options.label} did not inspect the previous release`,
                 );
             }
-            return textBlock.text;
+            try {
+                return extractJson(text);
+            } catch (error) {
+                if (parseRetries >= MAX_PARSE_RETRIES) {
+                    throw new Error(
+                        `AI ${options.label} did not return valid JSON`,
+                    );
+                }
+                parseRetries += 1;
+                messages.push({
+                    role: 'user',
+                    content: [
+                        {
+                            type: 'text',
+                            text: `Your reply was not exactly one valid JSON object (${
+                                error instanceof Error
+                                    ? error.message
+                                    : String(error)
+                            }). Reply with exactly one JSON object matching the required schema and no other text.`,
+                        },
+                    ],
+                });
+                continue;
+            }
         }
         if (toolCalls + toolUses.length > options.maxToolCalls) {
             throw new Error(
@@ -1050,7 +1113,7 @@ export async function analyzeRelease(options: {
     const previousRef = `refs/tags/${options.previousTag}`;
     const releaseRef = `refs/tags/${options.releaseTag}`;
     const context = getReleaseContext(previousRef, releaseRef);
-    const text = await runReadOnlyReview({
+    const output = await runReadOnlyReview({
         apiKey: options.apiKey,
         systemPrompt: SYSTEM_PROMPT,
         messages: [
@@ -1071,7 +1134,7 @@ export async function analyzeRelease(options: {
         releaseRef,
         label: 'analysis',
     });
-    const analysis = validateAnalysisShape(extractJson(text), {
+    const analysis = validateAnalysisShape(output, {
         previousTag: options.previousTag,
         releaseTag: options.releaseTag,
     });
@@ -1227,7 +1290,7 @@ export async function verifyReleaseFindings(options: {
         fingerprint: fingerprints[index],
         finding,
     }));
-    const text = await runReadOnlyReview({
+    const output = await runReadOnlyReview({
         apiKey: options.apiKey,
         systemPrompt: VERIFIER_SYSTEM_PROMPT,
         messages: [
@@ -1249,7 +1312,7 @@ export async function verifyReleaseFindings(options: {
         label: 'verification',
         requireOldCodeInspection: true,
     });
-    const verification = validateVerificationShape(extractJson(text), {
+    const verification = validateVerificationShape(output, {
         previousTag: analysis.previousTag,
         releaseTag: analysis.releaseTag,
         fingerprints,
