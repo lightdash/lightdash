@@ -72,6 +72,7 @@ export enum PreAggregateMissReason {
     FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE = 'filter_dimension_not_in_pre_aggregate',
     PRE_AGGREGATE_FILTER_NOT_SATISFIED = 'pre_aggregate_filter_not_satisfied',
     GRANULARITY_TOO_FINE = 'granularity_too_fine',
+    TIME_FRAME_NOT_DERIVABLE = 'time_frame_not_derivable',
     CUSTOM_DIMENSION_PRESENT = 'custom_dimension_present',
     CUSTOM_METRIC_PRESENT = 'custom_metric_present',
     TABLE_CALCULATION_PRESENT = 'table_calculation_present',
@@ -114,6 +115,13 @@ export type PreAggregateMatchMiss =
       }
     | {
           reason: PreAggregateMissReason.GRANULARITY_TOO_FINE;
+          fieldId: FieldId;
+          queryGranularity: TimeFrames;
+          preAggregateGranularity: TimeFrames;
+          preAggregateTimeDimension: string;
+      }
+    | {
+          reason: PreAggregateMissReason.TIME_FRAME_NOT_DERIVABLE;
           fieldId: FieldId;
           queryGranularity: TimeFrames;
           preAggregateGranularity: TimeFrames;
@@ -204,6 +212,8 @@ export const preAggregateMissReasonLabels: Record<
     [PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED]:
         'Pre-aggregate filter not satisfied',
     [PreAggregateMissReason.GRANULARITY_TOO_FINE]: 'Granularity too fine',
+    [PreAggregateMissReason.TIME_FRAME_NOT_DERIVABLE]:
+        'Time frame not derivable',
     [PreAggregateMissReason.CUSTOM_DIMENSION_PRESENT]:
         'Custom dimension detected',
     [PreAggregateMissReason.CUSTOM_METRIC_PRESENT]: 'Custom metric detected',

@@ -13,7 +13,6 @@ import {
     preAggregateUtils,
     SupportedDbtAdapter,
     timeFrameConfigs,
-    timeFrameOrder,
     type CompiledDimension,
     type CompiledMetric,
     type CompiledTable,
@@ -33,18 +32,6 @@ const {
     getSelectedDimension,
     selectPreAggregateMetrics,
 } = preAggregateMaterialization;
-
-const isFinerGranularity = (
-    candidateGranularity: TimeFrames,
-    targetGranularity: TimeFrames,
-): boolean => {
-    const candidateIndex = timeFrameOrder.indexOf(candidateGranularity);
-    const targetIndex = timeFrameOrder.indexOf(targetGranularity);
-    if (candidateIndex === -1 || targetIndex === -1) {
-        return false;
-    }
-    return candidateIndex < targetIndex;
-};
 
 const getMetricAggregateSql = (
     metricType: MetricType.SUM | MetricType.MIN | MetricType.MAX,
@@ -363,15 +350,16 @@ const getIncludedDimensions = (
         if (
             !preAggregateDef.timeDimension ||
             !preAggregateDef.granularity ||
-            dimensionBaseName !== preAggregateDef.timeDimension ||
-            !dimension.timeInterval
+            dimensionBaseName !== preAggregateDef.timeDimension
         ) {
             return true;
         }
 
-        return !isFinerGranularity(
-            dimension.timeInterval,
-            preAggregateDef.granularity,
+        return (
+            preAggregateUtils.getTimeFrameDerivability(
+                preAggregateUtils.getEffectiveDimensionTimeFrame(dimension),
+                preAggregateDef.granularity,
+            ) === preAggregateUtils.TimeFrameDerivability.DERIVABLE
         );
     });
 };

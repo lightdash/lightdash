@@ -65,8 +65,10 @@ _Avoid_: static filters, pre-filters
 
 **Time dimension / Granularity**:
 The optional time dimension a pre-aggregate is grouped by, and the grain
-(hour–year) it is stored at. Queries at equal or coarser grain can be served;
-finer grain misses.
+(hour–year) it is stored at. Queries can be served only when their requested
+time frame is safely derivable from the stored grain. For example, day can
+serve month, but week cannot serve calendar month because weeks cross month
+boundaries.
 
 **Materialization role**:
 A fixed identity (email plus user attributes) that materialization runs under,

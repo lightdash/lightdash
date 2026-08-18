@@ -164,6 +164,13 @@ const sourceExplore = (): Explore => ({
                     timeInterval: TimeFrames.WEEK,
                     timeIntervalBaseDimensionName: 'order_date',
                 }),
+                order_date_week_num: makeDimension({
+                    name: 'order_date_week_num',
+                    table: 'orders',
+                    type: DimensionType.NUMBER,
+                    timeInterval: TimeFrames.WEEK_NUM,
+                    timeIntervalBaseDimensionName: 'order_date',
+                }),
                 order_date_month: makeDimension({
                     name: 'order_date_month',
                     table: 'orders',
@@ -177,6 +184,32 @@ const sourceExplore = (): Explore => ({
                     type: DimensionType.STRING,
                     timeInterval: TimeFrames.MONTH_NAME,
                     timeIntervalBaseDimensionName: 'order_date',
+                }),
+                order_date_quarter: makeDimension({
+                    name: 'order_date_quarter',
+                    table: 'orders',
+                    type: DimensionType.DATE,
+                    timeInterval: TimeFrames.QUARTER,
+                    timeIntervalBaseDimensionName: 'order_date',
+                }),
+                order_date_year: makeDimension({
+                    name: 'order_date_year',
+                    table: 'orders',
+                    type: DimensionType.DATE,
+                    timeInterval: TimeFrames.YEAR,
+                    timeIntervalBaseDimensionName: 'order_date',
+                }),
+                created_at: makeDimension({
+                    name: 'created_at',
+                    table: 'orders',
+                    type: DimensionType.TIMESTAMP,
+                }),
+                created_at_day: makeDimension({
+                    name: 'created_at_day',
+                    table: 'orders',
+                    type: DimensionType.TIMESTAMP,
+                    timeInterval: TimeFrames.DAY,
+                    timeIntervalBaseDimensionName: 'created_at',
                 }),
             },
             metrics: {
@@ -362,7 +395,7 @@ describe('buildPreAggregateExplore', () => {
         );
     });
 
-    it('keeps compatible time intervals and drops finer intervals than rollup granularity', () => {
+    it('keeps derivable time frames and drops finer ones', () => {
         const result = buildExplore(
             sourceExplore(),
             sourceExplore().preAggregates![0],
@@ -375,6 +408,41 @@ describe('buildPreAggregateExplore', () => {
             result.tables.orders.dimensions.order_date_month.compiledSql,
         ).toContain('orders.orders_order_date_day');
         expect(result.tables.orders.dimensions.order_date_hour).toBeUndefined();
+    });
+
+    it('does not expose calendar months or week numbers from a week-grain pre-aggregate', () => {
+        const result = buildExplore(sourceExplore(), {
+            ...sourceExplore().preAggregates![0],
+            granularity: TimeFrames.WEEK,
+        });
+
+        expect(result.tables.orders.dimensions.order_date_week).toBeDefined();
+        expect(
+            result.tables.orders.dimensions.order_date_month,
+        ).toBeUndefined();
+        expect(
+            result.tables.orders.dimensions.order_date_quarter,
+        ).toBeUndefined();
+        expect(result.tables.orders.dimensions.order_date_year).toBeUndefined();
+        expect(
+            result.tables.orders.dimensions.order_date_week_num,
+        ).toBeUndefined();
+    });
+
+    it('exposes a raw date but not a raw timestamp from a day-grain pre-aggregate', () => {
+        const explore = sourceExplore();
+        const result = buildExplore(explore, {
+            ...explore.preAggregates![0],
+            dimensions: ['created_at'],
+            timeDimension: 'created_at',
+            granularity: TimeFrames.DAY,
+        });
+
+        expect(result.tables.orders.dimensions.created_at).toBeUndefined();
+        expect(result.tables.orders.dimensions.created_at_day).toBeDefined();
+
+        const dateResult = buildExplore(explore, explore.preAggregates![0]);
+        expect(dateResult.tables.orders.dimensions.order_date).toBeDefined();
     });
 
     it('uses DuckDB-compatible date truncation SQL regardless of source warehouse adapter', () => {
