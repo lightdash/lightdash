@@ -28,6 +28,8 @@ type SemanticLayerQuerySourceArguments = {
     projectModel: ProjectModel;
 };
 
+const DEFAULT_SOURCE_QUERY_LIMIT = 500;
+
 /**
  * The project's semantic layer as a query source: explores are the tables,
  * their dimensions and metrics are the columns, and queries are metric
@@ -38,7 +40,7 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
         sourceType: QuerySourceType.SEMANTIC_LAYER,
         label: 'Semantic layer',
         description:
-            'Metric queries against the explores of this project. Tables are explores; columns are their dimensions and metrics, referenced by field id.',
+            'Metric queries against the explores of this project. Tables are explores; columns are their dimensions and metrics, referenced by field id. Result columns are named by field id — exactly the dimensions and metrics requested.',
     };
 
     private readonly asyncQueryService: AsyncQueryService;
@@ -133,22 +135,20 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
         query,
     }: SubmitSourceQueryArgs): Promise<{ queryUuid: string }> {
         const sourceQuery = SemanticLayerQuerySource.assertSourceQuery(query);
-        const request = sourceQuery.query;
 
+        // Only exploreName/dimensions/metrics are required on the wire; the
+        // rest defaults to the empty metric query here
         const metricQuery: MetricQuery = {
-            exploreName: request.exploreName,
-            dimensions: request.dimensions,
-            metrics: request.metrics,
-            filters: request.filters,
-            sorts: request.sorts,
-            limit: request.limit,
-            tableCalculations: request.tableCalculations,
-            additionalMetrics: request.additionalMetrics,
-            customDimensions: request.customDimensions,
-            timezone: request.timezone,
-            pivotDimensions: request.pivotDimensions,
-            metricOverrides: request.metricOverrides,
-            dimensionOverrides: request.dimensionOverrides,
+            exploreName: sourceQuery.exploreName,
+            dimensions: sourceQuery.dimensions,
+            metrics: sourceQuery.metrics,
+            filters: sourceQuery.filters ?? {},
+            sorts: sourceQuery.sorts ?? [],
+            limit: sourceQuery.limit ?? DEFAULT_SOURCE_QUERY_LIMIT,
+            tableCalculations: sourceQuery.tableCalculations ?? [],
+            additionalMetrics: sourceQuery.additionalMetrics,
+            customDimensions: sourceQuery.customDimensions,
+            timezone: sourceQuery.timezone,
         };
 
         const results = await this.asyncQueryService.executeAsyncMetricQuery({

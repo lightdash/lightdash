@@ -1006,7 +1006,6 @@ export class ServiceRepository
             return new QuerySourceService({
                 projectModel: this.models.getProjectModel(),
                 queryHistoryModel: this.models.getQueryHistoryModel(),
-                queryDagModel: this.models.getQueryDagModel(),
                 featureFlagModel: this.models.getFeatureFlagModel(),
                 registry,
             });

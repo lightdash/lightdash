@@ -20,15 +20,15 @@ type DuckdbQuerySourceArguments = {
 /**
  * The DuckDB compose engine as a query source. It has no schema of its own:
  * its tables are the references handed to each query, which makes it the
- * merge/transform node of a multi-source DAG — upstream node results become
- * named tables the SQL joins and reshapes.
+ * merge/transform step of a multi-source pipeline — other queries' results
+ * become named tables the SQL joins and reshapes.
  */
 export class DuckdbQuerySource implements QuerySourceClient {
     readonly definition: QuerySourceDefinition = {
         sourceType: QuerySourceType.DUCKDB,
         label: 'DuckDB compose',
         description:
-            'DuckDB SQL over previous query results. Each references entry exposes another query result as a named table; reference upstream DAG nodes by node id, or existing results by queryUuid.',
+            'DuckDB SQL over other query results. References expose results as named tables: an array of node ids (each a table named by its node id) or a {tableName: nodeIdOrQueryUuid} map. A referenced result keeps the column names of the query that produced it — field ids for semanticLayer queries, SELECT output names for sql queries. References to still-running queries are waited on.',
     };
 
     private readonly asyncQueryService: AsyncQueryService;
@@ -46,6 +46,19 @@ export class DuckdbQuerySource implements QuerySourceClient {
         return query;
     }
 
+    /** The array shorthand exposes each referenced node as a table of the same name. */
+    private static normalizeReferences(
+        references: DuckdbSourceQuery['references'],
+    ): Record<string, string> | undefined {
+        if (references === undefined) return undefined;
+        if (Array.isArray(references)) {
+            return Object.fromEntries(
+                references.map((nodeId) => [nodeId, nodeId]),
+            );
+        }
+        return references;
+    }
+
     // eslint-disable-next-line class-methods-use-this
     async scanSchema(_args: ScanSchemaArgs): Promise<QuerySourceSchema> {
         return {
@@ -56,7 +69,10 @@ export class DuckdbQuerySource implements QuerySourceClient {
 
     getQueryReferences(query: SourceQuery): string[] {
         const sourceQuery = DuckdbQuerySource.assertSourceQuery(query);
-        return Object.values(sourceQuery.references ?? {});
+        return Object.values(
+            DuckdbQuerySource.normalizeReferences(sourceQuery.references) ??
+                {},
+        );
     }
 
     async submitQuery({
@@ -68,14 +84,15 @@ export class DuckdbQuerySource implements QuerySourceClient {
     }: SubmitSourceQueryArgs): Promise<{ queryUuid: string }> {
         const sourceQuery = DuckdbQuerySource.assertSourceQuery(query);
 
-        const references = sourceQuery.references
+        const normalized = DuckdbQuerySource.normalizeReferences(
+            sourceQuery.references,
+        );
+        const references = normalized
             ? Object.fromEntries(
-                  Object.entries(sourceQuery.references).map(
-                      ([tableName, reference]) => [
-                          tableName,
-                          resolvedReferences[reference] ?? reference,
-                      ],
-                  ),
+                  Object.entries(normalized).map(([tableName, reference]) => [
+                      tableName,
+                      resolvedReferences[reference] ?? reference,
+                  ]),
               )
             : undefined;
 

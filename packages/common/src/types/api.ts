@@ -282,8 +282,8 @@ import {
 import { type ApiPromotionChangesResponse } from './promotion';
 import { type QueryHistoryStatus } from './queryHistory';
 import {
-    type ApiExecuteQueryDagResults,
-    type ApiExecuteSourceQueryResults,
+    type ApiExecuteSourceQueriesResults,
+    type ApiGetSourceQueryStatusResults,
     type ApiListQuerySourcesResults,
     type ApiScanQuerySourceSchemaResults,
 } from './querySources';
@@ -1306,8 +1306,8 @@ type ApiResults =
     | ApiCalculateSubtotalsResponse['results']
     | ApiExecuteAsyncFieldValueSearchResults
     | ApiExecuteAsyncSqlQueryResults
-    | ApiExecuteSourceQueryResults
-    | ApiExecuteQueryDagResults
+    | ApiExecuteSourceQueriesResults
+    | ApiGetSourceQueryStatusResults
     | ApiListQuerySourcesResults
     | ApiScanQuerySourceSchemaResults
     | ApiExecuteAsyncDashboardSqlChartQueryResults

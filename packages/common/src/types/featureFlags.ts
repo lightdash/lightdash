@@ -333,7 +333,7 @@ export enum FeatureFlags {
     /**
      * Enable the multi-source query endpoints
      * (/api/v2/projects/{projectUuid}/query-sources/*): source discovery,
-     * schema scans, single source-query submission and DAG execution. Off by
+     * schema scans, source-query submission and batch status. Off by
      * default; on in preview/dev environments via
      * PREVIEW_ENABLED_FEATURE_FLAGS.
      */

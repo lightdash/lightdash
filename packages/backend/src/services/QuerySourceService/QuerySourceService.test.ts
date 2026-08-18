@@ -1,20 +1,15 @@
 import {
     ForbiddenError,
     ParameterError,
-    QueryDagNodeStatus,
-    QueryDagStatus,
     QueryExecutionContext,
     QueryHistoryStatus,
     QuerySourceType,
-    type MetricQueryRequest,
-    type QueryDagNodeRequest,
     type SourceQuery,
 } from '@lightdash/common';
 import type { Mock } from 'vitest';
 import { buildAccount } from '../../auth/account/account.mock';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import type { QueryDagModel } from '../../models/QueryDagModel/QueryDagModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { QuerySourceRegistry } from './QuerySourceRegistry';
 import { QuerySourceService } from './QuerySourceService';
@@ -24,41 +19,30 @@ const account = buildAccount();
 const projectUuid = 'test-project-uuid';
 const organizationUuid = 'test-org-uuid';
 
-const metricQueryRequest: MetricQueryRequest = {
-    exploreName: 'orders',
-    dimensions: [],
-    metrics: [],
-    filters: {},
-    sorts: [],
-    limit: 10,
-    tableCalculations: [],
-};
-
 const createFakeSource = (
     sourceType: QuerySourceType,
     submitQuery: Mock = vi
         .fn()
-        .mockResolvedValue({ queryUuid: `${sourceType}-query-uuid` }),
+        .mockImplementation(async ({ query }: { query: SourceQuery }) => ({
+            queryUuid: `${query.nodeId ?? sourceType}-query-uuid`,
+        })),
 ): QuerySourceClient & { submitQuery: Mock } => ({
     definition: { sourceType, label: sourceType, description: 'fake source' },
     scanSchema: vi.fn().mockResolvedValue({ sourceType, tables: [] }),
-    getQueryReferences: (query: SourceQuery) =>
-        query.sourceType === QuerySourceType.DUCKDB
-            ? Object.values(query.references ?? {})
-            : [],
+    getQueryReferences: (query: SourceQuery) => {
+        if (query.sourceType !== QuerySourceType.DUCKDB) return [];
+        if (query.references === undefined) return [];
+        return Array.isArray(query.references)
+            ? query.references
+            : Object.values(query.references);
+    },
     submitQuery,
 });
 
 type Mocks = {
     featureFlagModel: { get: Mock };
     projectModel: { getSummary: Mock };
-    queryHistoryModel: { pollForQueryCompletion: Mock };
-    queryDagModel: {
-        create: Mock;
-        get: Mock;
-        updateDag: Mock;
-        updateNode: Mock;
-    };
+    queryHistoryModel: { get: Mock };
 };
 
 const createService = (registry: QuerySourceRegistry) => {
@@ -70,37 +54,11 @@ const createService = (registry: QuerySourceRegistry) => {
             getSummary: vi.fn().mockResolvedValue({ organizationUuid }),
         },
         queryHistoryModel: {
-            pollForQueryCompletion: vi
-                .fn()
-                .mockResolvedValue({ status: QueryHistoryStatus.READY }),
-        },
-        queryDagModel: {
-            create: vi.fn(
-                async (args: {
-                    nodes: {
-                        nodeId: string;
-                        sourceType: QuerySourceType;
-                    }[];
-                }) => ({
-                    queryDagUuid: 'test-dag-uuid',
-                    projectUuid,
-                    status: QueryDagStatus.PENDING,
-                    error: null,
-                    createdAt: new Date(),
-                    nodes: args.nodes.map((node) => ({
-                        nodeId: node.nodeId,
-                        sourceType: node.sourceType,
-                        status: QueryDagNodeStatus.PENDING,
-                        queryUuid: null,
-                        error: null,
-                    })),
-                    organizationUuid,
-                    createdByUserUuid: account.user.id,
-                }),
-            ),
-            get: vi.fn(),
-            updateDag: vi.fn().mockResolvedValue(undefined),
-            updateNode: vi.fn().mockResolvedValue(undefined),
+            get: vi.fn(async (queryUuid: string) => ({
+                queryUuid,
+                status: QueryHistoryStatus.READY,
+                error: null,
+            })),
         },
     };
 
@@ -108,7 +66,6 @@ const createService = (registry: QuerySourceRegistry) => {
         projectModel: mocks.projectModel as unknown as ProjectModel,
         queryHistoryModel:
             mocks.queryHistoryModel as unknown as QueryHistoryModel,
-        queryDagModel: mocks.queryDagModel as unknown as QueryDagModel,
         featureFlagModel: mocks.featureFlagModel as unknown as FeatureFlagModel,
         registry,
     });
@@ -127,27 +84,6 @@ const createRegistryWithFakes = () => {
     registry.register(semanticLayerSource);
     registry.register(duckdbSource);
     return { registry, sqlSource, semanticLayerSource, duckdbSource };
-};
-
-/** Waits until the background orchestration marks the dag terminal. */
-const waitForDagFinish = async (mocks: Mocks) => {
-    for (let attempt = 0; attempt < 1000; attempt += 1) {
-        // eslint-disable-next-line no-await-in-loop
-        await new Promise((resolve) => {
-            setImmediate(resolve);
-        });
-        const terminalCall = mocks.queryDagModel.updateDag.mock.calls.find(
-            (call) => {
-                const update = call[1] as { status: QueryDagStatus };
-                return (
-                    update.status === QueryDagStatus.COMPLETED ||
-                    update.status === QueryDagStatus.ERROR
-                );
-            },
-        );
-        if (terminalCall) return;
-    }
-    throw new Error('Query DAG orchestration did not finish');
 };
 
 describe('QuerySourceRegistry', () => {
@@ -172,60 +108,19 @@ describe('QuerySourceRegistry', () => {
 });
 
 describe('QuerySourceService', () => {
-    describe('executeSourceQuery', () => {
-        it('submits through the source and returns its queryUuid', async () => {
+    describe('executeSourceQueries validation', () => {
+        const execute = (queries: SourceQuery[]) => {
             const fakes = createRegistryWithFakes();
             const { service } = createService(fakes.registry);
-
-            const results = await service.executeSourceQuery({
+            return service.executeSourceQueries({
                 account,
                 projectUuid,
-                query: { sourceType: QuerySourceType.SQL, sql: 'SELECT 1' },
-                context: QueryExecutionContext.MULTI_SOURCE_QUERY,
-            });
-
-            expect(results).toEqual({ queryUuid: 'sql-query-uuid' });
-            expect(fakes.sqlSource.submitQuery).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    account,
-                    projectUuid,
-                    resolvedReferences: {},
-                }),
-            );
-        });
-
-        it('throws when the feature flag is disabled', async () => {
-            const fakes = createRegistryWithFakes();
-            const { service, mocks } = createService(fakes.registry);
-            mocks.featureFlagModel.get.mockResolvedValue({ enabled: false });
-
-            await expect(
-                service.executeSourceQuery({
-                    account,
-                    projectUuid,
-                    query: {
-                        sourceType: QuerySourceType.SQL,
-                        sql: 'SELECT 1',
-                    },
-                    context: QueryExecutionContext.MULTI_SOURCE_QUERY,
-                }),
-            ).rejects.toThrow(ForbiddenError);
-        });
-    });
-
-    describe('executeQueryDag validation', () => {
-        const execute = (nodes: QueryDagNodeRequest[]) => {
-            const fakes = createRegistryWithFakes();
-            const { service } = createService(fakes.registry);
-            return service.executeQueryDag({
-                account,
-                projectUuid,
-                nodes,
+                queries,
                 context: QueryExecutionContext.MULTI_SOURCE_QUERY,
             });
         };
 
-        it('rejects an empty DAG', async () => {
+        it('rejects an empty submission', async () => {
             await expect(execute([])).rejects.toThrow(ParameterError);
         });
 
@@ -234,17 +129,13 @@ describe('QuerySourceService', () => {
                 execute([
                     {
                         nodeId: 'a',
-                        query: {
-                            sourceType: QuerySourceType.SQL,
-                            sql: 'SELECT 1',
-                        },
+                        sourceType: QuerySourceType.SQL,
+                        sql: 'SELECT 1',
                     },
                     {
                         nodeId: 'a',
-                        query: {
-                            sourceType: QuerySourceType.SQL,
-                            sql: 'SELECT 2',
-                        },
+                        sourceType: QuerySourceType.SQL,
+                        sql: 'SELECT 2',
                     },
                 ]),
             ).rejects.toThrow('Duplicate node id');
@@ -255,10 +146,8 @@ describe('QuerySourceService', () => {
                 execute([
                     {
                         nodeId: '1-bad-id!',
-                        query: {
-                            sourceType: QuerySourceType.SQL,
-                            sql: 'SELECT 1',
-                        },
+                        sourceType: QuerySourceType.SQL,
+                        sql: 'SELECT 1',
                     },
                 ]),
             ).rejects.toThrow('Invalid node id');
@@ -269,209 +158,204 @@ describe('QuerySourceService', () => {
                 execute([
                     {
                         nodeId: 'merge',
-                        query: {
-                            sourceType: QuerySourceType.DUCKDB,
-                            sql: 'SELECT * FROM t',
-                            references: { t: 'missing_node' },
-                        },
+                        sourceType: QuerySourceType.DUCKDB,
+                        sql: 'SELECT * FROM t',
+                        references: { t: 'missing_node' },
                     },
                 ]),
-            ).rejects.toThrow('neither a node id');
+            ).rejects.toThrow('neither the node id');
+        });
+
+        it('rejects reference cycles', async () => {
+            await expect(
+                execute([
+                    {
+                        nodeId: 'x',
+                        sourceType: QuerySourceType.DUCKDB,
+                        sql: 'SELECT * FROM t',
+                        references: { t: 'y' },
+                    },
+                    {
+                        nodeId: 'y',
+                        sourceType: QuerySourceType.DUCKDB,
+                        sql: 'SELECT * FROM t',
+                        references: { t: 'x' },
+                    },
+                ]),
+            ).rejects.toThrow('cycle');
         });
 
         it('allows references to existing results by query uuid', async () => {
             const results = await execute([
                 {
                     nodeId: 'merge',
-                    query: {
-                        sourceType: QuerySourceType.DUCKDB,
-                        sql: 'SELECT * FROM t',
-                        references: {
-                            t: '123e4567-e89b-12d3-a456-426614174000',
-                        },
-                    },
+                    sourceType: QuerySourceType.DUCKDB,
+                    sql: 'SELECT * FROM t',
+                    references: { t: '123e4567-e89b-12d3-a456-426614174000' },
                 },
             ]);
-            expect(results.queryDagUuid).toEqual('test-dag-uuid');
+            expect(results.queries).toEqual([
+                {
+                    nodeId: 'merge',
+                    sourceType: QuerySourceType.DUCKDB,
+                    queryUuid: 'merge-query-uuid',
+                },
+            ]);
         });
 
-        it('rejects dependency cycles', async () => {
+        it('throws when the feature flag is disabled', async () => {
+            const fakes = createRegistryWithFakes();
+            const { service, mocks } = createService(fakes.registry);
+            mocks.featureFlagModel.get.mockResolvedValue({ enabled: false });
+
             await expect(
-                execute([
-                    {
-                        nodeId: 'x',
-                        query: {
-                            sourceType: QuerySourceType.DUCKDB,
-                            sql: 'SELECT * FROM t',
-                            references: { t: 'y' },
-                        },
-                    },
-                    {
-                        nodeId: 'y',
-                        query: {
-                            sourceType: QuerySourceType.DUCKDB,
-                            sql: 'SELECT * FROM t',
-                            references: { t: 'x' },
-                        },
-                    },
-                ]),
-            ).rejects.toThrow('cycle');
+                service.executeSourceQueries({
+                    account,
+                    projectUuid,
+                    queries: [
+                        { sourceType: QuerySourceType.SQL, sql: 'SELECT 1' },
+                    ],
+                    context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+                }),
+            ).rejects.toThrow(ForbiddenError);
         });
     });
 
-    describe('executeQueryDag orchestration', () => {
-        const dagNodes: QueryDagNodeRequest[] = [
-            {
-                nodeId: 'orders',
-                query: { sourceType: QuerySourceType.SQL, sql: 'SELECT 1' },
-            },
-            {
-                nodeId: 'revenue',
-                query: {
-                    sourceType: QuerySourceType.SEMANTIC_LAYER,
-                    query: metricQueryRequest,
-                },
-            },
-            {
-                nodeId: 'merged',
-                query: {
-                    sourceType: QuerySourceType.DUCKDB,
-                    sql: 'SELECT * FROM o JOIN r USING (id)',
-                    references: { o: 'orders', r: 'revenue' },
-                },
-            },
-        ];
-
-        it('runs upstream nodes, resolves references, then runs dependents', async () => {
+    describe('executeSourceQueries submission', () => {
+        it('submits a single query and generates a node id', async () => {
             const fakes = createRegistryWithFakes();
-            const { service, mocks } = createService(fakes.registry);
+            const { service } = createService(fakes.registry);
 
-            const results = await service.executeQueryDag({
+            const results = await service.executeSourceQueries({
                 account,
                 projectUuid,
-                nodes: dagNodes,
+                queries: [{ sourceType: QuerySourceType.SQL, sql: 'SELECT 1' }],
                 context: QueryExecutionContext.MULTI_SOURCE_QUERY,
             });
-            expect(results.status).toEqual(QueryDagStatus.PENDING);
-            expect(results.nodes).toHaveLength(3);
 
-            await waitForDagFinish(mocks);
-
-            expect(fakes.duckdbSource.submitQuery).toHaveBeenCalledWith(
+            expect(results.queries).toHaveLength(1);
+            expect(results.queries[0].nodeId).toEqual('query_1');
+            expect(fakes.sqlSource.submitQuery).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    resolvedReferences: {
-                        orders: 'sql-query-uuid',
-                        revenue: 'semanticLayer-query-uuid',
-                    },
+                    account,
+                    projectUuid,
+                    resolvedReferences: {},
                 }),
-            );
-            expect(mocks.queryDagModel.updateNode).toHaveBeenCalledWith(
-                'test-dag-uuid',
-                'merged',
-                expect.objectContaining({
-                    status: QueryDagNodeStatus.COMPLETED,
-                }),
-            );
-            expect(mocks.queryDagModel.updateDag).toHaveBeenLastCalledWith(
-                'test-dag-uuid',
-                { status: QueryDagStatus.COMPLETED },
             );
         });
 
-        it('skips dependents and fails the DAG when an upstream node fails', async () => {
+        it('submits in dependency order, rewriting node references to queryUuids', async () => {
+            const fakes = createRegistryWithFakes();
+            const { service } = createService(fakes.registry);
+
+            // The merge query comes first in the payload; submission order
+            // must still be dependencies-first
+            const results = await service.executeSourceQueries({
+                account,
+                projectUuid,
+                queries: [
+                    {
+                        nodeId: 'merged',
+                        sourceType: QuerySourceType.DUCKDB,
+                        sql: 'SELECT * FROM orders JOIN revenue USING (id)',
+                        references: ['orders', 'revenue'],
+                    },
+                    {
+                        nodeId: 'orders',
+                        sourceType: QuerySourceType.SQL,
+                        sql: 'SELECT 1',
+                    },
+                    {
+                        nodeId: 'revenue',
+                        sourceType: QuerySourceType.SEMANTIC_LAYER,
+                        exploreName: 'payments',
+                        dimensions: [],
+                        metrics: [],
+                    },
+                ],
+                context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+            });
+
+            expect(results.queries.map((q) => q.nodeId)).toEqual(
+                expect.arrayContaining(['orders', 'revenue', 'merged']),
+            );
+            // The merge query was submitted after its dependencies, with their
+            // node ids resolved to real queryUuids
+            expect(fakes.duckdbSource.submitQuery).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    resolvedReferences: {
+                        orders: 'orders-query-uuid',
+                        revenue: 'revenue-query-uuid',
+                    },
+                }),
+            );
+            const mergeSubmission = results.queries.find(
+                (q) => q.nodeId === 'merged',
+            );
+            expect(mergeSubmission?.queryUuid).toEqual('merged-query-uuid');
+        });
+
+        it('propagates submit failures as-is', async () => {
             const fakes = createRegistryWithFakes();
             fakes.sqlSource.submitQuery.mockRejectedValue(
                 new Error('warehouse exploded'),
             );
-            const { service, mocks } = createService(fakes.registry);
+            const { service } = createService(fakes.registry);
 
-            await service.executeQueryDag({
-                account,
-                projectUuid,
-                nodes: dagNodes,
-                context: QueryExecutionContext.MULTI_SOURCE_QUERY,
-            });
-            await waitForDagFinish(mocks);
-
-            expect(fakes.duckdbSource.submitQuery).not.toHaveBeenCalled();
-            expect(mocks.queryDagModel.updateNode).toHaveBeenCalledWith(
-                'test-dag-uuid',
-                'orders',
-                expect.objectContaining({
-                    status: QueryDagNodeStatus.ERROR,
-                    error: 'warehouse exploded',
+            await expect(
+                service.executeSourceQueries({
+                    account,
+                    projectUuid,
+                    queries: [
+                        { sourceType: QuerySourceType.SQL, sql: 'SELECT 1' },
+                    ],
+                    context: QueryExecutionContext.MULTI_SOURCE_QUERY,
                 }),
-            );
-            expect(mocks.queryDagModel.updateNode).toHaveBeenCalledWith(
-                'test-dag-uuid',
-                'merged',
-                expect.objectContaining({
-                    status: QueryDagNodeStatus.SKIPPED,
-                }),
-            );
-            // The independent node still completes
-            expect(mocks.queryDagModel.updateNode).toHaveBeenCalledWith(
-                'test-dag-uuid',
-                'revenue',
-                expect.objectContaining({
-                    status: QueryDagNodeStatus.COMPLETED,
-                }),
-            );
-            expect(mocks.queryDagModel.updateDag).toHaveBeenLastCalledWith(
-                'test-dag-uuid',
-                expect.objectContaining({ status: QueryDagStatus.ERROR }),
-            );
+            ).rejects.toThrow('warehouse exploded');
         });
     });
 
-    describe('getQueryDag', () => {
-        it('is creator-only', async () => {
+    describe('getSourceQueryStatuses', () => {
+        it('returns the standard status per query uuid', async () => {
             const fakes = createRegistryWithFakes();
             const { service, mocks } = createService(fakes.registry);
-            mocks.queryDagModel.get.mockResolvedValue({
-                queryDagUuid: 'test-dag-uuid',
-                projectUuid,
-                status: QueryDagStatus.COMPLETED,
-                error: null,
-                createdAt: new Date(),
-                nodes: [],
-                organizationUuid,
-                createdByUserUuid: 'someone-else',
-            });
+            mocks.queryHistoryModel.get.mockImplementation(
+                async (queryUuid: string) => ({
+                    queryUuid,
+                    status:
+                        queryUuid === 'failed-uuid'
+                            ? QueryHistoryStatus.ERROR
+                            : QueryHistoryStatus.READY,
+                    error: queryUuid === 'failed-uuid' ? 'boom' : null,
+                }),
+            );
 
-            await expect(
-                service.getQueryDag(account, projectUuid, 'test-dag-uuid'),
-            ).rejects.toThrow(ForbiddenError);
-        });
-
-        it('returns the dag without ownership fields for its creator', async () => {
-            const fakes = createRegistryWithFakes();
-            const { service, mocks } = createService(fakes.registry);
-            const createdAt = new Date();
-            mocks.queryDagModel.get.mockResolvedValue({
-                queryDagUuid: 'test-dag-uuid',
-                projectUuid,
-                status: QueryDagStatus.COMPLETED,
-                error: null,
-                createdAt,
-                nodes: [],
-                organizationUuid,
-                createdByUserUuid: account.user.id,
-            });
-
-            const dag = await service.getQueryDag(
+            const results = await service.getSourceQueryStatuses(
                 account,
                 projectUuid,
-                'test-dag-uuid',
+                ['ok-uuid', 'failed-uuid'],
             );
-            expect(dag).toEqual({
-                queryDagUuid: 'test-dag-uuid',
-                projectUuid,
-                status: QueryDagStatus.COMPLETED,
-                error: null,
-                createdAt,
-                nodes: [],
-            });
+
+            expect(results.statuses).toEqual([
+                {
+                    queryUuid: 'ok-uuid',
+                    status: QueryHistoryStatus.READY,
+                    error: null,
+                },
+                {
+                    queryUuid: 'failed-uuid',
+                    status: QueryHistoryStatus.ERROR,
+                    error: 'boom',
+                },
+            ]);
+        });
+
+        it('rejects an empty uuid list', async () => {
+            const fakes = createRegistryWithFakes();
+            const { service } = createService(fakes.registry);
+            await expect(
+                service.getSourceQueryStatuses(account, projectUuid, []),
+            ).rejects.toThrow(ParameterError);
         });
     });
 });

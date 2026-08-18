@@ -36,7 +36,7 @@ export class SqlQuerySource extends BaseService implements QuerySourceClient {
         sourceType: QuerySourceType.SQL,
         label: 'Warehouse SQL',
         description:
-            'Raw SQL against the project data warehouse. Tables are referenced as database.schema.table in the SQL dialect of the warehouse.',
+            'Raw SQL against the project data warehouse. Tables are referenced as database.schema.table in the SQL dialect of the warehouse. Result columns are named by the SELECT output names.',
     };
 
     private readonly asyncQueryService: AsyncQueryService;

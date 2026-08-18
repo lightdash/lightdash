@@ -1,7 +1,17 @@
 import { type QueryExecutionContext } from './analytics';
 import { type UUID } from './api/uuid';
-import { type DimensionType } from './field';
-import { type MetricQueryRequest } from './metricQuery';
+import {
+    type CustomDimension,
+    type DimensionType,
+    type FieldId,
+    type TableCalculation,
+} from './field';
+import {
+    type AdditionalMetric,
+    type MetricQueryRequest,
+    type SortField,
+} from './metricQuery';
+import { type QueryHistoryStatus } from './queryHistory';
 
 /**
  * Discriminator for every query source a project can execute queries against.
@@ -21,13 +31,22 @@ export enum QuerySourceType {
     /**
      * DuckDB SQL over previous results (compose engine). References expose
      * other queries' results as named tables, so this is the merge/transform
-     * node of a multi-source DAG.
+     * step of a multi-source pipeline.
      */
     DUCKDB = 'duckdb',
 }
 
 /**
- * A table name exposed to source SQL, or a node id within a query DAG.
+ * A name identifying one query within a multi-query submission. Other queries
+ * reference this query's results by this name, and by default the results are
+ * exposed to referencing DuckDB SQL as a table of the same name — so node ids
+ * share the table-name grammar.
+ * @pattern ^[a-zA-Z_][a-zA-Z0-9_]{0,62}$
+ */
+export type QueryNodeId = string;
+
+/**
+ * A table name exposed to source SQL.
  * Aliased so TSOA emits a $ref'd record value type (a plain string-valued
  * Record compiles to an empty object literal and validation strips its keys).
  * @pattern ^[a-zA-Z_][a-zA-Z0-9_]{0,62}$
@@ -35,36 +54,88 @@ export enum QuerySourceType {
 export type QuerySourceTableName = string;
 
 /**
- * The value side of a duckdb source's references map: either the node id of
- * an upstream DAG node, or the queryUuid of an existing async query result.
+ * The value side of a duckdb query's references map: either the node id of
+ * another query in the same submission, or the queryUuid of an existing
+ * async query result.
  * @pattern ^[a-zA-Z0-9_][a-zA-Z0-9_-]{0,63}$
  */
 export type QueryResultReference = string;
 
-/** A semantic layer (metric) query as a source query. */
+/**
+ * A semantic layer (metric) query as a source query. Only exploreName,
+ * dimensions and metrics are required; everything else defaults to empty
+ * (no filters, no sorts, no table calculations) and a default row limit.
+ *
+ * Result columns are named by field id — exactly the dimensions and metrics
+ * requested (e.g. requesting metric "payments_total_revenue" yields a column
+ * "payments_total_revenue"), so referencing DuckDB SQL selects those names.
+ */
 export type SemanticLayerSourceQuery = {
     sourceType: QuerySourceType.SEMANTIC_LAYER;
-    query: MetricQueryRequest;
+    /** Names this query so other queries in the same submission can reference its results. */
+    nodeId?: QueryNodeId;
+    exploreName: string;
+    /** Dimension field ids to group by, from the explore's schema. */
+    dimensions: FieldId[];
+    /** Metric field ids to compute, from the explore's schema. */
+    metrics: FieldId[];
+    /**
+     * Filters to apply, in the metric query filters shape: an optional filter
+     * group per field kind, e.g. {"dimensions": {"id": "...", "and": [{"id":
+     * "...", "target": {"fieldId": "orders_status"}, "operator": "equals",
+     * "values": ["completed"]}]}}. Defaults to no filters.
+     */
+    filters?: MetricQueryRequest['filters'];
+    /** Sorts to apply, e.g. [{"fieldId": "orders_order_date", "descending": true}]. Defaults to none. */
+    sorts?: SortField[];
+    /** Max rows to return. Defaults to the standard query row limit. */
+    limit?: number;
+    /** Table calculations appended to the results. Defaults to none. */
+    tableCalculations?: TableCalculation[];
+    /** Ad-hoc metrics not defined in the explore. */
+    additionalMetrics?: AdditionalMetric[];
+    /** Ad-hoc dimensions not defined in the explore. */
+    customDimensions?: CustomDimension[];
+    /** IANA timezone for time dimension bucketing, e.g. "America/New_York". */
+    timezone?: string;
 };
 
 /** A raw warehouse SQL query as a source query. */
 export type SqlSourceQuery = {
     sourceType: QuerySourceType.SQL;
+    /** Names this query so other queries in the same submission can reference its results. */
+    nodeId?: QueryNodeId;
     sql: string;
     limit?: number;
 };
 
 /**
- * A DuckDB compose query as a source query. Each entry of references exposes
- * another query's results as a named table the SQL can select from. Values
- * are node ids when used inside a DAG (resolved to queryUuids after the
- * upstream node completes) or queryUuids of existing results.
+ * A DuckDB compose query as a source query. References expose other queries'
+ * results as named tables the SQL can select from; a referenced result's
+ * column names are those of the upstream query's result (field ids for
+ * semanticLayer queries, SELECT output names for sql queries).
+ *
+ * References that name queries still running are waited on: this query
+ * executes once every referenced result is ready, and fails if any
+ * referenced query fails.
  */
 export type DuckdbSourceQuery = {
     sourceType: QuerySourceType.DUCKDB;
+    /** Names this query so other queries in the same submission can reference its results. */
+    nodeId?: QueryNodeId;
     sql: string;
     limit?: number;
-    references?: Record<QuerySourceTableName, QueryResultReference>;
+    /**
+     * Which query results the SQL reads, in one of two forms. Shorthand
+     * array: node ids of queries in the same submission, each exposed as a
+     * table named by its node id — ["orders", "revenue"] lets the SQL run
+     * SELECT * FROM orders JOIN revenue. Map form for aliasing or existing
+     * results: {tableName: nodeIdOrQueryUuid}, e.g. {"o": "orders", "prev":
+     * "<queryUuid>"}.
+     */
+    references?:
+        | QueryNodeId[]
+        | Record<QuerySourceTableName, QueryResultReference>;
 };
 
 /**
@@ -109,81 +180,38 @@ export type QuerySourceDefinition = {
     description: string;
 };
 
-/**
- * A node id within a query DAG. Also the name other nodes use to reference
- * this node's results.
- * @pattern ^[a-zA-Z_][a-zA-Z0-9_-]{0,62}$
- */
-export type QueryDagNodeId = string;
-
-/** One node of a query DAG: a source query addressed by a DAG-unique id. */
-export type QueryDagNodeRequest = {
-    nodeId: QueryDagNodeId;
-    query: SourceQuery;
-};
-
-export type ExecuteQueryDagRequestParams = {
+export type ExecuteSourceQueriesRequestParams = {
     /**
-     * Nodes of the DAG. Edges are implicit: a duckdb node depends on every
-     * node its references name. Nodes with no unresolved dependencies run in
-     * parallel; the common pattern is n source queries plus one duckdb node
-     * merging them.
+     * One or more source queries, submitted together. Order does not matter:
+     * queries are submitted in dependency order (a duckdb query after the
+     * queries its references name) and every query starts executing
+     * immediately — dependency waiting happens inside the referencing query.
      */
-    nodes: QueryDagNodeRequest[];
+    queries: SourceQuery[];
     context?: QueryExecutionContext;
 };
 
-export type ExecuteSourceQueryRequestParams = {
-    query: SourceQuery;
-    context?: QueryExecutionContext;
-};
-
-export enum QueryDagStatus {
-    PENDING = 'pending',
-    RUNNING = 'running',
-    COMPLETED = 'completed',
-    ERROR = 'error',
-}
-
-export enum QueryDagNodeStatus {
-    /** Waiting for upstream dependencies to complete. */
-    PENDING = 'pending',
-    /** Submitted to its source; poll its queryUuid for detailed progress. */
-    RUNNING = 'running',
-    COMPLETED = 'completed',
-    ERROR = 'error',
-    /** Never ran because an upstream node failed. */
-    SKIPPED = 'skipped',
-}
-
-export type QueryDagNode = {
-    nodeId: string;
+/** One submitted query: its (possibly generated) node id and the queryUuid to poll. */
+export type SourceQuerySubmission = {
+    nodeId: QueryNodeId;
     sourceType: QuerySourceType;
-    status: QueryDagNodeStatus;
-    /**
-     * The node's result id, set once the node is submitted. Results are
-     * fetched with the standard async query results endpoint.
-     */
-    queryUuid: UUID | null;
-    error: string | null;
-};
-
-export type QueryDag = {
-    queryDagUuid: UUID;
-    projectUuid: UUID;
-    status: QueryDagStatus;
-    error: string | null;
-    createdAt: Date;
-    nodes: QueryDagNode[];
-};
-
-export type ApiExecuteSourceQueryResults = {
     queryUuid: UUID;
 };
 
-export type ApiExecuteQueryDagResults = QueryDag;
+export type ApiExecuteSourceQueriesResults = {
+    queries: SourceQuerySubmission[];
+};
 
-export type ApiGetQueryDagResults = QueryDag;
+/** Status of one submitted query, from the standard async query lifecycle. */
+export type SourceQueryStatus = {
+    queryUuid: UUID;
+    status: QueryHistoryStatus;
+    error: string | null;
+};
+
+export type ApiGetSourceQueryStatusResults = {
+    statuses: SourceQueryStatus[];
+};
 
 export type ApiListQuerySourcesResults = {
     sources: QuerySourceDefinition[];

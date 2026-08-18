@@ -3,28 +3,19 @@ import {
     assertIsAccountWithOrg,
     FeatureFlags,
     ForbiddenError,
-    getErrorMessage,
     ParameterError,
-    QueryDagNodeStatus,
-    QueryDagStatus,
     type Account,
-    type ApiExecuteQueryDagResults,
-    type ApiExecuteSourceQueryResults,
-    type ApiGetQueryDagResults,
+    type ApiExecuteSourceQueriesResults,
+    type ApiGetSourceQueryStatusResults,
     type ApiListQuerySourcesResults,
     type ApiScanQuerySourceSchemaResults,
-    type QueryDag,
-    type QueryDagNodeRequest,
     type QueryExecutionContext,
     type QuerySourceType,
     type SourceQuery,
+    type SourceQuerySubmission,
 } from '@lightdash/common';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import type {
-    QueryDagModel,
-    QueryDagWithOwnership,
-} from '../../models/QueryDagModel/QueryDagModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { BaseService } from '../BaseService';
 import type { QuerySourceRegistry } from './QuerySourceRegistry';
@@ -33,43 +24,42 @@ import type { QuerySourceClient } from './types';
 type QuerySourceServiceArguments = {
     projectModel: ProjectModel;
     queryHistoryModel: QueryHistoryModel;
-    queryDagModel: QueryDagModel;
     featureFlagModel: FeatureFlagModel;
     registry: QuerySourceRegistry;
 };
 
-/** A DAG node with its source and resolved in-DAG dependencies. */
-type ValidatedDagNode = {
-    node: QueryDagNodeRequest;
+/** One query of a submission with its source and in-request dependencies. */
+type ValidatedQuery = {
+    nodeId: string;
+    query: SourceQuery;
     source: QuerySourceClient;
     dependsOn: string[];
 };
 
-const MAX_DAG_NODES = 25;
-const NODE_ID_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_-]{0,62}$/;
+const MAX_QUERIES = 25;
+const MAX_STATUS_QUERY_UUIDS = 50;
+const NODE_ID_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/;
 const UUID_PATTERN =
     /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-const NODE_COMPLETION_TIMEOUT_MS = 15 * 60 * 1000;
 
 /**
  * The single entry point for querying any registered source: source
- * discovery, schema scans, single query submission and DAG execution. Every
- * query — whatever its source — lands in the standard async query pipeline,
- * so each node yields a queryUuid whose results are fetched with the
- * standard results endpoint.
+ * discovery, schema scans and query submission. Every query — whatever its
+ * source — lands in the standard async query pipeline, so each yields a
+ * queryUuid whose results are fetched with the standard results endpoint.
  *
- * DAG execution submits every node whose dependencies are satisfied in
- * parallel, polls the query history for completion, and resolves node
- * references to queryUuids before submitting dependents. The common shape is
- * n source queries fanned out in parallel feeding one duckdb node that
- * merges them.
+ * There is no server-side pipeline orchestrator: a multi-query submission is
+ * validated (unique node ids, resolvable references, no cycles) and every
+ * query is submitted immediately, in dependency order so node-id references
+ * rewrite to real queryUuids. Dependency *waiting* happens inside the
+ * referencing query — a duckdb query's execution blocks until its referenced
+ * results exist and fails if a referenced query fails — so pipeline
+ * robustness is exactly that of any single async query.
  */
 export class QuerySourceService extends BaseService {
     private readonly projectModel: ProjectModel;
 
     private readonly queryHistoryModel: QueryHistoryModel;
-
-    private readonly queryDagModel: QueryDagModel;
 
     private readonly featureFlagModel: FeatureFlagModel;
 
@@ -79,7 +69,6 @@ export class QuerySourceService extends BaseService {
         super({ serviceName: 'QuerySourceService' });
         this.projectModel = args.projectModel;
         this.queryHistoryModel = args.queryHistoryModel;
-        this.queryDagModel = args.queryDagModel;
         this.featureFlagModel = args.featureFlagModel;
         this.registry = args.registry;
     }
@@ -108,7 +97,7 @@ export class QuerySourceService extends BaseService {
     private async throwIfCannotRunQueries(
         account: Account,
         projectUuid: string,
-    ): Promise<{ organizationUuid: string }> {
+    ): Promise<void> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         const ability = this.createAuditedAbility(account);
@@ -120,18 +109,6 @@ export class QuerySourceService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        return { organizationUuid };
-    }
-
-    private static toApiDag(dag: QueryDagWithOwnership): QueryDag {
-        return {
-            queryDagUuid: dag.queryDagUuid,
-            projectUuid: dag.projectUuid,
-            status: dag.status,
-            error: dag.error,
-            createdAt: dag.createdAt,
-            nodes: dag.nodes,
-        };
     }
 
     async listSources(
@@ -163,65 +140,54 @@ export class QuerySourceService extends BaseService {
         return source.scanSchema({ account, projectUuid });
     }
 
-    async executeSourceQuery({
-        account,
-        projectUuid,
-        query,
-        context,
-    }: {
-        account: Account;
-        projectUuid: string;
-        query: SourceQuery;
-        context: QueryExecutionContext;
-    }): Promise<ApiExecuteSourceQueryResults> {
-        await this.throwIfMultiSourceQueryDisabled(account);
-        await this.throwIfCannotRunQueries(account, projectUuid);
-
-        const source = this.registry.get(query.sourceType);
-        // Outside a DAG, references must already be queryUuids
-        const { queryUuid } = await source.submitQuery({
-            account,
-            projectUuid,
-            context,
-            query,
-            resolvedReferences: {},
-        });
-        return { queryUuid };
-    }
-
     /**
-     * Validates DAG shape: bounded size, unique well-formed node ids, known
-     * source types, references either naming a node in the DAG (an edge) or
-     * holding a queryUuid of an existing result, and no cycles.
+     * Validates a submission and returns its queries in dependency order:
+     * bounded size, unique well-formed node ids (generated where omitted),
+     * known source types, references either naming a query in the submission
+     * or holding a queryUuid of an existing result, and no cycles.
      */
-    private validateDag(nodes: QueryDagNodeRequest[]): ValidatedDagNode[] {
-        if (nodes.length === 0) {
-            throw new ParameterError('A query DAG needs at least one node');
+    private validateQueries(queries: SourceQuery[]): ValidatedQuery[] {
+        if (queries.length === 0) {
+            throw new ParameterError('Submit at least one query');
         }
-        if (nodes.length > MAX_DAG_NODES) {
+        if (queries.length > MAX_QUERIES) {
             throw new ParameterError(
-                `A query DAG supports at most ${MAX_DAG_NODES} nodes`,
+                `A submission supports at most ${MAX_QUERIES} queries`,
             );
         }
 
         const nodeIds = new Set<string>();
-        nodes.forEach((node) => {
-            if (!NODE_ID_PATTERN.test(node.nodeId)) {
+        queries.forEach((query) => {
+            if (query.nodeId === undefined) return;
+            if (!NODE_ID_PATTERN.test(query.nodeId)) {
                 throw new ParameterError(
-                    `Invalid node id "${node.nodeId}": use letters, digits, underscores and hyphens, starting with a letter or underscore`,
+                    `Invalid node id "${query.nodeId}": use letters, digits and underscores, starting with a letter or underscore`,
                 );
             }
-            if (nodeIds.has(node.nodeId)) {
+            if (nodeIds.has(query.nodeId)) {
                 throw new ParameterError(
-                    `Duplicate node id "${node.nodeId}" in query DAG`,
+                    `Duplicate node id "${query.nodeId}" in submission`,
                 );
             }
-            nodeIds.add(node.nodeId);
+            nodeIds.add(query.nodeId);
         });
 
-        const validated = nodes.map((node): ValidatedDagNode => {
-            const source = this.registry.get(node.query.sourceType);
-            const references = source.getQueryReferences(node.query);
+        // Generated ids fill the gaps for queries nothing references
+        let generatedIndex = 0;
+        const generateNodeId = (): string => {
+            let candidate: string;
+            do {
+                generatedIndex += 1;
+                candidate = `query_${generatedIndex}`;
+            } while (nodeIds.has(candidate));
+            nodeIds.add(candidate);
+            return candidate;
+        };
+
+        const validated = queries.map((query): ValidatedQuery => {
+            const nodeId = query.nodeId ?? generateNodeId();
+            const source = this.registry.get(query.sourceType);
+            const references = source.getQueryReferences(query);
             const dependsOn = [
                 ...new Set(
                     references.filter((reference) => nodeIds.has(reference)),
@@ -232,37 +198,37 @@ export class QuerySourceService extends BaseService {
                 .forEach((reference) => {
                     if (!UUID_PATTERN.test(reference)) {
                         throw new ParameterError(
-                            `Reference "${reference}" on node "${node.nodeId}" is neither a node id in this DAG nor a query uuid`,
+                            `Reference "${reference}" on query "${nodeId}" is neither the node id of a query in this submission nor a query uuid`,
                         );
                     }
                 });
-            return { node, source, dependsOn };
+            return { nodeId, query, source, dependsOn };
         });
 
-        // Kahn's algorithm: if a topological order doesn't cover every node,
-        // the remainder is a cycle
+        // Kahn's algorithm: dependency order to submit in; if it doesn't
+        // cover every query, the remainder is a cycle
+        const entriesById = new Map(
+            validated.map((entry) => [entry.nodeId, entry]),
+        );
         const remainingDeps = new Map(
-            validated.map((entry) => [
-                entry.node.nodeId,
-                new Set(entry.dependsOn),
-            ]),
+            validated.map((entry) => [entry.nodeId, new Set(entry.dependsOn)]),
         );
         const dependents = new Map<string, string[]>();
         validated.forEach((entry) => {
             entry.dependsOn.forEach((dependency) => {
                 dependents.set(dependency, [
                     ...(dependents.get(dependency) ?? []),
-                    entry.node.nodeId,
+                    entry.nodeId,
                 ]);
             });
         });
         const queue = validated
             .filter((entry) => entry.dependsOn.length === 0)
-            .map((entry) => entry.node.nodeId);
-        const ordered: string[] = [];
+            .map((entry) => entry.nodeId);
+        const ordered: ValidatedQuery[] = [];
         while (queue.length > 0) {
             const current = queue.shift()!;
-            ordered.push(current);
+            ordered.push(entriesById.get(current)!);
             remainingDeps.delete(current);
             (dependents.get(current) ?? []).forEach((dependent) => {
                 const deps = remainingDeps.get(dependent);
@@ -277,204 +243,95 @@ export class QuerySourceService extends BaseService {
         if (ordered.length !== validated.length) {
             const cyclic = Array.from(remainingDeps.keys()).join(', ');
             throw new ParameterError(
-                `Query DAG contains a dependency cycle involving: ${cyclic}`,
+                `Submission contains a reference cycle involving: ${cyclic}`,
             );
         }
 
-        return validated;
-    }
-
-    async executeQueryDag({
-        account,
-        projectUuid,
-        nodes,
-        context,
-    }: {
-        account: Account;
-        projectUuid: string;
-        nodes: QueryDagNodeRequest[];
-        context: QueryExecutionContext;
-    }): Promise<ApiExecuteQueryDagResults> {
-        await this.throwIfMultiSourceQueryDisabled(account);
-        const { organizationUuid } = await this.throwIfCannotRunQueries(
-            account,
-            projectUuid,
-        );
-
-        const validated = this.validateDag(nodes);
-
-        const dag = await this.queryDagModel.create({
-            projectUuid,
-            organizationUuid,
-            createdByUserUuid: account.user.id,
-            context,
-            nodes: validated.map((entry) => ({
-                nodeId: entry.node.nodeId,
-                sourceType: entry.node.query.sourceType,
-                query: entry.node.query,
-                dependsOn: entry.dependsOn,
-            })),
-        });
-
-        void this.runQueryDag({
-            account,
-            projectUuid,
-            queryDagUuid: dag.queryDagUuid,
-            validated,
-            context,
-        }).catch((e) => {
-            this.logger.error(
-                `Query DAG ${dag.queryDagUuid} failed: ${getErrorMessage(e)}`,
-            );
-        });
-
-        return QuerySourceService.toApiDag(dag);
+        return ordered;
     }
 
     /**
-     * In-process orchestration, mirroring how single async queries run: each
-     * node is one promise that awaits its dependencies, submits, then polls
-     * query history until the result is ready. Nodes with no unresolved
-     * dependencies therefore run concurrently, and every state transition is
-     * persisted so any pod can serve DAG status polls.
+     * Submits one or more source queries. All queries are submitted
+     * immediately (each submit is the standard fire-and-forget async execute,
+     * so this returns in milliseconds with every queryUuid); submission
+     * happens in dependency order purely so node-id references rewrite to the
+     * referenced queries' uuids. A query referencing still-running results
+     * waits inside its own execution.
      */
-    private async runQueryDag({
+    async executeSourceQueries({
         account,
         projectUuid,
-        queryDagUuid,
-        validated,
+        queries,
         context,
     }: {
         account: Account;
         projectUuid: string;
-        queryDagUuid: string;
-        validated: ValidatedDagNode[];
+        queries: SourceQuery[];
         context: QueryExecutionContext;
-    }): Promise<void> {
-        await this.queryDagModel.updateDag(queryDagUuid, {
-            status: QueryDagStatus.RUNNING,
-        });
+    }): Promise<ApiExecuteSourceQueriesResults> {
+        await this.throwIfMultiSourceQueryDisabled(account);
+        await this.throwIfCannotRunQueries(account, projectUuid);
 
-        const entriesById = new Map(
-            validated.map((entry) => [entry.node.nodeId, entry]),
-        );
-        const nodePromises = new Map<string, Promise<string>>();
+        const ordered = this.validateQueries(queries);
 
-        const runNode = (entry: ValidatedDagNode): Promise<string> => {
-            const existing = nodePromises.get(entry.node.nodeId);
-            if (existing) {
-                return existing;
-            }
-
-            const promise = (async (): Promise<string> => {
-                let dependencyQueryUuids: string[];
-                try {
-                    dependencyQueryUuids = await Promise.all(
-                        entry.dependsOn.map((dependency) =>
-                            // Dependencies were validated against the node id set
-                            runNode(entriesById.get(dependency)!),
-                        ),
-                    );
-                } catch (e) {
-                    await this.queryDagModel.updateNode(
-                        queryDagUuid,
-                        entry.node.nodeId,
-                        {
-                            status: QueryDagNodeStatus.SKIPPED,
-                            error: 'An upstream node failed',
-                        },
-                    );
-                    throw e;
-                }
-
-                const resolvedReferences = Object.fromEntries(
-                    entry.dependsOn.map((dependency, index) => [
-                        dependency,
-                        dependencyQueryUuids[index],
-                    ]),
-                );
-
-                try {
-                    const { queryUuid } = await entry.source.submitQuery({
-                        account,
-                        projectUuid,
-                        context,
-                        query: entry.node.query,
-                        resolvedReferences,
-                    });
-                    await this.queryDagModel.updateNode(
-                        queryDagUuid,
-                        entry.node.nodeId,
-                        { status: QueryDagNodeStatus.RUNNING, queryUuid },
-                    );
-
-                    await this.queryHistoryModel.pollForQueryCompletion({
-                        queryUuid,
-                        account,
-                        projectUuid,
-                        timeoutMs: NODE_COMPLETION_TIMEOUT_MS,
-                    });
-
-                    await this.queryDagModel.updateNode(
-                        queryDagUuid,
-                        entry.node.nodeId,
-                        { status: QueryDagNodeStatus.COMPLETED, queryUuid },
-                    );
-                    return queryUuid;
-                } catch (e) {
-                    await this.queryDagModel.updateNode(
-                        queryDagUuid,
-                        entry.node.nodeId,
-                        {
-                            status: QueryDagNodeStatus.ERROR,
-                            error: getErrorMessage(e),
-                        },
-                    );
-                    throw e;
-                }
-            })();
-
-            nodePromises.set(entry.node.nodeId, promise);
-            return promise;
-        };
-
-        const results = await Promise.allSettled(
-            validated.map((entry) => runNode(entry)),
-        );
-
-        const failures = results.filter(
-            (result): result is PromiseRejectedResult =>
-                result.status === 'rejected',
-        );
-        if (failures.length > 0) {
-            await this.queryDagModel.updateDag(queryDagUuid, {
-                status: QueryDagStatus.ERROR,
-                error: getErrorMessage(failures[0].reason),
+        // nodeId -> queryUuid, grown as submissions happen so later queries'
+        // node-id references resolve
+        const resolvedReferences: Record<string, string> = {};
+        const submissions: SourceQuerySubmission[] = [];
+        for (const entry of ordered) {
+            // eslint-disable-next-line no-await-in-loop -- dependency order: later submits need earlier queryUuids
+            const { queryUuid } = await entry.source.submitQuery({
+                account,
+                projectUuid,
+                context,
+                query: entry.query,
+                resolvedReferences: { ...resolvedReferences },
             });
-        } else {
-            await this.queryDagModel.updateDag(queryDagUuid, {
-                status: QueryDagStatus.COMPLETED,
+            resolvedReferences[entry.nodeId] = queryUuid;
+            submissions.push({
+                nodeId: entry.nodeId,
+                sourceType: entry.query.sourceType,
+                queryUuid,
             });
         }
+
+        return { queries: submissions };
     }
 
-    async getQueryDag(
+    /**
+     * Batch status poll: the standard async query status for each uuid, from
+     * query_history. Statuses are creator-scoped, like fetching results.
+     */
+    async getSourceQueryStatuses(
         account: Account,
         projectUuid: string,
-        queryDagUuid: string,
-    ): Promise<ApiGetQueryDagResults> {
+        queryUuids: string[],
+    ): Promise<ApiGetSourceQueryStatusResults> {
         await this.throwIfMultiSourceQueryDisabled(account);
-
-        const dag = await this.queryDagModel.get(queryDagUuid, projectUuid);
-
-        // DAGs are creator-only, mirroring query history results access
-        if (
-            dag.createdByUserUuid === null ||
-            dag.createdByUserUuid !== account.user.id
-        ) {
-            throw new ForbiddenError();
+        if (queryUuids.length === 0) {
+            throw new ParameterError('Provide at least one query uuid');
+        }
+        if (queryUuids.length > MAX_STATUS_QUERY_UUIDS) {
+            throw new ParameterError(
+                `Provide at most ${MAX_STATUS_QUERY_UUIDS} query uuids`,
+            );
         }
 
-        return QuerySourceService.toApiDag(dag);
+        const statuses = await Promise.all(
+            queryUuids.map(async (queryUuid) => {
+                const queryHistory = await this.queryHistoryModel.get(
+                    queryUuid,
+                    projectUuid,
+                    account,
+                );
+                return {
+                    queryUuid: queryHistory.queryUuid,
+                    status: queryHistory.status,
+                    error: queryHistory.error,
+                };
+            }),
+        );
+
+        return { statuses };
     }
 }

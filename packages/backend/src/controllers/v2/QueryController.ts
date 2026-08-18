@@ -474,7 +474,7 @@ export class QueryController extends BaseController {
     }
 
     /**
-     * Executes a DuckDB SQL query asynchronously on the pre-aggregate DuckDB engine. Requires run-queries access (interactive viewer and up) and the compose-sql-runner feature flag. The references map exposes previous async queries' results as named tables the SQL can select from ({"orders": "queryUuid"} lets the SQL run SELECT * FROM orders); each referenced query is authorized with the same access checks as Get results, so you can reference any query you can already fetch by uuid. Direct file access in the SQL is rejected. Returns a queryUuid to poll for results via Get results.
+     * Executes a DuckDB SQL query asynchronously on the pre-aggregate DuckDB engine. Requires run-queries access (interactive viewer and up) and the compose-sql-runner feature flag. The references map exposes other async queries' results as named tables the SQL can select from ({"orders": "queryUuid"} lets the SQL run SELECT * FROM orders); each referenced query is authorized with the same access checks as Get results, so you can reference any query you can already fetch by uuid. References to queries that are still running are waited on — this query executes once every referenced result is ready and fails if a referenced query fails. Direct file access in the SQL is rejected. Returns a queryUuid to poll for results via Get results.
      * @summary Execute compose SQL query
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

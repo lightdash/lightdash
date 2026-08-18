@@ -61,6 +61,8 @@ export type DbQueryHistoryUpdate = Partial<
         | 'status'
         | 'error'
         | 'errored_at'
+        | 'compiled_sql'
+        | 'fields'
         | 'warehouse_execution_time_ms'
         | 'total_row_count'
         | 'warehouse_query_id'

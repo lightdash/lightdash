@@ -77,10 +77,11 @@ export type ExecuteAsyncComposeSqlQueryRequestParams =
         sql: string;
         limit?: number;
         /**
-         * Results of previous async queries exposed to the SQL as tables,
+         * Results of other async queries exposed to the SQL as tables,
          * keyed by table name: {"orders": "<queryUuid>"} lets the SQL run
          * SELECT * FROM orders. Each referenced query is authorized with the
-         * same access checks as fetching its results by uuid.
+         * same access checks as fetching its results by uuid; references to
+         * still-running queries are waited on before this query executes.
          *
          * Typed Record<string, UUID> (not Record<string, string>) on purpose:
          * TSOA compiles a string-valued record to an empty object literal and

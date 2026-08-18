@@ -143,7 +143,10 @@ import {
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import { Readable, Writable } from 'stream';
-import { DownloadCsv } from '../../analytics/LightdashAnalytics';
+import {
+    DownloadCsv,
+    type OnboardingFlow,
+} from '../../analytics/LightdashAnalytics';
 import { transformAndExportResults } from '../../clients/Aws/transformAndExportResults';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import type { INatsClient } from '../../clients/NatsClient';
@@ -6304,14 +6307,15 @@ export class AsyncQueryService extends ProjectService {
     }
 
     /**
-     * Builds one CTE per referenced query so the user SQL can select from
-     * semantically-named tables: {"orders": "<queryUuid>"} exposes that
-     * query's results as `orders`. Each reference is authorized with the
-     * exact checks used when fetching that query's results by uuid: the
-     * creator-scoped QueryHistoryModel.get lookup plus
-     * throwIfCannotReadQueryHistory.
+     * Validates and authorizes a compose query's references at submit time:
+     * well-formed table names and query uuids, and each referenced query
+     * authorized with the exact checks used when fetching its results by
+     * uuid (the creator-scoped QueryHistoryModel.get lookup plus
+     * throwIfCannotReadQueryHistory). The referenced query does NOT need to
+     * be finished — waiting for results happens in the background execution
+     * phase (buildQueryReferenceCtes).
      */
-    private async buildQueryReferenceCtes({
+    private async authorizeQueryReferences({
         account,
         projectUuid,
         organizationUuid,
@@ -6321,12 +6325,12 @@ export class AsyncQueryService extends ProjectService {
         projectUuid: string;
         organizationUuid: string;
         references: Record<string, string>;
-    }): Promise<string[]> {
+    }): Promise<void> {
         const validTableName = /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/;
         const validUuid =
             /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
-        return Promise.all(
+        await Promise.all(
             Object.entries(references).map(async ([tableName, queryUuid]) => {
                 if (!validTableName.test(tableName)) {
                     throw new ParameterError(
@@ -6351,10 +6355,44 @@ export class AsyncQueryService extends ProjectService {
                     organizationUuid,
                     queryHistory,
                 );
+            }),
+        );
+    }
 
-                if (queryHistory.status !== QueryHistoryStatus.READY) {
+    /**
+     * Builds one CTE per referenced query so the user SQL can select from
+     * semantically-named tables: {"orders": "<queryUuid>"} exposes that
+     * query's results as `orders`. References to queries that are still
+     * running are waited on — this is the whole of pipeline orchestration:
+     * a query that reads another query's results starts once those results
+     * exist, and fails if the referenced query fails. References must
+     * already be authorized (authorizeQueryReferences).
+     */
+    private async buildQueryReferenceCtes({
+        account,
+        projectUuid,
+        references,
+    }: {
+        account: Account;
+        projectUuid: string;
+        references: Record<string, string>;
+    }): Promise<string[]> {
+        return Promise.all(
+            Object.entries(references).map(async ([tableName, queryUuid]) => {
+                let queryHistory: QueryHistory;
+                try {
+                    queryHistory =
+                        await this.queryHistoryModel.pollForQueryCompletion({
+                            queryUuid,
+                            account,
+                            projectUuid,
+                            timeoutMs: AsyncQueryService.REFERENCE_WAIT_TIMEOUT_MS,
+                        });
+                } catch (e) {
                     throw new ParameterError(
-                        `Results for query ${queryUuid} are not ready (status: ${queryHistory.status})`,
+                        `Referenced query "${tableName}" (${queryUuid}) did not complete: ${getErrorMessage(
+                            e,
+                        )}`,
                     );
                 }
 
@@ -6457,24 +6495,18 @@ export class AsyncQueryService extends ProjectService {
             throw new ParameterError(getErrorMessage(e));
         }
 
-        const referenceCtes =
+        const normalizedReferences =
             references && Object.keys(references).length > 0
-                ? await this.buildQueryReferenceCtes({
-                      account,
-                      projectUuid,
-                      organizationUuid,
-                      references,
-                  })
-                : [];
-
-        // The wrap keeps the reference CTEs valid for user SQL that starts
-        // with its own WITH chain.
-        const resolvedSql =
-            referenceCtes.length > 0
-                ? `WITH ${referenceCtes.join(
-                      ',\n',
-                  )}\nSELECT * FROM (\n${sql}\n) AS lightdash_user_query`
-                : sql;
+                ? references
+                : undefined;
+        if (normalizedReferences) {
+            await this.authorizeQueryReferences({
+                account,
+                projectUuid,
+                organizationUuid,
+                references: normalizedReferences,
+            });
+        }
 
         // Throws NotImplementedError when pre-aggregate execution is unavailable
         const warehouseClient =
@@ -6488,36 +6520,13 @@ export class AsyncQueryService extends ProjectService {
             query_context: context,
         };
 
-        // Column discovery (LIMIT 1) also validates the SQL before anything is persisted
-        const columns: { name: string; type: DimensionType }[] = [];
-        const columnDiscoverySql = applyLimitToSqlQuery({
-            sqlQuery: resolvedSql,
-            limit: 1,
-        });
-        try {
-            await warehouseClient.streamQuery(
-                columnDiscoverySql,
-                (chunk) => {
-                    if (columns.length === 0 && chunk.fields) {
-                        Object.keys(chunk.fields).forEach((key) => {
-                            columns.push({
-                                name: key,
-                                type: chunk.fields[key].type,
-                            });
-                        });
-                    }
-                },
-                { tags: queryTags },
-            );
-        } catch (e) {
-            // The DuckDB client throws raw errors (validation + engine); surface them to the caller
-            if (e instanceof LightdashError) throw e;
-            throw new WarehouseQueryError(getErrorMessage(e));
-        }
-
-        const composer = new SqlQueryComposer({
-            userSql: resolvedSql,
-            columns,
+        // The row is created before references are resolved so the queryUuid
+        // returns immediately even when referenced queries are still running;
+        // compiled sql, fields and columns are filled in by the background
+        // phase once referenced results exist.
+        const placeholderComposer = new SqlQueryComposer({
+            userSql: sql,
+            columns: [],
             warehouseClient,
             pivotConfiguration: undefined,
             limit,
@@ -6526,26 +6535,12 @@ export class AsyncQueryService extends ProjectService {
             tileUuid: undefined,
             dashboardSorts: undefined,
         });
-        const compiled = composer.compile();
-        if (compiled.missingParameterReferences.size > 0) {
-            const missing = Array.from(compiled.missingParameterReferences);
-            throw new ParameterError(
-                `Missing values for SQL parameter(s): ${missing.join(', ')}`,
-                { missingReferences: missing },
-            );
-        }
-        const query = composer.getSql({
-            columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
-        });
-        const fieldsMap = composer.getFields();
-
-        const originalColumns: ResultColumns = columns.reduce((acc, col) => {
-            acc[col.name] = { reference: col.name, type: col.type };
-            return acc;
-        }, {} as ResultColumns);
 
         const cacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
-            sql: query,
+            sql: JSON.stringify({
+                sql,
+                references: normalizedReferences ?? null,
+            }),
             userUuid: null,
         });
 
@@ -6562,13 +6557,13 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             organizationUuid,
             context,
-            fields: fieldsMap,
-            compiledSql: query,
+            fields: {},
+            compiledSql: sql,
             requestParameters,
-            metricQuery: composer.getMetricQuery(),
+            metricQuery: placeholderComposer.getMetricQuery(),
             cacheKey,
             pivotConfiguration: null,
-            originalColumns,
+            originalColumns: {},
         });
         this.prometheusMetrics?.trackQueryStateTransition(
             'new',
@@ -6581,36 +6576,23 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
         });
 
-        // Always run in-process with the DuckDB client override: the NATS
-        // pre-aggregate consumer falls back to the project warehouse on DuckDB
-        // errors, which must never happen for SQL written for DuckDB.
-        this.prometheusMetrics?.trackQueryStateTransition(
-            QueryHistoryStatus.PENDING,
-            QueryHistoryStatus.EXECUTING,
-            context,
-        );
-        this.prometheusMetrics?.observeQueueWaitDuration(0, context);
-
-        void this.runAsyncWarehouseQuery({
-            userUuid: account.user.id,
+        void this.runComposeSqlQuery({
+            account,
+            projectUuid,
             organizationUuid,
             isPreviewProject:
                 projectSummary.type === ProjectType.PREVIEW ||
                 projectSummary.provisioningSource === 'playground',
-            isRegisteredUser: account.isRegisteredUser(),
-            isServiceAccount: account.isServiceAccount(),
             onboardingFlow,
-            projectUuid,
             queryUuid,
+            sql,
+            limit,
+            references: normalizedReferences,
+            warehouseClient,
             queryTags,
-            query,
-            fieldsMap,
-            cacheKey,
-            originalColumns,
             queryCreatedAt,
-            displayTimezone: null,
-            warehouseClientOverride: warehouseClient,
-            warehouseCredentialsTypeOverride: warehouseClient.credentials.type,
+            cacheKey,
+            context,
         }).catch((e) => {
             this.logger.error(
                 `Async compose SQL query ${queryUuid} failed: ${getErrorMessage(
@@ -6622,10 +6604,186 @@ export class AsyncQueryService extends ProjectService {
         return {
             queryUuid,
             cacheMetadata: { cacheHit: false },
-            parameterReferences: Array.from(compiled.parameterReferences),
-            usedParametersValues: compiled.usedParameters,
+            parameterReferences: [],
+            usedParametersValues: {},
             resolvedTimezone: null,
         };
+    }
+
+    /** How long a compose query waits for a referenced query's results. */
+    private static readonly REFERENCE_WAIT_TIMEOUT_MS = 15 * 60 * 1000;
+
+    /**
+     * Background phase of a compose query: wait for referenced results (the
+     * whole of pipeline orchestration), build the reference CTEs, discover
+     * columns, compile, then execute through the standard async pipeline.
+     * Failures before execution mark the query history row errored so
+     * pollers see them through the standard status lifecycle.
+     */
+    private async runComposeSqlQuery({
+        account,
+        projectUuid,
+        organizationUuid,
+        isPreviewProject,
+        onboardingFlow,
+        queryUuid,
+        sql,
+        limit,
+        references,
+        warehouseClient,
+        queryTags,
+        queryCreatedAt,
+        cacheKey,
+        context,
+    }: {
+        account: Account;
+        projectUuid: string;
+        organizationUuid: string;
+        isPreviewProject: boolean;
+        onboardingFlow: OnboardingFlow;
+        queryUuid: string;
+        sql: string;
+        limit: number | undefined;
+        references: Record<string, string> | undefined;
+        warehouseClient: WarehouseClient;
+        queryTags: RunQueryTags;
+        queryCreatedAt: Date;
+        cacheKey: string;
+        context: QueryExecutionContext;
+    }): Promise<void> {
+        try {
+            const referenceCtes = references
+                ? await this.buildQueryReferenceCtes({
+                      account,
+                      projectUuid,
+                      references,
+                  })
+                : [];
+
+            // The wrap keeps the reference CTEs valid for user SQL that
+            // starts with its own WITH chain.
+            const resolvedSql =
+                referenceCtes.length > 0
+                    ? `WITH ${referenceCtes.join(
+                          ',\n',
+                      )}\nSELECT * FROM (\n${sql}\n) AS lightdash_user_query`
+                    : sql;
+
+            // Column discovery (LIMIT 1) also validates the SQL
+            const columns: { name: string; type: DimensionType }[] = [];
+            const columnDiscoverySql = applyLimitToSqlQuery({
+                sqlQuery: resolvedSql,
+                limit: 1,
+            });
+            try {
+                await warehouseClient.streamQuery(
+                    columnDiscoverySql,
+                    (chunk) => {
+                        if (columns.length === 0 && chunk.fields) {
+                            Object.keys(chunk.fields).forEach((key) => {
+                                columns.push({
+                                    name: key,
+                                    type: chunk.fields[key].type,
+                                });
+                            });
+                        }
+                    },
+                    { tags: queryTags },
+                );
+            } catch (e) {
+                // The DuckDB client throws raw errors (validation + engine)
+                if (e instanceof LightdashError) throw e;
+                throw new WarehouseQueryError(getErrorMessage(e));
+            }
+
+            const composer = new SqlQueryComposer({
+                userSql: resolvedSql,
+                columns,
+                warehouseClient,
+                pivotConfiguration: undefined,
+                limit,
+                parameters: undefined,
+                dashboardFilters: undefined,
+                tileUuid: undefined,
+                dashboardSorts: undefined,
+            });
+            const compiled = composer.compile();
+            if (compiled.missingParameterReferences.size > 0) {
+                const missing = Array.from(compiled.missingParameterReferences);
+                throw new ParameterError(
+                    `Missing values for SQL parameter(s): ${missing.join(
+                        ', ',
+                    )}`,
+                    { missingReferences: missing },
+                );
+            }
+            const query = composer.getSql({
+                columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
+            });
+            const fieldsMap = composer.getFields();
+
+            const originalColumns: ResultColumns = columns.reduce(
+                (acc, col) => {
+                    acc[col.name] = { reference: col.name, type: col.type };
+                    return acc;
+                },
+                {} as ResultColumns,
+            );
+
+            await this.queryHistoryModel.update(
+                queryUuid,
+                projectUuid,
+                {
+                    compiled_sql: query,
+                    fields: fieldsMap,
+                    original_columns: originalColumns,
+                },
+                account,
+            );
+
+            // Always run in-process with the DuckDB client override: the NATS
+            // pre-aggregate consumer falls back to the project warehouse on
+            // DuckDB errors, which must never happen for SQL written for
+            // DuckDB.
+            this.prometheusMetrics?.trackQueryStateTransition(
+                QueryHistoryStatus.PENDING,
+                QueryHistoryStatus.EXECUTING,
+                context,
+            );
+            this.prometheusMetrics?.observeQueueWaitDuration(0, context);
+
+            await this.runAsyncWarehouseQuery({
+                userUuid: account.user.id,
+                organizationUuid,
+                isPreviewProject,
+                isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
+                onboardingFlow,
+                projectUuid,
+                queryUuid,
+                queryTags,
+                query,
+                fieldsMap,
+                cacheKey,
+                originalColumns,
+                queryCreatedAt,
+                displayTimezone: null,
+                warehouseClientOverride: warehouseClient,
+                warehouseCredentialsTypeOverride:
+                    warehouseClient.credentials.type,
+            });
+        } catch (e) {
+            await this.queryHistoryModel.update(
+                queryUuid,
+                projectUuid,
+                {
+                    status: QueryHistoryStatus.ERROR,
+                    error: getErrorMessage(e),
+                    errored_at: new Date(),
+                },
+                account,
+            );
+        }
     }
 
     /**
