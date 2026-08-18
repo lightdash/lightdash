@@ -1,3 +1,10 @@
+## [1.196.1](https://github.com/lightdash/lightdash/compare/1.196.0...1.196.1) (2026-08-18)
+
+
+### Bug Fixes
+
+* **frontend:** restore font-size inheritance for unsized Text/Anchor ([#27601](https://github.com/lightdash/lightdash/issues/27601)) ([36677ae](https://github.com/lightdash/lightdash/commit/36677ae37869fd77728794e46253a2e6e16d06cc))
+
 # [1.196.0](https://github.com/lightdash/lightdash/compare/1.195.0...1.196.0) (2026-08-18)
 
 
