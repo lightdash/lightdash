@@ -1,3 +1,11 @@
+## [1.194.1](https://github.com/lightdash/lightdash/compare/1.194.0...1.194.1) (2026-08-18)
+
+
+### Bug Fixes
+
+* revert "feat: add chart type entry to the New menu" ([#27589](https://github.com/lightdash/lightdash/issues/27589)) ([11aa547](https://github.com/lightdash/lightdash/commit/11aa5473ed19a62e6948491d72cdfc88a60e6880))
+* support Codex visualization schemas ([#27588](https://github.com/lightdash/lightdash/issues/27588)) ([afb1fc3](https://github.com/lightdash/lightdash/commit/afb1fc33f059990468b9cf3b5a57d57636ffe6d8))
+
 # [1.194.0](https://github.com/lightdash/lightdash/compare/1.193.1...1.194.0) (2026-08-18)
 
 
