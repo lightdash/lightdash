@@ -23,6 +23,12 @@ disclosure. Before accepting an automated draft, verify:
 - the GitHub release, Docker tag, and immutable image digest; and
 - the remediation instructions and private review evidence.
 
+A candidate can create a draft only when the first analysis classifies it as a
+high-confidence exploitable vulnerability, verifies its introduction version,
+provides a complete CVSS v3.1 base vector, and selects a specific primary CWE.
+A fresh skeptical review must then inspect the previous release and independently
+confirm that existing controls do not prevent effective security impact.
+
 The workflow requires the existing `ANTHROPIC_API_KEY`, a
 `SECURITY_ALERTS_SLACK_WEBHOOK_URL`, and a `SECURITY_ADVISORY_TOKEN`. The latter
 must be a fine-grained personal access token restricted to this repository with
