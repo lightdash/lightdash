@@ -402,6 +402,7 @@ const Login: FC<{}> = () => {
                             loading={isFormLoading}
                             disabled={isFormLoading}
                             fullWidth={isNewLayout}
+                            color="pink"
                             data-cy="signin-button"
                         >
                             Sign in
@@ -423,6 +424,7 @@ const Login: FC<{}> = () => {
                         loading={isFormLoading}
                         disabled={isFormLoading}
                         fullWidth={isNewLayout}
+                        color="pink"
                         data-cy="signin-button"
                     >
                         Continue
