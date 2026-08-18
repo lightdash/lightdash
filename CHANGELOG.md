@@ -1,3 +1,10 @@
+# [1.184.0](https://github.com/lightdash/lightdash/compare/1.183.1...1.184.0) (2026-08-18)
+
+
+### Features
+
+* **pgwire:** support the PostgreSQL extended query protocol ([#27535](https://github.com/lightdash/lightdash/issues/27535)) ([1051a76](https://github.com/lightdash/lightdash/commit/1051a7675a2c24789fe73e6cdcb52a4f47f85c3a)), closes [#27405](https://github.com/lightdash/lightdash/issues/27405)
+
 ## [1.183.1](https://github.com/lightdash/lightdash/compare/1.183.0...1.183.1) (2026-08-18)
 
 
