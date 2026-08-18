@@ -2641,16 +2641,6 @@ export class AsyncQueryService extends ProjectService {
                 );
             }
 
-            if (queryTags.explore_name) {
-                this.preAggregateStrategy.recordExecutionFallback({
-                    projectUuid,
-                    exploreName: queryTags.explore_name,
-                    chartUuid: queryTags.chart_uuid ?? null,
-                    dashboardUuid: queryTags.dashboard_uuid ?? null,
-                    queryContext: queryTags.query_context,
-                });
-            }
-
             await this.runAsyncWarehouseQuery({
                 userUuid,
                 organizationUuid,

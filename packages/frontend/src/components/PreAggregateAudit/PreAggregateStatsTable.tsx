@@ -1,5 +1,5 @@
 import { type PreAggregateDailyStatResult } from '@lightdash/common';
-import { Anchor, Group, Text, Tooltip, useMantineTheme } from '@mantine/core';
+import { Anchor, Group, Text, useMantineTheme } from '@mantine/core';
 import {
     IconAlertTriangle,
     IconChartBar,
@@ -230,7 +230,7 @@ const PreAggregateStatsTable: FC<Props> = ({
                     </Group>
                 ),
                 Cell: ({ row }) => {
-                    const { hitCount, missCount, fallbackCount } = row.original;
+                    const { hitCount, missCount } = row.original;
                     return (
                         <Group gap={8} wrap="nowrap">
                             <Text size="xs" c="green.7" ff="monospace">
@@ -247,23 +247,6 @@ const PreAggregateStatsTable: FC<Props> = ({
                             >
                                 {missCount} uncached
                             </Text>
-                            {fallbackCount > 0 && (
-                                <>
-                                    <Text size="xs" c="ldGray.4" ff="monospace">
-                                        /
-                                    </Text>
-                                    <Tooltip label="Matched a pre-aggregate but execution failed — results were served from the warehouse">
-                                        <Text
-                                            size="xs"
-                                            ff="monospace"
-                                            c="red.7"
-                                            fw={500}
-                                        >
-                                            {fallbackCount} failed
-                                        </Text>
-                                    </Tooltip>
-                                </>
-                            )}
                         </Group>
                     );
                 },

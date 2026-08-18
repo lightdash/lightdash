@@ -18,14 +18,6 @@ export type PreAggregateDailyStatsUpsertParams = {
     preAggregateName: string | null;
 };
 
-export type PreAggregateDailyStatsFallbackParams = {
-    projectUuid: string;
-    exploreName: string;
-    chartUuid: string | null;
-    dashboardUuid: string | null;
-    queryContext: string;
-};
-
 export type PreAggregateDailyStatRow = {
     projectUuid: string;
     exploreName: string;
@@ -37,7 +29,6 @@ export type PreAggregateDailyStatRow = {
     queryContext: string;
     hitCount: number;
     missCount: number;
-    fallbackCount: number;
     missReason: string | null;
     preAggregateName: string | null;
     updatedAt: Date;
@@ -54,7 +45,6 @@ type DbJoinedRow = {
     query_context: string;
     hit_count: number;
     miss_count: number;
-    fallback_count: number;
     miss_reason: string | null;
     pre_aggregate_name: string | null;
     updated_at: Date;
@@ -72,7 +62,6 @@ function convertDbRow(row: DbJoinedRow): PreAggregateDailyStatRow {
         queryContext: row.query_context,
         hitCount: row.hit_count,
         missCount: row.miss_count,
-        fallbackCount: row.fallback_count,
         missReason: row.miss_reason,
         preAggregateName: row.pre_aggregate_name,
         updatedAt: row.updated_at,
@@ -124,35 +113,6 @@ export class PreAggregateDailyStatsModel {
         );
     }
 
-    async incrementFallback(
-        params: PreAggregateDailyStatsFallbackParams,
-    ): Promise<void> {
-        await this.database.raw(
-            `
-            INSERT INTO ${PreAggregateDailyStatsTableName}
-                (project_uuid, explore_name, date, chart_uuid,
-                 dashboard_uuid, query_context,
-                 hit_count, miss_count, fallback_count)
-            VALUES (?, ?, CURRENT_DATE, ?, ?, ?, 0, 0, 1)
-            ON CONFLICT (
-                project_uuid, explore_name, date, query_context,
-                COALESCE(chart_uuid, '00000000-0000-0000-0000-000000000000'),
-                COALESCE(dashboard_uuid, '00000000-0000-0000-0000-000000000000')
-            )
-            DO UPDATE SET
-                fallback_count = ${PreAggregateDailyStatsTableName}.fallback_count + 1,
-                updated_at = NOW()
-            `,
-            [
-                params.projectUuid,
-                params.exploreName,
-                params.chartUuid,
-                params.dashboardUuid,
-                params.queryContext,
-            ],
-        );
-    }
-
     async getByProject(
         projectUuid: string,
         days: number = 3,
@@ -175,7 +135,6 @@ export class PreAggregateDailyStatsModel {
                 `${stats}.query_context`,
                 `${stats}.hit_count`,
                 `${stats}.miss_count`,
-                `${stats}.fallback_count`,
                 `${stats}.miss_reason`,
                 `${stats}.pre_aggregate_name`,
                 `${stats}.updated_at`,

@@ -346,8 +346,6 @@ export type PreAggregateDailyStatResult = {
     queryContext: string;
     hitCount: number;
     missCount: number;
-    // Matched queries whose pre-aggregate execution failed and were served from the warehouse
-    fallbackCount: number;
     missReason: string | null;
     preAggregateName: string | null;
     updatedAt: string;

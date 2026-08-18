@@ -45,7 +45,7 @@ const PreAggregateStatusBadge: FC = memo(() => {
             if (resultsPreAggregate?.fallbackReason != null) {
                 return {
                     color: 'orange',
-                    tooltip: `Pre-aggregate matched (${result.preAggregateName}) but failed to serve — results came from the warehouse`,
+                    tooltip: `Pre-aggregate matched (${result.preAggregateName}) but failed to serve. Results came from the warehouse`,
                     icon: 'bolt-off',
                 };
             }

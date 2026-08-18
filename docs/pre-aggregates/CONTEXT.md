@@ -98,8 +98,8 @@ granularity too fine, non-additive metric).
 A matched query whose pre-aggregate execution failed (unreadable
 materialization, DuckDB error, external table issue), so results were served
 from the source warehouse. Distinct from a miss: the match succeeded but the
-serve did not. Recorded as a fallback reason on query history, exposed on
-results metadata, and counted in pre-aggregate analytics.
+serve did not. Recorded as a fallback reason on query history and exposed on
+results metadata.
 _Avoid_: miss, retry, cache miss
 
 **Ineligible**:

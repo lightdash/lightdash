@@ -128,7 +128,6 @@ const makeMockStrategy = (
         () => warehouseClientMock as unknown as WarehouseClient,
     ),
     recordStats: vi.fn(),
-    recordExecutionFallback: vi.fn(),
     cleanupStats: vi.fn(async () => 0),
     getStats: noOpStrategy.getStats.bind(noOpStrategy),
     getResultsStorageClient: vi.fn(() => undefined),
@@ -2477,7 +2476,7 @@ describe('AsyncQueryService', () => {
             displayTimezone: null,
         });
 
-        test('records fallback on query history and stats when execution fails', async () => {
+        test('records fallback on query history when execution fails', async () => {
             const mockStrategy = makeMockStrategy({
                 resolved: true,
                 query: 'SELECT * FROM duckdb_preagg',
@@ -2501,13 +2500,6 @@ describe('AsyncQueryService', () => {
                     user: { id: sessionAccount.user.id },
                 }),
             );
-            expect(mockStrategy.recordExecutionFallback).toHaveBeenCalledWith({
-                projectUuid,
-                exploreName: 'orders',
-                chartUuid: 'chart-uuid',
-                dashboardUuid: 'dashboard-uuid',
-                queryContext: QueryExecutionContext.EXPLORE,
-            });
             expect(runAsyncWarehouseSpy).toHaveBeenCalledTimes(2);
             expect(runAsyncWarehouseSpy.mock.calls[1][0]).toMatchObject({
                 query: 'SELECT * FROM warehouse',
@@ -2537,7 +2529,6 @@ describe('AsyncQueryService', () => {
                 }),
                 expect.anything(),
             );
-            expect(mockStrategy.recordExecutionFallback).not.toHaveBeenCalled();
         });
 
         test('still falls back to the warehouse when the fallback write fails', async () => {
