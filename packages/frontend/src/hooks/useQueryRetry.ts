@@ -39,18 +39,23 @@ const getRetryDelay = (attemptIndex: number): number =>
  * - Max 3 retry attempts
  * - Exponential backoff (1s, 2s, 4s)
  * - Only retry on transient errors (5xx, NetworkError)
+ * - Falls back to global query retry defaults when disabled
  */
-const getRetryConfig = (retryEnabled: boolean) => ({
-    retry: retryEnabled
-        ? (failureCount: number, error: ApiError | Partial<ApiError>) => {
-              if (failureCount >= 3) {
-                  return false;
-              }
-              return isRetryableError(error);
+const getRetryConfig = (retryEnabled: boolean) =>
+    retryEnabled
+        ? {
+              retry: (
+                  failureCount: number,
+                  error: ApiError | Partial<ApiError>,
+              ) => {
+                  if (failureCount >= 3) {
+                      return false;
+                  }
+                  return isRetryableError(error);
+              },
+              retryDelay: getRetryDelay,
           }
-        : false,
-    retryDelay: getRetryDelay,
-});
+        : {};
 
 export const useQueryRetryConfig = () => {
     const { health } = useApp();
