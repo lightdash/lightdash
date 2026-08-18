@@ -1,3 +1,16 @@
+# [1.195.0](https://github.com/lightdash/lightdash/compare/1.194.1...1.195.0) (2026-08-18)
+
+
+### Bug Fixes
+
+* **backend:** preserve export filename on streamed downloads ([#27582](https://github.com/lightdash/lightdash/issues/27582)) ([804cc89](https://github.com/lightdash/lightdash/commit/804cc895fc8833f022459649ddc5ac8ae277a01d)), closes [#27568](https://github.com/lightdash/lightdash/issues/27568) [#21870](https://github.com/lightdash/lightdash/issues/21870) [#26914](https://github.com/lightdash/lightdash/issues/26914) [#27584](https://github.com/lightdash/lightdash/issues/27584)
+* route pre-aggregate time dimensions safely ([#27538](https://github.com/lightdash/lightdash/issues/27538)) ([f05c337](https://github.com/lightdash/lightdash/commit/f05c337d534dd614791b2d0188c74e7f90a5890e)), closes [#27537](https://github.com/lightdash/lightdash/issues/27537)
+
+
+### Features
+
+* role-set management UI for org, project and group access ([#27569](https://github.com/lightdash/lightdash/issues/27569)) ([d546555](https://github.com/lightdash/lightdash/commit/d54655524db4fa45f0c3c06342501ec7db41c855))
+
 ## [1.194.1](https://github.com/lightdash/lightdash/compare/1.194.0...1.194.1) (2026-08-18)
 
 

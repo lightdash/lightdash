@@ -14591,6 +14591,11 @@ const models: TsoaRoute.Models = {
         enums: ['granularity_too_fine'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'PreAggregateMissReason.TIME_FRAME_NOT_DERIVABLE': {
+        dataType: 'refEnum',
+        enums: ['time_frame_not_derivable'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'PreAggregateMissReason.CUSTOM_DIMENSION_PRESENT': {
         dataType: 'refEnum',
         enums: ['custom_dimension_present'],
@@ -14720,6 +14725,25 @@ const models: TsoaRoute.Models = {
                         fieldId: { ref: 'FieldId', required: true },
                         reason: {
                             ref: 'PreAggregateMissReason.GRANULARITY_TOO_FINE',
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        preAggregateTimeDimension: {
+                            dataType: 'string',
+                            required: true,
+                        },
+                        preAggregateGranularity: {
+                            ref: 'TimeFrames',
+                            required: true,
+                        },
+                        queryGranularity: { ref: 'TimeFrames', required: true },
+                        fieldId: { ref: 'FieldId', required: true },
+                        reason: {
+                            ref: 'PreAggregateMissReason.TIME_FRAME_NOT_DERIVABLE',
                             required: true,
                         },
                     },
