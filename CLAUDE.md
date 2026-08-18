@@ -113,9 +113,7 @@ checks and again by the release workflow. Feature PRs must not commit changes to
 `packages/backend/src/generated/routes.ts` or
 `packages/backend/src/generated/swagger.json`; the pre-commit hook unstages them
 and the release workflow commits the generated artifacts. Local changes to these
-files are expected during dev — leave them uncommitted. To stop them showing in
-`git status`, run `./scripts/generated-api-files.sh hide` (skip-worktree;
-`show` reverses it — needed if a pull fails because they changed upstream).
+files are expected during dev — leave them uncommitted.
 
 Run generation locally when validating changes to any of the following, or when
 local generated routes are stale:

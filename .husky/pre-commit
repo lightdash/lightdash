@@ -10,8 +10,7 @@ if [ -n "$STAGED_GENERATED" ]; then
   echo ""
   echo "These files are regenerated and committed on main by the release workflow."
   echo "Your working-tree changes are untouched and are expected during local dev;"
-  echo "leave them uncommitted. To hide them from 'git status' entirely, run:"
-  echo "  ./scripts/generated-api-files.sh hide"
+  echo "leave them uncommitted."
   echo ""
   if git diff --cached --quiet; then
     echo "pre-commit: aborting commit — the only staged changes were generated API"
