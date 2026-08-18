@@ -1,6 +1,5 @@
 import {
     isAiAgentSqlArtifactVizQuery,
-    isAiMergeChartArtifactConfig,
     isAiSqlChartArtifactConfig,
     parseVizConfig,
     type AiAgentChartTypeOption,
@@ -21,9 +20,11 @@ import { useMediaQuery } from '@mantine/hooks';
 import { IconExclamationCircle, IconX } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { useCompiledSqlFromMetricQuery } from '../../../../../hooks/useCompiledSql';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
-import { useAiMergeCompiledSql } from '../../hooks/useAiMergeCompiledSql';
+import {
+    getAiArtifactChartSource,
+    useAiArtifactCompiledSql,
+} from '../../hooks/useAiArtifactChart';
 import { useAiAgentArtifactVizQuery } from '../../hooks/useProjectAiAgents';
 import { clearArtifact } from '../../store/aiArtifactSlice';
 import { useAiAgentStoreDispatch } from '../../store/hooks';
@@ -61,18 +62,9 @@ export const AiChartVisualization: FC<Props> = ({
         useState<AiAgentChartTypeOption | null>(null);
 
     const isSqlArtifact = isAiSqlChartArtifactConfig(artifactData.chartConfig);
-    const mergeChartConfig = isAiMergeChartArtifactConfig(
+    const { isMergeArtifact, semanticChartConfig } = getAiArtifactChartSource(
         artifactData.chartConfig,
-    )
-        ? artifactData.chartConfig
-        : null;
-    const isMergeArtifact = mergeChartConfig !== null;
-    const semanticChartConfig =
-        artifactData.chartConfig?.source === 'semantic'
-            ? artifactData.chartConfig.config
-            : mergeChartConfig
-              ? mergeChartConfig.config
-              : null;
+    );
 
     const vizConfig = useMemo(() => {
         if (!semanticChartConfig) return null;
@@ -105,22 +97,11 @@ export const AiChartVisualization: FC<Props> = ({
         queryExecutionHandle.data?.query.queryUuid,
     );
 
-    const { data: compiledSql } = useCompiledSqlFromMetricQuery({
-        tableName: isMergeArtifact
-            ? undefined
-            : semanticVizQueryData?.query.metricQuery?.exploreName,
+    const compiledSqlQuery = useAiArtifactCompiledSql({
         projectUuid,
-        metricQuery: isMergeArtifact
-            ? undefined
-            : semanticVizQueryData?.query.metricQuery,
+        isMergeArtifact,
+        vizQueryData: semanticVizQueryData,
     });
-    const { data: mergeCompiledSql } = useAiMergeCompiledSql(
-        projectUuid,
-        isMergeArtifact ? semanticVizQueryData : undefined,
-    );
-    const compiledSqlQuery = isMergeArtifact
-        ? (mergeCompiledSql?.sql ?? undefined)
-        : compiledSql?.query;
 
     const isQueryLoading =
         queryExecutionHandle.isLoading ||
