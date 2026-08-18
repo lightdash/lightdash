@@ -28,7 +28,6 @@ import {
     Menu,
     Stack,
     Text,
-    Textarea,
     Tooltip,
 } from '@mantine/core';
 import {
@@ -102,6 +101,7 @@ import AppBuilderSidebarToggle from '../features/apps/components/AppBuilderSideb
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
 import AppPreview from '../features/apps/components/AppPreview';
+import ClarificationQuestionList from '../features/apps/components/ClarificationQuestionList';
 import DataAppVizResultCard from '../features/apps/components/DataAppVizResultCard';
 import DataAppVizTestPanel from '../features/apps/components/DataAppVizTestPanel';
 import LoadingDots from '../features/apps/components/LoadingDots';
@@ -2390,56 +2390,23 @@ const AppGenerate: FC = () => {
                                             <Text size="sm">
                                                 A few quick questions:
                                             </Text>
-                                            <Stack gap={6}>
-                                                {pendingClarification.questions.map(
-                                                    (question, qi) => (
-                                                        <Box
-                                                            key={qi}
-                                                            className={
-                                                                classes.clarifyCard
-                                                            }
-                                                        >
-                                                            <Text
-                                                                size="sm"
-                                                                c="dimmed"
-                                                            >
-                                                                {question}
-                                                            </Text>
-                                                            <Textarea
-                                                                variant="unstyled"
-                                                                autosize
-                                                                minRows={1}
-                                                                maxRows={4}
-                                                                placeholder="Your answer"
-                                                                value={
-                                                                    clarificationAnswers[
-                                                                        qi
-                                                                    ] ?? ''
-                                                                }
-                                                                onChange={(
-                                                                    e,
-                                                                ) => {
-                                                                    const next =
-                                                                        [
-                                                                            ...clarificationAnswers,
-                                                                        ];
-                                                                    next[qi] =
-                                                                        e.currentTarget.value;
-                                                                    setClarificationAnswers(
-                                                                        next,
-                                                                    );
-                                                                }}
-                                                                autoFocus={
-                                                                    qi === 0
-                                                                }
-                                                                classNames={{
-                                                                    input: classes.clarifyCardInput,
-                                                                }}
-                                                            />
-                                                        </Box>
-                                                    ),
-                                                )}
-                                            </Stack>
+                                            <ClarificationQuestionList
+                                                questions={
+                                                    pendingClarification.questions
+                                                }
+                                                answers={clarificationAnswers}
+                                                onAnswer={(index, value) =>
+                                                    setClarificationAnswers(
+                                                        (current) => {
+                                                            const next = [
+                                                                ...current,
+                                                            ];
+                                                            next[index] = value;
+                                                            return next;
+                                                        },
+                                                    )
+                                                }
+                                            />
                                             <Group gap="xs" justify="flex-end">
                                                 <Button
                                                     variant="subtle"

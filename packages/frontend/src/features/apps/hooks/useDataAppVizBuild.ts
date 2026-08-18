@@ -2,6 +2,7 @@ import {
     DATA_APP_VIZ_TEMPLATE,
     getErrorMessage,
     type ApiAppVersionSummary,
+    type AppClarification,
     type DataAppClaudeModel,
     type DataAppVizFieldMapping,
     type ItemsMap,
@@ -33,6 +34,9 @@ export type VizBuildRequest = {
     description: string;
     fileIds: string[];
     claudeModel: DataAppClaudeModel;
+    /** Answers to the pre-build clarifying round; empty when it was skipped,
+     *  fell through, or never ran. Only a first build can carry them. */
+    clarifications: AppClarification[];
 };
 
 /** The app claimed by a build before it has a renderable version. */
@@ -175,6 +179,10 @@ export const useDataAppVizBuild = ({
                         appUuid: draftAppUuid,
                         fileIds: files,
                         claudeModel: request.claudeModel,
+                        clarifications:
+                            request.clarifications.length > 0
+                                ? request.clarifications
+                                : undefined,
                     },
                     {
                         onSuccess: ({ appUuid, version }) => {

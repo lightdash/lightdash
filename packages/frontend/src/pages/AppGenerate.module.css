@@ -476,42 +476,6 @@
     transition: opacity 200ms ease;
 }
 
-.clarifyCard {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 6px 10px;
-    border-radius: var(--mantine-radius-sm);
-    transition: background-color 100ms ease;
-
-    @mixin light {
-        background-color: var(--mantine-color-white);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-dark-6);
-    }
-
-    &:focus-within {
-        @mixin light {
-            background-color: var(--mantine-color-ldGray-0);
-        }
-        @mixin dark {
-            background-color: var(--mantine-color-dark-5);
-        }
-    }
-}
-
-/* Strip the default Mantine Textarea framing so the answer reads as flowing
- * chat text inside the card instead of an embedded form field. */
-.clarifyCardInput {
-    padding: 0 !important;
-    min-height: 0 !important;
-    background: transparent !important;
-    border: none !important;
-    font-size: var(--mantine-font-size-sm) !important;
-    line-height: 1.5 !important;
-}
-
 .bubbleClarificationList {
     display: flex;
     flex-direction: column;

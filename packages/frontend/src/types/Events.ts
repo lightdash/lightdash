@@ -91,6 +91,7 @@ export enum EventName {
     HOMEPAGE_RECOMMENDED_ACTION_CLICKED = 'homepage_recommended_action.clicked',
     HOMEPAGE_RECOMMENDED_ACTION_SKIPPED = 'homepage_recommended_action.skipped',
     DATA_APP_RECENT_SUGGESTION_CLICK = 'data_app.recent_suggestion_click',
+    DATA_APP_CLARIFY_ROUND_RESOLVED = 'data_app.clarify_round_resolved',
     REVOKE_INVITES_BUTTON_CLICKED = 'revoke_invites_button.clicked',
     INVITE_BUTTON_CLICKED = 'invite_users_to_organisation_button.clicked',
     RUN_QUERY_BUTTON_CLICKED = 'run_query_button.clicked',

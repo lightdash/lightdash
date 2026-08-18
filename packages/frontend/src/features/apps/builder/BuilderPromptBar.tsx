@@ -34,8 +34,10 @@ import {
     type DataAppVizBuildState,
     type VizBuildRequest,
 } from '../hooks/useDataAppVizBuild';
+import { type VizClarification } from '../hooks/useVizClarification';
 import { useVizComposerAttachments } from '../hooks/useVizComposerAttachments';
 import classes from './BuilderPromptBar.module.css';
+import ClarifyingQuestions from './ClarifyingQuestions';
 
 type Props = {
     projectUuid: string;
@@ -51,6 +53,8 @@ type Props = {
     build: DataAppVizBuildState;
     onCancelBuild: (() => void) | null;
     modelSelection: DataAppModelSelection;
+    /** The pre-build clarifying round every send passes through. */
+    clarification: VizClarification;
 };
 
 type QueuedPrompt = {
@@ -139,6 +143,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             build,
             onCancelBuild,
             modelSelection,
+            clarification,
         },
         ref,
     ) {
@@ -188,6 +193,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                         ? attachments.fileIds
                         : (editing?.request.fileIds ?? []),
                 claudeModel: modelSelection.selectedModel,
+                clarifications: [],
             };
             const queuedPrompt: QueuedPrompt = {
                 id: editing?.id ?? nextQueueId.current++,
@@ -201,7 +207,17 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                 setQueuedPrompts((current) => [...current, queuedPrompt]);
                 return;
             }
-            sendBuild(request);
+            clarification.send(request);
+        };
+
+        // The pencil and Cancel end the same way: prompt back in the composer.
+        const handleReclaimPrompt = () => {
+            const prompt = clarification.abandon();
+            if (prompt === null) return;
+            composerRef.current?.insertContent([
+                { type: 'text', text: prompt },
+            ]);
+            composerRef.current?.focus();
         };
 
         const handleEdit = (item: QueuedPrompt) => {
@@ -289,7 +305,11 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             !isBuilding && buildError === null ? sendingPrompt : null;
         const queuedStackSize =
             queuedPrompts.length + (visibleSendingPrompt ? 1 : 0);
-        const hasStack = queuedStackSize > 0 || isBuilding;
+        const isClarifying = clarification.clarifyingPrompt !== null;
+        const questions = clarification.pending;
+        const hasStack = queuedStackSize > 0 || isBuilding || isClarifying;
+        // Read-only, not just unsubmittable: text typed here would be lost.
+        const isComposerLocked = isClarifying || questions !== null;
 
         return (
             <Box
@@ -297,11 +317,51 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
             >
+                {questions !== null && (
+                    <ClarifyingQuestions
+                        prompt={questions.prompt}
+                        questions={questions.questions}
+                        answers={clarification.answers}
+                        onAnswer={clarification.answer}
+                        onEditPrompt={handleReclaimPrompt}
+                        onSkip={() => clarification.build(true)}
+                        onBuild={() => clarification.build(false)}
+                    />
+                )}
                 {hasStack && (
                     <Box
                         className={classes.queue}
-                        data-building={isBuilding || undefined}
+                        data-building={isBuilding || isClarifying || undefined}
                     >
+                        {isClarifying && (
+                            <Box
+                                className={`${classes.stackRow} ${classes.buildingStatus}`}
+                            >
+                                <Loader size={13} color="ldGray.6" />
+                                <Text fz="xs" fw={600} c="ldGray.9" inherit>
+                                    Reading your prompt…
+                                </Text>
+                                <Text
+                                    className={classes.buildingPrompt}
+                                    fz="xs"
+                                    c="dimmed"
+                                    lineClamp={1}
+                                >
+                                    “{clarification.clarifyingPrompt}”
+                                </Text>
+                                <Anchor
+                                    className={classes.cancelBuild}
+                                    component="button"
+                                    type="button"
+                                    size="xs"
+                                    c="dimmed"
+                                    fw={500}
+                                    onClick={handleReclaimPrompt}
+                                >
+                                    Cancel
+                                </Anchor>
+                            </Box>
+                        )}
                         {isBuilding && (
                             <Box
                                 className={`${classes.stackRow} ${classes.buildingStatus}`}
@@ -410,13 +470,18 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                     ref={composerRef}
                     variant="inline"
                     placeholder={
-                        isBuilding
-                            ? 'Ask for another change…'
-                            : hasVersions
-                              ? 'Ask for a change…'
-                              : 'Describe a new chart type…'
+                        questions !== null
+                            ? 'Answer the questions, or skip, to build…'
+                            : isClarifying
+                              ? 'Reading your prompt…'
+                              : isBuilding
+                                ? 'Ask for another change…'
+                                : hasVersions
+                                  ? 'Ask for a change…'
+                                  : 'Describe a new chart type…'
                     }
-                    submitDisabled={!canSubmit}
+                    disabled={isComposerLocked}
+                    submitDisabled={!canSubmit || isComposerLocked}
                     onEmptyChange={setIsEmpty}
                     onSubmit={handleSubmit}
                     onPaste={handlePaste}
@@ -440,7 +505,15 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                             align="center"
                             wrap="nowrap"
                         >
-                            {isBuilding && !isEmpty ? (
+                            {questions !== null ? (
+                                <Text
+                                    className={classes.queueHint}
+                                    fz="xs"
+                                    c="dimmed"
+                                >
+                                    Answer or skip first
+                                </Text>
+                            ) : isBuilding && !isEmpty ? (
                                 <Text
                                     className={classes.queueHint}
                                     fz="xs"
@@ -502,7 +575,11 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                         isBuilding ? 'Queue message' : 'Send'
                                     }
                                     size="sm"
-                                    disabled={isEmpty || !canSubmit}
+                                    disabled={
+                                        isEmpty ||
+                                        !canSubmit ||
+                                        isComposerLocked
+                                    }
                                     onClick={handleSubmit}
                                 />
                             )}
