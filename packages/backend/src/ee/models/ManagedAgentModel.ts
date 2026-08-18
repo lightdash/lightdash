@@ -723,6 +723,7 @@ export class ManagedAgentModel {
             projectUuid,
             memberUuidList,
             inactiveDays,
+            inactiveDays,
             limit,
         ]);
 
