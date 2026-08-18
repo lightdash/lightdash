@@ -1,3 +1,10 @@
+## [1.172.4](https://github.com/lightdash/lightdash/compare/1.172.3...1.172.4) (2026-08-18)
+
+
+### Bug Fixes
+
+* **autopilot:** lay out markdown code blocks line by line ([#27521](https://github.com/lightdash/lightdash/issues/27521)) ([a441d8b](https://github.com/lightdash/lightdash/commit/a441d8be726cc5feeb49df5399201f9d46b03f34))
+
 ## [1.172.3](https://github.com/lightdash/lightdash/compare/1.172.2...1.172.3) (2026-08-18)
 
 

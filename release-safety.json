@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "1.172.3",
-  "previousVersion": "1.172.2",
-  "releaseDate": "2026-08-18T00:17:34.729Z",
+  "version": "1.172.4",
+  "previousVersion": "1.172.3",
+  "releaseDate": "2026-08-18T00:31:31.651Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -20,11 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "POST /api/v1/projects/{projectUuid}/mergeQuery/compile — added the new `reserved_source_id` enum value to the `results/errors/items/kind` response property for the response status `200`",
-        "POST /api/v2/projects/{projectUuid}/query/merge-query — added the new `reserved_source_id` enum value to the `results/anyOf[subschema #2]/allOf[subschema #2]/errors/items/kind` response property for the response status `200`"
-      ],
-      "advisoryCount": 2
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,
