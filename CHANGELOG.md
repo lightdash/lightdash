@@ -1,3 +1,10 @@
+## [1.183.1](https://github.com/lightdash/lightdash/compare/1.183.0...1.183.1) (2026-08-18)
+
+
+### Bug Fixes
+
+* remove legacy AI agent memory flag ([#27465](https://github.com/lightdash/lightdash/issues/27465)) ([4913b1b](https://github.com/lightdash/lightdash/commit/4913b1b435cf8192752f4409b4fa874b96d45e40))
+
 # [1.183.0](https://github.com/lightdash/lightdash/compare/1.182.0...1.183.0) (2026-08-18)
 
 
