@@ -1,3 +1,10 @@
+## [1.191.2](https://github.com/lightdash/lightdash/compare/1.191.1...1.191.2) (2026-08-18)
+
+
+### Bug Fixes
+
+* **frontend:** preserve newline through branch sync ([#27554](https://github.com/lightdash/lightdash/issues/27554)) ([2fa372a](https://github.com/lightdash/lightdash/commit/2fa372aa77b5f995c1c5089c4f59dd0da5d7f9b0))
+
 ## [1.191.1](https://github.com/lightdash/lightdash/compare/1.191.0...1.191.1) (2026-08-18)
 
 
