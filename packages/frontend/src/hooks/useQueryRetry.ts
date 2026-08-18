@@ -1,59 +1,27 @@
 import type { ApiError } from '@lightdash/common';
 import { useMemo } from 'react';
 import useApp from '../providers/App/useApp';
+import { shouldRetryQuery } from '../providers/ReactQuery/createQueryClient';
 
-/**
- * Determines if an API error is retryable (transient database/server issues)
- * @param error The API error from the query
- * @returns true if the error should be retried
- */
-const isRetryableError = (error: ApiError | Partial<ApiError>): boolean => {
-    const statusCode = error.error?.statusCode;
-    const errorName = error.error?.name;
+const MAX_SERVER_ERROR_RETRIES = 3;
 
-    // Retry on network errors (database connection issues, timeouts)
-    if (errorName === 'NetworkError') {
-        return true;
-    }
-
-    // Retry on 5xx server errors (backend/database overwhelmed)
-    if (statusCode && statusCode >= 500 && statusCode < 600) {
-        return true;
-    }
-
-    // Don't retry on 4xx client errors (bad request, not found, unauthorized, etc.)
-    return false;
+const is5xxError = (error: unknown): boolean => {
+    const statusCode = (error as Partial<ApiError>)?.error?.statusCode;
+    return statusCode !== undefined && statusCode >= 500 && statusCode < 600;
 };
 
 /**
- * Calculate exponential backoff delay for retries
- * @param attemptIndex Zero-based retry attempt (0, 1, 2)
- * @returns Delay in milliseconds
+ * Opt-in retry for 5xx responses, layered on top of the global NetworkError
+ * retry rather than replacing it — the global policy is more generous for
+ * transport failures (5 attempts, 8s cap) than this one is for 5xx.
  */
-const getRetryDelay = (attemptIndex: number): number =>
-    // Exponential backoff: 1s, 2s, 4s
-    Math.min(1000 * 2 ** attemptIndex, 4000);
-
-/**
- * Retry configuration for React Query hooks
- * - Max 3 retry attempts
- * - Exponential backoff (1s, 2s, 4s)
- * - Only retry on transient errors (5xx, NetworkError)
- * - Falls back to global query retry defaults when disabled
- */
-const getRetryConfig = (retryEnabled: boolean) =>
+export const getRetryConfig = (retryEnabled: boolean) =>
     retryEnabled
         ? {
-              retry: (
-                  failureCount: number,
-                  error: ApiError | Partial<ApiError>,
-              ) => {
-                  if (failureCount >= 3) {
-                      return false;
-                  }
-                  return isRetryableError(error);
-              },
-              retryDelay: getRetryDelay,
+              retry: (failureCount: number, error: unknown) =>
+                  shouldRetryQuery(failureCount, error) ||
+                  (failureCount < MAX_SERVER_ERROR_RETRIES &&
+                      is5xxError(error)),
           }
         : {};
 
