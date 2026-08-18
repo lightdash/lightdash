@@ -221,7 +221,7 @@ export const useSavedSqlChartResults = (
                     status: 'error',
                     error: {
                         name: 'ChartResultsError',
-                        statusCode: 500,
+                        statusCode: 400,
                         message,
                         data: {},
                     },

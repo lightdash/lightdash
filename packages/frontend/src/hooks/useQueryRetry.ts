@@ -7,13 +7,19 @@ import useApp from '../providers/App/useApp';
  * @param error The API error from the query
  * @returns true if the error should be retried
  */
-const isRetryableError = (error: ApiError | Partial<ApiError>): boolean => {
+export const isRetryableError = (
+    error: ApiError | Partial<ApiError>,
+): boolean => {
     const statusCode = error.error?.statusCode;
     const errorName = error.error?.name;
 
     // Retry on network errors (database connection issues, timeouts)
     if (errorName === 'NetworkError') {
         return true;
+    }
+
+    if (errorName === 'ChartResultsError') {
+        return false;
     }
 
     // Retry on 5xx server errors (backend/database overwhelmed)
