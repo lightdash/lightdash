@@ -1,4 +1,5 @@
 import express from 'express';
+import { validateHeaderValue } from 'node:http';
 import { PassThrough, Readable } from 'stream';
 import { type ServiceRepository } from '../services/ServiceRepository';
 import { FileController } from './fileController';
@@ -27,6 +28,9 @@ const setup = ({
     const res = new PassThrough();
     // @ts-expect-error minimal express.Response stub — only setHeader is used
     res.setHeader = (name: string, value: string) => {
+        // Mirror Node's own validation, so any header we couldn't actually
+        // send fails the test rather than passing silently.
+        validateHeaderValue(name, value);
         headers[name] = value;
     };
     const req = {
@@ -77,6 +81,19 @@ describe('FileController', () => {
             await controller.getFile(FILE_ID, req);
 
             expect(headers['Content-Disposition']).not.toContain('X-Injected');
+            expect(headers['Content-Disposition']).toContain(
+                'csv-my-chart-1755512345678.csv',
+            );
+        });
+
+        it('falls back when the stored content disposition holds raw non-latin-1', async () => {
+            const { controller, req, headers } = setup({
+                s3Key: 'csv-my-chart-1755512345678.csv',
+                contentDisposition: 'attachment; filename="売上.csv"',
+            });
+
+            await controller.getFile(FILE_ID, req);
+
             expect(headers['Content-Disposition']).toContain(
                 'csv-my-chart-1755512345678.csv',
             );

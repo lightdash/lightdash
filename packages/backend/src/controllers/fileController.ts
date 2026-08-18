@@ -13,7 +13,7 @@ import {
 import express from 'express';
 import path from 'path';
 import { pipeline } from 'stream/promises';
-import { createContentDispositionHeader } from '../utils/FileDownloadUtils/FileDownloadUtils';
+import { getSafeContentDispositionHeader } from '../utils/FileDownloadUtils/FileDownloadUtils';
 import { allowApiKeyAuthentication } from './authentication';
 import { BaseController } from './baseController';
 
@@ -81,21 +81,13 @@ export class FileController extends BaseController {
         const contentType =
             FILE_TYPE_TO_MIME[fileType] ?? 'application/octet-stream';
 
-        // The header stored at upload time holds the friendly download name;
-        // the storage key is only a fallback. Reject CR/LF so an object written
-        // outside the current upload path can't inject response headers.
-        const storedDisposition =
-            contentDisposition && !/[\r\n]/.test(contentDisposition)
-                ? contentDisposition
-                : null;
-
         res.setHeader('Content-Type', contentType);
-        // RFC 5987 encoding keeps non-ASCII names (em-dashes, accents, emojis)
-        // from making Node throw `ERR_INVALID_CHAR` on setHeader.
         res.setHeader(
             'Content-Disposition',
-            storedDisposition ??
-                createContentDispositionHeader(path.basename(s3Key)),
+            getSafeContentDispositionHeader(
+                contentDisposition,
+                path.basename(s3Key),
+            ),
         );
         res.setHeader('X-Robots-Tag', 'noindex, nofollow');
 
