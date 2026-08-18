@@ -2,6 +2,7 @@ import {
     DATA_APP_VIZ_TEMPLATE,
     FeatureFlags,
     isAppVersionInProgress,
+    type AppClarification,
     type DataAppVizOptionValue,
     type DataAppVizOptionValues,
 } from '@lightdash/common';
@@ -30,12 +31,18 @@ import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppVersionHistory } from '../features/apps/hooks/useAppVersionHistory';
 import { useCanCreateDataApp } from '../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
+import {
+    useClarificationRound,
+    type ClarifyParams,
+} from '../features/apps/hooks/useClarificationRound';
 import { useDataAppModelSelection } from '../features/apps/hooks/useDataAppModelSelection';
 import { useDataAppVisualization } from '../features/apps/hooks/useDataAppVisualization';
-import { useDataAppVizBuild } from '../features/apps/hooks/useDataAppVizBuild';
+import {
+    useDataAppVizBuild,
+    type VizBuildRequest,
+} from '../features/apps/hooks/useDataAppVizBuild';
 import { useElapsedClock } from '../features/apps/hooks/useElapsedClock';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
-import { useVizClarification } from '../features/apps/hooks/useVizClarification';
 import { buildSampleVizContext } from '../features/apps/utils/sampleVizContext';
 import { useResolvedColorPalette } from '../hooks/appearance/useResolvedColorPalette';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
@@ -48,6 +55,12 @@ const noop = () => undefined;
  * (create) and `chart-types/:dataAppVizUuid` (edit); the create flow
  * adopts the new uuid into the URL once the first build is accepted.
  */
+const toVizClarifyParams = (request: VizBuildRequest): ClarifyParams => ({
+    prompt: request.description,
+    template: DATA_APP_VIZ_TEMPLATE,
+    fileIds: request.fileIds.length > 0 ? request.fileIds : undefined,
+});
+
 const ChartTypeBuilder: FC = () => {
     const { projectUuid, dataAppVizUuid: urlVizUuid } = useParams<{
         projectUuid: string;
@@ -74,12 +87,22 @@ const ChartTypeBuilder: FC = () => {
         onCreated: noop,
     });
 
+    // Depend on the send function, not on `build` — that is a fresh object
+    // every render, so the memo would never hold.
+    const sendBuild = build.send;
+    const onClarifiedBuild = useCallback(
+        (request: VizBuildRequest, clarifications: AppClarification[]) =>
+            sendBuild({ ...request, clarifications }),
+        [sendBuild],
+    );
+
     // Questions only before the first build: once a version exists, intent is
     // grounded in what is on screen.
-    const clarification = useVizClarification({
+    const clarification = useClarificationRound<VizBuildRequest>({
         projectUuid,
         isFirstBuild: activeVizUuid === undefined,
-        onBuild: build.send,
+        toClarifyParams: toVizClarifyParams,
+        onBuild: onClarifiedBuild,
     });
     const { reset: resetClarification } = clarification;
 

@@ -1,9 +1,10 @@
+import { type AppClarification } from '@lightdash/common';
 import { act, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHookWithProviders } from '../../../testing/testUtils';
+import { useClarificationRound } from './useClarificationRound';
 import { useClarifyApp } from './useClarifyApp';
 import { type VizBuildRequest } from './useDataAppVizBuild';
-import { useVizClarification } from './useVizClarification';
 
 vi.mock('./useClarifyApp', () => ({ useClarifyApp: vi.fn() }));
 
@@ -26,15 +27,25 @@ const request = (
     ...overrides,
 });
 
-describe('useVizClarification', () => {
+const toClarifyParams = (item: VizBuildRequest) => ({
+    prompt: item.description,
+    template: 'data_app_viz' as const,
+    fileIds: item.fileIds.length > 0 ? item.fileIds : undefined,
+});
+
+describe('useClarificationRound', () => {
     let clarify: ReturnType<typeof vi.fn>;
-    let onBuild: (request: VizBuildRequest) => void;
+    let onBuild: (
+        request: VizBuildRequest,
+        clarifications: AppClarification[],
+    ) => void;
 
     const setup = (isFirstBuild = true) =>
         renderHookWithProviders(() =>
-            useVizClarification({
+            useClarificationRound<VizBuildRequest>({
                 projectUuid: 'project-1',
                 isFirstBuild,
+                toClarifyParams,
                 onBuild,
             }),
         );
@@ -87,7 +98,7 @@ describe('useVizClarification', () => {
         act(() => result.current.send(request()));
 
         await waitFor(() => expect(result.current.fellThrough).toBe(true));
-        expect(onBuild).toHaveBeenCalledWith(request());
+        expect(onBuild).toHaveBeenCalledWith(request(), []);
     });
 
     it('never asks on a revision', async () => {
@@ -111,16 +122,9 @@ describe('useVizClarification', () => {
         act(() => result.current.answer(0, '  monthly  '));
         act(() => result.current.build(false));
 
-        expect(onBuild).toHaveBeenCalledWith(
-            request({
-                clarifications: [
-                    {
-                        question: 'Over time, or one period?',
-                        answer: 'monthly',
-                    },
-                ],
-            }),
-        );
+        expect(onBuild).toHaveBeenCalledWith(request(), [
+            { question: 'Over time, or one period?', answer: 'monthly' },
+        ]);
         expect(result.current.pending).toBeNull();
     });
 
@@ -134,7 +138,7 @@ describe('useVizClarification', () => {
         act(() => result.current.answer(0, 'monthly'));
         act(() => result.current.build(true));
 
-        expect(onBuild).toHaveBeenCalledWith(request());
+        expect(onBuild).toHaveBeenCalledWith(request(), []);
     });
 
     it('hands the prompt back when the round is abandoned mid-flight', async () => {
@@ -181,6 +185,8 @@ describe('useVizClarification', () => {
             name: 'data_app.clarify_round_resolved',
             properties: {
                 projectId: 'project-1',
+                // Tells the two builders apart on one shared event.
+                template: 'data_app_viz',
                 outcome: 'answered',
                 questionCount: 2,
                 answeredCount: 1,
@@ -200,6 +206,29 @@ describe('useVizClarification', () => {
                     }),
                 }),
             ),
+        );
+    });
+
+    it('builds once when the build itself throws', async () => {
+        // The no-questions path builds from inside the clarify handler. A
+        // throw there must not be read as the clarifier failing and start a
+        // second build.
+        onBuild = vi.fn(() => {
+            throw new Error('generate blew up');
+        });
+        const { result } = setup();
+
+        act(() => result.current.send(request()));
+
+        await waitFor(() => expect(onBuild).toHaveBeenCalledTimes(1));
+        expect(result.current.fellThrough).toBe(false);
+        expect(track).toHaveBeenCalledTimes(1);
+        expect(track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                properties: expect.objectContaining({
+                    outcome: 'no_questions',
+                }),
+            }),
         );
     });
 });
