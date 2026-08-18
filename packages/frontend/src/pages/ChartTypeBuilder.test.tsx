@@ -15,8 +15,10 @@ import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useDataAppVisualization } from '../features/apps/hooks/useDataAppVisualization';
 import { useDataAppVizBuild } from '../features/apps/hooks/useDataAppVizBuild';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
+import { useVizClarification } from '../features/apps/hooks/useVizClarification';
 import { appVersion } from '../features/apps/testing/appVersionHistory';
 import { buildStub } from '../features/apps/testing/dataAppVizBuildStub';
+import { clarificationStub } from '../features/apps/testing/vizClarificationStub';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../testing/testUtils';
 import ChartTypeBuilder from './ChartTypeBuilder';
@@ -41,6 +43,9 @@ vi.mock('../features/apps/hooks/useDataAppVizBuild', () => ({
 }));
 vi.mock('../features/apps/hooks/useDataAppVisualization', () => ({
     useDataAppVisualization: vi.fn(),
+}));
+vi.mock('../features/apps/hooks/useVizClarification', () => ({
+    useVizClarification: vi.fn(),
 }));
 vi.mock('../features/apps/hooks/useAppBuildPoller', () => ({
     useAppBuildPoller: vi.fn(),
@@ -165,6 +170,7 @@ describe('ChartTypeBuilder', () => {
         vi.mocked(useCanCreateDataApp).mockReturnValue(true);
         vi.mocked(useCanEditDataApp).mockReturnValue(true);
         vi.mocked(useDataAppVizBuild).mockReturnValue(buildStub());
+        vi.mocked(useVizClarification).mockReturnValue(clarificationStub());
         vi.mocked(useDataAppVisualization).mockReturnValue({
             data: undefined,
         } as ReturnType<typeof useDataAppVisualization>);
@@ -581,5 +587,35 @@ describe('ChartTypeBuilder', () => {
         expect(screen.getByText('Sandbox crashed')).toBeInTheDocument();
         // Nothing is running any more, so the retry has to be typeable.
         expect(screen.getByPlaceholderText('Ask for a change…')).toBeEnabled();
+    });
+
+    it('clarifies a first prompt, but never a revision', () => {
+        renderBuilder('/projects/p1/chart-types/new');
+        expect(vi.mocked(useVizClarification).mock.lastCall?.[0]).toMatchObject(
+            { isFirstBuild: true },
+        );
+
+        setApp(appMeta());
+        vi.mocked(useAppVersionHistory).mockReturnValue(
+            historyStub([appVersion({ version: 1, status: 'ready' })], 1),
+        );
+        renderBuilder('/projects/p1/chart-types/viz-1');
+        expect(vi.mocked(useVizClarification).mock.lastCall?.[0]).toMatchObject(
+            { isFirstBuild: false },
+        );
+    });
+
+    it('says when a build started without the clarifier', () => {
+        vi.mocked(useDataAppVizBuild).mockReturnValue(
+            buildStub({ isBuilding: true, pendingPrompt: 'show revenue' }),
+        );
+        vi.mocked(useVizClarification).mockReturnValue(
+            clarificationStub({ fellThrough: true }),
+        );
+        renderBuilder('/projects/p1/chart-types/new');
+
+        expect(
+            screen.getByText(/Couldn’t reach the clarifier/),
+        ).toBeInTheDocument();
     });
 });

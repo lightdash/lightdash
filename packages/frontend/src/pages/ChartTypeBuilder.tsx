@@ -35,6 +35,7 @@ import { useDataAppVisualization } from '../features/apps/hooks/useDataAppVisual
 import { useDataAppVizBuild } from '../features/apps/hooks/useDataAppVizBuild';
 import { useElapsedClock } from '../features/apps/hooks/useElapsedClock';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
+import { useVizClarification } from '../features/apps/hooks/useVizClarification';
 import { buildSampleVizContext } from '../features/apps/utils/sampleVizContext';
 import { useResolvedColorPalette } from '../hooks/appearance/useResolvedColorPalette';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
@@ -72,6 +73,15 @@ const ChartTypeBuilder: FC = () => {
         dataAppVizUuid: activeVizUuid ?? null,
         onCreated: noop,
     });
+
+    // Questions only before the first build: once a version exists, intent is
+    // grounded in what is on screen.
+    const clarification = useVizClarification({
+        projectUuid,
+        isFirstBuild: activeVizUuid === undefined,
+        onBuild: build.send,
+    });
+    const { reset: resetClarification } = clarification;
 
     const historyUuid = activeVizUuid ?? build.appUuid;
     const history = useAppVersionHistory(projectUuid ?? '', historyUuid);
@@ -141,7 +151,8 @@ const ChartTypeBuilder: FC = () => {
         setColorPaletteUuid(null);
         setIsHistoryOpen(false);
         clearModelPick();
-    }, [urlVizUuid, clearModelPick]);
+        resetClarification();
+    }, [urlVizUuid, clearModelPick, resetClarification]);
 
     const isBuilding = build.isBuilding || historyLatestInProgress;
 
@@ -358,6 +369,11 @@ const ChartTypeBuilder: FC = () => {
                         previewVersion={previewVersion}
                         isBuilding={isBuilding}
                         failureMessage={failureMessage}
+                        isClarifyRoundOpen={
+                            clarification.clarifyingPrompt !== null ||
+                            clarification.pending !== null
+                        }
+                        clarifierUnavailable={clarification.fellThrough}
                         previewContext={previewContext}
                         configurePanel={configurePanel}
                         onPickExample={
@@ -382,6 +398,7 @@ const ChartTypeBuilder: FC = () => {
                             build={build}
                             onCancelBuild={onCancelBuild}
                             modelSelection={modelSelection}
+                            clarification={clarification}
                         />
                     )}
                 </Box>

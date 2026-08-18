@@ -5,6 +5,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { type DataAppModelSelection } from '../hooks/useDataAppModelSelection';
 import { type DataAppVizBuildState } from '../hooks/useDataAppVizBuild';
+import { type VizClarification } from '../hooks/useVizClarification';
+import { clarificationStub } from '../testing/vizClarificationStub';
 import BuilderPromptBar from './BuilderPromptBar';
 
 // The real composer is TipTap; a text input carries the same handle contract.
@@ -21,9 +23,17 @@ vi.mock('../../../components/common/PromptComposer/PromptComposer', () => ({
             onEmptyChange: (isEmpty: boolean) => void;
             onSubmit: () => void;
             submitDisabled?: boolean;
+            disabled?: boolean;
         }
     >(function MockComposer(
-        { placeholder, toolbarRight, onEmptyChange, onSubmit, submitDisabled },
+        {
+            placeholder,
+            toolbarRight,
+            onEmptyChange,
+            onSubmit,
+            submitDisabled,
+            disabled,
+        },
         ref,
     ) {
         const inputRef = useRef<HTMLInputElement>(null);
@@ -47,6 +57,7 @@ vi.mock('../../../components/common/PromptComposer/PromptComposer', () => ({
                 <input
                     ref={inputRef}
                     placeholder={placeholder}
+                    disabled={disabled}
                     onChange={(event) =>
                         onEmptyChange(event.target.value === '')
                     }
@@ -115,12 +126,16 @@ const promptBar = ({
     latestReadyVersion = null,
     model = modelSelection('sonnet'),
     onCancelBuild = isBuilding ? vi.fn() : null,
+    // A round with nothing to ask passes the request straight to the build,
+    // which is what most of these tests are watching for.
+    clarification = clarificationStub({ send: build.send }),
 }: {
     build?: DataAppVizBuildState;
     isBuilding?: boolean;
     latestReadyVersion?: number | null;
     model?: DataAppModelSelection;
     onCancelBuild?: (() => void) | null;
+    clarification?: VizClarification;
 } = {}) => (
     <BuilderPromptBar
         projectUuid="p1"
@@ -134,6 +149,7 @@ const promptBar = ({
         build={build}
         onCancelBuild={onCancelBuild}
         modelSelection={model}
+        clarification={clarification}
     />
 );
 
@@ -157,6 +173,7 @@ describe('BuilderPromptBar', () => {
             description: 'a funnel of signup steps',
             fileIds: [],
             claudeModel: 'haiku',
+            clarifications: [],
         });
     });
 
@@ -203,6 +220,7 @@ describe('BuilderPromptBar', () => {
                 description: 'hide the axis labels',
                 fileIds: [],
                 claudeModel: 'sonnet',
+                clarifications: [],
             }),
         );
 
@@ -309,6 +327,7 @@ describe('BuilderPromptBar', () => {
                 description: 'group by quarter instead',
                 fileIds: [],
                 claudeModel: 'sonnet',
+                clarifications: [],
             }),
         );
     });
@@ -393,6 +412,113 @@ describe('BuilderPromptBar', () => {
         expect(
             screen.getByRole('button', { name: 'Cancelling generation' }),
         ).toBeDisabled();
+    });
+
+    it('sends a first prompt into the clarifying round rather than the build', async () => {
+        const send = vi.fn();
+        const clarifySend = vi.fn();
+        renderWithProviders(
+            promptBar({
+                build: buildState({ send }),
+                clarification: clarificationStub({ send: clarifySend }),
+            }),
+        );
+
+        await userEvent.type(
+            screen.getByPlaceholderText('Ask for a change…'),
+            'show revenue split by team',
+        );
+        await userEvent.click(screen.getByLabelText('Send'));
+
+        expect(send).not.toHaveBeenCalled();
+        expect(clarifySend).toHaveBeenCalledWith({
+            description: 'show revenue split by team',
+            fileIds: [],
+            claudeModel: 'sonnet',
+            clarifications: [],
+        });
+    });
+
+    it('reports the wait on the clarifier, and hands the prompt back on cancel', async () => {
+        const abandon = vi.fn(() => 'show revenue split by team');
+        renderWithProviders(
+            promptBar({
+                clarification: clarificationStub({
+                    clarifyingPrompt: 'show revenue split by team',
+                    abandon,
+                }),
+            }),
+        );
+
+        expect(screen.getByText('Reading your prompt…')).toBeInTheDocument();
+        expect(
+            screen.getByPlaceholderText('Reading your prompt…'),
+        ).toBeDisabled();
+
+        await userEvent.click(screen.getByText('Cancel'));
+
+        expect(abandon).toHaveBeenCalled();
+        expect(
+            screen.getByDisplayValue('show revenue split by team'),
+        ).toBeInTheDocument();
+    });
+
+    it('locks the composer while the questions are open, and builds with the answers', async () => {
+        const send = vi.fn();
+        const build = vi.fn();
+        const answer = vi.fn();
+        renderWithProviders(
+            promptBar({
+                build: buildState({ send }),
+                clarification: clarificationStub({
+                    pending: {
+                        prompt: 'show revenue split by team',
+                        questions: ['Over time, or one period?'],
+                    },
+                    answers: [''],
+                    answer,
+                    build,
+                }),
+            }),
+        );
+
+        const composer = screen.getByPlaceholderText(
+            'Answer the questions, or skip, to build…',
+        );
+        expect(composer).toBeDisabled();
+        expect(screen.getByLabelText('Send')).toBeDisabled();
+        expect(screen.getByText('0 of 1 answered')).toBeInTheDocument();
+
+        await userEvent.type(
+            screen.getByLabelText('Over time, or one period?'),
+            'monthly',
+        );
+        expect(answer).toHaveBeenCalled();
+
+        await userEvent.click(screen.getByRole('button', { name: 'Build' }));
+
+        expect(build).toHaveBeenCalledWith(false);
+        expect(send).not.toHaveBeenCalled();
+    });
+
+    it('skips the questions and builds anyway', async () => {
+        const build = vi.fn();
+        renderWithProviders(
+            promptBar({
+                clarification: clarificationStub({
+                    pending: {
+                        prompt: 'show revenue split by team',
+                        questions: ['Over time, or one period?'],
+                    },
+                    answers: [''],
+                    build,
+                }),
+            }),
+        );
+
+        await userEvent.click(screen.getByText('Skip and build anyway'));
+
+        expect(build).toHaveBeenCalledWith(true);
     });
 
     it('surfaces a cancellation failure and keeps cancel available', () => {

@@ -1,0 +1,203 @@
+import { act, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderHookWithProviders } from '../../../testing/testUtils';
+import { useClarifyApp } from './useClarifyApp';
+import { type VizBuildRequest } from './useDataAppVizBuild';
+import { useVizClarification } from './useVizClarification';
+
+vi.mock('./useClarifyApp', () => ({ useClarifyApp: vi.fn() }));
+
+const track = vi.fn();
+vi.mock('../../../providers/Tracking/useTracking', () => ({
+    default: () => ({ track }),
+}));
+
+const mockedClarify = vi.mocked(useClarifyApp);
+
+const request = (
+    overrides: Partial<VizBuildRequest> = {},
+): VizBuildRequest => ({
+    description: 'show revenue split by team',
+    fileIds: [],
+    claudeModel: 'sonnet',
+    clarifications: [],
+    ...overrides,
+});
+
+describe('useVizClarification', () => {
+    let clarify: ReturnType<typeof vi.fn>;
+    let onBuild: (request: VizBuildRequest) => void;
+
+    const setup = (isFirstBuild = true) =>
+        renderHookWithProviders(() =>
+            useVizClarification({
+                projectUuid: 'project-1',
+                isFirstBuild,
+                onBuild,
+            }),
+        );
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        onBuild = vi.fn();
+        track.mockClear();
+        clarify = vi.fn().mockResolvedValue({ questions: [] });
+        mockedClarify.mockReturnValue({
+            mutateAsync: clarify,
+        } as unknown as ReturnType<typeof useClarifyApp>);
+    });
+
+    it('asks the clarifier before a first build, and holds the build back', async () => {
+        clarify.mockResolvedValue({
+            questions: ['Over time, or one period?', 'Absolute, or share?'],
+        });
+        const { result } = setup();
+
+        act(() => result.current.send(request()));
+
+        await waitFor(() =>
+            expect(result.current.pending?.questions).toHaveLength(2),
+        );
+        expect(clarify).toHaveBeenCalledWith({
+            projectUuid: 'project-1',
+            prompt: 'show revenue split by team',
+            template: 'data_app_viz',
+            fileIds: undefined,
+            signal: expect.any(AbortSignal),
+        });
+        expect(onBuild).not.toHaveBeenCalled();
+    });
+
+    it('builds straight away when the prompt needs no questions', async () => {
+        const { result } = setup();
+
+        act(() => result.current.send(request()));
+
+        await waitFor(() => expect(onBuild).toHaveBeenCalledTimes(1));
+        expect(result.current.pending).toBeNull();
+        expect(result.current.fellThrough).toBe(false);
+    });
+
+    it('builds anyway, and says so, when the clarifier cannot be reached', async () => {
+        clarify.mockRejectedValue(new Error('network'));
+        const { result } = setup();
+
+        act(() => result.current.send(request()));
+
+        await waitFor(() => expect(result.current.fellThrough).toBe(true));
+        expect(onBuild).toHaveBeenCalledWith(request());
+    });
+
+    it('never asks on a revision', async () => {
+        const { result } = setup(false);
+
+        act(() => result.current.send(request()));
+
+        await waitFor(() => expect(onBuild).toHaveBeenCalledTimes(1));
+        expect(clarify).not.toHaveBeenCalled();
+    });
+
+    it('folds answered questions into the build and drops the blanks', async () => {
+        clarify.mockResolvedValue({
+            questions: ['Over time, or one period?', 'Absolute, or share?'],
+        });
+        const { result } = setup();
+
+        act(() => result.current.send(request()));
+        await waitFor(() => expect(result.current.pending).not.toBeNull());
+
+        act(() => result.current.answer(0, '  monthly  '));
+        act(() => result.current.build(false));
+
+        expect(onBuild).toHaveBeenCalledWith(
+            request({
+                clarifications: [
+                    {
+                        question: 'Over time, or one period?',
+                        answer: 'monthly',
+                    },
+                ],
+            }),
+        );
+        expect(result.current.pending).toBeNull();
+    });
+
+    it('skips with no answers at all', async () => {
+        clarify.mockResolvedValue({ questions: ['Over time?'] });
+        const { result } = setup();
+
+        act(() => result.current.send(request()));
+        await waitFor(() => expect(result.current.pending).not.toBeNull());
+
+        act(() => result.current.answer(0, 'monthly'));
+        act(() => result.current.build(true));
+
+        expect(onBuild).toHaveBeenCalledWith(request());
+    });
+
+    it('hands the prompt back when the round is abandoned mid-flight', async () => {
+        let resolveClarify: (value: { questions: string[] }) => void = () => {};
+        clarify.mockReturnValue(
+            new Promise<{ questions: string[] }>((resolve) => {
+                resolveClarify = resolve;
+            }),
+        );
+        const { result } = setup();
+
+        act(() => result.current.send(request()));
+        expect(result.current.clarifyingPrompt).toBe(
+            'show revenue split by team',
+        );
+
+        let abandoned: string | null = null;
+        act(() => {
+            abandoned = result.current.abandon();
+        });
+        expect(abandoned).toBe('show revenue split by team');
+
+        // The request goes with it: nobody is waiting on that answer.
+        expect(clarify.mock.lastCall?.[0].signal.aborted).toBe(true);
+
+        // A late answer cannot reopen a round the user walked away from.
+        await act(async () => {
+            resolveClarify({ questions: ['Over time?'] });
+        });
+        expect(result.current.pending).toBeNull();
+        expect(onBuild).not.toHaveBeenCalled();
+    });
+
+    it('reports how every round ended', async () => {
+        clarify.mockResolvedValue({ questions: ['Over time?', 'Or share?'] });
+        const { result } = setup();
+
+        act(() => result.current.send(request()));
+        await waitFor(() => expect(result.current.pending).not.toBeNull());
+        act(() => result.current.answer(0, 'monthly'));
+        act(() => result.current.build(false));
+
+        expect(track).toHaveBeenCalledWith({
+            name: 'data_app.clarify_round_resolved',
+            properties: {
+                projectId: 'project-1',
+                outcome: 'answered',
+                questionCount: 2,
+                answeredCount: 1,
+            },
+        });
+
+        // An empty question list is the shape a failed clarifier arrives in,
+        // so it has to be visible as its own outcome.
+        track.mockClear();
+        clarify.mockResolvedValue({ questions: [] });
+        act(() => result.current.send(request()));
+        await waitFor(() =>
+            expect(track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    properties: expect.objectContaining({
+                        outcome: 'no_questions',
+                    }),
+                }),
+            ),
+        );
+    });
+});

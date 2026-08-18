@@ -121,6 +121,7 @@ describe('useDataAppVizBuild', () => {
                 description: 'a donut of orders by status',
                 fileIds: [],
                 claudeModel: 'sonnet',
+                clarifications: [],
             }),
         );
 
@@ -138,12 +139,47 @@ describe('useDataAppVizBuild', () => {
                 description: 'a donut of orders by status',
                 fileIds: [],
                 claudeModel: 'sonnet',
+                clarifications: [],
             }),
         );
 
         expect(generate.mock.lastCall?.[0]).toMatchObject({
             creationExperience: 'chart_type_builder',
         });
+    });
+
+    it('sends clarifying answers with a first build, and nothing when there are none', () => {
+        const { result } = setup();
+
+        act(() =>
+            result.current.send({
+                description: 'show revenue split by team',
+                fileIds: [],
+                claudeModel: 'sonnet',
+                clarifications: [
+                    {
+                        question: 'Over time, or one period?',
+                        answer: 'monthly',
+                    },
+                ],
+            }),
+        );
+        expect(generate.mock.lastCall?.[0]).toMatchObject({
+            clarifications: [
+                { question: 'Over time, or one period?', answer: 'monthly' },
+            ],
+        });
+
+        finishBuild(finishedVersion());
+        act(() =>
+            result.current.send({
+                description: 'a donut of orders by status',
+                fileIds: [],
+                claudeModel: 'sonnet',
+                clarifications: [],
+            }),
+        );
+        expect(generate.mock.lastCall?.[0].clarifications).toBeUndefined();
     });
 
     it('sends the picked model on both a new build and a revision', () => {
@@ -154,6 +190,7 @@ describe('useDataAppVizBuild', () => {
                 description: 'a donut of orders by status',
                 fileIds: [],
                 claudeModel: 'opus',
+                clarifications: [],
             }),
         );
         expect(generate.mock.lastCall?.[0]).toMatchObject({
@@ -170,6 +207,7 @@ describe('useDataAppVizBuild', () => {
                 description: 'make it horizontal',
                 fileIds: [],
                 claudeModel: 'haiku',
+                clarifications: [],
             }),
         );
         expect(iterate.mock.lastCall?.[0]).toMatchObject({
@@ -187,6 +225,7 @@ describe('useDataAppVizBuild', () => {
                 description: 'a donut',
                 fileIds: [],
                 claudeModel: 'sonnet',
+                clarifications: [],
             }),
         );
         const handlers = generate.mock.lastCall?.[1] as GenerateHandlers;
@@ -205,6 +244,7 @@ describe('useDataAppVizBuild', () => {
                 description: 'a donut',
                 fileIds: [],
                 claudeModel: 'sonnet',
+                clarifications: [],
             }),
         );
         const handlers = generate.mock.lastCall?.[1] as GenerateHandlers;
@@ -229,6 +269,7 @@ describe('useDataAppVizBuild', () => {
                 description: 'a donut',
                 fileIds: [],
                 claudeModel: 'sonnet',
+                clarifications: [],
             }),
         );
         const handlers = generate.mock.lastCall?.[1] as GenerateHandlers;
@@ -248,6 +289,7 @@ describe('useDataAppVizBuild', () => {
                 description: 'a donut',
                 fileIds: [],
                 claudeModel: 'sonnet',
+                clarifications: [],
             }),
         );
         const handlers = generate.mock.lastCall?.[1] as GenerateHandlers;
@@ -269,6 +311,7 @@ describe('useDataAppVizBuild', () => {
                 description: 'make the bars teal',
                 fileIds: [],
                 claudeModel: 'sonnet',
+                clarifications: [],
             }),
         );
 
@@ -295,6 +338,7 @@ describe('useDataAppVizBuild', () => {
                 description: 'make the bars teal',
                 fileIds: [],
                 claudeModel: 'sonnet',
+                clarifications: [],
             }),
         );
         const handlers = iterate.mock.lastCall?.[1] as GenerateHandlers;
@@ -322,6 +366,7 @@ describe('useDataAppVizBuild', () => {
                 description: 'make a bar chart',
                 fileIds: [],
                 claudeModel: 'sonnet',
+                clarifications: [],
             }),
         );
         act(() =>
@@ -361,6 +406,7 @@ describe('useDataAppVizBuild', () => {
                 description: 'make a bar chart',
                 fileIds: [],
                 claudeModel: 'sonnet',
+                clarifications: [],
             }),
         );
         act(() =>
@@ -382,6 +428,7 @@ describe('useDataAppVizBuild', () => {
                 description: 'make the bars teal',
                 fileIds: [],
                 claudeModel: 'sonnet',
+                clarifications: [],
             }),
         );
         const iterateHandlers = iterate.mock.lastCall?.[1] as GenerateHandlers;
@@ -413,6 +460,7 @@ describe('useDataAppVizBuild', () => {
                 description: 'make the bars teal',
                 fileIds: [],
                 claudeModel: 'sonnet',
+                clarifications: [],
             }),
         );
         const handlers = iterate.mock.lastCall?.[1] as GenerateHandlers;
@@ -434,6 +482,7 @@ describe('useDataAppVizBuild', () => {
                 description: 'a donut',
                 fileIds: [],
                 claudeModel: 'sonnet',
+                clarifications: [],
             }),
         );
         const handlers = generate.mock.lastCall?.[1] as GenerateHandlers;
@@ -443,6 +492,7 @@ describe('useDataAppVizBuild', () => {
                 description: 'actually a bar chart',
                 fileIds: [],
                 claudeModel: 'sonnet',
+                clarifications: [],
             }),
         );
 
@@ -457,6 +507,7 @@ describe('useDataAppVizBuild', () => {
                 description: 'a donut',
                 fileIds: [],
                 claudeModel: 'sonnet',
+                clarifications: [],
             }),
         );
         const generateHandlers = generate.mock

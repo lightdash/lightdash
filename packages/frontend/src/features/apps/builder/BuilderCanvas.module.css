@@ -84,3 +84,10 @@
 .skeletonBar:nth-child(6) {
     animation-delay: 0.6s;
 }
+
+/* The starter prompts recede while a clarifying round is on screen. */
+.quiet {
+    opacity: 0.3;
+    transition: opacity var(--mantine-other-transitionDuration)
+        var(--mantine-other-transitionTimingFunction);
+}

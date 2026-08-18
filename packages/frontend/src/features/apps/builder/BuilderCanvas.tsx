@@ -18,6 +18,10 @@ type Props = {
     isBuilding: boolean;
     /** Why the latest build failed, when there is nothing renderable. */
     failureMessage: string | null;
+    /** A round is waiting or on screen, so the starter prompts recede. */
+    isClarifyRoundOpen: boolean;
+    /** The running build skipped clarifying: the clarifier was unreachable. */
+    clarifierUnavailable: boolean;
     /** Sample data plus configuration from the panel; null renders the app bare. */
     previewContext: DataAppVizContext | null;
     /** The card's configuration column; null until a version declares a schema. */
@@ -73,6 +77,8 @@ const BuilderCanvas: FC<Props> = ({
     previewVersion,
     isBuilding,
     failureMessage,
+    isClarifyRoundOpen,
+    clarifierUnavailable,
     previewContext,
     configurePanel,
     onPickExample,
@@ -102,9 +108,17 @@ const BuilderCanvas: FC<Props> = ({
             ) : isFirstBuild ? (
                 <Stack gap="xl" align="center">
                     <SkeletonBars projectUuid={projectUuid} />
-                    <Text size="md" fw={600} c="ldGray.8">
-                        Building your chart type…
-                    </Text>
+                    <Stack gap={4} align="center">
+                        <Text size="md" fw={600} c="ldGray.8">
+                            Building your chart type…
+                        </Text>
+                        {clarifierUnavailable && (
+                            <Text fz="xs" c="dimmed" ta="center" maw={340}>
+                                Couldn’t reach the clarifier, so this is
+                                building from your prompt as written.
+                            </Text>
+                        )}
+                    </Stack>
                 </Stack>
             ) : failureMessage !== null ? (
                 <Stack gap="xs" align="center">
@@ -119,7 +133,12 @@ const BuilderCanvas: FC<Props> = ({
                     </Text>
                 </Stack>
             ) : (
-                <Stack gap="xl" align="center">
+                <Stack
+                    gap="xl"
+                    align="center"
+                    className={isClarifyRoundOpen ? classes.quiet : undefined}
+                    inert={isClarifyRoundOpen}
+                >
                     <Stack gap="xs" align="center">
                         <Text size="md" fw={600} c="ldGray.8">
                             Start with a prompt
