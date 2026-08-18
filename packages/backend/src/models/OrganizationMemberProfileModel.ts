@@ -29,7 +29,10 @@ import { UserAvatarsTableName } from '../database/entities/userAvatars';
 import { UserOAuthGrantsTableName } from '../database/entities/userOAuthGrants';
 import { DbUser, UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
-import { clearOrganizationExtraRoles } from './roleSetUtils';
+import {
+    assertAdminDemotionAllowed,
+    clearOrganizationExtraRoles,
+} from './roleSetUtils';
 import { getColumnMatchRegexQuery } from './SearchModel/utils/search';
 import { UserModel } from './UserModel';
 
@@ -666,38 +669,54 @@ export class OrganizationMemberProfileModel {
         data: OrganizationMemberProfileUpdate,
     ): Promise<OrganizationMemberProfile> {
         if (data.role) {
-            const sqlParams = {
-                organizationUuid,
-                userUuid,
-                role: data.role,
-            };
-            // A singular write replaces the whole role set, so extras go too.
+            const { role } = data;
+            // A singular write replaces the whole role set (extras cleared) and
+            // may not demote the organization's last active admin.
             await this.database.transaction(async (trx) => {
-                const { rows } = await trx.raw<{
-                    rows: Pick<
-                        DbOrganizationMembership,
-                        'organization_id' | 'user_id'
-                    >[];
-                }>(
-                    `
-                    UPDATE organization_memberships AS m
-                    SET role = :role FROM organizations AS o, users AS u
-                    WHERE o.organization_id = m.organization_id
-                      AND u.user_id = m.user_id
-                      AND user_uuid = :userUuid
-                      AND organization_uuid = :organizationUuid
-                        RETURNING m.organization_id, m.user_id
-                `,
-                    sqlParams,
+                const membership = await trx(OrganizationMembershipsTableName)
+                    .join(
+                        OrganizationTableName,
+                        `${OrganizationTableName}.organization_id`,
+                        `${OrganizationMembershipsTableName}.organization_id`,
+                    )
+                    .join(
+                        UserTableName,
+                        `${UserTableName}.user_id`,
+                        `${OrganizationMembershipsTableName}.user_id`,
+                    )
+                    .where(
+                        `${OrganizationTableName}.organization_uuid`,
+                        organizationUuid,
+                    )
+                    .where(`${UserTableName}.user_uuid`, userUuid)
+                    .first<
+                        Pick<
+                            DbOrganizationMembership,
+                            'organization_id' | 'user_id'
+                        >
+                    >(
+                        `${OrganizationMembershipsTableName}.organization_id`,
+                        `${OrganizationMembershipsTableName}.user_id`,
+                    );
+                if (!membership) {
+                    return;
+                }
+                await assertAdminDemotionAllowed(
+                    trx,
+                    membership.organization_id,
+                    membership.user_id,
+                    role,
                 );
-                await Promise.all(
-                    rows.map((row) =>
-                        clearOrganizationExtraRoles(
-                            trx,
-                            row.organization_id,
-                            row.user_id,
-                        ),
-                    ),
+                await trx(OrganizationMembershipsTableName)
+                    .where({
+                        organization_id: membership.organization_id,
+                        user_id: membership.user_id,
+                    })
+                    .update({ role });
+                await clearOrganizationExtraRoles(
+                    trx,
+                    membership.organization_id,
+                    membership.user_id,
                 );
             });
         }

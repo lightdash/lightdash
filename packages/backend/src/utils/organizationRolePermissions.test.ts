@@ -37,13 +37,21 @@ const customRoleCaller = ({
     } as never;
 };
 
-const rolesModelWithScopes = (scopes: string[]) =>
+const rolesModelWithScopes = (
+    scopes: string[],
+    extraRoleUuids: string[] = [],
+) =>
     ({
         getRoleWithScopesByUuid: vi.fn().mockResolvedValue({
             roleUuid: CUSTOM_ROLE,
             organizationUuid: ORG,
             level: 'organization',
             scopes,
+        }),
+        // Callers may hold extra custom roles on top of their session slot
+        getOrganizationUserRoleSet: vi.fn().mockResolvedValue({
+            systemRole: null,
+            customRoleUuids: extraRoleUuids,
         }),
     }) as unknown as RolesModel;
 

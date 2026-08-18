@@ -80,6 +80,10 @@ const buildMocks = (): Mocks => ({
             level: 'project',
             scopes: ['view:Dashboard'],
         }),
+        getOrganizationUserRoleSet: vi.fn().mockResolvedValue({
+            systemRole: null,
+            customRoleUuids: [],
+        }),
     } as AnyType,
     analytics: { track: vi.fn() } as AnyType,
     commercialFeatureFlagModel: {} as AnyType,

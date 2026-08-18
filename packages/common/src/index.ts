@@ -43,6 +43,7 @@ import { timeFrameConfigs } from './utils/timeFrames';
 import type { PivotValuesColumn } from './visualizations/types';
 
 dayjs.extend(utc);
+export { getPermissionsFromAbilityRules } from './authorization/abilityPermissions';
 export * from './authorization/buildAccountHelpers';
 export { collapseAbilityRules } from './authorization/collapseAbilityRules';
 export {
