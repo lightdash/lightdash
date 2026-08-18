@@ -20,13 +20,15 @@ body {
     font-size: 14px;
 }
 
-/* Mantine v8 gives Text/Anchor a `md` (16px) fallback font-size instead of
-   inheriting like v6 did. Restore inheritance as the fallback; explicit
-   `size`/`fz` props still win because they set --text-fz / inline styles.
+/* Mantine v8 gives Text/Anchor `md` fallbacks (16px / 1.55) for font-size and
+   line-height instead of inheriting like v6 did. Restore inheritance as the
+   fallback; explicit `size`/`fz`/`lh` props still win because they set
+   --text-fz/--text-lh or inline styles.
    Must load after @mantine/core/styles.css to win the cascade tie. */
 .mantine-Text-root,
 .mantine-Anchor-root {
     font-size: var(--text-fz, inherit);
+    line-height: var(--text-lh, inherit);
 }
 
 p {

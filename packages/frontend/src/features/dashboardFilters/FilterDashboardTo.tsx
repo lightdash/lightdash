@@ -73,14 +73,11 @@ export const FilterDashboardTo: FC<Props> = ({ filters, onAddFilter }) => {
                                 }
                             >
                                 <Group gap={4} wrap="nowrap">
-                                    <Text span lh="inherit">
-                                        {label}
-                                    </Text>
+                                    <Text span>{label}</Text>
                                     <TruncatedText
                                         inline
                                         fw={500}
                                         fz="inherit"
-                                        lh="inherit"
                                         maxWidth={MAX_FILTER_VALUE_WIDTH}
                                     >
                                         {valueText}
