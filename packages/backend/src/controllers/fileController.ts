@@ -67,28 +67,35 @@ export class FileController extends BaseController {
             throw new NotFoundError('Cannot find file');
         }
 
-        const { stream, fileType, s3Key } = await this.services
-            .getPersistentDownloadFileService()
-            .getFileStream(fileId, {
-                account: req.account,
-                downloadToken,
-                ip: req.ip,
-                userAgent: req.headers['user-agent'],
-            });
+        const { stream, fileType, s3Key, contentDisposition } =
+            await this.services
+                .getPersistentDownloadFileService()
+                .getFileStream(fileId, {
+                    account: req.account,
+                    downloadToken,
+                    ip: req.ip,
+                    userAgent: req.headers['user-agent'],
+                });
 
         const res = req.res!;
         const contentType =
             FILE_TYPE_TO_MIME[fileType] ?? 'application/octet-stream';
-        const filename = path.basename(s3Key);
+
+        // The header stored at upload time holds the friendly download name;
+        // the storage key is only a fallback. Reject CR/LF so an object written
+        // outside the current upload path can't inject response headers.
+        const storedDisposition =
+            contentDisposition && !/[\r\n]/.test(contentDisposition)
+                ? contentDisposition
+                : null;
 
         res.setHeader('Content-Type', contentType);
-        // Use RFC 5987 encoding so non-ASCII characters in the filename
-        // (em-dashes, accented letters, emojis from dashboard names) don't
-        // make Node throw `ERR_INVALID_CHAR` on setHeader, which would turn
-        // the download into a ~200-byte JSON error response (PROD-7227).
+        // RFC 5987 encoding keeps non-ASCII names (em-dashes, accents, emojis)
+        // from making Node throw `ERR_INVALID_CHAR` on setHeader.
         res.setHeader(
             'Content-Disposition',
-            createContentDispositionHeader(filename),
+            storedDisposition ??
+                createContentDispositionHeader(path.basename(s3Key)),
         );
         res.setHeader('X-Robots-Tag', 'noindex, nofollow');
 

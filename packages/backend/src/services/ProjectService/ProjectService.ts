@@ -7473,7 +7473,11 @@ export class ProjectService extends BaseService {
             case DownloadFileType.JSONL:
                 return fs.createReadStream(downloadFile.path);
             case DownloadFileType.S3_JSONL:
-                return this.fileStorageClient.getFileStream(downloadFile.path);
+                return (
+                    await this.fileStorageClient.getFileStream(
+                        downloadFile.path,
+                    )
+                ).stream;
             default:
                 throw new ParameterError('File is not a valid JSONL file');
         }

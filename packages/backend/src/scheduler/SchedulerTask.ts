@@ -1952,7 +1952,7 @@ export default class SchedulerTask {
             return undefined;
         }
         try {
-            const stream =
+            const { stream } =
                 await this.fileStorageClient.getFileStream(imageS3Key);
             const chunks: Buffer[] = [];
             for await (const chunk of stream) {
@@ -2171,9 +2171,11 @@ export default class SchedulerTask {
                     try {
                         // Add the pdf to the thread
                         const pdfBuffer = this.fileStorageClient.isEnabled()
-                            ? await this.fileStorageClient.getFileStream(
-                                  pdfFile.fileName,
-                              )
+                            ? (
+                                  await this.fileStorageClient.getFileStream(
+                                      pdfFile.fileName,
+                                  )
+                              ).stream
                             : await fs.readFile(pdfFile.source);
 
                         await this.slackClient.postFileToThread({
@@ -2222,9 +2224,11 @@ export default class SchedulerTask {
 
                 // Post PDF file as a separate message
                 const pdfBuffer = this.fileStorageClient.isEnabled()
-                    ? await this.fileStorageClient.getFileStream(
-                          pdfFile.fileName,
-                      )
+                    ? (
+                          await this.fileStorageClient.getFileStream(
+                              pdfFile.fileName,
+                          )
+                      ).stream
                     : await fs.readFile(pdfFile.source);
 
                 await this.slackClient.postFileToThread({
