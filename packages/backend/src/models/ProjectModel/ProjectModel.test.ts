@@ -42,6 +42,7 @@ import {
     CachedExploreTableName,
     ProjectTableName,
 } from '../../database/entities/projects';
+import { SavedChartSlugMappingsTableName } from '../../database/entities/savedChartSlugMappings';
 import {
     SpaceTableName,
     SpaceUserAccessTableName,
@@ -316,6 +317,51 @@ describe('ProjectModel', () => {
         const [clear] = tracker.history.delete;
         expect(clear.sql).toContain(ProjectMembershipCustomRolesTableName);
         expect(clear.bindings).toEqual([5, 7]);
+    });
+
+    test('copies chart aliases to the mapped preview chart UUIDs only', async () => {
+        tracker.on.select(SavedChartSlugMappingsTableName).responseOnce([
+            { saved_query_uuid: 'source-chart-1', slug: 'old-chart-1' },
+            { saved_query_uuid: 'source-chart-2', slug: 'old-chart-2' },
+        ]);
+        tracker.on.insert(SavedChartSlugMappingsTableName).responseOnce([]);
+
+        await model.copyChartSlugMappingsToPreview(
+            database,
+            'source-project',
+            'preview-project',
+            [
+                {
+                    sourceChartUuid: 'source-chart-1',
+                    previewChartUuid: 'preview-chart-1',
+                },
+                {
+                    sourceChartUuid: 'source-chart-2',
+                    previewChartUuid: 'preview-chart-2',
+                },
+            ],
+        );
+
+        const [selectQuery] = tracker.history.select;
+        expect(selectQuery.bindings).toEqual(
+            expect.arrayContaining([
+                'source-project',
+                'source-chart-1',
+                'source-chart-2',
+            ]),
+        );
+        const [insertQuery] = tracker.history.insert;
+        expect(insertQuery.bindings).toEqual(
+            expect.arrayContaining([
+                'preview-project',
+                'preview-chart-1',
+                'old-chart-1',
+                'preview-chart-2',
+                'old-chart-2',
+            ]),
+        );
+        expect(insertQuery.bindings).not.toContain('source-chart-1');
+        expect(insertQuery.bindings).not.toContain('source-chart-2');
     });
 
     describe('should convert outdated metric filters in explores', () => {
