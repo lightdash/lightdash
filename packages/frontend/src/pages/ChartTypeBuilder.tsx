@@ -15,6 +15,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Link, Navigate, useNavigate, useParams } from 'react-router';
 import { validate as isUuidString } from 'uuid';
 import { DocumentTitle } from '../components/common/DocumentTitle';
@@ -31,6 +32,7 @@ import {
 import { useDataAppModelSelection } from '../features/apps/hooks/useDataAppModelSelection';
 import { useElapsedClock } from '../features/apps/hooks/useElapsedClock';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
+import { getVersionNarration } from '../features/apps/utils/versionNarration';
 import BuilderCanvas from '../features/chartTypes/builder/BuilderCanvas';
 import BuilderPromptBar, {
     type BuilderPromptBarHandle,
@@ -181,6 +183,15 @@ const ChartTypeBuilder: FC = () => {
     }, [urlVizUuid, clearModelPick, resetClarification]);
 
     const isBuilding = build.isBuilding || historyLatestInProgress;
+    const liveNarration = useMemo(
+        () =>
+            getVersionNarration(
+                historyLatestInProgress
+                    ? history.latest?.statusHistory
+                    : undefined,
+            ),
+        [history.latest, historyLatestInProgress],
+    );
 
     // A build started elsewhere needs polling here; a build sent from this
     // page already polls inside useDataAppVizBuild.
@@ -387,63 +398,81 @@ const ChartTypeBuilder: FC = () => {
                     )
                 }
             />
-            <Box className={classes.main}>
-                <Box className={classes.content}>
-                    <BuilderCanvas
-                        projectUuid={projectUuid}
-                        appUuid={activeVizUuid ?? null}
-                        previewVersion={previewVersion}
-                        isBuilding={isBuilding}
-                        failureMessage={failureMessage}
-                        isClarifyRoundOpen={
-                            clarification.clarifyingPrompt !== null ||
-                            clarification.pending !== null
-                        }
-                        clarifierUnavailable={clarification.fellThrough}
-                        previewContext={previewContext}
-                        configurePanel={configurePanel}
-                        onPickExample={
-                            isPromptBarMounted ? handlePickExample : null
-                        }
-                    />
-                    {isPromptBarMounted && (
-                        <BuilderPromptBar
-                            ref={promptBarRef}
-                            sessionKey={promptSessionKey}
+            <PanelGroup direction="horizontal" className={classes.main}>
+                <Panel id="chart-type-builder-canvas" order={1} minSize={50}>
+                    <Box className={classes.content}>
+                        <BuilderCanvas
                             projectUuid={projectUuid}
-                            composerAppUuid={
-                                activeVizUuid ??
-                                build.appUuid ??
-                                build.draftAppUuid
-                            }
-                            hasVersions={history.versions.length > 0}
+                            appUuid={activeVizUuid ?? null}
+                            previewVersion={previewVersion}
                             isBuilding={isBuilding}
-                            buildingPrompt={buildingPrompt}
-                            elapsed={elapsed}
-                            latestReadyVersion={history.latestReadyVersion}
-                            build={build}
-                            onCancelBuild={onCancelBuild}
-                            modelSelection={modelSelection}
-                            clarification={clarification}
+                            failureMessage={failureMessage}
+                            isClarifyRoundOpen={
+                                clarification.clarifyingPrompt !== null ||
+                                clarification.pending !== null
+                            }
+                            clarifierUnavailable={clarification.fellThrough}
+                            previewContext={previewContext}
+                            configurePanel={configurePanel}
+                            onPickExample={
+                                isPromptBarMounted ? handlePickExample : null
+                            }
                         />
-                    )}
-                </Box>
+                        {isPromptBarMounted && (
+                            <BuilderPromptBar
+                                ref={promptBarRef}
+                                sessionKey={promptSessionKey}
+                                projectUuid={projectUuid}
+                                composerAppUuid={
+                                    activeVizUuid ??
+                                    build.appUuid ??
+                                    build.draftAppUuid
+                                }
+                                hasVersions={history.versions.length > 0}
+                                isBuilding={isBuilding}
+                                buildingPrompt={buildingPrompt}
+                                elapsed={elapsed}
+                                latestReadyVersion={history.latestReadyVersion}
+                                build={build}
+                                onCancelBuild={onCancelBuild}
+                                narration={liveNarration}
+                                modelSelection={modelSelection}
+                                clarification={clarification}
+                            />
+                        )}
+                    </Box>
+                </Panel>
                 {hasHistory && isHistoryOpen && (
-                    <VersionHistoryPanel
-                        projectUuid={projectUuid}
-                        appUuid={activeVizUuid}
-                        versions={history.versions}
-                        latestReadyVersion={history.latestReadyVersion}
-                        viewedVersion={effectiveViewedVersion}
-                        onView={handleView}
-                        onClose={handleCloseHistory}
-                        build={build}
-                        hasEarlier={history.hasEarlier}
-                        isFetchingEarlier={history.isFetchingEarlier}
-                        fetchEarlier={history.fetchEarlier}
-                    />
+                    <>
+                        <PanelResizeHandle
+                            className={classes.historyResizeHandle}
+                            aria-label="Resize version history"
+                        />
+                        <Panel
+                            id="chart-type-builder-history"
+                            order={2}
+                            defaultSize={20}
+                            minSize={15}
+                            maxSize={50}
+                            className={classes.historyPanel}
+                        >
+                            <VersionHistoryPanel
+                                projectUuid={projectUuid}
+                                appUuid={activeVizUuid}
+                                versions={history.versions}
+                                latestReadyVersion={history.latestReadyVersion}
+                                viewedVersion={effectiveViewedVersion}
+                                onView={handleView}
+                                onClose={handleCloseHistory}
+                                build={build}
+                                hasEarlier={history.hasEarlier}
+                                isFetchingEarlier={history.isFetchingEarlier}
+                                fetchEarlier={history.fetchEarlier}
+                            />
+                        </Panel>
+                    </>
                 )}
-            </Box>
+            </PanelGroup>
         </Box>
     );
 };

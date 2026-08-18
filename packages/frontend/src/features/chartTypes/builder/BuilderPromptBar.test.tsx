@@ -142,6 +142,7 @@ const promptBar = ({
     latestReadyVersion = null,
     model = modelSelection('sonnet'),
     onCancelBuild = isBuilding ? vi.fn() : null,
+    narration = { reasoning: [], activity: [] },
     // A round with nothing to ask passes the request straight to the build,
     // which is what most of these tests are watching for.
     clarification = clarificationStub({ send: build.send }),
@@ -151,6 +152,7 @@ const promptBar = ({
     latestReadyVersion?: number | null;
     model?: DataAppModelSelection;
     onCancelBuild?: (() => void) | null;
+    narration?: { reasoning: string[]; activity: string[] };
     clarification?: ClarificationRound<VizBuildRequest>;
 } = {}) => (
     <BuilderPromptBar
@@ -164,6 +166,7 @@ const promptBar = ({
         latestReadyVersion={latestReadyVersion}
         build={build}
         onCancelBuild={onCancelBuild}
+        narration={narration}
         modelSelection={model}
         clarification={clarification}
     />
@@ -434,6 +437,91 @@ describe('BuilderPromptBar', () => {
         expect(screen.getByText('Building… 0:07')).toBeInTheDocument();
         expect(screen.getByText('“make it teal”')).toBeInTheDocument();
         expect(screen.getByText('Cancel')).toBeInTheDocument();
+    });
+
+    it('shows live reasoning and activity with the active build', () => {
+        const view = renderWithProviders(
+            promptBar({
+                build: buildState({ isBuilding: true }),
+                isBuilding: true,
+                narration: {
+                    reasoning: ['Choosing a horizontal layout'],
+                    activity: ['Updating Chart.tsx'],
+                },
+            }),
+        );
+
+        expect(screen.getByText('Reasoning')).toBeInTheDocument();
+        expect(
+            screen.getAllByText('Choosing a horizontal layout').length,
+        ).toBeGreaterThan(0);
+        expect(screen.getByText('Activity')).toBeInTheDocument();
+        expect(
+            screen.getAllByText('Updating Chart.tsx').length,
+        ).toBeGreaterThan(0);
+
+        view.rerender(
+            promptBar({
+                build: buildState({ isBuilding: true }),
+                isBuilding: true,
+                narration: {
+                    reasoning: [
+                        'Choosing a horizontal layout',
+                        'Sorting the categories by value',
+                    ],
+                    activity: ['Updating Chart.tsx'],
+                },
+            }),
+        );
+
+        expect(
+            screen.getAllByText('Sorting the categories by value').length,
+        ).toBeGreaterThan(0);
+    });
+
+    it('keeps queued prompts above the active build narration', async () => {
+        renderWithProviders(
+            promptBar({
+                build: buildState({ isBuilding: true }),
+                isBuilding: true,
+                narration: {
+                    reasoning: ['Choosing a horizontal layout'],
+                    activity: [],
+                },
+            }),
+        );
+        const composer = screen.getByPlaceholderText('Ask for another change…');
+
+        await userEvent.type(composer, 'use the brand palette');
+        await userEvent.keyboard('{Enter}');
+        await userEvent.type(composer, 'add a target line');
+        await userEvent.keyboard('{Enter}');
+
+        expect(
+            screen.getByRole('list', { name: '2 queued prompts' }),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Reasoning')).toBeInTheDocument();
+        expect(screen.queryByText('Activity')).not.toBeInTheDocument();
+        expect(screen.getByText('Building… 0:07')).toBeInTheDocument();
+    });
+
+    it('removes live narration when the build settles', () => {
+        const narration = {
+            reasoning: ['Choosing a horizontal layout'],
+            activity: ['Updating Chart.tsx'],
+        };
+        const view = renderWithProviders(
+            promptBar({
+                build: buildState({ isBuilding: true }),
+                isBuilding: true,
+                narration,
+            }),
+        );
+
+        view.rerender(promptBar({ narration }));
+
+        expect(screen.queryByText('Reasoning')).not.toBeInTheDocument();
+        expect(screen.queryByText('Activity')).not.toBeInTheDocument();
     });
 
     it('shows when cancellation is in progress', () => {
