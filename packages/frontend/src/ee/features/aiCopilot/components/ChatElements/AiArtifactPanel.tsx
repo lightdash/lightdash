@@ -339,7 +339,18 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                                 linkToMessage: true,
                             }}
                             compiledSql={compiledSqlQuery}
-                            mergeArtifact={isMergeArtifact}
+                            merge={
+                                isMergeArtifact
+                                    ? {
+                                          query:
+                                              semanticVizQueryData?.mergeQuery ??
+                                              null,
+                                          parameters:
+                                              semanticVizQueryData?.query
+                                                  .usedParametersValues,
+                                      }
+                                    : null
+                            }
                         />
                     )}
                     {showCloseButton && (
