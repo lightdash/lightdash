@@ -1,3 +1,10 @@
+# [1.182.0](https://github.com/lightdash/lightdash/compare/1.181.0...1.182.0) (2026-08-18)
+
+
+### Features
+
+* **autopilot:** make flag_content idempotent and skip deleted targets ([#27532](https://github.com/lightdash/lightdash/issues/27532)) ([aa6d5c1](https://github.com/lightdash/lightdash/commit/aa6d5c11a2c7d2c5b7a29ecad458d404ad5cf369)), closes [#27531](https://github.com/lightdash/lightdash/issues/27531) [#27531](https://github.com/lightdash/lightdash/issues/27531) [#27531](https://github.com/lightdash/lightdash/issues/27531)
+
 # [1.181.0](https://github.com/lightdash/lightdash/compare/1.180.0...1.181.0) (2026-08-18)
 
 
