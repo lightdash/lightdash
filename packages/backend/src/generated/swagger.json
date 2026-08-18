@@ -42667,6 +42667,7 @@
                     "too_few_sources",
                     "too_many_sources",
                     "duplicate_source_id",
+                    "reserved_source_id",
                     "empty_join_key",
                     "join_key_coverage",
                     "unknown_source_in_join_key",
@@ -53612,7 +53613,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.172.2",
+        "version": "1.172.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

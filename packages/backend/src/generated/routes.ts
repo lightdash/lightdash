@@ -42381,6 +42381,7 @@ const models: TsoaRoute.Models = {
             'too_few_sources',
             'too_many_sources',
             'duplicate_source_id',
+            'reserved_source_id',
             'empty_join_key',
             'join_key_coverage',
             'unknown_source_in_join_key',

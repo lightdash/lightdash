@@ -1,3 +1,10 @@
+## [1.172.3](https://github.com/lightdash/lightdash/compare/1.172.2...1.172.3) (2026-08-18)
+
+
+### Bug Fixes
+
+* **merge-query:** reserve the merge pseudo-table name as a source id ([#27520](https://github.com/lightdash/lightdash/issues/27520)) ([c706a9f](https://github.com/lightdash/lightdash/commit/c706a9f2036cdae689aa804280b80502b36b4939))
+
 ## [1.172.2](https://github.com/lightdash/lightdash/compare/1.172.1...1.172.2) (2026-08-17)
 
 
