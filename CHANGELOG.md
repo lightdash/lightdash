@@ -1,3 +1,10 @@
+# [1.176.0](https://github.com/lightdash/lightdash/compare/1.175.0...1.176.0) (2026-08-18)
+
+
+### Features
+
+* **content:** add delete and bulk-delete content actions ([#27524](https://github.com/lightdash/lightdash/issues/27524)) ([4d0a948](https://github.com/lightdash/lightdash/commit/4d0a9484dc86f03b1f5f026efa4646f045b80008)), closes [#24714](https://github.com/lightdash/lightdash/issues/24714) [#27523](https://github.com/lightdash/lightdash/issues/27523)
+
 # [1.175.0](https://github.com/lightdash/lightdash/compare/1.174.0...1.175.0) (2026-08-18)
 
 

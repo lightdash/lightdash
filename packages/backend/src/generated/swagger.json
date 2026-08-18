@@ -53203,6 +53203,89 @@
                 "required": ["action", "content"],
                 "type": "object"
             },
+            "ContentActionDelete": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": ["delete"],
+                        "nullable": false
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
+            "ApiContentActionBody_ContentActionDelete_": {
+                "properties": {
+                    "action": {
+                        "$ref": "#/components/schemas/ContentActionDelete"
+                    },
+                    "item": {
+                        "$ref": "#/components/schemas/ItemPayload"
+                    }
+                },
+                "required": ["action", "item"],
+                "type": "object"
+            },
+            "ContentBulkDeleteSkippedItem": {
+                "properties": {
+                    "reason": {
+                        "type": "string"
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentType"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["reason", "contentType", "uuid"],
+                "type": "object"
+            },
+            "ContentBulkDeleteResults": {
+                "properties": {
+                    "skipped": {
+                        "items": {
+                            "$ref": "#/components/schemas/ContentBulkDeleteSkippedItem"
+                        },
+                        "type": "array"
+                    },
+                    "deletedCount": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["skipped", "deletedCount"],
+                "type": "object"
+            },
+            "ApiContentBulkDeleteResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ContentBulkDeleteResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiContentBulkActionBody_ContentActionDelete_": {
+                "properties": {
+                    "action": {
+                        "$ref": "#/components/schemas/ContentActionDelete"
+                    },
+                    "content": {
+                        "items": {
+                            "$ref": "#/components/schemas/ItemPayload"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["action", "content"],
+                "type": "object"
+            },
             "DeletedChartBase": {
                 "properties": {
                     "organizationUuid": {
@@ -53785,7 +53868,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.175.0",
+        "version": "1.176.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -88054,6 +88137,114 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ApiContentBulkActionBody_ContentActionMove_"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/content/{projectUuid}/delete": {
+            "post": {
+                "operationId": "Delete content",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Delete a single item (Chart, Dashboard, Space). Soft-deletes when the\ninstance has soft delete enabled, otherwise deletes permanently.",
+                "summary": "Delete content",
+                "tags": ["Content", "Delete content", "v2", "Content"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiContentActionBody_ContentActionDelete_"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/content/bulk-action/{projectUuid}/delete": {
+            "post": {
+                "operationId": "Bulk delete content",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentBulkDeleteResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Delete multiple items (Charts, Dashboards, Spaces). Items the caller\ncannot delete are skipped and reported in the response.",
+                "summary": "Bulk delete content",
+                "tags": [
+                    "Content",
+                    "Bulk action",
+                    "Delete content",
+                    "v2",
+                    "Content"
+                ],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiContentBulkActionBody_ContentActionDelete_"
                             }
                         }
                     }
