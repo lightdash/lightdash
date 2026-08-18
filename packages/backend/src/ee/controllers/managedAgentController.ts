@@ -172,7 +172,11 @@ export class ManagedAgentController extends BaseController {
                     validActionTypes.length > 0 ? validActionTypes : undefined,
                 targetTypes:
                     validTargetTypes.length > 0 ? validTargetTypes : undefined,
-                search: search?.trim() ? search.trim() : undefined,
+                // Cap the ILIKE needle so user input cannot produce an
+                // arbitrarily large pattern
+                search: search?.trim()
+                    ? search.trim().slice(0, 200)
+                    : undefined,
                 sessionId,
                 runUuid,
                 limit:
