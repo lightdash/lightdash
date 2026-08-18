@@ -1,3 +1,10 @@
+# [1.194.0](https://github.com/lightdash/lightdash/compare/1.193.1...1.194.0) (2026-08-18)
+
+
+### Features
+
+* add chart type entry to the New menu ([#27575](https://github.com/lightdash/lightdash/issues/27575)) ([d29880d](https://github.com/lightdash/lightdash/commit/d29880d19017b6ccff81a7d7a6dc4b653c3af8d1)), closes [/linear.app/lightdash/issue/PROD-10279/add-custom-chart-type-to-the-new-menu#agent-session-49bc5](https://github.com//linear.app/lightdash/issue/PROD-10279/add-custom-chart-type-to-the-new-menu/issues/agent-session-49bc5)
+
 ## [1.193.1](https://github.com/lightdash/lightdash/compare/1.193.0...1.193.1) (2026-08-18)
 
 
