@@ -776,6 +776,10 @@
     color: var(--mantine-color-dimmed);
 }
 
-.reasoningMarkdown pre {
+.reasoningMarkdown [data-streamdown='code-block'] {
     max-width: 100%;
+}
+
+.reasoningMarkdown [data-streamdown='code-block'] pre {
+    font-size: 11px;
 }
