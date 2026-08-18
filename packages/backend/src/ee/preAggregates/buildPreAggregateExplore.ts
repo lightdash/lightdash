@@ -5,7 +5,6 @@ import {
     getPreAggregateExploreName,
     getPreAggregateMetricColumnName,
     getPreAggregateMetricComponentColumnName,
-    getSqlForTruncatedDate,
     lightdashVariablePattern,
     MetricType,
     PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER,
@@ -13,6 +12,7 @@ import {
     PreAggregateMetricRepresentationKind,
     preAggregateUtils,
     SupportedDbtAdapter,
+    timeFrameConfigs,
     timeFrameOrder,
     type CompiledDimension,
     type CompiledMetric,
@@ -268,14 +268,10 @@ const buildDimensionSql = ({
         preAggregateDef,
     });
     const materializedBaseColumnReference = `${sourceExplore.baseTable}.${materializedBaseColumnName}`;
-    const timeDimensionReference =
-        preAggregateDef.timeDimension &&
-        dimensionBaseName === preAggregateDef.timeDimension
-            ? `CAST(${materializedBaseColumnReference} AS TIMESTAMP)`
-            : materializedBaseColumnReference;
+    const baseDimensionType = getBaseDimensionType(sourceExplore, dimension);
 
     if (!dimension.timeInterval) {
-        return timeDimensionReference;
+        return materializedBaseColumnReference;
     }
 
     if (
@@ -284,14 +280,14 @@ const buildDimensionSql = ({
         dimensionBaseName === preAggregateDef.timeDimension &&
         dimension.timeInterval === preAggregateDef.granularity
     ) {
-        return timeDimensionReference;
+        return materializedBaseColumnReference;
     }
 
-    return getSqlForTruncatedDate(
+    return timeFrameConfigs[dimension.timeInterval].getSql(
         servingAdapter,
         dimension.timeInterval,
-        timeDimensionReference,
-        getBaseDimensionType(sourceExplore, dimension),
+        materializedBaseColumnReference,
+        baseDimensionType,
         startOfWeek,
     );
 };
