@@ -34,6 +34,12 @@ export enum QuerySourceType {
      * step of a multi-source pipeline.
      */
     DUCKDB = 'duckdb',
+    /**
+     * A remote TDCP server as a query source: any server speaking the
+     * tabular data context protocol draft (see types/tdcp.ts). One source
+     * type covers every remote server — the query names the server.
+     */
+    TDCP = 'tdcp',
 }
 
 /**
@@ -139,6 +145,30 @@ export type DuckdbSourceQuery = {
 };
 
 /**
+ * A query against a remote TDCP server. The rough draft names the server by
+ * url and carries a tier 2 dialect-tagged query; read/scan requests and the
+ * sources-entity registration (server by slug, credentials from the unified
+ * credential model) come with source management.
+ *
+ * @oliver: serverUrl is a draft-only placeholder so the loop is walkable
+ * end to end without the sources entity. It must become a registered-server
+ * reference before this ships — raw URLs from the request body are an SSRF
+ * surface even behind the flag.
+ */
+export type TdcpSourceQuery = {
+    sourceType: QuerySourceType.TDCP;
+    /** Names this query so other queries in the same submission can reference its results. */
+    nodeId?: QueryNodeId;
+    /** Base URL of the remote TDCP server (draft; becomes a server slug). */
+    serverUrl: string;
+    /** Query dialect tag, e.g. "sql:postgres" (see TdcpDialects). */
+    dialect: string;
+    /** Query text in the declared dialect. */
+    query: string;
+    limit?: number;
+};
+
+/**
  * The tagged union every submit endpoint takes: one shape per source,
  * discriminated by sourceType. New sources add a member here — this union is
  * the extension point, not new WarehouseTypes values.
@@ -146,7 +176,8 @@ export type DuckdbSourceQuery = {
 export type SourceQuery =
     | SemanticLayerSourceQuery
     | SqlSourceQuery
-    | DuckdbSourceQuery;
+    | DuckdbSourceQuery
+    | TdcpSourceQuery;
 
 /** A column in a source schema, aligned with ResultColumns' {reference, type}. */
 export type QuerySourceSchemaColumn = {

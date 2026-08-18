@@ -1,0 +1,87 @@
+# TDCP: tabular data context protocol (draft)
+
+The protocol track of the [multi-source query platform plan](multi-source-query-platform-plan.md): a draft MCP extension that standardizes *tabular data by reference*, so third-party sources plug into the multi-source pipeline (inbound) and Lightdash projects become governed tabular sources for external consumers (outbound). "TCP" is taken; TDCP is a working label.
+
+## Thesis
+
+MCP standardized tools and text; it has no first-class notion of a dataset — schema-described, potentially large, addressable by reference, with freshness and expiry. Every data-flavored MCP server reinvents previews, CSV-in-text, ad-hoc download links, and pagination. TDCP fills that gap, and it is built as an MCP extension (namespaced `tabular/*` methods), not a rival protocol: MCP's 2026-07-28 spec provides the extensions framework, OAuth 2.1 auth, tasks for async queries, and capability negotiation, all inherited rather than re-invented.
+
+## Core design
+
+Control plane over MCP JSON-RPC, data plane out of band:
+
+```mermaid
+flowchart TB
+    HOST["agent host / consumer"]
+    subgraph MCPL["MCP layer, inherited for free"]
+        AUTH["OAuth 2.1 auth"]
+        TASK["tasks extension"]
+    end
+    subgraph TD["TDCP extension"]
+        CAT["tabular/catalog"]
+        QRY["tabular/read | scan | query"]
+        DESC["dataset descriptor"]
+    end
+    subgraph DPL["data plane, out of band"]
+        J["JSONL, mandatory floor"]
+        A["Arrow IPC, recommended"]
+        F["Arrow Flight, optional"]
+    end
+    HOST -->|"JSON-RPC"| MCPL
+    MCPL --- TD
+    QRY --> DESC
+    DESC -->|"links"| DPL
+```
+
+- **The dataset descriptor** is the one object that matters: opaque `datasetId`, column schema, `rowCount`, `producedAt`/`expiresAt`, freshness, data-plane links (short-lived bearer tokens, never storage URLs), preview. See `TdcpDatasetDescriptor` in `packages/common/src/types/tdcp.ts`.
+- **Capability tiers**, not one query language: tier 0 `tabular/read` (CSV, Sheets, simple REST — the consumer's compose engine does the rest), tier 1 `tabular/scan` with a deliberately tiny predicate AST and an `exact` mode so thin clients never re-filter, tier 2 `tabular/query` with dialect-tagged native queries (`sql:duckdb`, `metricquery:lightdash`).
+- **Compose is a server capability, not a client obligation.** A server may declare `compose: true` and accept dataset references as named tables — so a client without a local engine sends handles to a compose-capable server. Supporting TDCP does not require the client to embed DuckDB.
+- **Async by default**: query submission resolves to a descriptor; completion is the standard async query lifecycle in-process, the MCP tasks extension on the wire.
+
+## How the draft lands in this codebase
+
+Every query source is a TDCP server behind one adapter; the `QuerySourceClient` seam, registry, service, controller and tests are untouched:
+
+```mermaid
+flowchart LR
+    subgraph SRV["TdcpServer implementations"]
+        SL["SemanticLayerTdcpServer (in-process)"]
+        SQ["SqlTdcpServer (in-process)"]
+        DK["DuckdbComposeTdcpServer (in-process, compose)"]
+        RM["RemoteTdcpServer (draft JSON-RPC wire)"]
+    end
+    AD["TdcpQuerySource adapter"]
+    RAD["RemoteTdcpQuerySource"]
+    REG["QuerySourceRegistry"]
+    PIPE["async pipeline: query_history + S3 results"]
+    SL --> AD
+    SQ --> AD
+    DK --> AD
+    RM --> RAD
+    AD --> REG
+    RAD --> REG
+    REG -->|"submitQuery yields queryUuid"| PIPE
+    RAD -->|"executeAsyncTdcpImport: data plane to S3"| PIPE
+```
+
+| Piece | Location |
+| --- | --- |
+| Protocol wire types (descriptor, catalog, tiers, dialects) | `packages/common/src/types/tdcp.ts` |
+| `TdcpServer` contract (transport-agnostic) | `packages/backend/src/services/QuerySourceService/tdcp/TdcpServer.ts` |
+| In-process servers (the former `sources/` built-ins) | `packages/backend/src/services/QuerySourceService/tdcp/servers/` |
+| Remote server client (draft JSON-RPC + JSONL data plane) | `packages/backend/src/services/QuerySourceService/tdcp/RemoteTdcpServer.ts` |
+| Adapters back onto `QuerySourceClient` | `packages/backend/src/services/QuerySourceService/sources/` |
+| Remote dataset materialization into the results pipeline | `AsyncQueryService.executeAsyncTdcpImport` |
+
+In-process servers return descriptors with `links: null` — the dataset already lives in the local results pipeline and `datasetId` is the `queryUuid`. Remote descriptors carry links; `RemoteTdcpQuerySource` imports the data plane into a local `query_history` row + S3 JSONL file, after which compose references, pagination and viz treat it like any local result.
+
+## Draft status and what is deliberately not here
+
+The `@oliver:` comments in the source mark every decision point. The headline gaps, all blocking ship but none blocking the walkable loop:
+
+- **Server registration**: `TdcpSourceQuery.serverUrl` is a raw URL in the request body — an SSRF surface that must become a registered-server reference on the sources entity, with credentials on a unified org/project/user credential model (the `ai_mcp_server_credential` shape generalized).
+- **Transport**: the remote control plane is bare JSON-RPC over HTTP; the real transport is the MCP SDK client with `PersistentMcpOAuthClientProvider`, and egress must go through `createMcpTimeoutFetch`.
+- **Data plane**: the import buffers the JSONL body; the real implementation streams response body to the S3 upload stream.
+- **Outbound**: the in-process `TdcpServer` instances are the implementation the outbound MCP extension re-exposes; the endpoint itself is not in this draft.
+- **Remote compose / handle delegation**: sending local handles to a remote compose server needs the token delegation decision before any handle leaves the deployment.
+- **Tier 1 scan**: types exist; no source implements it yet — the first API-backed source (GitHub, Attio) is the forcing function.

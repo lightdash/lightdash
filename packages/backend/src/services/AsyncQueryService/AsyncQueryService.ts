@@ -118,6 +118,7 @@ import {
     type ExecuteAsyncMetricQueryRequestParams,
     type ExecuteAsyncQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
+    type ExecuteAsyncTdcpImportRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
     type MergeQueryChart,
     type Organization,
@@ -132,6 +133,7 @@ import {
     type RunQueryTags,
     type SessionUser,
     type SpaceSummaryBase,
+    type TdcpDatasetDescriptor,
     type WarehouseExecuteAsyncQuery,
     type WarehousePhaseTimings,
     type WarehouseResults,
@@ -6887,6 +6889,191 @@ export class AsyncQueryService extends ProjectService {
                 warehouseCredentialsTypeOverride:
                     warehouseClient.credentials.type,
             });
+        } catch (e) {
+            await this.queryHistoryModel.update(
+                queryUuid,
+                projectUuid,
+                {
+                    status: QueryHistoryStatus.ERROR,
+                    error: getErrorMessage(e),
+                    errored_at: new Date(),
+                },
+                account,
+            );
+        }
+    }
+
+    /**
+     * Imports a remote TDCP dataset into the local results pipeline: a
+     * query_history row + S3 JSONL file, so downstream (compose references,
+     * pagination, viz) treats it exactly like any local query result.
+     *
+     * @oliver: deliberately a sibling of the compose path rather than a
+     * WarehouseClient impersonating the remote server — there is no SQL and
+     * no warehouse; the "query" already ran elsewhere and this is a
+     * materializing fetch. The row is created first so the queryUuid returns
+     * immediately and failures surface through the standard status
+     * lifecycle.
+     */
+    async executeAsyncTdcpImport({
+        account,
+        projectUuid,
+        context,
+        serverUrl,
+        descriptor,
+        fetchRows,
+    }: {
+        account: Account;
+        projectUuid: string;
+        context: QueryExecutionContext;
+        serverUrl: string;
+        descriptor: TdcpDatasetDescriptor;
+        fetchRows: () => AsyncGenerator<Record<string, unknown>>;
+    }): Promise<{ queryUuid: string }> {
+        assertIsAccountWithOrg(account);
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        // Same gate as compose queries: interactive viewers and up
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('Explore', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        // Keyed to the principal: remote datasets may be minted under
+        // per-user credentials, so one user's import must never serve
+        // another user's cache lookup (the getCacheUserUuid rule).
+        const cacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
+            sql: JSON.stringify({
+                tdcpServerUrl: serverUrl,
+                datasetId: descriptor.datasetId,
+            }),
+            userUuid: account.user.id,
+        });
+
+        const requestParameters: ExecuteAsyncTdcpImportRequestParams = {
+            serverUrl,
+            datasetId: descriptor.datasetId,
+            context,
+        };
+
+        const columns: ResultColumns = descriptor.schema.reduce(
+            (acc, column) => {
+                acc[column.name] = {
+                    reference: column.name,
+                    type: column.type,
+                };
+                return acc;
+            },
+            {} as ResultColumns,
+        );
+
+        // Mock metadata carrier, same trick as the SQL paths: downstream
+        // reads columns, not this
+        const metricQuery: MetricQuery = {
+            exploreName: 'tdcp_import',
+            dimensions: descriptor.schema.map((column) => column.name),
+            metrics: [],
+            filters: {},
+            sorts: [],
+            limit: descriptor.rowCount ?? 0,
+            tableCalculations: [],
+        };
+
+        const { queryUuid } = await this.queryHistoryModel.create(account, {
+            projectUuid,
+            organizationUuid,
+            context,
+            fields: {},
+            compiledSql: `-- tdcp import: ${serverUrl} dataset ${descriptor.datasetId}`,
+            requestParameters,
+            metricQuery,
+            cacheKey,
+            pivotConfiguration: null,
+            originalColumns: columns,
+        });
+
+        void this.runTdcpImport({
+            account,
+            projectUuid,
+            queryUuid,
+            cacheKey,
+            columns,
+            context,
+            fetchRows,
+        }).catch((e) => {
+            this.logger.error(
+                `Async TDCP import ${queryUuid} failed: ${getErrorMessage(e)}`,
+            );
+        });
+
+        return { queryUuid };
+    }
+
+    /**
+     * Background phase of a TDCP import: stream the remote data plane into
+     * an S3 results file, then mark the row READY so the standard polling
+     * and pagination take over.
+     */
+    private async runTdcpImport({
+        account,
+        projectUuid,
+        queryUuid,
+        cacheKey,
+        columns,
+        context,
+        fetchRows,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryUuid: string;
+        cacheKey: string;
+        columns: ResultColumns;
+        context: QueryExecutionContext;
+        fetchRows: () => AsyncGenerator<Record<string, unknown>>;
+    }): Promise<void> {
+        try {
+            const resultsStorageClient =
+                this.getResultsStorageClientForContext(context);
+            const fileName = S3ResultsFileStorageClient.sanitizeFileExtension(
+                QueryHistoryModel.createUniqueResultsFileName(cacheKey),
+            );
+            const stream = resultsStorageClient.createUploadStream(fileName, {
+                contentType: 'application/jsonl',
+            });
+
+            const createdAt = new Date();
+            let totalRows = 0;
+            try {
+                for await (const row of fetchRows()) {
+                    await stream.write([row]);
+                    totalRows += 1;
+                }
+            } finally {
+                await stream.close();
+            }
+
+            await this.queryHistoryModel.update(
+                queryUuid,
+                projectUuid,
+                {
+                    status: QueryHistoryStatus.READY,
+                    total_row_count: totalRows,
+                    columns,
+                    original_columns: columns,
+                    results_file_name: fileName,
+                    results_created_at: createdAt,
+                    results_updated_at: new Date(),
+                    results_expires_at: this.getCacheExpiresAt(createdAt),
+                },
+                account,
+            );
         } catch (e) {
             await this.queryHistoryModel.update(
                 queryUuid,
