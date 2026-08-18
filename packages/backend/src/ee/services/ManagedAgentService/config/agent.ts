@@ -800,8 +800,8 @@ const aggressionDisabledTools: Record<
 const buildPolicyToolDescriptions = (
     policy: ManagedAgentPolicy,
 ): Record<string, string> => ({
-    get_stale_charts: `Get charts that are stale per project policy: not viewed in ${policy.stalenessChartDays}+ days (or never viewed), and not created or edited in the last ${policy.protectRecentDays} days. Returns uuid, name, space, last_viewed_at, views_count, created_by, and a reason field.`,
-    get_stale_dashboards: `Get dashboards that are stale per project policy: not viewed in ${policy.stalenessDashboardDays}+ days (or never viewed), and not created or edited in the last ${policy.protectRecentDays} days. Returns uuid, name, space, last_viewed_at, views_count, created_by, and a reason field.`,
+    get_stale_charts: `Get charts that are stale per project policy: not viewed in ${policy.stalenessChartDays}+ days (or never viewed and created ${policy.stalenessChartDays}+ days ago), and not created or edited in the last ${policy.protectRecentDays} days. Returns uuid, name, space, last_viewed_at, views_count, created_by, and a reason field.`,
+    get_stale_dashboards: `Get dashboards that are stale per project policy: not viewed in ${policy.stalenessDashboardDays}+ days (or never viewed and created ${policy.stalenessDashboardDays}+ days ago), and not created or edited in the last ${policy.protectRecentDays} days. Returns uuid, name, space, last_viewed_at, views_count, created_by, and a reason field.`,
     get_preview_projects: `Get preview projects older than ${policy.previewProjectDays} days per project policy. Returns uuid, name, created_at, and the project they were copied from.`,
     get_slow_queries: `Get the slowest warehouse queries in the project from the last 30 days (threshold: ${policy.slowQueryThresholdMs} ms per project policy). Returns the chart or dashboard name, execution time in ms, query context, and when it ran. Use this to flag charts or dashboards with consistently slow queries so admins can optimize them.`,
 });

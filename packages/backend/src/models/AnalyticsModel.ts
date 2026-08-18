@@ -427,11 +427,13 @@ export class AnalyticsModel {
                     this.database.raw(chartsQuery, [
                         projectUuid,
                         options.stalenessChartDays,
+                        options.stalenessChartDays,
                         options.protectRecentDays,
                         options.limit,
                     ]),
                     this.database.raw(dashboardsQuery, [
                         projectUuid,
+                        options.stalenessDashboardDays,
                         options.stalenessDashboardDays,
                         options.protectRecentDays,
                         options.limit,
