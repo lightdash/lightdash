@@ -1,3 +1,16 @@
+# [1.185.0](https://github.com/lightdash/lightdash/compare/1.184.0...1.185.0) (2026-08-18)
+
+
+### Bug Fixes
+
+* pass custom model names through to OpenAI-compatible gateways ([#27490](https://github.com/lightdash/lightdash/issues/27490)) ([2d4ec89](https://github.com/lightdash/lightdash/commit/2d4ec8900865abe05c121389fae9d8c6829f5373))
+* treat empty OPENAI_BASE_URL as unset ([#27487](https://github.com/lightdash/lightdash/issues/27487)) ([a1902ae](https://github.com/lightdash/lightdash/commit/a1902ae361cfd35b985bb6c3603777ac7c5ed6aa))
+
+
+### Features
+
+* preserve chart slug aliases in previews ([#27498](https://github.com/lightdash/lightdash/issues/27498)) ([a4cfeb9](https://github.com/lightdash/lightdash/commit/a4cfeb9e4e70643d9a92588bb42ceaa13f1863d8)), closes [#27486](https://github.com/lightdash/lightdash/issues/27486) [#14578](https://github.com/lightdash/lightdash/issues/14578)
+
 # [1.184.0](https://github.com/lightdash/lightdash/compare/1.183.1...1.184.0) (2026-08-18)
 
 
