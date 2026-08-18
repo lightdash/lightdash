@@ -5854,9 +5854,12 @@ export default class SchedulerTask {
                 zipNameBase,
             )}-${new Date().toISOString().replace(/[:.]/g, '-')}.zip`;
 
+            // The key stays sanitised and timestamped; the download name keeps
+            // the dashboard name as typed.
             await this.fileStorageClient.uploadZip(
                 fsSync.createReadStream(zipPath),
                 zipFileName,
+                `${zipNameBase}.zip`,
             );
         } finally {
             await fs.unlink(zipPath).catch(() => {});
@@ -5959,6 +5962,7 @@ export default class SchedulerTask {
             await this.fileStorageClient.uploadExcel(
                 fsSync.createReadStream(workbookPath),
                 workbookFileName,
+                `${workbookNameBase}.xlsx`,
             );
         } finally {
             await fs.unlink(workbookPath).catch(() => {});

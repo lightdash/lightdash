@@ -164,9 +164,14 @@ export class S3Client extends S3BaseClient implements FileStorageClient {
         });
     }
 
-    async uploadZip(zip: ReadStream, zipName: string): Promise<string> {
+    async uploadZip(
+        zip: ReadStream,
+        zipName: string,
+        attachmentDownloadName?: string,
+    ): Promise<string> {
         return this.uploadFile(zipName, zip, {
             contentType: 'application/zip',
+            attachmentDownloadName,
         });
     }
 
