@@ -797,7 +797,9 @@ const optionBase = {
         .describe('Human label shown next to the control in the config panel.'),
     group: z
         .string()
+        .nullable()
         .optional()
+        .transform((value) => value ?? undefined)
         .describe(
             'Optional tab name. Options sharing a group are rendered in the same config tab; ungrouped options share a default tab.',
         ),
@@ -864,8 +866,18 @@ const vizConfigOptions = z.array(
             default: z
                 .number()
                 .describe('Value used until the viewer changes it.'),
-            min: z.number().optional().describe('Optional lower bound.'),
-            max: z.number().optional().describe('Optional upper bound.'),
+            min: z
+                .number()
+                .nullable()
+                .optional()
+                .transform((value) => value ?? undefined)
+                .describe('Optional lower bound.'),
+            max: z
+                .number()
+                .nullable()
+                .optional()
+                .transform((value) => value ?? undefined)
+                .describe('Optional upper bound.'),
         }),
         z.object({
             ...optionBase,
@@ -888,7 +900,9 @@ const vizColorPalette = z
     .object({
         group: z
             .string()
+            .nullable()
             .optional()
+            .transform((value) => value ?? undefined)
             .describe(
                 'Optional tab name, matching a config option `group`. The picker gets its own tab when no option shares it.',
             ),
@@ -945,8 +959,18 @@ void dataAppVizGenerationSchemaIsPersistable;
 
 // JSON Schema form of the generation contract for the generator CLI's
 // `--json-schema` flag. Refinements (e.g. unique names) don't survive the
-// conversion and stay enforced by the runtime `safeParse`.
-export const dataAppVizJsonSchema = zodToJsonSchema(dataAppVizGenerationSchema);
+// conversion and stay enforced by the runtime `safeParse`. The OpenAI target
+// represents optional properties as required and nullable for strict structured
+// output. Inline shared schemas because Codex only accepts top-level references,
+// and retain draft-07 because the Claude CLI does not support the OpenAI
+// target's 2019-09 meta-schema.
+export const dataAppVizJsonSchema = {
+    ...zodToJsonSchema(dataAppVizGenerationSchema, {
+        $refStrategy: 'none',
+        target: 'openAi',
+    }),
+    $schema: 'http://json-schema.org/draft-07/schema#',
+};
 
 /** Whether a stored value still has the shape the option declares. */
 const matchesDeclaredType = (

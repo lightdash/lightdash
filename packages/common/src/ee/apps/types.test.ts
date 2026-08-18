@@ -411,14 +411,55 @@ describe('dataAppVizGenerationSchema', () => {
         );
         expect(dataAppVizSchema.safeParse(declaration).success).toBe(true);
     });
+
+    it('normalizes nullable placeholders for optional properties', () => {
+        expect(
+            dataAppVizGenerationSchema.safeParse({
+                ...validFields,
+                configOptions: [
+                    {
+                        name: 'barWidth',
+                        label: 'Bar width',
+                        group: null,
+                        type: 'number',
+                        default: 24,
+                        min: null,
+                        max: null,
+                    },
+                ],
+                colorPalette: { group: null },
+            }),
+        ).toEqual({
+            success: true,
+            data: {
+                ...validFields,
+                configOptions: [
+                    {
+                        name: 'barWidth',
+                        label: 'Bar width',
+                        type: 'number',
+                        default: 24,
+                    },
+                ],
+                colorPalette: {},
+            },
+        });
+    });
 });
 
 describe('dataAppVizJsonSchema', () => {
     // What the generator CLI receives via --json-schema.
     const jsonSchema = dataAppVizJsonSchema as {
+        $schema?: string;
         required?: string[];
         properties?: Record<string, { description?: string }>;
     };
+
+    it('uses the JSON Schema draft supported by both generator CLIs', () => {
+        expect(jsonSchema.$schema).toBe(
+            'http://json-schema.org/draft-07/schema#',
+        );
+    });
 
     it('makes fields, configOptions and colorPalette required', () => {
         expect(jsonSchema.required).toEqual(
@@ -430,5 +471,60 @@ describe('dataAppVizJsonSchema', () => {
         expect(jsonSchema.properties?.fields.description).toBeTruthy();
         expect(jsonSchema.properties?.configOptions.description).toBeTruthy();
         expect(jsonSchema.properties?.colorPalette.description).toBeTruthy();
+    });
+
+    it('uses strict object schemas compatible with Codex structured output', () => {
+        const findMissingRequiredProperties = (
+            value: unknown,
+            path = '$',
+        ): string[] => {
+            if (value === null || typeof value !== 'object') {
+                return [];
+            }
+
+            const schema = value as Record<string, unknown>;
+            const missing: string[] = [];
+            if (
+                schema.properties !== null &&
+                typeof schema.properties === 'object'
+            ) {
+                const propertyNames = Object.keys(schema.properties);
+                const required = Array.isArray(schema.required)
+                    ? schema.required
+                    : [];
+                const missingAtPath = propertyNames.filter(
+                    (property) => !required.includes(property),
+                );
+                if (missingAtPath.length > 0) {
+                    missing.push(`${path}: ${missingAtPath.join(', ')}`);
+                }
+            }
+
+            return Object.entries(schema).reduce<string[]>(
+                (errors, [key, child]) => [
+                    ...errors,
+                    ...findMissingRequiredProperties(child, `${path}.${key}`),
+                ],
+                missing,
+            );
+        };
+
+        expect(findMissingRequiredProperties(jsonSchema)).toEqual([]);
+    });
+
+    it('does not use local JSON Schema references', () => {
+        const findReferences = (value: unknown): string[] => {
+            if (value === null || typeof value !== 'object') {
+                return [];
+            }
+
+            const schema = value as Record<string, unknown>;
+            return [
+                ...(typeof schema.$ref === 'string' ? [schema.$ref] : []),
+                ...Object.values(schema).flatMap(findReferences),
+            ];
+        };
+
+        expect(findReferences(jsonSchema)).toEqual([]);
     });
 });
