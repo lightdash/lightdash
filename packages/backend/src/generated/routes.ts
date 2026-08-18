@@ -60006,8 +60006,24 @@ export function RegisterRoutes(app: Router) {
         },
         date: { in: 'query', name: 'date', dataType: 'string' },
         actionType: { in: 'query', name: 'actionType', dataType: 'string' },
+        actionTypes: {
+            in: 'query',
+            name: 'actionTypes',
+            dataType: 'array',
+            array: { dataType: 'string' },
+        },
+        targetTypes: {
+            in: 'query',
+            name: 'targetTypes',
+            dataType: 'array',
+            array: { dataType: 'string' },
+        },
+        search: { in: 'query', name: 'search', dataType: 'string' },
+        dateFrom: { in: 'query', name: 'dateFrom', dataType: 'string' },
+        dateTo: { in: 'query', name: 'dateTo', dataType: 'string' },
         sessionId: { in: 'query', name: 'sessionId', dataType: 'string' },
         runUuid: { in: 'query', name: 'runUuid', dataType: 'string' },
+        limit: { in: 'query', name: 'limit', dataType: 'double' },
     };
     app.get(
         '/api/v1/projects/:projectUuid/managed-agent/actions',

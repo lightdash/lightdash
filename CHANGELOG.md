@@ -1,3 +1,10 @@
+# [1.173.0](https://github.com/lightdash/lightdash/compare/1.172.4...1.173.0) (2026-08-18)
+
+
+### Features
+
+* **autopilot:** filter and search the actions table ([#27040](https://github.com/lightdash/lightdash/issues/27040)) ([1c4f993](https://github.com/lightdash/lightdash/commit/1c4f993330a4889991584f38426a5cf5024cc53d))
+
 ## [1.172.4](https://github.com/lightdash/lightdash/compare/1.172.3...1.172.4) (2026-08-18)
 
 
