@@ -68,6 +68,7 @@ const bedrockConfig: CopilotConfig = aiCopilotConfigSchema.parse({
     enabled: true,
     requiresFeatureFlag: false,
     telemetryEnabled: false,
+    threadDumpEnabled: false,
     debugLoggingEnabled: false,
     askAiButtonEnabled: false,
     embeddingEnabled: false,
