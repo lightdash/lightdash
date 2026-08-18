@@ -399,6 +399,7 @@ const Login: FC<{}> = () => {
                         </Anchor>
                         <Button
                             type="submit"
+                            color="pink"
                             loading={isFormLoading}
                             disabled={isFormLoading}
                             fullWidth={isNewLayout}
@@ -420,6 +421,7 @@ const Login: FC<{}> = () => {
                 {formStage === 'precheck' && (
                     <Button
                         type="submit"
+                        color="pink"
                         loading={isFormLoading}
                         disabled={isFormLoading}
                         fullWidth={isNewLayout}
