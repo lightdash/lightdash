@@ -351,6 +351,7 @@ import {
     type ApiDashboardValidationResponse,
     type ApiPaginatedValidateResponse,
     type ApiSingleValidationResponse,
+    type ApiValidationSummaryResponse,
     type ValidationResponse,
 } from './validation';
 import {
@@ -1201,6 +1202,7 @@ type ApiResults =
     | SchedulerWithLogs
     | ValidationResponse[]
     | ApiPaginatedValidateResponse['results']
+    | ApiValidationSummaryResponse['results']
     | ApiRoadmapResponse['results']
     | ChartHistory
     | ChartVersion
