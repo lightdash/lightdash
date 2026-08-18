@@ -1,9 +1,24 @@
 #!/bin/sh
 
 GENERATED_API_FILES="packages/backend/src/generated/routes.ts packages/backend/src/generated/swagger.json"
-if git diff --cached --name-only -- $GENERATED_API_FILES | grep -q .; then
+STAGED_GENERATED=$(git diff --cached --name-only -- $GENERATED_API_FILES)
+if [ -n "$STAGED_GENERATED" ]; then
   git restore --staged -- $GENERATED_API_FILES
-  echo "Unstaged generated API artifacts; they are committed by the release workflow."
+  echo ""
+  echo "pre-commit: unstaged generated API artifacts (never committed from feature branches):"
+  echo "$STAGED_GENERATED" | sed 's/^/  - /'
+  echo ""
+  echo "These files are regenerated and committed on main by the release workflow."
+  echo "Your working-tree changes are untouched and are expected during local dev;"
+  echo "leave them uncommitted. To hide them from 'git status' entirely, run:"
+  echo "  ./scripts/generated-api-files.sh hide"
+  echo ""
+  if git diff --cached --quiet; then
+    echo "pre-commit: aborting commit — the only staged changes were generated API"
+    echo "artifacts, so there is nothing left to commit. This is expected; nothing"
+    echo "was lost and no action is needed."
+    exit 1
+  fi
 fi
 
 bash "$(dirname "$0")/runGitSecrets.sh"
