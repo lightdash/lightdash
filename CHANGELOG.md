@@ -1,3 +1,10 @@
+# [1.186.0](https://github.com/lightdash/lightdash/compare/1.185.0...1.186.0) (2026-08-18)
+
+
+### Features
+
+* add helm install context ([#27536](https://github.com/lightdash/lightdash/issues/27536)) ([2cb53df](https://github.com/lightdash/lightdash/commit/2cb53dfa623c226c680510e32ca038d6ba304357))
+
 # [1.185.0](https://github.com/lightdash/lightdash/compare/1.184.0...1.185.0) (2026-08-18)
 
 
