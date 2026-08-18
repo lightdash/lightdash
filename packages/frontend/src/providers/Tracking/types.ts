@@ -2,6 +2,7 @@ import {
     type AppVersionStatus,
     type AiDeepResearchTerminalStatus,
     type CustomFormatType,
+    type DataAppTemplate,
     type HomepageRecommendedActionKey,
     type SearchItemType,
     type TableCalculationType,
@@ -626,6 +627,9 @@ type DataAppClarifyRoundResolvedEvent = {
     name: EventName.DATA_APP_CLARIFY_ROUND_RESOLVED;
     properties: {
         projectId: string | undefined;
+        /** Which builder the round came from: `data_app_viz` is the chart type
+         *  builder, anything else the app builder. */
+        template: DataAppTemplate | null;
         outcome:
             | 'no_questions'
             | 'unreachable'

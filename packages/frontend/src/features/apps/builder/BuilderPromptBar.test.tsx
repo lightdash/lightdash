@@ -7,10 +7,13 @@ import userEvent from '@testing-library/user-event';
 import { forwardRef, useImperativeHandle, useRef, type ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
+import { type ClarificationRound } from '../hooks/useClarificationRound';
 import { type DataAppModelSelection } from '../hooks/useDataAppModelSelection';
-import { type DataAppVizBuildState } from '../hooks/useDataAppVizBuild';
-import { type VizClarification } from '../hooks/useVizClarification';
-import { clarificationStub } from '../testing/vizClarificationStub';
+import {
+    type DataAppVizBuildState,
+    type VizBuildRequest,
+} from '../hooks/useDataAppVizBuild';
+import { clarificationStub } from '../testing/clarificationRoundStub';
 import BuilderPromptBar from './BuilderPromptBar';
 
 // The real composer is TipTap; a text input carries the same handle contract.
@@ -148,7 +151,7 @@ const promptBar = ({
     latestReadyVersion?: number | null;
     model?: DataAppModelSelection;
     onCancelBuild?: (() => void) | null;
-    clarification?: VizClarification;
+    clarification?: ClarificationRound<VizBuildRequest>;
 } = {}) => (
     <BuilderPromptBar
         projectUuid="p1"

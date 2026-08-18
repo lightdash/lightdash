@@ -29,12 +29,12 @@ import PromptComposer, {
     type PromptComposerHandle,
 } from '../../../components/common/PromptComposer/PromptComposer';
 import { ModelPicker, SelectedAttachmentSection } from '../AppResourcePicker';
+import { type ClarificationRound } from '../hooks/useClarificationRound';
 import { type DataAppModelSelection } from '../hooks/useDataAppModelSelection';
 import {
     type DataAppVizBuildState,
     type VizBuildRequest,
 } from '../hooks/useDataAppVizBuild';
-import { type VizClarification } from '../hooks/useVizClarification';
 import { useVizComposerAttachments } from '../hooks/useVizComposerAttachments';
 import classes from './BuilderPromptBar.module.css';
 import ClarifyingQuestions from './ClarifyingQuestions';
@@ -54,7 +54,7 @@ type Props = {
     onCancelBuild: (() => void) | null;
     modelSelection: DataAppModelSelection;
     /** The pre-build clarifying round every send passes through. */
-    clarification: VizClarification;
+    clarification: ClarificationRound<VizBuildRequest>;
 };
 
 type QueuedPrompt = {

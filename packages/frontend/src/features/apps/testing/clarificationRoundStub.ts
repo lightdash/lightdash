@@ -1,10 +1,11 @@
 import { vi } from 'vitest';
-import { type VizClarification } from '../hooks/useVizClarification';
+import { type ClarificationRound } from '../hooks/useClarificationRound';
+import { type VizBuildRequest } from '../hooks/useDataAppVizBuild';
 
 /** A clarifying round with nothing on screen. */
 export const clarificationStub = (
-    overrides: Partial<VizClarification> = {},
-): VizClarification => ({
+    overrides: Partial<ClarificationRound<VizBuildRequest>> = {},
+): ClarificationRound<VizBuildRequest> => ({
     pending: null,
     answers: [],
     clarifyingPrompt: null,

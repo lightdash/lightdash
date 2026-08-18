@@ -13,7 +13,7 @@ import {
 import { useMutation } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 
-type GenerateAppParams = {
+export type GenerateAppParams = {
     projectUuid: string;
     prompt: string;
     template?: DataAppTemplate;
