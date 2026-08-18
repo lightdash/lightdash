@@ -1,3 +1,10 @@
+# [1.188.0](https://github.com/lightdash/lightdash/compare/1.187.0...1.188.0) (2026-08-18)
+
+
+### Features
+
+* **roles:** secure and audit role-set mutations ([#27515](https://github.com/lightdash/lightdash/issues/27515)) ([5507e47](https://github.com/lightdash/lightdash/commit/5507e4734539d9d996d2911540de3276519b08a8))
+
 # [1.187.0](https://github.com/lightdash/lightdash/compare/1.186.0...1.187.0) (2026-08-18)
 
 
