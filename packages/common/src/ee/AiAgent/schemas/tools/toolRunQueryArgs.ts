@@ -271,6 +271,30 @@ export const toolRunQueryArgsSchemaV3 = createToolSchema()
 // Historical schemas remain available solely for persisted chats/artifacts.
 export const toolRunQueryArgsSchema = toolRunQueryArgsSchemaV3;
 
+// V2 for runtimes where merge queries are disabled: a merge-shaped payload
+// must fail validation, not have Zod strip mergeConfig and run only the
+// primary query. The preprocess leaves the emitted JSON schema unchanged.
+export const toolRunQueryArgsSchemaV2RejectingMerge = z.preprocess(
+    (raw, ctx) => {
+        if (
+            raw !== null &&
+            typeof raw === 'object' &&
+            'mergeConfig' in raw &&
+            raw.mergeConfig !== null &&
+            raw.mergeConfig !== undefined
+        ) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['mergeConfig'],
+                message: 'Merge queries are not enabled for this organization.',
+            });
+            return z.NEVER;
+        }
+        return raw;
+    },
+    toolRunQueryArgsSchemaV2,
+);
+
 export type ToolRunQueryArgsV1 = z.infer<typeof toolRunQueryArgsSchemaV1>;
 export type ToolRunQueryArgsV2 = z.infer<typeof toolRunQueryArgsSchemaV2>;
 export type ToolRunQueryArgsV3 = z.infer<typeof toolRunQueryArgsSchemaV3>;

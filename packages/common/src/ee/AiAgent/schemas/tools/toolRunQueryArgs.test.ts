@@ -12,6 +12,7 @@ import {
     toolRunQueryArgsSchemaTransformed,
     toolRunQueryArgsSchemaV1,
     toolRunQueryArgsSchemaV2,
+    toolRunQueryArgsSchemaV2RejectingMerge,
     toolRunQueryArgsSchemaV3,
 } from './toolRunQueryArgs';
 
@@ -141,6 +142,29 @@ describe('toolRunQueryArgsSchemaTransformed (V3)', () => {
         expect(toolRunQueryArgsSchemaV1.safeParse(buildV1Args()).success).toBe(
             true,
         );
+    });
+});
+
+describe('toolRunQueryArgsSchemaV2RejectingMerge', () => {
+    it('accepts ordinary V2 payloads, including an explicit null mergeConfig', () => {
+        expect(
+            toolRunQueryArgsSchemaV2RejectingMerge.safeParse(buildV2Args())
+                .success,
+        ).toBe(true);
+        expect(
+            toolRunQueryArgsSchemaV2RejectingMerge.safeParse({
+                ...buildV2Args(),
+                mergeConfig: null,
+            }).success,
+        ).toBe(true);
+    });
+
+    it('rejects a merge-shaped payload instead of stripping mergeConfig', () => {
+        const result =
+            toolRunQueryArgsSchemaV2RejectingMerge.safeParse(
+                buildV3MergeArgs(),
+            );
+        expect(result.success).toBe(false);
     });
 });
 

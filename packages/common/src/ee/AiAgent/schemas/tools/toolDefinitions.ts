@@ -13,8 +13,10 @@ import {
     mcpRunAiWritebackArgsSchema,
     mcpRunAiWritebackStructuredOutputSchema,
 } from '../../../aiWriteback/types';
+import { createAgentInputSchema } from '../agentInputSchema';
 import {
     defineTool,
+    type AgentToolView,
     type McpToolAnnotations,
     type ToolDefinition,
     type ToolDefinitionInstance,
@@ -256,6 +258,7 @@ import {
     toolRunQueryArgsSchema,
     toolRunQueryArgsSchemaTransformed,
     toolRunQueryArgsSchemaV2,
+    toolRunQueryArgsSchemaV2RejectingMerge,
     toolRunQueryArgsSchemaV2Transformed,
     toolRunQueryOutputSchema,
 } from './toolRunQueryArgs';
@@ -545,6 +548,18 @@ export const runQueryToolDefinition: ToolDefinitionWithMcpOutput<
         annotations: readOnlyAnnotations,
         structuredContentSchema: mcpRunMetricQueryStructuredOutputSchema,
     },
+});
+
+// The agent view of runQuery for runtimes without merge queries: identical
+// contract, but a merge-shaped payload fails validation instead of being
+// stripped to the primary query by Zod. Lazy, like `.for('agent')`.
+export const getRunQueryAgentViewRejectingMerge = (): AgentToolView<
+    'runQuery',
+    typeof toolRunQueryArgsSchemaV2,
+    typeof toolRunQueryOutputSchema
+> => ({
+    ...runQueryToolDefinition.for('agent'),
+    inputSchema: createAgentInputSchema(toolRunQueryArgsSchemaV2RejectingMerge),
 });
 
 export const runSqlToolDefinition: ToolDefinitionWithMcpOutput<

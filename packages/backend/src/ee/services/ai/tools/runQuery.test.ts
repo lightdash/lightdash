@@ -81,6 +81,8 @@ const executeTool = async (
     const queryTool = getRunQuery({
         updateProgress: vi.fn().mockResolvedValue(undefined),
         runAsyncQuery,
+        runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
+        enableMergeQueries: false,
         projectParameterDefinitions: {},
         getPrompt: vi.fn().mockResolvedValue(prompt),
         sendFile: vi.fn().mockResolvedValue(undefined),
@@ -349,6 +351,8 @@ describe('getRunQuery parameters', () => {
         const queryTool = getRunQuery({
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery,
+            runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
+            enableMergeQueries: false,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
             sendFile: vi.fn().mockResolvedValue(undefined),
@@ -467,6 +471,8 @@ describe('getRunQuery parameters', () => {
         const queryTool = getRunQuery({
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery,
+            runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
+            enableMergeQueries: false,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
             sendFile: vi.fn().mockResolvedValue(undefined),
