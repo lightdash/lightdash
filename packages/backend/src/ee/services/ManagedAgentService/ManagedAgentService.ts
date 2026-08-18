@@ -2926,6 +2926,42 @@ chartConfig:
             );
         }
 
+        // Flags on deleted content are pointless: refuse instead of
+        // recording an action nobody can act on
+        if (
+            targetType === ManagedAgentTargetType.CHART ||
+            targetType === ManagedAgentTargetType.DASHBOARD
+        ) {
+            try {
+                if (targetType === ManagedAgentTargetType.CHART) {
+                    await this.savedChartModel.get(targetUuid);
+                } else {
+                    await this.dashboardModel.getByIdOrSlug(targetUuid);
+                }
+            } catch {
+                return JSON.stringify({
+                    skipped: true,
+                    note: `"${targetName}" no longer exists (deleted); no flag was created.`,
+                });
+            }
+        }
+
+        // Idempotency: re-flagging an actively flagged target would reset the
+        // escalation clock and duplicate the activity feed, so report the
+        // existing flag instead of creating a new action
+        const existingFlaggedAt =
+            await this.managedAgentModel.findLatestActiveFlagCreatedAt(
+                projectUuid,
+                targetUuid,
+            );
+        if (existingFlaggedAt) {
+            return JSON.stringify({
+                already_flagged: true,
+                flagged_at: existingFlaggedAt.toISOString(),
+                note: 'This target already carries an active flag; no new action was created. Once the flag is older than the escalation window it becomes eligible for soft_delete_content.',
+            });
+        }
+
         // Block flagging agent-created charts as stale
         if (
             flagType === ManagedAgentActionType.FLAGGED_STALE &&
@@ -2959,9 +2995,10 @@ chartConfig:
         return JSON.stringify({ action_uuid: action.actionUuid });
     }
 
-    // Code-enforced escalation: content with views may only be deleted after
-    // carrying an unreversed flag for the policy's escalation window.
-    // Never-viewed content may be deleted directly (recency guard still applies).
+    // Code-enforced escalation: content may only be deleted after carrying an
+    // unreversed flag for the policy's escalation window. Callers that target
+    // provably dead content (bulk deleted-model cleanup) opt out of the
+    // flag-first requirement for never-viewed items via flagFirstAlways=false.
     private async checkEscalationGuard(
         projectUuid: string,
         targetType: ManagedAgentTargetType,
