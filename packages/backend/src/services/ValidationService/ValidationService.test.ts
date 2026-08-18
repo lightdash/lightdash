@@ -190,6 +190,7 @@ describe('validation', () => {
             error: "Dimension error: the field 'table_dimension' no longer exists",
             errorType: 'dimension',
             fieldName: 'table_dimension',
+            tableName: 'table',
             name: 'Test chart',
             projectUuid: 'projectUuid',
             chartUuid: 'chartUuid',
@@ -221,6 +222,7 @@ describe('validation', () => {
             error: "Metric error: the field 'table_metric' no longer exists",
             errorType: 'metric',
             fieldName: 'table_metric',
+            tableName: 'table',
             name: 'Test chart',
             projectUuid: 'projectUuid',
             chartUuid: 'chartUuid',
@@ -234,6 +236,57 @@ describe('validation', () => {
             "The chart 'Test chart' is broken on this dashboard.",
         ];
         expect(errors.map((error) => error.error)).toEqual(expectedErrors);
+    });
+
+    it('Should collapse chart field errors into a single model error when the explore was deleted', async () => {
+        (
+            projectModel.findExploresFromCache as import('vitest').Mock
+        ).mockImplementationOnce(async () => []);
+
+        const errors =
+            await validationService.generateValidation('projectUuid');
+        const chartErrors = errors.filter(
+            (e) => e.source === ValidationSourceType.Chart,
+        );
+
+        expect(chartErrors).toHaveLength(1);
+        expect({ ...chartErrors[0], createdAt: undefined }).toEqual({
+            createdAt: undefined,
+            error: "Model error: the model 'table' no longer exists",
+            errorType: ValidationErrorType.Model,
+            tableName: 'table',
+            name: 'Test chart',
+            projectUuid: 'projectUuid',
+            chartUuid: 'chartUuid',
+            source: ValidationSourceType.Chart,
+            chartName: 'Test chart',
+        });
+
+        // The model error is blocking, so dashboards still flag the broken chart
+        expect(
+            errors
+                .filter((e) => e.source === ValidationSourceType.Dashboard)
+                .map((e) => e.error),
+        ).toContain("The chart 'Test chart' is broken on this dashboard.");
+    });
+
+    it('Should report a compile failure when the chart explore failed to compile', async () => {
+        (
+            projectModel.findExploresFromCache as import('vitest').Mock
+        ).mockImplementationOnce(async () => [exploreError]);
+
+        const errors =
+            await validationService.generateValidation('projectUuid');
+        const chartErrors = errors.filter(
+            (e) => e.source === ValidationSourceType.Chart,
+        );
+
+        expect(chartErrors).toHaveLength(1);
+        expect(chartErrors[0]).toMatchObject({
+            error: "Model error: the model 'table' failed to compile",
+            errorType: ValidationErrorType.Model,
+            tableName: 'table',
+        });
     });
 
     it('Should create table validation errors from CLI warehouse diagnostics without probing the warehouse', async () => {

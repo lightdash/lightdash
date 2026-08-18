@@ -55,6 +55,7 @@ type NormalizedValidationRow = {
     field_name: string | null;
     chart_name: string | null;
     model_name: string | null;
+    table_name: string | null;
     saved_chart_uuid: string | null;
     dashboard_uuid: string | null;
     app_uuid: string | null;
@@ -129,22 +130,28 @@ export class ValidationModel {
                         source: validation.source ?? null,
                         ...(isTableValidationError(validation) && {
                             model_name: validation.modelName,
+                            table_name: validation.modelName,
                         }),
                         ...(isChartValidationError(validation) && {
                             saved_chart_uuid: validation.chartUuid,
                             field_name: validation.fieldName,
                             chart_name: validation.chartName ?? null,
+                            table_name: validation.tableName ?? null,
                         }),
                         ...(isDashboardValidationError(validation) && {
                             dashboard_uuid: validation.dashboardUuid,
                             field_name: validation.fieldName ?? null,
                             chart_name: validation.chartName ?? null,
+                            // model_name is (historically) the dashboard's
+                            // display-name fallback, not a model reference
                             model_name: validation.name,
+                            table_name: validation.tableName ?? null,
                         }),
                         ...(isDataAppValidationError(validation) && {
                             app_uuid: validation.appUuid,
                             field_name: validation.fieldName ?? null,
                             model_name: validation.modelName ?? null,
+                            table_name: validation.modelName ?? null,
                         }),
                     })),
                 );
@@ -458,6 +465,7 @@ export class ValidationModel {
                     ChartKind.VERTICAL_BAR,
                 errorType: validationError.error_type,
                 fieldName: validationError.field_name ?? undefined,
+                tableName: validationError.table_name ?? undefined,
                 source: ValidationSourceType.Chart,
             }));
 
@@ -560,7 +568,8 @@ export class ValidationModel {
                     fieldName: validationError.field_name ?? undefined,
                     chartName: validationError.chart_name ?? undefined,
                     source: ValidationSourceType.Dashboard,
-                    tableName: parsedError.tableName,
+                    tableName:
+                        validationError.table_name ?? parsedError.tableName,
                     dashboardFilterErrorType:
                         parsedError.dashboardFilterErrorType,
                 };
@@ -684,6 +693,7 @@ export class ValidationModel {
                 errorType: row.error_type,
                 source: ValidationSourceType.Chart,
                 fieldName: row.field_name ?? undefined,
+                tableName: row.table_name ?? undefined,
                 chartUuid: row.saved_chart_uuid!,
                 chartViews: row.views_count ?? 0,
                 chartKind:
@@ -721,7 +731,7 @@ export class ValidationModel {
                 lastUpdatedAt: row.last_updated_at ?? undefined,
                 spaceUuid: row.space_uuid ?? undefined,
                 chartName: row.chart_name ?? undefined,
-                tableName: parsedError.tableName,
+                tableName: row.table_name ?? parsedError.tableName,
                 dashboardFilterErrorType: parsedError.dashboardFilterErrorType,
             };
         }
@@ -834,6 +844,7 @@ export class ValidationModel {
                 `${ValidationTableName}.field_name`,
                 `${ValidationTableName}.chart_name`,
                 `${ValidationTableName}.model_name`,
+                `${ValidationTableName}.table_name`,
                 `${ValidationTableName}.saved_chart_uuid`,
                 `${ValidationTableName}.dashboard_uuid`,
                 `${ValidationTableName}.app_uuid`,
@@ -889,6 +900,7 @@ export class ValidationModel {
                 `${ValidationTableName}.field_name`,
                 `${ValidationTableName}.chart_name`,
                 `${ValidationTableName}.model_name`,
+                `${ValidationTableName}.table_name`,
                 `${ValidationTableName}.saved_chart_uuid`,
                 `${ValidationTableName}.dashboard_uuid`,
                 `${ValidationTableName}.app_uuid`,
@@ -924,6 +936,7 @@ export class ValidationModel {
                 `${ValidationTableName}.field_name`,
                 `${ValidationTableName}.chart_name`,
                 `${ValidationTableName}.model_name`,
+                `${ValidationTableName}.table_name`,
                 `${ValidationTableName}.saved_chart_uuid`,
                 `${ValidationTableName}.dashboard_uuid`,
                 `${ValidationTableName}.app_uuid`,
@@ -1048,6 +1061,7 @@ export class ValidationModel {
                 `${ValidationTableName}.field_name`,
                 `${ValidationTableName}.chart_name`,
                 `${ValidationTableName}.model_name`,
+                `${ValidationTableName}.table_name`,
                 `${ValidationTableName}.saved_chart_uuid`,
                 `${ValidationTableName}.dashboard_uuid`,
                 `${ValidationTableName}.app_uuid`,
@@ -1124,6 +1138,7 @@ export class ValidationModel {
                 `${ValidationTableName}.field_name`,
                 `${ValidationTableName}.chart_name`,
                 `${ValidationTableName}.model_name`,
+                `${ValidationTableName}.table_name`,
                 `${ValidationTableName}.saved_chart_uuid`,
                 `${ValidationTableName}.dashboard_uuid`,
                 `${ValidationTableName}.app_uuid`,
@@ -1177,6 +1192,7 @@ export class ValidationModel {
                 `${ValidationTableName}.field_name`,
                 `${ValidationTableName}.chart_name`,
                 `${ValidationTableName}.model_name`,
+                `${ValidationTableName}.table_name`,
                 `${ValidationTableName}.saved_chart_uuid`,
                 `${ValidationTableName}.dashboard_uuid`,
                 `${ValidationTableName}.app_uuid`,
@@ -1228,6 +1244,7 @@ export class ValidationModel {
                 `${ValidationTableName}.field_name`,
                 `${ValidationTableName}.chart_name`,
                 `${ValidationTableName}.model_name`,
+                `${ValidationTableName}.table_name`,
                 `${ValidationTableName}.saved_chart_uuid`,
                 `${ValidationTableName}.dashboard_uuid`,
                 `${ValidationTableName}.app_uuid`,

@@ -22,6 +22,7 @@ export type ValidationErrorChartResponse = ValidationResponseBase & {
     chartUuid: string | undefined; // NOTE: can be undefined if private content
     chartKind?: ChartKind;
     fieldName?: string;
+    tableName?: string; // The model/explore the broken field or chart belongs to
     lastUpdatedBy?: string;
     lastUpdatedAt?: Date;
     chartViews: number;
@@ -73,6 +74,7 @@ export type CreateChartValidation = Pick<
     | 'error'
     | 'errorType'
     | 'fieldName'
+    | 'tableName'
     | 'name'
     | 'projectUuid'
     | 'chartUuid'
@@ -85,6 +87,7 @@ export type CreateDashboardValidation = Pick<
     | 'error'
     | 'errorType'
     | 'fieldName'
+    | 'tableName'
     | 'name'
     | 'projectUuid'
     | 'dashboardUuid'

@@ -145,6 +145,24 @@ export class ValidationService extends BaseService {
         return existingFields;
     }
 
+    // Explores that exist but failed to compile — indexed by name and
+    // baseTable (charts reference either), so a broken-but-present model is
+    // reported as a compile failure, not falsely as deleted.
+    private static buildExploreErrorNames(
+        compiledExplores: (Explore | ExploreError)[],
+    ): Set<string> {
+        return new Set(
+            compiledExplores.flatMap((explore) =>
+                isExploreError(explore)
+                    ? [
+                          explore.name,
+                          ...(explore.baseTable ? [explore.baseTable] : []),
+                      ]
+                    : [],
+            ),
+        );
+    }
+
     private static buildExistingTableNames(
         compiledExplores: (Explore | ExploreError)[],
     ): Set<string> {
@@ -378,6 +396,7 @@ export class ValidationService extends BaseService {
             string,
             { dimensionIds: string[]; metricIds: string[] }
         >,
+        exploreErrorNames: Set<string>,
         selectedExplores?: (Explore | ExploreError)[],
         chartUuid?: string,
     ): Promise<CreateChartValidation[]> {
@@ -441,7 +460,25 @@ export class ValidationService extends BaseService {
                         projectUuid,
                         source: ValidationSourceType.Chart,
                         chartName: name,
+                        tableName,
                     };
+
+                    // When the whole explore is gone (deleted or failed to
+                    // compile), every field check would fail — collapse the
+                    // noise into a single model-level error so cleanup can
+                    // group all affected charts by model.
+                    if (exploreFields[tableName] === undefined) {
+                        return [
+                            {
+                                ...commonValidation,
+                                errorType: ValidationErrorType.Model,
+                                error: exploreErrorNames.has(tableName)
+                                    ? `Model error: the model '${tableName}' failed to compile`
+                                    : `Model error: the model '${tableName}' no longer exists`,
+                            },
+                        ];
+                    }
+
                     const containsFieldId = ({
                         acc,
                         fieldIds,
@@ -677,13 +714,14 @@ export class ValidationService extends BaseService {
                         error,
                         errorType,
                         fieldName,
+                        tableName,
                     }: {
                         acc: CreateDashboardValidation[];
                         fieldIds: Set<string>;
                         fieldId: string;
                     } & Pick<
                         CreateDashboardValidation,
-                        'error' | 'errorType' | 'fieldName'
+                        'error' | 'errorType' | 'fieldName' | 'tableName'
                     >) => {
                         if (!fieldIds?.has(fieldId)) {
                             return [
@@ -693,6 +731,7 @@ export class ValidationService extends BaseService {
                                     errorType,
                                     error,
                                     fieldName,
+                                    tableName,
                                 },
                             ];
                         }
@@ -709,6 +748,7 @@ export class ValidationService extends BaseService {
                                 errorType: ValidationErrorType.Filter,
                                 error: `Filter error: the field '${fieldId}' does not match table '${tableName}'`,
                                 fieldName: fieldId,
+                                tableName,
                             };
                         }
                         return undefined;
@@ -730,6 +770,7 @@ export class ValidationService extends BaseService {
                                 errorType: ValidationErrorType.Filter,
                                 error: `Table '${tableName}' no longer exists`,
                                 fieldName: fieldId,
+                                tableName,
                             };
                         }
                         return undefined;
@@ -782,6 +823,7 @@ export class ValidationService extends BaseService {
                                     : `Filter error: the field '${filter.target.fieldId}' no longer exists`,
                                 errorType: ValidationErrorType.Filter,
                                 fieldName: filter.target.fieldId,
+                                tableName,
                             });
                         } catch (e) {
                             console.error(
@@ -839,6 +881,7 @@ export class ValidationService extends BaseService {
                                         : `Filter error: the field '${tileTarget.fieldId}' no longer exists`,
                                     errorType: ValidationErrorType.Filter,
                                     fieldName: tileTarget.fieldId,
+                                    tableName,
                                 });
                             }
                             return acc;
@@ -1098,6 +1141,7 @@ export class ValidationService extends BaseService {
                 ? await this.validateCharts(
                       projectUuid,
                       exploreFields,
+                      ValidationService.buildExploreErrorNames(explores ?? []),
                       onlyValidateExploresInArgs ? compiledExplores : undefined,
                   )
                 : [];
@@ -1712,6 +1756,7 @@ export class ValidationService extends BaseService {
         const validationErrors = await this.validateCharts(
             projectUuid,
             exploreFields,
+            ValidationService.buildExploreErrorNames(compiledExplores),
             compiledExplores,
             chartUuid,
         );
