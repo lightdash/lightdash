@@ -32830,6 +32830,379 @@
                 "type": "string",
                 "enum": ["createdAt", "title"]
             },
+            "Pick_AiAgentSummary.uuid-or-name-or-instruction-or-tags-or-integrations-or-modelConfig-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-version_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "integrations": {
+                        "items": {
+                            "properties": {
+                                "channelId": {
+                                    "type": "string"
+                                },
+                                "type": {
+                                    "type": "string",
+                                    "enum": ["slack"],
+                                    "nullable": false
+                                }
+                            },
+                            "required": ["channelId", "type"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "instruction": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "enableDataAccess": {
+                        "type": "boolean"
+                    },
+                    "enableSelfImprovement": {
+                        "type": "boolean"
+                    },
+                    "enableContentTools": {
+                        "type": "boolean"
+                    },
+                    "enableUserContext": {
+                        "type": "boolean"
+                    },
+                    "enableSqlMode": {
+                        "type": "boolean"
+                    },
+                    "adminOnly": {
+                        "type": "boolean"
+                    },
+                    "modelConfig": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiAgentModelConfig"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "name",
+                    "uuid",
+                    "version",
+                    "integrations",
+                    "tags",
+                    "instruction",
+                    "enableDataAccess",
+                    "enableSelfImprovement",
+                    "enableContentTools",
+                    "enableUserContext",
+                    "enableSqlMode",
+                    "adminOnly",
+                    "modelConfig"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "AiAgentThreadDumpAgent": {
+                "$ref": "#/components/schemas/Pick_AiAgentSummary.uuid-or-name-or-instruction-or-tags-or-integrations-or-modelConfig-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-version_"
+            },
+            "AiAgentThreadDumpToolCall": {
+                "properties": {
+                    "isError": {
+                        "type": "boolean"
+                    },
+                    "resultOmitted": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "result": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "args": {},
+                    "source": {
+                        "type": "string",
+                        "enum": ["lightdash", "mcp"]
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "parentToolCallId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "toolCallId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "isError",
+                    "resultOmitted",
+                    "result",
+                    "args",
+                    "source",
+                    "name",
+                    "parentToolCallId",
+                    "toolCallId"
+                ],
+                "type": "object"
+            },
+            "AiAgentThreadDumpArtifact": {
+                "properties": {
+                    "dashboardConfig": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Record_string.unknown_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "chartConfig": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Record_string.unknown_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "artifactType": {
+                        "type": "string",
+                        "enum": ["chart", "dashboard"]
+                    },
+                    "versionNumber": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "versionUuid": {
+                        "type": "string"
+                    },
+                    "artifactUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "dashboardConfig",
+                    "chartConfig",
+                    "description",
+                    "title",
+                    "artifactType",
+                    "versionNumber",
+                    "versionUuid",
+                    "artifactUuid"
+                ],
+                "type": "object"
+            },
+            "AiAgentThreadDumpTurn": {
+                "properties": {
+                    "artifacts": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentThreadDumpArtifact"
+                        },
+                        "type": "array"
+                    },
+                    "toolCalls": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentThreadDumpToolCall"
+                        },
+                        "type": "array"
+                    },
+                    "tokenUsage": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiPromptTokenUsage"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "modelConfig": {
+                        "properties": {
+                            "modelProvider": {
+                                "type": "string"
+                            },
+                            "modelName": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["modelProvider", "modelName"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "steers": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "feedback": {
+                        "properties": {
+                            "comment": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "score": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["comment", "score"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "interrupted": {
+                        "type": "boolean"
+                    },
+                    "error": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "assistant": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "user": {
+                        "type": "string"
+                    },
+                    "hidden": {
+                        "type": "boolean"
+                    },
+                    "respondedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "promptUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "artifacts",
+                    "toolCalls",
+                    "tokenUsage",
+                    "modelConfig",
+                    "steers",
+                    "feedback",
+                    "interrupted",
+                    "error",
+                    "assistant",
+                    "user",
+                    "hidden",
+                    "respondedAt",
+                    "createdAt",
+                    "promptUuid"
+                ],
+                "type": "object"
+            },
+            "AiAgentThreadDump": {
+                "properties": {
+                    "turns": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentThreadDumpTurn"
+                        },
+                        "type": "array"
+                    },
+                    "agent": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiAgentThreadDumpAgent"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdFrom": {
+                        "$ref": "#/components/schemas/AiThreadCreatedFrom"
+                    },
+                    "userUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "agentUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "defaultProvider": {
+                        "type": "string"
+                    },
+                    "lightdashVersion": {
+                        "type": "string"
+                    },
+                    "generatedAt": {
+                        "type": "string"
+                    },
+                    "schemaVersion": {
+                        "type": "number",
+                        "enum": [1],
+                        "nullable": false
+                    }
+                },
+                "required": [
+                    "turns",
+                    "agent",
+                    "title",
+                    "createdFrom",
+                    "userUuid",
+                    "agentUuid",
+                    "threadUuid",
+                    "projectUuid",
+                    "organizationUuid",
+                    "defaultProvider",
+                    "lightdashVersion",
+                    "generatedAt",
+                    "schemaVersion"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_AiAgentThreadDump_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiAgentThreadDump"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentThreadDumpResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiAgentThreadDump_"
+            },
             "Pick_AiAgentEvaluationRunSummary.runUuid-or-status-or-createdAt-or-completedAt_": {
                 "properties": {
                     "createdAt": {
@@ -54023,7 +54396,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.192.0",
+        "version": "1.193.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -66696,6 +67069,46 @@
                         "schema": {
                             "type": "string",
                             "enum": ["asc", "desc"]
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/aiAgents/admin/threads/{threadUuid}/dump": {
+            "get": {
+                "operationId": "getAdminThreadDump",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentThreadDumpResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Download a sanitized debug dump of an AI agent thread for troubleshooting.\nRequires AI_COPILOT_THREAD_DUMP_ENABLED on the instance.",
+                "summary": "Get AI agent thread dump",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]

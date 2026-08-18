@@ -1,3 +1,11 @@
+# [1.193.0](https://github.com/lightdash/lightdash/compare/1.192.0...1.193.0) (2026-08-18)
+
+
+### Features
+
+* add chart slug update CLI ([#27501](https://github.com/lightdash/lightdash/issues/27501)) ([b5a6526](https://github.com/lightdash/lightdash/commit/b5a6526522ede68b9bb4d13aa9ddc2a3f48d4173)), closes [#14578](https://github.com/lightdash/lightdash/issues/14578)
+* admin download of sanitized AI thread debug dump ([#27552](https://github.com/lightdash/lightdash/issues/27552)) ([0e0ed85](https://github.com/lightdash/lightdash/commit/0e0ed85b3702b2872d93b4abf0cf67674e3c51e7))
+
 # [1.192.0](https://github.com/lightdash/lightdash/compare/1.191.2...1.192.0) (2026-08-18)
 
 
