@@ -25589,6 +25589,58 @@
                     }
                 ]
             },
+            "MergeQuerySource": {
+                "properties": {
+                    "metricQuery": {
+                        "$ref": "#/components/schemas/MetricQuery"
+                    },
+                    "id": {
+                        "type": "string",
+                        "description": "Stable id. Names the CTE, and the table its merged fields belong to."
+                    }
+                },
+                "required": ["metricQuery", "id"],
+                "type": "object",
+                "description": "One side of a merge: a metric query."
+            },
+            "MergeQuery": {
+                "properties": {
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeTableCalculation"
+                        },
+                        "type": "array",
+                        "description": "Calculations over the merged result. Applied last, after any pivot."
+                    },
+                    "joinType": {
+                        "$ref": "#/components/schemas/MergeJoinType"
+                    },
+                    "joinKey": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeJoinKeyPart"
+                        },
+                        "type": "array"
+                    },
+                    "sources": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeQuerySource"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "limit",
+                    "tableCalculations",
+                    "joinType",
+                    "joinKey",
+                    "sources"
+                ],
+                "type": "object"
+            },
             "AiVizMetadata": {
                 "properties": {
                     "description": {
@@ -25608,6 +25660,15 @@
                     "metadata": {
                         "$ref": "#/components/schemas/AiVizMetadata"
                     },
+                    "mergeQuery": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MergeQuery"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "The executed merge, so clients need not re-derive it from tool args."
+                    },
                     "query": {
                         "$ref": "#/components/schemas/ApiExecuteAsyncMetricQueryResults"
                     },
@@ -25620,7 +25681,13 @@
                         "nullable": false
                     }
                 },
-                "required": ["metadata", "query", "type", "source"],
+                "required": [
+                    "metadata",
+                    "mergeQuery",
+                    "query",
+                    "type",
+                    "source"
+                ],
                 "type": "object"
             },
             "AiResultType.TABLE_RESULT": {
@@ -43295,58 +43362,6 @@
                 "type": "object",
                 "description": "What the compile endpoint returns. `sql` is null exactly when `errors` is\nnon-empty: a merge that would produce wrong numbers is reported, not run."
             },
-            "MergeQuerySource": {
-                "properties": {
-                    "metricQuery": {
-                        "$ref": "#/components/schemas/MetricQuery"
-                    },
-                    "id": {
-                        "type": "string",
-                        "description": "Stable id. Names the CTE, and the table its merged fields belong to."
-                    }
-                },
-                "required": ["metricQuery", "id"],
-                "type": "object",
-                "description": "One side of a merge: a metric query."
-            },
-            "MergeQuery": {
-                "properties": {
-                    "limit": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "tableCalculations": {
-                        "items": {
-                            "$ref": "#/components/schemas/MergeTableCalculation"
-                        },
-                        "type": "array",
-                        "description": "Calculations over the merged result. Applied last, after any pivot."
-                    },
-                    "joinType": {
-                        "$ref": "#/components/schemas/MergeJoinType"
-                    },
-                    "joinKey": {
-                        "items": {
-                            "$ref": "#/components/schemas/MergeJoinKeyPart"
-                        },
-                        "type": "array"
-                    },
-                    "sources": {
-                        "items": {
-                            "$ref": "#/components/schemas/MergeQuerySource"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": [
-                    "limit",
-                    "tableCalculations",
-                    "joinType",
-                    "joinKey",
-                    "sources"
-                ],
-                "type": "object"
-            },
             "CompileMergeQueryRequest": {
                 "properties": {
                     "parameters": {
@@ -54427,7 +54442,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.197.0",
+        "version": "1.198.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

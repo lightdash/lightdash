@@ -1,3 +1,12 @@
+# [1.198.0](https://github.com/lightdash/lightdash/compare/1.197.0...1.198.0) (2026-08-18)
+
+
+### Features
+
+* **ai-agents:** save and explore merged visualizations ([#27600](https://github.com/lightdash/lightdash/issues/27600)) ([9ee74f8](https://github.com/lightdash/lightdash/commit/9ee74f8fd1468e31c3b55dc32b587c9368568238)), closes [#27599](https://github.com/lightdash/lightdash/issues/27599) [#27511](https://github.com/lightdash/lightdash/issues/27511)
+* **ai-agents:** support merge query visualizations ([#27511](https://github.com/lightdash/lightdash/issues/27511)) ([94bfc78](https://github.com/lightdash/lightdash/commit/94bfc781e5f63734705ec80043ad272d4a8306e1)), closes [#27599](https://github.com/lightdash/lightdash/issues/27599) [#27600](https://github.com/lightdash/lightdash/issues/27600)
+* **ai-agents:** view SQL for merged visualizations ([#27599](https://github.com/lightdash/lightdash/issues/27599)) ([9bf0976](https://github.com/lightdash/lightdash/commit/9bf0976d692d619552c432bbee448f03b5b79f6d)), closes [#27511](https://github.com/lightdash/lightdash/issues/27511)
+
 # [1.197.0](https://github.com/lightdash/lightdash/compare/1.196.1...1.197.0) (2026-08-18)
 
 
