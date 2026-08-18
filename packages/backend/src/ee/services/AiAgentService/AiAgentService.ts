@@ -5125,7 +5125,7 @@ export class AiAgentService extends BaseService {
                 modelName: prompt.modelConfig?.modelName,
             });
 
-        if (!supportsCompaction || contextWindowTokens === null) {
+        if (!supportsCompaction) {
             Logger.debug(
                 `${compactionLogContext} skipped reason=unsupported-model provider=${prompt.modelConfig?.modelProvider ?? 'default'} model=${prompt.modelConfig?.modelName ?? 'default'}`,
             );
