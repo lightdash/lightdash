@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import { type ClarificationRound } from '../hooks/useClarificationRound';
+import { type ClarificationRound } from '../../apps/hooks/useClarificationRound';
 import { type VizBuildRequest } from '../hooks/useDataAppVizBuild';
 
 /** A clarifying round with nothing on screen. */

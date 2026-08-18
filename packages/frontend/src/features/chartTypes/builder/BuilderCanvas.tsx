@@ -5,7 +5,7 @@ import {
 import { Box, Stack, Text } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
 import { useResolvedColorPalette } from '../../../hooks/appearance/useResolvedColorPalette';
-import AppPreview from '../components/AppPreview';
+import AppPreview from '../../apps/components/AppPreview';
 import classes from './BuilderCanvas.module.css';
 import BuilderPromptExamples from './BuilderPromptExamples';
 

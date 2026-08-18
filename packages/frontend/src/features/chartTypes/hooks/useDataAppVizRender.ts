@@ -9,7 +9,7 @@ import { lightdashApi } from '../../../api';
 import {
     getPreviewTokenRefetchInterval,
     previewTokenQueryOptions,
-} from './previewTokenQueryOptions';
+} from '../../apps/hooks/previewTokenQueryOptions';
 
 const DATA_APP_VIZ_RENDER_POLL_INTERVAL_MS = 3000;
 const DATA_APP_VIZ_RENDER_MAX_RETRIES = 3;

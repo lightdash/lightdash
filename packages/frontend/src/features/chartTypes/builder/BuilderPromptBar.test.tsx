@@ -7,8 +7,8 @@ import userEvent from '@testing-library/user-event';
 import { forwardRef, useImperativeHandle, useRef, type ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
-import { type ClarificationRound } from '../hooks/useClarificationRound';
-import { type DataAppModelSelection } from '../hooks/useDataAppModelSelection';
+import { type ClarificationRound } from '../../apps/hooks/useClarificationRound';
+import { type DataAppModelSelection } from '../../apps/hooks/useDataAppModelSelection';
 import {
     type DataAppVizBuildState,
     type VizBuildRequest,

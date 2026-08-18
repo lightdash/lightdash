@@ -1,8 +1,8 @@
 import { Box } from '@mantine/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState, type FC } from 'react';
-import promptBar from '../features/apps/builder/BuilderPromptBar.module.css';
-import ClarifyingQuestions from '../features/apps/builder/ClarifyingQuestions';
+import promptBar from '../features/chartTypes/builder/BuilderPromptBar.module.css';
+import ClarifyingQuestions from '../features/chartTypes/builder/ClarifyingQuestions';
 
 const QUESTIONS = [
     'Should teams be compared side by side, or stacked into one total?',
@@ -46,7 +46,7 @@ const Harness: FC<Props> = ({ prompt, questions, initialAnswers }) => {
 };
 
 const meta: Meta<typeof Harness> = {
-    title: 'Data apps/Clarifying questions',
+    title: 'Chart types/Clarifying questions',
     component: Harness,
     parameters: { layout: 'fullscreen' },
     args: {

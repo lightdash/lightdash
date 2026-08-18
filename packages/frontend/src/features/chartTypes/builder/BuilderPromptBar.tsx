@@ -28,9 +28,12 @@ import { ComposerSubmitButton } from '../../../components/common/PromptComposer/
 import PromptComposer, {
     type PromptComposerHandle,
 } from '../../../components/common/PromptComposer/PromptComposer';
-import { ModelPicker, SelectedAttachmentSection } from '../AppResourcePicker';
-import { type ClarificationRound } from '../hooks/useClarificationRound';
-import { type DataAppModelSelection } from '../hooks/useDataAppModelSelection';
+import {
+    ModelPicker,
+    SelectedAttachmentSection,
+} from '../../apps/AppResourcePicker';
+import { type ClarificationRound } from '../../apps/hooks/useClarificationRound';
+import { type DataAppModelSelection } from '../../apps/hooks/useDataAppModelSelection';
 import {
     type DataAppVizBuildState,
     type VizBuildRequest,

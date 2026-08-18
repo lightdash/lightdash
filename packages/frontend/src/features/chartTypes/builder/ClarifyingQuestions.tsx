@@ -10,7 +10,7 @@ import {
 import { IconPencil, IconSparkles } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import ClarificationQuestionList from '../components/ClarificationQuestionList';
+import ClarificationQuestionList from '../../apps/components/ClarificationQuestionList';
 import classes from './ClarifyingQuestions.module.css';
 
 type Props = {

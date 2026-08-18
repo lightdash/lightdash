@@ -1,12 +1,12 @@
 import { MAX_APP_FILES_PER_VERSION } from '@lightdash/common';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useAppFileUpload } from '../../apps/hooks/useAppFileUpload';
 import {
     getAppFileSizeError,
     getAppFileValidationError,
     isSupportedAppImage,
-} from '../utils/appFileAttachments';
-import { useAppFileUpload } from './useAppFileUpload';
+} from '../../apps/utils/appFileAttachments';
 
 export type VizAttachment = {
     fileId: string | null;

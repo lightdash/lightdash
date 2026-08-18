@@ -3,14 +3,14 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
-import { appVersion } from '../testing/appVersionHistory';
+import { appVersion } from '../../apps/testing/appVersionHistory';
 import { buildStub } from '../testing/dataAppVizBuildStub';
 import VersionHistoryPanel from './VersionHistoryPanel';
 
 const styles = readFileSync(
     join(
         process.cwd(),
-        'src/features/apps/builder/VersionHistoryPanel.module.css',
+        'src/features/chartTypes/builder/VersionHistoryPanel.module.css',
     ),
     'utf8',
 );

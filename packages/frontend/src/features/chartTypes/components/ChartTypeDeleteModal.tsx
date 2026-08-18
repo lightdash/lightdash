@@ -2,7 +2,7 @@ import { getAppDisplayName, type DataAppViz } from '@lightdash/common';
 import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 import useApp from '../../../providers/App/useApp';
-import { useDeleteApp } from '../hooks/useDeleteApp';
+import { useDeleteApp } from '../../apps/hooks/useDeleteApp';
 
 type Props = {
     projectUuid: string;

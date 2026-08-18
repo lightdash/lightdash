@@ -1,12 +1,12 @@
 import { type DataAppViz } from '@lightdash/common';
 import { act, fireEvent, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useDataAppVisualizations } from '../../../features/apps/hooks/useDataAppVisualizations';
+import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/useDataAppVisualizations';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { type CustomChartTypeOption } from './customChartTypeOption';
 import CustomChartTypePicker from './CustomChartTypePicker';
 
-vi.mock('../../../features/apps/hooks/useDataAppVisualizations', () => ({
+vi.mock('../../../features/chartTypes/hooks/useDataAppVisualizations', () => ({
     useDataAppVisualizations: vi.fn(),
 }));
 

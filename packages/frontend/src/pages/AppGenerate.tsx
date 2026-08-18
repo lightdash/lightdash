@@ -100,8 +100,6 @@ import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
 import AppPreview from '../features/apps/components/AppPreview';
 import ClarificationQuestionList from '../features/apps/components/ClarificationQuestionList';
-import DataAppVizResultCard from '../features/apps/components/DataAppVizResultCard';
-import DataAppVizTestPanel from '../features/apps/components/DataAppVizTestPanel';
 import LoadingDots from '../features/apps/components/LoadingDots';
 import RecentAppSuggestions from '../features/apps/components/RecentAppSuggestions';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
@@ -151,6 +149,8 @@ import {
     versionNarrationTexts,
     versionsToChatMessages,
 } from '../features/apps/utils/versionsToChatMessages';
+import DataAppVizResultCard from '../features/chartTypes/components/DataAppVizResultCard';
+import DataAppVizTestPanel from '../features/chartTypes/components/DataAppVizTestPanel';
 import { useAppExternalConnections } from '../features/externalConnections/hooks/useAppExternalConnections';
 import { ThemePicker } from '../features/organizationDesigns/components/ThemePicker';
 import { useOrganizationDesigns } from '../features/organizationDesigns/hooks/useOrganizationDesigns';

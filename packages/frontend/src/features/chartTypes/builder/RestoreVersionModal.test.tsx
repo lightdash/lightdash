@@ -1,10 +1,10 @@
 import { fireEvent, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
-import { useRestoreAppVersion } from '../hooks/useRestoreAppVersion';
+import { useRestoreAppVersion } from '../../apps/hooks/useRestoreAppVersion';
 import RestoreVersionModal from './RestoreVersionModal';
 
-vi.mock('../hooks/useRestoreAppVersion', () => ({
+vi.mock('../../apps/hooks/useRestoreAppVersion', () => ({
     useRestoreAppVersion: vi.fn(),
 }));
 

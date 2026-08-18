@@ -2,18 +2,22 @@ import { type ApiAppVersionSummary } from '@lightdash/common';
 import { act } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHookWithProviders } from '../../../testing/testUtils';
-import { useAppBuildPoller } from './useAppBuildPoller';
-import { useCancelAppVersion } from './useCancelAppVersion';
+import { useAppBuildPoller } from '../../apps/hooks/useAppBuildPoller';
+import { useCancelAppVersion } from '../../apps/hooks/useCancelAppVersion';
+import { useDeleteApp } from '../../apps/hooks/useDeleteApp';
+import { useGenerateApp } from '../../apps/hooks/useGenerateApp';
+import { useIterateApp } from '../../apps/hooks/useIterateApp';
 import { useDataAppVizBuild } from './useDataAppVizBuild';
-import { useDeleteApp } from './useDeleteApp';
-import { useGenerateApp } from './useGenerateApp';
-import { useIterateApp } from './useIterateApp';
 
-vi.mock('./useGenerateApp', () => ({ useGenerateApp: vi.fn() }));
-vi.mock('./useIterateApp', () => ({ useIterateApp: vi.fn() }));
-vi.mock('./useAppBuildPoller', () => ({ useAppBuildPoller: vi.fn() }));
-vi.mock('./useCancelAppVersion', () => ({ useCancelAppVersion: vi.fn() }));
-vi.mock('./useDeleteApp', () => ({ useDeleteApp: vi.fn() }));
+vi.mock('../../apps/hooks/useGenerateApp', () => ({ useGenerateApp: vi.fn() }));
+vi.mock('../../apps/hooks/useIterateApp', () => ({ useIterateApp: vi.fn() }));
+vi.mock('../../apps/hooks/useAppBuildPoller', () => ({
+    useAppBuildPoller: vi.fn(),
+}));
+vi.mock('../../apps/hooks/useCancelAppVersion', () => ({
+    useCancelAppVersion: vi.fn(),
+}));
+vi.mock('../../apps/hooks/useDeleteApp', () => ({ useDeleteApp: vi.fn() }));
 
 const mockedGenerate = vi.mocked(useGenerateApp);
 const mockedIterate = vi.mocked(useIterateApp);

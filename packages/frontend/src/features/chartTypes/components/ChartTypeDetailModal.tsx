@@ -6,8 +6,8 @@ import { Link, useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
-import { useAppVersionHistory } from '../hooks/useAppVersionHistory';
-import { useCanEditDataApp } from '../hooks/useCanEditDataApp';
+import { useAppVersionHistory } from '../../apps/hooks/useAppVersionHistory';
+import { useCanEditDataApp } from '../../apps/hooks/useCanEditDataApp';
 import classes from './ChartTypeDetailModal.module.css';
 import ChartTypeSamplePreview from './ChartTypeSamplePreview';
 
