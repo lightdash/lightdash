@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { APP_PREVIEW_TOKEN_REFRESH_INTERVAL_MS } from './previewTokenQueryOptions';
+import { APP_PREVIEW_TOKEN_REFRESH_INTERVAL_MS } from '../../apps/hooks/previewTokenQueryOptions';
 import {
     useDataAppVizPreviewToken,
     useDataAppVizRenderMetadata,

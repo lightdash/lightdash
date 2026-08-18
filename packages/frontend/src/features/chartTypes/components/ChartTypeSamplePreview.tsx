@@ -4,12 +4,12 @@ import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useResolvedColorPalette } from '../../../hooks/appearance/useResolvedColorPalette';
 import { useResizeObserver } from '../../../hooks/useResizeObserver';
-import AppIframePreview from '../AppIframePreview';
+import AppIframePreview from '../../apps/AppIframePreview';
+import { usePreviewOrigin } from '../../apps/previewOrigin';
 import {
     useDataAppVizPreviewToken,
     useDataAppVizRenderMetadata,
 } from '../hooks/useDataAppVizRender';
-import { usePreviewOrigin } from '../previewOrigin';
 import { buildSampleVizContext } from '../utils/sampleVizContext';
 import classes from './ChartTypeSamplePreview.module.css';
 

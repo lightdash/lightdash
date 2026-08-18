@@ -19,13 +19,6 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router';
 import { validate as isUuidString } from 'uuid';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
-import BuilderCanvas from '../features/apps/builder/BuilderCanvas';
-import BuilderPromptBar, {
-    type BuilderPromptBarHandle,
-} from '../features/apps/builder/BuilderPromptBar';
-import ChartTypeBuilderHeader from '../features/apps/builder/ChartTypeBuilderHeader';
-import ConfigurePanel from '../features/apps/builder/ConfigurePanel';
-import VersionHistoryPanel from '../features/apps/builder/VersionHistoryPanel';
 import { getAppVersionFailureMessage } from '../features/apps/getAppVersionFailureMessage';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppVersionHistory } from '../features/apps/hooks/useAppVersionHistory';
@@ -36,14 +29,21 @@ import {
     type ClarifyParams,
 } from '../features/apps/hooks/useClarificationRound';
 import { useDataAppModelSelection } from '../features/apps/hooks/useDataAppModelSelection';
-import { useDataAppVisualization } from '../features/apps/hooks/useDataAppVisualization';
+import { useElapsedClock } from '../features/apps/hooks/useElapsedClock';
+import { useGetApp } from '../features/apps/hooks/useGetApp';
+import BuilderCanvas from '../features/chartTypes/builder/BuilderCanvas';
+import BuilderPromptBar, {
+    type BuilderPromptBarHandle,
+} from '../features/chartTypes/builder/BuilderPromptBar';
+import ChartTypeBuilderHeader from '../features/chartTypes/builder/ChartTypeBuilderHeader';
+import ConfigurePanel from '../features/chartTypes/builder/ConfigurePanel';
+import VersionHistoryPanel from '../features/chartTypes/builder/VersionHistoryPanel';
+import { useDataAppVisualization } from '../features/chartTypes/hooks/useDataAppVisualization';
 import {
     useDataAppVizBuild,
     type VizBuildRequest,
-} from '../features/apps/hooks/useDataAppVizBuild';
-import { useElapsedClock } from '../features/apps/hooks/useElapsedClock';
-import { useGetApp } from '../features/apps/hooks/useGetApp';
-import { buildSampleVizContext } from '../features/apps/utils/sampleVizContext';
+} from '../features/chartTypes/hooks/useDataAppVizBuild';
+import { buildSampleVizContext } from '../features/chartTypes/utils/sampleVizContext';
 import { useResolvedColorPalette } from '../hooks/appearance/useResolvedColorPalette';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import classes from './ChartTypeBuilder.module.css';

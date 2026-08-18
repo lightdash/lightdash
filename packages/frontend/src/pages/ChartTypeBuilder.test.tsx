@@ -13,13 +13,13 @@ import {
 import { useCanCreateDataApp } from '../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useClarificationRound } from '../features/apps/hooks/useClarificationRound';
-import { useDataAppVisualization } from '../features/apps/hooks/useDataAppVisualization';
-import { useDataAppVizBuild } from '../features/apps/hooks/useDataAppVizBuild';
-import { type VizBuildRequest } from '../features/apps/hooks/useDataAppVizBuild';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { appVersion } from '../features/apps/testing/appVersionHistory';
-import { clarificationStub } from '../features/apps/testing/clarificationRoundStub';
-import { buildStub } from '../features/apps/testing/dataAppVizBuildStub';
+import { useDataAppVisualization } from '../features/chartTypes/hooks/useDataAppVisualization';
+import { useDataAppVizBuild } from '../features/chartTypes/hooks/useDataAppVizBuild';
+import { type VizBuildRequest } from '../features/chartTypes/hooks/useDataAppVizBuild';
+import { clarificationStub } from '../features/chartTypes/testing/clarificationRoundStub';
+import { buildStub } from '../features/chartTypes/testing/dataAppVizBuildStub';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../testing/testUtils';
 import ChartTypeBuilder from './ChartTypeBuilder';
@@ -39,10 +39,10 @@ vi.mock('../features/apps/hooks/useGetApp', () => ({
 vi.mock('../features/apps/hooks/useAppVersionHistory', () => ({
     useAppVersionHistory: vi.fn(),
 }));
-vi.mock('../features/apps/hooks/useDataAppVizBuild', () => ({
+vi.mock('../features/chartTypes/hooks/useDataAppVizBuild', () => ({
     useDataAppVizBuild: vi.fn(),
 }));
-vi.mock('../features/apps/hooks/useDataAppVisualization', () => ({
+vi.mock('../features/chartTypes/hooks/useDataAppVisualization', () => ({
     useDataAppVisualization: vi.fn(),
 }));
 vi.mock('../features/apps/hooks/useClarificationRound', () => ({
@@ -74,7 +74,7 @@ vi.mock('../components/common/PromptComposer/PromptComposer', () => ({
         disabled?: boolean;
     }) => <input placeholder={placeholder} disabled={disabled} />,
 }));
-vi.mock('../features/apps/hooks/useVizComposerAttachments', () => ({
+vi.mock('../features/chartTypes/hooks/useVizComposerAttachments', () => ({
     useVizComposerAttachments: () => ({
         attachments: [],
         fileIds: [],

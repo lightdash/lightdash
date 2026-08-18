@@ -1,12 +1,22 @@
-import { type AppClarification } from '@lightdash/common';
+import {
+    type AppClarification,
+    type DataAppClaudeModel,
+} from '@lightdash/common';
 import { act, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHookWithProviders } from '../../../testing/testUtils';
 import { useClarificationRound } from './useClarificationRound';
 import { useClarifyApp } from './useClarifyApp';
-import { type VizBuildRequest } from './useDataAppVizBuild';
 
 vi.mock('./useClarifyApp', () => ({ useClarifyApp: vi.fn() }));
+
+/** Stands in for a caller's request shape; the hook is generic over it. */
+type TestRequest = {
+    description: string;
+    fileIds: string[];
+    claudeModel: DataAppClaudeModel;
+    clarifications: AppClarification[];
+};
 
 const track = vi.fn();
 vi.mock('../../../providers/Tracking/useTracking', () => ({
@@ -15,11 +25,7 @@ vi.mock('../../../providers/Tracking/useTracking', () => ({
 
 const mockedClarify = vi.mocked(useClarifyApp);
 
-const request = (
-    overrides: Partial<
-        Omit<VizBuildRequest, 'claudeModel' | 'codexModel'>
-    > = {},
-): VizBuildRequest => ({
+const request = (overrides: Partial<TestRequest> = {}): TestRequest => ({
     description: 'show revenue split by team',
     fileIds: [],
     claudeModel: 'sonnet',
@@ -27,7 +33,7 @@ const request = (
     ...overrides,
 });
 
-const toClarifyParams = (item: VizBuildRequest) => ({
+const toClarifyParams = (item: TestRequest) => ({
     prompt: item.description,
     template: 'data_app_viz' as const,
     fileIds: item.fileIds.length > 0 ? item.fileIds : undefined,
@@ -36,13 +42,13 @@ const toClarifyParams = (item: VizBuildRequest) => ({
 describe('useClarificationRound', () => {
     let clarify: ReturnType<typeof vi.fn>;
     let onBuild: (
-        request: VizBuildRequest,
+        request: TestRequest,
         clarifications: AppClarification[],
     ) => void;
 
     const setup = (isFirstBuild = true) =>
         renderHookWithProviders(() =>
-            useClarificationRound<VizBuildRequest>({
+            useClarificationRound<TestRequest>({
                 projectUuid: 'project-1',
                 isFirstBuild,
                 toClarifyParams,

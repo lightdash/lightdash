@@ -17,9 +17,9 @@ import { useState, type FC } from 'react';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
-import { getAppVersionFailureMessage } from '../getAppVersionFailureMessage';
+import { getAppVersionFailureMessage } from '../../apps/getAppVersionFailureMessage';
+import { getVersionAuthorName } from '../../apps/utils/versionsToChatMessages';
 import { type DataAppVizBuildState } from '../hooks/useDataAppVizBuild';
-import { getVersionAuthorName } from '../utils/versionsToChatMessages';
 import RestoreVersionModal from './RestoreVersionModal';
 import classes from './VersionHistoryPanel.module.css';
 

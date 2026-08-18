@@ -21,7 +21,7 @@ import { useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import AppUpdateModal from '../../../components/common/modal/AppUpdateModal';
-import { getVersionAuthorName } from '../utils/versionsToChatMessages';
+import { getVersionAuthorName } from '../../apps/utils/versionsToChatMessages';
 import classes from './ChartTypeBuilderHeader.module.css';
 import VersionProvenance from './VersionProvenance';
 

@@ -10,12 +10,12 @@ import {
 } from '@lightdash/common';
 import { useCallback, useState } from 'react';
 import { v4 as uuid4 } from 'uuid';
+import { useAppBuildPoller } from '../../apps/hooks/useAppBuildPoller';
+import { useCancelAppVersion } from '../../apps/hooks/useCancelAppVersion';
+import { useDeleteApp } from '../../apps/hooks/useDeleteApp';
+import { useGenerateApp } from '../../apps/hooks/useGenerateApp';
+import { useIterateApp } from '../../apps/hooks/useIterateApp';
 import { autoMapDataAppVizFields } from '../utils/autoMapDataAppVizFields';
-import { useAppBuildPoller } from './useAppBuildPoller';
-import { useCancelAppVersion } from './useCancelAppVersion';
-import { useDeleteApp } from './useDeleteApp';
-import { useGenerateApp } from './useGenerateApp';
-import { useIterateApp } from './useIterateApp';
 
 type Args = {
     projectUuid: string | undefined;

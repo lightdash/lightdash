@@ -3,7 +3,7 @@ import { IconRestore } from '@tabler/icons-react';
 import { type FC } from 'react';
 import Callout from '../../../components/common/Callout';
 import MantineModal from '../../../components/common/MantineModal';
-import { useRestoreAppVersion } from '../hooks/useRestoreAppVersion';
+import { useRestoreAppVersion } from '../../apps/hooks/useRestoreAppVersion';
 
 type Props = {
     projectUuid: string;

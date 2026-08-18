@@ -7,8 +7,8 @@ import {
 } from '@lightdash/common';
 import { Stack, Text } from '@mantine/core';
 import { useMemo, type FC } from 'react';
-import { poolKeyForSlot } from '../../../features/apps/utils/autoMapDataAppVizFields';
-import { getDataAppVizFieldItems } from '../../../features/apps/utils/getDataAppVizFieldItems';
+import { poolKeyForSlot } from '../../../features/chartTypes/utils/autoMapDataAppVizFields';
+import { getDataAppVizFieldItems } from '../../../features/chartTypes/utils/getDataAppVizFieldItems';
 import FieldSelect from '../../common/FieldSelect';
 import { Config } from '../common/Config';
 

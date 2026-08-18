@@ -2,10 +2,12 @@ import { MAX_APP_FILES_PER_VERSION } from '@lightdash/common';
 import { act, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHookWithProviders } from '../../../testing/testUtils';
-import { useAppFileUpload } from './useAppFileUpload';
+import { useAppFileUpload } from '../../apps/hooks/useAppFileUpload';
 import { useVizComposerAttachments } from './useVizComposerAttachments';
 
-vi.mock('./useAppFileUpload', () => ({ useAppFileUpload: vi.fn() }));
+vi.mock('../../apps/hooks/useAppFileUpload', () => ({
+    useAppFileUpload: vi.fn(),
+}));
 
 const showToastError = vi.fn();
 const showToastWarning = vi.fn();

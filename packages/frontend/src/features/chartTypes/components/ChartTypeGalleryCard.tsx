@@ -11,7 +11,7 @@ import { Link } from 'react-router';
 import { FloatingActionsPill } from '../../../components/common/FloatingActionsPill';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { PolymorphicPaperButton } from '../../../components/common/PolymorphicPaperButton';
-import { useCanEditDataApp } from '../hooks/useCanEditDataApp';
+import { useCanEditDataApp } from '../../apps/hooks/useCanEditDataApp';
 import classes from './ChartTypeGalleryCard.module.css';
 import ChartTypeSamplePreview from './ChartTypeSamplePreview';
 

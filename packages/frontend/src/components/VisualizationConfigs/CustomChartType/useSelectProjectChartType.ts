@@ -1,6 +1,6 @@
 import { ChartType, type DataAppViz, type ItemsMap } from '@lightdash/common';
 import { useCallback } from 'react';
-import { autoMapDataAppVizFields } from '../../../features/apps/utils/autoMapDataAppVizFields';
+import { autoMapDataAppVizFields } from '../../../features/chartTypes/utils/autoMapDataAppVizFields';
 import {
     explorerActions,
     useExplorerDispatch,
