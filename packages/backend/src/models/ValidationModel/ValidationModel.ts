@@ -989,6 +989,7 @@ export class ValidationModel {
             sortDirection?: 'asc' | 'desc';
             sourceTypes?: ValidationSourceType[];
             errorTypes?: ValidationErrorType[];
+            tableName?: string;
             includeChartConfigWarnings?: boolean;
             allowedSpaceUuids?: string[] | 'all';
             allowedAppUuids?: string[] | 'all';
@@ -1001,6 +1002,7 @@ export class ValidationModel {
             sortDirection = 'desc',
             sourceTypes,
             errorTypes,
+            tableName,
             includeChartConfigWarnings = false,
             allowedSpaceUuids = 'all',
             allowedAppUuids = 'all',
@@ -1297,6 +1299,9 @@ export class ValidationModel {
                     }
                     if (errorTypes && errorTypes.length > 0) {
                         void qb.whereIn('error_type', errorTypes);
+                    }
+                    if (tableName) {
+                        void qb.where('table_name', tableName);
                     }
                     if (!includeChartConfigWarnings) {
                         void qb.whereNot((inner) => {
