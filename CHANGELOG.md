@@ -1,3 +1,10 @@
+# [1.197.0](https://github.com/lightdash/lightdash/compare/1.196.1...1.197.0) (2026-08-18)
+
+
+### Features
+
+* **ai:** promote grep fields discovery ([#27505](https://github.com/lightdash/lightdash/issues/27505)) ([2270351](https://github.com/lightdash/lightdash/commit/2270351ddf796226385efc210834dff4c3069a90))
+
 ## [1.196.1](https://github.com/lightdash/lightdash/compare/1.196.0...1.196.1) (2026-08-18)
 
 
