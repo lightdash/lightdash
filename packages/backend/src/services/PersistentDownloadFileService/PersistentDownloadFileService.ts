@@ -361,6 +361,7 @@ export class PersistentDownloadFileService extends BaseService {
         requestContext: PersistentDownloadRequestContext,
     ): Promise<{
         stream: Readable;
+        contentDisposition: string | null;
         fileType: string;
         s3Key: string;
     }> {
@@ -385,7 +386,8 @@ export class PersistentDownloadFileService extends BaseService {
             },
         });
 
-        const stream = await this.fileStorageClient.getFileStream(file.s3_key);
+        const { stream, contentDisposition } =
+            await this.fileStorageClient.getFileStream(file.s3_key);
 
         this.analytics.track({
             event: 'persistent_file.url_responded',
@@ -412,6 +414,7 @@ export class PersistentDownloadFileService extends BaseService {
 
         return {
             stream,
+            contentDisposition,
             fileType: file.file_type,
             s3Key: file.s3_key,
         };

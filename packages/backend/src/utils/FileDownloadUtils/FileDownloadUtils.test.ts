@@ -1,5 +1,6 @@
 import {
     createContentDispositionHeader,
+    getSafeContentDispositionHeader,
     sanitizeGenericFileName,
 } from './FileDownloadUtils';
 
@@ -199,6 +200,38 @@ describe('FileDownloadUtils', () => {
             expect(createContentDispositionHeader('test&file.csv')).toContain(
                 "filename*=UTF-8''test%26file.csv",
             );
+        });
+    });
+
+    describe('getSafeContentDispositionHeader', () => {
+        it('preserves a stored attachment filename', () => {
+            const storedHeader =
+                'attachment; filename="My chart.csv"; filename*=UTF-8\'\'My%20chart.csv';
+
+            expect(
+                getSafeContentDispositionHeader(
+                    storedHeader,
+                    'csv-storage-key.csv',
+                ),
+            ).toBe(storedHeader);
+        });
+
+        it.each(['attachment; filename="bad\rname.csv"', 'bad\nheader'])(
+            'falls back when the stored header contains a newline',
+            (storedHeader) => {
+                expect(
+                    getSafeContentDispositionHeader(
+                        storedHeader,
+                        'csv-storage-key.csv',
+                    ),
+                ).toBe(createContentDispositionHeader('csv-storage-key.csv'));
+            },
+        );
+
+        it('falls back when no header was stored', () => {
+            expect(
+                getSafeContentDispositionHeader(null, 'csv-storage-key.csv'),
+            ).toBe(createContentDispositionHeader('csv-storage-key.csv'));
         });
     });
 

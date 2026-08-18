@@ -112,7 +112,11 @@ describe('PersistentDownloadFileService', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockModelCreate.mockResolvedValue(undefined);
-        mockS3GetFileStream.mockResolvedValue(Readable.from(['hello,world\n']));
+        mockS3GetFileStream.mockResolvedValue({
+            stream: Readable.from(['hello,world\n']),
+            contentDisposition:
+                'attachment; filename="My chart.csv"; filename*=UTF-8\'\'My%20chart.csv',
+        });
     });
 
     afterEach(() => {
@@ -264,6 +268,8 @@ describe('PersistentDownloadFileService', () => {
                     requestContext(accountWith()),
                 ),
             ).resolves.toMatchObject({
+                contentDisposition:
+                    'attachment; filename="My chart.csv"; filename*=UTF-8\'\'My%20chart.csv',
                 fileType: 'csv',
                 s3Key: 'exports/test-file.csv',
             });

@@ -24,7 +24,11 @@ export interface FileStorageClient {
         attachmentDownloadName?: string,
     ): Promise<string>;
 
-    uploadZip(zip: ReadStream, zipName: string): Promise<string>;
+    uploadZip(
+        zip: ReadStream,
+        zipName: string,
+        attachmentDownloadName?: string,
+    ): Promise<string>;
 
     uploadExcel(
         excel: ReadStream,
@@ -37,7 +41,10 @@ export interface FileStorageClient {
         fileId: string,
     ): Promise<() => Promise<string>>;
 
-    getFileStream(fileId: string): Promise<Readable>;
+    getFileStream(fileId: string): Promise<{
+        stream: Readable;
+        contentDisposition: string | null;
+    }>;
 
     createUploadStream(
         fileName: string,

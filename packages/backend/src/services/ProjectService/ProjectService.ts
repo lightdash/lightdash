@@ -7472,8 +7472,12 @@ export class ProjectService extends BaseService {
         switch (downloadFile.type) {
             case DownloadFileType.JSONL:
                 return fs.createReadStream(downloadFile.path);
-            case DownloadFileType.S3_JSONL:
-                return this.fileStorageClient.getFileStream(downloadFile.path);
+            case DownloadFileType.S3_JSONL: {
+                const { stream } = await this.fileStorageClient.getFileStream(
+                    downloadFile.path,
+                );
+                return stream;
+            }
             default:
                 throw new ParameterError('File is not a valid JSONL file');
         }

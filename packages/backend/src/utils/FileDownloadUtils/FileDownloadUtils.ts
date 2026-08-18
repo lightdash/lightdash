@@ -64,6 +64,20 @@ export function createContentDispositionHeader(filename: string): string {
     return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodedFilename}`;
 }
 
+export function getSafeContentDispositionHeader(
+    storedContentDisposition: string | null,
+    fallbackFilename: string,
+): string {
+    if (
+        storedContentDisposition !== null &&
+        !/[\r\n]/.test(storedContentDisposition)
+    ) {
+        return storedContentDisposition;
+    }
+
+    return createContentDispositionHeader(fallbackFilename);
+}
+
 export function generateGenericFileId({
     fileName,
     fileExtension = DownloadFileType.CSV,
