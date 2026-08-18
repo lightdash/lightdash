@@ -45,6 +45,37 @@
                 "type": "object",
                 "description": "The Error object is returned from the api any time there is an error.\nThe message contains"
             },
+            "ApiSuccessEmpty": {
+                "properties": {
+                    "results": {},
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
+            },
+            "ContentType": {
+                "enum": ["chart", "dashboard", "space", "data_app"],
+                "type": "string"
+            },
+            "ContentSlugRenameRequest": {
+                "properties": {
+                    "to": {
+                        "type": "string"
+                    },
+                    "from": {
+                        "type": "string"
+                    },
+                    "resourceType": {
+                        "$ref": "#/components/schemas/ContentType"
+                    }
+                },
+                "required": ["to", "from", "resourceType"],
+                "type": "object"
+            },
             "ChartType.BIG_NUMBER": {
                 "enum": ["big_number"],
                 "type": "string"
@@ -8815,18 +8846,6 @@
                 "required": ["connection"],
                 "type": "object",
                 "description": "Deliberately a flat wrapper, NOT `ExternalConnectionAsCode & { secret }`:\nTSOA validates intersection bodies in remove-extras mode, which empties\nRecord<string, string> fields (customHeaders). Same workaround as\nApiTestExternalConnectionConfigRequest."
-            },
-            "ApiSuccessEmpty": {
-                "properties": {
-                    "results": {},
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["status"],
-                "type": "object"
             },
             "ServiceAccountScope": {
                 "enum": [
@@ -47948,10 +47967,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ContentType": {
-                "enum": ["chart", "dashboard", "space", "data_app"],
-                "type": "string"
-            },
             "ToggleFavoriteResponse": {
                 "properties": {
                     "contentUuid": {
@@ -53868,7 +53883,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.182.0",
+        "version": "1.183.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -53880,6 +53895,57 @@
         }
     },
     "paths": {
+        "/api/v1/projects/{projectUuid}/slugs/rename": {
+            "post": {
+                "operationId": "renameContentSlug",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Rename a project-scoped content slug",
+                "summary": "Rename content slug",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ContentSlugRenameRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/projects/{projectUuid}/code/charts": {
             "get": {
                 "operationId": "getCodeCharts",

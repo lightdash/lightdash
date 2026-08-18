@@ -1,3 +1,10 @@
+# [1.183.0](https://github.com/lightdash/lightdash/compare/1.182.0...1.183.0) (2026-08-18)
+
+
+### Features
+
+* add chart slug rename API ([#27486](https://github.com/lightdash/lightdash/issues/27486)) ([dd9b64c](https://github.com/lightdash/lightdash/commit/dd9b64c0692106215c1065a91834e87243d4d8f8))
+
 # [1.182.0](https://github.com/lightdash/lightdash/compare/1.181.0...1.182.0) (2026-08-18)
 
 
