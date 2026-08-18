@@ -61,6 +61,11 @@ type Props = {
     message: AiAgentMessageAssistant;
     compiledSql?: string;
     artifactData?: AiArtifact;
+    /**
+     * Merged results have no single source explore and cannot be saved as a
+     * chart yet, so only the SQL and verify actions apply.
+     */
+    mergeArtifact?: boolean;
 };
 
 export const AiChartQuickOptions = ({
@@ -70,6 +75,7 @@ export const AiChartQuickOptions = ({
     message,
     compiledSql,
     artifactData,
+    mergeArtifact = false,
 }: Props) => {
     const { track } = useTracking();
     const { user } = useApp();
@@ -355,10 +361,11 @@ export const AiChartQuickOptions = ({
 
     const canVerify = !!artifactData && canManageAgent;
     const hasSavedChartAction = !!message.savedQueryUuid && !isEmbed;
-    const hasSaveActions = !message.savedQueryUuid;
+    const hasSaveActions = !message.savedQueryUuid && !mergeArtifact;
     const canExploreFromEmbed =
         content?.type === 'aiAgent' && content.canExplore === true;
-    const hasExploreAction = !isEmbed || canExploreFromEmbed;
+    const hasExploreAction =
+        (!isEmbed || canExploreFromEmbed) && !mergeArtifact;
     const hasSqlActions = !!compiledSql;
     const hasQuickActions =
         hasSavedChartAction ||
@@ -430,7 +437,7 @@ export const AiChartQuickOptions = ({
                                     )}
                                 </>
                             )
-                        ) : (
+                        ) : hasSaveActions ? (
                             <>
                                 {quickSaveDashboard && (
                                     <Menu.Item
@@ -464,7 +471,7 @@ export const AiChartQuickOptions = ({
                                     </Menu.Item>
                                 )}
                             </>
-                        )}
+                        ) : null}
 
                         {hasExploreAction && (
                             <Menu.Item

@@ -1,6 +1,5 @@
 import {
     isAiAgentSqlArtifactVizQuery,
-    isAiMergeChartArtifactConfig,
     isAiSqlChartArtifactConfig,
     parseVizConfig,
     type AiAgentChartTypeOption,
@@ -21,8 +20,11 @@ import { useMediaQuery } from '@mantine/hooks';
 import { IconExclamationCircle, IconX } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { useCompiledSqlFromMetricQuery } from '../../../../../hooks/useCompiledSql';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
+import {
+    getAiArtifactChartSource,
+    useAiArtifactCompiledSql,
+} from '../../hooks/useAiArtifactChart';
 import { useAiAgentArtifactVizQuery } from '../../hooks/useProjectAiAgents';
 import { clearArtifact } from '../../store/aiArtifactSlice';
 import { useAiAgentStoreDispatch } from '../../store/hooks';
@@ -60,18 +62,9 @@ export const AiChartVisualization: FC<Props> = ({
         useState<AiAgentChartTypeOption | null>(null);
 
     const isSqlArtifact = isAiSqlChartArtifactConfig(artifactData.chartConfig);
-    const mergeChartConfig = isAiMergeChartArtifactConfig(
+    const { isMergeArtifact, semanticChartConfig } = getAiArtifactChartSource(
         artifactData.chartConfig,
-    )
-        ? artifactData.chartConfig
-        : null;
-    const isMergeArtifact = mergeChartConfig !== null;
-    const semanticChartConfig =
-        artifactData.chartConfig?.source === 'semantic'
-            ? artifactData.chartConfig.config
-            : mergeChartConfig
-              ? mergeChartConfig.config
-              : null;
+    );
 
     const vizConfig = useMemo(() => {
         if (!semanticChartConfig) return null;
@@ -104,14 +97,10 @@ export const AiChartVisualization: FC<Props> = ({
         queryExecutionHandle.data?.query.queryUuid,
     );
 
-    const { data: compiledSql } = useCompiledSqlFromMetricQuery({
-        tableName: isMergeArtifact
-            ? undefined
-            : semanticVizQueryData?.query.metricQuery?.exploreName,
+    const compiledSqlQuery = useAiArtifactCompiledSql({
         projectUuid,
-        metricQuery: isMergeArtifact
-            ? undefined
-            : semanticVizQueryData?.query.metricQuery,
+        isMergeArtifact,
+        vizQueryData: semanticVizQueryData,
     });
 
     const isQueryLoading =
@@ -216,24 +205,20 @@ export const AiChartVisualization: FC<Props> = ({
                 </Text>
             </Stack>
             <Group gap="sm" display={isMobile ? 'none' : 'flex'}>
-                {!isMergeArtifact && (
-                    <>
-                        <ViewSqlButton sql={compiledSql?.query} />
-                        <AiChartQuickOptions
-                            message={message}
-                            projectUuid={projectUuid}
-                            agentUuid={agentUuid}
-                            artifactData={artifactData}
-                            saveChartOptions={{
-                                name: semanticVizQueryData.metadata.title,
-                                description:
-                                    semanticVizQueryData.metadata.description,
-                                linkToMessage: true,
-                            }}
-                            compiledSql={compiledSql?.query}
-                        />
-                    </>
-                )}
+                <ViewSqlButton sql={compiledSqlQuery} />
+                <AiChartQuickOptions
+                    message={message}
+                    projectUuid={projectUuid}
+                    agentUuid={agentUuid}
+                    artifactData={artifactData}
+                    saveChartOptions={{
+                        name: semanticVizQueryData.metadata.title,
+                        description: semanticVizQueryData.metadata.description,
+                        linkToMessage: true,
+                    }}
+                    compiledSql={compiledSqlQuery}
+                    mergeArtifact={isMergeArtifact}
+                />
                 {showCloseButton && (
                     <ActionIcon
                         size="sm"
@@ -256,6 +241,7 @@ export const AiChartVisualization: FC<Props> = ({
             selectedChartType={selectedChartType}
             onChartTypeChange={setSelectedChartType}
             headerContent={inlineHeaderContent}
+            loadExplore={!isMergeArtifact}
         />
     );
 };

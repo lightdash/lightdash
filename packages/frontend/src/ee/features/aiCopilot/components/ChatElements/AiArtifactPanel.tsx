@@ -3,7 +3,6 @@ import {
     getGroupByDimensions,
     getWebAiChartConfig,
     isAiAgentSqlArtifactVizQuery,
-    isAiMergeChartArtifactConfig,
     isAiSqlChartArtifactConfig,
     parseVizConfig,
     type AiAgentChartTypeOption,
@@ -24,9 +23,12 @@ import { memo, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
 import useHealth from '../../../../../hooks/health/useHealth';
-import { useCompiledSqlFromMetricQuery } from '../../../../../hooks/useCompiledSql';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useAiAgentArtifact } from '../../hooks/useAiAgentArtifacts';
+import {
+    getAiArtifactChartSource,
+    useAiArtifactCompiledSql,
+} from '../../hooks/useAiArtifactChart';
 import {
     useAiAgentArtifactVizQuery,
     useAiAgentThread,
@@ -107,18 +109,8 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
         const isSqlArtifact = isAiSqlChartArtifactConfig(
             artifactData?.chartConfig,
         );
-        const mergeChartConfig = isAiMergeChartArtifactConfig(
-            artifactData?.chartConfig,
-        )
-            ? artifactData?.chartConfig
-            : null;
-        const isMergeArtifact = mergeChartConfig !== null;
-        const semanticChartConfig =
-            artifactData?.chartConfig?.source === 'semantic'
-                ? artifactData.chartConfig.config
-                : mergeChartConfig
-                  ? mergeChartConfig.config
-                  : null;
+        const { isMergeArtifact, semanticChartConfig } =
+            getAiArtifactChartSource(artifactData?.chartConfig);
 
         const vizConfig = useMemo(() => {
             if (!isFloatingChart || !semanticChartConfig) return null;
@@ -155,14 +147,10 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             queryUuid,
         );
 
-        const { data: compiledSql } = useCompiledSqlFromMetricQuery({
-            tableName: isMergeArtifact
-                ? undefined
-                : semanticVizQueryData?.query.metricQuery?.exploreName,
+        const compiledSqlQuery = useAiArtifactCompiledSql({
             projectUuid: artifact.projectUuid,
-            metricQuery: isMergeArtifact
-                ? undefined
-                : semanticVizQueryData?.query.metricQuery,
+            isMergeArtifact,
+            vizQueryData: semanticVizQueryData,
         });
 
         // Same parse the renderer does — needed so the floating pill can
@@ -339,7 +327,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                             description={description}
                             columns={Object.values(queryResults.columns ?? {})}
                         />
-                    ) : !isMergeArtifact ? (
+                    ) : (
                         <AiChartQuickOptions
                             message={message}
                             projectUuid={artifact.projectUuid}
@@ -350,9 +338,10 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                                 description: description,
                                 linkToMessage: true,
                             }}
-                            compiledSql={compiledSql?.query}
+                            compiledSql={compiledSqlQuery}
+                            mergeArtifact={isMergeArtifact}
                         />
-                    ) : null}
+                    )}
                     {showCloseButton && (
                         <>
                             <Divider
@@ -404,6 +393,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                         chartConfig={semanticChartConfig}
                         selectedChartType={selectedChartType}
                         headerContent={floatingHead}
+                        loadExplore={!isMergeArtifact}
                     />
                 </div>
                 {shouldShowPill && metricQuery && (
