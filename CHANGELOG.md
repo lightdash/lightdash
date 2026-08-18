@@ -1,3 +1,10 @@
+# [1.179.0](https://github.com/lightdash/lightdash/compare/1.178.0...1.179.0) (2026-08-18)
+
+
+### Features
+
+* **autopilot:** bulk delete charts on deleted models with guardrails ([#27527](https://github.com/lightdash/lightdash/issues/27527)) ([0488050](https://github.com/lightdash/lightdash/commit/0488050fdfe04eb5ef0b0befbb1f435e34a8d434)), closes [#24714](https://github.com/lightdash/lightdash/issues/24714) [#27526](https://github.com/lightdash/lightdash/issues/27526)
+
 # [1.178.0](https://github.com/lightdash/lightdash/compare/1.177.0...1.178.0) (2026-08-18)
 
 
