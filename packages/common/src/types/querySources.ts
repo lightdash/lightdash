@@ -146,10 +146,12 @@ export type DuckdbSourceQuery = {
 };
 
 /**
- * A query against a remote TDCP server. The rough draft names the server by
- * url and carries a tier 2 dialect-tagged query; read/scan requests and the
- * sources-entity registration (server by slug, credentials from the unified
- * credential model) come with source management.
+ * A query against a remote TDCP server, in one of two forms: name a table
+ * (tier 0 read — enough for CSV, Sheets and simple API servers) or send a
+ * dialect-tagged query (tier 2). Exactly one form must be used: either
+ * `table`, or `dialect` + `query`. Scan pushdown and the sources-entity
+ * registration (server by slug, credentials from the unified credential
+ * model) come with source management.
  *
  * @oliver: serverUrl is a draft-only placeholder so the loop is walkable
  * end to end without the sources entity. It must become a registered-server
@@ -162,10 +164,12 @@ export type TdcpSourceQuery = {
     nodeId?: QueryNodeId;
     /** Base URL of the remote TDCP server (draft; becomes a server slug). */
     serverUrl: string;
-    /** Query dialect tag, e.g. "sql:postgres" (see TdcpDialects). */
-    dialect: string;
-    /** Query text in the declared dialect. */
-    query: string;
+    /** Tier 0: a table from the server's catalog to read in full. */
+    table?: string;
+    /** Tier 2: query dialect tag, e.g. "sql:postgres" (see TdcpDialects). */
+    dialect?: string;
+    /** Tier 2: query text in the declared dialect. */
+    query?: string;
     limit?: number;
 };
 

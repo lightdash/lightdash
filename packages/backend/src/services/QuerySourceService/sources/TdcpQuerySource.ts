@@ -14,6 +14,7 @@ import {
     type TdcpCatalog,
     type TdcpDataRequest,
 } from '@lightdash/tdcp';
+import { tdcpSourceQueryToDataRequest } from '../tdcp/dataRequest';
 import type { TdcpServer } from '../tdcp/TdcpServer';
 import { tdcpTypeToDimensionType } from '../tdcp/typeMapping';
 import type {
@@ -126,12 +127,7 @@ export class TdcpQuerySource implements QuerySourceClient {
                 };
             }
             case QuerySourceType.TDCP:
-                return {
-                    method: TdcpMethods.QUERY,
-                    dialect: query.dialect,
-                    query: query.query,
-                    limit: query.limit,
-                };
+                return tdcpSourceQueryToDataRequest(query);
             default:
                 return assertUnreachable(query, 'Unknown source query type');
         }
