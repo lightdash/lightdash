@@ -458,7 +458,8 @@ export class UnfurlService extends BaseService {
             throw new NotFoundError('Slack unfurl image object missing');
         }
 
-        return this.fileStorageClient.getFileStream(record.s3_key);
+        return (await this.fileStorageClient.getFileStream(record.s3_key))
+            .stream;
     }
 
     async getTitleAndDescription(
