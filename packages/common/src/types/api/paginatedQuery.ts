@@ -175,11 +175,23 @@ export type ExecuteAsyncFieldValueSearchRequestParams =
         forceRefresh?: boolean;
     };
 
+/**
+ * A dataset imported from a remote TDCP server into the local results
+ * pipeline: the request records where it came from, not how to re-run it —
+ * replay re-submits the original TDCP request against the server.
+ */
+export type ExecuteAsyncTdcpImportRequestParams =
+    CommonExecuteQueryRequestParams & {
+        serverUrl: string;
+        datasetId: string;
+    };
+
 export type ExecuteAsyncQueryRequestParams =
     | ExecuteAsyncMetricQueryRequestParams
     | ExecuteAsyncMergeQueryRequestParams
     | ExecuteAsyncSqlQueryRequestParams
     | ExecuteAsyncComposeSqlQueryRequestParams
+    | ExecuteAsyncTdcpImportRequestParams
     | ExecuteAsyncSavedChartRequestParams
     | ExecuteAsyncDashboardChartRequestParams
     | ExecuteAsyncUnderlyingDataRequestParams
