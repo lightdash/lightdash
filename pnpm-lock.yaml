@@ -1752,6 +1752,12 @@ importers:
         specifier: 4.5.0
         version: 4.5.0(rollup@4.60.2)(supports-color@9.1.0)(vite@8.0.5(@emnapi/core@1.9.2)(@emnapi/runtime@1.11.1)(@types/node@24.13.2)(esbuild@0.27.7)(jiti@2.6.1)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3))
 
+  packages/tdcp:
+    devDependencies:
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+
   packages/warehouses:
     dependencies:
       '@aws-sdk/client-athena':

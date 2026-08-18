@@ -1,0 +1,195 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://tdcp.dev/schemas/tdcp-2026-08-draft.schema.json",
+    "title": "Tabular Data Context Protocol (2026-08-draft.1)",
+    "description": "Wire shapes for the TDCP draft: catalog, capabilities, data requests, and the dataset descriptor. The descriptor is the object the protocol exists to produce and consume.",
+    "$defs": {
+        "LogicalType": {
+            "type": "string",
+            "enum": ["string", "number", "timestamp", "date", "boolean"]
+        },
+        "ColumnSchema": {
+            "type": "object",
+            "required": ["name", "type", "label", "description"],
+            "additionalProperties": false,
+            "properties": {
+                "name": { "type": "string", "minLength": 1 },
+                "type": { "$ref": "#/$defs/LogicalType" },
+                "label": { "type": ["string", "null"] },
+                "description": { "type": ["string", "null"] }
+            }
+        },
+        "CatalogTable": {
+            "type": "object",
+            "required": ["reference", "label", "description", "columns"],
+            "additionalProperties": false,
+            "properties": {
+                "reference": { "type": "string", "minLength": 1 },
+                "label": { "type": ["string", "null"] },
+                "description": { "type": ["string", "null"] },
+                "columns": {
+                    "type": "array",
+                    "items": { "$ref": "#/$defs/ColumnSchema" }
+                }
+            }
+        },
+        "Catalog": {
+            "type": "object",
+            "required": ["tables"],
+            "additionalProperties": false,
+            "properties": {
+                "tables": {
+                    "type": "array",
+                    "items": { "$ref": "#/$defs/CatalogTable" }
+                }
+            }
+        },
+        "Capabilities": {
+            "type": "object",
+            "required": ["revision", "read", "scan", "queryDialects", "compose"],
+            "additionalProperties": false,
+            "properties": {
+                "revision": { "type": "string" },
+                "read": { "type": "boolean" },
+                "scan": { "type": "boolean" },
+                "queryDialects": {
+                    "type": "array",
+                    "items": { "type": "string", "pattern": "^[a-z0-9]+:[a-z0-9-]+$" }
+                },
+                "compose": { "type": "boolean" }
+            }
+        },
+        "ScanPredicate": {
+            "type": "object",
+            "required": ["column", "operator", "values"],
+            "additionalProperties": false,
+            "properties": {
+                "column": { "type": "string", "minLength": 1 },
+                "operator": {
+                    "type": "string",
+                    "enum": ["eq", "neq", "gt", "gte", "lt", "lte", "in"]
+                },
+                "values": {
+                    "type": "array",
+                    "items": { "type": ["string", "number", "boolean", "null"] }
+                }
+            }
+        },
+        "ReadRequest": {
+            "type": "object",
+            "required": ["method", "table"],
+            "additionalProperties": false,
+            "properties": {
+                "method": { "const": "tabular/read" },
+                "table": { "type": "string", "minLength": 1 },
+                "limit": { "type": "integer", "minimum": 1 }
+            }
+        },
+        "ScanRequest": {
+            "type": "object",
+            "required": ["method", "table", "predicateMode"],
+            "additionalProperties": false,
+            "properties": {
+                "method": { "const": "tabular/scan" },
+                "table": { "type": "string", "minLength": 1 },
+                "columns": {
+                    "type": "array",
+                    "items": { "type": "string", "minLength": 1 }
+                },
+                "predicates": {
+                    "type": "array",
+                    "items": { "$ref": "#/$defs/ScanPredicate" }
+                },
+                "predicateMode": {
+                    "type": "string",
+                    "enum": ["exact", "bestEffort"]
+                },
+                "limit": { "type": "integer", "minimum": 1 }
+            }
+        },
+        "QueryRequest": {
+            "type": "object",
+            "required": ["method", "dialect", "query"],
+            "additionalProperties": false,
+            "properties": {
+                "method": { "const": "tabular/query" },
+                "dialect": { "type": "string", "pattern": "^[a-z0-9]+:[a-z0-9-]+$" },
+                "query": { "type": "string", "minLength": 1 },
+                "references": {
+                    "type": "object",
+                    "additionalProperties": { "type": "string", "minLength": 1 }
+                },
+                "limit": { "type": "integer", "minimum": 1 }
+            }
+        },
+        "RefreshRequest": {
+            "type": "object",
+            "required": ["method", "datasetId"],
+            "additionalProperties": false,
+            "properties": {
+                "method": { "const": "tabular/refresh" },
+                "datasetId": { "type": "string", "minLength": 1 }
+            }
+        },
+        "DataRequest": {
+            "oneOf": [
+                { "$ref": "#/$defs/ReadRequest" },
+                { "$ref": "#/$defs/ScanRequest" },
+                { "$ref": "#/$defs/QueryRequest" }
+            ]
+        },
+        "DataLink": {
+            "type": "object",
+            "required": ["encoding", "href", "token", "expiresAt"],
+            "additionalProperties": false,
+            "properties": {
+                "encoding": { "type": "string", "enum": ["jsonl", "arrow"] },
+                "href": { "type": "string", "format": "uri" },
+                "token": { "type": ["string", "null"] },
+                "expiresAt": { "type": "string", "format": "date-time" }
+            }
+        },
+        "Freshness": {
+            "type": "object",
+            "required": ["sourceQueriedAt", "cacheHit"],
+            "additionalProperties": false,
+            "properties": {
+                "sourceQueriedAt": { "type": "string", "format": "date-time" },
+                "cacheHit": { "type": "boolean" }
+            }
+        },
+        "DatasetDescriptor": {
+            "type": "object",
+            "required": [
+                "datasetId",
+                "schema",
+                "rowCount",
+                "producedAt",
+                "expiresAt",
+                "freshness",
+                "links"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "datasetId": { "type": "string", "minLength": 1 },
+                "schema": {
+                    "type": "array",
+                    "items": { "$ref": "#/$defs/ColumnSchema" }
+                },
+                "rowCount": { "type": ["integer", "null"], "minimum": 0 },
+                "producedAt": { "type": "string", "format": "date-time" },
+                "expiresAt": { "type": "string", "format": "date-time" },
+                "freshness": { "$ref": "#/$defs/Freshness" },
+                "links": {
+                    "type": "array",
+                    "items": { "$ref": "#/$defs/DataLink" },
+                    "minItems": 1
+                },
+                "pushedPredicates": {
+                    "type": "array",
+                    "items": { "$ref": "#/$defs/ScanPredicate" }
+                }
+            }
+        }
+    }
+}
