@@ -19,6 +19,7 @@ const BRAND_HIGHLIGHTS = [
 type Props = {
     /** Document title, matching what each page passed to `Page` before. */
     pageTitle: string;
+    variant?: 'default' | 'pink';
     /** Split-layout heading. Omitted when the page renders its own heading. */
     title?: string;
     subtitle?: string;
@@ -33,6 +34,7 @@ type Props = {
 
 const AuthLayout: FC<PropsWithChildren<Props>> = ({
     pageTitle,
+    variant = 'default',
     title,
     subtitle,
     legacyTitle,
@@ -48,7 +50,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
     }
 
     if (!isNewLayout) {
-        return (
+        const page = (
             <Page title={pageTitle} withCenteredContent withNavbar={false}>
                 <Stack w={400} mt="4xl">
                     <Box mx="auto" my="lg">
@@ -76,13 +78,21 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
                 </Stack>
             </Page>
         );
+
+        return variant === 'pink' ? (
+            <Box bg="pink.1" mih="100vh">
+                {page}
+            </Box>
+        ) : (
+            page
+        );
     }
 
     return (
         <>
             <DocumentTitle title={pageTitle} />
 
-            <Box className={classes.root}>
+            <Box className={classes.root} data-variant={variant}>
                 <Box className={classes.brandPanel}>
                     <Box className={classes.decorationTop} aria-hidden />
                     <Box className={classes.decorationBottom} aria-hidden />

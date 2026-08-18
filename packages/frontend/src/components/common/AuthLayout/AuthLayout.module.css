@@ -89,6 +89,14 @@
     background-color: var(--mantine-color-body);
 }
 
+.root[data-variant='pink'] .brandPanel {
+    background-color: var(--mantine-color-pink-7);
+}
+
+.root[data-variant='pink'] .formPanel {
+    background-color: var(--mantine-color-pink-1);
+}
+
 .formContent {
     width: 100%;
     max-width: rem(420px);
