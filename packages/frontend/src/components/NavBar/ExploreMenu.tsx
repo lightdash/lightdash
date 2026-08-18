@@ -6,6 +6,7 @@ import {
     IconFolder,
     IconFolderPlus,
     IconLayoutDashboard,
+    IconPuzzle,
     IconSquareRoundedPlus,
     IconTable,
     IconTerminal2,
@@ -142,6 +143,14 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                     description="Build an interactive app powered by your data."
                                     to={`/projects/${projectUuid}/apps/generate`}
                                     icon={IconAppWindow}
+                                    isBeta
+                                />
+                                <LargeMenuItem
+                                    component={Link}
+                                    title="Chart type"
+                                    description="Create a custom chart type for your charts."
+                                    to={`/projects/${projectUuid}/chart-types/new`}
+                                    icon={IconPuzzle}
                                     isBeta
                                 />
                             </Can>
