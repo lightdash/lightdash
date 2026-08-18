@@ -1,3 +1,10 @@
+# [1.181.0](https://github.com/lightdash/lightdash/compare/1.180.0...1.181.0) (2026-08-18)
+
+
+### Features
+
+* **autopilot:** require flag-first escalation before individual soft-deletes of never-viewed content ([#27531](https://github.com/lightdash/lightdash/issues/27531)) ([51e8a07](https://github.com/lightdash/lightdash/commit/51e8a07069e25b378a72123cbd77db641cb5d086)), closes [#27530](https://github.com/lightdash/lightdash/issues/27530) [#27529](https://github.com/lightdash/lightdash/issues/27529) [#27529](https://github.com/lightdash/lightdash/issues/27529) [#27530](https://github.com/lightdash/lightdash/issues/27530) [#27527](https://github.com/lightdash/lightdash/issues/27527)
+
 # [1.180.0](https://github.com/lightdash/lightdash/compare/1.179.0...1.180.0) (2026-08-18)
 
 
