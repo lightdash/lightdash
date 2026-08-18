@@ -2968,21 +2968,30 @@ chartConfig:
         targetUuid: string,
         targetName: string,
         policy: ManagedAgentPolicy,
+        options: {
+            // Individual soft-deletes require a prior flag for ALL content.
+            // Bulk deletion of charts on deleted models keeps the viewed-only
+            // gate: that content is provably dead, and flag-first there would
+            // defeat the automatable cleanup.
+            flagFirstAlways: boolean;
+        },
     ): Promise<string | null> {
-        const lastViewed =
-            targetType === ManagedAgentTargetType.CHART
-                ? (
-                      await this.analyticsModel.getLastViewedAtForCharts([
-                          targetUuid,
-                      ])
-                  ).get(targetUuid)
-                : (
-                      await this.analyticsModel.getLastViewedAtForDashboards([
-                          targetUuid,
-                      ])
-                  ).get(targetUuid);
-        if (!lastViewed) {
-            return null;
+        if (!options.flagFirstAlways) {
+            const lastViewed =
+                targetType === ManagedAgentTargetType.CHART
+                    ? (
+                          await this.analyticsModel.getLastViewedAtForCharts([
+                              targetUuid,
+                          ])
+                      ).get(targetUuid)
+                    : (
+                          await this.analyticsModel.getLastViewedAtForDashboards(
+                              [targetUuid],
+                          )
+                      ).get(targetUuid);
+            if (!lastViewed) {
+                return null;
+            }
         }
         const flaggedAt =
             await this.managedAgentModel.findLatestActiveFlagCreatedAt(
@@ -2991,7 +3000,7 @@ chartConfig:
             );
         if (!flaggedAt) {
             return JSON.stringify({
-                error: `"${targetName}" has views, so it must be flagged first and stay flagged for ${policy.escalationHours}+ hours before soft-deleting. Use flag_content instead.`,
+                error: `"${targetName}" must be flagged first and stay flagged for ${policy.escalationHours}+ hours before soft-deleting. Use flag_content instead.`,
                 blocked: true,
             });
         }
@@ -3018,6 +3027,7 @@ chartConfig:
         policy: ManagedAgentPolicy;
         actorUuid: string;
         attemptedAction: 'fix' | 'flag' | 'soft-delete';
+        flagFirstAlways: boolean;
     }): Promise<string | null> {
         const {
             actor,
@@ -3029,6 +3039,7 @@ chartConfig:
             policy,
             actorUuid,
             attemptedAction,
+            flagFirstAlways,
         } = args;
 
         const deleteProtectionBlock = await this.checkTargetProtectionGuard(
@@ -3077,6 +3088,7 @@ chartConfig:
             chartUuid,
             chartName,
             policy,
+            { flagFirstAlways },
         );
         if (chartEscalationBlock) {
             return chartEscalationBlock;
@@ -3150,6 +3162,7 @@ chartConfig:
                 policy,
                 actorUuid,
                 attemptedAction: 'soft-delete',
+                flagFirstAlways: true,
             });
             if (chartBlock) {
                 return chartBlock;
@@ -3196,6 +3209,7 @@ chartConfig:
                 targetUuid,
                 targetName,
                 policy,
+                { flagFirstAlways: true },
             );
             if (dashEscalationBlock) {
                 return dashEscalationBlock;
@@ -3312,6 +3326,7 @@ chartConfig:
                     policy,
                     actorUuid,
                     attemptedAction: 'soft-delete',
+                    flagFirstAlways: false,
                 });
                 if (chartBlock) {
                     let blockReason = chartBlock;
