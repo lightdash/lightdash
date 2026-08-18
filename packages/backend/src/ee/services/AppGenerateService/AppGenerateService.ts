@@ -252,6 +252,8 @@ import {
     codexCodeAllowedHosts,
     codexSkillDirective,
     describeCodexCodeEnv,
+    getCodexCodeProvider,
+    getCodexModelId,
     PREPARE_CODEX_SKILLS_COMMAND,
 } from './codexCodeEnv';
 import { CodexStreamProcessor } from './CodexStreamProcessor';
@@ -813,7 +815,11 @@ export class AppGenerateService extends BaseService {
     private getCodingAgentProvider(
         env: Record<string, string>,
     ): 'anthropic' | 'bedrock' | 'openai' {
-        if (this.dataAppCodingAgent === 'codex') return 'openai';
+        if (this.dataAppCodingAgent === 'codex') {
+            return getCodexCodeProvider(env) === 'amazon-bedrock'
+                ? 'bedrock'
+                : 'openai';
+        }
         return env.CLAUDE_CODE_USE_BEDROCK === '1' ? 'bedrock' : 'anthropic';
     }
 
@@ -3586,7 +3592,9 @@ export class AppGenerateService extends BaseService {
                 structuredOutputSchema,
             );
         }
+        const provider = getCodexCodeProvider(codexEnv);
         const codexCommand = buildCodexExecCommand({
+            provider,
             reasoningEffort,
             outputSchemaPath: structuredOutputSchema
                 ? '/tmp/output-schema.json'
@@ -4345,8 +4353,13 @@ export class AppGenerateService extends BaseService {
             copilot = await this.getCodingAgentConfig(payload.organizationUuid);
             codingAgentEnv = this.getCodingAgentEnv(copilot);
             if (this.dataAppCodingAgent === 'codex') {
-                codingAgentEnv.DATA_APP_CODEX_MODEL =
+                const codexModel =
                     payload.codexModel ?? DEFAULT_DATA_APP_CODEX_MODEL;
+                codingAgentEnv.DATA_APP_CODEX_MODEL = codexModel;
+                codingAgentEnv.DATA_APP_CODEX_MODEL_ID = getCodexModelId(
+                    getCodexCodeProvider(codingAgentEnv),
+                    codexModel,
+                );
             }
             ({ client: s3Client, bucket } = this.getS3Client());
         } catch (error) {

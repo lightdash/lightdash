@@ -62,6 +62,25 @@ const bothProvidersConfig: CopilotConfig = aiCopilotConfigSchema.parse({
     },
 });
 
+const bedrockConfig: CopilotConfig = aiCopilotConfigSchema.parse({
+    enabled: true,
+    requiresFeatureFlag: false,
+    telemetryEnabled: false,
+    debugLoggingEnabled: false,
+    askAiButtonEnabled: false,
+    embeddingEnabled: false,
+    maxQueryLimit: 100,
+    runSqlMaxLimit: 100,
+    defaultProvider: 'bedrock',
+    defaultEmbeddingModelProvider: 'openai',
+    providers: {
+        bedrock: {
+            apiKey: 'instance-bedrock-key',
+            region: 'us-east-2',
+        },
+    },
+});
+
 describe('overlayOrgProviderApiKeys', () => {
     it('switches the default provider to the org key when the instance default is not BYO-supplied', () => {
         const result = overlayOrgProviderApiKeys(bothProvidersConfig, {
@@ -315,6 +334,16 @@ describe('OrgAiCopilotConfigResolver', () => {
     });
 
     describe('getCodexConfig', () => {
+        it('keeps instance Bedrock as the managed Codex provider', async () => {
+            const result = await makeResolver({
+                flagEnabled: true,
+                orgKeys: null,
+                instanceConfig: bedrockConfig,
+            }).getCodexConfig('org-uuid');
+            expect(result.defaultProvider).toBe('bedrock');
+            expect(result.providers.bedrock?.region).toBe('us-east-2');
+        });
+
         it('returns the instance config unchanged without an organization uuid', async () => {
             const result = await makeResolver({
                 flagEnabled: true,

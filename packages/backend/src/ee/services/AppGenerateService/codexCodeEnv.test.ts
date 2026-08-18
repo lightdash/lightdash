@@ -7,12 +7,15 @@ import {
     codexCodeAllowedHosts,
     codexSkillDirective,
     describeCodexCodeEnv,
+    getCodexCodeProvider,
+    getCodexModelId,
     PREPARE_CODEX_SKILLS_COMMAND,
 } from './codexCodeEnv';
 
 describe('Codex sandbox configuration', () => {
     test('builds invocation-scoped credentials and egress', () => {
         const config = {
+            defaultProvider: 'openai',
             providers: {
                 openai: {
                     apiKey: 'sk-secret',
@@ -23,6 +26,7 @@ describe('Codex sandbox configuration', () => {
 
         const env = buildCodexCodeEnv(config);
         expect(env).toEqual({
+            DATA_APP_CODEX_PROVIDER: 'openai',
             CODEX_API_KEY: 'sk-secret',
             OPENAI_BASE_URL: 'https://api.openai.com/v1',
         });
@@ -35,10 +39,15 @@ describe('Codex sandbox configuration', () => {
             'Codex/OpenAI (model=gpt-5.6-terra)',
         );
         expect(describeCodexCodeEnv(selectedEnv)).not.toContain('sk-secret');
+        expect(getCodexCodeProvider(env)).toBe('openai');
+        expect(getCodexModelId('openai', 'gpt-5.6-terra')).toBe(
+            'gpt-5.6-terra',
+        );
     });
 
     test('uses only the custom base URL host for egress', () => {
         const config = {
+            defaultProvider: 'openai',
             providers: {
                 openai: {
                     apiKey: 'sk-secret',
@@ -55,13 +64,88 @@ describe('Codex sandbox configuration', () => {
     });
 
     test('fails before sandbox launch when OpenAI is unavailable', () => {
-        expect(() => buildCodexCodeEnv({ providers: {} })).toThrowError(
-            MissingConfigError,
+        expect(() =>
+            buildCodexCodeEnv({ defaultProvider: 'openai', providers: {} }),
+        ).toThrowError(MissingConfigError);
+    });
+
+    test('builds native Bedrock API-key credentials, model id, and egress', () => {
+        const config = {
+            defaultProvider: 'bedrock',
+            providers: {
+                bedrock: {
+                    apiKey: 'bedrock-secret',
+                    region: 'us-east-2',
+                },
+            },
+        };
+
+        const env = buildCodexCodeEnv(config);
+        expect(env).toEqual({
+            DATA_APP_CODEX_PROVIDER: 'amazon-bedrock',
+            AWS_REGION: 'us-east-2',
+            AWS_BEARER_TOKEN_BEDROCK: 'bedrock-secret',
+        });
+        expect(getCodexCodeProvider(env)).toBe('amazon-bedrock');
+        expect(getCodexModelId('amazon-bedrock', 'gpt-5.6-terra')).toBe(
+            'openai.gpt-5.6-terra',
         );
+        expect(codexCodeAllowedHosts(config)).toEqual([
+            'bedrock-mantle.us-east-2.api.aws',
+        ]);
+        expect(
+            describeCodexCodeEnv({
+                ...env,
+                DATA_APP_CODEX_MODEL: 'gpt-5.6-terra',
+            }),
+        ).toBe(
+            'Codex/Bedrock (API key, region=us-east-2, model=gpt-5.6-terra)',
+        );
+        expect(describeCodexCodeEnv(env)).not.toContain('bedrock-secret');
+    });
+
+    test('builds native Bedrock IAM credentials', () => {
+        expect(
+            buildCodexCodeEnv({
+                defaultProvider: 'bedrock',
+                providers: {
+                    bedrock: {
+                        region: 'eu-west-1',
+                        accessKeyId: 'access-key',
+                        secretAccessKey: 'secret-key',
+                        sessionToken: 'session-token',
+                    },
+                },
+            }),
+        ).toEqual({
+            DATA_APP_CODEX_PROVIDER: 'amazon-bedrock',
+            AWS_REGION: 'eu-west-1',
+            AWS_ACCESS_KEY_ID: 'access-key',
+            AWS_SECRET_ACCESS_KEY: 'secret-key',
+            AWS_SESSION_TOKEN: 'session-token',
+        });
+    });
+
+    test('fails before sandbox launch when Bedrock is incomplete', () => {
+        expect(() =>
+            buildCodexCodeEnv({
+                defaultProvider: 'bedrock',
+                providers: {},
+            }),
+        ).toThrow('BEDROCK_API_KEY');
+        expect(() =>
+            buildCodexCodeEnv({
+                defaultProvider: 'bedrock',
+                providers: {
+                    bedrock: { apiKey: 'bedrock-secret', region: '' },
+                },
+            }),
+        ).toThrow('BEDROCK_REGION');
     });
 
     test('builds a non-interactive, networkless command that hides credentials from tools', () => {
         const command = buildCodexExecCommand({
+            provider: 'openai',
             reasoningEffort: 'high',
             outputSchemaPath: '/tmp/output-schema.json',
         });
@@ -74,12 +158,34 @@ describe('Codex sandbox configuration', () => {
         expect(command).toContain(
             'sandbox_workspace_write.network_access=false',
         );
-        expect(command).toContain(
-            'shell_environment_policy.exclude=["CODEX_API_KEY","OPENAI_API_KEY"]',
-        );
+        for (const secret of [
+            'CODEX_API_KEY',
+            'OPENAI_API_KEY',
+            'AWS_BEARER_TOKEN_BEDROCK',
+            'AWS_ACCESS_KEY_ID',
+            'AWS_SECRET_ACCESS_KEY',
+            'AWS_SESSION_TOKEN',
+        ]) {
+            expect(command).toContain(secret);
+        }
         expect(command).not.toContain('model_instructions_file');
         expect(command).toContain('--cd /app/src');
+        expect(command).toContain('--model "$DATA_APP_CODEX_MODEL_ID"');
+        expect(command).toContain('openai_base_url="$OPENAI_BASE_URL"');
+        expect(command).not.toContain('model_provider="amazon-bedrock"');
         expect(command).toContain('--output-schema /tmp/output-schema.json');
+    });
+
+    test('builds a native Amazon Bedrock command', () => {
+        const command = buildCodexExecCommand({
+            provider: 'amazon-bedrock',
+            reasoningEffort: 'low',
+            outputSchemaPath: null,
+        });
+
+        expect(command).toContain('model_provider="amazon-bedrock"');
+        expect(command).not.toContain('openai_base_url');
+        expect(command).toContain('--model "$DATA_APP_CODEX_MODEL_ID"');
     });
 
     test('uses native project instructions and exposes the applicable skills', () => {
