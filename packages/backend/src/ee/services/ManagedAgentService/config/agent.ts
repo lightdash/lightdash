@@ -122,7 +122,7 @@ export const buildManagedAgentSystemPrompt = (
             case 'flag':
                 return `${intro}\n- Any reason → flag_content\n- Content YOU created (slug starts with "agent-") → NEVER flag\nInclude last_viewed_at, views_count, and created_at in the description.`;
             case 'cleanup':
-                return `${intro}\n- reason "never_viewed" → soft_delete_content\n- reason "not_viewed_recently" → flag_content\n- Content YOU created (slug starts with "agent-") → NEVER flag or delete\nInclude last_viewed_at, views_count, and created_at in the description.`;
+                return `${intro}\n- reason "never_viewed" → soft_delete_content\n- reason "not_viewed_recently" → flag_content\n- Content YOU created (slug starts with "agent-") → NEVER flag or delete\n- Max 25 individual soft-deletes per run. When the cap is reached, flag the remaining candidates and report the backlog in your summary instead of deleting\nInclude last_viewed_at, views_count, and created_at in the description.`;
             default:
                 return assertUnreachable(
                     aggression,
@@ -402,7 +402,7 @@ export const managedAgentConfig: AgentCreateParams = {
         },
         {
             description:
-                'Soft-delete a chart or dashboard. The content can be restored by an admin. Do NOT use for content created in the last 30 days. Do NOT use for agent-created content (slug starts with agent-). Do NOT use if the chart is the only chart on a dashboard.',
+                'Soft-delete a chart or dashboard. The content can be restored by an admin. Do NOT use for content created in the last 30 days. Do NOT use for agent-created content (slug starts with agent-). Do NOT use if the chart is the only chart on a dashboard. At most 25 individual soft-deletes are allowed per run; further calls are blocked, so flag the remainder instead.',
             input_schema: {
                 properties: {
                     description: {
