@@ -9,10 +9,10 @@
     "scripts": {
         "build": "tsc --build",
         "typecheck": "tsc --project tsconfig.json --noEmit",
-        "format": "oxfmt ./src ./tests --check",
-        "fix-format": "oxfmt ./src ./tests",
-        "lint": "pnpm run linter ./src ./tests",
-        "fix-lint": "pnpm run linter ./src ./tests --fix",
+        "format": "oxfmt ./src ./tests ./examples --check",
+        "fix-format": "oxfmt ./src ./tests ./examples",
+        "lint": "pnpm run linter ./src ./tests ./examples",
+        "fix-lint": "pnpm run linter ./src ./tests ./examples --fix",
         "linter": "oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
         "test": "vitest run"
     },
