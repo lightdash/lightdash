@@ -25,6 +25,7 @@ import type {
     ApiAiAgentReviewItemPrDiffResponse,
     ApiAiAgentReviewItemWritebackPreviewResponse,
     ApiAiAgentThreadCreateResponse,
+    ApiAiAgentThreadDumpResponse,
     ApiAiAgentThreadGenerateTitleResponse,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageInterruptResponse,
@@ -673,6 +674,7 @@ export type HealthState = {
         analyticsProjectUuid?: string;
         analyticsDashboardUuid?: string;
         isAmbientAiEnabled: boolean;
+        threadDumpEnabled: boolean;
     };
     echarts6: {
         enabled: boolean;
@@ -1337,6 +1339,7 @@ type ApiResults =
     | ApiAiAgentProjectThreadSummaryListResponse['results']
     | Account
     | ApiAiAgentAdminConversationsResponse['results']
+    | ApiAiAgentThreadDumpResponse['results']
     | ApiAiAgentAdminEvalPromptsResponse['results']
     | ApiAiAgentAdminEvalsResponse['results']
     | ApiAiAgentAdminMemoriesResponse['results']

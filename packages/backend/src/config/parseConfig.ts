@@ -1213,6 +1213,7 @@ export const getAiConfig = () => ({
     debugLoggingEnabled:
         process.env.AI_COPILOT_DEBUG_LOGGING_ENABLED === 'true',
     telemetryEnabled: process.env.AI_COPILOT_TELEMETRY_ENABLED === 'true',
+    threadDumpEnabled: process.env.AI_COPILOT_THREAD_DUMP_ENABLED === 'true',
     requiresFeatureFlag:
         process.env.AI_COPILOT_REQUIRES_FEATURE_FLAG === 'true',
     askAiButtonEnabled: process.env.ASK_AI_BUTTON_ENABLED === 'true',
