@@ -255,7 +255,7 @@ const QueryAFiltersCard: FC = memo(() => {
                         filterRule.operator !== FilterOperator.NOT_NULL ? (
                             <>
                                 {' '}
-                                <Text span fw={700} fz="inherit" lh="inherit">
+                                <Text span fw={700}>
                                     {labels.value}
                                 </Text>
                             </>
@@ -306,13 +306,7 @@ const QueryAFiltersCard: FC = memo(() => {
                                 <span key={`${path}-${item.id}`}>
                                     {index > 0 ? (
                                         <>
-                                            <Text
-                                                span
-                                                c="dimmed"
-                                                fw={700}
-                                                fz="inherit"
-                                                lh="inherit"
-                                            >
+                                            <Text span c="dimmed" fw={700}>
                                                 {expression.operator.toUpperCase()}
                                             </Text>{' '}
                                         </>
@@ -344,8 +338,6 @@ const QueryAFiltersCard: FC = memo(() => {
                             key={`${path}-${index}-operator`}
                             c="dimmed"
                             fw={700}
-                            fz="inherit"
-                            lh="inherit"
                             style={{ paddingLeft: itemDepth * 12 }}
                         >
                             {expression.operator.toUpperCase()}

@@ -571,20 +571,20 @@ export const ReviewRemediationWorkspace = () => {
                     </Group>
                     <Text fz="sm" c="dimmed" mt="sm">
                         We spun up a{' '}
-                        <Text span fw={600} c="bright" fz="inherit">
+                        <Text span fw={600} c="bright">
                             throwaway copy
                         </Text>{' '}
                         of your project with this fix applied.{' '}
-                        <Text span fw={600} c="bright" fz="inherit">
+                        <Text span fw={600} c="bright">
                             {testAgent?.name ?? 'Your agent'}
                         </Text>{' '}
                         re-runs the original question against it, so you can see
                         whether the answer is right{' '}
-                        <Text span fw={600} c="bright" fz="inherit">
+                        <Text span fw={600} c="bright">
                             before you merge
                         </Text>
                         .{' '}
-                        <Text span fw={600} c="bright" fz="inherit">
+                        <Text span fw={600} c="bright">
                             Nothing here touches production.
                         </Text>
                     </Text>

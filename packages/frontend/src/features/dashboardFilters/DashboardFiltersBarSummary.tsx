@@ -37,7 +37,7 @@ export const DashboardFiltersBarSummary: FC<Props> = ({
                 <Text fz="12" c="dimmed">
                     {hasFilters && (
                         <>
-                            <Text span fw={600} fz="inherit">
+                            <Text span fw={600}>
                                 {filtersCount}{' '}
                             </Text>
                             {filtersCount === 1 ? 'filter' : 'filters'}
@@ -46,7 +46,7 @@ export const DashboardFiltersBarSummary: FC<Props> = ({
                     {hasFilters && hasParameters && ' · '}
                     {hasParameters && (
                         <>
-                            <Text span fw={600} fz="inherit">
+                            <Text span fw={600}>
                                 {parametersCount}{' '}
                             </Text>
                             {parametersCount === 1 ? 'parameter' : 'parameters'}
@@ -55,7 +55,7 @@ export const DashboardFiltersBarSummary: FC<Props> = ({
                     {(hasFilters || hasParameters) && hasDateZoom && ' · '}
                     {hasDateZoom && (
                         <>
-                            <Text span fw={600} fz="inherit">
+                            <Text span fw={600}>
                                 Date Zoom:
                             </Text>{' '}
                             {dateZoomLabel}

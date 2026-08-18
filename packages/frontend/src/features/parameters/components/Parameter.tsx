@@ -192,16 +192,14 @@ const Parameter: FC<Props> = ({
                             }}
                         >
                             <Text fz="xs" truncate>
-                                <Text span fw={600} fz="inherit">
+                                <Text span fw={600}>
                                     {displayLabel}
                                 </Text>
-                                <Text span c="gray.6" fz="inherit">
+                                <Text span c="gray.6">
                                     {' '}
                                     is{' '}
                                 </Text>
-                                <Text span fz="inherit">
-                                    {displayValue}
-                                </Text>
+                                <Text span>{displayValue}</Text>
                             </Text>
                         </Box>
                     </Button>
