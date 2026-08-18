@@ -33,6 +33,7 @@ import { type DashboardModel } from '../../../models/DashboardModel/DashboardMod
 import { type SavedChartModel } from '../../../models/SavedChartModel';
 import type {
     PreAggregateStrategy as IPreAggregateStrategy,
+    PreAggregateExecutionFallbackParams,
     PreAggregateExecutionResolution,
     PreAggregateStatsFilters,
     PreAggregationRoutingDecision,
@@ -265,13 +266,7 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
             );
     }
 
-    recordExecutionFallback(params: {
-        projectUuid: string;
-        exploreName: string;
-        chartUuid: string | null;
-        dashboardUuid: string | null;
-        queryContext: string;
-    }): void {
+    recordExecutionFallback(params: PreAggregateExecutionFallbackParams): void {
         void this.statsModel
             .incrementFallback(params)
             .catch((e) =>

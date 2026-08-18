@@ -22,7 +22,7 @@ import InfoRow from '../common/PageHeader/InfoRow';
 
 type TileExecutionInfoProps = {
     cacheMetadata: CacheMetadata;
-    preAggregate: QueryResultsPreAggregate | null | undefined;
+    preAggregate: QueryResultsPreAggregate | null;
     performance: QueryResultsPerformance | undefined;
     totalClientFetchTimeMs: number | undefined;
     totalResults: number | undefined;
@@ -32,7 +32,7 @@ type TileExecutionInfoProps = {
 // results metadata is the post-execution truth, including warehouse fallback.
 function getResultSource(
     cacheMetadata: CacheMetadata,
-    preAggregate: QueryResultsPreAggregate | null | undefined,
+    preAggregate: QueryResultsPreAggregate | null,
 ): string {
     if (cacheMetadata.cacheHit) return 'Result cache';
     if (preAggregate) {
@@ -48,7 +48,7 @@ function getResultSource(
 
 function isServedFromPreAggregate(
     cacheMetadata: CacheMetadata,
-    preAggregate: QueryResultsPreAggregate | null | undefined,
+    preAggregate: QueryResultsPreAggregate | null,
 ): boolean {
     if (preAggregate) return preAggregate.fallbackReason === null;
     return cacheMetadata.preAggregate?.hit ?? false;
