@@ -1,3 +1,10 @@
+# [1.177.0](https://github.com/lightdash/lightdash/compare/1.176.0...1.177.0) (2026-08-18)
+
+
+### Features
+
+* **validator:** grouped error summary and bulk delete of broken content ([#27525](https://github.com/lightdash/lightdash/issues/27525)) ([4f6d55e](https://github.com/lightdash/lightdash/commit/4f6d55ea635b8b5f43317e9866c05d4e9eb604fc)), closes [#24712](https://github.com/lightdash/lightdash/issues/24712) [#24714](https://github.com/lightdash/lightdash/issues/24714) [#27524](https://github.com/lightdash/lightdash/issues/27524)
+
 # [1.176.0](https://github.com/lightdash/lightdash/compare/1.175.0...1.176.0) (2026-08-18)
 
 
