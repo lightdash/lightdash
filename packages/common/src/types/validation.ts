@@ -145,6 +145,37 @@ export type ValidationSummary = Pick<
     'error' | 'createdAt' | 'validationUuid' | 'validationId'
 >;
 
+export type ValidationAffectedContent = {
+    uuid: string | null; // null when content is private or deleted for this user
+    name: string;
+    source: ValidationSourceType;
+    views: number;
+    errorCount: number;
+};
+
+export type ValidationErrorGroup = {
+    groupKey: string;
+    errorType: ValidationErrorType;
+    tableName: string | null; // root-cause model, when known
+    fieldName: string | null; // set for field-level groups
+    errorCount: number;
+    affectedCharts: number;
+    affectedDashboards: number;
+    affectedTables: number;
+    affectedDataApps: number;
+    sampleError: string;
+    affectedContent: ValidationAffectedContent[]; // capped, see hasMoreAffectedContent
+    hasMoreAffectedContent: boolean;
+};
+
+export type ValidationGroupedSummary = {
+    totalErrors: number;
+    totalAffectedItems: number;
+    groups: ValidationErrorGroup[];
+};
+
+export type ApiValidationSummaryResponse = ApiSuccess<ValidationGroupedSummary>;
+
 export enum ValidationErrorType {
     Chart = 'chart',
     Sorting = 'sorting',

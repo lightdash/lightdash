@@ -3,6 +3,7 @@ import {
     AbilityAction,
     AnyType,
     FilterOperator,
+    ForbiddenError,
     OrganizationMemberRole,
     TableCalculationTemplateType,
     TableSelectionType,
@@ -1155,5 +1156,230 @@ describe('ValidationService - Table Calculation Templates', () => {
     it('Should handle empty table calculations array', () => {
         const result = ValidationService.getTableCalculationFieldIds([]);
         expect(result).toEqual([]);
+    });
+});
+
+describe('ValidationService.groupValidationsByRootCause', () => {
+    const baseChartError = {
+        validationId: null,
+        createdAt: new Date(),
+        projectUuid: 'projectUuid',
+        source: ValidationSourceType.Chart as const,
+    };
+
+    const chartModelError = (
+        chartUuid: string | undefined,
+        name: string,
+        views: number,
+    ) => ({
+        ...baseChartError,
+        validationUuid: `validation-${chartUuid ?? name}`,
+        name,
+        error: "Model error: the model 'orders' no longer exists",
+        errorType: ValidationErrorType.Model,
+        chartUuid,
+        chartViews: views,
+        tableName: 'orders',
+    });
+
+    it('groups chart model errors from the same deleted model together', () => {
+        const summary = ValidationService.groupValidationsByRootCause([
+            chartModelError('chart-1', 'Chart one', 5),
+            chartModelError('chart-2', 'Chart two', 10),
+            {
+                ...baseChartError,
+                validationUuid: 'validation-3',
+                name: 'Chart three',
+                error: "Dimension error: the field 'customers_id' no longer exists",
+                errorType: ValidationErrorType.Dimension,
+                fieldName: 'customers_id',
+                tableName: 'customers',
+                chartUuid: 'chart-3',
+                chartViews: 1,
+            },
+        ]);
+
+        expect(summary.totalErrors).toBe(3);
+        expect(summary.totalAffectedItems).toBe(3);
+        expect(summary.groups).toHaveLength(2);
+
+        const [modelGroup, fieldGroup] = summary.groups;
+        expect(modelGroup).toMatchObject({
+            errorType: ValidationErrorType.Model,
+            tableName: 'orders',
+            fieldName: null,
+            errorCount: 2,
+            affectedCharts: 2,
+            hasMoreAffectedContent: false,
+        });
+        // Content sorted by views desc
+        expect(modelGroup!.affectedContent.map((c) => c.uuid)).toEqual([
+            'chart-2',
+            'chart-1',
+        ]);
+        expect(fieldGroup).toMatchObject({
+            errorType: ValidationErrorType.Dimension,
+            tableName: 'customers',
+            fieldName: 'customers_id',
+            errorCount: 1,
+        });
+    });
+
+    it('dedupes content within a group and counts errors per content', () => {
+        const duplicatedError = {
+            ...baseChartError,
+            name: 'Chart one',
+            error: "Dimension error: the field 'orders_status' no longer exists",
+            errorType: ValidationErrorType.Dimension,
+            fieldName: 'orders_status',
+            tableName: 'orders',
+            chartUuid: 'chart-1',
+            chartViews: 3,
+        };
+        const summary = ValidationService.groupValidationsByRootCause([
+            { ...duplicatedError, validationUuid: 'validation-a' },
+            { ...duplicatedError, validationUuid: 'validation-b' },
+        ]);
+
+        expect(summary.groups).toHaveLength(1);
+        expect(summary.groups[0]!.errorCount).toBe(2);
+        expect(summary.groups[0]!.affectedCharts).toBe(1);
+        expect(summary.groups[0]!.affectedContent).toHaveLength(1);
+        expect(summary.groups[0]!.affectedContent[0]!.errorCount).toBe(2);
+        expect(summary.totalAffectedItems).toBe(1);
+    });
+
+    it('excludes chart configuration warnings and keeps masked private content in counts', () => {
+        const summary = ValidationService.groupValidationsByRootCause([
+            chartModelError('chart-1', 'Chart one', 0),
+            chartModelError(undefined, 'Private content', 0),
+            {
+                ...baseChartError,
+                validationUuid: 'validation-warning',
+                name: 'Chart one',
+                error: 'dimension is not used in the chart configuration',
+                errorType: ValidationErrorType.ChartConfiguration,
+                fieldName: 'orders_status',
+                chartUuid: 'chart-1',
+                chartViews: 0,
+            },
+        ]);
+
+        expect(summary.totalErrors).toBe(2);
+        expect(summary.groups).toHaveLength(1);
+        expect(summary.groups[0]!.affectedCharts).toBe(2);
+        expect(summary.groups[0]!.affectedContent.map((c) => c.uuid)).toContain(
+            null,
+        );
+    });
+
+    it('groups table and dashboard errors by their model', () => {
+        const summary = ValidationService.groupValidationsByRootCause([
+            {
+                validationId: null,
+                createdAt: new Date(),
+                projectUuid: 'projectUuid',
+                validationUuid: 'validation-table',
+                source: ValidationSourceType.Table,
+                name: 'orders',
+                error: 'Compile error',
+                errorType: ValidationErrorType.Model,
+            },
+            {
+                validationId: null,
+                createdAt: new Date(),
+                projectUuid: 'projectUuid',
+                validationUuid: 'validation-dashboard',
+                source: ValidationSourceType.Dashboard,
+                name: 'My dashboard',
+                error: "Table 'orders' no longer exists",
+                errorType: ValidationErrorType.Filter,
+                fieldName: 'orders_status',
+                tableName: 'orders',
+                dashboardUuid: 'dashboard-1',
+                dashboardViews: 7,
+            },
+        ]);
+
+        expect(summary.groups).toHaveLength(2);
+        expect(summary.groups[0]).toMatchObject({
+            errorType: ValidationErrorType.Model,
+            tableName: 'orders',
+            affectedTables: 1,
+        });
+        expect(summary.groups[1]).toMatchObject({
+            errorType: ValidationErrorType.Filter,
+            tableName: 'orders',
+            fieldName: 'orders_status',
+            affectedDashboards: 1,
+        });
+    });
+});
+
+describe('ValidationService.getValidationSummary', () => {
+    const validationService = new ValidationService({
+        analytics: analyticsMock,
+        validationModel: validationModel as unknown as ValidationModel,
+        projectModel: projectModel as unknown as ProjectModel,
+        appModel: appModel as unknown as AppModel,
+        savedChartModel: savedChartModel as unknown as SavedChartModel,
+        dashboardModel: dashboardModel as unknown as DashboardModel,
+        lightdashConfig: config,
+        spaceModel: spaceModel as unknown as SpaceModel,
+        schedulerClient: {} as SchedulerClient,
+        spacePermissionService:
+            spacePermissionService as unknown as SpacePermissionService,
+        featureFlagModel: {} as FeatureFlagModel,
+    });
+
+    afterEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('returns grouped summary from stored validations', async () => {
+        (validationModel.get as import('vitest').Mock).mockImplementationOnce(
+            async () => [
+                {
+                    validationId: null,
+                    createdAt: new Date(),
+                    projectUuid: 'projectUuid',
+                    validationUuid: 'validation-1',
+                    source: ValidationSourceType.Chart,
+                    name: 'Chart one',
+                    error: "Model error: the model 'orders' no longer exists",
+                    errorType: ValidationErrorType.Model,
+                    chartUuid: 'chart-1',
+                    chartViews: 2,
+                    tableName: 'orders',
+                },
+            ],
+        );
+
+        const summary = await validationService.getValidationSummary(
+            user,
+            'projectUuid',
+        );
+
+        expect(summary.totalErrors).toBe(1);
+        expect(summary.groups).toHaveLength(1);
+        expect(summary.groups[0]).toMatchObject({
+            tableName: 'orders',
+            errorType: ValidationErrorType.Model,
+            affectedCharts: 1,
+        });
+    });
+
+    it('throws ForbiddenError without manage Validation ability', async () => {
+        const restrictedUser = {
+            ...user,
+            ability: new Ability<[AbilityAction, AnyType]>([]),
+        };
+
+        await expect(
+            validationService.getValidationSummary(
+                restrictedUser,
+                'projectUuid',
+            ),
+        ).rejects.toThrowError(ForbiddenError);
     });
 });
