@@ -184,7 +184,6 @@ const Home: FC = () => {
                             projectUuid={project.data.projectUuid}
                         >
                             <LandingPanel
-                                userName={user.data?.firstName}
                                 projectUuid={project.data.projectUuid}
                             />
                             {/* Below the greeting on purpose: an admin-only promo
