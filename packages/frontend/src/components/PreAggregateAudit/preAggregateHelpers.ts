@@ -24,6 +24,7 @@ export type AggregatedRow = {
     queryType: QueryType;
     hitCount: number;
     missCount: number;
+    fallbackCount: number;
     topMissReason: string | null;
     preAggregateName: string | null;
     updatedAt: string;
@@ -47,6 +48,7 @@ export function aggregateStats(
         if (existing) {
             existing.hitCount += stat.hitCount;
             existing.missCount += stat.missCount;
+            existing.fallbackCount += stat.fallbackCount;
             existing.topMissReason ??= stat.missReason;
             if (stat.updatedAt > existing.updatedAt) {
                 existing.updatedAt = stat.updatedAt;
@@ -62,6 +64,7 @@ export function aggregateStats(
                 queryType: getQueryType(stat),
                 hitCount: stat.hitCount,
                 missCount: stat.missCount,
+                fallbackCount: stat.fallbackCount,
                 topMissReason: stat.missReason,
                 preAggregateName: stat.preAggregateName,
                 updatedAt: stat.updatedAt,

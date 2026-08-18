@@ -41,6 +41,15 @@ export type PreAggregationRoutingDecision =
           preAggregateMetadata?: CacheMetadata['preAggregate'];
       };
 
+// Stats context for a matched query whose pre-aggregate failed to serve
+export type PreAggregateExecutionFallbackParams = {
+    projectUuid: string;
+    exploreName: string;
+    chartUuid: string | null;
+    dashboardUuid: string | null;
+    queryContext: string;
+};
+
 export type PreAggregateStatsFilters = {
     exploreName?: string;
     queryType?: 'chart' | 'dashboard' | 'explorer';
@@ -71,6 +80,10 @@ export interface PreAggregateStrategy {
         dashboardUuid: string | null;
         queryContext: string;
     }): void;
+
+    // Called at execution time when a matched pre-aggregate failed to serve
+    // and the query fell back to the source warehouse
+    recordExecutionFallback(params: PreAggregateExecutionFallbackParams): void;
 
     cleanupStats(retentionDays: number): Promise<number>;
 
@@ -125,6 +138,10 @@ export class NoOpPreAggregateStrategy implements PreAggregateStrategy {
     }
 
     recordStats(): void {
+        // no-op
+    }
+
+    recordExecutionFallback(): void {
         // no-op
     }
 
