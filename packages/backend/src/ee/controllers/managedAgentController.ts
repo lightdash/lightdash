@@ -175,9 +175,10 @@ export class ManagedAgentController extends BaseController {
                 search: search?.trim() ? search.trim() : undefined,
                 sessionId,
                 runUuid,
-                limit: limit
-                    ? Math.min(Math.max(Math.floor(limit), 1), 500)
-                    : undefined,
+                limit:
+                    limit !== undefined && Number.isFinite(limit)
+                        ? Math.min(Math.max(Math.floor(limit), 1), 500)
+                        : undefined,
             },
         );
         this.setStatus(200);
