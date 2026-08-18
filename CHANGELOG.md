@@ -1,3 +1,10 @@
+# [1.178.0](https://github.com/lightdash/lightdash/compare/1.177.0...1.178.0) (2026-08-18)
+
+
+### Features
+
+* **autopilot:** grouped, complete broken-content summary tool ([#27526](https://github.com/lightdash/lightdash/issues/27526)) ([4048f5b](https://github.com/lightdash/lightdash/commit/4048f5b10976d8eea47d5e5d8ab34a8f9ef2e432)), closes [#24712](https://github.com/lightdash/lightdash/issues/24712) [#27525](https://github.com/lightdash/lightdash/issues/27525) [#27523](https://github.com/lightdash/lightdash/issues/27523) [#27522](https://github.com/lightdash/lightdash/issues/27522)
+
 # [1.177.0](https://github.com/lightdash/lightdash/compare/1.176.0...1.177.0) (2026-08-18)
 
 
