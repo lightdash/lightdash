@@ -1,0 +1,37 @@
+{
+  "$schema": "../../node_modules/oxlint/configuration_schema.json",
+  "extends": ["oxlint:recommended"],
+  "options": {
+    "typeAware": false
+  },
+  "plugins": ["typescript", "import"],
+  "ignorePatterns": ["dist/"],
+  "rules": {
+    "no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_",
+        "destructuredArrayIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrors": "none",
+        "ignoreRestSiblings": true
+      }
+    ],
+    "no-void": ["error", { "allowAsStatement": true }],
+
+    "@typescript-eslint/no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_",
+        "destructuredArrayIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrors": "none",
+        "ignoreRestSiblings": true
+      }
+    ],
+    "@typescript-eslint/no-explicit-any": "error",
+
+    "import/no-named-as-default": "off",
+    "import/no-named-as-default-member": "off"
+  }
+}

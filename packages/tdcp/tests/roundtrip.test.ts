@@ -30,9 +30,24 @@ const CATALOG: TdcpCatalog = {
             label: 'Orders',
             description: 'Test fixture',
             columns: [
-                { name: 'order_id', type: 'number', label: null, description: null },
-                { name: 'status', type: 'string', label: null, description: null },
-                { name: 'amount', type: 'number', label: null, description: null },
+                {
+                    name: 'order_id',
+                    type: 'number',
+                    label: null,
+                    description: null,
+                },
+                {
+                    name: 'status',
+                    type: 'string',
+                    label: null,
+                    description: null,
+                },
+                {
+                    name: 'amount',
+                    type: 'number',
+                    label: null,
+                    description: null,
+                },
             ],
         },
     ],
@@ -212,8 +227,8 @@ describe('TDCP round trip: SDK client against SDK server', () => {
     });
 
     it('maps TdcpError from handlers onto its protocol code', async () => {
-        await expect(
-            buildClient().read({ table: 'nope' }),
-        ).rejects.toThrow(`(${JsonRpcErrorCodes.DATASET_NOT_FOUND})`);
+        await expect(buildClient().read({ table: 'nope' })).rejects.toThrow(
+            `(${JsonRpcErrorCodes.DATASET_NOT_FOUND})`,
+        );
     });
 });

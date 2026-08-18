@@ -1,5 +1,5 @@
-import { type JsonRpcRequest, type JsonRpcResponse } from './jsonrpc';
 import { jsonlRows } from './jsonl';
+import { type JsonRpcRequest, type JsonRpcResponse } from './jsonrpc';
 import {
     TdcpMethods,
     type TdcpCapabilities,
@@ -89,9 +89,7 @@ export class TdcpClient {
     }
 
     async capabilities(): Promise<TdcpCapabilities> {
-        return assertCapabilities(
-            await this.rpc(TdcpMethods.CAPABILITIES, {}),
-        );
+        return assertCapabilities(await this.rpc(TdcpMethods.CAPABILITIES, {}));
     }
 
     async catalog(): Promise<TdcpCatalog> {
