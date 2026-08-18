@@ -9,6 +9,32 @@ The standard table format already exists and is universal: every query path retu
 `ResultColumns` (`Record<string, {reference, type}>`) + rows, addressed by a `queryUuid`
 (`query_history` row → S3 results file).
 
+## Status (2026-08-18)
+
+Shipped on `claude/query-dag-agent-ergonomics-p6s957` (see
+[multi-source-queries.md](multi-source-queries.md) for the implementation doc):
+
+- **Query API** — done: one tagged-union submit endpoint
+  (`POST /query-sources/queries`, 1..n queries, flat agent-friendly payloads), batch status
+  endpoint, everything riding the standard async pipeline.
+- **Source adapters** — contract + three built-ins done (`QuerySourceClient` registry:
+  `semanticLayer`, `sql`, `duckdb`); csv/http/graphql adapters not started.
+- **DuckDB service** — v1 done as `executeAsyncComposeSqlQuery`: reference resolution with
+  results-by-uuid authz, `createForHandles`-style validation split, and cross-query chaining —
+  references to still-running queries wait inside the referencing query, so multi-query pipelines
+  need no orchestrator (we built and then deliberately deleted a DAG executor + tables in favour
+  of this).
+- **Catalog** — minimal: per-source schema scan endpoint (explores with field ids; warehouse
+  tables without columns). Source-keyed cached catalog, search, and refresh not started.
+- **Saved objects** — not started; the submission body is the serialization format for now
+  (node-id references make an interactive session replayable verbatim).
+- **Source management, results store upgrades (parquet/range reads), structural caching, MCP
+  tools, usage/cost capture, viz binding to bare queryUuids** — not started.
+
+One deliberate divergence from the v1 plan below: no opaque handle table — references are
+`queryUuid`s (or in-submission node ids) directly. Revisit handle minting when copy-on-save or
+cross-user sharing arrives.
+
 ## Product features
 
 ### Source adapters
