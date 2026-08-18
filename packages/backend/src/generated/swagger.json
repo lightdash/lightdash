@@ -29884,10 +29884,33 @@
                     }
                 ]
             },
+            "Extract_UserAsCodeRole._type-custom__": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["custom"],
+                        "nullable": false
+                    }
+                },
+                "required": ["name", "type"],
+                "type": "object",
+                "description": "Extract from T those types that are assignable to U"
+            },
             "UserAsCode": {
                 "properties": {
+                    "additionalRoles": {
+                        "items": {
+                            "$ref": "#/components/schemas/Extract_UserAsCodeRole._type-custom__"
+                        },
+                        "type": "array",
+                        "description": "Extra organization custom roles held on top of `role` (role sets).\nOmitted when the user holds a single role; older servers reject the\nfield instead of silently dropping it."
+                    },
                     "role": {
-                        "$ref": "#/components/schemas/UserAsCodeRole"
+                        "$ref": "#/components/schemas/UserAsCodeRole",
+                        "description": "Primary organization role (system or custom)."
                     },
                     "disabled": {
                         "type": "boolean"
@@ -53964,7 +53987,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.189.0",
+        "version": "1.190.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

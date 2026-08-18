@@ -1,3 +1,10 @@
+# [1.190.0](https://github.com/lightdash/lightdash/compare/1.189.0...1.190.0) (2026-08-18)
+
+
+### Features
+
+* **roles:** support role sets in SCIM and users-as-code ([#27519](https://github.com/lightdash/lightdash/issues/27519)) ([2ba870e](https://github.com/lightdash/lightdash/commit/2ba870ef763ac5efbdd67d0439ebe87e20967194)), closes [#27516](https://github.com/lightdash/lightdash/issues/27516)
+
 # [1.189.0](https://github.com/lightdash/lightdash/compare/1.188.0...1.189.0) (2026-08-18)
 
 

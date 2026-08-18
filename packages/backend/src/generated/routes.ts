@@ -29481,11 +29481,30 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Extract_UserAsCodeRole._type-custom__': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                name: { dataType: 'string', required: true },
+                type: { dataType: 'enum', enums: ['custom'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     UserAsCode: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                additionalRoles: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'Extract_UserAsCodeRole._type-custom__',
+                    },
+                },
                 role: { ref: 'UserAsCodeRole', required: true },
                 disabled: { dataType: 'boolean', required: true },
                 email: { dataType: 'string', required: true },
