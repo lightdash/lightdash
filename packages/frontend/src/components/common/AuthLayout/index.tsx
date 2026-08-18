@@ -29,6 +29,8 @@ type Props = {
     /** Pages that bring their own cards (Invite) opt out of the legacy card. */
     withLegacyCard?: boolean;
     footer?: ReactNode;
+    backgroundColor?: string;
+    brandBackgroundColor?: string;
 };
 
 const AuthLayout: FC<PropsWithChildren<Props>> = ({
@@ -39,6 +41,8 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
     cardId,
     withLegacyCard = true,
     footer,
+    backgroundColor,
+    brandBackgroundColor,
     children,
 }) => {
     const { isNewLayout, isInitialLoading } = useAuthLayoutVariant();
@@ -50,7 +54,15 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
     if (!isNewLayout) {
         return (
             <Page title={pageTitle} withCenteredContent withNavbar={false}>
-                <Stack w={400} mt="4xl">
+                {backgroundColor && (
+                    <Box
+                        pos="fixed"
+                        inset={0}
+                        bg={backgroundColor}
+                        aria-hidden
+                    />
+                )}
+                <Stack w={400} mt="4xl" pos="relative">
                     <Box mx="auto" my="lg">
                         <LightdashLogo />
                     </Box>
@@ -83,7 +95,10 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
             <DocumentTitle title={pageTitle} />
 
             <Box className={classes.root}>
-                <Box className={classes.brandPanel}>
+                <Box
+                    className={classes.brandPanel}
+                    bg={brandBackgroundColor ?? undefined}
+                >
                     <Box className={classes.decorationTop} aria-hidden />
                     <Box className={classes.decorationBottom} aria-hidden />
 
@@ -128,7 +143,10 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
                     </Stack>
                 </Box>
 
-                <Box className={classes.formPanel}>
+                <Box
+                    className={classes.formPanel}
+                    bg={backgroundColor ?? undefined}
+                >
                     <Stack id={cardId} className={classes.formContent} gap="xl">
                         <Group
                             gap="sm"
