@@ -15,11 +15,8 @@ type AiMergeSourceConfig = {
     queryConfig: ToolRunQueryArgsTransformed['queryConfig'];
 };
 
-/**
- * The flat list of every query in the merge, primary first. Additional
- * sources inherit the primary's limit and parameter values: sides of one
- * question share them, and the tool schema omits the fields on purpose.
- */
+// Every query in the merge, primary first; additional sources inherit the
+// primary's limit and parameter values (the tool schema omits them on purpose).
 export const buildAiMergeSourceConfigs = (
     toolArgs: ToolRunQueryArgsTransformed,
 ): AiMergeSourceConfig[] => {
@@ -44,12 +41,8 @@ export const buildAiMergeSourceConfigs = (
     ];
 };
 
-/**
- * Converts the AI tool's merge shape into the core MergeQuery the merge
- * engine executes. The single authority for this conversion: the tool run,
- * the artifact replay, and the artifact's quick actions must all describe
- * the same merge, or the SQL a user views is not the SQL that ran.
- */
+// Single authority for converting the AI tool's merge shape into the core
+// MergeQuery: tool run and artifact replay must describe the same merge.
 export const buildAiMergeQuery = ({
     toolArgs,
     getExplore,

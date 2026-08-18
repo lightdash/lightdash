@@ -101,7 +101,14 @@ describe('parseAiArtifactChartConfig', () => {
             },
         } as const;
 
-        expect(parseAiArtifactChartConfig(config)).toEqual(config);
+        // The V3 schema parse fills defaulted fields the persisted value omits.
+        expect(parseAiArtifactChartConfig(config)).toEqual({
+            ...config,
+            config: {
+                ...config.config,
+                queryConfig: { ...config.config.queryConfig, parameters: null },
+            },
+        });
     });
 
     it('rejects invalid configs', () => {

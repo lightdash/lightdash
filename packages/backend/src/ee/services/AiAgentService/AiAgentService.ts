@@ -65,6 +65,7 @@ import {
     Explore,
     FeatureFlags,
     ForbiddenError,
+    formatMergeQueryRefusal,
     GenerateArtifactQuestionJobPayload,
     getErrorMessage,
     getGroupByDimensions,
@@ -2397,12 +2398,9 @@ export class AiAgentService extends BaseService {
             mode: { type: 'interactive' },
         });
         if (outcome.outcome === 'refused') {
-            throw new ParameterError(
-                `This merge cannot be run: ${outcome.errors
-                    .map((error) => error.message)
-                    .join(' ')}`,
-                { errors: outcome.errors },
-            );
+            throw new ParameterError(formatMergeQueryRefusal(outcome.errors), {
+                errors: outcome.errors,
+            });
         }
         return { query: outcome.query, mergeQuery };
     }
