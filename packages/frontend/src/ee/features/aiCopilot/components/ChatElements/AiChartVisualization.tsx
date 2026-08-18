@@ -218,6 +218,10 @@ export const AiChartVisualization: FC<Props> = ({
                     }}
                     compiledSql={compiledSqlQuery}
                     mergeArtifact={isMergeArtifact}
+                    mergeQuery={semanticVizQueryData.mergeQuery}
+                    mergeParameters={
+                        semanticVizQueryData.query.usedParametersValues
+                    }
                 />
                 {showCloseButton && (
                     <ActionIcon

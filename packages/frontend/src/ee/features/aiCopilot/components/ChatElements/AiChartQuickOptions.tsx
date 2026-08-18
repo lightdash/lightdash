@@ -3,6 +3,8 @@ import {
     type AiAgentMessageAssistant,
     type AiArtifact,
     type ApiError,
+    type MergeQuery,
+    type ParametersValuesMap,
     type SavedChart,
 } from '@lightdash/common';
 import { ActionIcon, Button, Menu, Tooltip } from '@mantine/core';
@@ -28,6 +30,7 @@ import MantineModal from '../../../../../components/common/MantineModal';
 import { SaveToSpaceOrDashboard } from '../../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
 import { useVisualizationContext } from '../../../../../components/LightdashVisualization/useVisualizationContext';
 import useEmbed from '../../../../../ee/providers/Embed/useEmbed';
+import { toSavedMerge } from '../../../../../features/mergeQuery/hooks/useSavedMerge';
 import useToaster from '../../../../../hooks/toaster/useToaster';
 import useCreateInAnySpaceAccess from '../../../../../hooks/user/useCreateInAnySpaceAccess';
 import { useCreateShareMutation } from '../../../../../hooks/useShare';
@@ -62,10 +65,16 @@ type Props = {
     compiledSql?: string;
     artifactData?: AiArtifact;
     /**
-     * Merged results have no single source explore and cannot be saved as a
-     * chart yet, so only the SQL and verify actions apply.
+     * Merged results have no single source explore, so the explore action
+     * does not apply. Saving persists the primary source as the chart's own
+     * query with the rest of the merge beside it, exactly as the explorer
+     * saves a hand-built merge.
      */
     mergeArtifact?: boolean;
+    /** The executed merge, from the artifact viz query. Null while loading. */
+    mergeQuery?: MergeQuery | null;
+    /** Parameter values the merge ran with, persisted onto the saved chart. */
+    mergeParameters?: ParametersValuesMap;
 };
 
 export const AiChartQuickOptions = ({
@@ -76,6 +85,8 @@ export const AiChartQuickOptions = ({
     compiledSql,
     artifactData,
     mergeArtifact = false,
+    mergeQuery = null,
+    mergeParameters,
 }: Props) => {
     const { track } = useTracking();
     const { user } = useApp();
@@ -149,6 +160,23 @@ export const AiChartQuickOptions = ({
 
     const savedData = useMemo(() => {
         if (!metricQuery) return undefined;
+        // A merged result's own metricQuery is synthetic; the chart persists
+        // the primary source's query (always first) plus the stored merge.
+        if (mergeArtifact) {
+            if (!mergeQuery) return undefined;
+            const [primary] = mergeQuery.sources;
+            return {
+                metricQuery: primary.metricQuery,
+                tableName: primary.metricQuery.exploreName,
+                chartConfig,
+                tableConfig: { columnOrder },
+                pivotConfig: pivotDimensions?.length
+                    ? { columns: pivotDimensions }
+                    : undefined,
+                merge: toSavedMerge(mergeQuery, primary.id),
+                parameters: mergeParameters,
+            };
+        }
         return {
             metricQuery,
             tableName: metricQuery.exploreName,
@@ -158,7 +186,15 @@ export const AiChartQuickOptions = ({
                 ? { columns: pivotDimensions }
                 : undefined,
         };
-    }, [metricQuery, chartConfig, columnOrder, pivotDimensions]);
+    }, [
+        metricQuery,
+        chartConfig,
+        columnOrder,
+        pivotDimensions,
+        mergeArtifact,
+        mergeQuery,
+        mergeParameters,
+    ]);
 
     const trackChartCreated = useCallback(() => {
         if (
@@ -361,7 +397,8 @@ export const AiChartQuickOptions = ({
 
     const canVerify = !!artifactData && canManageAgent;
     const hasSavedChartAction = !!message.savedQueryUuid && !isEmbed;
-    const hasSaveActions = !message.savedQueryUuid && !mergeArtifact;
+    const hasSaveActions =
+        !message.savedQueryUuid && (!mergeArtifact || !!mergeQuery);
     const canExploreFromEmbed =
         content?.type === 'aiAgent' && content.canExplore === true;
     const hasExploreAction =
@@ -525,28 +562,22 @@ export const AiChartQuickOptions = ({
                     closeOnClickOutside: false,
                 }}
             >
-                <SaveToSpaceOrDashboard
-                    projectUuid={projectUuid}
-                    savedData={{
-                        metricQuery: metricQuery,
-                        tableName: metricQuery.exploreName,
-                        chartConfig,
-                        tableConfig: { columnOrder },
-                        pivotConfig: pivotDimensions?.length
-                            ? { columns: pivotDimensions }
-                            : undefined,
-                    }}
-                    onConfirm={onSaveChart}
-                    onClose={close}
-                    chartMetadata={{
-                        name: saveChartOptions.name ?? '',
-                        description: saveChartOptions.description ?? '',
-                    }}
-                    forcedSpaceUuid={
-                        isEmbed ? writeActions?.spaceUuid : undefined
-                    }
-                    redirectOnSuccess={false}
-                />
+                {savedData && (
+                    <SaveToSpaceOrDashboard
+                        projectUuid={projectUuid}
+                        savedData={savedData}
+                        onConfirm={onSaveChart}
+                        onClose={close}
+                        chartMetadata={{
+                            name: saveChartOptions.name ?? '',
+                            description: saveChartOptions.description ?? '',
+                        }}
+                        forcedSpaceUuid={
+                            isEmbed ? writeActions?.spaceUuid : undefined
+                        }
+                        redirectOnSuccess={false}
+                    />
+                )}
             </MantineModal>
             {!!compiledSql && (
                 <MantineModal

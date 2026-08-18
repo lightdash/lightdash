@@ -3,14 +3,20 @@ import { useMemo } from 'react';
 import { PRIMARY_SOURCE_ID } from '../constants';
 import { useMergeSetup } from './useMergeSetup';
 
-export const toSavedMerge = (mergeQuery: MergeQuery): SavedMergeQuery => {
-    if (!mergeQuery.sources.some((source) => source.id === PRIMARY_SOURCE_ID)) {
+export const toSavedMerge = (
+    mergeQuery: MergeQuery,
+    // The source the saved chart's own metricQuery stands in for. The
+    // explorer always uses its fixed primary id; AI merges name sources
+    // freely, so they pass the id of the source they save as the chart.
+    primarySourceId: string = PRIMARY_SOURCE_ID,
+): SavedMergeQuery => {
+    if (!mergeQuery.sources.some((source) => source.id === primarySourceId)) {
         throw new Error('A saved merge requires the chart query.');
     }
     return {
-        primarySourceId: PRIMARY_SOURCE_ID,
+        primarySourceId,
         sources: mergeQuery.sources.map((source) =>
-            source.id === PRIMARY_SOURCE_ID
+            source.id === primarySourceId
                 ? {
                       id: source.id,
                       kind: 'chart' as const,
