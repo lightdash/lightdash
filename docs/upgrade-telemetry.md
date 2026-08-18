@@ -83,5 +83,7 @@ when it matches `[a-z0-9_-]{1,32}`. Missing or invalid values become `unknown`.
 | --- | --- |
 | `boot-winner` | Production image entrypoint before the boot-time migration race. |
 | `compose` | Root Docker Compose `lightdash` service. |
+| `helm-job` | Helm chart migration Job from chart version 2.16.0. |
+| `helm-boot` | Helm chart backend pod entrypoint from chart version 2.16.0. |
 | `unknown` | Fallback when no valid value is supplied. |
 | Other valid value | An external deployment or operator setting the environment variable. |
