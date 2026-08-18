@@ -15,7 +15,9 @@ vi.mock('../../../providers/Tracking/useTracking', () => ({
 const mockedClarify = vi.mocked(useClarifyApp);
 
 const request = (
-    overrides: Partial<VizBuildRequest> = {},
+    overrides: Partial<
+        Omit<VizBuildRequest, 'claudeModel' | 'codexModel'>
+    > = {},
 ): VizBuildRequest => ({
     description: 'show revenue split by team',
     fileIds: [],

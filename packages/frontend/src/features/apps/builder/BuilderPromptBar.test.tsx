@@ -215,6 +215,7 @@ describe('BuilderPromptBar', () => {
             description: 'a complex cohort analysis',
             fileIds: [],
             codexModel: 'gpt-5.6-sol',
+            clarifications: [],
         });
     });
 
