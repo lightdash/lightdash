@@ -14,6 +14,7 @@ import {
     addReasoning,
     addToolCall,
     appendStepProgress,
+    markStreamRecovering,
     markToolCallDecided,
     setError,
     setMessage,
@@ -29,6 +30,7 @@ import {
     parseStreamRawToolCall,
     parseStreamRawToolResult,
 } from './parseStreamRawToolResult';
+import { createStreamInactivityMonitor } from './streamInactivityMonitor';
 
 export interface AiAgentThreadStreamOptions {
     projectUuid: string;
@@ -42,7 +44,7 @@ export interface AiAgentThreadStreamOptions {
     onError?: (error: string) => void;
     onToolCall?: (toolCall: AiAgentToolCall) => void;
     onToolResult?: (toolResult: AiAgentToolResult) => void;
-    refetchThread?: () => void;
+    refetchThread: () => void;
 }
 
 type StreamToolCallPart = Extract<StreamPart, { type: 'toolCall' }>;
@@ -192,6 +194,13 @@ export const getStreamToolCallPart = (
     } as StreamToolCallPart;
 };
 
+export const isRecoverableStreamError = (error: unknown) =>
+    error instanceof Error &&
+    (error.name === 'TypeError' || error.name === 'NetworkError') &&
+    /failed to fetch|load failed|network(?:error| error| connection)|terminated/i.test(
+        error.message,
+    );
+
 export const getStepProgressFromChunk = (
     chunk: UIMessageChunk,
 ): { message: string; toolName: string | null } | null => {
@@ -236,6 +245,19 @@ export function useAiAgentThreadStreamMutation() {
         }: AiAgentThreadStreamOptions) => {
             const abortController = new AbortController();
             setAbortController(threadUuid, abortController);
+            let isConnected = false;
+            let isRecovering = false;
+            const beginRecovery = () => {
+                if (isRecovering || abortController.signal.aborted) return;
+
+                isRecovering = true;
+                dispatch(markStreamRecovering({ threadUuid }));
+                refetchThread();
+                abortController.abort();
+            };
+            let inactivityMonitor: ReturnType<
+                typeof createStreamInactivityMonitor
+            > | null = null;
 
             try {
                 dispatch(startStreaming({ threadUuid, messageUuid }));
@@ -252,6 +274,11 @@ export function useAiAgentThreadStreamMutation() {
                     },
                 );
 
+                isConnected = true;
+                inactivityMonitor = createStreamInactivityMonitor({
+                    onInactive: beginRecovery,
+                });
+
                 const parser = new ChatStreamParser();
                 const chunkStream = parser.parseStream(response);
                 const [rawChunkStream, uiMessageChunkStream] =
@@ -266,12 +293,18 @@ export function useAiAgentThreadStreamMutation() {
                 const handledToolOutputIds = new Set<string>();
                 const notifiedToolCallIds = new Set<string>();
                 const notifiedToolOutputIds = new Set<string>();
+                let receivedTerminalChunk = false;
 
                 const consumeRawChunks = (async () => {
                     while (true) {
                         const { done, value } = await rawChunkReader.read();
                         if (done) {
                             break;
+                        }
+
+                        inactivityMonitor.reset();
+                        if (value.type === 'finish') {
+                            receivedTerminalChunk = true;
                         }
 
                         const stepProgress = getStepProgressFromChunk(value);
@@ -440,7 +473,7 @@ export function useAiAgentThreadStreamMutation() {
                                             part.toolCallId,
                                         );
 
-                                        void refetchThread?.();
+                                        refetchThread();
                                     }
 
                                     break;
@@ -514,13 +547,26 @@ export function useAiAgentThreadStreamMutation() {
                 }
 
                 await consumeRawChunks;
+                if (!receivedTerminalChunk) {
+                    beginRecovery();
+                    return;
+                }
+
                 onFinish?.();
                 dispatch(stopStreaming({ threadUuid }));
             } catch (error) {
+                if (isRecovering) return;
+
                 if (error instanceof Error && error.name === 'AbortError') {
                     dispatch(stopStreaming({ threadUuid }));
                     return;
                 }
+
+                if (isConnected && isRecoverableStreamError(error)) {
+                    beginRecovery();
+                    return;
+                }
+
                 console.error('Error processing stream:', error);
                 captureException(error, {
                     tags: {
@@ -533,6 +579,8 @@ export function useAiAgentThreadStreamMutation() {
                         : 'Unknown error occurred';
                 dispatch(setError({ threadUuid, error: errorMessage }));
                 onError?.(errorMessage);
+            } finally {
+                inactivityMonitor?.stop();
             }
         },
         [dispatch, setAbortController],

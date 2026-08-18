@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     getStreamToolCallPart,
     getStepProgressFromChunk,
+    isRecoverableStreamError,
 } from './useAiAgentThreadStreamMutation';
 
 describe('getStreamToolCallPart', () => {
@@ -59,6 +60,25 @@ describe('getStreamToolCallPart', () => {
             toolResult: output,
             isPreliminary: false,
         });
+    });
+});
+
+describe('isRecoverableStreamError', () => {
+    it.each([
+        new TypeError('Failed to fetch'),
+        new TypeError('Load failed'),
+        new TypeError('terminated'),
+        Object.assign(new Error('Network connection lost'), {
+            name: 'NetworkError',
+        }),
+    ])('recognizes a broken stream transport', (error) => {
+        expect(isRecoverableStreamError(error)).toBe(true);
+    });
+
+    it('does not recover from an application error', () => {
+        expect(isRecoverableStreamError(new Error('Invalid tool output'))).toBe(
+            false,
+        );
     });
 });
 
