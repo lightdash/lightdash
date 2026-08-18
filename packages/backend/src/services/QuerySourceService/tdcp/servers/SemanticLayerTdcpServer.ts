@@ -1,30 +1,32 @@
 import {
-    DimensionType,
     getDimensions,
     getItemId,
     getMetrics,
     isExploreError,
     ParameterError,
-    TDCP_PROTOCOL_REVISION,
-    TdcpDialects,
-    TdcpMethods,
     type MetricQuery,
     type SemanticLayerSourceQuery,
+} from '@lightdash/common';
+import {
+    TDCP_PROTOCOL_REVISION,
+    TdcpDialects,
     type TdcpCapabilities,
     type TdcpCatalog,
     type TdcpColumnSchema,
     type TdcpDataRequest,
     type TdcpDatasetDescriptor,
-} from '@lightdash/common';
+} from '@lightdash/tdcp';
 import type { ProjectModel } from '../../../../models/ProjectModel/ProjectModel';
 import type { AsyncQueryService } from '../../../AsyncQueryService/AsyncQueryService';
 import type { ProjectService } from '../../../ProjectService/ProjectService';
 import {
+    assertDialectQuery,
     localDatasetDescriptor,
     type TdcpCatalogContext,
     type TdcpRequestContext,
     type TdcpServer,
 } from '../TdcpServer';
+import { dimensionTypeToTdcpType } from '../typeMapping';
 
 type SemanticLayerTdcpServerArguments = {
     asyncQueryService: AsyncQueryService;
@@ -104,7 +106,7 @@ export class SemanticLayerTdcpServer implements TdcpServer {
                               .filter((dimension) => !dimension.hidden)
                               .map((dimension) => ({
                                   name: getItemId(dimension),
-                                  type: dimension.type,
+                                  type: dimensionTypeToTdcpType(dimension.type),
                                   label: dimension.label ?? null,
                                   description: dimension.description ?? null,
                               })),
@@ -113,7 +115,7 @@ export class SemanticLayerTdcpServer implements TdcpServer {
                               .filter((metric) => !metric.hidden)
                               .map((metric) => ({
                                   name: getItemId(metric),
-                                  type: DimensionType.NUMBER,
+                                  type: 'number' as const,
                                   label: metric.label ?? null,
                                   description: metric.description ?? null,
                               })),
@@ -134,18 +136,15 @@ export class SemanticLayerTdcpServer implements TdcpServer {
         ctx: TdcpRequestContext,
         request: TdcpDataRequest,
     ): Promise<TdcpDatasetDescriptor> {
-        if (
-            request.method !== TdcpMethods.QUERY ||
-            request.dialect !== TdcpDialects.LIGHTDASH_METRIC_QUERY
-        ) {
-            throw new ParameterError(
-                `The semantic layer source only accepts ${TdcpMethods.QUERY} requests in the ${TdcpDialects.LIGHTDASH_METRIC_QUERY} dialect`,
-            );
-        }
+        const queryRequest = assertDialectQuery(
+            request,
+            TdcpDialects.LIGHTDASH_METRIC_QUERY,
+            'semantic layer',
+        );
 
         let payload: MetricQueryDialectPayload;
         try {
-            payload = JSON.parse(request.query);
+            payload = JSON.parse(queryRequest.query);
         } catch (e) {
             throw new ParameterError(
                 `Invalid ${TdcpDialects.LIGHTDASH_METRIC_QUERY} payload: expected JSON`,
@@ -160,7 +159,10 @@ export class SemanticLayerTdcpServer implements TdcpServer {
             metrics: payload.metrics,
             filters: payload.filters ?? {},
             sorts: payload.sorts ?? [],
-            limit: payload.limit ?? request.limit ?? DEFAULT_SOURCE_QUERY_LIMIT,
+            limit:
+                payload.limit ??
+                queryRequest.limit ??
+                DEFAULT_SOURCE_QUERY_LIMIT,
             tableCalculations: payload.tableCalculations ?? [],
             additionalMetrics: payload.additionalMetrics,
             customDimensions: payload.customDimensions,

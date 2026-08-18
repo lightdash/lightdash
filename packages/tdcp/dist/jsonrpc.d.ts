@@ -36,4 +36,13 @@ export declare const JsonRpcErrorCodes: {
 };
 export declare const jsonRpcResult: (id: JsonRpcId, result: unknown) => JsonRpcResponse;
 export declare const jsonRpcError: (id: JsonRpcId | null, code: number, message: string) => JsonRpcResponse;
+/**
+ * The error a handler throws to answer with a specific protocol code —
+ * "dataset expired" is -32012, not a generic internal error. Anything else
+ * a handler throws maps to INTERNAL_ERROR with its message.
+ */
+export declare class TdcpError extends Error {
+    readonly code: number;
+    constructor(code: number, message: string);
+}
 //# sourceMappingURL=jsonrpc.d.ts.map

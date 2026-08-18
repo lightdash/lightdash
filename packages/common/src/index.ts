@@ -325,7 +325,6 @@ export * from './types/sqlRunner';
 export * from './types/SshKeyPair';
 export * from './types/table';
 export * from './types/tags';
-export * from './types/tdcp';
 export * from './types/timeFrames';
 export * from './types/timezone';
 export * from './types/user';

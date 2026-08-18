@@ -1,7 +1,5 @@
-import {
-    type JsonRpcRequest,
-    type JsonRpcResponse,
-} from './jsonrpc';
+import { type JsonRpcRequest, type JsonRpcResponse } from './jsonrpc';
+import { jsonlRows } from './jsonl';
 import {
     TdcpMethods,
     type TdcpCapabilities,
@@ -12,6 +10,11 @@ import {
     type TdcpReadRequest,
     type TdcpScanRequest,
 } from './types';
+import {
+    assertCapabilities,
+    assertCatalog,
+    assertDatasetDescriptor,
+} from './validate';
 
 type TdcpClientArguments = {
     /** URL of the server's TDCP endpoint. */
@@ -20,15 +23,16 @@ type TdcpClientArguments = {
     token?: string;
     /**
      * Override the fetch implementation — hosts inject their hardened
-     * egress fetch (timeouts, SSRF guards) here.
+     * egress fetch (URL validation, timeouts) here. Used for both planes.
      */
     fetchImpl?: typeof fetch;
 };
 
 /**
- * Draft TDCP client over the JSON-RPC transport. On the real MCP transport
- * this class keeps its surface and swaps rpc() for extension method calls
- * on an MCP session — consumers never see the difference.
+ * Draft TDCP client over the JSON-RPC transport. Every wire response is
+ * structurally validated before it is typed; dataset rows stream. On the
+ * real MCP transport this class keeps its surface and swaps rpc() for
+ * extension method calls on an MCP session — consumers never notice.
  */
 export class TdcpClient {
     private readonly url: string;
@@ -85,53 +89,60 @@ export class TdcpClient {
     }
 
     async capabilities(): Promise<TdcpCapabilities> {
-        return (await this.rpc(
-            TdcpMethods.CAPABILITIES,
-            {},
-        )) as TdcpCapabilities;
+        return assertCapabilities(
+            await this.rpc(TdcpMethods.CAPABILITIES, {}),
+        );
     }
 
     async catalog(): Promise<TdcpCatalog> {
-        return (await this.rpc(TdcpMethods.CATALOG, {})) as TdcpCatalog;
+        return assertCatalog(await this.rpc(TdcpMethods.CATALOG, {}));
     }
 
     async read(
         request: Omit<TdcpReadRequest, 'method'>,
     ): Promise<TdcpDatasetDescriptor> {
-        return (await this.rpc(TdcpMethods.READ, {
-            ...request,
-            method: TdcpMethods.READ,
-        })) as TdcpDatasetDescriptor;
+        return assertDatasetDescriptor(
+            await this.rpc(TdcpMethods.READ, {
+                ...request,
+                method: TdcpMethods.READ,
+            }),
+        );
     }
 
     async scan(
         request: Omit<TdcpScanRequest, 'method'>,
     ): Promise<TdcpDatasetDescriptor> {
-        return (await this.rpc(TdcpMethods.SCAN, {
-            ...request,
-            method: TdcpMethods.SCAN,
-        })) as TdcpDatasetDescriptor;
+        return assertDatasetDescriptor(
+            await this.rpc(TdcpMethods.SCAN, {
+                ...request,
+                method: TdcpMethods.SCAN,
+            }),
+        );
     }
 
     async query(
         request: Omit<TdcpQueryRequest, 'method'>,
     ): Promise<TdcpDatasetDescriptor> {
-        return (await this.rpc(TdcpMethods.QUERY, {
-            ...request,
-            method: TdcpMethods.QUERY,
-        })) as TdcpDatasetDescriptor;
+        return assertDatasetDescriptor(
+            await this.rpc(TdcpMethods.QUERY, {
+                ...request,
+                method: TdcpMethods.QUERY,
+            }),
+        );
     }
 
     async refresh(datasetId: string): Promise<TdcpDatasetDescriptor> {
-        return (await this.rpc(TdcpMethods.REFRESH, {
-            method: TdcpMethods.REFRESH,
-            datasetId,
-        })) as TdcpDatasetDescriptor;
+        return assertDatasetDescriptor(
+            await this.rpc(TdcpMethods.REFRESH, {
+                method: TdcpMethods.REFRESH,
+                datasetId,
+            }),
+        );
     }
 
     /**
-     * Fetch a dataset's rows from its jsonl data-plane link. Buffers the
-     * body — a streaming variant lands with the Arrow encoding.
+     * Stream a dataset's rows from its jsonl data-plane link — one line in
+     * memory at a time.
      */
     async *fetchJsonlRows(
         link: TdcpDataLink,
@@ -144,18 +155,6 @@ export class TdcpClient {
         if (!response.ok) {
             throw new Error(`TDCP data plane responded ${response.status}`);
         }
-        const body = await response.text();
-        const lines = body
-            .split('\n')
-            .filter((line) => line.trim().length > 0);
-        for (const line of lines) {
-            let row: Record<string, unknown>;
-            try {
-                row = JSON.parse(line);
-            } catch (e) {
-                throw new Error('TDCP data plane returned malformed JSONL');
-            }
-            yield row;
-        }
+        yield* jsonlRows(response);
     }
 }

@@ -2,6 +2,7 @@ import {
     JsonRpcErrorCodes,
     jsonRpcError,
     jsonRpcResult,
+    TdcpError,
     type JsonRpcRequest,
     type JsonRpcResponse,
 } from './jsonrpc';
@@ -224,6 +225,9 @@ export const createTdcpRequestHandler = <TContext = undefined>(
                     );
             }
         } catch (e) {
+            if (e instanceof TdcpError) {
+                return jsonRpcError(id, e.code, e.message);
+            }
             return jsonRpcError(
                 id,
                 JsonRpcErrorCodes.INTERNAL_ERROR,

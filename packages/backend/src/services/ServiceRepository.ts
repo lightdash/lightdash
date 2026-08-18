@@ -1,8 +1,4 @@
-import {
-    BulkActionable,
-    MissingConfigError,
-    QuerySourceType,
-} from '@lightdash/common';
+import { BulkActionable, MissingConfigError } from '@lightdash/common';
 import { Knex } from 'knex';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { ClientRepository } from '../clients/ClientRepository';
@@ -72,10 +68,7 @@ import { PullRequestsService } from './PullRequestsService/PullRequestsService';
 import { QuerySourceRegistry } from './QuerySourceService/QuerySourceRegistry';
 import { QuerySourceService } from './QuerySourceService/QuerySourceService';
 import { RemoteTdcpQuerySource } from './QuerySourceService/sources/RemoteTdcpQuerySource';
-import { TdcpQuerySource } from './QuerySourceService/sources/TdcpQuerySource';
-import { DuckdbComposeTdcpServer } from './QuerySourceService/tdcp/servers/DuckdbComposeTdcpServer';
-import { SemanticLayerTdcpServer } from './QuerySourceService/tdcp/servers/SemanticLayerTdcpServer';
-import { SqlTdcpServer } from './QuerySourceService/tdcp/servers/SqlTdcpServer';
+import { createBuiltInTdcpQuerySources } from './QuerySourceService/tdcp';
 import type { ReadinessService } from './ReadinessService/ReadinessService';
 import { RenameService } from './RenameService/RenameService';
 import { RolesService } from './RolesService/RolesService';
@@ -994,51 +987,19 @@ export class ServiceRepository
             const projectService = this.getProjectService();
             const registry = new QuerySourceRegistry();
             // Every source is a TDCP server behind one adapter: the
-            // built-ins run in-process, remote servers speak the draft wire
+            // built-ins run in-process, remote servers speak the wire
             // protocol. The registry and everything above it is unchanged.
-            registry.register(
-                new TdcpQuerySource({
-                    definition: {
-                        sourceType: QuerySourceType.SEMANTIC_LAYER,
-                        label: 'Semantic layer',
-                        description:
-                            'Metric queries against the explores of this project. Tables are explores; columns are their dimensions and metrics, referenced by field id. Result columns are named by field id — exactly the dimensions and metrics requested.',
-                    },
-                    server: new SemanticLayerTdcpServer({
-                        asyncQueryService,
-                        projectService,
-                        projectModel: this.models.getProjectModel(),
-                    }),
+            const sources = [
+                ...createBuiltInTdcpQuerySources({
+                    asyncQueryService,
+                    projectService,
+                    projectModel: this.models.getProjectModel(),
+                    warehouseAvailableTablesModel:
+                        this.models.getWarehouseAvailableTablesModel(),
                 }),
-            );
-            registry.register(
-                new TdcpQuerySource({
-                    definition: {
-                        sourceType: QuerySourceType.SQL,
-                        label: 'Warehouse SQL',
-                        description:
-                            'Raw SQL against the project data warehouse. Tables are referenced as database.schema.table in the SQL dialect of the warehouse. Result columns are named by the SELECT output names.',
-                    },
-                    server: new SqlTdcpServer({
-                        asyncQueryService,
-                        projectModel: this.models.getProjectModel(),
-                        warehouseAvailableTablesModel:
-                            this.models.getWarehouseAvailableTablesModel(),
-                    }),
-                }),
-            );
-            registry.register(
-                new TdcpQuerySource({
-                    definition: {
-                        sourceType: QuerySourceType.DUCKDB,
-                        label: 'DuckDB compose',
-                        description:
-                            'DuckDB SQL over other query results. References expose results as named tables: an array of node ids (each a table named by its node id) or a {tableName: nodeIdOrQueryUuid} map. A referenced result keeps the column names of the query that produced it — field ids for semanticLayer queries, SELECT output names for sql queries. References to still-running queries are waited on.',
-                    },
-                    server: new DuckdbComposeTdcpServer({ asyncQueryService }),
-                }),
-            );
-            registry.register(new RemoteTdcpQuerySource({ asyncQueryService }));
+                new RemoteTdcpQuerySource({ asyncQueryService }),
+            ];
+            sources.forEach((source) => registry.register(source));
 
             return new QuerySourceService({
                 projectModel: this.models.getProjectModel(),

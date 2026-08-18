@@ -38,6 +38,8 @@ const handler = createTdcpRequestHandler({
 // Wire `handler` to any transport: node:http, express, or an MCP session.
 ```
 
-The consuming side inside Lightdash is `RemoteTdcpQuerySource` (`packages/backend/src/services/QuerySourceService/`); the design rationale is in `docs/tdcp-tabular-data-context-protocol.md`.
+The consuming side inside Lightdash is `RemoteTdcpQuerySource` (`packages/backend/src/services/QuerySourceService/`); the design rationale is in `docs/tdcp-tabular-data-context-protocol.md`. The executable form of the spec is [`tests/roundtrip.test.ts`](tests/roundtrip.test.ts) — the SDK client consuming the SDK server through an in-memory fetch shim, control plane and streamed data plane, no network.
 
-Draft caveats: the JSON-RPC binding stands in for the MCP transport, hosts must inject hardened fetch into `TdcpClient`, and the JSONL client buffers bodies. See the `@oliver:` comments and SPEC section 9.
+Guarantees the SDK owns so integrators cannot get them wrong: exact-mode scans that were not fully pushed are refused, undeclared dialects and compose references are rejected, wire descriptors must carry data-plane links, every response is structurally validated before it is typed (`assertDatasetDescriptor` and friends), and JSONL rows stream with one line in memory at a time. Handlers answer with protocol error codes by throwing `TdcpError`.
+
+Draft caveats: the JSON-RPC binding stands in for the MCP transport, and hosts should inject their hardened egress fetch into `TdcpClient` (Lightdash injects an SSRF-guarded one). See the `@oliver:` comments and SPEC section 9.

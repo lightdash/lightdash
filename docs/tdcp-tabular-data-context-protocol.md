@@ -48,7 +48,7 @@ flowchart LR
         SL["SemanticLayerTdcpServer (in-process)"]
         SQ["SqlTdcpServer (in-process)"]
         DK["DuckdbComposeTdcpServer (in-process, compose)"]
-        RM["RemoteTdcpServer (draft JSON-RPC wire)"]
+        RM["@lightdash/tdcp TdcpClient (wire, guarded fetch)"]
     end
     AD["TdcpQuerySource adapter"]
     RAD["RemoteTdcpQuerySource"]
@@ -61,27 +61,31 @@ flowchart LR
     AD --> REG
     RAD --> REG
     REG -->|"submitQuery yields queryUuid"| PIPE
-    RAD -->|"executeAsyncTdcpImport: data plane to S3"| PIPE
+    RAD -->|"executeAsyncExternalDatasetImport: streamed data plane to S3"| PIPE
 ```
 
 | Piece | Location |
 | --- | --- |
-| Protocol wire types (descriptor, catalog, tiers, dialects) | `packages/common/src/types/tdcp.ts` |
-| `TdcpServer` contract (transport-agnostic) | `packages/backend/src/services/QuerySourceService/tdcp/TdcpServer.ts` |
+| Protocol home: spec, JSON Schemas, server + client SDK | `packages/tdcp/` (`@lightdash/tdcp`) — the single type vocabulary |
+| `TdcpServer` contract (host-side, transport-agnostic) | `packages/backend/src/services/QuerySourceService/tdcp/TdcpServer.ts` |
 | In-process servers (the former `sources/` built-ins) | `packages/backend/src/services/QuerySourceService/tdcp/servers/` |
-| Remote server client (draft JSON-RPC + JSONL data plane) | `packages/backend/src/services/QuerySourceService/tdcp/RemoteTdcpServer.ts` |
+| Built-in source inventory (also the outbound list) | `packages/backend/src/services/QuerySourceService/tdcp/index.ts` |
+| Protocol ↔ host type bridge (the one meeting point) | `packages/backend/src/services/QuerySourceService/tdcp/typeMapping.ts` |
+| SSRF-guarded egress fetch for both planes | `packages/backend/src/services/QuerySourceService/tdcp/guardedFetch.ts` |
 | Adapters back onto `QuerySourceClient` | `packages/backend/src/services/QuerySourceService/sources/` |
-| Remote dataset materialization into the results pipeline | `AsyncQueryService.executeAsyncTdcpImport` |
+| Protocol-agnostic import into the results pipeline | `AsyncQueryService.executeAsyncExternalDatasetImport` |
+| Executable spec: SDK client ↔ SDK server round trip | `packages/tdcp/tests/roundtrip.test.ts` |
 
 In-process servers return descriptors with `links: null` — the dataset already lives in the local results pipeline and `datasetId` is the `queryUuid`. Remote descriptors carry links; `RemoteTdcpQuerySource` imports the data plane into a local `query_history` row + S3 JSONL file, after which compose references, pagination and viz treat it like any local result.
 
 ## Draft status and what is deliberately not here
 
-The `@oliver:` comments in the source mark every decision point. The headline gaps, all blocking ship but none blocking the walkable loop:
+The `@oliver:` comments in the source mark every decision point. What the draft already holds: the data plane streams end to end (fetch → S3 upload, one line in memory at a time), both planes go through an SSRF-guarded fetch (`validatePublicHttpUrl` + timeout), every wire payload is structurally validated before it is typed, and the SDK's request handler enforces the tier guarantees (exact-mode refusal, declared dialects, links on wire descriptors) so integrators cannot get them wrong.
 
-- **Server registration**: `TdcpSourceQuery.serverUrl` is a raw URL in the request body — an SSRF surface that must become a registered-server reference on the sources entity, with credentials on a unified org/project/user credential model (the `ai_mcp_server_credential` shape generalized).
-- **Transport**: the remote control plane is bare JSON-RPC over HTTP; the real transport is the MCP SDK client with `PersistentMcpOAuthClientProvider`, and egress must go through `createMcpTimeoutFetch`.
-- **Data plane**: the import buffers the JSONL body; the real implementation streams response body to the S3 upload stream.
+The headline gaps, all blocking ship but none blocking the walkable loop:
+
+- **Server registration**: `TdcpSourceQuery.serverUrl` is a raw URL in the request body — it must become a registered-server reference on the sources entity, with credentials on a unified org/project/user credential model (the `ai_mcp_server_credential` shape generalized).
+- **Transport**: the remote control plane is bare JSON-RPC over HTTPS; the real transport is the MCP SDK client with `PersistentMcpOAuthClientProvider`. The guarded fetch validates addresses but resolves DNS separately from the fetch — closing the rebinding window needs the pinned-agent treatment `secureFetch` uses, generalized to streaming bodies.
 - **Outbound**: the in-process `TdcpServer` instances are the implementation the outbound MCP extension re-exposes; the endpoint itself is not in this draft.
 - **Remote compose / handle delegation**: sending local handles to a remote compose server needs the token delegation decision before any handle leaves the deployment.
-- **Tier 1 scan**: types exist; no source implements it yet — the first API-backed source (GitHub, Attio) is the forcing function.
+- **Tier 1 scan**: the SDK enforces the contract (see the round-trip test); no backend source implements it yet — the first API-backed source (GitHub, Attio) is the forcing function.
