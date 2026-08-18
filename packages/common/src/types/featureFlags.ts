@@ -322,9 +322,10 @@ export enum FeatureFlags {
     MergeQueries = 'merge-queries',
 
     /**
-     * Enable the async pre-aggregate DuckDB SQL endpoint
-     * (POST /api/v2/projects/{projectUuid}/query/compose-sql), which
-     * runs DuckDB SQL over lightdash_query('<queryUuid>') result references.
+     * Enable the async compose SQL endpoint
+     * (POST /api/v2/projects/{projectUuid}/query/compose-sql), which runs
+     * DuckDB SQL over other queries' results, exposed as named tables via
+     * the request's references map ({"orders": "<queryUuid>"}).
      * Off by default; on in preview/dev environments via
      * PREVIEW_ENABLED_FEATURE_FLAGS.
      */
