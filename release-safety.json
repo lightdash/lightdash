@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "1.198.0",
-  "previousVersion": "1.197.0",
-  "releaseDate": "2026-08-18T18:34:48.983Z",
+  "version": "1.198.1",
+  "previousVersion": "1.198.0",
+  "releaseDate": "2026-08-18T23:42:39.716Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -11,8 +11,8 @@
     "files": []
   },
   "compatibility": {
-    "rollingUpdateSafe": false,
-    "recommendedStrategy": "Recreate"
+    "rollingUpdateSafe": true,
+    "recommendedStrategy": "RollingUpdate"
   },
   "api": {
     "rest": {
@@ -41,12 +41,5 @@
     "minPreviousVersion": "1.111.0",
     "requiredStops": []
   },
-  "declaredBreaks": [
-    {
-      "file": "packages/common/src/ee/AiAgent/schemas/tools/toolDefinitions.ts",
-      "line": 321,
-      "reason": "MCP clients must replace find_explores and find_fields with grep_fields and get_metadata.",
-      "requiredStop": false
-    }
-  ]
+  "declaredBreaks": []
 }

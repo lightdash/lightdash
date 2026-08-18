@@ -1,3 +1,10 @@
+## [1.198.1](https://github.com/lightdash/lightdash/compare/1.198.0...1.198.1) (2026-08-18)
+
+
+### Bug Fixes
+
+* **dashboards:** revert date filter auto-mapping across explores ([#27619](https://github.com/lightdash/lightdash/issues/27619)) ([c241bd4](https://github.com/lightdash/lightdash/commit/c241bd408856720b88324e5ed2d3e9729906c833)), closes [#26682](https://github.com/lightdash/lightdash/issues/26682) [#27591](https://github.com/lightdash/lightdash/issues/27591)
+
 # [1.198.0](https://github.com/lightdash/lightdash/compare/1.197.0...1.198.0) (2026-08-18)
 
 
