@@ -550,7 +550,13 @@ export class RolesService extends BaseService {
             throw new ParameterError('User as code must be an object');
         }
 
-        const expectedKeys = ['version', 'email', 'disabled', 'role'];
+        const expectedKeys = [
+            'version',
+            'email',
+            'disabled',
+            'role',
+            'additionalRoles',
+        ];
         const unknownKeys = Object.keys(desiredUser).filter(
             (key) => !expectedKeys.includes(key),
         );
@@ -609,6 +615,26 @@ export class RolesService extends BaseService {
             throw new ParameterError(
                 `Invalid system organization role: ${desiredUser.role.name}`,
             );
+        }
+        if (desiredUser.additionalRoles !== undefined) {
+            if (!Array.isArray(desiredUser.additionalRoles)) {
+                throw new ParameterError(
+                    'User additionalRoles must be an array of custom roles',
+                );
+            }
+            desiredUser.additionalRoles.forEach((role) => {
+                if (
+                    typeof role !== 'object' ||
+                    role === null ||
+                    role.type !== 'custom' ||
+                    typeof role.name !== 'string' ||
+                    role.name.trim().length === 0
+                ) {
+                    throw new ParameterError(
+                        'User additionalRoles may only contain custom roles with a name',
+                    );
+                }
+            });
         }
 
         return {
@@ -702,27 +728,48 @@ export class RolesService extends BaseService {
                 .map((role) => [role.roleUuid, role.name]),
         );
 
-        return members.map((member) => {
-            let role: UserAsCodeRole;
-            if (member.roleUuid) {
-                const roleName = customRoleNames.get(member.roleUuid);
-                if (!roleName) {
-                    throw new ParameterError(
-                        `Organization custom role ${member.roleUuid} assigned to ${member.email} was not found`,
-                    );
-                }
-                role = { type: 'custom', name: roleName };
-            } else {
-                role = { type: 'system', name: member.role };
+        const customRoleName = (roleUuid: string, email: string) => {
+            const roleName = customRoleNames.get(roleUuid);
+            if (!roleName) {
+                throw new ParameterError(
+                    `Organization custom role ${roleUuid} assigned to ${email} was not found`,
+                );
             }
+            return roleName;
+        };
 
-            return {
-                version: 1,
-                email: member.email.toLowerCase(),
-                disabled: !member.isActive,
-                role,
-            };
-        });
+        return Promise.all(
+            members.map(async (member): Promise<UserAsCode> => {
+                const role: UserAsCodeRole = member.roleUuid
+                    ? {
+                          type: 'custom',
+                          name: customRoleName(member.roleUuid, member.email),
+                      }
+                    : { type: 'system', name: member.role };
+                const base: UserAsCode = {
+                    version: 1,
+                    email: member.email.toLowerCase(),
+                    disabled: !member.isActive,
+                    role,
+                };
+                if (!member.hasMultipleRoles) {
+                    return base;
+                }
+                // Extra custom roles never collapse into the single `role`.
+                const roleSet =
+                    await this.rolesModel.getOrganizationUserRoleSet(
+                        organizationUuid,
+                        member.userUuid,
+                    );
+                const additionalRoles = roleSet.customRoleUuids
+                    .filter((roleUuid) => roleUuid !== member.roleUuid)
+                    .map((roleUuid) => ({
+                        type: 'custom' as const,
+                        name: customRoleName(roleUuid, member.email),
+                    }));
+                return { ...base, additionalRoles };
+            }),
+        );
     }
 
     private async validateUsableAdminChange(
@@ -844,6 +891,24 @@ export class RolesService extends BaseService {
             organizationUuid,
             desiredUser.role,
         );
+        const additionalRoleUuids = await Promise.all(
+            (desiredUser.additionalRoles ?? []).map((role) =>
+                this.resolveUserAsCodeRole(organizationUuid, role),
+            ),
+        );
+        const desiredRoleSet: OrganizationRoleSet = {
+            systemRole: isOrganizationMemberRole(desiredRoleId)
+                ? desiredRoleId
+                : null,
+            customRoleUuids: [
+                ...new Set([
+                    ...(isOrganizationMemberRole(desiredRoleId)
+                        ? []
+                        : [desiredRoleId]),
+                    ...additionalRoleUuids,
+                ]),
+            ],
+        };
         const existingUser = await this.userModel.findUserByEmail(
             desiredUser.email,
         );
@@ -856,13 +921,21 @@ export class RolesService extends BaseService {
                 'Email is already used by a user in another organization',
             );
         }
-        const existingRoleId = existingUser
-            ? (existingUser.roleUuid ?? existingUser.role)
-            : undefined;
+        const existingRoleSet: OrganizationRoleSet | undefined =
+            existingUser?.organizationUuid === organizationUuid
+                ? await this.rolesModel.getOrganizationUserRoleSet(
+                      organizationUuid,
+                      existingUser.userUuid,
+                  )
+                : undefined;
         const disabledChanged = existingUser
             ? existingUser.isActive === desiredUser.disabled
             : false;
-        const roleChanged = existingRoleId !== desiredRoleId;
+        const roleChanged =
+            existingRoleSet === undefined ||
+            existingRoleSet.systemRole !== desiredRoleSet.systemRole ||
+            [...existingRoleSet.customRoleUuids].sort().join(',') !==
+                [...desiredRoleSet.customRoleUuids].sort().join(',');
 
         if (
             existingUser?.userUuid === account.user.userUuid &&
@@ -920,13 +993,24 @@ export class RolesService extends BaseService {
         }
 
         if (roleChanged || action === PromotionAction.CREATE) {
-            const user = await this.userModel.getUserDetailsByUuid(userUuid);
-            await this.applyOrganizationUserRoleAssignment(
-                account,
-                organizationUuid,
-                user,
-                desiredRoleId,
-            );
+            if (additionalRoleUuids.length === 0) {
+                const user =
+                    await this.userModel.getUserDetailsByUuid(userUuid);
+                await this.applyOrganizationUserRoleAssignment(
+                    account,
+                    organizationUuid,
+                    user,
+                    desiredRoleId,
+                );
+            } else {
+                await this.replaceOrganizationUserRoleSet(
+                    account,
+                    organizationUuid,
+                    userUuid,
+                    desiredRoleSet,
+                    { source: 'as-code' },
+                );
+            }
         }
         if (
             existingUser?.organizationUuid === organizationUuid &&

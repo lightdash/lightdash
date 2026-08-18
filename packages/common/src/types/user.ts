@@ -20,7 +20,14 @@ export type UserAsCode = {
     version: 1;
     email: string;
     disabled: boolean;
+    /** Primary organization role (system or custom). */
     role: UserAsCodeRole;
+    /**
+     * Extra organization custom roles held on top of `role` (role sets).
+     * Omitted when the user holds a single role; older servers reject the
+     * field instead of silently dropping it.
+     */
+    additionalRoles?: Extract<UserAsCodeRole, { type: 'custom' }>[];
 };
 
 export enum UserAsCodeLifecycleStatus {
