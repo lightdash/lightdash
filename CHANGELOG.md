@@ -1,3 +1,11 @@
+# [1.174.0](https://github.com/lightdash/lightdash/compare/1.173.0...1.174.0) (2026-08-18)
+
+
+### Features
+
+* add compose SQL runner for DuckDB pre-aggregate queries ([#27517](https://github.com/lightdash/lightdash/issues/27517)) ([b8188da](https://github.com/lightdash/lightdash/commit/b8188daf1d89038e769f99b301b3a20c44e7f79d))
+* manual filter entry and server-served values when field autocomplete has no warehouse source ([#27508](https://github.com/lightdash/lightdash/issues/27508)) ([bac4b02](https://github.com/lightdash/lightdash/commit/bac4b02a59cb88e13f6bd5bb487bb94a0894e653))
+
 # [1.173.0](https://github.com/lightdash/lightdash/compare/1.172.4...1.173.0) (2026-08-18)
 
 

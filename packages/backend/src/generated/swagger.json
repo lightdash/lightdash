@@ -16724,6 +16724,10 @@
                     "cached": {
                         "type": "boolean"
                     },
+                    "note": {
+                        "type": "string",
+                        "description": "Guidance for tool consumers, e.g. when value suggestions are\ndisabled for the field and an empty result is not meaningful."
+                    },
                     "resultsWithLabels": {
                         "items": {
                             "$ref": "#/components/schemas/FilterAutocompleteValue"
@@ -50917,6 +50921,7 @@
                     "cli",
                     "metricsExplorer",
                     "preAggregateMaterialization",
+                    "composeSqlRunner",
                     "dataAppSample"
                 ],
                 "type": "string"
@@ -51389,6 +51394,38 @@
                         "properties": {
                             "pivotConfiguration": {
                                 "$ref": "#/components/schemas/PivotConfiguration"
+                            },
+                            "limit": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "sql": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["sql"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "Record_string.UUID_": {
+                "properties": {},
+                "additionalProperties": {
+                    "type": "string"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ExecuteAsyncComposeSqlQueryRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "references": {
+                                "$ref": "#/components/schemas/Record_string.UUID_",
+                                "description": "Results of previous async queries exposed to the SQL as tables,\nkeyed by table name: {\"orders\": \"<queryUuid>\"} lets the SQL run\nSELECT * FROM orders. Each referenced query is authorized with the\nsame access checks as fetching its results by uuid.\n\nTyped Record<string, UUID> (not Record<string, string>) on purpose:\nTSOA compiles a string-valued record to an empty object literal and\nvalidation then strips every key; a ref-aliased value type keeps\nadditionalProperties intact (and validates the uuid format)."
                             },
                             "limit": {
                                 "type": "number",
@@ -53613,7 +53650,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.173.0",
+        "version": "1.174.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -86109,6 +86146,57 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ExecuteAsyncSqlQueryRequestParams"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/compose-sql": {
+            "post": {
+                "operationId": "executeAsyncComposeSqlQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_ApiExecuteAsyncSqlQueryResults_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Executes a DuckDB SQL query asynchronously on the pre-aggregate DuckDB engine. Requires run-queries access (interactive viewer and up) and the compose-sql-runner feature flag. The references map exposes previous async queries' results as named tables the SQL can select from ({\"orders\": \"queryUuid\"} lets the SQL run SELECT * FROM orders); each referenced query is authorized with the same access checks as Get results, so you can reference any query you can already fetch by uuid. Direct file access in the SQL is rejected. Returns a queryUuid to poll for results via Get results.",
+                "summary": "Execute compose SQL query",
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ExecuteAsyncComposeSqlQueryRequestParams"
                             }
                         }
                     }
