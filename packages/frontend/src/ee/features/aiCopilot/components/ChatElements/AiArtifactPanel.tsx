@@ -27,6 +27,7 @@ import useHealth from '../../../../../hooks/health/useHealth';
 import { useCompiledSqlFromMetricQuery } from '../../../../../hooks/useCompiledSql';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useAiAgentArtifact } from '../../hooks/useAiAgentArtifacts';
+import { useAiMergeCompiledSql } from '../../hooks/useAiMergeCompiledSql';
 import {
     useAiAgentArtifactVizQuery,
     useAiAgentThread,
@@ -164,6 +165,13 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                 ? undefined
                 : semanticVizQueryData?.query.metricQuery,
         });
+        const { data: mergeCompiledSql } = useAiMergeCompiledSql(
+            artifact.projectUuid,
+            isMergeArtifact ? semanticVizQueryData : undefined,
+        );
+        const compiledSqlQuery = isMergeArtifact
+            ? (mergeCompiledSql?.sql ?? undefined)
+            : compiledSql?.query;
 
         // Same parse the renderer does — needed so the floating pill can
         // show the correct default selection and know whether to render
@@ -339,7 +347,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                             description={description}
                             columns={Object.values(queryResults.columns ?? {})}
                         />
-                    ) : !isMergeArtifact ? (
+                    ) : (
                         <AiChartQuickOptions
                             message={message}
                             projectUuid={artifact.projectUuid}
@@ -350,9 +358,10 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                                 description: description,
                                 linkToMessage: true,
                             }}
-                            compiledSql={compiledSql?.query}
+                            compiledSql={compiledSqlQuery}
+                            mergeArtifact={isMergeArtifact}
                         />
-                    ) : null}
+                    )}
                     {showCloseButton && (
                         <>
                             <Divider
@@ -404,6 +413,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                         chartConfig={semanticChartConfig}
                         selectedChartType={selectedChartType}
                         headerContent={floatingHead}
+                        loadExplore={!isMergeArtifact}
                     />
                 </div>
                 {shouldShowPill && metricQuery && (

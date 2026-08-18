@@ -23,6 +23,7 @@ import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useCompiledSqlFromMetricQuery } from '../../../../../hooks/useCompiledSql';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
+import { useAiMergeCompiledSql } from '../../hooks/useAiMergeCompiledSql';
 import { useAiAgentArtifactVizQuery } from '../../hooks/useProjectAiAgents';
 import { clearArtifact } from '../../store/aiArtifactSlice';
 import { useAiAgentStoreDispatch } from '../../store/hooks';
@@ -113,6 +114,13 @@ export const AiChartVisualization: FC<Props> = ({
             ? undefined
             : semanticVizQueryData?.query.metricQuery,
     });
+    const { data: mergeCompiledSql } = useAiMergeCompiledSql(
+        projectUuid,
+        isMergeArtifact ? semanticVizQueryData : undefined,
+    );
+    const compiledSqlQuery = isMergeArtifact
+        ? (mergeCompiledSql?.sql ?? undefined)
+        : compiledSql?.query;
 
     const isQueryLoading =
         queryExecutionHandle.isLoading ||
@@ -216,24 +224,20 @@ export const AiChartVisualization: FC<Props> = ({
                 </Text>
             </Stack>
             <Group gap="sm" display={isMobile ? 'none' : 'flex'}>
-                {!isMergeArtifact && (
-                    <>
-                        <ViewSqlButton sql={compiledSql?.query} />
-                        <AiChartQuickOptions
-                            message={message}
-                            projectUuid={projectUuid}
-                            agentUuid={agentUuid}
-                            artifactData={artifactData}
-                            saveChartOptions={{
-                                name: semanticVizQueryData.metadata.title,
-                                description:
-                                    semanticVizQueryData.metadata.description,
-                                linkToMessage: true,
-                            }}
-                            compiledSql={compiledSql?.query}
-                        />
-                    </>
-                )}
+                <ViewSqlButton sql={compiledSqlQuery} />
+                <AiChartQuickOptions
+                    message={message}
+                    projectUuid={projectUuid}
+                    agentUuid={agentUuid}
+                    artifactData={artifactData}
+                    saveChartOptions={{
+                        name: semanticVizQueryData.metadata.title,
+                        description: semanticVizQueryData.metadata.description,
+                        linkToMessage: true,
+                    }}
+                    compiledSql={compiledSqlQuery}
+                    mergeArtifact={isMergeArtifact}
+                />
                 {showCloseButton && (
                     <ActionIcon
                         size="sm"
@@ -256,6 +260,7 @@ export const AiChartVisualization: FC<Props> = ({
             selectedChartType={selectedChartType}
             onChartTypeChange={setSelectedChartType}
             headerContent={inlineHeaderContent}
+            loadExplore={!isMergeArtifact}
         />
     );
 };
