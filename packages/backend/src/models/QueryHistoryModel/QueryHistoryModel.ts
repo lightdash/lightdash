@@ -57,6 +57,7 @@ function convertDbQueryHistoryToQueryHistory(
         originalColumns: queryHistory.original_columns,
         preAggregateCompiledSql: queryHistory.pre_aggregate_compiled_sql,
         preAggregateExecution: queryHistory.pre_aggregate_execution,
+        preAggregateFallbackReason: queryHistory.pre_aggregate_fallback_reason,
         processingStartedAt: queryHistory.processing_started_at,
     };
 }
@@ -137,6 +138,7 @@ export class QueryHistoryModel {
             | 'columns'
             | 'preAggregateCompiledSql'
             | 'preAggregateExecution'
+            | 'preAggregateFallbackReason'
             | 'processingStartedAt'
             | 'createdByAccount'
             | 'createdByUserUuid'
@@ -184,6 +186,7 @@ export class QueryHistoryModel {
                 original_columns: queryHistory.originalColumns,
                 pre_aggregate_compiled_sql: null,
                 pre_aggregate_execution: null,
+                pre_aggregate_fallback_reason: null,
                 processing_started_at: null,
             })
             .returning('query_uuid');

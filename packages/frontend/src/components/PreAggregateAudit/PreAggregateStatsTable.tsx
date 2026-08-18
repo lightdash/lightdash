@@ -230,7 +230,7 @@ const PreAggregateStatsTable: FC<Props> = ({
                     </Group>
                 ),
                 Cell: ({ row }) => {
-                    const { hitCount, missCount } = row.original;
+                    const { hitCount, missCount, fallbackCount } = row.original;
                     return (
                         <Group gap={8} wrap="nowrap">
                             <Text size="xs" c="green.7" ff="monospace">
@@ -247,6 +247,21 @@ const PreAggregateStatsTable: FC<Props> = ({
                             >
                                 {missCount} uncached
                             </Text>
+                            {fallbackCount > 0 && (
+                                <>
+                                    <Text size="xs" c="ldGray.4" ff="monospace">
+                                        /
+                                    </Text>
+                                    <Text
+                                        size="xs"
+                                        ff="monospace"
+                                        c="red.7"
+                                        fw={500}
+                                    >
+                                        {fallbackCount} failed
+                                    </Text>
+                                </>
+                            )}
                         </Group>
                     );
                 },

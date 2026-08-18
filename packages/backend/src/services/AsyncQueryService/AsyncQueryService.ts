@@ -125,6 +125,7 @@ import {
     type ParametersValuesMap,
     type PivotRowTotalsByIndex,
     type PivotValuesColumn,
+    type PreAggregateFallbackReason,
     type Project,
     type QueryHistory,
     type ReadyQueryResultsPage,
@@ -1228,6 +1229,13 @@ export class AsyncQueryService extends ProjectService {
                               )
                             : null,
                 },
+                preAggregate: queryHistory.preAggregateExecution
+                    ? {
+                          execution: queryHistory.preAggregateExecution,
+                          fallbackReason:
+                              queryHistory.preAggregateFallbackReason,
+                      }
+                    : null,
             },
             status,
             pivotDetails:
@@ -2605,11 +2613,44 @@ export class AsyncQueryService extends ProjectService {
                     preAggregateError,
                 )}. Falling back to warehouse`,
             );
-            this.prometheusMetrics?.incrementPreAggregateFallback(
+            const fallbackReason: PreAggregateFallbackReason =
                 preAggregateExecution === 'duckdb'
                     ? 'duckdb_execution_error'
-                    : 'external_execution_error',
+                    : 'external_execution_error';
+            this.prometheusMetrics?.incrementPreAggregateFallback(
+                fallbackReason,
             );
+
+            // Persist the fallback before the retry so polling clients and
+            // query history reflect the actual execution source.
+            try {
+                await this.queryHistoryModel.update(
+                    queryUuid,
+                    projectUuid,
+                    { pre_aggregate_fallback_reason: fallbackReason },
+                    {
+                        isRegisteredUser: () => isRegisteredUser,
+                        user: { id: userUuid },
+                    },
+                );
+            } catch (updateError) {
+                this.logger.error(
+                    `Failed to record pre-aggregate fallback for ${queryUuid}: ${getErrorMessage(
+                        updateError,
+                    )}`,
+                );
+            }
+
+            if (queryTags.explore_name) {
+                this.preAggregateStrategy.recordExecutionFallback({
+                    projectUuid,
+                    exploreName: queryTags.explore_name,
+                    chartUuid: queryTags.chart_uuid ?? null,
+                    dashboardUuid: queryTags.dashboard_uuid ?? null,
+                    queryContext: queryTags.query_context,
+                });
+            }
+
             await this.runAsyncWarehouseQuery({
                 userUuid,
                 organizationUuid,

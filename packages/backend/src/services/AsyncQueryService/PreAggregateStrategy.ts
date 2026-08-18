@@ -72,6 +72,16 @@ export interface PreAggregateStrategy {
         queryContext: string;
     }): void;
 
+    // Called at execution time when a matched pre-aggregate failed to serve
+    // and the query fell back to the source warehouse
+    recordExecutionFallback(params: {
+        projectUuid: string;
+        exploreName: string;
+        chartUuid: string | null;
+        dashboardUuid: string | null;
+        queryContext: string;
+    }): void;
+
     cleanupStats(retentionDays: number): Promise<number>;
 
     getStats(
@@ -125,6 +135,10 @@ export class NoOpPreAggregateStrategy implements PreAggregateStrategy {
     }
 
     recordStats(): void {
+        // no-op
+    }
+
+    recordExecutionFallback(): void {
         // no-op
     }
 

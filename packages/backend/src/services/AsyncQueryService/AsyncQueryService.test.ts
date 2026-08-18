@@ -128,6 +128,7 @@ const makeMockStrategy = (
         () => warehouseClientMock as unknown as WarehouseClient,
     ),
     recordStats: vi.fn(),
+    recordExecutionFallback: vi.fn(),
     cleanupStats: vi.fn(async () => 0),
     getStats: noOpStrategy.getStats.bind(noOpStrategy),
     getResultsStorageClient: vi.fn(() => undefined),
@@ -1887,6 +1888,7 @@ describe('AsyncQueryService', () => {
             originalColumns: null,
             preAggregateCompiledSql: null,
             preAggregateExecution: null,
+            preAggregateFallbackReason: null,
             processingStartedAt: null,
         });
 
@@ -1974,6 +1976,7 @@ describe('AsyncQueryService', () => {
                 originalColumns: null,
                 preAggregateCompiledSql: null,
                 preAggregateExecution: null,
+                preAggregateFallbackReason: null,
                 processingStartedAt: null,
             });
 
@@ -2216,6 +2219,7 @@ describe('AsyncQueryService', () => {
                 originalColumns: mockOriginalColumns,
                 preAggregateCompiledSql: null,
                 preAggregateExecution: null,
+                preAggregateFallbackReason: null,
                 processingStartedAt: null,
             };
 
@@ -2348,6 +2352,7 @@ describe('AsyncQueryService', () => {
                 originalColumns: {},
                 preAggregateCompiledSql: null,
                 preAggregateExecution: null,
+                preAggregateFallbackReason: null,
                 processingStartedAt: null,
             };
 
@@ -2375,6 +2380,188 @@ describe('AsyncQueryService', () => {
                         makePivotValueColumn(reference),
                     ),
                 },
+            });
+        });
+
+        test('ready results expose pre-aggregate execution and fallback in metadata', async () => {
+            const mockQueryHistory: QueryHistory = {
+                createdAt: new Date(),
+                organizationUuid: sessionAccount.organization.organizationUuid!,
+                createdByUserUuid: sessionAccount.user.id,
+                createdBy: sessionAccount.user.id,
+                createdByAccount: null,
+                createdByActorType: 'session',
+                queryUuid: 'test-query-uuid',
+                projectUuid,
+                status: QueryHistoryStatus.READY,
+                error: null,
+                erroredAt: null,
+                metricQuery: metricQueryMock,
+                context: QueryExecutionContext.EXPLORE,
+                fields: validExplore.tables.a.dimensions,
+                compiledSql: 'SELECT * FROM test.table',
+                warehouseQueryId: 'test-warehouse-query-id',
+                warehouseQueryMetadata: null,
+                requestParameters: {} as ExecuteAsyncQueryRequestParams,
+                totalRowCount: 1,
+                warehouseExecutionTimeMs: 1,
+                defaultPageSize: 10,
+                cacheKey: 'test-cache-key',
+                pivotConfiguration: null,
+                pivotTotalColumnCount: null,
+                pivotValuesColumns: null,
+                resultsFileName: 'results-file-name.json',
+                resultsCreatedAt: new Date(),
+                resultsUpdatedAt: new Date(),
+                resultsExpiresAt: new Date(Date.now() + 60_000),
+                columns: expectedColumns,
+                originalColumns: null,
+                preAggregateCompiledSql: 'SELECT * FROM duckdb_preagg',
+                preAggregateExecution: 'duckdb',
+                preAggregateFallbackReason: 'duckdb_execution_error',
+                processingStartedAt: null,
+            };
+
+            serviceWithCache.queryHistoryModel.get = vi
+                .fn()
+                .mockResolvedValue(mockQueryHistory);
+            serviceWithCache.getResultsPageFromS3 = vi.fn().mockResolvedValue({
+                rows: [expectedFormattedRow],
+            });
+            serviceWithCache.getExplore = vi
+                .fn()
+                .mockResolvedValue(validExplore);
+
+            const result = await serviceWithCache.getAsyncQueryResults({
+                account: sessionAccount,
+                projectUuid,
+                queryUuid: 'test-query-uuid',
+                page: 1,
+                pageSize: 10,
+            });
+
+            expect(result).toMatchObject({
+                metadata: {
+                    preAggregate: {
+                        execution: 'duckdb',
+                        fallbackReason: 'duckdb_execution_error',
+                    },
+                },
+            });
+        });
+    });
+
+    describe('runAsyncPreAggregateQuery', () => {
+        const buildArgs = () => ({
+            userUuid: sessionAccount.user.id,
+            organizationUuid: sessionAccount.organization.organizationUuid!,
+            isPreviewProject: false,
+            isRegisteredUser: true,
+            onboardingFlow: 'legacy' as const,
+            projectUuid,
+            queryUuid: 'test-query-uuid',
+            queryTags: {
+                query_context: QueryExecutionContext.EXPLORE,
+                explore_name: 'orders',
+                chart_uuid: 'chart-uuid',
+                dashboard_uuid: 'dashboard-uuid',
+            },
+            fieldsMap: {},
+            cacheKey: 'test-cache-key',
+            pivotConfiguration: undefined,
+            originalColumns: undefined,
+            preAggregateQuery: 'SELECT * FROM duckdb_preagg',
+            warehouseQuery: 'SELECT * FROM warehouse',
+            preAggregateExecution: 'duckdb' as const,
+            queryCreatedAt: new Date(),
+            displayTimezone: null,
+        });
+
+        test('records fallback on query history and stats when execution fails', async () => {
+            const mockStrategy = makeMockStrategy({
+                resolved: true,
+                query: 'SELECT * FROM duckdb_preagg',
+                execution: 'duckdb',
+            });
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            (service as AnyType).preAggregateStrategy = mockStrategy;
+
+            const runAsyncWarehouseSpy = vi
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockRejectedValueOnce(new Error('HTTP 404: missing parquet'))
+                .mockResolvedValueOnce(undefined);
+
+            await service.runAsyncPreAggregateQuery(buildArgs());
+
+            expect(service.queryHistoryModel.update).toHaveBeenCalledWith(
+                'test-query-uuid',
+                projectUuid,
+                { pre_aggregate_fallback_reason: 'duckdb_execution_error' },
+                expect.objectContaining({
+                    user: { id: sessionAccount.user.id },
+                }),
+            );
+            expect(mockStrategy.recordExecutionFallback).toHaveBeenCalledWith({
+                projectUuid,
+                exploreName: 'orders',
+                chartUuid: 'chart-uuid',
+                dashboardUuid: 'dashboard-uuid',
+                queryContext: QueryExecutionContext.EXPLORE,
+            });
+            expect(runAsyncWarehouseSpy).toHaveBeenCalledTimes(2);
+            expect(runAsyncWarehouseSpy.mock.calls[1][0]).toMatchObject({
+                query: 'SELECT * FROM warehouse',
+            });
+        });
+
+        test('does not record fallback when execution succeeds', async () => {
+            const mockStrategy = makeMockStrategy({
+                resolved: true,
+                query: 'SELECT * FROM duckdb_preagg',
+                execution: 'duckdb',
+            });
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            (service as AnyType).preAggregateStrategy = mockStrategy;
+
+            vi.spyOn(service, 'runAsyncWarehouseQuery').mockResolvedValue(
+                undefined,
+            );
+
+            await service.runAsyncPreAggregateQuery(buildArgs());
+
+            expect(service.queryHistoryModel.update).not.toHaveBeenCalledWith(
+                'test-query-uuid',
+                projectUuid,
+                expect.objectContaining({
+                    pre_aggregate_fallback_reason: expect.anything(),
+                }),
+                expect.anything(),
+            );
+            expect(mockStrategy.recordExecutionFallback).not.toHaveBeenCalled();
+        });
+
+        test('still falls back to the warehouse when the fallback write fails', async () => {
+            const mockStrategy = makeMockStrategy({
+                resolved: true,
+                query: 'SELECT * FROM duckdb_preagg',
+                execution: 'duckdb',
+            });
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            (service as AnyType).preAggregateStrategy = mockStrategy;
+            (
+                service.queryHistoryModel.update as import('vitest').Mock
+            ).mockRejectedValue(new Error('db unavailable'));
+
+            const runAsyncWarehouseSpy = vi
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockRejectedValueOnce(new Error('HTTP 404: missing parquet'))
+                .mockResolvedValueOnce(undefined);
+
+            await service.runAsyncPreAggregateQuery(buildArgs());
+
+            expect(runAsyncWarehouseSpy).toHaveBeenCalledTimes(2);
+            expect(runAsyncWarehouseSpy.mock.calls[1][0]).toMatchObject({
+                query: 'SELECT * FROM warehouse',
             });
         });
     });
@@ -2435,6 +2622,7 @@ describe('AsyncQueryService', () => {
                 originalColumns: {},
                 preAggregateCompiledSql: null,
                 preAggregateExecution: null,
+                preAggregateFallbackReason: null,
                 processingStartedAt: null,
                 ...overrides,
             }) as QueryHistory;
@@ -2754,6 +2942,7 @@ describe('AsyncQueryService', () => {
             originalColumns: null,
             preAggregateCompiledSql: null,
             preAggregateExecution: null,
+            preAggregateFallbackReason: null,
             processingStartedAt: null,
         });
 
@@ -2929,6 +3118,7 @@ describe('AsyncQueryService', () => {
         originalColumns: null,
         preAggregateCompiledSql: null,
         preAggregateExecution: null,
+        preAggregateFallbackReason: null,
         processingStartedAt: null,
     });
 

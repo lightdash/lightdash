@@ -265,6 +265,23 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
             );
     }
 
+    recordExecutionFallback(params: {
+        projectUuid: string;
+        exploreName: string;
+        chartUuid: string | null;
+        dashboardUuid: string | null;
+        queryContext: string;
+    }): void {
+        void this.statsModel
+            .incrementFallback(params)
+            .catch((e) =>
+                Logger.error(
+                    'Failed to record pre-aggregate execution fallback',
+                    e,
+                ),
+            );
+    }
+
     async cleanupStats(retentionDays: number): Promise<number> {
         return this.statsModel.cleanup(retentionDays);
     }
@@ -294,6 +311,7 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
                     queryContext: row.queryContext,
                     hitCount: row.hitCount,
                     missCount: row.missCount,
+                    fallbackCount: row.fallbackCount,
                     missReason: row.missReason,
                     preAggregateName: row.preAggregateName,
                     updatedAt: row.updatedAt.toISOString(),

@@ -1490,6 +1490,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                             />
                             <TileExecutionInfo
                                 cacheMetadata={cacheMetadata}
+                                preAggregate={metadata?.preAggregate}
                                 performance={performance}
                                 totalClientFetchTimeMs={
                                     resultsData.totalClientFetchTimeMs
