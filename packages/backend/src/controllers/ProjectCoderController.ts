@@ -24,9 +24,11 @@ import {
     type ApiSpaceAsCodeUpsertResponse,
     type ApiSqlChartAsCodeListResponse,
     type ApiSqlChartAsCodeUpsertResponse,
+    type ApiSuccessEmpty,
     type ApiVirtualViewAsCodeListResponse,
     type ApiVirtualViewAsCodeUpsertResponse,
     type ChartAsCode,
+    type ContentSlugRenameRequest,
     type DashboardAsCode,
     type ExternalConnectionAsCode,
     type GoogleSheetsSyncAsCode,
@@ -94,6 +96,28 @@ type ExternalConnectionCoder = {
 @Route('/api/v1/projects/{projectUuid}')
 @Response<ApiErrorPayload>('default', 'Error')
 export class ProjectCoderController extends BaseController {
+    /**
+     * Rename a project-scoped content slug
+     * @summary Rename content slug
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/slugs/rename')
+    @OperationId('renameContentSlug')
+    async renameContentSlug(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() body: ContentSlugRenameRequest,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        await this.services
+            .getCoderService()
+            .renameContentSlug(toSessionUser(req.account), projectUuid, body);
+        return { status: 'ok', results: undefined };
+    }
+
     /**
      * Get charts in code representation
      * @summary List charts as code

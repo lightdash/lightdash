@@ -1099,6 +1099,103 @@ export class SavedChartModel {
         return this.get(savedChartUuid);
     }
 
+    async renameSlug({
+        projectUuid,
+        savedChartUuid,
+        from,
+        to,
+    }: {
+        projectUuid: string;
+        savedChartUuid: string;
+        from: string;
+        to: string;
+    }): Promise<void> {
+        return this.database.transaction(async (trx) => {
+            const slugsToLock = [...new Set([from, to])].sort();
+            for (const slug of slugsToLock) {
+                // eslint-disable-next-line no-await-in-loop
+                await acquireProjectSlugLock(trx, projectUuid, slug);
+            }
+
+            const sourceOwner = await getSavedChartSlugOwner(
+                trx,
+                projectUuid,
+                from,
+            );
+            if (
+                !sourceOwner ||
+                sourceOwner.deleted_at ||
+                sourceOwner.saved_query_uuid !== savedChartUuid
+            ) {
+                throw new NotFoundError(`Chart slug "${from}" not found`);
+            }
+
+            const chart = await trx(SavedChartsTableName)
+                .where(`${SavedChartsTableName}.project_uuid`, projectUuid)
+                .where(
+                    `${SavedChartsTableName}.saved_query_uuid`,
+                    savedChartUuid,
+                )
+                .whereNull(`${SavedChartsTableName}.deleted_at`)
+                .select(`${SavedChartsTableName}.slug`)
+                .first();
+            if (!chart) {
+                throw new NotFoundError(`Chart slug "${from}" not found`);
+            }
+
+            if (chart.slug === to) {
+                return;
+            }
+
+            if (chart.slug !== from) {
+                throw new ConflictError(
+                    `Chart slug "${from}" is a historical alias. Use the current slug "${chart.slug}" as the source`,
+                );
+            }
+
+            const targetOwner = await getSavedChartSlugOwner(
+                trx,
+                projectUuid,
+                to,
+            );
+            if (
+                targetOwner &&
+                targetOwner.saved_query_uuid !== savedChartUuid
+            ) {
+                throw new ConflictError(
+                    `Chart slug "${to}" is already in use in this project`,
+                );
+            }
+
+            const targetIsAlias = targetOwner !== undefined;
+            if (targetIsAlias) {
+                await trx(SavedChartSlugMappingsTableName)
+                    .where('project_uuid', projectUuid)
+                    .where('saved_query_uuid', savedChartUuid)
+                    .where('slug', to)
+                    .delete();
+            }
+
+            await trx(SavedChartSlugMappingsTableName).insert({
+                project_uuid: projectUuid,
+                saved_query_uuid: savedChartUuid,
+                slug: chart.slug,
+            });
+
+            const updated = await trx(SavedChartsTableName)
+                .where('project_uuid', projectUuid)
+                .where('saved_query_uuid', savedChartUuid)
+                .where('slug', chart.slug)
+                .whereNull('deleted_at')
+                .update({ slug: to });
+            if (updated !== 1) {
+                throw new ConflictError(
+                    `Chart slug "${chart.slug}" changed while it was being renamed`,
+                );
+            }
+        });
+    }
+
     async updateMultiple(
         projectUuid: string,
         data: UpdateMultipleSavedChart[],
@@ -2319,6 +2416,26 @@ export class SavedChartModel {
             )
             .select(`${SavedChartSlugMappingsTableName}.slug`);
         return aliases.map((alias) => alias.slug);
+    }
+
+    async getSlugAliasMappingsForUuids(
+        projectUuid: string,
+        uuids: string[],
+    ): Promise<Array<{ slug: string; savedChartUuid: string }>> {
+        if (uuids.length === 0) return [];
+        return this.database(SavedChartSlugMappingsTableName)
+            .where(
+                `${SavedChartSlugMappingsTableName}.project_uuid`,
+                projectUuid,
+            )
+            .whereIn(
+                `${SavedChartSlugMappingsTableName}.saved_query_uuid`,
+                uuids,
+            )
+            .select({
+                slug: `${SavedChartSlugMappingsTableName}.slug`,
+                savedChartUuid: `${SavedChartSlugMappingsTableName}.saved_query_uuid`,
+            });
     }
 
     async find(filters: {
