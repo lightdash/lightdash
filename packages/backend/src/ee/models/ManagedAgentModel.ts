@@ -474,10 +474,15 @@ export class ManagedAgentModel {
                 [filters.dateTo],
             );
         }
-        if (filters.actionTypes && filters.actionTypes.length > 0) {
+        // Legacy single actionType is still part of the filters contract
+        const actionTypes = [
+            ...(filters.actionTypes ?? []),
+            ...(filters.actionType ? [filters.actionType] : []),
+        ];
+        if (actionTypes.length > 0) {
             query = query.whereIn(
                 `${ManagedAgentActionsTableName}.action_type`,
-                filters.actionTypes,
+                actionTypes,
             );
         }
         if (filters.targetTypes && filters.targetTypes.length > 0) {

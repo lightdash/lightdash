@@ -2464,7 +2464,7 @@ const ActionFilterBar: FC<{
                 size="xs"
                 radius="md"
                 placeholder="Search actions…"
-                leftSection={<IconSearch size={14} />}
+                leftSection={<MantineIcon icon={IconSearch} size={14} />}
                 value={filters.search}
                 onChange={(event) =>
                     onChange({ ...filters, search: event.currentTarget.value })
