@@ -3502,6 +3502,8 @@ export class LightdashAnalytics extends Analytics {
                 installType:
                     process.env.LIGHTDASH_INSTALL_TYPE ||
                     LightdashInstallType.UNKNOWN,
+                installChartVersion:
+                    process.env.LIGHTDASH_HELM_CHART_VERSION || null,
             },
         };
     }

@@ -654,6 +654,7 @@ export const isLightdashMode = (x: string): x is LightdashMode =>
 export enum LightdashInstallType {
     DOCKER_IMAGE = 'docker_image',
     BASH_INSTALL = 'bash_install',
+    HELM = 'helm',
     HEROKU = 'heroku',
     UNKNOWN = 'unknown',
 }
