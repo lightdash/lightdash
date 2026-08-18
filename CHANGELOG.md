@@ -1,3 +1,11 @@
+## [1.193.1](https://github.com/lightdash/lightdash/compare/1.193.0...1.193.1) (2026-08-18)
+
+
+### Bug Fixes
+
+* **frontend:** compose query retry with the global network retry ([#27572](https://github.com/lightdash/lightdash/issues/27572)) ([d6facfc](https://github.com/lightdash/lightdash/commit/d6facfce3a925a15f390fd8b92e880e60d287b89)), closes [#27563](https://github.com/lightdash/lightdash/issues/27563)
+* **frontend:** stop retrying client-side chart processing failures ([#27573](https://github.com/lightdash/lightdash/issues/27573)) ([52f6235](https://github.com/lightdash/lightdash/commit/52f62358fa52ead8d96af93dad499df005855977)), closes [#27564](https://github.com/lightdash/lightdash/issues/27564) [#27567](https://github.com/lightdash/lightdash/issues/27567) [#27572](https://github.com/lightdash/lightdash/issues/27572)
+
 # [1.193.0](https://github.com/lightdash/lightdash/compare/1.192.0...1.193.0) (2026-08-18)
 
 
