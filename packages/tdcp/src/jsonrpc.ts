@@ -50,3 +50,18 @@ export const jsonRpcError = (
     code: number,
     message: string,
 ): JsonRpcResponse => ({ jsonrpc: '2.0', id, error: { code, message } });
+
+/**
+ * The error a handler throws to answer with a specific protocol code —
+ * "dataset expired" is -32012, not a generic internal error. Anything else
+ * a handler throws maps to INTERNAL_ERROR with its message.
+ */
+export class TdcpError extends Error {
+    public readonly code: number;
+
+    constructor(code: number, message: string) {
+        super(message);
+        this.name = 'TdcpError';
+        this.code = code;
+    }
+}

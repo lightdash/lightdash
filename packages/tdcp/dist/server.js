@@ -102,6 +102,9 @@ const createTdcpRequestHandler = (handlers) => {
             }
         }
         catch (e) {
+            if (e instanceof jsonrpc_1.TdcpError) {
+                return (0, jsonrpc_1.jsonRpcError)(id, e.code, e.message);
+            }
             return (0, jsonrpc_1.jsonRpcError)(id, jsonrpc_1.JsonRpcErrorCodes.INTERNAL_ERROR, e instanceof Error ? e.message : 'Internal error');
         }
     };

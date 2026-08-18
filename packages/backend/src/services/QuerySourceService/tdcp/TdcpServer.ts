@@ -1,11 +1,16 @@
-import type {
-    Account,
-    QueryExecutionContext,
-    TdcpCapabilities,
-    TdcpCatalog,
-    TdcpDataRequest,
-    TdcpDatasetDescriptor,
+import {
+    ParameterError,
+    type Account,
+    type QueryExecutionContext,
 } from '@lightdash/common';
+import {
+    TdcpMethods,
+    type TdcpCapabilities,
+    type TdcpCatalog,
+    type TdcpDataRequest,
+    type TdcpDatasetDescriptor,
+    type TdcpQueryRequest,
+} from '@lightdash/tdcp';
 
 /**
  * Host-side request context. The protocol carries none of this — auth on the
@@ -26,8 +31,7 @@ export type TdcpRequestContext = TdcpCatalogContext & {
  * The TDCP server contract, transport-agnostic. Every query source is one of
  * these: the built-ins run in-process (no network hop, descriptor's
  * datasetId is a queryUuid in the local results pipeline, links: null), and
- * RemoteTdcpServer speaks the draft JSON-RPC control plane to servers
- * outside the deployment (descriptors carry data-plane links).
+ * remote servers are reached through the @lightdash/tdcp client.
  *
  * @oliver: this is your QuerySourceClient with the protocol's vocabulary —
  * scanSchema becomes catalog, submitQuery becomes query returning a
@@ -49,18 +53,33 @@ export interface TdcpServer {
     ): Promise<TdcpDatasetDescriptor>;
 }
 
-/** Descriptor helper for in-process servers: local pipeline, no links. */
+/** The single-dialect gate every built-in tier 2 server starts with. */
+export const assertDialectQuery = (
+    request: TdcpDataRequest,
+    dialect: string,
+    sourceLabel: string,
+): TdcpQueryRequest => {
+    if (request.method !== TdcpMethods.QUERY || request.dialect !== dialect) {
+        throw new ParameterError(
+            `The ${sourceLabel} source only accepts ${TdcpMethods.QUERY} requests in the ${dialect} dialect`,
+        );
+    }
+    return request;
+};
+
+/**
+ * Descriptor for in-process servers: local pipeline, no links, schema
+ * deferred. Local datasets live in query_history, whose columns — filled in
+ * by column discovery during execution — are the host's source of truth;
+ * duplicating them here at submit time would race that discovery. Wire
+ * descriptors MUST carry schema and links, which the SDK's request handler
+ * enforces before anything reaches the wire.
+ */
 export const localDatasetDescriptor = (args: {
     queryUuid: string;
     expiresAt: Date;
 }): TdcpDatasetDescriptor => ({
     datasetId: args.queryUuid,
-    // The local pipeline discovers columns during execution; the descriptor
-    // is minted at submit time, mirroring the async query API.
-    // @oliver: the spec wants schema on the descriptor. In-process that
-    // means waiting for column discovery or a second descriptor fetch —
-    // leaning towards refresh-style "descriptor may gain schema once
-    // running" semantics. Flagging rather than deciding in the draft.
     schema: [],
     rowCount: null,
     producedAt: new Date().toISOString(),

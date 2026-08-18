@@ -1,15 +1,14 @@
 import {
-    ParameterError,
     TDCP_PROTOCOL_REVISION,
     TdcpDialects,
-    TdcpMethods,
     type TdcpCapabilities,
     type TdcpCatalog,
     type TdcpDataRequest,
     type TdcpDatasetDescriptor,
-} from '@lightdash/common';
+} from '@lightdash/tdcp';
 import type { AsyncQueryService } from '../../../AsyncQueryService/AsyncQueryService';
 import {
+    assertDialectQuery,
     localDatasetDescriptor,
     type TdcpCatalogContext,
     type TdcpRequestContext,
@@ -54,22 +53,19 @@ export class DuckdbComposeTdcpServer implements TdcpServer {
         ctx: TdcpRequestContext,
         request: TdcpDataRequest,
     ): Promise<TdcpDatasetDescriptor> {
-        if (
-            request.method !== TdcpMethods.QUERY ||
-            request.dialect !== TdcpDialects.DUCKDB_SQL
-        ) {
-            throw new ParameterError(
-                `The compose source only accepts ${TdcpMethods.QUERY} requests in the ${TdcpDialects.DUCKDB_SQL} dialect`,
-            );
-        }
+        const queryRequest = assertDialectQuery(
+            request,
+            TdcpDialects.DUCKDB_SQL,
+            'compose',
+        );
 
         const results =
             await this.asyncQueryService.executeAsyncComposeSqlQuery({
                 account: ctx.account,
                 projectUuid: ctx.projectUuid,
-                sql: request.query,
-                limit: request.limit,
-                references: request.references,
+                sql: queryRequest.query,
+                limit: queryRequest.limit,
+                references: queryRequest.references,
                 context: ctx.queryContext,
             });
 

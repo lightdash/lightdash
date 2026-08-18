@@ -71,6 +71,7 @@
         "@langchain/core": "0.3.80",
         "@langchain/openai": "0.4.2",
         "@lightdash/common": "workspace:*",
+        "@lightdash/tdcp": "workspace:*",
         "@lightdash/formula": "workspace:*",
         "@lightdash/warehouses": "workspace:*",
         "@modelcontextprotocol/sdk": "1.30.0",

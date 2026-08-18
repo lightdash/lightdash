@@ -36,8 +36,9 @@ export enum QuerySourceType {
     DUCKDB = 'duckdb',
     /**
      * A remote TDCP server as a query source: any server speaking the
-     * tabular data context protocol draft (see types/tdcp.ts). One source
-     * type covers every remote server — the query names the server.
+     * tabular data context protocol draft (the @lightdash/tdcp package is
+     * the protocol's home — spec, schemas, SDK). One source type covers
+     * every remote server — the query names the server.
      */
     TDCP = 'tdcp',
 }

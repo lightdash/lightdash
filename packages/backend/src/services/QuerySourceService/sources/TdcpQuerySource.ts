@@ -2,17 +2,20 @@ import {
     assertUnreachable,
     ParameterError,
     QuerySourceType,
-    TdcpDialects,
-    TdcpMethods,
     UnexpectedServerError,
     type DuckdbSourceQuery,
     type QuerySourceDefinition,
     type QuerySourceSchema,
     type SourceQuery,
+} from '@lightdash/common';
+import {
+    TdcpDialects,
+    TdcpMethods,
     type TdcpCatalog,
     type TdcpDataRequest,
-} from '@lightdash/common';
+} from '@lightdash/tdcp';
 import type { TdcpServer } from '../tdcp/TdcpServer';
+import { tdcpTypeToDimensionType } from '../tdcp/typeMapping';
 import type {
     QuerySourceClient,
     ScanSchemaArgs,
@@ -47,7 +50,7 @@ export const catalogToQuerySourceSchema = (
         description: table.description,
         columns: table.columns.map((column) => ({
             reference: column.name,
-            type: column.type,
+            type: tdcpTypeToDimensionType(column.type),
             label: column.label,
             description: column.description,
         })),

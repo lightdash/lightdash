@@ -113,12 +113,12 @@ import {
     type CustomDimension,
     type ExecuteAsyncComposeSqlQueryRequestParams,
     type ExecuteAsyncDashboardChartRequestParams,
+    type ExecuteAsyncExternalDatasetImportRequestParams,
     type ExecuteAsyncFieldValueSearchRequestParams,
     type ExecuteAsyncMergeQueryRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
     type ExecuteAsyncQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
-    type ExecuteAsyncTdcpImportRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
     type MergeQueryChart,
     type Organization,
@@ -133,7 +133,6 @@ import {
     type RunQueryTags,
     type SessionUser,
     type SpaceSummaryBase,
-    type TdcpDatasetDescriptor,
     type WarehouseExecuteAsyncQuery,
     type WarehousePhaseTimings,
     type WarehouseResults,
@@ -6904,30 +6903,33 @@ export class AsyncQueryService extends ProjectService {
     }
 
     /**
-     * Imports a remote TDCP dataset into the local results pipeline: a
+     * Imports an external dataset into the local results pipeline: a
      * query_history row + S3 JSONL file, so downstream (compose references,
      * pagination, viz) treats it exactly like any local query result.
      *
-     * @oliver: deliberately a sibling of the compose path rather than a
-     * WarehouseClient impersonating the remote server — there is no SQL and
-     * no warehouse; the "query" already ran elsewhere and this is a
-     * materializing fetch. The row is created first so the queryUuid returns
-     * immediately and failures surface through the standard status
-     * lifecycle.
+     * Deliberately protocol-agnostic: callers hand over plain columns and a
+     * row stream, so any source of external tabular data (a TDCP server
+     * today, a CSV upload tomorrow) imports through the same primitive.
+     *
+     * @oliver: a sibling of the compose path rather than a WarehouseClient
+     * impersonating the remote system — there is no SQL and no warehouse;
+     * the "query" already ran elsewhere and this is a materializing fetch.
+     * The row is created first so the queryUuid returns immediately and
+     * failures surface through the standard status lifecycle.
      */
-    async executeAsyncTdcpImport({
+    async executeAsyncExternalDatasetImport({
         account,
         projectUuid,
         context,
-        serverUrl,
-        descriptor,
+        source,
+        columns,
         fetchRows,
     }: {
         account: Account;
         projectUuid: string;
         context: QueryExecutionContext;
-        serverUrl: string;
-        descriptor: TdcpDatasetDescriptor;
+        source: { url: string; datasetId: string };
+        columns: ResultColumns;
         fetchRows: () => AsyncGenerator<Record<string, unknown>>;
     }): Promise<{ queryUuid: string }> {
         assertIsAccountWithOrg(account);
@@ -6946,43 +6948,33 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
-        // Keyed to the principal: remote datasets may be minted under
+        // Keyed to the principal: external datasets may be minted under
         // per-user credentials, so one user's import must never serve
         // another user's cache lookup (the getCacheUserUuid rule).
         const cacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
             sql: JSON.stringify({
-                tdcpServerUrl: serverUrl,
-                datasetId: descriptor.datasetId,
+                externalSourceUrl: source.url,
+                datasetId: source.datasetId,
             }),
             userUuid: account.user.id,
         });
 
-        const requestParameters: ExecuteAsyncTdcpImportRequestParams = {
-            serverUrl,
-            datasetId: descriptor.datasetId,
-            context,
-        };
-
-        const columns: ResultColumns = descriptor.schema.reduce(
-            (acc, column) => {
-                acc[column.name] = {
-                    reference: column.name,
-                    type: column.type,
-                };
-                return acc;
-            },
-            {} as ResultColumns,
-        );
+        const requestParameters: ExecuteAsyncExternalDatasetImportRequestParams =
+            {
+                sourceUrl: source.url,
+                datasetId: source.datasetId,
+                context,
+            };
 
         // Mock metadata carrier, same trick as the SQL paths: downstream
         // reads columns, not this
         const metricQuery: MetricQuery = {
-            exploreName: 'tdcp_import',
-            dimensions: descriptor.schema.map((column) => column.name),
+            exploreName: 'external_dataset_import',
+            dimensions: Object.keys(columns),
             metrics: [],
             filters: {},
             sorts: [],
-            limit: descriptor.rowCount ?? 0,
+            limit: 0,
             tableCalculations: [],
         };
 
@@ -6991,7 +6983,7 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
             context,
             fields: {},
-            compiledSql: `-- tdcp import: ${serverUrl} dataset ${descriptor.datasetId}`,
+            compiledSql: `-- external dataset import: ${source.url} dataset ${source.datasetId}`,
             requestParameters,
             metricQuery,
             cacheKey,
@@ -6999,7 +6991,7 @@ export class AsyncQueryService extends ProjectService {
             originalColumns: columns,
         });
 
-        void this.runTdcpImport({
+        void this.runExternalDatasetImport({
             account,
             projectUuid,
             queryUuid,
@@ -7009,7 +7001,9 @@ export class AsyncQueryService extends ProjectService {
             fetchRows,
         }).catch((e) => {
             this.logger.error(
-                `Async TDCP import ${queryUuid} failed: ${getErrorMessage(e)}`,
+                `Async external dataset import ${queryUuid} failed: ${getErrorMessage(
+                    e,
+                )}`,
             );
         });
 
@@ -7017,11 +7011,11 @@ export class AsyncQueryService extends ProjectService {
     }
 
     /**
-     * Background phase of a TDCP import: stream the remote data plane into
+     * Background phase of an external dataset import: stream the rows into
      * an S3 results file, then mark the row READY so the standard polling
      * and pagination take over.
      */
-    private async runTdcpImport({
+    private async runExternalDatasetImport({
         account,
         projectUuid,
         queryUuid,

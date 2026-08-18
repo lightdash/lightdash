@@ -1,11 +1,14 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TdcpClient = void 0;
+const jsonl_1 = require("./jsonl");
 const types_1 = require("./types");
+const validate_1 = require("./validate");
 /**
- * Draft TDCP client over the JSON-RPC transport. On the real MCP transport
- * this class keeps its surface and swaps rpc() for extension method calls
- * on an MCP session — consumers never see the difference.
+ * Draft TDCP client over the JSON-RPC transport. Every wire response is
+ * structurally validated before it is typed; dataset rows stream. On the
+ * real MCP transport this class keeps its surface and swaps rpc() for
+ * extension method calls on an MCP session — consumers never notice.
  */
 class TdcpClient {
     constructor(args) {
@@ -48,38 +51,38 @@ class TdcpClient {
         return body.result;
     }
     async capabilities() {
-        return (await this.rpc(types_1.TdcpMethods.CAPABILITIES, {}));
+        return (0, validate_1.assertCapabilities)(await this.rpc(types_1.TdcpMethods.CAPABILITIES, {}));
     }
     async catalog() {
-        return (await this.rpc(types_1.TdcpMethods.CATALOG, {}));
+        return (0, validate_1.assertCatalog)(await this.rpc(types_1.TdcpMethods.CATALOG, {}));
     }
     async read(request) {
-        return (await this.rpc(types_1.TdcpMethods.READ, {
+        return (0, validate_1.assertDatasetDescriptor)(await this.rpc(types_1.TdcpMethods.READ, {
             ...request,
             method: types_1.TdcpMethods.READ,
         }));
     }
     async scan(request) {
-        return (await this.rpc(types_1.TdcpMethods.SCAN, {
+        return (0, validate_1.assertDatasetDescriptor)(await this.rpc(types_1.TdcpMethods.SCAN, {
             ...request,
             method: types_1.TdcpMethods.SCAN,
         }));
     }
     async query(request) {
-        return (await this.rpc(types_1.TdcpMethods.QUERY, {
+        return (0, validate_1.assertDatasetDescriptor)(await this.rpc(types_1.TdcpMethods.QUERY, {
             ...request,
             method: types_1.TdcpMethods.QUERY,
         }));
     }
     async refresh(datasetId) {
-        return (await this.rpc(types_1.TdcpMethods.REFRESH, {
+        return (0, validate_1.assertDatasetDescriptor)(await this.rpc(types_1.TdcpMethods.REFRESH, {
             method: types_1.TdcpMethods.REFRESH,
             datasetId,
         }));
     }
     /**
-     * Fetch a dataset's rows from its jsonl data-plane link. Buffers the
-     * body — a streaming variant lands with the Arrow encoding.
+     * Stream a dataset's rows from its jsonl data-plane link — one line in
+     * memory at a time.
      */
     async *fetchJsonlRows(link) {
         const response = await this.fetchImpl(link.href, {
@@ -90,20 +93,7 @@ class TdcpClient {
         if (!response.ok) {
             throw new Error(`TDCP data plane responded ${response.status}`);
         }
-        const body = await response.text();
-        const lines = body
-            .split('\n')
-            .filter((line) => line.trim().length > 0);
-        for (const line of lines) {
-            let row;
-            try {
-                row = JSON.parse(line);
-            }
-            catch (e) {
-                throw new Error('TDCP data plane returned malformed JSONL');
-            }
-            yield row;
-        }
+        yield* (0, jsonl_1.jsonlRows)(response);
     }
 }
 exports.TdcpClient = TdcpClient;

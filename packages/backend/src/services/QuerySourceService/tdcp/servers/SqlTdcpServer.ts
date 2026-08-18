@@ -1,21 +1,20 @@
 import { subject } from '@casl/ability';
+import { ForbiddenError } from '@lightdash/common';
 import {
-    ForbiddenError,
-    ParameterError,
     TDCP_PROTOCOL_REVISION,
     TdcpDialects,
-    TdcpMethods,
     type TdcpCapabilities,
     type TdcpCatalog,
     type TdcpCatalogTable,
     type TdcpDataRequest,
     type TdcpDatasetDescriptor,
-} from '@lightdash/common';
+} from '@lightdash/tdcp';
 import type { ProjectModel } from '../../../../models/ProjectModel/ProjectModel';
 import type { WarehouseAvailableTablesModel } from '../../../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import type { AsyncQueryService } from '../../../AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../BaseService';
 import {
+    assertDialectQuery,
     localDatasetDescriptor,
     type TdcpCatalogContext,
     type TdcpRequestContext,
@@ -106,20 +105,17 @@ export class SqlTdcpServer extends BaseService implements TdcpServer {
         ctx: TdcpRequestContext,
         request: TdcpDataRequest,
     ): Promise<TdcpDatasetDescriptor> {
-        if (
-            request.method !== TdcpMethods.QUERY ||
-            request.dialect !== TdcpDialects.WAREHOUSE_SQL
-        ) {
-            throw new ParameterError(
-                `The warehouse SQL source only accepts ${TdcpMethods.QUERY} requests in the ${TdcpDialects.WAREHOUSE_SQL} dialect`,
-            );
-        }
+        const queryRequest = assertDialectQuery(
+            request,
+            TdcpDialects.WAREHOUSE_SQL,
+            'warehouse SQL',
+        );
 
         const results = await this.asyncQueryService.executeAsyncSqlQuery({
             account: ctx.account,
             projectUuid: ctx.projectUuid,
-            sql: request.query,
-            limit: request.limit,
+            sql: queryRequest.query,
+            limit: queryRequest.limit,
             invalidateCache: false,
             context: ctx.queryContext,
         });

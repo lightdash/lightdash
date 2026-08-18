@@ -34,6 +34,9 @@
             "path": "../common"
         },
         {
+            "path": "../tdcp"
+        },
+        {
             "path": "../warehouses"
         }
     ]

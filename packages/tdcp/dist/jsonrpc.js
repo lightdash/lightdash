@@ -5,7 +5,7 @@
  * server is runnable with zero dependencies while the shapes settle.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.jsonRpcError = exports.jsonRpcResult = exports.JsonRpcErrorCodes = void 0;
+exports.TdcpError = exports.jsonRpcError = exports.jsonRpcResult = exports.JsonRpcErrorCodes = void 0;
 exports.JsonRpcErrorCodes = {
     PARSE_ERROR: -32700,
     INVALID_REQUEST: -32600,
@@ -23,4 +23,17 @@ const jsonRpcResult = (id, result) => ({ jsonrpc: '2.0', id, result });
 exports.jsonRpcResult = jsonRpcResult;
 const jsonRpcError = (id, code, message) => ({ jsonrpc: '2.0', id, error: { code, message } });
 exports.jsonRpcError = jsonRpcError;
+/**
+ * The error a handler throws to answer with a specific protocol code —
+ * "dataset expired" is -32012, not a generic internal error. Anything else
+ * a handler throws maps to INTERNAL_ERROR with its message.
+ */
+class TdcpError extends Error {
+    constructor(code, message) {
+        super(message);
+        this.name = 'TdcpError';
+        this.code = code;
+    }
+}
+exports.TdcpError = TdcpError;
 //# sourceMappingURL=jsonrpc.js.map

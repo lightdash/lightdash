@@ -10,9 +10,11 @@
         "build": "tsc --build",
         "typecheck": "tsc --project tsconfig.json --noEmit",
         "format": "oxfmt ./src --check",
-        "fix-format": "oxfmt ./src"
+        "fix-format": "oxfmt ./src",
+        "test": "vitest run"
     },
     "devDependencies": {
-        "typescript": "7.0.2"
+        "typescript": "7.0.2",
+        "vitest": "4.1.6"
     }
 }
