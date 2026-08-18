@@ -24,8 +24,6 @@ import {
     Explore,
     FeatureFlags,
     findContentToolDefinition,
-    findExploresToolDefinition,
-    findFieldsToolDefinition,
     ForbiddenError,
     getAiWritebackStatusToolDefinition,
     getAiWritebackTaskStatusMessage,
@@ -139,8 +137,6 @@ import { getCreateContent } from '../ai/tools/createContent';
 import { getCreateScheduledDelivery } from '../ai/tools/createScheduledDelivery';
 import { getEditContent } from '../ai/tools/editContent';
 import { getFindContent } from '../ai/tools/findContent';
-import { buildFindExploresStructuredContent } from '../ai/tools/findExplores';
-import { buildFindFieldsStructuredContent } from '../ai/tools/findFields';
 import { executeGetMetadata } from '../ai/tools/getMetadata';
 import {
     executeGrepFields,
@@ -181,8 +177,6 @@ import {
 export enum McpToolName {
     GET_LIGHTDASH_VERSION = 'get_lightdash_version',
     LIST_EXPLORES = 'list_explores',
-    FIND_EXPLORES = 'find_explores',
-    FIND_FIELDS = 'find_fields',
     GREP_FIELDS = 'grep_fields',
     GET_METADATA = 'get_metadata',
     FIND_CONTENT = 'find_content',
@@ -275,12 +269,6 @@ const mcpGetAiWritebackStatusTool = withProjectUuidInput(
 const mcpGetLightdashVersionTool = getLightdashVersionToolDefinition.for('mcp');
 const mcpListExploresTool = withProjectScopeInput(
     listExploresToolDefinition.for('mcp'),
-);
-const mcpFindExploresTool = withProjectScopeInput(
-    findExploresToolDefinition.for('mcp'),
-);
-const mcpFindFieldsTool = withProjectScopeInput(
-    findFieldsToolDefinition.for('mcp'),
 );
 const mcpGrepFieldsTool = withProjectScopeInput(
     grepFieldsToolDefinition.for('mcp'),
@@ -1969,300 +1957,141 @@ export class McpService extends BaseService {
             },
         );
 
-        {
-            this.registerTrackedTool(
-                mcpGrepFieldsTool.name,
-                {
-                    title: mcpGrepFieldsTool.title,
-                    description: mcpGrepFieldsTool.description,
-                    inputSchema: mcpGrepFieldsTool.inputSchema.shape,
-                    outputSchema: mcpGrepFieldsTool.outputSchema.shape,
-                    annotations: mcpGrepFieldsTool.annotations,
-                },
-                async (args, extra) => {
-                    const ctx = getMcpContext(extra);
-                    const { user } = McpService.getAccount(ctx);
-                    const projectUuid = await this.resolveToolProjectUuid(
-                        ctx,
-                        args.projectUuid,
-                    );
+        this.registerTrackedTool(
+            mcpGrepFieldsTool.name,
+            {
+                title: mcpGrepFieldsTool.title,
+                description: mcpGrepFieldsTool.description,
+                inputSchema: mcpGrepFieldsTool.inputSchema.shape,
+                outputSchema: mcpGrepFieldsTool.outputSchema.shape,
+                annotations: mcpGrepFieldsTool.annotations,
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+                const { user } = McpService.getAccount(ctx);
+                const projectUuid = await this.resolveToolProjectUuid(
+                    ctx,
+                    args.projectUuid,
+                );
 
-                    try {
-                        const toolsRuntime = await this.getToolsRuntime(
+                try {
+                    const toolsRuntime = await this.getToolsRuntime(
+                        ctx,
+                        projectUuid,
+                        args.agentUuid,
+                    );
+                    const [
+                        availableExplores,
+                        verifiedFieldUsage,
+                        effectiveScope,
+                    ] = await Promise.all([
+                        toolsRuntime.listExplores(),
+                        toolsRuntime
+                            .getVerifiedFieldUsage()
+                            .catch(() => new Map<string, number>()),
+                        this.getEffectiveScope(
                             ctx,
                             projectUuid,
                             args.agentUuid,
-                        );
-                        const [
+                        ),
+                    ]);
+                    const [result, verifiedAnswerContext] = await Promise.all([
+                        executeGrepFields(args, {
                             availableExplores,
                             verifiedFieldUsage,
-                            effectiveScope,
-                        ] = await Promise.all([
-                            toolsRuntime.listExplores(),
-                            toolsRuntime
-                                .getVerifiedFieldUsage()
-                                .catch(() => new Map<string, number>()),
-                            this.getEffectiveScope(
-                                ctx,
-                                projectUuid,
-                                args.agentUuid,
-                            ),
-                        ]);
-                        const [result, verifiedAnswerContext] =
-                            await Promise.all([
-                                executeGrepFields(args, {
-                                    availableExplores,
-                                    verifiedFieldUsage,
-                                    findExplores: async (findExploresArgs) =>
-                                        unwrapMcpRuntimeResult(
-                                            await toolsRuntime.findExplores(
-                                                findExploresArgs,
-                                            ),
-                                        ),
-                                }),
-                                effectiveScope.agentUuid
-                                    ? this.aiAgentService.getRelevantVerifiedAnswerContextForAgent(
-                                          user,
-                                          {
-                                              projectUuid,
-                                              agentUuid:
-                                                  effectiveScope.agentUuid,
-                                              searchQuery:
-                                                  grepPatternsToSearchQuery(
-                                                      args.patterns,
-                                                  ),
-                                          },
-                                      )
-                                    : { relevantVerifiedAnswers: [] },
-                            ]);
+                            findExplores: async (findExploresArgs) =>
+                                unwrapMcpRuntimeResult(
+                                    await toolsRuntime.findExplores(
+                                        findExploresArgs,
+                                    ),
+                                ),
+                        }),
+                        effectiveScope.agentUuid
+                            ? this.aiAgentService.getRelevantVerifiedAnswerContextForAgent(
+                                  user,
+                                  {
+                                      projectUuid,
+                                      agentUuid: effectiveScope.agentUuid,
+                                      searchQuery: grepPatternsToSearchQuery(
+                                          args.patterns,
+                                      ),
+                                  },
+                              )
+                            : { relevantVerifiedAnswers: [] },
+                    ]);
 
-                        const structuredContent = {
-                            ...result.structuredContent,
-                            ...(verifiedAnswerContext.relevantVerifiedAnswers
-                                .length > 0
-                                ? {
-                                      relevantVerifiedAnswers:
-                                          verifiedAnswerContext.relevantVerifiedAnswers,
-                                  }
-                                : {}),
-                        };
+                    const structuredContent = {
+                        ...result.structuredContent,
+                        ...(verifiedAnswerContext.relevantVerifiedAnswers
+                            .length > 0
+                            ? {
+                                  relevantVerifiedAnswers:
+                                      verifiedAnswerContext.relevantVerifiedAnswers,
+                              }
+                            : {}),
+                    };
 
-                        return await this.buildScopedResponse(
-                            ctx,
-                            formatToolJsonOutput(structuredContent),
-                            structuredContent,
-                            projectUuid,
-                            args.agentUuid,
-                        );
-                    } catch (error) {
-                        return mcpGrepFieldsTool.result.error(
-                            `Error grepping fields: ${getErrorMessage(error)}`,
-                        );
-                    }
-                },
-            );
-
-            this.registerTrackedTool(
-                mcpGetMetadataTool.name,
-                {
-                    title: mcpGetMetadataTool.title,
-                    description: mcpGetMetadataTool.description,
-                    inputSchema: mcpGetMetadataTool.inputSchema.shape,
-                    outputSchema: mcpGetMetadataTool.outputSchema.shape,
-                    annotations: mcpGetMetadataTool.annotations,
-                },
-                async (args, extra) => {
-                    const ctx = getMcpContext(extra);
-                    const projectUuid = await this.resolveToolProjectUuid(
-                        ctx,
-                        args.projectUuid,
-                    );
-
-                    try {
-                        const toolsRuntime = await this.getToolsRuntime(
-                            ctx,
-                            projectUuid,
-                            args.agentUuid,
-                        );
-                        const [availableExplores, projectParameterDefinitions] =
-                            await Promise.all([
-                                toolsRuntime.listExplores(),
-                                toolsRuntime.getProjectParameterDefinitions(),
-                            ]);
-                        const result = executeGetMetadata(args, {
-                            availableExplores,
-                            projectParameterDefinitions,
-                        });
-
-                        return await this.buildScopedResponse(
-                            ctx,
-                            formatToolJsonOutput(result.structuredContent),
-                            result.structuredContent,
-                            projectUuid,
-                            args.agentUuid,
-                        );
-                    } catch (error) {
-                        return mcpGetMetadataTool.result.error(
-                            `Error getting metadata: ${getErrorMessage(error)}`,
-                        );
-                    }
-                },
-            );
-        }
-
-        // Deprecated compatibility tools. Keep these callable for existing MCP
-        // clients, but omit them from analyst guidance in favor of grep_fields
-        // and get_metadata.
-        {
-            this.registerTrackedTool(
-                mcpFindExploresTool.name,
-                {
-                    title: mcpFindExploresTool.title,
-                    description: mcpFindExploresTool.description,
-                    inputSchema: mcpFindExploresTool.inputSchema.shape,
-                    outputSchema: mcpFindExploresTool.outputSchema.shape,
-                    annotations: mcpFindExploresTool.annotations,
-                },
-                async (args, extra) => {
-                    const ctx = getMcpContext(extra);
-                    const { user } = McpService.getAccount(ctx);
-
-                    const projectUuid = await this.resolveToolProjectUuid(
-                        ctx,
-                        args.projectUuid,
-                    );
-
-                    const toolsRuntime = await this.getToolsRuntime(
-                        ctx,
-                        projectUuid,
-                        args.agentUuid,
-                    );
-                    const runtimeResult = await toolsRuntime.findExplores({
-                        fieldSearchSize: 200,
-                        searchQuery: args.searchQuery,
-                    });
-                    if (runtimeResult.status === 'error') {
-                        return mcpFindExploresTool.result.error(
-                            `Error finding explores: ${getErrorMessage(runtimeResult.error)}`,
-                        );
-                    }
-
-                    const { exploreSearchResults, topMatchingFields } =
-                        runtimeResult.data;
-                    const structuredContent =
-                        buildFindExploresStructuredContent({
-                            searchQuery: args.searchQuery,
-                            exploreSearchResults,
-                            topMatchingFields,
-                            toolDescriptionMaxChars:
-                                this.lightdashConfig.ai.copilot
-                                    .toolDescriptionMaxChars,
-                        });
-                    const resultText = formatToolJsonOutput(structuredContent);
-                    const effectiveScope = await this.getEffectiveScope(
-                        ctx,
-                        projectUuid,
-                        args.agentUuid,
-                    );
-
-                    const verifiedAnswerContext = effectiveScope.agentUuid
-                        ? await this.aiAgentService.getRelevantVerifiedAnswerContextForAgent(
-                              user,
-                              {
-                                  projectUuid,
-                                  agentUuid: effectiveScope.agentUuid,
-                                  searchQuery: args.searchQuery,
-                              },
-                          )
-                        : { relevantVerifiedAnswers: [] };
-
-                    const verifiedAnswersText =
-                        verifiedAnswerContext.relevantVerifiedAnswers.length > 0
-                            ? `\n\n<verifiedAnswers count="${verifiedAnswerContext.relevantVerifiedAnswers.length}">\n${JSON.stringify(
-                                  verifiedAnswerContext.relevantVerifiedAnswers,
-                                  null,
-                                  2,
-                              )}\n</verifiedAnswers>`
-                            : '';
-
-                    return this.buildScopedResponse(
-                        ctx,
-                        `${resultText}${verifiedAnswersText}`,
-                        {
-                            ...structuredContent,
-                            relevantVerifiedAnswers:
-                                verifiedAnswerContext.relevantVerifiedAnswers,
-                        },
-                        projectUuid,
-                        args.agentUuid,
-                    );
-                },
-            );
-
-            this.registerTrackedTool(
-                mcpFindFieldsTool.name,
-                {
-                    title: mcpFindFieldsTool.title,
-                    description: mcpFindFieldsTool.description,
-                    inputSchema: mcpFindFieldsTool.inputSchema.shape,
-                    outputSchema: mcpFindFieldsTool.outputSchema.shape,
-                    annotations: mcpFindFieldsTool.annotations,
-                },
-                async (args, extra) => {
-                    const ctx = getMcpContext(extra);
-
-                    const projectUuid = await this.resolveToolProjectUuid(
-                        ctx,
-                        args.projectUuid,
-                    );
-
-                    const toolsRuntime = await this.getToolsRuntime(
-                        ctx,
-                        projectUuid,
-                        args.agentUuid,
-                    );
-                    const exploreResult = await toolsRuntime.getExplore({
-                        table: args.table,
-                    });
-                    if (exploreResult.status === 'error') {
-                        return mcpFindFieldsTool.result.error(
-                            `Error finding fields: ${getErrorMessage(exploreResult.error)}`,
-                        );
-                    }
-
-                    const runtimeResult = await toolsRuntime.findFields({
-                        table: args.table,
-                        fieldSearchQueries: args.fieldSearchQueries,
-                        page: args.page ?? 1,
-                        pageSize: 15,
-                        explore: exploreResult.data,
-                    });
-                    if (runtimeResult.status === 'error') {
-                        return mcpFindFieldsTool.result.error(
-                            `Error finding fields: ${getErrorMessage(runtimeResult.error)}`,
-                        );
-                    }
-
-                    const fieldSearchQueryResults = runtimeResult.data;
-
-                    const structuredContent = buildFindFieldsStructuredContent({
-                        fieldSearchQueryResults,
-                        toolDescriptionMaxChars:
-                            this.lightdashConfig.ai.copilot
-                                .toolDescriptionMaxChars,
-                        explore: exploreResult.data,
-                    });
-
-                    return this.buildScopedResponse(
+                    return await this.buildScopedResponse(
                         ctx,
                         formatToolJsonOutput(structuredContent),
                         structuredContent,
                         projectUuid,
                         args.agentUuid,
                     );
-                },
-            );
-        }
+                } catch (error) {
+                    return mcpGrepFieldsTool.result.error(
+                        `Error grepping fields: ${getErrorMessage(error)}`,
+                    );
+                }
+            },
+        );
+
+        this.registerTrackedTool(
+            mcpGetMetadataTool.name,
+            {
+                title: mcpGetMetadataTool.title,
+                description: mcpGetMetadataTool.description,
+                inputSchema: mcpGetMetadataTool.inputSchema.shape,
+                outputSchema: mcpGetMetadataTool.outputSchema.shape,
+                annotations: mcpGetMetadataTool.annotations,
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+                const projectUuid = await this.resolveToolProjectUuid(
+                    ctx,
+                    args.projectUuid,
+                );
+
+                try {
+                    const toolsRuntime = await this.getToolsRuntime(
+                        ctx,
+                        projectUuid,
+                        args.agentUuid,
+                    );
+                    const [availableExplores, projectParameterDefinitions] =
+                        await Promise.all([
+                            toolsRuntime.listExplores(),
+                            toolsRuntime.getProjectParameterDefinitions(),
+                        ]);
+                    const result = executeGetMetadata(args, {
+                        availableExplores,
+                        projectParameterDefinitions,
+                    });
+
+                    return await this.buildScopedResponse(
+                        ctx,
+                        formatToolJsonOutput(result.structuredContent),
+                        result.structuredContent,
+                        projectUuid,
+                        args.agentUuid,
+                    );
+                } catch (error) {
+                    return mcpGetMetadataTool.result.error(
+                        `Error getting metadata: ${getErrorMessage(error)}`,
+                    );
+                }
+            },
+        );
 
         this.registerTrackedTool(
             mcpFindContentTool.name,

@@ -122,13 +122,11 @@ import {
     toolFindDashboardsOutputSchema,
 } from './toolFindDashboardsArgs';
 import {
-    findExploresResultSchema,
     TOOL_FIND_EXPLORES_DESCRIPTION,
     toolFindExploresArgsSchemaV3,
     toolFindExploresOutputSchema,
 } from './toolFindExploresArgs';
 import {
-    findFieldsResultSchema,
     TOOL_FIND_FIELDS_DESCRIPTION,
     toolFindFieldsArgsSchema,
     toolFindFieldsOutputSchema,
@@ -315,6 +313,11 @@ import {
     toolVerticalBarOutputSchema,
 } from './toolVerticalBarArgs';
 
+export const breaking = {
+    reason: 'MCP clients must replace find_explores and find_fields with grep_fields and get_metadata.',
+    requiredStop: false,
+};
+
 const readOnlyAnnotations: McpToolAnnotations = {
     readOnlyHint: true,
     destructiveHint: false,
@@ -418,42 +421,32 @@ const routeAgentStructuredOutputSchema = z.object({
     ),
 });
 
-export const findExploresToolDefinition: ToolDefinitionWithMcpOutput<
+export const findExploresToolDefinition: ToolDefinitionWithoutMcpOutput<
     'findExplores',
     typeof toolFindExploresArgsSchemaV3,
     typeof toolFindExploresArgsSchemaV3,
-    typeof toolFindExploresOutputSchema,
-    typeof findExploresResultSchema
+    typeof toolFindExploresOutputSchema
 > = defineTool({
     name: 'findExplores',
     title: 'Find explores',
     description: TOOL_FIND_EXPLORES_DESCRIPTION,
-    availability: ['agent', 'mcp'],
+    availability: ['agent'],
     inputSchema: toolFindExploresArgsSchemaV3,
     agent: { outputSchema: toolFindExploresOutputSchema },
-    mcp: {
-        annotations: readOnlyAnnotations,
-        structuredContentSchema: findExploresResultSchema,
-    },
 });
 
-export const findFieldsToolDefinition: ToolDefinitionWithMcpOutput<
+export const findFieldsToolDefinition: ToolDefinitionWithoutMcpOutput<
     'findFields',
     typeof toolFindFieldsArgsSchema,
     typeof toolFindFieldsArgsSchema,
-    typeof toolFindFieldsOutputSchema,
-    typeof findFieldsResultSchema
+    typeof toolFindFieldsOutputSchema
 > = defineTool({
     name: 'findFields',
     title: 'Find fields',
     description: TOOL_FIND_FIELDS_DESCRIPTION,
-    availability: ['agent', 'mcp'],
+    availability: ['agent'],
     inputSchema: toolFindFieldsArgsSchema,
     agent: { outputSchema: toolFindFieldsOutputSchema },
-    mcp: {
-        annotations: readOnlyAnnotations,
-        structuredContentSchema: findFieldsResultSchema,
-    },
 });
 
 export const searchSemanticLayerToolDefinition: ToolDefinitionWithoutMcpOutput<
@@ -626,8 +619,10 @@ export const runMetricQueryToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolRunMetricQueryOutputSchema },
 });
 
-// Historical contract only: persisted calls still need to parse and render.
-// New agent runs use grepFields + getMetadata.
+/**
+ * @deprecated Historical contract for persisted calls. New agent runs use
+ * grepFields and getMetadata.
+ */
 export const discoverFieldsToolDefinition: ToolDefinitionWithoutMcpOutput<
     'discoverFields',
     typeof discoverFieldsInputSchema,
@@ -1705,6 +1700,11 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     listProjects: listProjectsToolDefinition,
     getProjectInfo: getProjectInfoToolDefinition,
 };
+
+export type AgentToolName = keyof typeof agentToolDefinitionsByName;
+
+export const isAgentToolName = (toolName: string): toolName is AgentToolName =>
+    Object.prototype.hasOwnProperty.call(agentToolDefinitionsByName, toolName);
 
 export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     findExploresToolDefinition,
