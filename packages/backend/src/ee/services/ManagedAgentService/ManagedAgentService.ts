@@ -66,6 +66,7 @@ import {
     getValidationRootCauseTableName,
     MANAGED_AGENT_BROKEN_CONTENT_GROUP_ITEM_LIMIT,
     MANAGED_AGENT_BULK_DELETE_RUN_LIMIT,
+    MANAGED_AGENT_SOFT_DELETE_RUN_LIMIT,
     MANAGED_AGENT_TOOL_RESULT_ITEM_LIMIT,
     summarizeManagedAgentBrokenContent,
 } from './toolResults';
@@ -3081,6 +3082,12 @@ chartConfig:
             return chartEscalationBlock;
         }
         await this.savedChartModel.softDelete(chartUuid, actorUuid);
+        // Clear the chart's validation errors so the Validator updates
+        // without waiting for the next validation run
+        await this.validationModel.deleteChartValidations(
+            chartUuid,
+            projectUuid,
+        );
         return null;
     }
 
@@ -3116,6 +3123,17 @@ chartConfig:
         if (policy.aggression !== 'cleanup') {
             return JSON.stringify({
                 error: `Soft-delete is disabled by project policy (cleanup mode: ${policy.aggression}). Flag or log an insight instead.`,
+                blocked: true,
+            });
+        }
+
+        // Per-run blast-radius cap so a first run on a low-traffic project
+        // cannot sweep everything in one pass
+        const deletedThisRun =
+            await this.managedAgentModel.countNonBulkSoftDeletesForRun(runUuid);
+        if (deletedThisRun >= MANAGED_AGENT_SOFT_DELETE_RUN_LIMIT) {
+            return JSON.stringify({
+                error: `Soft-delete run cap reached (${MANAGED_AGENT_SOFT_DELETE_RUN_LIMIT} per run). Flag remaining candidates instead and mention the backlog in your summary; the next run can continue the cleanup.`,
                 blocked: true,
             });
         }
@@ -3183,6 +3201,12 @@ chartConfig:
                 return dashEscalationBlock;
             }
             await this.dashboardModel.softDelete(targetUuid, actorUuid);
+            // Clear the dashboard's validation errors so the Validator
+            // updates without waiting for the next validation run
+            await this.validationModel.deleteDashboardValidations(
+                targetUuid,
+                projectUuid,
+            );
         } else {
             throw new Error(
                 `soft_delete_content only supports chart and dashboard, got: ${targetType}`,
