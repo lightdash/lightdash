@@ -1,0 +1,109 @@
+/* PROTOTYPE — clarifying questions in the chart type builder. */
+
+.shell {
+    height: 720px;
+    display: flex;
+    flex-direction: column;
+    background: var(--mantine-color-ldGray-0);
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: var(--mantine-radius-md);
+    overflow: hidden;
+}
+
+.shellMain {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+}
+
+.shellContent {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Question and answer are one boxed unit: the question is the field's prompt,
+   not a label sitting above a separate control. */
+.questionField {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: var(--mantine-radius-md);
+    background: var(--mantine-color-background-0);
+    transition: border-color 150ms;
+}
+
+.questionField:focus-within {
+    border-color: var(--mantine-color-ldGray-4);
+}
+
+/* Answered questions recede so the eye lands on what is still open. */
+.questionField[data-answered='true'] {
+    background: var(--mantine-color-ldGray-0);
+}
+
+.questionInput {
+    min-height: unset;
+    padding: 0;
+    font-size: var(--mantine-font-size-sm);
+    line-height: 1.45;
+}
+
+.skipLink {
+    margin-right: auto;
+}
+
+.sheet {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(100% + calc(var(--mantine-spacing-sm) / 2));
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-xs);
+    padding: var(--mantine-spacing-sm);
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: var(--mantine-radius-lg);
+    background: var(--mantine-color-background-0);
+    box-shadow: var(--mantine-shadow-subtle);
+}
+
+.sheetHeader {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    padding: 0 2px 2px;
+}
+
+.sheetPrompt {
+    flex: 1;
+    min-width: 0;
+}
+
+/* --- prototype-only scaffolding, not part of the design --- */
+
+.harness {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-sm);
+    padding: var(--mantine-spacing-md);
+}
+
+.harnessBar {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-sm);
+    flex-wrap: wrap;
+}
+
+/* The starter examples recede once a prompt is in. */
+.canvasQuiet {
+    opacity: 0.3;
+    transition: opacity 300ms;
+}
