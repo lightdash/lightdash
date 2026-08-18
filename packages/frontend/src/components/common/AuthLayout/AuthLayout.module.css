@@ -3,6 +3,15 @@
     min-height: 100vh;
 }
 
+.legacyRoot[data-pink-background='true'],
+.root[data-pink-background='true'] .formPanel {
+    background-color: var(--mantine-color-pink-1);
+}
+
+.root[data-pink-background='true'] .brandPanel {
+    background-color: var(--mantine-color-pink-7);
+}
+
 .brandPanel {
     position: relative;
     overflow: hidden;
