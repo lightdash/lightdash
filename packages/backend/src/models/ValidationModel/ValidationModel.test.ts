@@ -125,7 +125,7 @@ describe('ValidationModel', () => {
             tracker.reset();
         });
 
-        it('matches the table name recovered from the error message, and filters by field', async () => {
+        it('matches the table name rows without table_name still expose, and filters by field', async () => {
             tracker.on.select(({ sql }) => sql.length > 0).response([]);
 
             await model.getPaginated(
@@ -135,8 +135,13 @@ describe('ValidationModel', () => {
             );
 
             const [query] = tracker.history.select;
-            expect(query.sql).toContain('COALESCE(');
+            // Dashboards recover the table from the error message, table and
+            // data app rows from model_name
+            expect(query.sql).toContain("WHEN source = 'dashboard'");
             expect(query.sql).toContain('substring(error from');
+            expect(query.sql).toContain(
+                'ELSE COALESCE(table_name, model_name)',
+            );
             expect(query.bindings).toContain('orders');
             expect(query.sql).toContain('"field_name" = ');
             expect(query.bindings).toContain('orders_status');
