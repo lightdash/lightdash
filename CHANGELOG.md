@@ -1,3 +1,18 @@
+# [1.207.0](https://github.com/lightdash/lightdash/compare/1.206.5...1.207.0) (2026-08-19)
+
+
+### Bug Fixes
+
+* **mcp:** expose writeback status tool ([#27672](https://github.com/lightdash/lightdash/issues/27672)) ([ac2e420](https://github.com/lightdash/lightdash/commit/ac2e42049e8e8b5fa5919934767c6d5a103c210b))
+* **mcp:** replace unavailable tool guidance ([#27671](https://github.com/lightdash/lightdash/issues/27671)) ([ad3a306](https://github.com/lightdash/lightdash/commit/ad3a30601f1719455a7feaf805792a09e16d0873))
+* **mcp:** restrict chart result guidance ([#27669](https://github.com/lightdash/lightdash/issues/27669)) ([51531f2](https://github.com/lightdash/lightdash/commit/51531f2b607c01ae2061e7c66f50754ae5c823a2))
+* **mcp:** skip discovery for supplied SQL ([#27670](https://github.com/lightdash/lightdash/issues/27670)) ([af64579](https://github.com/lightdash/lightdash/commit/af64579edd879b289e3f40184fa2ef645cba731b))
+
+
+### Features
+
+* **mcp:** expose hash generator ([#27688](https://github.com/lightdash/lightdash/issues/27688)) ([93f2358](https://github.com/lightdash/lightdash/commit/93f23580988017d46d52443529e592141f02bd64))
+
 ## [1.206.5](https://github.com/lightdash/lightdash/compare/1.206.4...1.206.5) (2026-08-19)
 
 
