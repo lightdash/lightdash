@@ -1,3 +1,10 @@
+# [1.206.0](https://github.com/lightdash/lightdash/compare/1.205.0...1.206.0) (2026-08-19)
+
+
+### Features
+
+* add query history page ([#27617](https://github.com/lightdash/lightdash/issues/27617)) ([c2f311b](https://github.com/lightdash/lightdash/commit/c2f311bf29184b8c5a0ecae1dcf474454e0333a8))
+
 # [1.205.0](https://github.com/lightdash/lightdash/compare/1.204.0...1.205.0) (2026-08-19)
 
 

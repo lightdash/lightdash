@@ -51614,6 +51614,782 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "QueryTrigger": {
+                "description": "User-facing grouping of `QueryExecutionContext` values by what triggered the\nrun: a person acting directly, an app surface loading many queries at once\n(dashboards, embeds, data apps), or a schedule running in the background.",
+                "enum": ["interactive", "apps", "scheduled"],
+                "type": "string"
+            },
+            "QueryLanguage": {
+                "enum": ["semantic", "sql"],
+                "type": "string"
+            },
+            "CommonExecuteQueryRequestParams": {
+                "properties": {
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "usePreAggregateCache": {
+                        "type": "boolean"
+                    },
+                    "invalidateCache": {
+                        "type": "boolean"
+                    },
+                    "context": {
+                        "$ref": "#/components/schemas/QueryExecutionContext"
+                    }
+                },
+                "type": "object"
+            },
+            "Pick_MetricQueryRequest.Exclude_keyofMetricQueryRequest.csvLimit__": {
+                "properties": {
+                    "filters": {
+                        "properties": {
+                            "tableCalculations": {},
+                            "metrics": {},
+                            "dimensions": {}
+                        },
+                        "type": "object"
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    },
+                    "dimensions": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "metrics": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "sorts": {
+                        "items": {
+                            "$ref": "#/components/schemas/SortField"
+                        },
+                        "type": "array"
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/TableCalculation"
+                        },
+                        "type": "array"
+                    },
+                    "additionalMetrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/AdditionalMetric"
+                        },
+                        "type": "array"
+                    },
+                    "customDimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/CustomDimension"
+                        },
+                        "type": "array"
+                    },
+                    "metricOverrides": {
+                        "$ref": "#/components/schemas/MetricOverrides"
+                    },
+                    "dimensionOverrides": {
+                        "$ref": "#/components/schemas/DimensionOverrides"
+                    },
+                    "timezone": {
+                        "type": "string"
+                    },
+                    "pivotDimensions": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "metadata": {
+                        "properties": {
+                            "hasADateDimension": {
+                                "$ref": "#/components/schemas/Pick_CompiledDimension.name-or-label-or-table_"
+                            }
+                        },
+                        "required": ["hasADateDimension"],
+                        "type": "object"
+                    },
+                    "dateZoom": {
+                        "$ref": "#/components/schemas/DateZoom"
+                    }
+                },
+                "required": [
+                    "filters",
+                    "exploreName",
+                    "dimensions",
+                    "metrics",
+                    "sorts",
+                    "limit",
+                    "tableCalculations"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_MetricQueryRequest.csvLimit_": {
+                "$ref": "#/components/schemas/Pick_MetricQueryRequest.Exclude_keyofMetricQueryRequest.csvLimit__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "ExecuteAsyncMetricQueryRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "dashboardFilters": {
+                                "$ref": "#/components/schemas/DashboardFilters"
+                            },
+                            "pivotConfiguration": {
+                                "$ref": "#/components/schemas/PivotConfiguration"
+                            },
+                            "dateZoom": {
+                                "$ref": "#/components/schemas/DateZoom"
+                            },
+                            "query": {
+                                "$ref": "#/components/schemas/Omit_MetricQueryRequest.csvLimit_"
+                            }
+                        },
+                        "required": ["query"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ExecuteAsyncMergeQueryRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "pivotConfiguration": {
+                                "$ref": "#/components/schemas/PivotConfiguration"
+                            },
+                            "mergeQuery": {
+                                "$ref": "#/components/schemas/MergeQuery"
+                            }
+                        },
+                        "required": ["mergeQuery"],
+                        "type": "object"
+                    }
+                ],
+                "description": "A merge run: the spec that produced it, recorded verbatim."
+            },
+            "ExecuteAsyncSqlQueryRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "pivotConfiguration": {
+                                "$ref": "#/components/schemas/PivotConfiguration"
+                            },
+                            "limit": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "sql": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["sql"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "Record_string.UUID_": {
+                "properties": {},
+                "additionalProperties": {
+                    "type": "string"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ExecuteAsyncComposeSqlQueryRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "references": {
+                                "$ref": "#/components/schemas/Record_string.UUID_",
+                                "description": "Results of other async queries exposed to the SQL as tables,\nkeyed by table name: {\"orders\": \"<queryUuid>\"} lets the SQL run\nSELECT * FROM orders. Each referenced query is authorized with the\nsame access checks as fetching its results by uuid; references to\nstill-running queries are waited on before this query executes.\n\nTyped Record<string, UUID> (not Record<string, string>) on purpose:\nTSOA compiles a string-valued record to an empty object literal and\nvalidation then strips every key; a ref-aliased value type keeps\nadditionalProperties intact (and validates the uuid format)."
+                            },
+                            "limit": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "sql": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["sql"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ExecuteAsyncSavedChartRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "dashboardFilters": {
+                                "$ref": "#/components/schemas/DashboardFilters"
+                            },
+                            "filters": {
+                                "$ref": "#/components/schemas/Filters"
+                            },
+                            "pivotResults": {
+                                "type": "boolean"
+                            },
+                            "limit": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            },
+                            "versionUuid": {
+                                "type": "string"
+                            },
+                            "chartUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["chartUuid"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ExecuteAsyncDashboardChartRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "pivotResults": {
+                                "type": "boolean"
+                            },
+                            "limit": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            },
+                            "dateZoom": {
+                                "$ref": "#/components/schemas/DateZoom"
+                            },
+                            "dashboardSorts": {
+                                "items": {
+                                    "$ref": "#/components/schemas/SortField"
+                                },
+                                "type": "array"
+                            },
+                            "dashboardFilters": {
+                                "$ref": "#/components/schemas/DashboardFilters"
+                            },
+                            "dashboardUuid": {
+                                "type": "string"
+                            },
+                            "tileUuid": {
+                                "type": "string"
+                            },
+                            "chartUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "dashboardSorts",
+                            "dashboardFilters",
+                            "dashboardUuid",
+                            "tileUuid",
+                            "chartUuid"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ExecuteAsyncUnderlyingDataRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "sorts": {
+                                "items": {
+                                    "$ref": "#/components/schemas/SortField"
+                                },
+                                "type": "array"
+                            },
+                            "limit": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            },
+                            "dateZoom": {
+                                "$ref": "#/components/schemas/DateZoom"
+                            },
+                            "filters": {
+                                "$ref": "#/components/schemas/Filters"
+                            },
+                            "underlyingDataItemId": {
+                                "type": "string"
+                            },
+                            "underlyingDataSourceQueryUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "filters",
+                            "underlyingDataSourceQueryUuid"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ExecuteAsyncDashboardSqlChartCommonParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "limit": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "dashboardSorts": {
+                                "items": {
+                                    "$ref": "#/components/schemas/SortField"
+                                },
+                                "type": "array"
+                            },
+                            "dashboardFilters": {
+                                "$ref": "#/components/schemas/DashboardFilters"
+                            },
+                            "tileUuid": {
+                                "type": "string"
+                            },
+                            "dashboardUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "dashboardSorts",
+                            "dashboardFilters",
+                            "tileUuid",
+                            "dashboardUuid"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ExecuteAsyncDashboardSqlChartByUuidRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ExecuteAsyncDashboardSqlChartCommonParams"
+                    },
+                    {
+                        "properties": {
+                            "savedSqlUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["savedSqlUuid"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ExecuteAsyncDashboardSqlChartBySlugRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ExecuteAsyncDashboardSqlChartCommonParams"
+                    },
+                    {
+                        "properties": {
+                            "slug": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["slug"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ExecuteAsyncDashboardSqlChartRequestParams": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/ExecuteAsyncDashboardSqlChartByUuidRequestParams"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ExecuteAsyncDashboardSqlChartBySlugRequestParams"
+                    }
+                ]
+            },
+            "ExecuteAsyncFieldValueSearchRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "forceRefresh": {
+                                "type": "boolean"
+                            },
+                            "filters": {
+                                "$ref": "#/components/schemas/AndFilterGroup"
+                            },
+                            "limit": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "search": {
+                                "type": "string"
+                            },
+                            "fieldId": {
+                                "type": "string"
+                            },
+                            "table": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["search", "fieldId", "table"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ExecuteAsyncQueryRequestParams": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/ExecuteAsyncMetricQueryRequestParams"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ExecuteAsyncMergeQueryRequestParams"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ExecuteAsyncSqlQueryRequestParams"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ExecuteAsyncComposeSqlQueryRequestParams"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ExecuteAsyncSavedChartRequestParams"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ExecuteAsyncDashboardChartRequestParams"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ExecuteAsyncUnderlyingDataRequestParams"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ExecuteAsyncDashboardSqlChartRequestParams"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ExecuteAsyncFieldValueSearchRequestParams"
+                    }
+                ]
+            },
+            "QueryHistoryListItem": {
+                "properties": {
+                    "erroredAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "resultsUpdatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "processingStartedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "resultsExpiresAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "cacheHit": {
+                        "type": "boolean",
+                        "description": "True when this run was served from a previously cached results file."
+                    },
+                    "warehouseExecutionTimeMs": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "totalRowCount": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "compiledSql": {
+                        "type": "string"
+                    },
+                    "dashboardUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "dashboardName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "savedSqlUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "chartUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "chartName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "requestParameters": {
+                        "$ref": "#/components/schemas/ExecuteAsyncQueryRequestParams",
+                        "description": "The original execute request, replayed verbatim by \"Re-run\"."
+                    },
+                    "metricQuery": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MetricQuery"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Present on semantic runs — lets the client rebuild an Explore URL."
+                    },
+                    "exploreName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "error": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "subline": {
+                        "type": "string",
+                        "description": "Semantic: metric/dimension labels. SQL: first line of SQL. Failed: error."
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Semantic: explore name. SQL: saved chart name or first CTE/table."
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/QueryHistoryStatus"
+                    },
+                    "language": {
+                        "$ref": "#/components/schemas/QueryLanguage"
+                    },
+                    "trigger": {
+                        "$ref": "#/components/schemas/QueryTrigger"
+                    },
+                    "context": {
+                        "$ref": "#/components/schemas/QueryExecutionContext"
+                    },
+                    "projectUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "queryUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "erroredAt",
+                    "resultsUpdatedAt",
+                    "processingStartedAt",
+                    "resultsExpiresAt",
+                    "cacheHit",
+                    "warehouseExecutionTimeMs",
+                    "totalRowCount",
+                    "compiledSql",
+                    "dashboardUuid",
+                    "dashboardName",
+                    "savedSqlUuid",
+                    "chartUuid",
+                    "chartName",
+                    "requestParameters",
+                    "metricQuery",
+                    "exploreName",
+                    "error",
+                    "subline",
+                    "title",
+                    "status",
+                    "language",
+                    "trigger",
+                    "context",
+                    "projectUuid",
+                    "createdAt",
+                    "queryUuid"
+                ],
+                "type": "object",
+                "description": "One row of the \"My query history\" list. Derived fields (trigger, language,\ntitle, subline) are computed server-side from the persisted query so every\nconsumer renders the same anatomy."
+            },
+            "Record_QueryTrigger.number_": {
+                "properties": {
+                    "interactive": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "apps": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "scheduled": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["interactive", "apps", "scheduled"],
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "Record_QueryHistoryWindow.number_": {
+                "properties": {
+                    "lastFewMinutes": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "lastHour": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "last24Hours": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "last7Days": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "last30Days": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "lastFewMinutes",
+                    "lastHour",
+                    "last24Hours",
+                    "last7Days",
+                    "last30Days"
+                ],
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "QueryHistoryCounts": {
+                "properties": {
+                    "warehouseTimeMsLast7Days": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Warehouse time spent in the last 7 days, for the page subtitle."
+                    },
+                    "total": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "windows": {
+                        "$ref": "#/components/schemas/Record_QueryHistoryWindow.number_",
+                        "description": "Per-window totals with every filter except `window` applied."
+                    },
+                    "triggers": {
+                        "$ref": "#/components/schemas/Record_QueryTrigger.number_",
+                        "description": "Per-trigger totals with every filter except `trigger` applied."
+                    }
+                },
+                "required": [
+                    "warehouseTimeMsLast7Days",
+                    "total",
+                    "windows",
+                    "triggers"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess__data-QueryHistoryListItem-Array--pagination_63_-KnexPaginateArgs-and-_totalPageCount-number--totalResults-number_--counts-QueryHistoryCounts__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "counts": {
+                                "$ref": "#/components/schemas/QueryHistoryCounts"
+                            },
+                            "pagination": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/KnexPaginateArgs"
+                                    },
+                                    {
+                                        "properties": {
+                                            "totalResults": {
+                                                "type": "number",
+                                                "format": "double"
+                                            },
+                                            "totalPageCount": {
+                                                "type": "number",
+                                                "format": "double"
+                                            }
+                                        },
+                                        "required": [
+                                            "totalResults",
+                                            "totalPageCount"
+                                        ],
+                                        "type": "object"
+                                    }
+                                ]
+                            },
+                            "data": {
+                                "items": {
+                                    "$ref": "#/components/schemas/QueryHistoryListItem"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["counts", "data"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiQueryHistoryListResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__data-QueryHistoryListItem-Array--pagination_63_-KnexPaginateArgs-and-_totalPageCount-number--totalResults-number_--counts-QueryHistoryCounts__"
+            },
+            "QueryHistoryWindow": {
+                "description": "Time windows for the query history list, newest first. Windows are disjoint:\n\"last hour\" excludes the last few minutes, and so on. Anything older than 30\ndays is out of scope for the page.",
+                "enum": [
+                    "lastFewMinutes",
+                    "lastHour",
+                    "last24Hours",
+                    "last7Days",
+                    "last30Days"
+                ],
+                "type": "string"
+            },
+            "QueryHistorySortBy": {
+                "enum": ["createdAt", "runtime"],
+                "type": "string"
+            },
             "ResultsPaginationMetadata_ResultRow_": {
                 "allOf": [
                     {
@@ -52201,145 +52977,6 @@
                 ],
                 "description": "One-call merge execution request. Derived pivot SQL remains server-owned."
             },
-            "CommonExecuteQueryRequestParams": {
-                "properties": {
-                    "parameters": {
-                        "$ref": "#/components/schemas/ParametersValuesMap"
-                    },
-                    "usePreAggregateCache": {
-                        "type": "boolean"
-                    },
-                    "invalidateCache": {
-                        "type": "boolean"
-                    },
-                    "context": {
-                        "$ref": "#/components/schemas/QueryExecutionContext"
-                    }
-                },
-                "type": "object"
-            },
-            "Pick_MetricQueryRequest.Exclude_keyofMetricQueryRequest.csvLimit__": {
-                "properties": {
-                    "filters": {
-                        "properties": {
-                            "tableCalculations": {},
-                            "metrics": {},
-                            "dimensions": {}
-                        },
-                        "type": "object"
-                    },
-                    "exploreName": {
-                        "type": "string"
-                    },
-                    "dimensions": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "metrics": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "sorts": {
-                        "items": {
-                            "$ref": "#/components/schemas/SortField"
-                        },
-                        "type": "array"
-                    },
-                    "limit": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "tableCalculations": {
-                        "items": {
-                            "$ref": "#/components/schemas/TableCalculation"
-                        },
-                        "type": "array"
-                    },
-                    "additionalMetrics": {
-                        "items": {
-                            "$ref": "#/components/schemas/AdditionalMetric"
-                        },
-                        "type": "array"
-                    },
-                    "customDimensions": {
-                        "items": {
-                            "$ref": "#/components/schemas/CustomDimension"
-                        },
-                        "type": "array"
-                    },
-                    "metricOverrides": {
-                        "$ref": "#/components/schemas/MetricOverrides"
-                    },
-                    "dimensionOverrides": {
-                        "$ref": "#/components/schemas/DimensionOverrides"
-                    },
-                    "timezone": {
-                        "type": "string"
-                    },
-                    "pivotDimensions": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "metadata": {
-                        "properties": {
-                            "hasADateDimension": {
-                                "$ref": "#/components/schemas/Pick_CompiledDimension.name-or-label-or-table_"
-                            }
-                        },
-                        "required": ["hasADateDimension"],
-                        "type": "object"
-                    },
-                    "dateZoom": {
-                        "$ref": "#/components/schemas/DateZoom"
-                    }
-                },
-                "required": [
-                    "filters",
-                    "exploreName",
-                    "dimensions",
-                    "metrics",
-                    "sorts",
-                    "limit",
-                    "tableCalculations"
-                ],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_MetricQueryRequest.csvLimit_": {
-                "$ref": "#/components/schemas/Pick_MetricQueryRequest.Exclude_keyofMetricQueryRequest.csvLimit__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "ExecuteAsyncMetricQueryRequestParams": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
-                    },
-                    {
-                        "properties": {
-                            "dashboardFilters": {
-                                "$ref": "#/components/schemas/DashboardFilters"
-                            },
-                            "pivotConfiguration": {
-                                "$ref": "#/components/schemas/PivotConfiguration"
-                            },
-                            "dateZoom": {
-                                "$ref": "#/components/schemas/DateZoom"
-                            },
-                            "query": {
-                                "$ref": "#/components/schemas/Omit_MetricQueryRequest.csvLimit_"
-                            }
-                        },
-                        "required": ["query"],
-                        "type": "object"
-                    }
-                ]
-            },
             "ApiExecuteAsyncFieldValueSearchResults": {
                 "properties": {
                     "labelFieldId": {
@@ -52378,71 +53015,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ExecuteAsyncFieldValueSearchRequestParams": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
-                    },
-                    {
-                        "properties": {
-                            "forceRefresh": {
-                                "type": "boolean"
-                            },
-                            "filters": {
-                                "$ref": "#/components/schemas/AndFilterGroup"
-                            },
-                            "limit": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "search": {
-                                "type": "string"
-                            },
-                            "fieldId": {
-                                "type": "string"
-                            },
-                            "table": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["search", "fieldId", "table"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "ExecuteAsyncSavedChartRequestParams": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
-                    },
-                    {
-                        "properties": {
-                            "dashboardFilters": {
-                                "$ref": "#/components/schemas/DashboardFilters"
-                            },
-                            "filters": {
-                                "$ref": "#/components/schemas/Filters"
-                            },
-                            "pivotResults": {
-                                "type": "boolean"
-                            },
-                            "limit": {
-                                "type": "number",
-                                "format": "double",
-                                "nullable": true
-                            },
-                            "versionUuid": {
-                                "type": "string"
-                            },
-                            "chartUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["chartUuid"],
-                        "type": "object"
-                    }
-                ]
-            },
             "ApiSuccess_ApiExecuteAsyncDashboardChartQueryResults_": {
                 "properties": {
                     "results": {
@@ -52457,93 +53029,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ExecuteAsyncDashboardChartRequestParams": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
-                    },
-                    {
-                        "properties": {
-                            "pivotResults": {
-                                "type": "boolean"
-                            },
-                            "limit": {
-                                "type": "number",
-                                "format": "double",
-                                "nullable": true
-                            },
-                            "dateZoom": {
-                                "$ref": "#/components/schemas/DateZoom"
-                            },
-                            "dashboardSorts": {
-                                "items": {
-                                    "$ref": "#/components/schemas/SortField"
-                                },
-                                "type": "array"
-                            },
-                            "dashboardFilters": {
-                                "$ref": "#/components/schemas/DashboardFilters"
-                            },
-                            "dashboardUuid": {
-                                "type": "string"
-                            },
-                            "tileUuid": {
-                                "type": "string"
-                            },
-                            "chartUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "dashboardSorts",
-                            "dashboardFilters",
-                            "dashboardUuid",
-                            "tileUuid",
-                            "chartUuid"
-                        ],
-                        "type": "object"
-                    }
-                ]
-            },
-            "ExecuteAsyncUnderlyingDataRequestParams": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
-                    },
-                    {
-                        "properties": {
-                            "sorts": {
-                                "items": {
-                                    "$ref": "#/components/schemas/SortField"
-                                },
-                                "type": "array"
-                            },
-                            "limit": {
-                                "type": "number",
-                                "format": "double",
-                                "nullable": true
-                            },
-                            "dateZoom": {
-                                "$ref": "#/components/schemas/DateZoom"
-                            },
-                            "filters": {
-                                "$ref": "#/components/schemas/Filters"
-                            },
-                            "underlyingDataItemId": {
-                                "type": "string"
-                            },
-                            "underlyingDataSourceQueryUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "filters",
-                            "underlyingDataSourceQueryUuid"
-                        ],
-                        "type": "object"
-                    }
-                ]
-            },
             "ApiSuccess_ApiExecuteAsyncSqlQueryResults_": {
                 "properties": {
                     "results": {
@@ -52557,61 +53042,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "ExecuteAsyncSqlQueryRequestParams": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
-                    },
-                    {
-                        "properties": {
-                            "pivotConfiguration": {
-                                "$ref": "#/components/schemas/PivotConfiguration"
-                            },
-                            "limit": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "sql": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["sql"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "Record_string.UUID_": {
-                "properties": {},
-                "additionalProperties": {
-                    "type": "string"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "ExecuteAsyncComposeSqlQueryRequestParams": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
-                    },
-                    {
-                        "properties": {
-                            "references": {
-                                "$ref": "#/components/schemas/Record_string.UUID_",
-                                "description": "Results of other async queries exposed to the SQL as tables,\nkeyed by table name: {\"orders\": \"<queryUuid>\"} lets the SQL run\nSELECT * FROM orders. Each referenced query is authorized with the\nsame access checks as fetching its results by uuid; references to\nstill-running queries are waited on before this query executes.\n\nTyped Record<string, UUID> (not Record<string, string>) on purpose:\nTSOA compiles a string-valued record to an empty object literal and\nvalidation then strips every key; a ref-aliased value type keeps\nadditionalProperties intact (and validates the uuid format)."
-                            },
-                            "limit": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "sql": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["sql"],
-                        "type": "object"
-                    }
-                ]
             },
             "ExecuteAsyncSqlChartByUuidRequestParams": {
                 "allOf": [
@@ -52676,85 +53106,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "ExecuteAsyncDashboardSqlChartCommonParams": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
-                    },
-                    {
-                        "properties": {
-                            "limit": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "dashboardSorts": {
-                                "items": {
-                                    "$ref": "#/components/schemas/SortField"
-                                },
-                                "type": "array"
-                            },
-                            "dashboardFilters": {
-                                "$ref": "#/components/schemas/DashboardFilters"
-                            },
-                            "tileUuid": {
-                                "type": "string"
-                            },
-                            "dashboardUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "dashboardSorts",
-                            "dashboardFilters",
-                            "tileUuid",
-                            "dashboardUuid"
-                        ],
-                        "type": "object"
-                    }
-                ]
-            },
-            "ExecuteAsyncDashboardSqlChartByUuidRequestParams": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/ExecuteAsyncDashboardSqlChartCommonParams"
-                    },
-                    {
-                        "properties": {
-                            "savedSqlUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["savedSqlUuid"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "ExecuteAsyncDashboardSqlChartBySlugRequestParams": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/ExecuteAsyncDashboardSqlChartCommonParams"
-                    },
-                    {
-                        "properties": {
-                            "slug": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["slug"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "ExecuteAsyncDashboardSqlChartRequestParams": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/ExecuteAsyncDashboardSqlChartByUuidRequestParams"
-                    },
-                    {
-                        "$ref": "#/components/schemas/ExecuteAsyncDashboardSqlChartBySlugRequestParams"
-                    }
-                ]
             },
             "ApiDownloadAsyncQueryResults": {
                 "properties": {
@@ -54906,7 +55257,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.205.0",
+        "version": "1.206.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -87519,6 +87870,126 @@
                             "items": {
                                 "$ref": "#/components/schemas/UUID"
                             }
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/history": {
+            "get": {
+                "operationId": "getQueryHistory",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiQueryHistoryListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Lists the requesting user's own query history for a project, newest\nfirst, with per-trigger and per-window counts.\n\nMust stay declared before `getAsyncQueryResults` so the generated\n`/history` route is matched before `/{queryUuid}`.",
+                "summary": "List my query history",
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Page number for pagination (starts at 1)",
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "default": 1,
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "description": "Number of results per page (default: 25, max: 100)",
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "default": 25,
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "description": "Filter by what triggered the run",
+                        "in": "query",
+                        "name": "trigger",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/QueryTrigger"
+                        }
+                    },
+                    {
+                        "description": "Filter by query language",
+                        "in": "query",
+                        "name": "language",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/QueryLanguage"
+                        }
+                    },
+                    {
+                        "description": "Filter by one or more statuses",
+                        "in": "query",
+                        "name": "status",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/components/schemas/QueryHistoryStatus"
+                            }
+                        }
+                    },
+                    {
+                        "description": "Matches explore name, chart/dashboard name, fields and SQL",
+                        "in": "query",
+                        "name": "search",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Restrict rows to one disjoint time window",
+                        "in": "query",
+                        "name": "window",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/QueryHistoryWindow"
+                        }
+                    },
+                    {
+                        "description": "Sort order; runtime flattens the windows into one sorted list",
+                        "in": "query",
+                        "name": "sortBy",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/QueryHistorySortBy"
                         }
                     }
                 ]
