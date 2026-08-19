@@ -1,3 +1,10 @@
+## [1.202.10](https://github.com/lightdash/lightdash/compare/1.202.9...1.202.10) (2026-08-19)
+
+
+### Bug Fixes
+
+* **pre-aggregates:** treat base DATE fields and _day aliases as exact matches  ([#27660](https://github.com/lightdash/lightdash/issues/27660)) ([1fe912b](https://github.com/lightdash/lightdash/commit/1fe912be3e2dbf079cd74d01ae7004bff2ffc443)), closes [#27538](https://github.com/lightdash/lightdash/issues/27538)
+
 ## [1.202.9](https://github.com/lightdash/lightdash/compare/1.202.8...1.202.9) (2026-08-19)
 
 
