@@ -269,11 +269,17 @@ export const useExplorerRoute = () => {
     // Only sync URL when we're actually on a table page (pathParams.tableId exists)
     useEffect(() => {
         if (pathParams.tableId && metricQuery && tableName) {
+            const explorerUrl = getExplorerUrlFromCreateSavedChartVersion(
+                pathParams.projectUuid,
+                unsavedChartVersion,
+            );
+            const searchParams = new URLSearchParams(explorerUrl.search);
+            searchParams.delete('dataAppVizUuid');
             void navigate(
-                getExplorerUrlFromCreateSavedChartVersion(
-                    pathParams.projectUuid,
-                    unsavedChartVersion,
-                ),
+                {
+                    ...explorerUrl,
+                    search: searchParams.toString(),
+                },
                 { replace: true },
             );
         }
