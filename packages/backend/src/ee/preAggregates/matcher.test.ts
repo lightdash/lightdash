@@ -1556,6 +1556,85 @@ describe('findMatch', () => {
         });
     });
 
+    it('reports the miss from the def that came closest to matching', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'unrelated',
+                    dimensions: ['amount'],
+                    metrics: ['order_count'],
+                    timeDimension: 'order_date',
+                    granularity: TimeFrames.DAY,
+                },
+                {
+                    name: 'near_match',
+                    dimensions: ['status'],
+                    metrics: ['order_count'],
+                    timeDimension: 'order_date',
+                    granularity: TimeFrames.DAY,
+                },
+            ],
+        };
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_status', 'orders_order_date_day'],
+                metrics: ['orders_order_count'],
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: 'filter-1',
+                                target: { fieldId: 'orders_amount' },
+                                operator: FilterOperator.EQUALS,
+                                values: [10],
+                            },
+                        ],
+                    },
+                },
+            }),
+            explore,
+        );
+
+        expect(result.miss).toStrictEqual({
+            reason: PreAggregateMissReason.FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE,
+            fieldId: 'orders_amount',
+        });
+    });
+
+    it('keeps YAML definition order between equally close misses', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'first',
+                    dimensions: ['amount'],
+                    metrics: ['order_count'],
+                },
+                {
+                    name: 'second',
+                    dimensions: ['order_date'],
+                    metrics: ['order_count'],
+                },
+            ],
+        };
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_amount', 'orders_order_date'],
+                metrics: ['orders_order_count'],
+            }),
+            explore,
+        );
+
+        expect(result.miss).toStrictEqual({
+            reason: PreAggregateMissReason.DIMENSION_NOT_IN_PRE_AGGREGATE,
+            fieldId: 'orders_order_date',
+        });
+    });
+
     it('allows type:number metrics when they are explicitly included in the pre-aggregate definition', () => {
         const explore = {
             ...baseExplore(),
