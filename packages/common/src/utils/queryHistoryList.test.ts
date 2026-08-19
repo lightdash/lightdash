@@ -76,7 +76,7 @@ describe('getSqlQueryTitle', () => {
     it('prefers the first CTE name', () => {
         expect(
             getSqlQueryTitle(
-                "with cohorts as (select 1)\nselect * from cohorts",
+                'with cohorts as (select 1)\nselect * from cohorts',
             ),
         ).toBe('cohorts');
     });

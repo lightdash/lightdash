@@ -1003,6 +1003,25 @@ export class AsyncQueryService extends ProjectService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        // History is scoped to the requesting user's own runs, so an
+        // anonymous (embed) account has nothing to list.
+        if (!account.isRegisteredUser()) {
+            throw new ForbiddenError(
+                'Query history is only available to registered users',
+            );
+        }
+
+        const { enabled: isEndpointEnabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: account.user.id,
+                organizationUuid,
+            },
+            featureFlagId: FeatureFlags.QueryHistory,
+        });
+        if (!isEndpointEnabled) {
+            throw new ForbiddenError('Query history is not enabled');
+        }
+
         const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
@@ -1014,14 +1033,6 @@ export class AsyncQueryService extends ProjectService {
             )
         ) {
             throw new ForbiddenError();
-        }
-
-        // History is scoped to the requesting user's own runs, so an
-        // anonymous (embed) account has nothing to list.
-        if (!account.isRegisteredUser()) {
-            throw new ForbiddenError(
-                'Query history is only available to registered users',
-            );
         }
 
         const userUuid = account.user.id;
