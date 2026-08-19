@@ -57,6 +57,7 @@ import {
 } from '../ContentTable';
 import MantineIcon from '../MantineIcon';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
+import ViewsCountPopover from '../ViewsCountPopover';
 import AdminContentViewFilter from './AdminContentViewFilter';
 import ContentTypeFilter from './ContentTypeFilter';
 import classes from './InfiniteResourceTable.module.css';
@@ -66,7 +67,7 @@ import ResourceActionHandlers from './ResourceActionHandlers';
 import ResourceActionMenu from './ResourceActionMenu';
 import AttributeCount from './ResourceAttributeCount';
 import ResourceLastEdited from './ResourceLastEdited';
-import { getResourceUrl } from './resourceUtils';
+import { getResourceUrl, getViewStatsResourceType } from './resourceUtils';
 import {
     ColumnVisibility,
     ResourceViewItemAction,
@@ -309,9 +310,15 @@ const InfiniteResourceTable = ({
                         </Text>
                     );
                 return (
-                    <Text fz={12} fw={500} c="ldGray.7">
-                        {row.original.data.views}
-                    </Text>
+                    <ViewsCountPopover
+                        resourceType={getViewStatsResourceType(row.original)}
+                        resourceUuid={row.original.data.uuid}
+                        projectUuid={filters.projectUuid}
+                    >
+                        <Text fz={12} fw={500} c="ldGray.7">
+                            {row.original.data.views}
+                        </Text>
+                    </ViewsCountPopover>
                 );
             },
         },
