@@ -1,3 +1,10 @@
+# [1.209.0](https://github.com/lightdash/lightdash/compare/1.208.0...1.209.0) (2026-08-19)
+
+
+### Features
+
+* **merge-queries:** pivoted merges on the compose engine ([#27699](https://github.com/lightdash/lightdash/issues/27699)) ([338e302](https://github.com/lightdash/lightdash/commit/338e3026992c946105ba67a5b60a5977bcf6d674))
+
 # [1.208.0](https://github.com/lightdash/lightdash/compare/1.207.0...1.208.0) (2026-08-19)
 
 
