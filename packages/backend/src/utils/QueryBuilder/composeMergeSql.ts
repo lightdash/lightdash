@@ -1,7 +1,9 @@
 import {
     SupportedDbtAdapter,
     type MergeFieldTypes,
-    type MergeQuery,
+    type MergeJoinKeyPart,
+    type MergeJoinType,
+    type MergeTableCalculation,
     type MergeTerminalWrapper,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
@@ -15,7 +17,7 @@ export type ComposeMergeSql = {
     coreSql: string;
     /** Terminal stage (sort, limit, truncation guard) for the run path to attach. */
     terminalWrapper: MergeTerminalWrapper;
-    /** Reference table name per source id, for binding to leg queryUuids. */
+    /** Reference table name per source id, for binding to result queryUuids. */
     referenceTableBySourceId: Record<string, string>;
 };
 
@@ -27,14 +29,19 @@ export const composeMergeReferenceTable = (sourceIndex: number): string =>
  * The compose form of a merge: the same MergeQueryBuilder assembly as the
  * warehouse statement, but in the DuckDB dialect over reference tables —
  * each source is `SELECT * FROM merge_source_N`, bound at execution time to
- * that source's already-materialized results. The join semantics (coalesced
- * keys, typed null placeholders, string casts, per-source row caps with
- * truncation detection) are identical by construction because the builder
- * and the key-option derivation are shared; only the dialect and where the
- * source rows come from differ.
+ * that source's already-materialized results (a freshly-run leg or an
+ * existing result referenced by queryUuid; the builder cannot tell and does
+ * not care). The join semantics (coalesced keys, typed null placeholders,
+ * string casts, per-source row caps with truncation detection) are identical
+ * by construction because the builder and the key-option derivation are
+ * shared; only the dialect and where the source rows come from differ.
  */
 export const buildComposeMergeSql = (args: {
-    mergeQuery: MergeQuery;
+    /** Sources in merge order; value columns in the compile's column order. */
+    sources: Array<{ id: string; valueColumns: string[] }>;
+    joinKey: MergeJoinKeyPart[];
+    joinType: MergeJoinType;
+    tableCalculations: MergeTableCalculation[];
     fieldTypes: MergeFieldTypes;
     /** Output field-id alias per internal column, from the merge compile. */
     outputAliasByColumn: Record<string, string>;
@@ -43,53 +50,52 @@ export const buildComposeMergeSql = (args: {
     /** Most rows one source may contribute; reaching it is reported, not trimmed. */
     sourceRowCap: number;
 }): ComposeMergeSql => {
-    const { mergeQuery, fieldTypes, outputAliasByColumn, limit, sourceRowCap } =
-        args;
+    const {
+        sources,
+        joinKey,
+        joinType,
+        tableCalculations,
+        fieldTypes,
+        outputAliasByColumn,
+        limit,
+        sourceRowCap,
+    } = args;
     const warehouseSqlBuilder = warehouseSqlBuilderFromType(
         SupportedDbtAdapter.DUCKDB,
     );
     const quoteChar = warehouseSqlBuilder.getFieldQuoteChar();
 
     const referenceTableBySourceId = Object.fromEntries(
-        mergeQuery.sources.map((source, index) => [
+        sources.map((source, index) => [
             source.id,
             composeMergeReferenceTable(index),
         ]),
     );
 
-    const sources = mergeQuery.sources.map((source) => ({
+    const builderSources = sources.map((source) => ({
         id: source.id,
         sql: `SELECT * FROM ${quoteChar}${
             referenceTableBySourceId[source.id]
         }${quoteChar}`,
         joinKeyColumnByName: Object.fromEntries(
-            mergeQuery.joinKey.map((part) => [
+            joinKey.map((part) => [
                 part.name,
                 part.fieldIdBySourceId[source.id],
             ]),
         ),
-        valueColumns: [
-            ...source.metricQuery.metrics,
-            ...source.metricQuery.tableCalculations.map(
-                (calculation) => calculation.name,
-            ),
-        ],
+        valueColumns: source.valueColumns,
     }));
 
     const { nullPlaceholderByKeyName, stringJoinKeyNames } =
-        getMergeJoinKeySqlOptions(
-            mergeQuery.joinKey,
-            fieldTypes,
-            warehouseSqlBuilder,
-        );
+        getMergeJoinKeySqlOptions(joinKey, fieldTypes, warehouseSqlBuilder);
 
     const builder = new MergeQueryBuilder({
-        sources,
-        joinKeyNames: mergeQuery.joinKey.map((part) => part.name),
-        joinType: mergeQuery.joinType,
+        sources: builderSources,
+        joinKeyNames: joinKey.map((part) => part.name),
+        joinType,
         warehouseSqlBuilder,
         limit,
-        tableCalculations: mergeQuery.tableCalculations,
+        tableCalculations,
         nullPlaceholderByKeyName,
         stringJoinKeyNames,
         sourceRowCap,

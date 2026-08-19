@@ -10,9 +10,7 @@ import {
     VizIndexType,
     type ItemsMap,
     type MergeFieldTypes,
-    type MergeQuery,
     type MergeTypedColumn,
-    type MetricQuery,
     type WarehouseClient,
 } from '@lightdash/common';
 import { buildComposeMergeSql } from './composeMergeSql';
@@ -91,49 +89,12 @@ const typedColumns: MergeTypedColumn[] = [
     },
 ];
 
-const metricQuery = (
-    exploreName: string,
-    dimensions: string[],
-    metrics: string[],
-): MetricQuery => ({
-    exploreName,
-    dimensions,
-    metrics,
-    filters: {},
-    sorts: [],
-    limit: 500,
-    tableCalculations: [],
-});
-
-const mergeQuery: MergeQuery = {
-    sources: [
-        {
-            id: 'a',
-            metricQuery: metricQuery(
-                'orders',
-                ['orders_month'],
-                ['orders_count'],
-            ),
-        },
-        {
-            id: 'b',
-            metricQuery: metricQuery(
-                'payments',
-                ['payments_month'],
-                ['payments_sum'],
-            ),
-        },
-    ],
-    joinKey: [
-        {
-            name: 'month',
-            fieldIdBySourceId: { a: 'orders_month', b: 'payments_month' },
-        },
-    ],
-    joinType: MergeJoinType.FULL,
-    tableCalculations: [],
-    limit: 500,
-};
+const joinKey = [
+    {
+        name: 'month',
+        fieldIdBySourceId: { a: 'orders_month', b: 'payments_month' },
+    },
+];
 
 const fieldTypes: MergeFieldTypes = {
     a: {
@@ -154,7 +115,13 @@ const build = (
     overrides: Partial<Parameters<typeof buildComposeMergeSql>[0]> = {},
 ) =>
     buildComposeMergeSql({
-        mergeQuery,
+        sources: [
+            { id: 'a', valueColumns: ['orders_count'] },
+            { id: 'b', valueColumns: ['payments_sum'] },
+        ],
+        joinKey,
+        joinType: MergeJoinType.FULL,
+        tableCalculations: [],
         fieldTypes,
         outputAliasByColumn,
         limit: 500,
@@ -273,11 +240,7 @@ describe('buildComposeMergeSql', () => {
 
     test('left join keeps only the first source keys', async () => {
         const rows = await runOnDuckdb(
-            toSql(
-                build({
-                    mergeQuery: { ...mergeQuery, joinType: MergeJoinType.LEFT },
-                }),
-            ),
+            toSql(build({ joinType: MergeJoinType.LEFT })),
             SETUP,
         );
         expect(rows.map((row) => row.merge_month)).toEqual([
@@ -289,14 +252,7 @@ describe('buildComposeMergeSql', () => {
 
     test('inner join keeps only shared keys', async () => {
         const rows = await runOnDuckdb(
-            toSql(
-                build({
-                    mergeQuery: {
-                        ...mergeQuery,
-                        joinType: MergeJoinType.INNER,
-                    },
-                }),
-            ),
+            toSql(build({ joinType: MergeJoinType.INNER })),
             SETUP,
         );
         expect(
@@ -320,16 +276,13 @@ describe('buildComposeMergeSql', () => {
         const rows = await runOnDuckdb(
             toSql(
                 build({
-                    mergeQuery: {
-                        ...mergeQuery,
-                        tableCalculations: [
-                            {
-                                name: 'combined',
-                                displayName: 'Combined',
-                                sql: 'COALESCE(${a.orders_count}, 0) + COALESCE(${b.payments_sum}, 0)',
-                            },
-                        ],
-                    },
+                    tableCalculations: [
+                        {
+                            name: 'combined',
+                            displayName: 'Combined',
+                            sql: 'COALESCE(${a.orders_count}, 0) + COALESCE(${b.payments_sum}, 0)',
+                        },
+                    ],
                 }),
             ),
             SETUP,

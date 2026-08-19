@@ -63,6 +63,7 @@ import {
     isExploreError,
     isField,
     isJwtUser,
+    isMergeResultSource,
     isMetric,
     isValidTimezone,
     isVizTableConfig,
@@ -71,6 +72,7 @@ import {
     KnexPaginatedData,
     LightdashError,
     MergeQuery,
+    MergeQueryErrorKind,
     MetricQuery,
     MissingConfigError,
     normalizeIndexColumns,
@@ -283,6 +285,23 @@ const isRunnableCompiledMergeQuery = (
     compiled.coreSql !== null &&
     compiled.typedColumns !== null &&
     compiled.terminalWrapper !== null;
+
+/**
+ * A compiled merge the compose engine can run: no errors and full metadata.
+ * Unlike the warehouse-runnable narrowing it needs no statement — the
+ * compose path builds its own join over the sources' materialized results.
+ */
+type ComposableCompiledMergeQuery = ApiCompiledMergeQueryResults & {
+    typedColumns: NonNullable<ApiCompiledMergeQueryResults['typedColumns']>;
+    columns: NonNullable<ApiCompiledMergeQueryResults['columns']>;
+};
+
+const isComposableCompiledMergeQuery = (
+    compiled: ApiCompiledMergeQueryResults,
+): compiled is ComposableCompiledMergeQuery =>
+    compiled.errors.length === 0 &&
+    compiled.typedColumns !== null &&
+    compiled.columns !== null;
 
 type ExecuteCompiledAsyncMergeQueryArgs = Omit<
     ExecuteAsyncMergeQueryArgs,
@@ -7140,7 +7159,7 @@ export class AsyncQueryService extends ProjectService {
             parameters,
             userAttributeOverrides,
         });
-        if (!isRunnableCompiledMergeQuery(compiledMerge)) {
+        if (!isComposableCompiledMergeQuery(compiledMerge)) {
             return {
                 outcome: 'refused',
                 errors: compiledMerge.errors,
@@ -7184,6 +7203,33 @@ export class AsyncQueryService extends ProjectService {
             return {
                 outcome: 'started',
                 query: composeQuery,
+                parameterReferences: compiledMerge.parameterReferences,
+                fieldOrigins: compiledMerge.fieldOrigins,
+            };
+        }
+
+        // Result sources have no warehouse statement to fall back to
+        if (compiledMerge.requiresCompose) {
+            return {
+                outcome: 'refused',
+                errors: [
+                    {
+                        kind: MergeQueryErrorKind.COMPOSE_REQUIRED,
+                        sourceId: null,
+                        fieldIds: [],
+                        message:
+                            'This merge reads existing query results, which need the compose engine. It is not enabled or not available on this instance.',
+                    },
+                ],
+                parameterReferences: compiledMerge.parameterReferences,
+                fieldOrigins: compiledMerge.fieldOrigins,
+            };
+        }
+
+        if (!isRunnableCompiledMergeQuery(compiledMerge)) {
+            return {
+                outcome: 'refused',
+                errors: compiledMerge.errors,
                 parameterReferences: compiledMerge.parameterReferences,
                 fieldOrigins: compiledMerge.fieldOrigins,
             };
@@ -7352,7 +7398,7 @@ export class AsyncQueryService extends ProjectService {
         parameters: ParametersValuesMap | undefined;
         userAttributeOverrides: UserAttributeValueMap | undefined;
         pivotConfiguration: PivotConfiguration | undefined;
-        compiledMerge: RunnableCompiledMergeQuery;
+        compiledMerge: ComposableCompiledMergeQuery;
     }): Promise<ApiExecuteAsyncMetricQueryResults | null> {
         assertIsAccountWithOrg(account);
 
@@ -7381,10 +7427,15 @@ export class AsyncQueryService extends ProjectService {
         const projectSummary = await this.projectModel.getSummary(projectUuid);
         const sourceRowCap = this.lightdashConfig.query.maxLimit;
 
-        // Legs run whole: the merged statement sorts and limits, and a side
-        // is never silently truncated below the source row cap
+        // Metric sources run whole (the merged statement sorts and limits,
+        // and a side is never silently truncated below the source row cap);
+        // result sources are already materialized and join as they are —
+        // referencing them costs no warehouse query at all.
         const legs = await Promise.all(
             mergeQuery.sources.map(async (source) => {
+                if (isMergeResultSource(source)) {
+                    return [source.id, source.queryUuid] as const;
+                }
                 const leg = await this.executeAsyncMetricQuery({
                     account,
                     projectUuid,
@@ -7411,7 +7462,17 @@ export class AsyncQueryService extends ProjectService {
         const columnOrder = Object.values(compiledMerge.fieldIdByColumn);
         const { coreSql, terminalWrapper, referenceTableBySourceId } =
             buildComposeMergeSql({
-                mergeQuery,
+                sources: mergeQuery.sources.map((source) => ({
+                    id: source.id,
+                    valueColumns: Object.keys(
+                        compiledMerge.columns.valueColumnBySourceColumn[
+                            source.id
+                        ] ?? {},
+                    ),
+                })),
+                joinKey: mergeQuery.joinKey,
+                joinType: mergeQuery.joinType,
+                tableCalculations: mergeQuery.tableCalculations,
                 fieldTypes,
                 outputAliasByColumn: compiledMerge.fieldIdByColumn,
                 limit: Math.min(mergeQuery.limit, sourceRowCap),
@@ -7551,6 +7612,46 @@ export class AsyncQueryService extends ProjectService {
             parameterReferences: composer.getParameterReferences(),
             usedParametersValues: composer.getUsedParameters(),
             resolvedTimezone: composer.getDisplayTimezone(),
+        };
+    }
+
+    /**
+     * Result sources resolve from the caller's own query history: creator-
+     * scoped lookup, READY with unexpired results, and stored field metadata
+     * to validate and type the merge against. Failures phrase as fragments —
+     * the compiler prefixes them with the source at fault.
+     */
+    protected async getMergeResultSourceMetadata(
+        account: Account,
+        projectUuid: string,
+        queryUuid: string,
+    ): Promise<{ metricQuery: MetricQuery; fields: ItemsMap }> {
+        const queryHistory = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            account,
+        );
+        if (queryHistory.status !== QueryHistoryStatus.READY) {
+            throw new ParameterError(
+                `its results are not ready (status: ${queryHistory.status}).`,
+            );
+        }
+        if (
+            queryHistory.resultsExpiresAt &&
+            queryHistory.resultsExpiresAt < new Date()
+        ) {
+            throw new ParameterError(
+                'its results have expired. Re-run the query and merge the new result.',
+            );
+        }
+        if (Object.keys(queryHistory.fields).length === 0) {
+            throw new ParameterError(
+                'its results carry no field metadata to merge on.',
+            );
+        }
+        return {
+            metricQuery: queryHistory.metricQuery,
+            fields: queryHistory.fields,
         };
     }
 
