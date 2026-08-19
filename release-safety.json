@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "1.203.0",
-  "previousVersion": "1.202.11",
-  "releaseDate": "2026-08-19T16:19:18.040Z",
+  "version": "1.203.1",
+  "previousVersion": "1.203.0",
+  "releaseDate": "2026-08-19T17:13:34.057Z",
   "migrations": {
     "present": false,
     "count": 0,

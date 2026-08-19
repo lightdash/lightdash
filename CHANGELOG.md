@@ -1,3 +1,12 @@
+## [1.203.1](https://github.com/lightdash/lightdash/compare/1.203.0...1.203.1) (2026-08-19)
+
+
+### Bug Fixes
+
+* **ai:** recover interrupted agent streams ([#27615](https://github.com/lightdash/lightdash/issues/27615)) ([cc1901c](https://github.com/lightdash/lightdash/commit/cc1901cc6c7942f229f3ccdf6eb6dd56c27faf4d))
+* **backend:** retain period-to-date filters in pop queries ([#27685](https://github.com/lightdash/lightdash/issues/27685)) ([e24bc36](https://github.com/lightdash/lightdash/commit/e24bc36c1b9b82554bdcd6ef7b00f94b7ac1ed7b))
+* **dbt:** authenticate private github packages ([#27605](https://github.com/lightdash/lightdash/issues/27605)) ([3e372ca](https://github.com/lightdash/lightdash/commit/3e372ca4cc47f639d8889dad1ec7a294d2f311a6))
+
 # [1.203.0](https://github.com/lightdash/lightdash/compare/1.202.11...1.203.0) (2026-08-19)
 
 
