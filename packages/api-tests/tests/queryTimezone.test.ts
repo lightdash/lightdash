@@ -50,6 +50,7 @@ const HOUR_DIMENSION_KEY = 'timezone_test_event_timestamp_hour';
 const METRIC_KEY = 'timezone_test_count';
 const DIMENSIONS = [DIMENSION_KEY];
 const METRICS = [METRIC_KEY];
+const EXISTING_BIGQUERY_PROJECT_UUID = process.env.BIGQUERY_TEST_PROJECT_UUID;
 
 const HOUR_EQUALS_FILTER = (instant: string) => ({
     dimensions: {
@@ -446,21 +447,25 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
     });
 });
 
-// Warehouse-parity check: the fractional-offset DATE_TRUNC has to be emitted in
-// each dialect's SQL, so re-run the discriminating sub-day assertions against a
+// Warehouse-parity check: execute the discriminating timezone filters against a
 // real BigQuery project. The staging dataset holds the same timezone_test rows
 // as the Postgres seed, so the expected counts are identical.
-describe.skipIf(!hasBigqueryCredentials())(
-    'Query timezone — BigQuery fractional offsets',
+describe.skipIf(!EXISTING_BIGQUERY_PROJECT_UUID && !hasBigqueryCredentials())(
+    'Query timezone — BigQuery filters',
     () => {
         const projectName = 'bigQuery timezone fractional test';
         // Cold BigQuery queries can exceed the default 15s poll window.
         const BIGQUERY_MAX_ATTEMPTS = 120;
         let bqAdmin: ApiClient;
         let bigqueryProjectUuid: string;
+        let ownsBigqueryProject = false;
 
         beforeAll(async () => {
             bqAdmin = await login();
+            if (EXISTING_BIGQUERY_PROJECT_UUID) {
+                bigqueryProjectUuid = EXISTING_BIGQUERY_PROJECT_UUID;
+                return;
+            }
             // Clean up any project leaked by a previously interrupted run
             // before creating a fresh one (names are not unique).
             await deleteProjectsByName(bqAdmin, [projectName]);
@@ -469,13 +474,45 @@ describe.skipIf(!hasBigqueryCredentials())(
                 projectName,
                 bigqueryWarehouseConfig(),
             );
+            ownsBigqueryProject = true;
         }, 420_000);
 
         afterAll(async () => {
-            if (bqAdmin) {
+            if (bqAdmin && ownsBigqueryProject) {
                 await deleteProjectsByName(bqAdmin, [projectName]);
             }
         });
+
+        it.each([
+            {
+                expectedCount: 5,
+                filter: EQUALS_FILTER('2024-01-15'),
+                name: 'equals',
+            },
+            {
+                expectedCount: 9,
+                filter: IN_BETWEEN_FILTER('2024-01-15', '2024-01-16'),
+                name: 'inBetween',
+            },
+            {
+                expectedCount: 5,
+                filter: GREATER_THAN_FILTER('2024-01-15'),
+                name: 'greaterThan',
+            },
+        ])(
+            'Asia/Tokyo day $name preserves local-calendar filter semantics',
+            async ({ expectedCount, filter }) => {
+                const rows = await runTimezoneTestQuery(bqAdmin, {
+                    dimensions: DIMENSIONS,
+                    metrics: METRICS,
+                    timezone: 'Asia/Tokyo',
+                    filters: filter,
+                    projectUuid: bigqueryProjectUuid,
+                    maxAttempts: BIGQUERY_MAX_ATTEMPTS,
+                });
+                expect(getTotalCount(rows, METRIC_KEY)).toBe(expectedCount);
+            },
+        );
 
         it('Asia/Kathmandu (+05:45): groups into 10 hourly buckets', async () => {
             const rows = await runTimezoneTestQuery(bqAdmin, {
