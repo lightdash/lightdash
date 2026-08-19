@@ -1,5 +1,21 @@
 # Scripts
 
+## Claude Code exe.dev Environment
+
+### `agent-exedev-dev.sh <start|wait|sync|url|ssh|exe>`
+
+When `LIGHTDASH_EXEDEV_SSH_KEY` is set, clones this session's VM from the
+`ld-linear-agent-template` exe.dev template (copy-on-write), pushes git-computed deltas
+of the working tree over SSH, and launches the preview stack in the background;
+`wait` blocks until the app is healthy and prints the public test URL
+(`READY: https://<vm>.exe.xyz`). Hook commands (`hook-start`, `hook-sync`,
+`hook-stop`) are wired in `.claude/settings.json` and no-op when the key is
+unset. See `docs/agent-exedev.md`.
+
+Use `agent-exedev-dev.sh ssh <cmd>` to run commands on the session VM and
+`agent-exedev-dev.sh exe <cmd>` for exe.dev control commands (`ls`, `share`,
+`tag`, ...) with the session identity already wired up.
+
 ## Claude Code Okteto Environment
 
 ### `agent-okteto-dev.sh <start|wait|url|okteto>`

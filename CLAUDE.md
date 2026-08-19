@@ -27,6 +27,28 @@ again and prevents a final response that omits the URL.
 Leave the Okteto namespace and sync process running so the user can test the
 changes.
 
+## Opt-in Agent exe.dev Development Environment
+
+This workflow is enabled only when `LIGHTDASH_EXEDEV_SSH_KEY` is set. If it is
+not set, skip this section. It is mutually exclusive with the Okteto workflow
+above; only one is configured per session.
+
+When it is set, the `SessionStart` hook (`agent-exedev-dev.sh hook-start`)
+clones a per-session exe.dev VM from a prepared template, syncs the working
+tree, and launches the preview stack in the background; the app may still be
+booting while you work. Do not start it yourself or replace it with a local
+Docker environment. Edits are mirrored to the VM automatically by a
+`PostToolUse` hook. Use `./scripts/agent-exedev-dev.sh ssh '<cmd>'` to inspect
+the server directly (bootstrap log, pm2, docker, psql). Run
+`./scripts/agent-exedev-dev.sh wait` after validating changes and include the
+URL from its `READY:` line in the final response. The `Stop` hook verifies
+health and prevents a final response that omits the URL.
+
+If setup fails, do not make code changes. Follow the reported error and
+`docs/agent-exedev.md`, then resume the session after fixing the setup.
+
+Leave the VM running so the user can test the changes at the public URL.
+
 ## Formula Package Development
 
 The `packages/formula/` package contains a Peggy-based parser that compiles Google Sheets-like formulas to SQL for each warehouse dialect (Postgres, BigQuery, Snowflake, DuckDB).
