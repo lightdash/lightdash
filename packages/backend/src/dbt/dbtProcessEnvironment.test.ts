@@ -1,3 +1,4 @@
+import { buildSafeDbtEnvironmentVariables } from '@lightdash/common';
 import {
     getDbtProcessEnvironment,
     getMissingEnvironmentVariableHint,
@@ -24,6 +25,11 @@ const processEnvironment: NodeJS.ProcessEnv = {
     ALLOW_DBT_COMMANDS_ACCESS_TO_ENV_VARS:
         'UTILS_PII_SALT,OTHER_ALLOWED_VARIABLE',
     EMPTY_VARIABLE: undefined,
+    GIT_CONFIG_GLOBAL: '/tmp/backend-global-git-config',
+    GIT_CONFIG_NOSYSTEM: '0',
+    GIT_TERMINAL_PROMPT: '1',
+    GIT_ASKPASS: '/tmp/backend-askpass',
+    SSH_ASKPASS: '/tmp/backend-ssh-askpass',
 };
 
 const buildEnvironment = (projectEnvironment: Record<string, string> = {}) =>
@@ -124,6 +130,97 @@ describe('getDbtProcessEnvironment', () => {
         expect(environment.DBT_PARTIAL_PARSE).toEqual('false');
         expect(environment.DBT_SEND_ANONYMOUS_USAGE_STATS).toEqual('false');
         expect(environment.DBT_TARGET_PATH).toEqual('/tmp/dbt_target_test');
+    });
+
+    it('adds the per-run git configuration without exposing its token', () => {
+        const environment = getDbtProcessEnvironment({
+            processEnvironment,
+            environmentVariableAllowlist: [],
+            projectEnvironment: {},
+            targetPath: '/tmp/dbt_target_test',
+            gitConfigPath: '/tmp/dbt_git_config/config',
+        });
+
+        expect(environment).toMatchObject({
+            GIT_CONFIG_GLOBAL: '/tmp/dbt_git_config/config',
+            GIT_CONFIG_NOSYSTEM: '1',
+            GIT_TERMINAL_PROMPT: '0',
+            GIT_ASKPASS: '',
+            SSH_ASKPASS: '',
+        });
+        expect(Object.values(environment)).not.toContain(
+            'github-installation-token',
+        );
+    });
+
+    it('does not add git configuration variables without a config path', () => {
+        const environment = buildEnvironment();
+
+        expect(environment).not.toHaveProperty('GIT_CONFIG_GLOBAL');
+        expect(environment).not.toHaveProperty('GIT_CONFIG_NOSYSTEM');
+        expect(environment).not.toHaveProperty('GIT_TERMINAL_PROMPT');
+        expect(environment).not.toHaveProperty('GIT_ASKPASS');
+        expect(environment).not.toHaveProperty('SSH_ASKPASS');
+    });
+
+    it('does not let project variables override the per-run git configuration', () => {
+        const environment = getDbtProcessEnvironment({
+            processEnvironment,
+            environmentVariableAllowlist: [],
+            projectEnvironment: {
+                GIT_CONFIG_GLOBAL: '/tmp/attacker',
+                GIT_CONFIG_NOSYSTEM: '0',
+                GIT_TERMINAL_PROMPT: '1',
+                GIT_ASKPASS: '/tmp/attacker-askpass',
+                SSH_ASKPASS: '/tmp/attacker-ssh-askpass',
+            },
+            targetPath: '/tmp/dbt_target_test',
+            gitConfigPath: '/tmp/dbt_git_config/config',
+        });
+
+        expect(environment).toMatchObject({
+            GIT_CONFIG_GLOBAL: '/tmp/dbt_git_config/config',
+            GIT_CONFIG_NOSYSTEM: '1',
+            GIT_TERMINAL_PROMPT: '0',
+            GIT_ASKPASS: '',
+            SSH_ASKPASS: '',
+        });
+    });
+
+    it('strips git configuration stored in project environment variables', () => {
+        const { environment: projectEnvironment, blockedKeys } =
+            buildSafeDbtEnvironmentVariables([
+                { key: 'ENV', value: 'production' },
+                { key: 'GIT_CONFIG_GLOBAL', value: '/tmp/attacker' },
+                { key: 'GIT_ASKPASS', value: '/tmp/attacker-askpass' },
+                { key: 'SSH_ASKPASS', value: '/tmp/attacker-ssh-askpass' },
+            ]);
+        const environment = getDbtProcessEnvironment({
+            processEnvironment,
+            environmentVariableAllowlist: [],
+            projectEnvironment,
+            targetPath: '/tmp/dbt_target_test',
+            gitConfigPath: '/tmp/dbt_git_config/config',
+        });
+
+        expect(blockedKeys).toEqual([
+            'GIT_CONFIG_GLOBAL',
+            'GIT_ASKPASS',
+            'SSH_ASKPASS',
+        ]);
+        expect(environment).toMatchObject({
+            ENV: 'production',
+            GIT_CONFIG_GLOBAL: '/tmp/dbt_git_config/config',
+            GIT_ASKPASS: '',
+            SSH_ASKPASS: '',
+        });
+        expect(Object.values(environment)).not.toContain('/tmp/attacker');
+        expect(Object.values(environment)).not.toContain(
+            '/tmp/attacker-askpass',
+        );
+        expect(Object.values(environment)).not.toContain(
+            '/tmp/attacker-ssh-askpass',
+        );
     });
 
     it('does not let a project redirect the runtime plumbing', () => {

@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import { getInstallationToken } from '../clients/github/Github';
 import { CachedWarehouse } from '../types';
 import { DEFAULT_GITHUB_HOST_DOMAIN } from '../utils/credentialDestination';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
@@ -26,6 +27,7 @@ type DbtGithubProjectAdapterArgs = {
     dbtVersion: SupportedDbtVersions;
     selector?: string;
     analytics?: LightdashAnalytics;
+    dbtSourceName?: string;
 };
 
 export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
@@ -33,6 +35,7 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
         warehouseClient,
         githubBranch,
         githubPersonalAccessToken,
+        githubInstallationId,
         githubRepository,
         projectDirectorySubPath,
         warehouseCredentials,
@@ -44,15 +47,27 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
         dbtVersion,
         selector,
         analytics,
+        dbtSourceName,
     }: DbtGithubProjectAdapterArgs) {
-        const [isValid, error] = validateGithubToken(githubPersonalAccessToken);
-        if (!isValid) {
-            throw new Error(error);
+        if (githubPersonalAccessToken) {
+            const [isValid, error] = validateGithubToken(
+                githubPersonalAccessToken,
+            );
+            if (!isValid) {
+                throw new Error(error);
+            }
         }
 
         const remoteRepositoryUrl = `https://lightdash:${githubPersonalAccessToken}@${
             hostDomain || DEFAULT_GITHUB_HOST_DOMAIN
         }/${githubRepository}.git`;
+        let gitPackageTokenProvider: (() => Promise<string>) | undefined;
+        if (githubInstallationId) {
+            gitPackageTokenProvider = () =>
+                getInstallationToken(githubInstallationId);
+        } else if (githubPersonalAccessToken) {
+            gitPackageTokenProvider = async () => githubPersonalAccessToken;
+        }
         super({
             warehouseClient,
             remoteRepositoryUrl,
@@ -67,6 +82,9 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
             dbtVersion,
             selector,
             analytics,
+            gitPackageHost: hostDomain || DEFAULT_GITHUB_HOST_DOMAIN,
+            gitPackageTokenProvider,
+            dbtSourceName,
         });
     }
 }
