@@ -191,6 +191,7 @@ export type DashboardTabResult = {
     uuid: string; // Tab uuid
     name: string; // Tab name
     dashboardUuid: string;
+    dashboardSlug: string;
     dashboardName: string;
     spaceUuid: string;
 };

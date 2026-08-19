@@ -5746,6 +5746,7 @@ export class AiAgentModel {
                     .ref(`${DashboardsTableName}.dashboard_uuid`)
                     .as('content_uuid'),
                 `${DashboardsTableName}.name`,
+                `${DashboardsTableName}.slug`,
                 `${DashboardsTableName}.description`,
                 `${DashboardsTableName}.views_count`,
                 this.database(DashboardVersionsTableName)
@@ -5806,6 +5807,7 @@ export class AiAgentModel {
             (row) => ({
                 ...toBaseItem(row),
                 contentType: ContentType.DASHBOARD,
+                slug: row.slug,
             }),
         );
 

@@ -26,7 +26,7 @@ const CreateResourceToSpace: FC<Props> = ({ resourceType }) => {
     useEffect(() => {
         if (hasCreatedDashboard && newDashboard) {
             void navigate(
-                `/projects/${projectUuid}/dashboards/${newDashboard.uuid}`,
+                `/projects/${projectUuid}/dashboards/${newDashboard.slug}`,
             );
         }
     }, [navigate, hasCreatedDashboard, newDashboard, projectUuid]);

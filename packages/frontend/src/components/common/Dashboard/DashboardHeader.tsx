@@ -156,12 +156,12 @@ const DashboardHeader = memo(
         );
         const { search, pathname } = useLocation();
         const navigate = useNavigate();
-        const { projectUuid, dashboardUuid: dashboardIdentifier } = useParams<{
+        const { projectUuid } = useParams<{
             projectUuid: string;
-            dashboardUuid: string;
             organizationUuid: string;
         }>();
         const dashboardUuid = dashboard.uuid;
+        const dashboardIdentifier = dashboard.slug;
 
         const { data: project } = useProject(projectUuid);
 

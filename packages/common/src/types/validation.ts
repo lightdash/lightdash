@@ -31,6 +31,7 @@ export type ValidationErrorChartResponse = ValidationResponseBase & {
 
 export type ValidationErrorDashboardResponse = ValidationResponseBase & {
     dashboardUuid: string | undefined; // NOTE: can be undefined if private content
+    dashboardSlug?: string;
     chartName?: string;
     fieldName?: string;
     tableName?: string; // For dashboard filter errors referencing specific tables

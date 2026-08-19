@@ -47,6 +47,7 @@ const EditChartMenuItem: FC<Props> = ({ tile, chartSlug, ...props }) => {
                         dashboard?.name,
                         activeTab?.uuid,
                         dashboardTabs,
+                        dashboard?.slug,
                     );
                 }
             }}

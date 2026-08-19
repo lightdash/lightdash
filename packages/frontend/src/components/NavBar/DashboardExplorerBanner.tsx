@@ -22,6 +22,7 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
     const {
         name: dashboardName,
         dashboardUuid,
+        dashboardSlug,
         activeTabUuid,
     } = getEditingDashboardInfo();
 
@@ -78,7 +79,7 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
         // so do not clear the storage here
         setIsCancelling(true);
 
-        let returnUrl = `/projects/${projectUuid}/dashboards/${dashboardUuid}/${
+        let returnUrl = `/projects/${projectUuid}/dashboards/${dashboardSlug ?? dashboardUuid}/${
             savedQueryUuid ? 'view' : 'edit'
         }`;
 
@@ -92,7 +93,14 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
             // Clear the banner after navigating back to dashboard, but only after a delay so that the user can see the banner change
             setIsCancelling(false);
         }, 1000);
-    }, [dashboardUuid, activeTabUuid, navigate, projectUuid, savedQueryUuid]);
+    }, [
+        dashboardSlug,
+        dashboardUuid,
+        activeTabUuid,
+        navigate,
+        projectUuid,
+        savedQueryUuid,
+    ]);
 
     return (
         <>

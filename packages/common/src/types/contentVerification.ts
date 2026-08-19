@@ -36,6 +36,7 @@ export type VerifiedChartListItem = VerifiedContentListItemBase & {
 
 export type VerifiedDashboardListItem = VerifiedContentListItemBase & {
     contentType: ContentType.DASHBOARD;
+    slug: string;
 };
 
 export type VerifiedContentListItem =

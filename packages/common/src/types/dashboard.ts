@@ -280,6 +280,7 @@ export type Dashboard = {
 export type DashboardBasicDetails = Pick<
     Dashboard,
     | 'uuid'
+    | 'slug'
     | 'name'
     | 'description'
     | 'updatedAt'

@@ -48,7 +48,7 @@ interface Props {
 const getFavoriteItemUrl = (projectUuid: string, item: ResourceViewItem) => {
     switch (item.type) {
         case ResourceViewItemType.DASHBOARD:
-            return `/projects/${projectUuid}/dashboards/${item.data.uuid}/view`;
+            return `/projects/${projectUuid}/dashboards/${item.data.slug}/view`;
         case ResourceViewItemType.CHART:
             return `/projects/${projectUuid}/saved/${item.data.slug}`;
         case ResourceViewItemType.SPACE:

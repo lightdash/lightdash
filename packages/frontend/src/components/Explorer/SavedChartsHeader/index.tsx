@@ -164,6 +164,7 @@ const SavedChartsHeader: FC = () => {
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
 
     const savedChart = useExplorerSelector(selectSavedChart);
+    const dashboardIdentifier = savedChart?.dashboardSlug ?? dashboardUuid;
 
     const hasUnsavedChanges = useExplorerSelector(selectHasUnsavedChanges);
 
@@ -338,6 +339,9 @@ const SavedChartsHeader: FC = () => {
             ) &&
             !nextLocation.pathname.includes(
                 `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
+            ) &&
+            !nextLocation.pathname.includes(
+                `/projects/${projectUuid}/dashboards/${dashboardIdentifier}`,
             )
         ) {
             return true; //blocks navigation
@@ -434,7 +438,7 @@ const SavedChartsHeader: FC = () => {
 
     const handleGoBackClick = () => {
         void navigate({
-            pathname: `/projects/${savedChart?.projectUuid}/dashboards/${dashboardUuid}`,
+            pathname: `/projects/${savedChart?.projectUuid}/dashboards/${dashboardIdentifier}`,
         });
     };
 
@@ -519,6 +523,7 @@ const SavedChartsHeader: FC = () => {
                                         spaceUuid={savedChart.spaceUuid}
                                         spaceName={savedChart.spaceName}
                                         dashboardUuid={savedChart.dashboardUuid}
+                                        dashboardSlug={savedChart.dashboardSlug}
                                         dashboardName={savedChart.dashboardName}
                                     />
                                 )}
@@ -1053,7 +1058,7 @@ const SavedChartsHeader: FC = () => {
                     onConfirm={() => {
                         if (dashboardUuid) {
                             void navigate(
-                                `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
+                                `/projects/${projectUuid}/dashboards/${dashboardIdentifier}`,
                             );
                         } else {
                             void navigate(`/`);

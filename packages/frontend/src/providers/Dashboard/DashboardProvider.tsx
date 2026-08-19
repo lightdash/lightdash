@@ -962,7 +962,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     );
 
     // Apply filters on dashboard load in order of precedence:
-    // 1. Start with base dashboard filters
+    // 1. Start with restored dashboard filters, or the saved filters
     // 2. Apply overrides for iframe embed or replace SDK filters in SDK mode
     // 3. Apply interactivity filtering (embedded dashboards only)
     //
@@ -975,8 +975,32 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         if (dashboardFilters === emptyFilters) {
             let overrides = clone(overridesForSavedDashboardFilters);
 
-            // Step 1: Start with base filters
+            // Step 1: Start with restored filters when returning from the
+            // chart editor. Slug routes only resolve their UUID after the
+            // dashboard loads, so restore the UUID-keyed state here instead
+            // of during the provider's initial mount.
             let updatedDashboardFilters = clone(currentDashboard.filters);
+            const filtersStorageKey = dashboardUuid
+                ? `unsavedDashboardFilters:${dashboardUuid}`
+                : null;
+            const unsavedDashboardFiltersRaw = filtersStorageKey
+                ? sessionStorage.getItem(filtersStorageKey)
+                : null;
+
+            if (unsavedDashboardFiltersRaw && filtersStorageKey) {
+                sessionStorage.removeItem(filtersStorageKey);
+                try {
+                    updatedDashboardFilters = JSON.parse(
+                        unsavedDashboardFiltersRaw,
+                    );
+                } catch {
+                    showToastWarning({
+                        title: 'Could not restore unsaved filters',
+                        subtitle:
+                            'Your previous filter changes could not be loaded',
+                    });
+                }
+            }
 
             let droppedLockedOverrides = 0;
 
@@ -1108,7 +1132,9 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         savedChartUuidsAndTileUuids,
         filterableFieldsByTileUuid,
         showToastInfo,
+        showToastWarning,
         activeTab,
+        dashboardUuid,
     ]);
 
     // Derive the effective temporary filters by stripping any that would
@@ -1288,33 +1314,6 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
 
         // Temp filters
         const tempFilterSearchParam = searchParams.get('tempFilters');
-        const filtersStorageKey = dashboardUuid
-            ? `unsavedDashboardFilters:${dashboardUuid}`
-            : null;
-        const unsavedDashboardFiltersRaw = filtersStorageKey
-            ? sessionStorage.getItem(filtersStorageKey)
-            : null;
-
-        if (filtersStorageKey) {
-            sessionStorage.removeItem(filtersStorageKey);
-        }
-        if (unsavedDashboardFiltersRaw) {
-            try {
-                const unsavedDashboardFilters = JSON.parse(
-                    unsavedDashboardFiltersRaw,
-                );
-                // TODO: this should probably merge with the filters
-                // from the database. This will break if they diverge,
-                // meaning there is a subtle race condition here
-                setDashboardFilters(unsavedDashboardFilters);
-            } catch {
-                showToastWarning({
-                    title: 'Could not restore unsaved filters',
-                    subtitle:
-                        'Your previous filter changes could not be loaded',
-                });
-            }
-        }
         if (tempFilterSearchParam) {
             try {
                 setDashboardTemporaryFilters(

@@ -1784,6 +1784,7 @@ export class SavedChartModel {
                             space_uuid: string;
                             spaceName: string;
                             dashboardName: string | null;
+                            dashboardSlug: string | null;
                             slug: string;
                             deleted_at: Date | null;
                             deleted_by_user_uuid: string | null;
@@ -1799,6 +1800,7 @@ export class SavedChartModel {
                         `${SavedChartsTableName}.dashboard_uuid`,
                         `${SavedChartsTableName}.slug`,
                         `${DashboardsTableName}.name as dashboardName`,
+                        `${DashboardsTableName}.slug as dashboardSlug`,
                         'saved_queries_versions.saved_queries_version_id',
                         'saved_queries_versions.explore_name',
                         'saved_queries_versions.filters',
@@ -2155,6 +2157,7 @@ export class SavedChartModel {
                     pinnedListOrder: null,
                     dashboardUuid: savedQuery.dashboard_uuid,
                     dashboardName: savedQuery.dashboardName,
+                    dashboardSlug: savedQuery.dashboardSlug,
                     colorPalette: resolvedPalette.colors,
                     colorPaletteUuid: savedQuery.color_palette_uuid ?? null,
                     resolvedColorPalette: resolvedPalette,
@@ -2587,6 +2590,7 @@ export class SavedChartModel {
                 chartKind: `${SavedChartsTableName}.last_version_chart_kind`,
                 dashboardUuid: `${DashboardsTableName}.dashboard_uuid`,
                 dashboardName: `${DashboardsTableName}.name`,
+                dashboardSlug: `${DashboardsTableName}.slug`,
                 updatedAt: `${SavedChartsTableName}.last_version_updated_at`,
                 slug: `${SavedChartsTableName}.slug`,
                 viewsCount: `${SavedChartsTableName}.views_count`,

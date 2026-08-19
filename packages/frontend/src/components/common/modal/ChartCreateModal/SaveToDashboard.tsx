@@ -141,8 +141,8 @@ export const SaveToDashboard: FC<Props> = ({
             );
             void navigate(
                 activeTabUuid
-                    ? `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit/tabs/${activeTabUuid}`
-                    : `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
+                    ? `/projects/${projectUuid}/dashboards/${selectedDashboard?.slug ?? dashboardUuid}/edit/tabs/${activeTabUuid}`
+                    : `/projects/${projectUuid}/dashboards/${selectedDashboard?.slug ?? dashboardUuid}/edit`,
             );
             showToastSuccess({
                 title: `Success! ${values.name} was added to ${dashboardName}`,
@@ -161,6 +161,7 @@ export const SaveToDashboard: FC<Props> = ({
             showToastSuccess,
             dashboardName,
             selectedDashboard?.tiles,
+            selectedDashboard?.slug,
         ],
     );
     return (

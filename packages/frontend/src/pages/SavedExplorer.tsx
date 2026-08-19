@@ -73,6 +73,7 @@ const SavedExplorer = () => {
             setDashboardChartInfo({
                 name: data.dashboardName,
                 dashboardUuid: data.dashboardUuid,
+                dashboardSlug: data.dashboardSlug ?? undefined,
             });
         }
     }, [data, setDashboardChartInfo]);

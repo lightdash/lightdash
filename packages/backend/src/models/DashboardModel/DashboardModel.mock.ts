@@ -346,6 +346,7 @@ export const expectedAllDashboards: DashboardBasicDetailsWithTileTypes[] = [
         organizationUuid: 'organizationUuid',
         projectUuid: projectEntry.project_uuid,
         uuid: dashboardEntry.dashboard_uuid,
+        slug: dashboardEntry.slug,
         name: dashboardEntry.name,
         description: dashboardEntry.description,
         updatedAt: dashboardVersionEntry.created_at,
