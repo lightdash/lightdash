@@ -1,3 +1,10 @@
+## [1.202.3](https://github.com/lightdash/lightdash/compare/1.202.2...1.202.3) (2026-08-19)
+
+
+### Bug Fixes
+
+* **frontend:** redirect malformed project links ([#27656](https://github.com/lightdash/lightdash/issues/27656)) ([6b8b344](https://github.com/lightdash/lightdash/commit/6b8b3440847163330f7cee7a86fd2fd2490d1c15))
+
 ## [1.202.2](https://github.com/lightdash/lightdash/compare/1.202.1...1.202.2) (2026-08-19)
 
 
