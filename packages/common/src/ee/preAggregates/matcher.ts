@@ -845,6 +845,29 @@ const getUnsatisfiedPreAggregateFilterMiss = ({
     };
 };
 
+// Mirrors the check order in getMissForDef: a def that failed a later check
+// came closer to matching, so its miss reason is more actionable.
+const missCloseness: Record<PreAggregateMissReason, number> = {
+    // Query-level reasons resolved before the per-definition loop.
+    [PreAggregateMissReason.NO_PRE_AGGREGATES_DEFINED]: 0,
+    [PreAggregateMissReason.CUSTOM_SQL_METRIC]: 0,
+    [PreAggregateMissReason.CUSTOM_METRIC_PRESENT]: 0,
+    [PreAggregateMissReason.TABLE_CALCULATION_PRESENT]: 0,
+    [PreAggregateMissReason.USER_BYPASS]: 0,
+    [PreAggregateMissReason.EXPLORE_RESOLUTION_ERROR]: 0,
+    [PreAggregateMissReason.NO_ACTIVE_MATERIALIZATION]: 0,
+    [PreAggregateMissReason.METRIC_NOT_IN_PRE_AGGREGATE]: 0,
+    [PreAggregateMissReason.NON_ADDITIVE_METRIC]: 1,
+    [PreAggregateMissReason.NON_ADDITIVE_METRIC_REQUIRES_EXACT_MATCH]: 1,
+    [PreAggregateMissReason.CUSTOM_DIMENSION_PRESENT]: 2,
+    [PreAggregateMissReason.DIMENSION_NOT_IN_PRE_AGGREGATE]: 2,
+    [PreAggregateMissReason.FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE]: 3,
+    [PreAggregateMissReason.SQL_FILTER_FIELD_NOT_IN_PRE_AGGREGATE]: 4,
+    [PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED]: 5,
+    [PreAggregateMissReason.GRANULARITY_TOO_FINE]: 6,
+    [PreAggregateMissReason.TIME_FRAME_NOT_DERIVABLE]: 6,
+};
+
 const isRawTimeInterval = (timeInterval: TimeFrames | undefined): boolean =>
     !timeInterval || timeInterval === TimeFrames.RAW;
 
@@ -1278,10 +1301,10 @@ export const findMatch = (
     const sqlFilterFieldIds = extractSqlFilterFieldIds(explore);
 
     const matchedDefs: PreAggregateDef[] = [];
-    let firstMiss: PreAggregateMatchMiss | null = null;
-    // A miss from a def that covers the queried metrics is more actionable
-    // than "metric not in pre-aggregate" from an unrelated def.
-    let firstSpecificMiss: PreAggregateMatchMiss | null = null;
+    // Surface the miss from the def that came closest to matching; ties keep
+    // YAML definition order.
+    let closestMiss: PreAggregateMatchMiss | null = null;
+    let closestMissRank = -1;
 
     explore.preAggregates.forEach((preAggregateDef) => {
         const miss = getMissForDef({
@@ -1300,14 +1323,10 @@ export const findMatch = (
             return;
         }
 
-        if (!firstMiss) {
-            firstMiss = miss;
-        }
-        if (
-            !firstSpecificMiss &&
-            miss.reason !== PreAggregateMissReason.METRIC_NOT_IN_PRE_AGGREGATE
-        ) {
-            firstSpecificMiss = miss;
+        const missRank = missCloseness[miss.reason];
+        if (missRank > closestMissRank) {
+            closestMiss = miss;
+            closestMissRank = missRank;
         }
     });
 
@@ -1315,14 +1334,13 @@ export const findMatch = (
         return {
             hit: false,
             preAggregateName: null,
-            miss: firstSpecificMiss ??
-                firstMiss ?? {
-                    reason: PreAggregateMissReason.DIMENSION_NOT_IN_PRE_AGGREGATE,
-                    fieldId:
-                        metricQuery.dimensions[0] ??
-                        metricQuery.metrics[0] ??
-                        'unknown',
-                },
+            miss: closestMiss ?? {
+                reason: PreAggregateMissReason.DIMENSION_NOT_IN_PRE_AGGREGATE,
+                fieldId:
+                    metricQuery.dimensions[0] ??
+                    metricQuery.metrics[0] ??
+                    'unknown',
+            },
         };
     }
 
