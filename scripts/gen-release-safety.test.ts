@@ -1,7 +1,6 @@
 import * as assert from 'assert';
 import {
     buildMarker,
-    declarationSourcePaths,
     detectMigrations,
     GitChange,
     MARKER_SCHEMA_VERSION,
@@ -136,9 +135,7 @@ test('detectMigrations surfaces deleted history without counting it', () => {
     ]);
     assert.strictEqual(result.present, false);
     assert.strictEqual(result.count, 0);
-    assert.deepStrictEqual(result.deletedHistorical, [
-        '20200101000000_old.ts',
-    ]);
+    assert.deepStrictEqual(result.deletedHistorical, ['20200101000000_old.ts']);
 });
 
 test('fully checked release without migrations is safe', () => {
@@ -197,6 +194,40 @@ test('definitive AI review can prove a migration safe', () => {
     assert.strictEqual(marker.compatibility.rollingUpdateSafe, true);
 });
 
+test('incomplete declaration metadata stays unknown after a definitive AI verdict', () => {
+    const marker = buildMarker({
+        ...base,
+        migrations: migration,
+        migrationDetails,
+        ...checkedSurfaces,
+        declarationMetadataComplete: false,
+        aiReview: {
+            rollingUpdateSafe: true,
+            recommendedStrategy: 'RollingUpdate',
+            summary: 'verified',
+        },
+    });
+    assert.strictEqual(marker.compatibility.rollingUpdateSafe, 'unknown');
+});
+
+test('a declared break stays unsafe when declaration metadata is incomplete', () => {
+    const marker = buildMarker({
+        ...base,
+        migrations: noMigrations,
+        migrationDetails: [],
+        ...checkedSurfaces,
+        declarationMetadataComplete: false,
+        declaredBreaks: [
+            {
+                id: 'old-workers-read-new-rows',
+                reason: 'Old workers cannot read the new rows.',
+                requiredStop: false,
+            },
+        ],
+    });
+    assert.strictEqual(marker.compatibility.rollingUpdateSafe, false);
+});
+
 test('config changes force an unsafe verdict', () => {
     const marker = buildMarker({
         ...base,
@@ -227,10 +258,10 @@ test('declared break uses the frozen shape and contributes a required stop', () 
         ...checkedSurfaces,
         declaredBreaks: [
             {
-                file: `${core}/${migration.files[0]}`,
-                line: 3,
+                id: 'old-workers-read-new-rows',
                 reason: 'old workers cannot read the new rows',
                 requiredStop: true,
+                migration: `${core}/${migration.files[0]}`,
             },
         ],
     });
@@ -238,20 +269,17 @@ test('declared break uses the frozen shape and contributes a required stop', () 
     assert.deepStrictEqual(marker.upgrade.requiredStops, ['1.115.0']);
 });
 
-test('declaration source paths match the gate production-source scope', () => {
-    assert.deepStrictEqual(
-        declarationSourcePaths([
-            change('M', 'packages/backend/src/controllers/project.ts'),
-            change('A', 'packages/common/src/types/api.ts'),
-            change('M', 'packages/backend/src/controllers/project.test.ts'),
-            change('D', 'packages/common/src/types/deleted.ts'),
-            change('M', 'packages/frontend/src/App.tsx'),
-        ]),
-        [
-            'packages/backend/src/controllers/project.ts',
-            'packages/common/src/types/api.ts',
-        ],
-    );
+test('a spent required stop is not pinned again by a later marker', () => {
+    const marker = buildMarker({
+        ...base,
+        version: '1.116.0',
+        migrations: noMigrations,
+        migrationDetails: [],
+        ...checkedSurfaces,
+        declaredBreaks: [],
+        requiredStops: ['1.115.0'],
+    });
+    assert.deepStrictEqual(marker.upgrade.requiredStops, ['1.115.0']);
 });
 
 test('schema v2 omits capabilities, notes, and per-migration transaction data', () => {

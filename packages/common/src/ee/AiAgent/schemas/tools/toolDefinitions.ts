@@ -318,11 +318,6 @@ import {
     toolVerticalBarOutputSchema,
 } from './toolVerticalBarArgs';
 
-export const breaking = {
-    reason: 'MCP clients must replace find_explores and find_fields with grep_fields and get_metadata.',
-    requiredStop: false,
-};
-
 const readOnlyAnnotations: McpToolAnnotations = {
     readOnlyHint: true,
     destructiveHint: false,

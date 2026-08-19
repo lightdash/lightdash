@@ -42,6 +42,14 @@ import {
     hollowBreakingReasonMessage,
     isSubstantiveBreakingReason,
 } from './breaking-change-gate-policy';
+import {
+    collectBreakingChangeDeclarationsBetweenRefs,
+    DEFAULT_DECLARATIONS_PATH,
+} from './release-safety-declarations';
+import type {
+    BreakingChangeDeclaration,
+    BreakingChangeDeclarationDiff,
+} from './release-safety-declarations';
 import { isMigrationPath } from './release-safety-migrations';
 
 export interface SqlLintFinding {
@@ -596,6 +604,7 @@ function downState(source: string): {
 export function evaluateMigrationSource(
     source: string,
     file = '<source>',
+    breakingDeclarations: readonly BreakingChangeDeclaration[] = [],
 ): SqlMigrationEnforcementFinding[] {
     const findings: SqlMigrationEnforcementFinding[] = [];
     const declarations = parseChangeDeclarations(source, file);
@@ -630,20 +639,37 @@ export function evaluateMigrationSource(
         }
     }
 
-    const substantiveBreakingDeclaration =
-        declarations.breaking !== null &&
-        isSubstantiveBreakingReason(declarations.breaking.reason);
-    if (declarations.breaking && !substantiveBreakingDeclaration) {
+    if (declarations.breaking) {
         findings.push(
             enforcementFinding(
                 file,
                 declarations.breaking.line,
-                'hollow-breaking-declaration',
-                hollowBreakingReasonMessage(file, declarations.breaking.line),
+                'inline-breaking-declaration',
+                `inline breaking declarations are not supported; add a stable ID to ${DEFAULT_DECLARATIONS_PATH}`,
                 'error',
             ),
         );
     }
+
+    const matchingDeclarations = breakingDeclarations.filter(
+        (declaration) => declaration.migration === file,
+    );
+    for (const declaration of matchingDeclarations) {
+        if (!isSubstantiveBreakingReason(declaration.reason)) {
+            findings.push(
+                enforcementFinding(
+                    DEFAULT_DECLARATIONS_PATH,
+                    1,
+                    'hollow-breaking-declaration',
+                    hollowBreakingReasonMessage(DEFAULT_DECLARATIONS_PATH, 1),
+                    'error',
+                ),
+            );
+        }
+    }
+    const substantiveBreakingDeclaration = matchingDeclarations.some(
+        (declaration) => isSubstantiveBreakingReason(declaration.reason),
+    );
 
     const legacy = lintSource(source);
     for (const finding of legacy) {
@@ -652,7 +678,7 @@ export function evaluateMigrationSource(
             file,
             severity: substantiveBreakingDeclaration ? 'warning' : 'error',
             message: substantiveBreakingDeclaration
-                ? `${finding.message}; acknowledged by export const breaking`
+                ? `${finding.message}; acknowledged by the release-safety declaration registry`
                 : `${finding.message}; breaking behavior is not declared by a substantive product decision`,
         });
     }
@@ -677,7 +703,7 @@ export function evaluateMigrationSource(
                     line: detectedLine,
                     pattern: detectedPattern,
                     declarationLocation:
-                        'this migration file as export const breaking = { reason: string, requiredStop: boolean }',
+                        `${DEFAULT_DECLARATIONS_PATH} as a new stable ID with reason, requiredStop, and migration set to ${file}`,
                 }),
                 'error',
             ),
@@ -873,6 +899,7 @@ export function changedMigrationPaths(base: string): string[] {
 export interface EvaluateMigrationEnforcementOptions {
     paths: readonly string[];
     readFile?: (path: string) => string;
+    declarationChanges?: BreakingChangeDeclarationDiff;
 }
 
 export function evaluateMigrationEnforcement(
@@ -881,9 +908,30 @@ export function evaluateMigrationEnforcement(
     const readFile = options.readFile ?? ((path: string) => fs.readFileSync(path, 'utf8'));
     const paths = [...options.paths];
     const findings: SqlMigrationEnforcementFinding[] = [];
+    const declarationChanges = options.declarationChanges ?? {
+        added: [],
+        diagnostics: [],
+    };
+    for (const diagnostic of declarationChanges.diagnostics) {
+        findings.push(
+            enforcementFinding(
+                diagnostic.file,
+                diagnostic.line,
+                'breaking-declaration-registry',
+                diagnostic.message,
+                'error',
+            ),
+        );
+    }
     for (const path of paths) {
         try {
-            findings.push(...evaluateMigrationSource(readFile(path), path));
+            findings.push(
+                ...evaluateMigrationSource(
+                    readFile(path),
+                    path,
+                    declarationChanges.added,
+                ),
+            );
         } catch (error) {
             findings.push(
                 enforcementFinding(
@@ -919,7 +967,13 @@ function main(): void {
     const lastTag = arg('last-tag') ?? arg('previous-version');
     if (!lastTag) throw new Error('--last-tag (or --previous-version) is required');
     if (process.argv.includes('--enforce')) {
-        const result = evaluateMigrationEnforcement({ paths: changedMigrationPaths(lastTag) });
+        const result = evaluateMigrationEnforcement({
+            paths: changedMigrationPaths(lastTag),
+            declarationChanges: collectBreakingChangeDeclarationsBetweenRefs(
+                lastTag,
+                'HEAD',
+            ),
+        });
         for (const finding of result.findings) {
             const output = `${finding.file}:${finding.line} ${finding.severity.toUpperCase()} ${finding.message} [${finding.rule}]`;
             if (finding.severity === 'error') console.error(output);
