@@ -65,6 +65,11 @@ import { ProjectService } from './ProjectService/ProjectService';
 import { PromoteService } from './PromoteService/PromoteService';
 import { PromptService } from './PromptService/PromptService';
 import { PullRequestsService } from './PullRequestsService/PullRequestsService';
+import { QuerySourceRegistry } from './QuerySourceService/QuerySourceRegistry';
+import { QuerySourceService } from './QuerySourceService/QuerySourceService';
+import { DuckdbQuerySource } from './QuerySourceService/sources/DuckdbQuerySource';
+import { SemanticLayerQuerySource } from './QuerySourceService/sources/SemanticLayerQuerySource';
+import { SqlQuerySource } from './QuerySourceService/sources/SqlQuerySource';
 import type { ReadinessService } from './ReadinessService/ReadinessService';
 import { RenameService } from './RenameService/RenameService';
 import { RolesService } from './RolesService/RolesService';
@@ -150,6 +155,7 @@ interface ServiceManifest {
     spotlightService: SpotlightService;
     lightdashAnalyticsService: LightdashAnalyticsService;
     asyncQueryService: AsyncQueryService;
+    querySourceService: QuerySourceService;
     renameService: RenameService;
     projectParametersService: ProjectParametersService;
     projectDbtSourcesService: ProjectDbtSourcesService;
@@ -974,6 +980,34 @@ export class ServiceRepository
                     }),
                 }),
         );
+    }
+
+    public getQuerySourceService(): QuerySourceService {
+        return this.getService('querySourceService', () => {
+            const asyncQueryService = this.getAsyncQueryService();
+            const projectService = this.getProjectService();
+            const registry = new QuerySourceRegistry();
+            registry.register(
+                new SemanticLayerQuerySource({
+                    asyncQueryService,
+                    projectService,
+                }),
+            );
+            registry.register(
+                new SqlQuerySource({
+                    asyncQueryService,
+                    projectService,
+                }),
+            );
+            registry.register(new DuckdbQuerySource({ asyncQueryService }));
+
+            return new QuerySourceService({
+                projectModel: this.models.getProjectModel(),
+                queryHistoryModel: this.models.getQueryHistoryModel(),
+                featureFlagModel: this.models.getFeatureFlagModel(),
+                registry,
+            });
+        });
     }
 
     public getSavedChartService(): SavedChartService {

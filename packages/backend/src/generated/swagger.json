@@ -45,37 +45,6 @@
                 "type": "object",
                 "description": "The Error object is returned from the api any time there is an error.\nThe message contains"
             },
-            "ApiSuccessEmpty": {
-                "properties": {
-                    "results": {},
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["status"],
-                "type": "object"
-            },
-            "ContentType": {
-                "enum": ["chart", "dashboard", "space", "data_app"],
-                "type": "string"
-            },
-            "ContentSlugRenameRequest": {
-                "properties": {
-                    "to": {
-                        "type": "string"
-                    },
-                    "from": {
-                        "type": "string"
-                    },
-                    "resourceType": {
-                        "$ref": "#/components/schemas/ContentType"
-                    }
-                },
-                "required": ["to", "from", "resourceType"],
-                "type": "object"
-            },
             "ChartType.BIG_NUMBER": {
                 "enum": ["big_number"],
                 "type": "string"
@@ -8847,6 +8816,18 @@
                 "type": "object",
                 "description": "Deliberately a flat wrapper, NOT `ExternalConnectionAsCode & { secret }`:\nTSOA validates intersection bodies in remove-extras mode, which empties\nRecord<string, string> fields (customHeaders). Same workaround as\nApiTestExternalConnectionConfigRequest."
             },
+            "ApiSuccessEmpty": {
+                "properties": {
+                    "results": {},
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
+            },
             "ServiceAccountScope": {
                 "enum": [
                     "scim:manage",
@@ -14217,8 +14198,19 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "Record_string.DashboardFieldTarget_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/DashboardFieldTarget"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
             "DashboardAvailableFilters": {
                 "properties": {
+                    "defaultTimeDimensions": {
+                        "$ref": "#/components/schemas/Record_string.DashboardFieldTarget_"
+                    },
                     "savedQueryMetricFilters": {
                         "$ref": "#/components/schemas/Record_string.number-Array_"
                     },
@@ -14239,6 +14231,7 @@
                     }
                 },
                 "required": [
+                    "defaultTimeDimensions",
                     "savedQueryMetricFilters",
                     "allFilterableMetrics",
                     "allFilterableFields",
@@ -15752,10 +15745,6 @@
                 "enum": ["granularity_too_fine"],
                 "type": "string"
             },
-            "PreAggregateMissReason.TIME_FRAME_NOT_DERIVABLE": {
-                "enum": ["time_frame_not_derivable"],
-                "type": "string"
-            },
             "PreAggregateMissReason.CUSTOM_DIMENSION_PRESENT": {
                 "enum": ["custom_dimension_present"],
                 "type": "string"
@@ -15891,33 +15880,6 @@
                             },
                             "reason": {
                                 "$ref": "#/components/schemas/PreAggregateMissReason.GRANULARITY_TOO_FINE"
-                            }
-                        },
-                        "required": [
-                            "preAggregateTimeDimension",
-                            "preAggregateGranularity",
-                            "queryGranularity",
-                            "fieldId",
-                            "reason"
-                        ],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "preAggregateTimeDimension": {
-                                "type": "string"
-                            },
-                            "preAggregateGranularity": {
-                                "$ref": "#/components/schemas/TimeFrames"
-                            },
-                            "queryGranularity": {
-                                "$ref": "#/components/schemas/TimeFrames"
-                            },
-                            "fieldId": {
-                                "$ref": "#/components/schemas/FieldId"
-                            },
-                            "reason": {
-                                "$ref": "#/components/schemas/PreAggregateMissReason.TIME_FRAME_NOT_DERIVABLE"
                             }
                         },
                         "required": [
@@ -16762,10 +16724,6 @@
                     "cached": {
                         "type": "boolean"
                     },
-                    "note": {
-                        "type": "string",
-                        "description": "Guidance for tool consumers, e.g. when value suggestions are\ndisabled for the field and an empty result is not meaningful."
-                    },
                     "resultsWithLabels": {
                         "items": {
                             "$ref": "#/components/schemas/FilterAutocompleteValue"
@@ -17203,10 +17161,6 @@
                 "type": "string",
                 "enum": ["opus", "sonnet", "haiku"]
             },
-            "DataAppCodexModel": {
-                "type": "string",
-                "enum": ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"]
-            },
             "AppExternalConnectionReference": {
                 "properties": {
                     "alias": {
@@ -17231,9 +17185,6 @@
                     "designUuid": {
                         "type": "string",
                         "nullable": true
-                    },
-                    "codexModel": {
-                        "$ref": "#/components/schemas/DataAppCodexModel"
                     },
                     "claudeModel": {
                         "$ref": "#/components/schemas/DataAppClaudeModel"
@@ -17765,9 +17716,6 @@
                             }
                         ],
                         "nullable": true
-                    },
-                    "codexModel": {
-                        "$ref": "#/components/schemas/DataAppCodexModel"
                     },
                     "claudeModel": {
                         "$ref": "#/components/schemas/DataAppClaudeModel"
@@ -19311,26 +19259,11 @@
                 "type": "string",
                 "enum": ["createdAt", "latestActivity"]
             },
-            "DataAppCodingAgent": {
-                "type": "string",
-                "enum": ["claude", "codex"]
-            },
-            "DataAppCodingAgentModel": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/DataAppClaudeModel"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DataAppCodexModel"
-                    }
-                ]
-            },
             "DataAppGenerationUsage": {
                 "properties": {
                     "costUsd": {
                         "type": "number",
-                        "format": "double",
-                        "nullable": true
+                        "format": "double"
                     },
                     "durationApiMs": {
                         "type": "number",
@@ -19367,7 +19300,7 @@
                     "inputTokens"
                 ],
                 "type": "object",
-                "description": "Usage for one generation, aggregated across every coding-agent invocation in\nthat version's pipeline, including build-fix retries.\n\nThis is spend attributable to a generation, not all data-app AI spend: the\nshort prompt-clarification and app-naming calls happen outside any version.\n\n`costUsd` is an estimate rather than an invoice. It is null when the coding\nagent reports tokens without a trustworthy price."
+                "description": "What one generation cost, aggregated across every `claude` CLI invocation in\nthat version's pipeline — including build-fix retries.\n\nThis is spend attributable to a generation, not all data-app AI spend: the\nshort prompt-clarification and app-naming calls happen outside any version.\n\n`costUsd` is the CLI's own figure, computed from public list prices, so treat\nit as an estimate rather than an invoice."
             },
             "DataAppActivityEvent": {
                 "properties": {
@@ -19408,12 +19341,6 @@
                     "claudeModel": {
                         "$ref": "#/components/schemas/DataAppClaudeModel"
                     },
-                    "codingAgentModel": {
-                        "$ref": "#/components/schemas/DataAppCodingAgentModel"
-                    },
-                    "codingAgent": {
-                        "$ref": "#/components/schemas/DataAppCodingAgent"
-                    },
                     "prompt": {
                         "type": "string"
                     },
@@ -19440,8 +19367,7 @@
                     "projectName",
                     "projectUuid",
                     "createdAt",
-                    "codingAgentModel",
-                    "codingAgent",
+                    "claudeModel",
                     "prompt",
                     "status",
                     "version",
@@ -25577,58 +25503,6 @@
                     }
                 ]
             },
-            "MergeQuerySource": {
-                "properties": {
-                    "metricQuery": {
-                        "$ref": "#/components/schemas/MetricQuery"
-                    },
-                    "id": {
-                        "type": "string",
-                        "description": "Stable id. Names the CTE, and the table its merged fields belong to."
-                    }
-                },
-                "required": ["metricQuery", "id"],
-                "type": "object",
-                "description": "One side of a merge: a metric query."
-            },
-            "MergeQuery": {
-                "properties": {
-                    "limit": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "tableCalculations": {
-                        "items": {
-                            "$ref": "#/components/schemas/MergeTableCalculation"
-                        },
-                        "type": "array",
-                        "description": "Calculations over the merged result. Applied last, after any pivot."
-                    },
-                    "joinType": {
-                        "$ref": "#/components/schemas/MergeJoinType"
-                    },
-                    "joinKey": {
-                        "items": {
-                            "$ref": "#/components/schemas/MergeJoinKeyPart"
-                        },
-                        "type": "array"
-                    },
-                    "sources": {
-                        "items": {
-                            "$ref": "#/components/schemas/MergeQuerySource"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": [
-                    "limit",
-                    "tableCalculations",
-                    "joinType",
-                    "joinKey",
-                    "sources"
-                ],
-                "type": "object"
-            },
             "AiVizMetadata": {
                 "properties": {
                     "description": {
@@ -25648,15 +25522,6 @@
                     "metadata": {
                         "$ref": "#/components/schemas/AiVizMetadata"
                     },
-                    "mergeQuery": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/MergeQuery"
-                            }
-                        ],
-                        "nullable": true,
-                        "description": "The executed merge, so clients need not re-derive it from tool args."
-                    },
                     "query": {
                         "$ref": "#/components/schemas/ApiExecuteAsyncMetricQueryResults"
                     },
@@ -25669,13 +25534,7 @@
                         "nullable": false
                     }
                 },
-                "required": [
-                    "metadata",
-                    "mergeQuery",
-                    "query",
-                    "type",
-                    "source"
-                ],
+                "required": ["metadata", "query", "type", "source"],
                 "type": "object"
             },
             "AiResultType.TABLE_RESULT": {
@@ -30002,33 +29861,10 @@
                     }
                 ]
             },
-            "Extract_UserAsCodeRole._type-custom__": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "type": "string",
-                        "enum": ["custom"],
-                        "nullable": false
-                    }
-                },
-                "required": ["name", "type"],
-                "type": "object",
-                "description": "Extract from T those types that are assignable to U"
-            },
             "UserAsCode": {
                 "properties": {
-                    "additionalRoles": {
-                        "items": {
-                            "$ref": "#/components/schemas/Extract_UserAsCodeRole._type-custom__"
-                        },
-                        "type": "array",
-                        "description": "Extra organization custom roles held on top of `role` (role sets).\nOmitted when the user holds a single role; older servers reject the\nfield instead of silently dropping it."
-                    },
                     "role": {
-                        "$ref": "#/components/schemas/UserAsCodeRole",
-                        "description": "Primary organization role (system or custom)."
+                        "$ref": "#/components/schemas/UserAsCodeRole"
                     },
                     "disabled": {
                         "type": "boolean"
@@ -31428,9 +31264,6 @@
                         },
                         "type": "array"
                     },
-                    "dataAppCodingAgent": {
-                        "$ref": "#/components/schemas/DataAppCodingAgent"
-                    },
                     "defaultAiAgentModelOptions": {
                         "items": {
                             "$ref": "#/components/schemas/AiModelOption"
@@ -31466,7 +31299,6 @@
                 },
                 "required": [
                     "visibleDataAppModels",
-                    "dataAppCodingAgent",
                     "defaultAiAgentModelOptions",
                     "defaultAiAgentModelConfig",
                     "aiAgentReviewsAvailable",
@@ -32915,379 +32747,6 @@
             "AiAgentAdminSortField": {
                 "type": "string",
                 "enum": ["createdAt", "title"]
-            },
-            "Pick_AiAgentSummary.uuid-or-name-or-instruction-or-tags-or-integrations-or-modelConfig-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-version_": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    },
-                    "version": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "integrations": {
-                        "items": {
-                            "properties": {
-                                "channelId": {
-                                    "type": "string"
-                                },
-                                "type": {
-                                    "type": "string",
-                                    "enum": ["slack"],
-                                    "nullable": false
-                                }
-                            },
-                            "required": ["channelId", "type"],
-                            "type": "object"
-                        },
-                        "type": "array"
-                    },
-                    "tags": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "nullable": true
-                    },
-                    "instruction": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "enableDataAccess": {
-                        "type": "boolean"
-                    },
-                    "enableSelfImprovement": {
-                        "type": "boolean"
-                    },
-                    "enableContentTools": {
-                        "type": "boolean"
-                    },
-                    "enableUserContext": {
-                        "type": "boolean"
-                    },
-                    "enableSqlMode": {
-                        "type": "boolean"
-                    },
-                    "adminOnly": {
-                        "type": "boolean"
-                    },
-                    "modelConfig": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/AiAgentModelConfig"
-                            }
-                        ],
-                        "nullable": true
-                    }
-                },
-                "required": [
-                    "name",
-                    "uuid",
-                    "version",
-                    "integrations",
-                    "tags",
-                    "instruction",
-                    "enableDataAccess",
-                    "enableSelfImprovement",
-                    "enableContentTools",
-                    "enableUserContext",
-                    "enableSqlMode",
-                    "adminOnly",
-                    "modelConfig"
-                ],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "AiAgentThreadDumpAgent": {
-                "$ref": "#/components/schemas/Pick_AiAgentSummary.uuid-or-name-or-instruction-or-tags-or-integrations-or-modelConfig-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-version_"
-            },
-            "AiAgentThreadDumpToolCall": {
-                "properties": {
-                    "isError": {
-                        "type": "boolean"
-                    },
-                    "resultOmitted": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "result": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "args": {},
-                    "source": {
-                        "type": "string",
-                        "enum": ["lightdash", "mcp"]
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "parentToolCallId": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "toolCallId": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "isError",
-                    "resultOmitted",
-                    "result",
-                    "args",
-                    "source",
-                    "name",
-                    "parentToolCallId",
-                    "toolCallId"
-                ],
-                "type": "object"
-            },
-            "AiAgentThreadDumpArtifact": {
-                "properties": {
-                    "dashboardConfig": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/Record_string.unknown_"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "chartConfig": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/Record_string.unknown_"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "description": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "title": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "artifactType": {
-                        "type": "string",
-                        "enum": ["chart", "dashboard"]
-                    },
-                    "versionNumber": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "versionUuid": {
-                        "type": "string"
-                    },
-                    "artifactUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "dashboardConfig",
-                    "chartConfig",
-                    "description",
-                    "title",
-                    "artifactType",
-                    "versionNumber",
-                    "versionUuid",
-                    "artifactUuid"
-                ],
-                "type": "object"
-            },
-            "AiAgentThreadDumpTurn": {
-                "properties": {
-                    "artifacts": {
-                        "items": {
-                            "$ref": "#/components/schemas/AiAgentThreadDumpArtifact"
-                        },
-                        "type": "array"
-                    },
-                    "toolCalls": {
-                        "items": {
-                            "$ref": "#/components/schemas/AiAgentThreadDumpToolCall"
-                        },
-                        "type": "array"
-                    },
-                    "tokenUsage": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/AiPromptTokenUsage"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "modelConfig": {
-                        "properties": {
-                            "modelProvider": {
-                                "type": "string"
-                            },
-                            "modelName": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["modelProvider", "modelName"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "steers": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "feedback": {
-                        "properties": {
-                            "comment": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "score": {
-                                "type": "number",
-                                "format": "double"
-                            }
-                        },
-                        "required": ["comment", "score"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "interrupted": {
-                        "type": "boolean"
-                    },
-                    "error": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "assistant": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "user": {
-                        "type": "string"
-                    },
-                    "hidden": {
-                        "type": "boolean"
-                    },
-                    "respondedAt": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "createdAt": {
-                        "type": "string"
-                    },
-                    "promptUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "artifacts",
-                    "toolCalls",
-                    "tokenUsage",
-                    "modelConfig",
-                    "steers",
-                    "feedback",
-                    "interrupted",
-                    "error",
-                    "assistant",
-                    "user",
-                    "hidden",
-                    "respondedAt",
-                    "createdAt",
-                    "promptUuid"
-                ],
-                "type": "object"
-            },
-            "AiAgentThreadDump": {
-                "properties": {
-                    "turns": {
-                        "items": {
-                            "$ref": "#/components/schemas/AiAgentThreadDumpTurn"
-                        },
-                        "type": "array"
-                    },
-                    "agent": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/AiAgentThreadDumpAgent"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "title": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "createdFrom": {
-                        "$ref": "#/components/schemas/AiThreadCreatedFrom"
-                    },
-                    "userUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "agentUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "threadUuid": {
-                        "type": "string"
-                    },
-                    "projectUuid": {
-                        "type": "string"
-                    },
-                    "organizationUuid": {
-                        "type": "string"
-                    },
-                    "defaultProvider": {
-                        "type": "string"
-                    },
-                    "lightdashVersion": {
-                        "type": "string"
-                    },
-                    "generatedAt": {
-                        "type": "string"
-                    },
-                    "schemaVersion": {
-                        "type": "number",
-                        "enum": [1],
-                        "nullable": false
-                    }
-                },
-                "required": [
-                    "turns",
-                    "agent",
-                    "title",
-                    "createdFrom",
-                    "userUuid",
-                    "agentUuid",
-                    "threadUuid",
-                    "projectUuid",
-                    "organizationUuid",
-                    "defaultProvider",
-                    "lightdashVersion",
-                    "generatedAt",
-                    "schemaVersion"
-                ],
-                "type": "object"
-            },
-            "ApiSuccess_AiAgentThreadDump_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/AiAgentThreadDump"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiAiAgentThreadDumpResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_AiAgentThreadDump_"
             },
             "Pick_AiAgentEvaluationRunSummary.runUuid-or-status-or-createdAt-or-completedAt_": {
                 "properties": {
@@ -36474,9 +35933,6 @@
                             "lastUpdatedBy": {
                                 "type": "string"
                             },
-                            "tableName": {
-                                "type": "string"
-                            },
                             "fieldName": {
                                 "type": "string"
                             },
@@ -36681,12 +36137,9 @@
                 "required": ["status"],
                 "type": "object"
             },
-            "Pick_ValidationErrorChartResponse.error-or-errorType-or-fieldName-or-tableName-or-name-or-projectUuid-or-chartUuid-or-source-or-chartName_": {
+            "Pick_ValidationErrorChartResponse.error-or-errorType-or-fieldName-or-name-or-projectUuid-or-chartUuid-or-source-or-chartName_": {
                 "properties": {
                     "name": {
-                        "type": "string"
-                    },
-                    "tableName": {
                         "type": "string"
                     },
                     "chartName": {
@@ -36716,7 +36169,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "CreateChartValidation": {
-                "$ref": "#/components/schemas/Pick_ValidationErrorChartResponse.error-or-errorType-or-fieldName-or-tableName-or-name-or-projectUuid-or-chartUuid-or-source-or-chartName_"
+                "$ref": "#/components/schemas/Pick_ValidationErrorChartResponse.error-or-errorType-or-fieldName-or-name-or-projectUuid-or-chartUuid-or-source-or-chartName_"
             },
             "ApiSuccess__errors-CreateChartValidation-Array__": {
                 "properties": {
@@ -36744,12 +36197,9 @@
             "ApiChartValidationResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__errors-CreateChartValidation-Array__"
             },
-            "Pick_ValidationErrorDashboardResponse.error-or-errorType-or-fieldName-or-tableName-or-name-or-projectUuid-or-dashboardUuid-or-chartName-or-source_": {
+            "Pick_ValidationErrorDashboardResponse.error-or-errorType-or-fieldName-or-name-or-projectUuid-or-dashboardUuid-or-chartName-or-source_": {
                 "properties": {
                     "name": {
-                        "type": "string"
-                    },
-                    "tableName": {
                         "type": "string"
                     },
                     "chartName": {
@@ -36779,7 +36229,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "CreateDashboardValidation": {
-                "$ref": "#/components/schemas/Pick_ValidationErrorDashboardResponse.error-or-errorType-or-fieldName-or-tableName-or-name-or-projectUuid-or-dashboardUuid-or-chartName-or-source_"
+                "$ref": "#/components/schemas/Pick_ValidationErrorDashboardResponse.error-or-errorType-or-fieldName-or-name-or-projectUuid-or-dashboardUuid-or-chartName-or-source_"
             },
             "ApiSuccess__errors-CreateDashboardValidation-Array__": {
                 "properties": {
@@ -42780,10 +42230,6 @@
                     "email": {
                         "type": "string"
                     },
-                    "hasMultipleRoles": {
-                        "type": "boolean",
-                        "description": "True when the member holds extra custom roles beyond `role`/`roleUuid` (see role sets)."
-                    },
                     "roleUuid": {
                         "type": "string"
                     },
@@ -43221,7 +42667,6 @@
                     "too_few_sources",
                     "too_many_sources",
                     "duplicate_source_id",
-                    "reserved_source_id",
                     "empty_join_key",
                     "join_key_coverage",
                     "unknown_source_in_join_key",
@@ -43349,6 +42794,58 @@
                 ],
                 "type": "object",
                 "description": "What the compile endpoint returns. `sql` is null exactly when `errors` is\nnon-empty: a merge that would produce wrong numbers is reported, not run."
+            },
+            "MergeQuerySource": {
+                "properties": {
+                    "metricQuery": {
+                        "$ref": "#/components/schemas/MetricQuery"
+                    },
+                    "id": {
+                        "type": "string",
+                        "description": "Stable id. Names the CTE, and the table its merged fields belong to."
+                    }
+                },
+                "required": ["metricQuery", "id"],
+                "type": "object",
+                "description": "One side of a merge: a metric query."
+            },
+            "MergeQuery": {
+                "properties": {
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeTableCalculation"
+                        },
+                        "type": "array",
+                        "description": "Calculations over the merged result. Applied last, after any pivot."
+                    },
+                    "joinType": {
+                        "$ref": "#/components/schemas/MergeJoinType"
+                    },
+                    "joinKey": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeJoinKeyPart"
+                        },
+                        "type": "array"
+                    },
+                    "sources": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeQuerySource"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "limit",
+                    "tableCalculations",
+                    "joinType",
+                    "joinKey",
+                    "sources"
+                ],
+                "type": "object"
             },
             "CompileMergeQueryRequest": {
                 "properties": {
@@ -46263,10 +45760,6 @@
                         "type": "boolean",
                         "description": "Whether the user can login"
                     },
-                    "hasMultipleRoles": {
-                        "type": "boolean",
-                        "description": "True when the member holds extra custom roles beyond `role`/`roleUuid` (see role sets)."
-                    },
                     "roleUuid": {
                         "type": "string"
                     },
@@ -48440,6 +47933,10 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
+            },
+            "ContentType": {
+                "enum": ["chart", "dashboard", "space", "data_app"],
+                "type": "string"
             },
             "ToggleFavoriteResponse": {
                 "properties": {
@@ -50696,10 +50193,6 @@
             },
             "RoleAssignment": {
                 "properties": {
-                    "hasMultipleRoles": {
-                        "type": "boolean",
-                        "description": "True when the assignee holds extra custom roles beyond `roleId` (see role sets)."
-                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
@@ -50790,40 +50283,6 @@
                 "required": ["roleId"],
                 "type": "object"
             },
-            "ProjectRoleSet": {
-                "properties": {
-                    "customRoleUuids": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "systemRole": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ProjectMemberRole"
-                            }
-                        ],
-                        "nullable": true
-                    }
-                },
-                "required": ["customRoleUuids", "systemRole"],
-                "type": "object"
-            },
-            "ApiProjectRoleSetResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/ProjectRoleSet"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
             "UpdateRoleAssignmentRequest": {
                 "properties": {
                     "roleId": {
@@ -50893,41 +50352,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "OrganizationRoleSet": {
-                "properties": {
-                    "customRoleUuids": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "systemRole": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/OrganizationMemberRole"
-                            }
-                        ],
-                        "nullable": true
-                    }
-                },
-                "required": ["customRoleUuids", "systemRole"],
-                "type": "object",
-                "description": "Complete set of roles held at one level: at most one system role plus any\nnumber of custom roles. Permissions are the union of all held roles."
-            },
-            "ApiOrganizationRoleSetResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/OrganizationRoleSet"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
             "KnexPaginatedData_ValidationResponse-Array_": {
                 "properties": {
                     "pagination": {
@@ -50977,132 +50401,6 @@
             },
             "ApiPaginatedValidateResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_ValidationResponse-Array__"
-            },
-            "ValidationAffectedContent": {
-                "properties": {
-                    "errorCount": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "views": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "source": {
-                        "$ref": "#/components/schemas/ValidationSourceType"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "uuid": {
-                        "type": "string",
-                        "nullable": true
-                    }
-                },
-                "required": ["errorCount", "views", "source", "name", "uuid"],
-                "type": "object"
-            },
-            "ValidationErrorGroup": {
-                "properties": {
-                    "hasMoreAffectedContent": {
-                        "type": "boolean"
-                    },
-                    "affectedContent": {
-                        "items": {
-                            "$ref": "#/components/schemas/ValidationAffectedContent"
-                        },
-                        "type": "array"
-                    },
-                    "sampleError": {
-                        "type": "string"
-                    },
-                    "affectedDataApps": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "affectedTables": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "affectedDashboards": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "affectedCharts": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "errorCount": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "fieldName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "tableName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "errorType": {
-                        "$ref": "#/components/schemas/ValidationErrorType"
-                    },
-                    "groupKey": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "hasMoreAffectedContent",
-                    "affectedContent",
-                    "sampleError",
-                    "affectedDataApps",
-                    "affectedTables",
-                    "affectedDashboards",
-                    "affectedCharts",
-                    "errorCount",
-                    "fieldName",
-                    "tableName",
-                    "errorType",
-                    "groupKey"
-                ],
-                "type": "object"
-            },
-            "ValidationGroupedSummary": {
-                "properties": {
-                    "groups": {
-                        "items": {
-                            "$ref": "#/components/schemas/ValidationErrorGroup"
-                        },
-                        "type": "array"
-                    },
-                    "totalAffectedItems": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "totalErrors": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": ["groups", "totalAffectedItems", "totalErrors"],
-                "type": "object"
-            },
-            "ApiSuccess_ValidationGroupedSummary_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/ValidationGroupedSummary"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiValidationSummaryResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_ValidationGroupedSummary_"
             },
             "ApiSuccess_ValidationResponse_": {
                 "properties": {
@@ -51618,7 +50916,6 @@
                     "cli",
                     "metricsExplorer",
                     "preAggregateMaterialization",
-                    "composeSqlRunner",
                     "dataAppSample"
                 ],
                 "type": "string"
@@ -52091,38 +51388,6 @@
                         "properties": {
                             "pivotConfiguration": {
                                 "$ref": "#/components/schemas/PivotConfiguration"
-                            },
-                            "limit": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "sql": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["sql"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "Record_string.UUID_": {
-                "properties": {},
-                "additionalProperties": {
-                    "type": "string"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "ExecuteAsyncComposeSqlQueryRequestParams": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
-                    },
-                    {
-                        "properties": {
-                            "references": {
-                                "$ref": "#/components/schemas/Record_string.UUID_",
-                                "description": "Results of previous async queries exposed to the SQL as tables,\nkeyed by table name: {\"orders\": \"<queryUuid>\"} lets the SQL run\nSELECT * FROM orders. Each referenced query is authorized with the\nsame access checks as fetching its results by uuid.\n\nTyped Record<string, UUID> (not Record<string, string>) on purpose:\nTSOA compiles a string-valued record to an empty object literal and\nvalidation then strips every key; a ref-aliased value type keeps\nadditionalProperties intact (and validates the uuid format)."
                             },
                             "limit": {
                                 "type": "number",
@@ -53765,89 +53030,6 @@
                 "required": ["action", "content"],
                 "type": "object"
             },
-            "ContentActionDelete": {
-                "properties": {
-                    "type": {
-                        "type": "string",
-                        "enum": ["delete"],
-                        "nullable": false
-                    }
-                },
-                "required": ["type"],
-                "type": "object"
-            },
-            "ApiContentActionBody_ContentActionDelete_": {
-                "properties": {
-                    "action": {
-                        "$ref": "#/components/schemas/ContentActionDelete"
-                    },
-                    "item": {
-                        "$ref": "#/components/schemas/ItemPayload"
-                    }
-                },
-                "required": ["action", "item"],
-                "type": "object"
-            },
-            "ContentBulkDeleteSkippedItem": {
-                "properties": {
-                    "reason": {
-                        "type": "string"
-                    },
-                    "contentType": {
-                        "$ref": "#/components/schemas/ContentType"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["reason", "contentType", "uuid"],
-                "type": "object"
-            },
-            "ContentBulkDeleteResults": {
-                "properties": {
-                    "skipped": {
-                        "items": {
-                            "$ref": "#/components/schemas/ContentBulkDeleteSkippedItem"
-                        },
-                        "type": "array"
-                    },
-                    "deletedCount": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": ["skipped", "deletedCount"],
-                "type": "object"
-            },
-            "ApiContentBulkDeleteResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/ContentBulkDeleteResults"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiContentBulkActionBody_ContentActionDelete_": {
-                "properties": {
-                    "action": {
-                        "$ref": "#/components/schemas/ContentActionDelete"
-                    },
-                    "content": {
-                        "items": {
-                            "$ref": "#/components/schemas/ItemPayload"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["action", "content"],
-                "type": "object"
-            },
             "DeletedChartBase": {
                 "properties": {
                     "organizationUuid": {
@@ -54430,7 +53612,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.198.1",
+        "version": "1.172.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -54442,57 +53624,6 @@
         }
     },
     "paths": {
-        "/api/v1/projects/{projectUuid}/slugs/rename": {
-            "post": {
-                "operationId": "renameContentSlug",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Rename a project-scoped content slug",
-                "summary": "Rename content slug",
-                "tags": ["Projects"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/ContentSlugRenameRequest"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/projects/{projectUuid}/code/charts": {
             "get": {
                 "operationId": "getCodeCharts",
@@ -67103,46 +66234,6 @@
                         "schema": {
                             "type": "string",
                             "enum": ["asc", "desc"]
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v1/aiAgents/admin/threads/{threadUuid}/dump": {
-            "get": {
-                "operationId": "getAdminThreadDump",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiAiAgentThreadDumpResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Download a sanitized debug dump of an AI agent thread for troubleshooting.\nRequires AI_COPILOT_THREAD_DUMP_ENABLED on the instance.",
-                "summary": "Get AI agent thread dump",
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "threadUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]
@@ -85773,218 +84864,6 @@
                 ]
             }
         },
-        "/api/v2/projects/{projectId}/roles/assignments/user/{userId}/set": {
-            "get": {
-                "operationId": "GetProjectUserRoleSet",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiProjectRoleSetResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get the complete role set a user holds directly on the project.\nRequires the `multiple-roles` feature.",
-                "summary": "Get project role set for user",
-                "tags": ["v2", "Project Roles"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectId",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "userId",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    }
-                ]
-            },
-            "put": {
-                "operationId": "ReplaceProjectUserRoleSet",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiProjectRoleSetResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Atomically replace the complete role set a user holds directly on the project.\nAt most one system role plus any number of custom roles; the set must not be empty.\nRequires the `multiple-roles` feature.",
-                "summary": "Replace project role set for user",
-                "tags": ["v2", "Project Roles"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectId",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "userId",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/ProjectRoleSet"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/projects/{projectId}/roles/assignments/group/{groupId}/set": {
-            "get": {
-                "operationId": "GetProjectGroupRoleSet",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiProjectRoleSetResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get the complete role set a group holds on the project.\nRequires the `multiple-roles` feature.",
-                "summary": "Get project role set for group",
-                "tags": ["v2", "Project Roles"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectId",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "groupId",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    }
-                ]
-            },
-            "put": {
-                "operationId": "ReplaceProjectGroupRoleSet",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiProjectRoleSetResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Atomically replace the complete role set a group holds on the project.\nAt most one system role plus any number of custom roles; the set must not be empty.\nRequires the `multiple-roles` feature.",
-                "summary": "Replace project role set for group",
-                "tags": ["v2", "Project Roles"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectId",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "groupId",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/ProjectRoleSet"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/api/v2/projects/{projectId}/roles/assignments/group/{groupId}": {
             "post": {
                 "operationId": "UpsertProjectGroupRoleAssignment",
@@ -86254,112 +85133,6 @@
                 }
             }
         },
-        "/api/v2/orgs/{orgUuid}/roles/assignments/user/{userId}/set": {
-            "get": {
-                "operationId": "GetOrganizationUserRoleSet",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiOrganizationRoleSetResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get the complete role set (system role plus custom roles) a user holds in the organization.\nRequires the `multiple-roles` feature.",
-                "summary": "Get organization role set for user",
-                "tags": ["v2", "Organization Roles"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "orgUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "userId",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    }
-                ]
-            },
-            "put": {
-                "operationId": "ReplaceOrganizationUserRoleSet",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiOrganizationRoleSetResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Atomically replace the complete role set a user holds in the organization.\nAt most one system role plus any number of custom roles; the set must not be empty.\nRequires the `multiple-roles` feature.",
-                "summary": "Replace organization role set for user",
-                "tags": ["v2", "Organization Roles"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "orgUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "userId",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/OrganizationRoleSet"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/api/v2/orgs/{orgUuid}/roles/{roleId}/duplicate": {
             "post": {
                 "operationId": "DuplicateRole",
@@ -86528,15 +85301,6 @@
                         }
                     },
                     {
-                        "description": "filter to errors caused by this model/table",
-                        "in": "query",
-                        "name": "tableName",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
                         "description": "whether to include chart configuration warnings",
                         "in": "query",
                         "name": "includeChartConfigWarnings",
@@ -86552,48 +85316,6 @@
                         "required": false,
                         "schema": {
                             "type": "boolean"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v2/projects/{projectUuid}/validate/summary": {
-            "get": {
-                "operationId": "GetValidationSummary",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiValidationSummaryResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get validation errors grouped by root cause (e.g. all errors caused by\none deleted model), with counts and a capped list of affected content.",
-                "summary": "Get validation summary",
-                "tags": ["v2", "Validation"],
-                "security": [],
-                "parameters": [
-                    {
-                        "description": "the projectId for the validation",
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
                         }
                     }
                 ]
@@ -87386,57 +86108,6 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ExecuteAsyncSqlQueryRequestParams"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/projects/{projectUuid}/query/compose-sql": {
-            "post": {
-                "operationId": "executeAsyncComposeSqlQuery",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccess_ApiExecuteAsyncSqlQueryResults_"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Executes a DuckDB SQL query asynchronously on the pre-aggregate DuckDB engine. Requires run-queries access (interactive viewer and up) and the compose-sql-runner feature flag. The references map exposes previous async queries' results as named tables the SQL can select from ({\"orders\": \"queryUuid\"} lets the SQL run SELECT * FROM orders); each referenced query is authorized with the same access checks as Get results, so you can reference any query you can already fetch by uuid. Direct file access in the SQL is rejected. Returns a queryUuid to poll for results via Get results.",
-                "summary": "Execute compose SQL query",
-                "tags": ["v2", "Query"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/ExecuteAsyncComposeSqlQueryRequestParams"
                             }
                         }
                     }
@@ -89108,114 +87779,6 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ApiContentBulkActionBody_ContentActionMove_"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/content/{projectUuid}/delete": {
-            "post": {
-                "operationId": "Delete content",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Delete a single item (Chart, Dashboard, Space). Soft-deletes when the\ninstance has soft delete enabled, otherwise deletes permanently.",
-                "summary": "Delete content",
-                "tags": ["Content", "Delete content", "v2", "Content"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/ApiContentActionBody_ContentActionDelete_"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/content/bulk-action/{projectUuid}/delete": {
-            "post": {
-                "operationId": "Bulk delete content",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiContentBulkDeleteResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Delete multiple items (Charts, Dashboards, Spaces). Items the caller\ncannot delete are skipped and reported in the response.",
-                "summary": "Bulk delete content",
-                "tags": [
-                    "Content",
-                    "Bulk action",
-                    "Delete content",
-                    "v2",
-                    "Content"
-                ],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/ApiContentBulkActionBody_ContentActionDelete_"
                             }
                         }
                     }

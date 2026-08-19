@@ -282,6 +282,12 @@ import {
 } from './projects';
 import { type ApiPromotionChangesResponse } from './promotion';
 import { type QueryHistoryStatus } from './queryHistory';
+import {
+    type ApiExecuteSourceQueriesResults,
+    type ApiGetSourceQueryStatusResults,
+    type ApiListQuerySourcesResults,
+    type ApiScanQuerySourceSchemaResults,
+} from './querySources';
 import { type ApiRenameFieldsResponse, type ApiRenameResponse } from './rename';
 import { type MostPopularAndRecentlyUpdated } from './resourceViewItem';
 import { type ResultColumns, type ResultRow } from './results';
@@ -1308,6 +1314,10 @@ type ApiResults =
     | ApiCalculateSubtotalsResponse['results']
     | ApiExecuteAsyncFieldValueSearchResults
     | ApiExecuteAsyncSqlQueryResults
+    | ApiExecuteSourceQueriesResults
+    | ApiGetSourceQueryStatusResults
+    | ApiListQuerySourcesResults
+    | ApiScanQuerySourceSchemaResults
     | ApiExecuteAsyncDashboardSqlChartQueryResults
     | ApiExecuteAsyncMetricQueryResults
     | ApiExecuteAsyncDashboardChartQueryResults
