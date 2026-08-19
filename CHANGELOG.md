@@ -1,3 +1,15 @@
+# [1.201.0](https://github.com/lightdash/lightdash/compare/1.200.1...1.201.0) (2026-08-19)
+
+
+### Bug Fixes
+
+* support chart slugs in version history ([#27621](https://github.com/lightdash/lightdash/issues/27621)) ([182a6f5](https://github.com/lightdash/lightdash/commit/182a6f51bd9d445cd078a89d96c3076bf1261592))
+
+
+### Features
+
+* filter AI issues by status ([#27629](https://github.com/lightdash/lightdash/issues/27629)) ([dc6e029](https://github.com/lightdash/lightdash/commit/dc6e0296b4a2b6a78c5f689659a27d650b157f01)), closes [#27366](https://github.com/lightdash/lightdash/issues/27366)
+
 ## [1.200.1](https://github.com/lightdash/lightdash/compare/1.200.0...1.200.1) (2026-08-19)
 
 
