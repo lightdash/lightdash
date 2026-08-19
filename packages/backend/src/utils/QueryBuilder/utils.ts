@@ -933,6 +933,7 @@ export const getCustomBinDimensionSql = ({
                     binGroups: customDimension.customGroups,
                     baseDimensionSql: dimension.compiledSql,
                     warehouseSqlBuilder,
+                    otherLabel: customDimension.otherLabel,
                 });
                 exprs[dimensionId] = customGroupExpr;
                 selects[dimensionId] =

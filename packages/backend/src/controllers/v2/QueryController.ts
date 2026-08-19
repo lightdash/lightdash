@@ -260,6 +260,7 @@ export class QueryController extends BaseController {
                 parameters: body.parameters,
                 pivotConfiguration: body.pivotConfiguration,
                 dashboardFilters: body.dashboardFilters,
+                groupLimit: body.groupLimit,
                 dataAppPreviewToken,
             });
 

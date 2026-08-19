@@ -185,10 +185,12 @@ export const getCustomGroupSelectSql = ({
     binGroups,
     baseDimensionSql,
     warehouseSqlBuilder,
+    otherLabel = 'Other',
 }: {
     binGroups: BinGroup[];
     baseDimensionSql: string;
     warehouseSqlBuilder: WarehouseSqlBuilder;
+    otherLabel?: string;
 }) => {
     const quoteChar = warehouseSqlBuilder.getStringQuoteChar();
     const escapeChar = warehouseSqlBuilder.getEscapeStringQuoteChar();
@@ -209,7 +211,7 @@ export const getCustomGroupSelectSql = ({
     const whens = [
         `WHEN ${baseDimensionSql} IS NULL THEN NULL`,
         ...groupWhens,
-        `ELSE ${quoteChar}Other${quoteChar}`,
+        `ELSE ${quoteChar}${escapeValue(otherLabel)}${quoteChar}`,
     ];
 
     return `CASE

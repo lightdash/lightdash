@@ -21,11 +21,18 @@ export type DateZoom = {
     xAxisFieldId?: string;
 };
 
+export type GroupLimit = {
+    dimensionId: string;
+    rankByMetricId: string;
+    limit: number;
+};
+
 export type ExecuteAsyncMetricQueryRequestParams =
     CommonExecuteQueryRequestParams & {
         query: Omit<MetricQueryRequest, 'csvLimit'>;
         dateZoom?: DateZoom;
         pivotConfiguration?: PivotConfiguration;
+        groupLimit?: GroupLimit;
         // Filters whose target field is absent from the query's explore are
         // dropped silently — an app may run queries against multiple explores
         // and one mismatch shouldn't break the others.

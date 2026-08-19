@@ -11,6 +11,7 @@ import {
     applyDashboardFiltersForTile,
     assertIsAccountWithOrg,
     assertUnreachable,
+    BinType,
     buildMergeQueryFromSaved,
     buildWarehouseColumnTotals,
     buildWarehouseRowTotals,
@@ -228,6 +229,12 @@ import {
 import { getValidatedDashboardSorts } from './dashboardSorts';
 import { getPivotedColumns } from './getPivotedColumns';
 import { getUnpivotedColumns } from './getUnpivotedColumns';
+import {
+    applyGroupLimit,
+    buildGroupLimitRankingQuery,
+    stripGroupLimitMarkers,
+    validateGroupLimit,
+} from './groupLimit';
 import { applyMergeExportLimit } from './mergeQueryExecution';
 import {
     NoOpPreAggregateStrategy,
@@ -2313,6 +2320,15 @@ export class AsyncQueryService extends ProjectService {
                                   formatted: formattedValue,
                               };
                           }) ?? [];
+                      const isOtherGroup = pivotValues.some((pivotValue) => {
+                          const item = itemsMap[pivotValue.referenceField];
+                          return (
+                              isCustomBinDimension(item) &&
+                              item.binType === BinType.CUSTOM_GROUP &&
+                              item.isGroupLimit === true &&
+                              pivotValue.value === (item.otherLabel ?? 'Other')
+                          );
+                      });
 
                       // Suffix the value column with the group by columns to avoid collisions.
                       // E.g. if we have a row with the value 1 and the group by columns are ['a', 'b'],
@@ -2348,6 +2364,7 @@ export class AsyncQueryService extends ProjectService {
                               aggregation: col.aggregation,
                               pivotValues,
                               columnIndex: row.column_index,
+                              ...(isOtherGroup ? { isOtherGroup: true } : {}),
                           });
 
                           currentTransformedRow = currentTransformedRow ?? {};
@@ -4582,13 +4599,13 @@ export class AsyncQueryService extends ProjectService {
     async executeAsyncMetricQuery(
         args: ExecuteAsyncMetricQueryArgs,
     ): Promise<ApiExecuteAsyncMetricQueryResults> {
-        const {
-            account,
-            projectUuid,
-            context,
-            metricQuery: inputMetricQuery,
-            materializationRole,
-        } = args;
+        const { account, projectUuid, context, materializationRole } = args;
+        const inputMetricQuery: MetricQuery = {
+            ...args.metricQuery,
+            customDimensions: stripGroupLimitMarkers(
+                args.metricQuery.customDimensions,
+            ),
+        };
         assertIsAccountWithOrg(account);
 
         if (args.totalConfiguration && args.dashboardFilters) {
@@ -4638,7 +4655,7 @@ export class AsyncQueryService extends ProjectService {
         });
 
         return this.runAsyncMetricQueryWithoutPermissionCheck(
-            args,
+            { ...args, metricQuery: inputMetricQuery },
             organizationUuid,
         );
     }
@@ -4654,10 +4671,11 @@ export class AsyncQueryService extends ProjectService {
             invalidateCache,
             usePreAggregateCache,
             parameters,
-            pivotConfiguration,
+            pivotConfiguration: inputPivotConfiguration,
             userAttributeOverrides,
             materializationRole,
             dashboardFilters,
+            groupLimit,
             totalConfiguration,
         }: ExecuteAsyncMetricQueryArgs,
         organizationUuid: string,
@@ -4751,6 +4769,84 @@ export class AsyncQueryService extends ProjectService {
             projectParameters,
         );
 
+        let pivotConfiguration = inputPivotConfiguration;
+        if (groupLimit) {
+            const dimension = validateGroupLimit({
+                groupLimit,
+                metricQuery,
+                explore,
+                pivotConfiguration,
+                maxColumnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
+            });
+            const rankingQuery = buildGroupLimitRankingQuery({
+                metricQuery,
+                groupLimit,
+            });
+            const rankingComposer = await this.prepareMetricQueryAsyncQueryArgs(
+                {
+                    account,
+                    metricQuery: rankingQuery,
+                    dateZoom,
+                    explore,
+                    warehouseSqlBuilder,
+                    parameters: combinedParameters,
+                    projectUuid,
+                    userAttributeOverrides,
+                    materializationRole,
+                    context,
+                    ...(context ===
+                    QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
+                        ? { skipModelRequiredFilters: true }
+                        : {}),
+                    columnTimezone: getColumnTimezone(warehouseCredentials),
+                    dataTimezone: warehouseCredentials.dataTimezone,
+                    preloadedUserAccessControls,
+                    preloadedProjectParameters: projectParameters,
+                    preloadedProjectTimezone: projectTimezone,
+                },
+            );
+            const rankingSql = rankingComposer.getSql({
+                columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
+            });
+            const rankingTags = AsyncQueryService.addUserAttributeQueryTags(
+                queryTags,
+                rankingComposer.getUserAccessControls(),
+            );
+            const { warehouseClient, sshTunnel } =
+                await this._getWarehouseClient(
+                    projectUuid,
+                    warehouseCredentials,
+                );
+            const topValues: string[] = [];
+            try {
+                await warehouseClient.streamQuery(
+                    rankingSql,
+                    ({ rows }) => {
+                        rows.forEach((row) => {
+                            const value = row[groupLimit.dimensionId];
+                            if (value !== null && value !== undefined) {
+                                topValues.push(String(value));
+                            }
+                        });
+                    },
+                    { tags: rankingTags },
+                );
+            } finally {
+                await sshTunnel.disconnect();
+            }
+
+            const grouped = applyGroupLimit({
+                metricQuery,
+                pivotConfiguration,
+                explore,
+                dimension,
+                groupLimit,
+                topValues,
+            });
+            metricQuery = grouped.metricQuery;
+            pivotConfiguration = grouped.pivotConfiguration;
+        }
+
         const prepareStart = Date.now();
         const queryComposer = await this.prepareMetricQueryAsyncQueryArgs({
             account,
@@ -4790,6 +4886,8 @@ export class AsyncQueryService extends ProjectService {
             query: effectiveMetricQuery,
             parameters: combinedParameters,
             dateZoom,
+            pivotConfiguration,
+            groupLimit,
         };
 
         const routingDecision = this.getPreAggregationRoutingDecision({
