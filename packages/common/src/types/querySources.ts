@@ -145,13 +145,22 @@ export type DuckdbSourceQuery = {
         | Record<QuerySourceTableName, QueryResultReference>;
 };
 
+/** A predicate pushed to a remote TDCP server in a tier 1 scan. */
+export type TdcpSourceScanPredicate = {
+    column: string;
+    operator: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'in';
+    values: (string | number | boolean | null)[];
+};
+
 /**
- * A query against a remote TDCP server, in one of two forms: name a table
- * (tier 0 read — enough for CSV, Sheets and simple API servers) or send a
- * dialect-tagged query (tier 2). Exactly one form must be used: either
- * `table`, or `dialect` + `query`. Scan pushdown and the sources-entity
- * registration (server by slug, credentials from the unified credential
- * model) come with source management.
+ * A query against a remote TDCP server, in one of three forms: name a table
+ * (tier 0 read — enough for CSV, Sheets and simple API servers), name a
+ * table with a predicateMode (tier 1 scan with projection and predicate
+ * pushdown), or send a dialect-tagged query (tier 2, `query` text or
+ * structured `params` depending on the dialect's declared form). Exactly one
+ * form must be used. The sources-entity registration (server by slug,
+ * credentials from the unified credential model) comes with source
+ * management.
  *
  * @oliver: serverUrl is a draft-only placeholder so the loop is walkable
  * end to end without the sources entity. It must become a registered-server
@@ -164,12 +173,24 @@ export type TdcpSourceQuery = {
     nodeId?: QueryNodeId;
     /** Base URL of the remote TDCP server (draft; becomes a server slug). */
     serverUrl: string;
-    /** Tier 0: a table from the server's catalog to read in full. */
+    /** Tier 0/1: a table from the server's catalog. */
     table?: string;
+    /** Tier 1: columns to project; omit for all columns. */
+    columns?: string[];
+    /** Tier 1: predicates to push down. */
+    predicates?: TdcpSourceScanPredicate[];
+    /**
+     * Tier 1 — presence selects the scan form: 'exact' refuses unless every
+     * predicate is fully pushed; 'bestEffort' pushes what the server can and
+     * re-applies the rest downstream.
+     */
+    predicateMode?: 'exact' | 'bestEffort';
     /** Tier 2: query dialect tag, e.g. "sql:postgres" (see TdcpDialects). */
     dialect?: string;
-    /** Tier 2: query text in the declared dialect. */
+    /** Tier 2: query text — dialects the server declares as text-form. */
     query?: string;
+    /** Tier 2: structured payload — dialects the server declares as structured-form. */
+    params?: Record<string, unknown>;
     limit?: number;
 };
 

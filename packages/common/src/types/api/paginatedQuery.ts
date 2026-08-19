@@ -179,12 +179,14 @@ export type ExecuteAsyncFieldValueSearchRequestParams =
  * A dataset imported from an external source (e.g. a remote TDCP server)
  * into the local results pipeline: the request records where it came from,
  * not how to re-run it — replay re-submits the original request against
- * the source.
+ * the source. The fingerprint is the serialized original request (also the
+ * cache identity); the source executes after the row exists, so no dataset
+ * handle is known at submission time.
  */
 export type ExecuteAsyncExternalDatasetImportRequestParams =
     CommonExecuteQueryRequestParams & {
         sourceUrl: string;
-        datasetId: string;
+        requestFingerprint: string;
     };
 
 export type ExecuteAsyncQueryRequestParams =
