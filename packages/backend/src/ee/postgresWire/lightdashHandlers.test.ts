@@ -5,22 +5,50 @@ import {
     createLightdashPgWireHandlers,
     type LightdashPgWireSession,
 } from './lightdashHandlers';
+import { buildCatalogRelations } from './pgCatalog/catalogRelations';
 import { type PgWireTable } from './types';
 
 const catalog: PgWireTable[] = [
     {
         name: 'orders',
+        description: null,
         fields: [
-            { fieldId: 'orders_status', kind: 'dimension', type: 'string' },
-            { fieldId: 'orders_amount', kind: 'dimension', type: 'number' },
+            {
+                fieldId: 'orders_status',
+                kind: 'dimension',
+                type: 'string',
+                description: null,
+            },
+            {
+                fieldId: 'orders_amount',
+                kind: 'dimension',
+                type: 'number',
+                description: null,
+            },
             {
                 fieldId: 'orders_is_completed',
                 kind: 'dimension',
                 type: 'boolean',
+                description: null,
             },
-            { fieldId: 'orders_order_date', kind: 'dimension', type: 'date' },
-            { fieldId: 'orders_total', kind: 'metric', type: 'sum' },
-            { fieldId: 'orders_count', kind: 'metric', type: 'count' },
+            {
+                fieldId: 'orders_order_date',
+                kind: 'dimension',
+                type: 'date',
+                description: null,
+            },
+            {
+                fieldId: 'orders_total',
+                kind: 'metric',
+                type: 'sum',
+                description: null,
+            },
+            {
+                fieldId: 'orders_count',
+                kind: 'metric',
+                type: 'count',
+                description: null,
+            },
         ],
     },
 ];
@@ -44,7 +72,13 @@ const handlers = createLightdashPgWireHandlers(serviceRepository);
 const session: LightdashPgWireSession = {
     account: { user: { email: 'alice@example.com' } } as unknown as Account,
     projectUuid: 'project-uuid',
+    databaseName: 'project-uuid',
     catalog,
+    catalogRelations: buildCatalogRelations({
+        databaseName: 'project-uuid',
+        userName: 'alice@example.com',
+        catalog,
+    }),
 };
 
 const EXPLORE_SQL =
@@ -98,7 +132,7 @@ describe('lightdash pgwire handlers: describe vs query', () => {
                 session,
                 'SELECT table_name FROM information_schema.tables',
             ),
-        ).resolves.toEqual([{ name: 'table_name', oid: 25 }]);
+        ).resolves.toEqual([{ name: 'table_name', oid: 19 }]);
         await expect(handlers.query(session, 'BEGIN')).resolves.toEqual({
             type: 'command',
             commandTag: 'BEGIN',
@@ -125,6 +159,143 @@ describe('lightdash pgwire handlers: describe vs query', () => {
         });
         await expect(handlers.query(session, sql)).rejects.toMatchObject({
             code: '42703',
+        });
+    });
+});
+
+describe('lightdash pgwire handlers: end to end through authenticate', () => {
+    const explore = {
+        name: 'orders',
+        label: 'Orders',
+        baseTable: 'orders',
+        joinedTables: [],
+        tables: {
+            orders: {
+                name: 'orders',
+                label: 'Orders',
+                description: 'Orders placed by customers',
+                database: 'db',
+                schema: 'public',
+                sqlTable: 'orders',
+                dimensions: {
+                    status: {
+                        fieldType: 'dimension',
+                        type: 'string',
+                        name: 'status',
+                        label: 'Status',
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        sql: '${TABLE}.status',
+                        hidden: false,
+                        description: 'Order status',
+                    },
+                    secret: {
+                        fieldType: 'dimension',
+                        type: 'string',
+                        name: 'secret',
+                        label: 'Secret',
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        sql: '${TABLE}.secret',
+                        hidden: true,
+                    },
+                },
+                metrics: {
+                    total: {
+                        fieldType: 'metric',
+                        type: 'sum',
+                        name: 'total',
+                        label: 'Total amount',
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        sql: '${TABLE}.amount',
+                        hidden: false,
+                    },
+                },
+                lineageGraph: {},
+            },
+        },
+    };
+    const services = {
+        getUserService: () => ({
+            loginWithPersonalAccessToken: async () => ({
+                userUuid: 'user-uuid',
+                email: 'alice@example.com',
+                organizationUuid: 'org-uuid',
+                organizationName: 'Acme',
+                organizationCreatedAt: new Date(0),
+                ability: { can: () => true },
+                abilityRules: [],
+            }),
+        }),
+        getProjectService: () => ({
+            getAllExploresSummary: async () => [{ name: 'orders' }],
+            getExplore: async () => explore,
+            runExploreQuery,
+        }),
+    } as unknown as ServiceRepository;
+
+    it('builds the catalog with descriptions and hidden fields removed, then serves catalog SQL', async () => {
+        const e2e = createLightdashPgWireHandlers(services);
+        const connected = await e2e.authenticate({
+            user: 'alice@example.com',
+            database: '11111111-1111-4111-8111-111111111111',
+            password: 'ldpat_test',
+        });
+        expect(connected.catalog).toEqual([
+            {
+                name: 'orders',
+                description: 'Orders placed by customers',
+                fields: [
+                    {
+                        fieldId: 'orders_status',
+                        kind: 'dimension',
+                        type: 'string',
+                        description: 'Order status',
+                    },
+                    {
+                        fieldId: 'orders_total',
+                        kind: 'metric',
+                        type: 'sum',
+                        description: 'Total amount',
+                    },
+                ],
+            },
+        ]);
+        expect(
+            connected.catalogRelations
+                .get('pg_catalog.pg_class')
+                ?.rows.some((r) => r.relname === 'orders'),
+        ).toBe(true);
+
+        const result = await e2e.query(
+            connected,
+            `select c.relname, obj_description(c.oid, 'pg_class') as remarks, a.attname, col_description(c.oid, a.attnum) from pg_class c join pg_attribute a on a.attrelid = c.oid where c.relnamespace = 2200 order by a.attnum`,
+        );
+        expect(result).toMatchObject({
+            type: 'rows',
+            rows: [
+                [
+                    'orders',
+                    'Orders placed by customers',
+                    'orders_status',
+                    'Order status',
+                ],
+                [
+                    'orders',
+                    'Orders placed by customers',
+                    'orders_total',
+                    'Total amount',
+                ],
+            ],
+        });
+        expect(
+            await e2e.describe(connected, 'select current_database()'),
+        ).toEqual([{ name: 'current_database', oid: 19 }]);
+        expect(
+            await e2e.query(connected, 'select current_database()'),
+        ).toMatchObject({
+            rows: [['11111111-1111-4111-8111-111111111111']],
         });
     });
 });
