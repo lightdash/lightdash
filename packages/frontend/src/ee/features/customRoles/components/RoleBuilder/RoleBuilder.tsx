@@ -258,26 +258,6 @@ export const RoleBuilder: FC<Props> = ({
                 <Stack gap="xs" className={styles.contentStack}>
                     <SettingsCard>
                         <Stack gap="md">
-                            {availablePresets && (
-                                <Select
-                                    label="Preset"
-                                    description="Start with a common role, then customize its name, description, and permissions."
-                                    data={[
-                                        {
-                                            value: START_FROM_SCRATCH,
-                                            label: 'Start from scratch',
-                                        },
-                                        ...availablePresets.map((preset) => ({
-                                            value: preset.title,
-                                            label: preset.title,
-                                        })),
-                                    ]}
-                                    value={selectedPresetTitle}
-                                    onChange={handlePresetChange}
-                                    allowDeselect={false}
-                                    disabled={isWorking}
-                                />
-                            )}
                             <Stack gap="xs">
                                 <Stack gap="two">
                                     <Input.Label>Role type</Input.Label>
@@ -377,6 +357,26 @@ export const RoleBuilder: FC<Props> = ({
                                     })}
                                 </Group>
                             </Stack>
+                            {availablePresets && (
+                                <Select
+                                    label="Preset"
+                                    description="Start with a common role, then customize its name, description, and permissions."
+                                    data={[
+                                        {
+                                            value: START_FROM_SCRATCH,
+                                            label: 'Start from scratch',
+                                        },
+                                        ...availablePresets.map((preset) => ({
+                                            value: preset.title,
+                                            label: preset.title,
+                                        })),
+                                    ]}
+                                    value={selectedPresetTitle}
+                                    onChange={handlePresetChange}
+                                    allowDeselect={false}
+                                    disabled={isWorking}
+                                />
+                            )}
                             <TextInput
                                 label="Role name"
                                 placeholder="e.g., Finance Analyst"

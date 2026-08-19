@@ -58,6 +58,13 @@ describe('RoleBuilder presets', () => {
         const onSubmit = vi.fn<OnSubmit>();
         renderRoleBuilder({ presets: rolePresets, onSubmit });
 
+        const roleTypeLabel = screen.getByText('Role type');
+        const presetInput = screen.getByRole('textbox', { name: 'Preset' });
+        expect(
+            roleTypeLabel.compareDocumentPosition(presetInput) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+
         const user = await selectPreset('SQL Runner user');
 
         expect(screen.getByRole('textbox', { name: /Role name/ })).toHaveValue(
