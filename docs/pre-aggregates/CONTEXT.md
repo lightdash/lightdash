@@ -94,6 +94,14 @@ _Avoid_: fallback, cache miss
 The recorded explanation for a miss (e.g. dimension not in pre-aggregate,
 granularity too fine, non-additive metric).
 
+**Execution fallback**:
+A matched query whose pre-aggregate execution failed (unreadable
+materialization, DuckDB error, external table issue), so results were served
+from the source warehouse. Distinct from a miss: the match succeeded but the
+serve did not. Recorded as a fallback reason on query history and exposed on
+results metadata.
+_Avoid_: miss, retry, cache miss
+
 **Ineligible**:
 A dashboard tile that cannot use pre-aggregates at all (markdown tile, SQL
 chart, broken explore). Distinct from a miss: ineligible tiles never count

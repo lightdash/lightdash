@@ -70,6 +70,7 @@ function makeReadyPage(
                 resultsPageExecutionMs: 50,
                 queueTimeMs: null,
             },
+            preAggregate: null,
         },
         pivotDetails: null,
         totalResults: opts?.totalResults ?? rowCount,

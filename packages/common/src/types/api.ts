@@ -281,7 +281,11 @@ import {
     type WarehouseCredentials,
 } from './projects';
 import { type ApiPromotionChangesResponse } from './promotion';
-import { type QueryHistoryStatus } from './queryHistory';
+import {
+    type PreAggregateExecutionEngine,
+    type PreAggregateFallbackReason,
+    type QueryHistoryStatus,
+} from './queryHistory';
 import {
     type ApiExecuteSourceQueriesResults,
     type ApiGetSourceQueryStatusResults,
@@ -957,8 +961,16 @@ export type QueryResultsPerformance = {
     queueTimeMs: number | null;
 };
 
+// Post-execution truth for pre-aggregate queries: which engine was planned and
+// whether execution failed and the results were served from the source warehouse.
+export type QueryResultsPreAggregate = {
+    execution: PreAggregateExecutionEngine;
+    fallbackReason: PreAggregateFallbackReason | null;
+};
+
 export type QueryResultsMetadata = {
     performance: QueryResultsPerformance;
+    preAggregate: QueryResultsPreAggregate | null;
 };
 
 export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {

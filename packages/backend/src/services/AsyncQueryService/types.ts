@@ -18,6 +18,7 @@ import {
     type Filters,
     type ItemsMap,
     type ParametersValuesMap,
+    type PreAggregateExecutionEngine,
     type QueryExecutionContext,
     type ResultColumns,
     type ResultsPaginationArgs,
@@ -157,9 +158,7 @@ export type UnboundedRerunFromQueryHistoryResult =
 
 export type PreAggregationRouteMode = 'required' | 'opportunistic';
 
-// duckdb = managed materialization via the DuckDB client override;
-// project_warehouse = external pre-aggregate on the normal project client
-export type PreAggregateExecutionEngine = 'duckdb' | 'project_warehouse';
+export type { PreAggregateExecutionEngine };
 
 export type PreAggregationRoute = {
     sourceExploreName: string;

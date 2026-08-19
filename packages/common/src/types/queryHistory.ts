@@ -28,6 +28,15 @@ export enum QueryHistoryStatus {
     CANCELLED = 'cancelled',
 }
 
+// duckdb = managed materialization via the DuckDB client override;
+// project_warehouse = external pre-aggregate on the normal project client
+export type PreAggregateExecutionEngine = 'duckdb' | 'project_warehouse';
+
+// Why a matched pre-aggregate query was served from the source warehouse instead
+export type PreAggregateFallbackReason =
+    | 'duckdb_execution_error'
+    | 'external_execution_error';
+
 export type QueryHistory = {
     queryUuid: string;
     createdAt: Date;
@@ -61,6 +70,7 @@ export type QueryHistory = {
     columns: ResultColumns | null; // result columns with or without pivoting
     originalColumns: ResultColumns | null; // columns from original SQL, before pivoting
     preAggregateCompiledSql: string | null; // DuckDB SQL for pre-aggregate execution path
-    preAggregateExecution: 'duckdb' | 'project_warehouse' | null; // engine for preAggregateCompiledSql
+    preAggregateExecution: PreAggregateExecutionEngine | null; // engine for preAggregateCompiledSql
+    preAggregateFallbackReason: PreAggregateFallbackReason | null; // non-null ⇒ matched but served from source warehouse
     processingStartedAt: Date | null; // when the NATS worker picked up the job
 };
