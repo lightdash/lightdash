@@ -102545,6 +102545,7 @@ export function RegisterRoutes(app: Router) {
         sourceTypes: { in: 'query', name: 'sourceTypes', dataType: 'string' },
         errorTypes: { in: 'query', name: 'errorTypes', dataType: 'string' },
         tableName: { in: 'query', name: 'tableName', dataType: 'string' },
+        fieldName: { in: 'query', name: 'fieldName', dataType: 'string' },
         includeChartConfigWarnings: {
             in: 'query',
             name: 'includeChartConfigWarnings',

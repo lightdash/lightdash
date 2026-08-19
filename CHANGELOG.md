@@ -1,3 +1,10 @@
+## [1.206.4](https://github.com/lightdash/lightdash/compare/1.206.3...1.206.4) (2026-08-19)
+
+
+### Bug Fixes
+
+* make validator summary chips match the filtered table ([#27700](https://github.com/lightdash/lightdash/issues/27700)) ([ccda209](https://github.com/lightdash/lightdash/commit/ccda2097daa292b0707d14b5590a7784f83129e3)), closes [/linear.app/lightdash/issue/PROD-10352/fix-empty-validation-error-groups-in-autopilot#agent-session-21d099](https://github.com//linear.app/lightdash/issue/PROD-10352/fix-empty-validation-error-groups-in-autopilot/issues/agent-session-21d099) [/linear.app/lightdash/issue/PROD-10352/fix-empty-validation-error-groups-in-autopilot#agent-session-21d099](https://github.com//linear.app/lightdash/issue/PROD-10352/fix-empty-validation-error-groups-in-autopilot/issues/agent-session-21d099)
+
 ## [1.206.3](https://github.com/lightdash/lightdash/compare/1.206.2...1.206.3) (2026-08-19)
 
 
