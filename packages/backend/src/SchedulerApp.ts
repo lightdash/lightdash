@@ -345,6 +345,8 @@ export default class SchedulerApp {
             );
         }
         const server = http.createServer(app);
+        server.keepAliveTimeout =
+            this.lightdashConfig.httpServer.keepAliveTimeoutMs;
 
         createTerminus(server, {
             signals: ['SIGUSR2', 'SIGTERM', 'SIGINT', 'SIGHUP', 'SIGABRT'],

@@ -150,6 +150,9 @@ export const lightdashConfigMock: LightdashConfig = {
         auditActorAsString: false,
     },
     maxPayloadSize: '',
+    httpServer: {
+        keepAliveTimeoutMs: 620_000,
+    },
     pivotTable: { maxColumnLimit: 0 },
     enableImprovedExcelDates: false,
     s3: {

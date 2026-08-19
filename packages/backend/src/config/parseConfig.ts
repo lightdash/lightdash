@@ -1446,6 +1446,9 @@ export type LightdashConfig = {
     };
     allowMultiOrgs: boolean;
     maxPayloadSize: string;
+    httpServer: {
+        keepAliveTimeoutMs: number;
+    };
     query: {
         maxLimit: number;
         defaultLimit: number;
@@ -2961,6 +2964,12 @@ export const parseConfig = (): LightdashConfig => {
         },
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
         maxPayloadSize: process.env.LIGHTDASH_MAX_PAYLOAD || '5mb',
+        httpServer: {
+            keepAliveTimeoutMs:
+                getIntegerFromEnvironmentVariable(
+                    'HTTP_KEEP_ALIVE_TIMEOUT_MS',
+                ) ?? 620_000,
+        },
         query: {
             maxLimit:
                 getIntegerFromEnvironmentVariable(
