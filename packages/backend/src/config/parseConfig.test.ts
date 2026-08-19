@@ -73,6 +73,18 @@ describe('database probe config', () => {
     });
 });
 
+describe('HTTP server config', () => {
+    it('defaults the keep-alive timeout to 620 seconds', () => {
+        expect(parseConfig().httpServer.keepAliveTimeoutMs).toBe(620_000);
+    });
+
+    it('parses the keep-alive timeout override', () => {
+        process.env.HTTP_KEEP_ALIVE_TIMEOUT_MS = '300000';
+
+        expect(parseConfig().httpServer.keepAliveTimeoutMs).toBe(300_000);
+    });
+});
+
 describe('MotherDuck instance cache config', () => {
     afterEach(() => {
         vi.restoreAllMocks();
