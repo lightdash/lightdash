@@ -1,3 +1,10 @@
+## [1.202.6](https://github.com/lightdash/lightdash/compare/1.202.5...1.202.6) (2026-08-19)
+
+
+### Bug Fixes
+
+* **backend:** configure HTTP keep-alive timeout ([#27636](https://github.com/lightdash/lightdash/issues/27636)) ([92ae9e3](https://github.com/lightdash/lightdash/commit/92ae9e3cb67e604e150ba8449ee2efe753557a03))
+
 ## [1.202.5](https://github.com/lightdash/lightdash/compare/1.202.4...1.202.5) (2026-08-19)
 
 
