@@ -1,6 +1,5 @@
-import { subject } from '@casl/ability';
 import {
-    ForbiddenError,
+    assertRegisteredAccount,
     ParameterError,
     QuerySourceType,
     type QuerySourceDefinition,
@@ -9,10 +8,9 @@ import {
     type SourceQuery,
     type SqlSourceQuery,
 } from '@lightdash/common';
-import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
-import type { WarehouseAvailableTablesModel } from '../../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
+import { toSessionUser } from '../../../auth/account';
 import type { AsyncQueryService } from '../../AsyncQueryService/AsyncQueryService';
-import { BaseService } from '../../BaseService';
+import type { ProjectService } from '../../ProjectService/ProjectService';
 import type {
     QuerySourceClient,
     ScanSchemaArgs,
@@ -21,17 +19,16 @@ import type {
 
 type SqlQuerySourceArguments = {
     asyncQueryService: AsyncQueryService;
-    projectModel: ProjectModel;
-    warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
+    projectService: ProjectService;
 };
 
 /**
  * The project's data warehouse as a query source: raw SQL through the SQL
- * runner pipeline. The schema scan lists tables from the cached warehouse
- * catalog (populated when the SQL runner is used); column detail is not
- * cached, so tables scan without columns.
+ * runner pipeline. The schema scan lists tables through the same path as the
+ * SQL runner catalog endpoint; column detail is not cached, so tables scan
+ * without columns.
  */
-export class SqlQuerySource extends BaseService implements QuerySourceClient {
+export class SqlQuerySource implements QuerySourceClient {
     readonly definition: QuerySourceDefinition = {
         sourceType: QuerySourceType.SQL,
         label: 'Warehouse SQL',
@@ -41,15 +38,11 @@ export class SqlQuerySource extends BaseService implements QuerySourceClient {
 
     private readonly asyncQueryService: AsyncQueryService;
 
-    private readonly projectModel: ProjectModel;
-
-    private readonly warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
+    private readonly projectService: ProjectService;
 
     constructor(args: SqlQuerySourceArguments) {
-        super({ serviceName: 'SqlQuerySource' });
         this.asyncQueryService = args.asyncQueryService;
-        this.projectModel = args.projectModel;
-        this.warehouseAvailableTablesModel = args.warehouseAvailableTablesModel;
+        this.projectService = args.projectService;
     }
 
     private static assertSourceQuery(query: SourceQuery): SqlSourceQuery {
@@ -65,27 +58,18 @@ export class SqlQuerySource extends BaseService implements QuerySourceClient {
         account,
         projectUuid,
     }: ScanSchemaArgs): Promise<QuerySourceSchema> {
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        assertRegisteredAccount(account);
 
-        // Same gate as the SQL runner catalog endpoints
-        const ability = this.createAuditedAbility(account);
-        if (
-            ability.cannot(
-                'manage',
-                subject('SqlRunner', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        const catalog =
-            await this.warehouseAvailableTablesModel.getTablesForProjectWarehouseCredentials(
-                projectUuid,
-            );
+        // The SQL runner catalog path: same manage-SqlRunner gate, and the
+        // catalog is resolved for the user's own warehouse credentials when
+        // they have them, falling back to the project connection
+        const catalog = await this.projectService.getWarehouseTables(
+            toSessionUser(account),
+            projectUuid,
+        );
 
         const tables: QuerySourceSchemaTable[] = Object.entries(
-            catalog ?? {},
+            catalog,
         ).flatMap(([database, schemas]) =>
             Object.entries(schemas).flatMap(([schemaName, schemaTables]) =>
                 Object.keys(schemaTables).map((tableName) => ({

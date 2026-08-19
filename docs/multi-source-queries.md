@@ -124,10 +124,11 @@ Example body — two parallel sources merged by DuckDB:
 
 ## Current limitations / next steps
 
-- The `sql` source's schema scan lists tables from the cached warehouse
-  catalog without column detail; the `duckdb` source scans empty (its tables
-  are the references handed to each query). A richer, source-keyed catalog is
-  a separate plan item.
+- The `sql` source's schema scan goes through the SQL runner catalog path
+  (`ProjectService.getWarehouseTables`, so per-user warehouse credentials are
+  respected) but without column detail; the `duckdb` source scans empty (its
+  tables are the references handed to each query). A richer, source-keyed
+  catalog is a separate plan item.
 - There is no server-side record grouping a submission's queries (each is an
   ordinary query history row). If a UI ever needs "pipeline runs", a thin
   grouping table can be added without changing this API.
@@ -135,3 +136,10 @@ Example body — two parallel sources merged by DuckDB:
   auth) is out of scope here: the built-ins ride on the project's existing
   connections. The `QuerySourceClient` contract is the seam where per-source
   auth models will live without changing the query interface.
+- The agent SQL scope (`scopedSqlContexts.ts`) applies to `ai`/`mcp.runSql`
+  contexts only; `multiSourceQuery` and `composeSqlRunner` are not
+  agent-scoped, matching the human SQL runner. If the AI agent or MCP tools
+  ever submit through these endpoints, they must set an agent-scoped context
+  server-side (the scope check lives in
+  `AsyncQueryService.executeAsyncSqlQuery`), or the `sql` source would bypass
+  the project's agent SQL scope.

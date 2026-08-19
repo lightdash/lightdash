@@ -59,8 +59,9 @@ export class QuerySourceController extends BaseController {
      * Scans the schema of one query source into the standard shape: tables
      * with columns of {reference, type}. For the semantic layer, tables are
      * explores and columns are field ids; for warehouse SQL, tables come from
-     * the cached warehouse catalog; the duckdb source has no schema of its
-     * own — its tables are the references given to each query.
+     * the warehouse catalog resolved for your credentials, like the SQL
+     * runner; the duckdb source has no schema of its own — its tables are the
+     * references given to each query.
      * @summary Scan query source schema
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

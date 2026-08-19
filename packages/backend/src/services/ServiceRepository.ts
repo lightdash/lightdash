@@ -985,20 +985,18 @@ export class ServiceRepository
     public getQuerySourceService(): QuerySourceService {
         return this.getService('querySourceService', () => {
             const asyncQueryService = this.getAsyncQueryService();
+            const projectService = this.getProjectService();
             const registry = new QuerySourceRegistry();
             registry.register(
                 new SemanticLayerQuerySource({
                     asyncQueryService,
-                    projectService: this.getProjectService(),
-                    projectModel: this.models.getProjectModel(),
+                    projectService,
                 }),
             );
             registry.register(
                 new SqlQuerySource({
                     asyncQueryService,
-                    projectModel: this.models.getProjectModel(),
-                    warehouseAvailableTablesModel:
-                        this.models.getWarehouseAvailableTablesModel(),
+                    projectService,
                 }),
             );
             registry.register(new DuckdbQuerySource({ asyncQueryService }));
