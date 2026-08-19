@@ -62,6 +62,17 @@ export class QuerySourceController extends BaseController {
      * the warehouse catalog resolved for your credentials, like the SQL
      * runner; the duckdb source has no schema of its own — its tables are the
      * references given to each query.
+     *
+     * Sources can hold thousands of columns, so a scan never dumps
+     * everything. Without parameters it returns an overview: tables without
+     * columns. Pass patterns (case-insensitive keyword patterns — pipe to OR
+     * synonyms, a space between words to require all of them) to search table
+     * and column names, labels and descriptions, returning matching tables
+     * with only their matching columns. Pass tables (references from a
+     * previous scan) to fetch full column detail for those tables — for the
+     * sql source this reads live warehouse metadata per table. Combining both
+     * searches within the named tables. The response note says how the result
+     * was reduced and what to call next.
      * @summary Scan query source schema
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -72,11 +83,16 @@ export class QuerySourceController extends BaseController {
         @Path() projectUuid: string,
         @Path() sourceType: QuerySourceType,
         @Request() req: express.Request,
+        @Query() patterns?: string[],
+        @Query() tables?: string[],
     ): Promise<ApiSuccess<ApiScanQuerySourceSchemaResults>> {
         this.setStatus(200);
         const results = await this.services
             .getQuerySourceService()
-            .scanSchema(req.account!, projectUuid, sourceType);
+            .scanSchema(req.account!, projectUuid, sourceType, {
+                patterns,
+                tables,
+            });
         return { status: 'ok', results };
     }
 

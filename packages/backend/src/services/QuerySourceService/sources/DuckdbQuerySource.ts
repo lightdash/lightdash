@@ -64,6 +64,8 @@ export class DuckdbQuerySource implements QuerySourceClient {
         return {
             sourceType: QuerySourceType.DUCKDB,
             tables: [],
+            totalTables: 0,
+            note: 'The duckdb source has no schema of its own — its tables are the references given to each query, and a completed query result carries its own columns.',
         };
     }
 

@@ -3498,6 +3498,10 @@ export class McpService extends BaseService {
                                 account,
                                 projectUuid,
                                 args.sourceType,
+                                {
+                                    patterns: args.patterns ?? undefined,
+                                    tables: args.tables ?? undefined,
+                                },
                             );
                         return mcpGetQuerySourceSchemaTool.result.structured(
                             JSON.stringify(results, null, 2),

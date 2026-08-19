@@ -90,7 +90,7 @@ preview environments) and live under
 | Endpoint | Purpose |
 | --- | --- |
 | `GET /` | List registered sources |
-| `GET /{sourceType}/schema` | Scan one source's schema into the standard `{tables: [{reference, columns: [{reference, type}]}]}` shape |
+| `GET /{sourceType}/schema` | Scan one source's schema into the standard `{tables: [{reference, columns: [{reference, type}]}]}` shape. Never a full dump — an overview (tables without columns), a search (`patterns` query param, grep_fields grammar via the shared `compileMatcher`), or a detail fetch (`tables` query param); `totalTables` and `note` report what was reduced |
 | `POST /queries` | Submit 1..n source queries → immediate `{nodeId, queryUuid}` per query |
 | `GET /queries/status?queryUuids=...` | Batch status poll (standard async query lifecycle) |
 
@@ -108,7 +108,7 @@ The same interface is exposed on the Lightdash MCP server
 | Tool | Wraps |
 | --- | --- |
 | `list_query_sources` | `GET /` |
-| `get_query_source_schema` | `GET /{sourceType}/schema` |
+| `get_query_source_schema` | `GET /{sourceType}/schema` (same overview/search/detail modes, same pattern grammar as `grep_fields`) |
 | `run_source_queries` | `POST /queries` (submits immediately, no waiting) |
 | `get_source_query_status` | `GET /queries/status` (statuses mapped to the MCP polling vocabulary: running/done/error/cancelled/expired) |
 
@@ -147,11 +147,16 @@ Example body — two parallel sources merged by DuckDB:
 
 ## Current limitations / next steps
 
-- The `sql` source's schema scan goes through the SQL runner catalog path
+- Schema scans filter post-scan in memory
+  (`QuerySourceService/schemaSearch.ts`, reusing the `grep_fields` matcher):
+  the `sql` source's table list goes through the SQL runner catalog path
   (`ProjectService.getWarehouseTables`, so per-user warehouse credentials are
-  respected) but without column detail; the `duckdb` source scans empty (its
-  tables are the references handed to each query). A richer, source-keyed
-  catalog is a separate plan item.
+  respected) and its column detail is read live per requested table
+  (`getWarehouseFields`); the `semanticLayer` source searches its cached
+  explores; the `duckdb` source scans empty (its tables are the references
+  handed to each query). A persisted, source-keyed catalog with FTS and
+  usage-ranked search (what `catalog_search` gives `grep_fields`) is a
+  separate plan item.
 - There is no server-side record grouping a submission's queries (each is an
   ordinary query history row). If a UI ever needs "pipeline runs", a thin
   grouping table can be added without changing this API.

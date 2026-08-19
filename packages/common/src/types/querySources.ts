@@ -164,13 +164,27 @@ export type QuerySourceSchemaTable = {
     reference: string;
     label: string | null;
     description: string | null;
-    columns: QuerySourceSchemaColumn[];
+    /**
+     * null means columns were not scanned for this table (overview and
+     * name-only search matches) — rescan with this reference in `tables` for
+     * column detail. An empty array means the table scanned with no columns.
+     */
+    columns: QuerySourceSchemaColumn[] | null;
 };
 
-/** The standard shape every source's schema scan returns. */
+/**
+ * The standard shape every source's schema scan returns. Sources can hold
+ * thousands of columns across hundreds of tables, so a scan is an overview
+ * (tables without columns), a search (`patterns`), or a detail fetch
+ * (`tables`) — never an unconditional full dump.
+ */
 export type QuerySourceSchema = {
     sourceType: QuerySourceType;
     tables: QuerySourceSchemaTable[];
+    /** How many tables the source holds before search/truncation. */
+    totalTables: number;
+    /** How this scan was reduced and what to call next; null when nothing was cut. */
+    note: string | null;
 };
 
 /** Metadata describing a registered source, for source discovery. */

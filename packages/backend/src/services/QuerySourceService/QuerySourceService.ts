@@ -19,6 +19,7 @@ import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { BaseService } from '../BaseService';
 import type { QuerySourceRegistry } from './QuerySourceRegistry';
+import { MAX_SCAN_PATTERNS, MAX_SCAN_TABLE_REFS } from './schemaSearch';
 import type { QuerySourceClient } from './types';
 
 type QuerySourceServiceArguments = {
@@ -134,10 +135,38 @@ export class QuerySourceService extends BaseService {
         account: Account,
         projectUuid: string,
         sourceType: QuerySourceType,
+        filter?: { patterns?: string[]; tables?: string[] },
     ): Promise<ApiScanQuerySourceSchemaResults> {
         await this.throwIfMultiSourceQueryDisabled(account);
+        if (filter?.patterns !== undefined) {
+            if (
+                filter.patterns.length === 0 ||
+                filter.patterns.length > MAX_SCAN_PATTERNS ||
+                filter.patterns.some((pattern) => pattern.length === 0)
+            ) {
+                throw new ParameterError(
+                    `Provide 1 to ${MAX_SCAN_PATTERNS} non-empty search patterns`,
+                );
+            }
+        }
+        if (filter?.tables !== undefined) {
+            if (
+                filter.tables.length === 0 ||
+                filter.tables.length > MAX_SCAN_TABLE_REFS ||
+                filter.tables.some((table) => table.length === 0)
+            ) {
+                throw new ParameterError(
+                    `Provide 1 to ${MAX_SCAN_TABLE_REFS} non-empty table references`,
+                );
+            }
+        }
         const source = this.registry.get(sourceType);
-        return source.scanSchema({ account, projectUuid });
+        return source.scanSchema({
+            account,
+            projectUuid,
+            patterns: filter?.patterns,
+            tables: filter?.tables,
+        });
     }
 
     /**

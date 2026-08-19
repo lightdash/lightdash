@@ -10,11 +10,13 @@ import {
     type QuerySourceDefinition,
     type QuerySourceSchema,
     type QuerySourceSchemaColumn,
+    type QuerySourceSchemaTable,
     type SemanticLayerSourceQuery,
     type SourceQuery,
 } from '@lightdash/common';
 import type { AsyncQueryService } from '../../AsyncQueryService/AsyncQueryService';
 import type { ProjectService } from '../../ProjectService/ProjectService';
+import { applySchemaScanFilter } from '../schemaSearch';
 import type {
     QuerySourceClient,
     ScanSchemaArgs,
@@ -64,6 +66,8 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
     async scanSchema({
         account,
         projectUuid,
+        patterns,
+        tables: tableRefs,
     }: ScanSchemaArgs): Promise<QuerySourceSchema> {
         // Applies view-project authorization and explore-level user-attribute
         // filtering
@@ -74,20 +78,35 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
             false,
         );
 
+        // An overview scan never renders columns, so skip loading the full
+        // explores — a project can hold thousands of fields
+        const needsColumns = patterns !== undefined || tableRefs !== undefined;
+
+        // Search runs over every explore; detail-only fetches load just the
+        // requested ones
+        const exploreNamesToLoad =
+            patterns !== undefined
+                ? summaries.map((summary) => summary.name)
+                : summaries
+                      .map((summary) => summary.name)
+                      .filter((name) => tableRefs?.includes(name));
+
         // findExplores applies field-level user attributes: dimensions,
         // metrics and joined tables with required attributes the user lacks
         // are removed, matching what the explore endpoint returns
-        const explores = await this.projectService.findExplores({
-            account,
-            projectUuid,
-            exploreNames: summaries.map((summary) => summary.name),
-        });
+        const explores = needsColumns
+            ? await this.projectService.findExplores({
+                  account,
+                  projectUuid,
+                  exploreNames: exploreNamesToLoad,
+              })
+            : {};
 
-        const tables = summaries.map((summary) => {
+        const tables = summaries.map((summary): QuerySourceSchemaTable => {
             const explore = explores[summary.name];
-            const columns: QuerySourceSchemaColumn[] =
+            const columns: QuerySourceSchemaColumn[] | null =
                 explore === undefined || isExploreError(explore)
-                    ? []
+                    ? null
                     : [
                           ...getDimensions(explore)
                               .filter((dimension) => !dimension.hidden)
@@ -118,7 +137,7 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
 
         return {
             sourceType: QuerySourceType.SEMANTIC_LAYER,
-            tables,
+            ...applySchemaScanFilter(tables, { patterns, tables: tableRefs }),
         };
     }
 

@@ -116,9 +116,15 @@ A query source is anything that can scan a schema and run a query returning the 
 
 Requires the multi-source-query feature flag.`;
 
-export const TOOL_GET_QUERY_SOURCE_SCHEMA_DESCRIPTION = `Scan the schema of one query source into the standard shape: tables with columns of {reference, type}.
+export const TOOL_GET_QUERY_SOURCE_SCHEMA_DESCRIPTION = `Scan the schema of one query source into the standard shape: tables with columns of {reference, type}. Sources can hold thousands of columns across hundreds of tables, so a scan never dumps everything — it has three modes:
 
-For the semanticLayer source, tables are explores and columns are field ids (use these ids as dimensions/metrics in run_source_queries). For the sql source, tables come from the warehouse catalog resolved for your credentials, without column detail. The duckdb source has no schema of its own — its tables are the references given to each query, and a completed query's result columns are its schema.
+1. Overview (no patterns/tables): every table without columns. Use it to see what a source contains.
+2. Search (patterns): up to 5 case-insensitive keyword patterns matched against table and column names, labels and descriptions. Use \`|\` to OR synonyms ("revenue|sales") and a space or \`.*\` between words to require all of them ("order.*status"). Returns matching tables with only their matching columns; a table with columns: null matched by name only — fetch it with tables. Start broad with meaningful keywords and narrow from there; long natural-language phrases will not match.
+3. Detail (tables): full column detail for up to 10 named table references from a previous scan. For the sql source this reads live warehouse metadata per table. Combine with patterns to search only within those tables.
+
+The response's totalTables and note report how the result was reduced and what to call next.
+
+For the semanticLayer source, tables are explores and columns are field ids (use these ids as dimensions/metrics in run_source_queries); grep_fields and get_metadata search the same catalog with richer ranking (verified-chart usage, hints, fuzzy search) and their field ids are interchangeable with this source's column references. For the sql source, tables come from the warehouse catalog resolved for your credentials. The duckdb source has no schema of its own — its tables are the references given to each query, and a completed query result carries its own columns.
 
 Requires the multi-source-query feature flag.`;
 
@@ -141,6 +147,22 @@ export const toolGetQuerySourceSchemaArgsSchema = createToolSchema()
         sourceType: createQuerySourceTypeSchema().describe(
             'The query source to scan, from list_query_sources.',
         ),
+        patterns: z
+            .array(z.string().min(1))
+            .min(1)
+            .max(5)
+            .nullable()
+            .describe(
+                'Search the source schema: up to 5 case-insensitive keyword patterns matched against table and column names, labels and descriptions. Use `|` to OR synonyms and a space or `.*` between words to require all of them. null to list tables without searching.',
+            ),
+        tables: z
+            .array(z.string().min(1))
+            .min(1)
+            .max(10)
+            .nullable()
+            .describe(
+                'Fetch full column detail for up to 10 table references from a previous scan. Combine with patterns to search only within these tables. null to scan the whole source.',
+            ),
     })
     .build();
 
@@ -255,16 +277,32 @@ export const mcpGetQuerySourceSchemaStructuredOutputSchema = z.object({
             reference: z.string(),
             label: z.string().nullable(),
             description: z.string().nullable(),
-            columns: z.array(
-                z.object({
-                    reference: z.string(),
-                    type: z.nativeEnum(DimensionType),
-                    label: z.string().nullable(),
-                    description: z.string().nullable(),
-                }),
-            ),
+            columns: z
+                .array(
+                    z.object({
+                        reference: z.string(),
+                        type: z.nativeEnum(DimensionType),
+                        label: z.string().nullable(),
+                        description: z.string().nullable(),
+                    }),
+                )
+                .nullable()
+                .describe(
+                    'null when columns were not scanned for this table — rescan with its reference in tables for column detail.',
+                ),
         }),
     ),
+    totalTables: z
+        .number()
+        .int()
+        .nonnegative()
+        .describe('How many tables the source holds before search/truncation.'),
+    note: z
+        .string()
+        .nullable()
+        .describe(
+            'How this scan was reduced and what to call next; null when nothing was cut.',
+        ),
 });
 
 export const mcpRunSourceQueriesStructuredOutputSchema = z.object({
