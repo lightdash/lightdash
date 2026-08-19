@@ -88,6 +88,14 @@ services:
             HEADLESS_BROWSER_PORT: 3000
             INTERNAL_LIGHTDASH_HOST: http://lightdash-dev:3000
 
+            # AI agents ("Ask AI"), driven by the same okteto admin UI
+            # variables previews use (docker-compose.preview.yml). Unset
+            # variables resolve to empty strings and the copilot stays off.
+            AI_COPILOT_ENABLED: ${AI_COPILOT_ENABLED}
+            AI_DEFAULT_PROVIDER: ${AI_DEFAULT_PROVIDER}
+            ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+            OPENAI_API_KEY: ${OPENAI_API_KEY}
+
             # Set in the okteto admin UI (same bucket previews use)
             S3_ACCESS_KEY: ${S3_ACCESS_KEY}
             S3_SECRET_KEY: ${S3_SECRET_KEY}
