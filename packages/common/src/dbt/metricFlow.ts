@@ -1,5 +1,9 @@
 import { type AnyType } from '../types/any';
-import { type DbtModelLightdashMetric } from '../types/dbt';
+import {
+    type DbtManifest,
+    type DbtModelLightdashMetric,
+    type DbtModelNode,
+} from '../types/dbt';
 import {
     MetricFlowAggregation,
     type DbtSemanticFilter,
@@ -812,4 +816,78 @@ export const translateMetricFlowMetrics = ({
     });
 
     return { metricsByModel, warnings, translatedCount, skippedCount };
+};
+
+export type ApplyMetricFlowMetricsResult = {
+    models: DbtModelNode[];
+    warnings: string[];
+    translatedCount: number;
+    skippedCount: number;
+    /** Set when translation failed entirely; `models` are returned untouched. */
+    error: string | null;
+};
+
+/**
+ * Translate the manifest's MetricFlow definitions and merge the resulting
+ * Lightdash metrics into each model's `meta.metrics`. YAML-defined metrics win
+ * over translated ones on name collision. Best-effort: a manifest with no
+ * semantic models is a no-op, and a translation crash returns the models
+ * untouched with `error` set — callers decide how to surface warnings/errors.
+ */
+export const applyMetricFlowMetricsToModels = (
+    models: DbtModelNode[],
+    manifest: Pick<DbtManifest, 'semantic_models' | 'metrics'>,
+): ApplyMetricFlowMetricsResult => {
+    const noop: ApplyMetricFlowMetricsResult = {
+        models,
+        warnings: [],
+        translatedCount: 0,
+        skippedCount: 0,
+        error: null,
+    };
+    const semanticModels = manifest.semantic_models;
+    if (!semanticModels || Object.keys(semanticModels).length === 0) {
+        return noop;
+    }
+
+    const modelNamesByUniqueId = Object.fromEntries(
+        models.map((model) => [model.unique_id, model.name]),
+    );
+
+    let translation: TranslateMetricFlowResult;
+    try {
+        translation = translateMetricFlowMetrics({
+            semanticModels,
+            metrics: manifest.metrics ?? {},
+            modelNamesByUniqueId,
+        });
+    } catch (e) {
+        return {
+            ...noop,
+            error: e instanceof Error ? e.message : String(e),
+        };
+    }
+
+    const { metricsByModel, warnings, translatedCount, skippedCount } =
+        translation;
+
+    return {
+        models: models.map((model) => {
+            const modelMetrics = metricsByModel[model.name];
+            if (!modelMetrics) {
+                return model;
+            }
+            return {
+                ...model,
+                meta: {
+                    ...model.meta,
+                    metrics: { ...modelMetrics, ...model.meta.metrics },
+                },
+            };
+        }),
+        warnings,
+        translatedCount,
+        skippedCount,
+        error: null,
+    };
 };
