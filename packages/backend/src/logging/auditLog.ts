@@ -103,9 +103,6 @@ export const AuditLogEventSchema = z.object({
 
 export type AuditLogEvent = z.infer<typeof AuditLogEventSchema>;
 
-export const validateAuditLogEvent = (event: unknown): AuditLogEvent =>
-    AuditLogEventSchema.parse(event);
-
 export const createAuditLogEvent = (
     actor: AuditActor,
     action: string,
@@ -115,17 +112,18 @@ export const createAuditLogEvent = (
     reason?: string,
     ruleConditions?: string,
     callStack?: CallStackEntry[],
-): AuditLogEvent =>
-    validateAuditLogEvent({
-        actor,
-        action,
-        resource,
-        context,
-        status,
-        reason,
-        ruleConditions,
-        callStack,
-    });
+): AuditLogEvent => ({
+    id: uuidv4(),
+    timestamp: new Date().toISOString(),
+    actor,
+    action,
+    resource,
+    context,
+    status,
+    reason,
+    ruleConditions,
+    callStack,
+});
 
 /**
  * Builds an audit actor for an authentication attempt where the user

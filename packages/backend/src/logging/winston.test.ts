@@ -249,6 +249,23 @@ describe('formatAuditResource', () => {
         );
     });
 
+    it('renders bulk resource metadata as JSON', () => {
+        expect(
+            formatAuditResource({
+                type: 'Space',
+                metadata: {
+                    resources: [
+                        { spaceUuid: 'space-1', spaceName: 'First' },
+                        { spaceUuid: 'space-2', spaceName: 'Second' },
+                    ],
+                },
+                organizationUuid: 'org-uuid',
+            }),
+        ).toBe(
+            'Space -> resources: [{"spaceUuid":"space-1","spaceName":"First"},{"spaceUuid":"space-2","spaceName":"Second"}]',
+        );
+    });
+
     it('renders a single metadata entry', () => {
         expect(
             formatAuditResource({

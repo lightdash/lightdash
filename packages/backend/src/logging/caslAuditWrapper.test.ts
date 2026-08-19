@@ -122,6 +122,21 @@ describe('CaslAuditWrapper', () => {
             );
         });
 
+        it('should evaluate the relevant rule only once', () => {
+            const mockLogger = createMockLogger();
+            const ability = createTestAbility();
+            const relevantRuleFor = vi.spyOn(ability, 'relevantRuleFor');
+            const wrapper = new CaslAuditWrapper(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                ability as any,
+                mockUser,
+                { auditLogger: mockLogger },
+            );
+
+            expect(wrapper.can('read', createDashboard('1'))).toBe(true);
+            expect(relevantRuleFor).toHaveBeenCalledTimes(1);
+        });
+
         it('should log the audit event with allowed status when permission is granted', () => {
             const mockLogger = createMockLogger();
             const wrapper = createWrapper(mockLogger);
@@ -311,6 +326,143 @@ describe('CaslAuditWrapper', () => {
             expect(loggedEvent.reason).toBe(
                 'Private dashboards are not readable',
             );
+        });
+    });
+
+    describe('canBulk method', () => {
+        it('returns results in subject order and groups audit events by rule', () => {
+            const mockLogger = createMockLogger();
+            const wrapper = createWrapper(mockLogger);
+            const subjects = [
+                createDashboard('allowed-1'),
+                createDashboard('denied', {
+                    inheritsFromOrgOrProject: false,
+                }),
+                createDashboard('allowed-2'),
+            ];
+
+            expect(wrapper.canBulk('read', subjects)).toEqual([
+                true,
+                false,
+                true,
+            ]);
+            expect(mockLogger).toHaveBeenCalledTimes(2);
+
+            const allowedEvent = mockLogger.mock.calls
+                .map(([event]) => event)
+                .find(({ status }) => status === 'allowed');
+            expect(allowedEvent?.resource.metadata).toEqual({
+                resources: [
+                    { dashboardUuid: 'allowed-1' },
+                    { dashboardUuid: 'allowed-2' },
+                ],
+            });
+            expect(allowedEvent?.ruleConditions).toBeUndefined();
+
+            const deniedEvent = mockLogger.mock.calls
+                .map(([event]) => event)
+                .find(({ status }) => status === 'denied');
+            expect(deniedEvent?.resource.metadata).toEqual({
+                resources: [{ dashboardUuid: 'denied' }],
+            });
+            expect(deniedEvent?.reason).toBe(
+                'Private dashboards are not readable',
+            );
+            expect(deniedEvent?.ruleConditions).toBeUndefined();
+        });
+
+        it('omits project scope when a rule group spans projects', () => {
+            const mockLogger = createMockLogger();
+            const ability = defineAbility((can) => can('read', 'Project'));
+            const wrapper = new CaslAuditWrapper(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                ability as any,
+                mockUser,
+                { auditLogger: mockLogger },
+            );
+
+            wrapper.canBulk('read', [
+                subject('Project', {
+                    organizationUuid: 'test-org-uuid',
+                    projectUuid: 'project-1',
+                    metadata: { projectUuid: 'project-1' },
+                }),
+                subject('Project', {
+                    organizationUuid: 'test-org-uuid',
+                    projectUuid: 'project-2',
+                    metadata: { projectUuid: 'project-2' },
+                }),
+            ]);
+
+            expect(mockLogger).toHaveBeenCalledTimes(1);
+            expect(
+                mockLogger.mock.calls[0][0].resource.projectUuid,
+            ).toBeUndefined();
+            expect(mockLogger.mock.calls[0][0].resource.metadata).toEqual({
+                resources: [
+                    { projectUuid: 'project-1' },
+                    { projectUuid: 'project-2' },
+                ],
+            });
+        });
+
+        it('splits rule groups by resource type and organization', () => {
+            const mockLogger = createMockLogger();
+            const ability = defineAbility((can) =>
+                can('read', ['Dashboard', 'SavedChart']),
+            );
+            const wrapper = new CaslAuditWrapper(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                ability as any,
+                mockUser,
+                { auditLogger: mockLogger },
+            );
+
+            wrapper.canBulk('read', [
+                createDashboard('dashboard-1'),
+                createSavedChart('chart-1'),
+                createDashboard('dashboard-2', {
+                    organizationUuid: 'other-org-uuid',
+                }),
+            ]);
+
+            expect(mockLogger).toHaveBeenCalledTimes(3);
+            expect(
+                mockLogger.mock.calls.map(([event]) => ({
+                    type: event.resource.type,
+                    organizationUuid: event.resource.organizationUuid,
+                })),
+            ).toEqual(
+                expect.arrayContaining([
+                    {
+                        type: 'Dashboard',
+                        organizationUuid: 'test-org-uuid',
+                    },
+                    {
+                        type: 'SavedChart',
+                        organizationUuid: 'test-org-uuid',
+                    },
+                    {
+                        type: 'Dashboard',
+                        organizationUuid: 'other-org-uuid',
+                    },
+                ]),
+            );
+        });
+
+        it('does not construct audit events when auditing is disabled', () => {
+            const mockLogger = createMockLogger();
+            const wrapper = new CaslAuditWrapper(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                createTestAbility() as any,
+                mockUser,
+                { auditLogger: mockLogger, auditEnabled: false },
+            );
+
+            expect(
+                wrapper.canBulk('read', [createDashboard('allowed')]),
+            ).toEqual([true]);
+            expect(mockLogger).not.toHaveBeenCalled();
         });
     });
 

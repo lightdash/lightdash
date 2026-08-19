@@ -4965,24 +4965,27 @@ export class ProjectService extends BaseService {
                     ...provenance.additionalMetrics.map((r) => r.spaceUuid),
                 ]),
             ];
-            const viewableSpaceUuids =
-                candidateSpaceUuids.length === 0
-                    ? new Set<string>()
-                    : new Set(
-                          Object.entries(
-                              await this.spacePermissionService.getSpacesAccessContext(
-                                  account.user.id,
-                                  candidateSpaceUuids,
-                              ),
-                          )
-                              .filter(([, ctx]) =>
-                                  auditedAbility.can(
-                                      'view',
-                                      subject('Space', ctx),
-                                  ),
-                              )
-                              .map(([spaceUuid]) => spaceUuid),
-                      );
+            const viewableSpaceUuids = new Set<string>();
+            if (candidateSpaceUuids.length > 0) {
+                const spaceContexts = Object.entries(
+                    await this.spacePermissionService.getSpacesAccessContext(
+                        account.user.id,
+                        candidateSpaceUuids,
+                    ),
+                );
+                const accessResults = auditedAbility.canBulk(
+                    'view',
+                    spaceContexts.map(([spaceUuid, context]) =>
+                        subject('Space', {
+                            ...context,
+                            metadata: { spaceUuid },
+                        }),
+                    ),
+                );
+                spaceContexts.forEach(([spaceUuid], index) => {
+                    if (accessResults[index]) viewableSpaceUuids.add(spaceUuid);
+                });
+            }
 
             viewableTableCalculationSqls = new Set(
                 provenance.tableCalculations
@@ -9331,27 +9334,38 @@ export class ProjectService extends BaseService {
                     }),
                 ]);
 
+                const chartsWithSpaceContext = savedCharts.flatMap(
+                    (savedChart) => {
+                        const spaceCtx = spacesCtx[savedChart.spaceUuid];
+                        return spaceCtx ? [{ savedChart, spaceCtx }] : [];
+                    },
+                );
                 const auditedAbility = this.createAuditedAbility(account);
-                return savedCharts.map((savedChart) => {
-                    const spaceCtx = spacesCtx[savedChart.spaceUuid];
+                const accessResults = auditedAbility.canBulk(
+                    'view',
+                    chartsWithSpaceContext.map(({ savedChart, spaceCtx }) =>
+                        subject('SavedChart', {
+                            organizationUuid: spaceCtx.organizationUuid,
+                            projectUuid: spaceCtx.projectUuid,
+                            inheritsFromOrgOrProject:
+                                spaceCtx.inheritsFromOrgOrProject,
+                            access: spaceCtx.access,
+                            metadata: {
+                                savedChartUuid: savedChart.uuid,
+                                savedChartName: savedChart.name,
+                            },
+                        }),
+                    ),
+                );
+                const chartAccess = new Map(
+                    chartsWithSpaceContext.map(({ savedChart }, index) => [
+                        savedChart.uuid,
+                        accessResults[index],
+                    ]),
+                );
 
-                    if (
-                        !spaceCtx ||
-                        auditedAbility.cannot(
-                            'view',
-                            subject('SavedChart', {
-                                organizationUuid: spaceCtx.organizationUuid,
-                                projectUuid: spaceCtx.projectUuid,
-                                inheritsFromOrgOrProject:
-                                    spaceCtx.inheritsFromOrgOrProject,
-                                access: spaceCtx.access,
-                                metadata: {
-                                    savedChartUuid: savedChart.uuid,
-                                    savedChartName: savedChart.name,
-                                },
-                            }),
-                        )
-                    ) {
+                return savedCharts.map((savedChart) => {
+                    if (!chartAccess.get(savedChart.uuid)) {
                         return {
                             uuid: savedChart.uuid,
                             filters: [],
@@ -10078,29 +10092,29 @@ export class ProjectService extends BaseService {
             this.spacePermissionService.getDirectAccessUserUuids(spaceUuids),
         ]);
 
-        return spaces
-            .filter((space) => {
-                const ctx = userSpacesCtx[space.uuid];
-                return (
-                    ctx &&
-                    auditedAbility.can(
-                        'view',
-                        subject('Space', {
-                            organizationUuid: ctx.organizationUuid,
-                            projectUuid: ctx.projectUuid,
-                            inheritsFromOrgOrProject:
-                                ctx.inheritsFromOrgOrProject,
-                            access: ctx.access,
-                            metadata: {
-                                spaceUuid: space.uuid,
-                                spaceName: space.name,
-                            },
-                        }),
-                    )
-                );
-            })
-            .map((spaceSummary) => {
-                const ctx = userSpacesCtx[spaceSummary.uuid];
+        const spacesWithContext = spaces.flatMap((space) => {
+            const ctx = userSpacesCtx[space.uuid];
+            return ctx ? [{ space, ctx }] : [];
+        });
+        const accessResults = auditedAbility.canBulk(
+            'view',
+            spacesWithContext.map(({ space, ctx }) =>
+                subject('Space', {
+                    organizationUuid: ctx.organizationUuid,
+                    projectUuid: ctx.projectUuid,
+                    inheritsFromOrgOrProject: ctx.inheritsFromOrgOrProject,
+                    access: ctx.access,
+                    metadata: {
+                        spaceUuid: space.uuid,
+                        spaceName: space.name,
+                    },
+                }),
+            ),
+        );
+
+        return spacesWithContext
+            .filter((_, index) => accessResults[index])
+            .map(({ space: spaceSummary, ctx }) => {
                 const directAccessUuids =
                     directAccessMap[spaceSummary.uuid] ?? [];
                 return {

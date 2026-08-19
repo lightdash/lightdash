@@ -240,12 +240,22 @@ export const formatAuditActor = (actor: AuditActor): string => {
     return actor.uuid;
 };
 
+const formatAuditMetadataValue = (value: unknown): string => {
+    if (typeof value !== 'object' || value === null) return String(value);
+
+    try {
+        return JSON.stringify(value);
+    } catch {
+        return String(value);
+    }
+};
+
 export const formatAuditResource = (resource: AuditResource): string => {
     const typePart = resource.type;
 
     if (resource.metadata) {
         const parts = Object.entries(resource.metadata)
-            .map(([key, value]) => `${key}: ${value}`)
+            .map(([key, value]) => `${key}: ${formatAuditMetadataValue(value)}`)
             .join(', ');
         return `${typePart} -> ${parts}`;
     }
@@ -270,6 +280,8 @@ export const formatAuditMessage = (event: AuditLogEvent): string => {
 };
 
 export const logAuditEvent = (event: AuditLogEvent): void => {
+    if (!winstonLogger.isLevelEnabled('audit')) return;
+
     winstonLogger.log({
         level: 'audit',
         message: formatAuditMessage(event),

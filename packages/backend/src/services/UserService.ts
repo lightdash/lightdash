@@ -2825,31 +2825,40 @@ export class UserService extends BaseService {
 
         if (projects.length === 0) return;
 
+        const savedChartAccessResults = auditedAbility.canBulk(
+            'manage',
+            projects.map((project) =>
+                subject('SavedChart', {
+                    projectUuid: project.projectUuid,
+                    organizationUuid: sessionUser.organizationUuid!,
+                    access: [
+                        {
+                            userUuid: sessionUser.userUuid,
+                            // We already know that we'll assign ADMIN permissions
+                            // for the user in their default space
+                            role: SpaceMemberRole.ADMIN,
+                        },
+                    ],
+                    metadata: { projectUuid: project.projectUuid },
+                }),
+            ),
+        );
+        const exploreAccessResults = auditedAbility.canBulk(
+            'manage',
+            projects.map((project) =>
+                subject('Explore', {
+                    projectUuid: project.projectUuid,
+                    organizationUuid: sessionUser.organizationUuid!,
+                    metadata: { projectUuid: project.projectUuid },
+                }),
+            ),
+        );
+
         await Promise.all(
-            projects.map(async (project) => {
+            projects.map(async (project, index) => {
                 if (
-                    auditedAbility.cannot(
-                        'manage',
-                        subject('SavedChart', {
-                            projectUuid: project.projectUuid,
-                            organizationUuid: sessionUser.organizationUuid!,
-                            access: [
-                                {
-                                    userUuid: sessionUser.userUuid,
-                                    // We already know that we'll assign ADMIN permissions
-                                    // for the user in their default space
-                                    role: SpaceMemberRole.ADMIN,
-                                },
-                            ],
-                        }),
-                    ) ||
-                    auditedAbility.cannot(
-                        'manage',
-                        subject('Explore', {
-                            projectUuid: project.projectUuid,
-                            organizationUuid: sessionUser.organizationUuid!,
-                        }),
-                    )
+                    !savedChartAccessResults[index] ||
+                    !exploreAccessResults[index]
                 )
                     return;
 

@@ -1041,22 +1041,27 @@ export class SavedChartService
         projectUuid: string,
         data: UpdateMultipleSavedChart[],
     ): Promise<SavedChart[]> {
-        const auditedAbility = this.createAuditedAbility(user);
-        const spaceAccessPromises = data.map(async (chart) => {
-            const { spaceUuid: currentSpaceUuid } =
-                await this.savedChartModel.getSummary(chart.uuid);
-            const spaceContexts = await Promise.all(
-                [currentSpaceUuid, chart.spaceUuid].map((spaceUuid) =>
-                    this.spacePermissionService.getSpaceAccessContext(
-                        user.userUuid,
-                        spaceUuid,
+        const chartSpaceContexts = await Promise.all(
+            data.map(async (chart) => {
+                const { spaceUuid: currentSpaceUuid } =
+                    await this.savedChartModel.getSummary(chart.uuid);
+                const spaceContexts = await Promise.all(
+                    [currentSpaceUuid, chart.spaceUuid].map((spaceUuid) =>
+                        this.spacePermissionService.getSpaceAccessContext(
+                            user.userUuid,
+                            spaceUuid,
+                        ),
                     ),
-                ),
-            );
-            return spaceContexts.every(
-                ({ inheritsFromOrgOrProject, access, organizationUuid }) =>
-                    auditedAbility.can(
-                        'update',
+                );
+                return { chart, spaceContexts };
+            }),
+        );
+        const auditedAbility = this.createAuditedAbility(user);
+        const hasAllAccess = auditedAbility.canBulk(
+            'update',
+            chartSpaceContexts.flatMap(({ chart, spaceContexts }) =>
+                spaceContexts.map(
+                    ({ inheritsFromOrgOrProject, access, organizationUuid }) =>
                         subject('SavedChart', {
                             organizationUuid,
                             projectUuid,
@@ -1064,11 +1069,10 @@ export class SavedChartService
                             access,
                             metadata: { savedChartUuid: chart.uuid },
                         }),
-                    ),
-            );
-        });
+                ),
+            ),
+        );
 
-        const hasAllAccess = await Promise.all(spaceAccessPromises);
         if (hasAllAccess.includes(false)) {
             throw new ForbiddenError();
         }

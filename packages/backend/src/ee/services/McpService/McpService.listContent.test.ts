@@ -58,7 +58,7 @@ const user = {
     ability: {
         can: vi.fn(() => true),
         cannot: vi.fn(() => false),
-        relevantRuleFor: vi.fn(() => undefined),
+        relevantRuleFor: vi.fn(() => ({ inverted: false })),
         rules: [],
     },
 };

@@ -125,30 +125,28 @@ export class ContentService extends BaseService {
             throw new NotFoundError('Organization not found');
         }
         const auditedAbility = this.createAuditedAbility(user);
-        const projectUuids = (
-            await wrapSentryTransaction(
-                'ContentService.find.getAllByOrganizationUuid',
-                { organizationUuid },
-                async () =>
-                    this.projectModel.getAllByOrganizationUuid(
-                        organizationUuid,
-                    ),
-            )
-        )
-            .filter((project) =>
-                auditedAbility.can(
-                    'view',
-                    subject('Project', {
-                        organizationUuid,
+        const projects = await wrapSentryTransaction(
+            'ContentService.find.getAllByOrganizationUuid',
+            { organizationUuid },
+            async () =>
+                this.projectModel.getAllByOrganizationUuid(organizationUuid),
+        );
+        const projectAccessResults = auditedAbility.canBulk(
+            'view',
+            projects.map((project) =>
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid: project.projectUuid,
+                    metadata: {
                         projectUuid: project.projectUuid,
-                        metadata: {
-                            projectUuid: project.projectUuid,
-                            projectName: project.name,
-                        },
-                    }),
-                ),
-            )
-            .map((p) => p.projectUuid);
+                        projectName: project.name,
+                    },
+                }),
+            ),
+        );
+        const projectUuids = projects
+            .filter((_, index) => projectAccessResults[index])
+            .map((project) => project.projectUuid);
         let allowedProjectUuids = filters.projectUuids
             ? intersection(filters.projectUuids, projectUuids)
             : projectUuids; // todo: move this filter to project model query
@@ -156,11 +154,18 @@ export class ContentService extends BaseService {
         // The vizs-only listing skips space scoping entirely, so gate it on
         // the same permission as the viz library: chart builders only.
         if (filters.dataAppVizsFilter === 'only') {
-            allowedProjectUuids = allowedProjectUuids.filter((projectUuid) =>
-                auditedAbility.can(
-                    'manage',
-                    subject('Explore', { organizationUuid, projectUuid }),
+            const accessResults = auditedAbility.canBulk(
+                'manage',
+                allowedProjectUuids.map((projectUuid) =>
+                    subject('Explore', {
+                        organizationUuid,
+                        projectUuid,
+                        metadata: { projectUuid },
+                    }),
                 ),
+            );
+            allowedProjectUuids = allowedProjectUuids.filter(
+                (_, index) => accessResults[index],
             );
         }
 
@@ -188,18 +193,23 @@ export class ContentService extends BaseService {
             !isInsideSpace &&
             (!filters.contentTypes ||
                 filters.contentTypes.includes(ContentType.DATA_APP));
+        const personalDataAppAccessResults = includePersonalDataApps
+            ? auditedAbility.canBulk(
+                  'manage',
+                  allowedProjectUuids.map((projectUuid) =>
+                      subject('DataApp', {
+                          organizationUuid,
+                          projectUuid,
+                          metadata: { projectUuid },
+                      }),
+                  ),
+              )
+            : [];
         const dataApps = includePersonalDataApps
             ? {
                   personalForUserUuid: user.userUuid,
                   personalAdminProjectUuids: allowedProjectUuids.filter(
-                      (projectUuid) =>
-                          auditedAbility.can(
-                              'manage',
-                              subject('DataApp', {
-                                  organizationUuid,
-                                  projectUuid,
-                              }),
-                          ),
+                      (_, index) => personalDataAppAccessResults[index],
                   ),
               }
             : undefined;
