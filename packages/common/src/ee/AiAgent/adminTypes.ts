@@ -421,6 +421,7 @@ export type AiOrganizationSettings = {
     dataAppModelVisibility?: DataAppModelVisibility | null;
     providerApiKeysSet: AiProviderApiKeysSet;
     providerApiKeyHints: AiProviderApiKeyHints;
+    threadRetentionHours?: number | null;
 };
 
 export type CreateAiOrganizationSettings = Omit<
@@ -442,6 +443,7 @@ export type UpdateAiOrganizationSettings = {
     modelVisibility?: AiOrgModelVisibility | null;
     dataAppModelVisibility?: DataAppModelVisibility | null;
     providerApiKeys?: UpdateAiProviderApiKeys;
+    threadRetentionHours?: number | null;
 };
 
 export type ApiAiOrganizationSettingsResponse = ApiSuccess<

@@ -102,6 +102,7 @@ const selectedAgent: AiAgentWithContext = {
     adminOnly: false,
     modelConfig: null,
     version: 1,
+    threadRetentionHours: null,
     context: {
         uuid: 'agent-uuid',
         projectUuid,

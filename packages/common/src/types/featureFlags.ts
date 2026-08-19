@@ -342,6 +342,12 @@ export enum FeatureFlags {
      * is unavailable or the merge needs a pivot. Off by default.
      */
     MergeOnCompose = 'merge-on-compose',
+
+    /**
+     * Configurable retention for AI agent threads. Off by default; enabled
+     * per-org on demand for enterprise customers.
+     */
+    AiThreadRetention = 'ai-thread-retention',
 }
 
 export type FeatureFlag = {

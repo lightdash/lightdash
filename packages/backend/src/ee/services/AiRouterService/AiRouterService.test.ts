@@ -125,6 +125,7 @@ const createCandidate = (
     adminOnly: false,
     modelConfig: null,
     version: 1,
+    threadRetentionHours: null,
     context: overrides.context ?? {
         uuid: overrides.uuid,
         projectUuid,

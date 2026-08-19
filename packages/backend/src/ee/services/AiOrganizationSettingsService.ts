@@ -6,10 +6,13 @@ import {
     BYO_AI_PROVIDERS,
     CommercialFeatureFlags,
     ComputedAiOrganizationSettings,
+    FeatureFlags,
     ForbiddenError,
     getVisibleDataAppClaudeModels,
+    isValidRetentionWindowHours,
     LightdashUser,
     ParameterError,
+    RETENTION_WINDOW_HOURS_ERROR,
     UpdateAiOrganizationSettings,
     UpdateAiProviderApiKeys,
     type AiAgentModelConfig,
@@ -367,6 +370,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 dataAppModelVisibility: null,
                 providerApiKeysSet: { anthropic: false, openai: false },
                 providerApiKeyHints: { anthropic: null, openai: null },
+                threadRetentionHours: null,
                 defaultAiAgentModelOptions: effectiveOptions,
                 configurableModelOptions: configurableOptions,
                 aiAgentReviewsPausedByByok,
@@ -476,6 +480,40 @@ export class AiOrganizationSettingsService extends BaseService {
         return settings?.deepResearchRawSqlEnabled ?? false;
     }
 
+    async isThreadRetentionEnabled(
+        user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,
+    ): Promise<boolean> {
+        const flag = await this.commercialFeatureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.AiThreadRetention,
+        });
+        return flag.enabled;
+    }
+
+    async assertThreadRetentionWriteAllowed(
+        user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,
+        threadRetentionHours: number | null,
+    ): Promise<void> {
+        if (!(await this.isThreadRetentionEnabled(user))) {
+            throw new ForbiddenError(
+                'AI thread retention is not enabled for this organization',
+            );
+        }
+        if (!isValidRetentionWindowHours(threadRetentionHours)) {
+            throw new ParameterError(RETENTION_WINDOW_HOURS_ERROR);
+        }
+    }
+
+    async getThreadRetentionCeiling(
+        organizationUuid: string,
+    ): Promise<number | null> {
+        const settings =
+            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                organizationUuid,
+            );
+        return settings?.threadRetentionHours ?? null;
+    }
+
     async upsertSettings(
         user: SessionUser,
         data: UpdateAiOrganizationSettings,
@@ -502,6 +540,19 @@ export class AiOrganizationSettingsService extends BaseService {
 
         if (aiSettingsUpdate.deepResearchLimits !== undefined) {
             validateDeepResearchLimits(aiSettingsUpdate.deepResearchLimits);
+        }
+
+        if (aiSettingsUpdate.threadRetentionHours !== undefined) {
+            // No-op writes stay allowed: clients that round-trip the settings
+            // object must not be rejected while the flag is off.
+            const storedRetention =
+                await this.getThreadRetentionCeiling(organizationUuid);
+            if (aiSettingsUpdate.threadRetentionHours !== storedRetention) {
+                await this.assertThreadRetentionWriteAllowed(
+                    user,
+                    aiSettingsUpdate.threadRetentionHours,
+                );
+            }
         }
 
         // Set when hiding models orphans the org's configured default, so the

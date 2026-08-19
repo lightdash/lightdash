@@ -632,6 +632,7 @@ export class AiAgentModel {
                 adminOnly: `${AiAgentTableName}.admin_only`,
                 modelConfig: `${AiAgentTableName}.model_config`,
                 version: `${AiAgentTableName}.version`,
+                threadRetentionHours: `${AiAgentTableName}.thread_retention_hours`,
                 groupAccess: this.database.raw(`
                     COALESCE(
                         (SELECT json_agg(group_uuid)
@@ -771,6 +772,7 @@ export class AiAgentModel {
                 adminOnly: `${AiAgentTableName}.admin_only`,
                 modelConfig: `${AiAgentTableName}.model_config`,
                 version: `${AiAgentTableName}.version`,
+                threadRetentionHours: `${AiAgentTableName}.thread_retention_hours`,
                 groupAccess: this.database.raw(`
                     COALESCE(
                         (SELECT json_agg(group_uuid)
@@ -2050,6 +2052,7 @@ export class AiAgentModel {
             | 'modelConfig'
             | 'version'
             | 'mcpServerUuids'
+            | 'threadRetentionHours'
         > & {
             organizationUuid: string;
             isSystem?: boolean;
@@ -2085,6 +2088,7 @@ export class AiAgentModel {
                     model_config: args.modelConfig ?? null,
                     version: args.version,
                     is_system: args.isSystem ?? false,
+                    thread_retention_hours: args.threadRetentionHours ?? null,
                 })
                 .returning('*');
 
@@ -2189,6 +2193,7 @@ export class AiAgentModel {
                 adminOnly: agent.admin_only,
                 modelConfig: agent.model_config,
                 version: agent.version,
+                threadRetentionHours: agent.thread_retention_hours,
             };
         });
     }
@@ -2317,6 +2322,9 @@ export class AiAgentModel {
                         : {}),
                     ...(args.version !== undefined
                         ? { version: args.version }
+                        : {}),
+                    ...(args.threadRetentionHours !== undefined
+                        ? { thread_retention_hours: args.threadRetentionHours }
                         : {}),
                 })
                 .returning('*');
@@ -2487,6 +2495,7 @@ export class AiAgentModel {
                 adminOnly: agent.admin_only,
                 modelConfig: agent.model_config,
                 version: agent.version,
+                threadRetentionHours: agent.thread_retention_hours,
             };
         });
     }

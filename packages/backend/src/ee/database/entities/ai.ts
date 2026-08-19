@@ -494,6 +494,7 @@ export type DbAiOrganizationSettings = {
     data_app_model_visibility: DataAppModelVisibility | null;
     encrypted_provider_api_keys: Buffer | null;
     provider_api_key_hints: AiProviderApiKeyHints | null;
+    thread_retention_hours: number | null;
     created_at: Date;
     updated_at: Date;
 };
@@ -514,6 +515,7 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
                 | 'data_app_model_visibility'
                 | 'encrypted_provider_api_keys'
                 | 'provider_api_key_hints'
+                | 'thread_retention_hours'
             >
         >,
     Partial<
@@ -530,6 +532,7 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
             | 'data_app_model_visibility'
             | 'encrypted_provider_api_keys'
             | 'provider_api_key_hints'
+            | 'thread_retention_hours'
         >
     >
 >;
