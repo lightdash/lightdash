@@ -116,6 +116,21 @@ describe('encodeBinaryValue', () => {
         );
     });
 
+    it('encodes the catalog column types: oid, int2, char, float4', () => {
+        const oid = Buffer.alloc(4);
+        oid.writeUInt32BE(3000000000);
+        expect(encodeBinaryValue('3000000000', 26)).toEqual(oid);
+        expect(encodeBinaryValue('1259', 2205)).toEqual(int32(1259));
+        expect(encodeBinaryValue('-2', 21)).toEqual(Buffer.from([0xff, 0xfe]));
+        expect(encodeBinaryValue('r', 18)).toEqual(Buffer.from('r'));
+        const float4 = Buffer.alloc(4);
+        float4.writeFloatBE(1.5);
+        expect(encodeBinaryValue('1.5', 700)).toEqual(float4);
+        expect(() => encodeBinaryValue('70000', 21)).toThrow(
+            expect.objectContaining({ code: '22003' }),
+        );
+    });
+
     it('passes text through and rejects types it cannot encode', () => {
         expect(encodeBinaryValue('abc', 25)).toEqual(Buffer.from('abc'));
         expect(() => encodeBinaryValue('1.5', 1700)).toThrow(

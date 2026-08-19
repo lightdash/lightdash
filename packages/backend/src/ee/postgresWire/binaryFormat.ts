@@ -1,6 +1,6 @@
 import { PG_OID, TRUE_LITERALS } from './pgTypes';
 import { PgWireServerError } from './PgWireServerError';
-import { float64, int32, int64 } from './wireEncoding';
+import { float64, int16, int32, int64 } from './wireEncoding';
 
 /**
  * Binary wire encodings for the handful of Postgres types this server emits
@@ -211,6 +211,32 @@ export const encodeBinaryValue = (text: string, oid: number): Buffer => {
         }
         case PG_OID.float8:
             return float64(parseFloat64(text, oid));
+        case PG_OID.float4: {
+            const b = Buffer.alloc(4);
+            b.writeFloatBE(parseFloat64(text, oid));
+            return b;
+        }
+        case PG_OID.int2: {
+            const value = parseInteger(text, oid);
+            if (value < -32768n || value > 32767n) {
+                throw outOfRange(text, oid);
+            }
+            return int16(Number(value));
+        }
+        case PG_OID.oid:
+        case PG_OID.regclass:
+        case PG_OID.regproc:
+        case PG_OID.regtype: {
+            const value = parseInteger(text, oid);
+            if (value < 0n || value > 4294967295n) {
+                throw outOfRange(text, oid);
+            }
+            const b = Buffer.alloc(4);
+            b.writeUInt32BE(Number(value));
+            return b;
+        }
+        case PG_OID.char:
+            return Buffer.from(text.slice(0, 1), 'utf8');
         case PG_OID.date:
             return encodeDate(text);
         case PG_OID.timestamp:

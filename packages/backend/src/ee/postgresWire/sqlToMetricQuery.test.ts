@@ -8,39 +8,75 @@ import { type PgWireTable } from './types';
 
 const ORDERS: PgWireTable = {
     name: 'orders',
+    description: null,
     fields: [
-        { fieldId: 'orders_status', kind: 'dimension', type: 'string' },
-        { fieldId: 'orders_order_date', kind: 'dimension', type: 'date' },
-        { fieldId: 'orders_is_completed', kind: 'dimension', type: 'boolean' },
-        { fieldId: 'orders_amount', kind: 'dimension', type: 'number' },
+        {
+            fieldId: 'orders_status',
+            kind: 'dimension',
+            type: 'string',
+            description: null,
+        },
+        {
+            fieldId: 'orders_order_date',
+            kind: 'dimension',
+            type: 'date',
+            description: null,
+        },
+        {
+            fieldId: 'orders_is_completed',
+            kind: 'dimension',
+            type: 'boolean',
+            description: null,
+        },
+        {
+            fieldId: 'orders_amount',
+            kind: 'dimension',
+            type: 'number',
+            description: null,
+        },
         // fields from a joined table in the explore
         {
             fieldId: 'customers_first_name',
             kind: 'dimension',
             type: 'string',
+            description: null,
         },
         {
             fieldId: 'orders_total_order_amount',
             kind: 'metric',
             type: 'sum',
+            description: null,
         },
         {
             fieldId: 'orders_unique_order_count',
             kind: 'metric',
             type: 'count_distinct',
+            description: null,
         },
-        { fieldId: 'orders_avg_amount', kind: 'metric', type: 'average' },
+        {
+            fieldId: 'orders_avg_amount',
+            kind: 'metric',
+            type: 'average',
+            description: null,
+        },
     ],
 };
 
 const CUSTOMERS: PgWireTable = {
     name: 'customers',
+    description: null,
     fields: [
-        { fieldId: 'customers_customer_id', kind: 'dimension', type: 'number' },
+        {
+            fieldId: 'customers_customer_id',
+            kind: 'dimension',
+            type: 'number',
+            description: null,
+        },
         {
             fieldId: 'customers_days_since_last_order',
             kind: 'metric',
             type: 'min',
+            description: null,
         },
     ],
 };

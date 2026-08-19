@@ -8,12 +8,16 @@ export type PgWireField = {
     kind: PgWireFieldKind;
     /** DimensionType or MetricType value, used to pick a Postgres type OID */
     type: string;
+    /** Shown as the column comment by schema browsers */
+    description: string | null;
 };
 
 /** One explore exposed as a Postgres table */
 export type PgWireTable = {
     name: string;
     fields: PgWireField[];
+    /** Shown as the table comment by schema browsers */
+    description: string | null;
 };
 
 export type PgWireColumnKind = PgWireFieldKind | 'table_calculation';
