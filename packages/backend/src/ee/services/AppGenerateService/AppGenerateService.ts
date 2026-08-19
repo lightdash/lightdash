@@ -13,6 +13,7 @@ import {
 import { subject, type Ability } from '@casl/ability';
 import {
     AlreadyExistsError,
+    APP_UPGRADE_PROMPT_LABEL,
     APP_VERSION_CANCELLED_BY_USER,
     assertEmbeddedAuth,
     assertUnreachable,
@@ -5206,8 +5207,12 @@ export class AppGenerateService extends BaseService {
 
         // Data app viz: persist the schema the generator declared as the run's
         // structured output.
-        if (isDataAppViz) {
+        if (isDataAppViz && !payload.isUpgrade) {
             await this.persistSchema(vizStructuredOutput, appUuid, version);
+        } else if (isDataAppViz) {
+            this.logger.info(
+                `Kept the copied schema for SDK upgrade of app ${appUuid} version ${version}; skipped structured schema regeneration`,
+            );
         }
 
         try {
@@ -5217,7 +5222,9 @@ export class AppGenerateService extends BaseService {
                 version,
                 'ready',
                 null,
-                isDataAppViz ? 'Visualization ready' : responseText,
+                isDataAppViz
+                    ? (payload.upgradeStatusMessage ?? 'Visualization ready')
+                    : responseText,
             );
             durations.dbMs = AppGenerateService.elapsed(dbStart);
             if (!updated) {
@@ -6438,8 +6445,6 @@ export class AppGenerateService extends BaseService {
         return latestDependencies;
     }
 
-    static readonly UPGRADE_PROMPT_LABEL = 'Upgrade to the latest app template';
-
     /**
      * The stored row prompt stays the short label (what chat history shows);
      * this composed instruction is what the pipeline actually sends —
@@ -6484,6 +6489,54 @@ export class AppGenerateService extends BaseService {
             '   It is for a non-technical app owner: never describe what you checked or how, never mention files, code, or APIs, and do not discuss features outside the bullet list.',
             '   Do not implement any of the features now.',
         ].join('\n');
+    }
+
+    private static buildDataAppVizUpgradeStatusMessage(
+        body: UpgradeAppRequestBody,
+    ): string {
+        const candidates = (body.candidateFeatures ?? []).slice(0, 20);
+        if (body.reportedFeatures === undefined) {
+            return [
+                'Upgraded to the latest chart SDK.',
+                '',
+                'This chart came from an older SDK that could not report its capabilities. Ask for a new capability in the prompt bar when you want the builder to add it.',
+            ].join('\n');
+        }
+        if (candidates.length === 0) {
+            return 'Upgraded to the latest chart SDK. This chart already had all currently reported capabilities.';
+        }
+        const nowActive = candidates.filter((feature) => !feature.wiring);
+        const askToAdd = candidates.filter((feature) => feature.wiring);
+        const sections = ['Upgraded to the latest chart SDK.'];
+        if (nowActive.length > 0) {
+            sections.push(
+                [
+                    'Now active:',
+                    '',
+                    ...nowActive.map(
+                        (feature) =>
+                            `- **${feature.label}** — ${feature.description}`,
+                    ),
+                ].join('\n'),
+            );
+        }
+        if (askToAdd.length > 0) {
+            const askCopy =
+                askToAdd.length === 1
+                    ? 'Newly available — ask me to add this in the prompt bar:'
+                    : 'Newly available — ask me to add any of these in the prompt bar:';
+            sections.push(
+                [
+                    askCopy,
+                    '',
+                    ...askToAdd.map(
+                        (feature) =>
+                            `- **${feature.label}** — ${feature.description}`,
+                    ),
+                ].join('\n'),
+            );
+        }
+        return sections.join('\n\n');
     }
 
     /**
@@ -6541,12 +6594,15 @@ export class AppGenerateService extends BaseService {
             appUuid,
             {
                 version: newVersion,
-                prompt: AppGenerateService.UPGRADE_PROMPT_LABEL,
+                prompt: APP_UPGRADE_PROMPT_LABEL,
             },
             'pending',
             user.userUuid,
             undefined,
             carriedDependencies,
+            app.template === DATA_APP_VIZ_TEMPLATE
+                ? (latestReady.viz_schema ?? undefined)
+                : undefined,
         );
 
         this.analytics.track({
@@ -6575,6 +6631,14 @@ export class AppGenerateService extends BaseService {
             prompt: AppGenerateService.buildUpgradePrompt(body),
             isIteration: true,
             isUpgrade: true,
+            ...(app.template === DATA_APP_VIZ_TEMPLATE
+                ? {
+                      upgradeStatusMessage:
+                          AppGenerateService.buildDataAppVizUpgradeStatusMessage(
+                              body,
+                          ),
+                  }
+                : {}),
             claudeEffort,
             designUuid: app.design_uuid,
         });

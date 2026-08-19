@@ -564,6 +564,8 @@ export type UpgradeCandidateFeature = {
     wiring?: string;
 };
 
+export const APP_UPGRADE_PROMPT_LABEL = 'Upgrade to the latest app template';
+
 /**
  * What the app's running bundle reported about itself via the SDK's
  * `lightdash:sdk:manifest` message. Both fields absent for legacy bundles
