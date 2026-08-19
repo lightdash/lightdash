@@ -1,3 +1,10 @@
+## [1.202.7](https://github.com/lightdash/lightdash/compare/1.202.6...1.202.7) (2026-08-19)
+
+
+### Bug Fixes
+
+* **frontend:** preserve saved page for home screen shortcuts ([#27651](https://github.com/lightdash/lightdash/issues/27651)) ([7bcf818](https://github.com/lightdash/lightdash/commit/7bcf8184cddcc3e78671bfdaa50908e10a5c6eca))
+
 ## [1.202.6](https://github.com/lightdash/lightdash/compare/1.202.5...1.202.6) (2026-08-19)
 
 
