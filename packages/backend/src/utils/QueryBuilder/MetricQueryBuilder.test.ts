@@ -19,6 +19,7 @@ import {
     UnitOfTime,
     VizAggregationOptions,
     VizIndexType,
+    WeekDay,
     type CompiledDimension,
     type CompiledMetric,
     type MetricFilterRule,
@@ -5571,6 +5572,7 @@ describe('Timezone-aware DATE_TRUNC day-or-coarser → DATE cast (GLITCH-452)', 
     const buildDayExplore = (
         baseType: DimensionType = DimensionType.TIMESTAMP,
         adapter: SupportedDbtAdapter = SupportedDbtAdapter.POSTGRES,
+        timestampDomain?: TimestampDomain,
     ): Explore => ({
         targetDatabase: adapter,
         name: 'events',
@@ -5596,6 +5598,7 @@ describe('Timezone-aware DATE_TRUNC day-or-coarser → DATE cast (GLITCH-452)', 
                         fieldType: FieldType.DIMENSION,
                         sql: '${TABLE}.occurred_at',
                         compiledSql: '"events".occurred_at',
+                        timestampDomain,
                         tablesReferences: ['events'],
                         hidden: false,
                     },
@@ -5613,6 +5616,7 @@ describe('Timezone-aware DATE_TRUNC day-or-coarser → DATE cast (GLITCH-452)', 
                         timeInterval: TimeFrames.DAY,
                         timeIntervalBaseDimensionName: 'occurred_at',
                         timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+                        timestampDomain,
                     },
                     occurred_at_month: {
                         type: DimensionType.DATE,
@@ -5628,6 +5632,55 @@ describe('Timezone-aware DATE_TRUNC day-or-coarser → DATE cast (GLITCH-452)', 
                         timeInterval: TimeFrames.MONTH,
                         timeIntervalBaseDimensionName: 'occurred_at',
                         timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+                        timestampDomain,
+                    },
+                    occurred_at_week: {
+                        type: DimensionType.DATE,
+                        name: 'occurred_at_week',
+                        label: 'occurred_at_week',
+                        table: 'events',
+                        tableLabel: 'events',
+                        fieldType: FieldType.DIMENSION,
+                        sql: `DATE_TRUNC('WEEK', \${TABLE}.occurred_at)`,
+                        compiledSql: `DATE_TRUNC('WEEK', "events".occurred_at)`,
+                        tablesReferences: ['events'],
+                        hidden: false,
+                        timeInterval: TimeFrames.WEEK,
+                        timeIntervalBaseDimensionName: 'occurred_at',
+                        timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+                        timestampDomain,
+                    },
+                    occurred_at_quarter: {
+                        type: DimensionType.DATE,
+                        name: 'occurred_at_quarter',
+                        label: 'occurred_at_quarter',
+                        table: 'events',
+                        tableLabel: 'events',
+                        fieldType: FieldType.DIMENSION,
+                        sql: `DATE_TRUNC('QUARTER', \${TABLE}.occurred_at)`,
+                        compiledSql: `DATE_TRUNC('QUARTER', "events".occurred_at)`,
+                        tablesReferences: ['events'],
+                        hidden: false,
+                        timeInterval: TimeFrames.QUARTER,
+                        timeIntervalBaseDimensionName: 'occurred_at',
+                        timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+                        timestampDomain,
+                    },
+                    occurred_at_year: {
+                        type: DimensionType.DATE,
+                        name: 'occurred_at_year',
+                        label: 'occurred_at_year',
+                        table: 'events',
+                        tableLabel: 'events',
+                        fieldType: FieldType.DIMENSION,
+                        sql: `DATE_TRUNC('YEAR', \${TABLE}.occurred_at)`,
+                        compiledSql: `DATE_TRUNC('YEAR', "events".occurred_at)`,
+                        tablesReferences: ['events'],
+                        hidden: false,
+                        timeInterval: TimeFrames.YEAR,
+                        timeIntervalBaseDimensionName: 'occurred_at',
+                        timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+                        timestampDomain,
                     },
                 },
                 metrics: {
@@ -5911,6 +5964,467 @@ describe('Timezone-aware DATE_TRUNC day-or-coarser → DATE cast (GLITCH-452)', 
         );
         expect(where).not.toContain('TIMESTAMP_TRUNC');
     });
+
+    test.each([
+        {
+            operator: FilterOperator.EQUALS,
+            values: ['2024-01-15'],
+            expectedMirror: `TIMESTAMP_TRUNC(("events".occurred_at), DAY, 'Asia/Tokyo') = TIMESTAMP('2024-01-15 00:00:00', 'Asia/Tokyo')`,
+        },
+        {
+            operator: FilterOperator.IN_BETWEEN,
+            values: ['2024-01-15', '2024-01-16'],
+            expectedMirror: `TIMESTAMP_TRUNC(("events".occurred_at), DAY, 'Asia/Tokyo') >= TIMESTAMP('2024-01-15 00:00:00', 'Asia/Tokyo') AND TIMESTAMP_TRUNC(("events".occurred_at), DAY, 'Asia/Tokyo') <= TIMESTAMP('2024-01-16 00:00:00', 'Asia/Tokyo')`,
+        },
+        {
+            operator: FilterOperator.GREATER_THAN,
+            values: ['2024-01-15'],
+            expectedMirror: `TIMESTAMP_TRUNC(("events".occurred_at), DAY, 'Asia/Tokyo') > TIMESTAMP('2024-01-15 00:00:00', 'Asia/Tokyo')`,
+        },
+        {
+            operator: FilterOperator.GREATER_THAN_OR_EQUAL,
+            values: ['2024-01-15'],
+            expectedMirror: `TIMESTAMP_TRUNC(("events".occurred_at), DAY, 'Asia/Tokyo') >= TIMESTAMP('2024-01-15 00:00:00', 'Asia/Tokyo')`,
+        },
+        {
+            operator: FilterOperator.LESS_THAN,
+            values: ['2024-01-15'],
+            expectedMirror: `TIMESTAMP_TRUNC(("events".occurred_at), DAY, 'Asia/Tokyo') < TIMESTAMP('2024-01-15 00:00:00', 'Asia/Tokyo')`,
+        },
+        {
+            operator: FilterOperator.LESS_THAN_OR_EQUAL,
+            values: ['2024-01-15'],
+            expectedMirror: `TIMESTAMP_TRUNC(("events".occurred_at), DAY, 'Asia/Tokyo') <= TIMESTAMP('2024-01-15 00:00:00', 'Asia/Tokyo')`,
+        },
+        {
+            operator: FilterOperator.EQUALS,
+            values: ['2024-01-17', '2024-01-15'],
+            expectedMirror: `TIMESTAMP_TRUNC(("events".occurred_at), DAY, 'Asia/Tokyo') IN (TIMESTAMP('2024-01-17 00:00:00', 'Asia/Tokyo'), TIMESTAMP('2024-01-15 00:00:00', 'Asia/Tokyo'))`,
+        },
+    ])(
+        'BigQuery + non-UTC day-grain $operator keeps the semantic predicate and adds a prunable TIMESTAMP_TRUNC mirror',
+        ({ operator, values, expectedMirror }) => {
+            const { query } = buildQuery({
+                explore: buildDayExplore(
+                    DimensionType.TIMESTAMP,
+                    SupportedDbtAdapter.BIGQUERY,
+                    'aware',
+                ),
+                compiledMetricQuery: {
+                    ...dayQuery,
+                    filters: {
+                        dimensions: {
+                            id: 'root',
+                            and: [
+                                {
+                                    id: 'f1',
+                                    target: {
+                                        fieldId: 'events_occurred_at_day',
+                                    },
+                                    operator,
+                                    values,
+                                },
+                            ],
+                        },
+                    },
+                },
+                warehouseSqlBuilder: bigqueryClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: 'Asia/Tokyo',
+                columnTimezone: 'UTC',
+                useTimezoneAwareDateTrunc: true,
+            });
+            const where = query.slice(query.indexOf('WHERE'));
+
+            expect(where).toContain(
+                `CAST(DATETIME_TRUNC(DATETIME(TIMESTAMP("events".occurred_at), 'Asia/Tokyo'), DAY) AS DATE)`,
+            );
+            expect(where).toContain(expectedMirror);
+        },
+    );
+
+    test('BigQuery + non-UTC month equality adds a prunable month-trunc mirror', () => {
+        const { query } = buildQuery({
+            explore: buildDayExplore(
+                DimensionType.TIMESTAMP,
+                SupportedDbtAdapter.BIGQUERY,
+                'aware',
+            ),
+            compiledMetricQuery: {
+                ...dayQuery,
+                dimensions: ['events_occurred_at_month'],
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: 'f1',
+                                target: {
+                                    fieldId: 'events_occurred_at_month',
+                                },
+                                operator: FilterOperator.EQUALS,
+                                values: ['2024-05-01'],
+                            },
+                        ],
+                    },
+                },
+            },
+            warehouseSqlBuilder: bigqueryClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'Asia/Tokyo',
+            columnTimezone: 'UTC',
+            useTimezoneAwareDateTrunc: true,
+        });
+        const where = query.slice(query.indexOf('WHERE'));
+
+        expect(where).toContain(
+            `TIMESTAMP_TRUNC(("events".occurred_at), MONTH, 'Asia/Tokyo') = TIMESTAMP('2024-05-01 00:00:00', 'Asia/Tokyo')`,
+        );
+    });
+
+    test('BigQuery + non-UTC week equality adds a prunable week-trunc mirror with the default week start', () => {
+        const { query } = buildQuery({
+            explore: buildDayExplore(
+                DimensionType.TIMESTAMP,
+                SupportedDbtAdapter.BIGQUERY,
+                'aware',
+            ),
+            compiledMetricQuery: {
+                ...dayQuery,
+                dimensions: ['events_occurred_at_week'],
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: 'f1',
+                                target: {
+                                    fieldId: 'events_occurred_at_week',
+                                },
+                                operator: FilterOperator.EQUALS,
+                                values: ['2024-05-05'],
+                            },
+                        ],
+                    },
+                },
+            },
+            warehouseSqlBuilder: bigqueryClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'Asia/Tokyo',
+            columnTimezone: 'UTC',
+            useTimezoneAwareDateTrunc: true,
+        });
+        const where = query.slice(query.indexOf('WHERE'));
+
+        expect(where).toContain(
+            `TIMESTAMP_TRUNC(("events".occurred_at), WEEK, 'Asia/Tokyo') = TIMESTAMP('2024-05-05 00:00:00', 'Asia/Tokyo')`,
+        );
+    });
+
+    test('BigQuery + non-UTC quarter equality adds a prunable quarter-trunc mirror', () => {
+        const { query } = buildQuery({
+            explore: buildDayExplore(
+                DimensionType.TIMESTAMP,
+                SupportedDbtAdapter.BIGQUERY,
+                'aware',
+            ),
+            compiledMetricQuery: {
+                ...dayQuery,
+                dimensions: ['events_occurred_at_quarter'],
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: 'f1',
+                                target: {
+                                    fieldId: 'events_occurred_at_quarter',
+                                },
+                                operator: FilterOperator.EQUALS,
+                                values: ['2024-04-01'],
+                            },
+                        ],
+                    },
+                },
+            },
+            warehouseSqlBuilder: bigqueryClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'Asia/Tokyo',
+            columnTimezone: 'UTC',
+            useTimezoneAwareDateTrunc: true,
+        });
+        const where = query.slice(query.indexOf('WHERE'));
+
+        expect(where).toContain(
+            `TIMESTAMP_TRUNC(("events".occurred_at), QUARTER, 'Asia/Tokyo') = TIMESTAMP('2024-04-01 00:00:00', 'Asia/Tokyo')`,
+        );
+    });
+
+    test('BigQuery + non-UTC year equality adds a prunable year-trunc mirror', () => {
+        const { query } = buildQuery({
+            explore: buildDayExplore(
+                DimensionType.TIMESTAMP,
+                SupportedDbtAdapter.BIGQUERY,
+                'aware',
+            ),
+            compiledMetricQuery: {
+                ...dayQuery,
+                dimensions: ['events_occurred_at_year'],
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: 'f1',
+                                target: {
+                                    fieldId: 'events_occurred_at_year',
+                                },
+                                operator: FilterOperator.EQUALS,
+                                values: ['2024-01-01'],
+                            },
+                        ],
+                    },
+                },
+            },
+            warehouseSqlBuilder: bigqueryClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'Asia/Tokyo',
+            columnTimezone: 'UTC',
+            useTimezoneAwareDateTrunc: true,
+        });
+        const where = query.slice(query.indexOf('WHERE'));
+
+        expect(where).toContain(
+            `TIMESTAMP_TRUNC(("events".occurred_at), YEAR, 'Asia/Tokyo') = TIMESTAMP('2024-01-01 00:00:00', 'Asia/Tokyo')`,
+        );
+    });
+
+    test.each([
+        {
+            operator: FilterOperator.GREATER_THAN,
+            expectedOperator: '>',
+        },
+        {
+            operator: FilterOperator.LESS_THAN,
+            expectedOperator: '<',
+        },
+    ])(
+        'BigQuery month $operator mirrors a non-bucket value without rounding',
+        ({ operator, expectedOperator }) => {
+            const { query } = buildQuery({
+                explore: buildDayExplore(
+                    DimensionType.TIMESTAMP,
+                    SupportedDbtAdapter.BIGQUERY,
+                    'aware',
+                ),
+                compiledMetricQuery: {
+                    ...dayQuery,
+                    dimensions: ['events_occurred_at_month'],
+                    filters: {
+                        dimensions: {
+                            id: 'root',
+                            and: [
+                                {
+                                    id: 'f1',
+                                    target: {
+                                        fieldId: 'events_occurred_at_month',
+                                    },
+                                    operator,
+                                    values: ['2024-05-15'],
+                                },
+                            ],
+                        },
+                    },
+                },
+                warehouseSqlBuilder: bigqueryClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: 'Asia/Tokyo',
+                columnTimezone: 'UTC',
+                useTimezoneAwareDateTrunc: true,
+            });
+            const where = query.slice(query.indexOf('WHERE'));
+
+            expect(where).toContain(
+                `TIMESTAMP_TRUNC(("events".occurred_at), MONTH, 'Asia/Tokyo') ${expectedOperator} TIMESTAMP('2024-05-15 00:00:00', 'Asia/Tokyo')`,
+            );
+            expect(where).not.toContain(`2024-06-01 00:00:00`);
+        },
+    );
+
+    test('BigQuery week mirror respects the configured Monday week start', () => {
+        const { query } = buildQuery({
+            explore: buildDayExplore(
+                DimensionType.TIMESTAMP,
+                SupportedDbtAdapter.BIGQUERY,
+                'aware',
+            ),
+            compiledMetricQuery: {
+                ...dayQuery,
+                dimensions: ['events_occurred_at_week'],
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: 'f1',
+                                target: {
+                                    fieldId: 'events_occurred_at_week',
+                                },
+                                operator: FilterOperator.GREATER_THAN_OR_EQUAL,
+                                values: ['2024-05-08'],
+                            },
+                        ],
+                    },
+                },
+            },
+            warehouseSqlBuilder: {
+                ...bigqueryClientMock,
+                getStartOfWeek: () => WeekDay.MONDAY,
+            },
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'Asia/Tokyo',
+            columnTimezone: 'UTC',
+            useTimezoneAwareDateTrunc: true,
+        });
+        const where = query.slice(query.indexOf('WHERE'));
+
+        expect(where).toContain(
+            `TIMESTAMP_TRUNC(("events".occurred_at), WEEK(MONDAY), 'Asia/Tokyo') >= TIMESTAMP('2024-05-08 00:00:00', 'Asia/Tokyo')`,
+        );
+    });
+
+    test('BigQuery partition pruning mirror is not added when the timestamp domain is unknown', () => {
+        const { query } = buildQuery({
+            explore: buildDayExplore(
+                DimensionType.TIMESTAMP,
+                SupportedDbtAdapter.BIGQUERY,
+            ),
+            compiledMetricQuery: {
+                ...dayQuery,
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: 'f1',
+                                target: {
+                                    fieldId: 'events_occurred_at_day',
+                                },
+                                operator: FilterOperator.EQUALS,
+                                values: ['2024-01-15'],
+                            },
+                        ],
+                    },
+                },
+            },
+            warehouseSqlBuilder: bigqueryClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'Asia/Tokyo',
+            columnTimezone: 'UTC',
+            useTimezoneAwareDateTrunc: true,
+        });
+        const where = query.slice(query.indexOf('WHERE'));
+
+        expect(where).not.toContain(
+            `TIMESTAMP_TRUNC(("events".occurred_at), DAY, 'Asia/Tokyo')`,
+        );
+    });
+
+    test('BigQuery partition pruning mirror trusts the base timestamp domain over the generated day dimension', () => {
+        const explore = buildDayExplore(
+            DimensionType.TIMESTAMP,
+            SupportedDbtAdapter.BIGQUERY,
+            'aware',
+        );
+        explore.tables.events.dimensions.occurred_at = {
+            ...explore.tables.events.dimensions.occurred_at,
+            timestampDomain: 'naive',
+        };
+        const { query } = buildQuery({
+            explore,
+            compiledMetricQuery: {
+                ...dayQuery,
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: 'f1',
+                                target: {
+                                    fieldId: 'events_occurred_at_day',
+                                },
+                                operator: FilterOperator.EQUALS,
+                                values: ['2024-01-15'],
+                            },
+                        ],
+                    },
+                },
+            },
+            warehouseSqlBuilder: bigqueryClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'Asia/Tokyo',
+            columnTimezone: 'UTC',
+            useTimezoneAwareDateTrunc: true,
+        });
+        const where = query.slice(query.indexOf('WHERE'));
+
+        expect(where).not.toContain(
+            `TIMESTAMP_TRUNC(("events".occurred_at), DAY, 'Asia/Tokyo')`,
+        );
+    });
+
+    test.each([
+        SupportedDbtAdapter.POSTGRES,
+        SupportedDbtAdapter.REDSHIFT,
+        SupportedDbtAdapter.SNOWFLAKE,
+        SupportedDbtAdapter.DATABRICKS,
+        SupportedDbtAdapter.SPARK,
+        SupportedDbtAdapter.TRINO,
+        SupportedDbtAdapter.ATHENA,
+        SupportedDbtAdapter.CLICKHOUSE,
+        SupportedDbtAdapter.DUCKDB,
+    ])(
+        '%s day filters do not receive the BigQuery partition pruning mirror',
+        (adapter) => {
+            const { query } = buildQuery({
+                explore: buildDayExplore(
+                    DimensionType.TIMESTAMP,
+                    adapter,
+                    'aware',
+                ),
+                compiledMetricQuery: {
+                    ...dayQuery,
+                    filters: {
+                        dimensions: {
+                            id: 'root',
+                            and: [
+                                {
+                                    id: 'f1',
+                                    target: {
+                                        fieldId: 'events_occurred_at_day',
+                                    },
+                                    operator: FilterOperator.EQUALS,
+                                    values: ['2024-01-15'],
+                                },
+                            ],
+                        },
+                    },
+                },
+                warehouseSqlBuilder: {
+                    ...warehouseClientMock,
+                    getAdapterType: () => adapter,
+                },
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: 'Asia/Tokyo',
+                columnTimezone: 'UTC',
+                useTimezoneAwareDateTrunc: true,
+            });
+
+            expect(query).not.toContain(
+                `TIMESTAMP('2024-01-15 00:00:00', 'Asia/Tokyo')`,
+            );
+        },
+    );
 
     test('BigQuery + flag off: dimension compiledSql passes through untouched', () => {
         const { query } = buildQuery({

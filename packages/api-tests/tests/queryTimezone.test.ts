@@ -108,6 +108,20 @@ const GREATER_THAN_FILTER = (day: string) => ({
     },
 });
 
+const CALENDAR_GRAIN_EQUALS_FILTER = (fieldId: string, value: string) => ({
+    dimensions: {
+        id: 'tz-test',
+        and: [
+            {
+                id: `tz-${fieldId}-eq`,
+                target: { fieldId },
+                operator: 'equals',
+                values: [value],
+            },
+        ],
+    },
+});
+
 describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
     beforeAll(async () => {
         admin = await login();
@@ -511,6 +525,42 @@ describe.skipIf(!EXISTING_BIGQUERY_PROJECT_UUID && !hasBigqueryCredentials())(
                     maxAttempts: BIGQUERY_MAX_ATTEMPTS,
                 });
                 expect(getTotalCount(rows, METRIC_KEY)).toBe(expectedCount);
+            },
+        );
+
+        it.each([
+            {
+                dimension: 'timezone_test_event_timestamp_week',
+                name: 'week',
+                value: '2024-01-14',
+            },
+            {
+                dimension: 'timezone_test_event_timestamp_month',
+                name: 'month',
+                value: '2024-01-01',
+            },
+            {
+                dimension: 'timezone_test_event_timestamp_quarter',
+                name: 'quarter',
+                value: '2024-01-01',
+            },
+            {
+                dimension: 'timezone_test_event_timestamp_year',
+                name: 'year',
+                value: '2024-01-01',
+            },
+        ])(
+            'Asia/Tokyo $name equality preserves all 10 interior rows',
+            async ({ dimension, value }) => {
+                const rows = await runTimezoneTestQuery(bqAdmin, {
+                    dimensions: [dimension],
+                    metrics: METRICS,
+                    timezone: 'Asia/Tokyo',
+                    filters: CALENDAR_GRAIN_EQUALS_FILTER(dimension, value),
+                    projectUuid: bigqueryProjectUuid,
+                    maxAttempts: BIGQUERY_MAX_ATTEMPTS,
+                });
+                expect(getTotalCount(rows, METRIC_KEY)).toBe(10);
             },
         );
 

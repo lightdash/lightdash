@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    bigqueryDatePart,
     buildTotalFieldRegex,
     CompiledDimension,
     CompiledMetric,
@@ -21,6 +22,7 @@ import {
     FilterGroupItem,
     FilterOperator,
     FilterRule,
+    formatDate,
     getCustomMetricDimensionId,
     getDimensionMapFromTables,
     getDimensions,
@@ -225,6 +227,15 @@ const SOURCE_AGGREGATIONS_CTE_NAME = 'source_aggregations';
 // Prefix for the grain columns of the source-aggregations CTE, so they can't
 // collide with this query's own column aliases.
 const SOURCE_AGGREGATIONS_GRAIN_PREFIX = 'sa_';
+
+const BIGQUERY_PARTITION_PRUNABLE_TIME_FRAMES: ReadonlySet<TimeFrames> =
+    new Set([
+        TimeFrames.DAY,
+        TimeFrames.WEEK,
+        TimeFrames.MONTH,
+        TimeFrames.QUARTER,
+        TimeFrames.YEAR,
+    ]);
 
 const getSourceAggregationSql = (
     aggregation: SourceQueryAggregationFunction,
@@ -1014,6 +1025,103 @@ export class MetricQueryBuilder {
                 lhsMode,
             }),
         };
+    }
+
+    // Mirrors the timezone-aware calendar predicate as
+    // TIMESTAMP_TRUNC(col, <grain>, tz) <op> TIMESTAMP(value, tz) — the same
+    // truncation expressed on the raw column, which BigQuery's partition
+    // pruner supports (the DATETIME()-wrapped form full-scans).
+    private getBigQueryPartitionPruningMirror(
+        dimension: CompiledDimension,
+        filterRule: FilterRule,
+        adapterType: SupportedDbtAdapter,
+        startOfWeek: WeekDay | null | undefined,
+    ): string | undefined {
+        const { timeInterval } = dimension;
+        if (
+            adapterType !== SupportedDbtAdapter.BIGQUERY ||
+            !this.args.useTimezoneAwareDateTrunc ||
+            this.args.timezone === 'UTC' ||
+            !timeInterval ||
+            !BIGQUERY_PARTITION_PRUNABLE_TIME_FRAMES.has(timeInterval) ||
+            filterRule.disabled ||
+            filterRule.includeNull
+        ) {
+            return undefined;
+        }
+
+        const baseDimensionId = dimension.timeIntervalBaseDimensionName
+            ? `${dimension.table}_${dimension.timeIntervalBaseDimensionName}`
+            : undefined;
+        const baseDimension = baseDimensionId
+            ? (this.originalExploreDimensions[baseDimensionId] ??
+              this.exploreDimensions[baseDimensionId])
+            : undefined;
+        if (
+            !baseDimension?.compiledSql ||
+            baseDimension.type !== DimensionType.TIMESTAMP ||
+            baseDimension.timestampDomain !== 'aware'
+        ) {
+            return undefined;
+        }
+
+        const parsedDays = filterRule.values?.map((value) => {
+            if (
+                typeof value !== 'string' &&
+                typeof value !== 'number' &&
+                !(value instanceof Date)
+            ) {
+                return undefined;
+            }
+            const day = formatDate(value);
+            return day === 'NaT' ? undefined : day;
+        });
+        if (!parsedDays || parsedDays.some((day) => day === undefined)) {
+            return undefined;
+        }
+        const days = parsedDays.filter(
+            (day): day is string => day !== undefined,
+        );
+
+        const truncatedColumn = `TIMESTAMP_TRUNC((${
+            baseDimension.compiledSql
+        }), ${bigqueryDatePart(timeInterval, startOfWeek)}, '${
+            this.args.timezone
+        }')`;
+        const timestampLiteral = (day: string): string =>
+            `TIMESTAMP('${day} 00:00:00', '${this.args.timezone}')`;
+        const comparison = (operator: string): string | undefined =>
+            days[0]
+                ? `${truncatedColumn} ${operator} ${timestampLiteral(days[0])}`
+                : undefined;
+
+        switch (filterRule.operator) {
+            case FilterOperator.EQUALS:
+                if (days.length === 1) return comparison('=');
+                return days.length > 1
+                    ? `${truncatedColumn} IN (${days
+                          .map(timestampLiteral)
+                          .join(', ')})`
+                    : undefined;
+            case FilterOperator.IN_BETWEEN: {
+                const [startDay, endDay] = days;
+                return startDay && endDay
+                    ? `${truncatedColumn} >= ${timestampLiteral(
+                          startDay,
+                      )} AND ${truncatedColumn} <= ${timestampLiteral(endDay)}`
+                    : undefined;
+            }
+            case FilterOperator.GREATER_THAN:
+                return comparison('>');
+            case FilterOperator.GREATER_THAN_OR_EQUAL:
+                return comparison('>=');
+            case FilterOperator.LESS_THAN:
+                return comparison('<');
+            case FilterOperator.LESS_THAN_OR_EQUAL:
+                return comparison('<=');
+            default:
+                return undefined;
+        }
     }
 
     /**
@@ -2288,7 +2396,18 @@ export class MetricQueryBuilder {
             finalSqlContainsUpper: /UPPER\s*\(/i.test(renderedFilterSql),
         });
 
-        return renderedFilterSql;
+        const partitionPruningMirror = isDimension(field)
+            ? this.getBigQueryPartitionPruningMirror(
+                  field,
+                  filterRuleWithParamReplacedValues,
+                  adapterType,
+                  startOfWeek,
+              )
+            : undefined;
+
+        return partitionPruningMirror
+            ? `(${renderedFilterSql} AND ${partitionPruningMirror})`
+            : renderedFilterSql;
     }
 
     static getNullsFirstLast(sort: SortField) {

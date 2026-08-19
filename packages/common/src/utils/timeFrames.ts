@@ -469,7 +469,7 @@ const bigqueryStartOfWeekMap: Record<WeekDay, string> = {
     [WeekDay.SUNDAY]: 'SUNDAY',
 };
 
-const bigqueryDatePart = (
+export const bigqueryDatePart = (
     timeFrame: TimeFrames,
     startOfWeek?: WeekDay | null,
 ): string =>
