@@ -90,10 +90,11 @@ current_mapped=$(read_bump_value)
 current_public=$(public_version "$current_mapped" "${TAG_SUFFIX:-}")
 index_file=$(mktemp)
 gate_error=$(mktemp)
+merge_error=$(mktemp)
 body_file=$(mktemp)
 summary_file=$(mktemp)
 bump_file_before=$(mktemp)
-trap 'rm -f "$index_file" "$gate_error" "$body_file" "$summary_file" "$bump_file_before"' EXIT
+trap 'rm -f "$index_file" "$gate_error" "$merge_error" "$body_file" "$summary_file" "$bump_file_before"' EXIT
 
 curl --connect-timeout 10 --max-time 60 --fail --silent --show-error "$RELEASE_INDEX_URL" --output "$index_file"
 jq -e '.schemaVersion == "1" and (.entries | type == "array")' "$index_file" >/dev/null
@@ -375,7 +376,15 @@ if [[ "$pr_created" == "true" ]]; then
 fi
 
 if [[ "$selected_green" == "true" && "${AUTO_MERGE:-false}" == "true" ]]; then
-    gh pr merge "$pr_url" --auto --squash
+    if ! gh pr merge "$pr_url" --auto --squash 2>"$merge_error"; then
+        merge_state=$(gh pr view "$pr_url" --json mergeStateStatus --jq '.mergeStateStatus' || true)
+        if [[ "$merge_state" == "CLEAN" ]]; then
+            gh pr merge "$pr_url" --squash
+        else
+            cat "$merge_error" >&2
+            exit 1
+        fi
+    fi
 elif [[ "$selected_green" != "true" && "$pr_created" == "true" ]]; then
     stops=$(jq -r '.requiredStops | if length == 0 then "none" else join(", ") end' <<<"$selected_json")
     post_slack "[upgrade-hold] $pr_url | $current_public -> $selected_version | gate: $hold_reason | required stops: $stops | $plain_reason"

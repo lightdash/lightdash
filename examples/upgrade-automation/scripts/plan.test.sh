@@ -333,3 +333,203 @@ if [[ "$output" != *'branch_prefix must match ^[A-Za-z0-9][A-Za-z0-9._-]*$'* ]];
 fi
 
 printf 'plan invalid branch prefix test passed\n'
+
+run_auto_merge_test() {
+    local test_name=$1
+    local auto_merge=$2
+    local auto_merge_result=$3
+    local merge_state=$4
+    local expected_status=$5
+    local expected_auto_merge=$6
+    local expected_state_view=$7
+    local expected_plain_merge=$8
+    local expected_error=$9
+    local scenario_dir
+    local output
+    local status
+    local auto_merge_call
+    local state_view_call
+    local plain_merge_call
+    local auto_merge_env=()
+
+    scenario_dir=$(mktemp -d)
+    mkdir -p "$scenario_dir/bin"
+    printf 'image:\n  tag: 1.0.0\n' >"$scenario_dir/values.yml"
+    cat >"$scenario_dir/index.json" <<'EOF'
+{
+  "schemaVersion": "1",
+  "entries": [
+    {"version": "1.0.0"},
+    {"version": "1.0.1"}
+  ]
+}
+EOF
+    : >"$scenario_dir/gh.log"
+
+    cat >"$scenario_dir/bin/curl" <<'EOF'
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+out=
+prev=
+for arg in "$@"; do
+    if [[ "$prev" == "--output" ]]; then out=$arg; fi
+    prev=$arg
+done
+cp "$TEST_SCENARIO_DIR/index.json" "$out"
+EOF
+
+    cat >"$scenario_dir/bin/gh" <<'EOF'
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+printf '%s\n' "$*" >>"$TEST_SCENARIO_DIR/gh.log"
+
+if [[ "$*" == "issue list"* ]]; then
+    printf '0\n'
+    exit 0
+fi
+
+if [[ "$*" == *'repos/example/upgrade-test --jq .default_branch'* ]]; then
+    printf 'main\n'
+    exit 0
+fi
+
+if [[ "$*" == *'git/ref/heads/main'* ]]; then
+    printf '1111111111111111111111111111111111111111\n'
+    exit 0
+fi
+
+if [[ "$*" == *'git/ref/heads/'* ]]; then
+    exit 1
+fi
+
+if [[ "$*" == *'git/refs'* ]]; then
+    printf '{}\n'
+    exit 0
+fi
+
+if [[ "$*" == *graphql* ]]; then
+    cat >/dev/null
+    printf '{"data":{"createCommitOnBranch":{"commit":{"oid":"2222222222222222222222222222222222222222","url":"https://example.test/c"}}}}\n'
+    exit 0
+fi
+
+if [[ "$*" == "pr list"* ]]; then
+    exit 0
+fi
+
+if [[ "$*" == "pr create"* ]]; then
+    printf 'https://example.test/pr/1\n'
+    exit 0
+fi
+
+if [[ "$*" == "pr view"*'--json mergeStateStatus'* ]]; then
+    printf '%s\n' "$GH_MERGE_STATE"
+    exit 0
+fi
+
+if [[ "$*" == "pr view"* ]]; then
+    printf '{"number":1,"url":"https://example.test/pr/1"}\n'
+    exit 0
+fi
+
+if [[ "$*" == "pr comment"* ]]; then
+    exit 0
+fi
+
+if [[ "$*" == "pr merge"*'--auto --squash'* ]]; then
+    if [[ "$GH_AUTO_MERGE_RESULT" == "failure" ]]; then
+        printf 'GraphQL: original auto merge error\n' >&2
+        exit 1
+    fi
+    exit 0
+fi
+
+if [[ "$*" == "pr merge"*'--squash'* ]]; then
+    exit 0
+fi
+
+printf 'unexpected gh invocation: %s\n' "$*" >&2
+exit 1
+EOF
+
+    chmod +x "$scenario_dir/bin/curl" "$scenario_dir/bin/gh"
+
+    if [[ "$auto_merge" == "true" ]]; then
+        auto_merge_env=(AUTO_MERGE=true)
+    fi
+
+    set +e
+    output=$(cd "$scenario_dir" && env -u AUTO_MERGE \
+        PATH="$scenario_dir/bin:$PATH" \
+        TEST_SCENARIO_DIR="$scenario_dir" \
+        GH_AUTO_MERGE_RESULT="$auto_merge_result" \
+        GH_MERGE_STATE="$merge_state" \
+        "${auto_merge_env[@]}" \
+        GITHUB_REPOSITORY=example/upgrade-test \
+        BUMP_TARGET=values.yml#image.tag \
+        SAFETY_GATE=false \
+        FREEZE_LABEL=upgrade-freeze \
+        GH_TOKEN=test-token \
+        "${BASH:-bash}" "$root/examples/upgrade-automation/scripts/plan.sh" 2>"$scenario_dir/stderr")
+    status=$?
+    set -e
+
+    if [[ $status -ne $expected_status ]]; then
+        printf 'expected %s to exit %s, got %s:\n%s\n' "$test_name" "$expected_status" "$status" "$output" >&2
+        cat "$scenario_dir/stderr" >&2
+        rm -rf "$scenario_dir"
+        exit 1
+    fi
+
+    auto_merge_call='pr merge https://example.test/pr/1 --auto --squash'
+    state_view_call='pr view https://example.test/pr/1 --json mergeStateStatus --jq .mergeStateStatus'
+    plain_merge_call='pr merge https://example.test/pr/1 --squash'
+
+    if [[ "$expected_auto_merge" == "true" ]] && ! grep -Fxq "$auto_merge_call" "$scenario_dir/gh.log"; then
+        printf 'expected %s to attempt auto merge, gh calls were:\n%s\n' "$test_name" "$(cat "$scenario_dir/gh.log")" >&2
+        rm -rf "$scenario_dir"
+        exit 1
+    elif [[ "$expected_auto_merge" == "false" ]] && grep -Fxq "$auto_merge_call" "$scenario_dir/gh.log"; then
+        printf 'expected %s not to attempt auto merge, gh calls were:\n%s\n' "$test_name" "$(cat "$scenario_dir/gh.log")" >&2
+        rm -rf "$scenario_dir"
+        exit 1
+    fi
+
+    if [[ "$expected_state_view" == "true" ]] && ! grep -Fxq "$state_view_call" "$scenario_dir/gh.log"; then
+        printf 'expected %s to read merge state, gh calls were:\n%s\n' "$test_name" "$(cat "$scenario_dir/gh.log")" >&2
+        rm -rf "$scenario_dir"
+        exit 1
+    elif [[ "$expected_state_view" == "false" ]] && grep -Fxq "$state_view_call" "$scenario_dir/gh.log"; then
+        printf 'expected %s not to read merge state, gh calls were:\n%s\n' "$test_name" "$(cat "$scenario_dir/gh.log")" >&2
+        rm -rf "$scenario_dir"
+        exit 1
+    fi
+
+    if [[ "$expected_plain_merge" == "true" ]] && ! grep -Fxq "$plain_merge_call" "$scenario_dir/gh.log"; then
+        printf 'expected %s to merge directly, gh calls were:\n%s\n' "$test_name" "$(cat "$scenario_dir/gh.log")" >&2
+        rm -rf "$scenario_dir"
+        exit 1
+    elif [[ "$expected_plain_merge" == "false" ]] && grep -Fxq "$plain_merge_call" "$scenario_dir/gh.log"; then
+        printf 'expected %s not to merge directly, gh calls were:\n%s\n' "$test_name" "$(cat "$scenario_dir/gh.log")" >&2
+        rm -rf "$scenario_dir"
+        exit 1
+    fi
+
+    if [[ "$expected_error" == "true" ]] && ! grep -Fq 'GraphQL: original auto merge error' "$scenario_dir/stderr"; then
+        printf 'expected %s to preserve the original error, stderr was:\n%s\n' "$test_name" "$(cat "$scenario_dir/stderr")" >&2
+        rm -rf "$scenario_dir"
+        exit 1
+    fi
+
+    rm -rf "$scenario_dir"
+    printf '%s test passed\n' "$test_name"
+}
+
+run_auto_merge_test 'plan auto merge success' true success CLEAN 0 true false false false
+run_auto_merge_test 'plan clean auto merge fallback' true failure CLEAN 0 true true true false
+run_auto_merge_test 'plan non-clean auto merge failure' true failure DIRTY 1 true true false true
+run_auto_merge_test 'plan auto merge disabled' false success CLEAN 0 false false false false
