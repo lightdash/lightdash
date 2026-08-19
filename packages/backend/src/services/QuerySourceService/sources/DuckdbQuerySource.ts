@@ -70,8 +70,7 @@ export class DuckdbQuerySource implements QuerySourceClient {
     getQueryReferences(query: SourceQuery): string[] {
         const sourceQuery = DuckdbQuerySource.assertSourceQuery(query);
         return Object.values(
-            DuckdbQuerySource.normalizeReferences(sourceQuery.references) ??
-                {},
+            DuckdbQuerySource.normalizeReferences(sourceQuery.references) ?? {},
         );
     }
 
