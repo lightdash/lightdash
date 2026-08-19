@@ -65,6 +65,7 @@ import {
     isJwtUser,
     isMergeResultSource,
     isMetric,
+    isMetricSourcedMergeQuery,
     isValidTimezone,
     isVizTableConfig,
     ItemsMap,
@@ -115,6 +116,7 @@ import {
     type CompiledCustomSqlDimension,
     type CompiledMetric,
     type CustomDimension,
+    type ExecuteAsyncComposeMergeQueryRequestParams,
     type ExecuteAsyncComposeSqlQueryRequestParams,
     type ExecuteAsyncDashboardChartRequestParams,
     type ExecuteAsyncFieldValueSearchRequestParams,
@@ -7330,6 +7332,13 @@ export class AsyncQueryService extends ProjectService {
                   }
                 : userAccessControls,
         );
+        // Routing guarantees this: merges with result sources never reach
+        // the warehouse path (they require the compose engine)
+        if (!isMetricSourcedMergeQuery(mergeQuery)) {
+            throw new UnexpectedServerError(
+                'A merge with result sources cannot run as a warehouse statement',
+            );
+        }
         const requestParameters: ExecuteAsyncMergeQueryRequestParams = {
             context,
             invalidateCache,
@@ -7544,7 +7553,7 @@ export class AsyncQueryService extends ProjectService {
             userUuid: account.user.id,
         });
 
-        const requestParameters: ExecuteAsyncMergeQueryRequestParams = {
+        const requestParameters: ExecuteAsyncComposeMergeQueryRequestParams = {
             context,
             invalidateCache,
             mergeQuery,

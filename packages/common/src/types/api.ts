@@ -112,7 +112,7 @@ import {
     type ApiGetComments,
 } from './api/comments';
 import { type Email } from './api/email';
-import type { ExecuteAsyncMergeQueryRequestParams } from './api/paginatedQuery';
+import type { ExecuteAsyncComposeMergeQueryRequestParams } from './api/paginatedQuery';
 import {
     type ApiGetProjectParametersListResults,
     type ApiGetProjectParametersResults,
@@ -924,7 +924,10 @@ export type MergeQueryChart = {
 
 /** One-call merge execution request. Derived pivot SQL remains server-owned. */
 export type ApiExecuteAsyncMergeQueryRequest = Omit<
-    ExecuteAsyncMergeQueryRequestParams,
+    // The compose variant: requests accept the full MergeQuerySource union
+    // (including result sources); only the stored request-parameters echo
+    // distinguishes strict from compose merges.
+    ExecuteAsyncComposeMergeQueryRequestParams,
     'pivotConfiguration' | 'usePreAggregateCache'
 > & {
     mode?: MergeQueryExecutionMode;

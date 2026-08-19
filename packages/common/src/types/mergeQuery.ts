@@ -52,8 +52,14 @@ export type MergeQuerySource = MergeQueryMetricSource | MergeQueryResultSource;
  * run/compile requests accept the wider MergeQuerySource union
  * (expand-only: requests widen, responses do not).
  */
-export type MetricSourcedMergeQuery = Omit<MergeQuery, 'sources'> & {
+export type MetricSourcedMergeQuery = {
+    // Spelled out rather than derived with Omit: TSOA drops required
+    // markers on mapped types, which reads as a breaking response change.
     sources: MergeQueryMetricSource[];
+    joinKey: MergeJoinKeyPart[];
+    joinType: MergeJoinType;
+    tableCalculations: MergeTableCalculation[];
+    limit: number;
 };
 
 export const isMergeResultSource = (
@@ -63,6 +69,11 @@ export const isMergeResultSource = (
 export const isMergeMetricSource = (
     source: MergeQuerySource,
 ): source is MergeQueryMetricSource => 'metricQuery' in source;
+
+export const isMetricSourcedMergeQuery = (
+    mergeQuery: MergeQuery,
+): mergeQuery is MetricSourcedMergeQuery =>
+    mergeQuery.sources.every(isMergeMetricSource);
 
 /**
  * One column of the join key. Sources name the same real-world key differently
