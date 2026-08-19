@@ -993,9 +993,6 @@ export class ServiceRepository
                 ...createBuiltInTdcpQuerySources({
                     asyncQueryService,
                     projectService,
-                    projectModel: this.models.getProjectModel(),
-                    warehouseAvailableTablesModel:
-                        this.models.getWarehouseAvailableTablesModel(),
                 }),
                 new RemoteTdcpQuerySource({ asyncQueryService }),
             ];

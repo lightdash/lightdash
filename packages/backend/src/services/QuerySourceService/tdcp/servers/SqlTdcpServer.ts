@@ -1,5 +1,4 @@
-import { subject } from '@casl/ability';
-import { ForbiddenError } from '@lightdash/common';
+import { assertRegisteredAccount } from '@lightdash/common';
 import {
     TDCP_PROTOCOL_REVISION,
     TdcpDialects,
@@ -9,10 +8,9 @@ import {
     type TdcpDataRequest,
     type TdcpDatasetDescriptor,
 } from '@lightdash/tdcp';
-import type { ProjectModel } from '../../../../models/ProjectModel/ProjectModel';
-import type { WarehouseAvailableTablesModel } from '../../../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
+import { toSessionUser } from '../../../../auth/account';
 import type { AsyncQueryService } from '../../../AsyncQueryService/AsyncQueryService';
-import { BaseService } from '../../../BaseService';
+import type { ProjectService } from '../../../ProjectService/ProjectService';
 import {
     assertDialectQuery,
     localDatasetDescriptor,
@@ -23,32 +21,27 @@ import {
 
 type SqlTdcpServerArguments = {
     asyncQueryService: AsyncQueryService;
-    projectModel: ProjectModel;
-    warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
+    projectService: ProjectService;
 };
 
 /**
  * The project's data warehouse as an in-process TDCP server: raw SQL through
- * the SQL runner pipeline as a tier 2 dialect. The catalog lists tables from
- * the cached warehouse catalog; column detail is not cached, so tables scan
- * without columns.
+ * the SQL runner pipeline as a tier 2 dialect. The catalog lists tables
+ * through the same path as the SQL runner catalog endpoint; column detail is
+ * not cached, so tables scan without columns.
  *
  * @oliver: the dialect tag is the generic sql:warehouse for the draft — it
  * should be sql:<warehouse type> resolved from the project connection, so a
  * consumer knows which SQL it is writing before submitting.
  */
-export class SqlTdcpServer extends BaseService implements TdcpServer {
+export class SqlTdcpServer implements TdcpServer {
     private readonly asyncQueryService: AsyncQueryService;
 
-    private readonly projectModel: ProjectModel;
-
-    private readonly warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
+    private readonly projectService: ProjectService;
 
     constructor(args: SqlTdcpServerArguments) {
-        super({ serviceName: 'SqlTdcpServer' });
         this.asyncQueryService = args.asyncQueryService;
-        this.projectModel = args.projectModel;
-        this.warehouseAvailableTablesModel = args.warehouseAvailableTablesModel;
+        this.projectService = args.projectService;
     }
 
     // eslint-disable-next-line class-methods-use-this
@@ -66,36 +59,26 @@ export class SqlTdcpServer extends BaseService implements TdcpServer {
         account,
         projectUuid,
     }: TdcpCatalogContext): Promise<TdcpCatalog> {
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        assertRegisteredAccount(account);
 
-        // Same gate as the SQL runner catalog endpoints
-        const ability = this.createAuditedAbility(account);
-        if (
-            ability.cannot(
-                'manage',
-                subject('SqlRunner', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
+        // The SQL runner catalog path: same manage-SqlRunner gate, and the
+        // catalog is resolved for the user's own warehouse credentials when
+        // they have them, falling back to the project connection
+        const catalog = await this.projectService.getWarehouseTables(
+            toSessionUser(account),
+            projectUuid,
+        );
 
-        const catalog =
-            await this.warehouseAvailableTablesModel.getTablesForProjectWarehouseCredentials(
-                projectUuid,
-            );
-
-        const tables: TdcpCatalogTable[] = Object.entries(
-            catalog ?? {},
-        ).flatMap(([database, schemas]) =>
-            Object.entries(schemas).flatMap(([schemaName, schemaTables]) =>
-                Object.keys(schemaTables).map((tableName) => ({
-                    reference: `${database}.${schemaName}.${tableName}`,
-                    label: tableName,
-                    description: null,
-                    columns: [],
-                })),
-            ),
+        const tables: TdcpCatalogTable[] = Object.entries(catalog).flatMap(
+            ([database, schemas]) =>
+                Object.entries(schemas).flatMap(([schemaName, schemaTables]) =>
+                    Object.keys(schemaTables).map((tableName) => ({
+                        reference: `${database}.${schemaName}.${tableName}`,
+                        label: tableName,
+                        description: null,
+                        columns: [],
+                    })),
+                ),
         );
 
         return { tables };
