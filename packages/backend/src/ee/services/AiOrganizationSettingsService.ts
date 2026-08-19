@@ -438,6 +438,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 visibleDataAppModels: getVisibleDataAppClaudeModels(
                     dataAppModelVisibility,
                 ),
+                threadRetentionHours: null,
             };
         }
 
@@ -457,6 +458,7 @@ export class AiOrganizationSettingsService extends BaseService {
             visibleDataAppModels: getVisibleDataAppClaudeModels(
                 settings.dataAppModelVisibility,
             ),
+            threadRetentionHours: settings.threadRetentionHours ?? null,
         };
     }
 

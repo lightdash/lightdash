@@ -461,6 +461,9 @@ export type AiOrganizationRuntimeSettings = {
     defaultAiAgentModelOptions: AiModelOption[];
     dataAppCodingAgent: DataAppCodingAgent;
     visibleDataAppModels: DataAppClaudeModel[];
+    // Org retention ceiling, surfaced so agent editors can see what caps
+    // their agent-level window. Optional for backwards compatibility.
+    threadRetentionHours?: number | null;
 };
 
 export type ApiAiOrganizationRuntimeSettingsResponse =

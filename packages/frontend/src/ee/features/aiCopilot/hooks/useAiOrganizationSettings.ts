@@ -1,6 +1,7 @@
 import {
     type ApiAiOrganizationRuntimeSettingsResponse,
     type ApiAiOrganizationSettingsResponse,
+    type ApiAiThreadRetentionPreviewResponse,
     type ApiError,
     type ApiUpdateAiOrganizationSettingsResponse,
     type UpdateAiOrganizationSettings,
@@ -135,3 +136,28 @@ export const useUpdateAiOrganizationSettings = (
         ...mutationOptions,
     });
 };
+
+const getAiThreadRetentionPreview = async (retentionHours: number) => {
+    const params = new URLSearchParams({
+        retentionHours: String(retentionHours),
+    });
+    return lightdashApi<ApiAiThreadRetentionPreviewResponse['results']>({
+        url: `/aiAgents/admin/settings/thread-retention-preview?${params.toString()}`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+/**
+ * What an org retention window of `retentionHours` would delete on the next
+ * cleanup run. Backs the confirmation dialog shown before tightening the org
+ * ceiling; only fetched while the dialog needs it (`enabled`).
+ */
+export const useAiThreadRetentionPreview = (
+    retentionHours: number | undefined,
+) =>
+    useQuery<ApiAiThreadRetentionPreviewResponse['results'], ApiError>({
+        queryKey: ['ai-thread-retention-preview', retentionHours],
+        queryFn: () => getAiThreadRetentionPreview(retentionHours!),
+        enabled: retentionHours !== undefined,
+    });

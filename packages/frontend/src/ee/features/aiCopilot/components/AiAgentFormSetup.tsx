@@ -1,5 +1,10 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags, type AiAgentModelConfig } from '@lightdash/common';
+import {
+    FeatureFlags,
+    MAX_RETENTION_WINDOW_HOURS,
+    MIN_RETENTION_WINDOW_HOURS,
+    type AiAgentModelConfig,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -71,6 +76,7 @@ import { AiAgentKnowledgeFilesSection } from './AiAgentKnowledgeFilesSection';
 import { AiAgentMcpServersInput } from './AiAgentMcpServersInput';
 import { InstructionsGuidelines } from './InstructionsSupport';
 import { SpaceAccessSelect } from './SpaceAccessSelect';
+import { ThreadRetentionSelect } from './ThreadRetentionSelect';
 
 const formSchema = z.object({
     name: z.string().min(1),
@@ -96,6 +102,12 @@ const formSchema = z.object({
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
     version: z.number(),
+    threadRetentionHours: z
+        .number()
+        .int()
+        .min(MIN_RETENTION_WINDOW_HOURS)
+        .max(MAX_RETENTION_WINDOW_HOURS)
+        .nullable(),
 });
 
 type CommitOnBlurTextareaProps = Omit<
@@ -256,6 +268,10 @@ export const AiAgentFormSetup = ({
 
     const userGroupsFeatureFlagQuery = useServerFeatureFlag(
         FeatureFlags.UserGroupsEnabled,
+    );
+
+    const threadRetentionFlagQuery = useServerFeatureFlag(
+        FeatureFlags.AiThreadRetention,
     );
 
     const isGroupsEnabled =
@@ -866,6 +882,35 @@ export const AiAgentFormSetup = ({
                                 .
                             </Text>
                         </AgentSettingsSubsection>
+
+                        {threadRetentionFlagQuery.data?.enabled && (
+                            <>
+                                <Divider />
+                                <AgentSettingsSubsection
+                                    title="Conversation retention"
+                                    description={`Delete this agent's conversations after a period of inactivity. Active conversations are never cut off.${
+                                        aiOrganizationSettings?.threadRetentionHours !=
+                                        null
+                                            ? ' The organization retention policy caps this setting.'
+                                            : ''
+                                    }`}
+                                >
+                                    <ThreadRetentionSelect
+                                        value={form.values.threadRetentionHours}
+                                        ceilingHours={
+                                            aiOrganizationSettings?.threadRetentionHours ??
+                                            null
+                                        }
+                                        onChange={(hours) =>
+                                            form.setFieldValue(
+                                                'threadRetentionHours',
+                                                hours,
+                                            )
+                                        }
+                                    />
+                                </AgentSettingsSubsection>
+                            </>
+                        )}
 
                         <Divider />
 
