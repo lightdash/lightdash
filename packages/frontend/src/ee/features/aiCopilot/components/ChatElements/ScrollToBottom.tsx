@@ -76,6 +76,10 @@ const ThreadScrollToBottom = ({
         (sum, r) => sum + r.parts.reduce((acc, part) => acc + part.length, 0),
         0,
     );
+    const streamingError =
+        streamingState?.connection.status === 'error'
+            ? streamingState.connection.error
+            : undefined;
 
     useLayoutEffect(() => {
         return scrollToBottom({
@@ -87,7 +91,7 @@ const ThreadScrollToBottom = ({
         streamingState?.toolCalls?.length,
         totalReasoningPartsCount,
         totalReasoningTextLength,
-        streamingState?.error,
+        streamingError,
         scrollToBottom,
     ]);
 
@@ -95,7 +99,7 @@ const ThreadScrollToBottom = ({
     // streamdown answer, which is taller. The layout shift fires after this
     // effect runs, so we schedule one more scroll on the next frame and then
     // again after Streamdown's animations settle (~360ms).
-    const isStreaming = streamingState?.isStreaming;
+    const isStreaming = streamingState?.connection.status === 'streaming';
     useEffect(() => {
         if (isStreaming !== false) return;
         const raf = requestAnimationFrame(() => {

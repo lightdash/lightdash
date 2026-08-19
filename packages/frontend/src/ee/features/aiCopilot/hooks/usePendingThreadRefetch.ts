@@ -4,11 +4,20 @@ import {
     type ApiAiAgentThreadResponse,
 } from '@lightdash/common';
 import { useEffect, useState } from 'react';
-import { useAiAgentThreadStreaming } from '../streaming/useAiAgentThreadStreamQuery';
+import {
+    markStreamPolling,
+    stopStreaming,
+} from '../store/aiAgentThreadStreamSlice';
+import { useAiAgentStoreDispatch } from '../store/hooks';
+import {
+    useAiAgentThreadRecoveryActive,
+    useAiAgentThreadStreaming,
+} from '../streaming/useAiAgentThreadStreamQuery';
 
-const POLL_INTERVAL_MS = 2000;
+const POLL_INTERVAL_MS = 5000;
 
 type Thread = ApiAiAgentThreadResponse['results'] | undefined;
+type ThreadRefetch = () => Promise<{ isError: boolean }>;
 
 const getPendingWritebackExpiresAt = (thread: Thread): number | null => {
     const pendingExpirations =
@@ -41,9 +50,11 @@ const getPendingWritebackExpiresAt = (thread: Thread): number | null => {
 export const usePendingThreadRefetch = (
     thread: Thread,
     threadUuid: string,
-    refetch: () => unknown,
+    refetch: ThreadRefetch,
 ) => {
+    const dispatch = useAiAgentStoreDispatch();
     const isStreaming = useAiAgentThreadStreaming(threadUuid);
+    const isRecoveryActive = useAiAgentThreadRecoveryActive(threadUuid);
     const [expirationClock, setExpirationClock] = useState(0);
     const pendingWritebackExpiresAt = getPendingWritebackExpiresAt(thread);
     const hasPendingWriteback =
@@ -79,9 +90,35 @@ export const usePendingThreadRefetch = (
 
     useEffect(() => {
         if (!isPending || isStreaming) return;
-        const interval = setInterval(() => void refetch(), POLL_INTERVAL_MS);
+
+        const pollThread = async () => {
+            try {
+                const result = await refetch();
+                if (isRecoveryActive && !result.isError) {
+                    dispatch(markStreamPolling({ threadUuid }));
+                }
+            } catch {
+                // Keep showing the recovery alert until a refetch succeeds.
+            }
+        };
+        const interval = setInterval(() => {
+            void pollThread();
+        }, POLL_INTERVAL_MS);
         return () => clearInterval(interval);
-    }, [isPending, isStreaming, refetch]);
+    }, [
+        dispatch,
+        isPending,
+        isRecoveryActive,
+        isStreaming,
+        refetch,
+        threadUuid,
+    ]);
+
+    useEffect(() => {
+        if (thread !== undefined && isRecoveryActive && !isPending) {
+            dispatch(stopStreaming({ threadUuid }));
+        }
+    }, [dispatch, isPending, isRecoveryActive, thread, threadUuid]);
 
     return { isStreaming, isPending };
 };

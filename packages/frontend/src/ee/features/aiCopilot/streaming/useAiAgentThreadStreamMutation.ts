@@ -14,6 +14,7 @@ import {
     addReasoning,
     addToolCall,
     appendStepProgress,
+    markStreamRecovering,
     markToolCallDecided,
     setError,
     setMessage,
@@ -29,6 +30,7 @@ import {
     parseStreamRawToolCall,
     parseStreamRawToolResult,
 } from './parseStreamRawToolResult';
+import { createStreamInactivityMonitor } from './streamInactivityMonitor';
 
 export interface AiAgentThreadStreamOptions {
     projectUuid: string;
@@ -42,7 +44,7 @@ export interface AiAgentThreadStreamOptions {
     onError?: (error: string) => void;
     onToolCall?: (toolCall: AiAgentToolCall) => void;
     onToolResult?: (toolResult: AiAgentToolResult) => void;
-    refetchThread?: () => void;
+    refetchThread: () => void;
 }
 
 type StreamToolCallPart = Extract<StreamPart, { type: 'toolCall' }>;
@@ -192,6 +194,20 @@ export const getStreamToolCallPart = (
     } as StreamToolCallPart;
 };
 
+type StreamReadResult<T> =
+    | { status: 'success'; value: T }
+    | { status: 'error'; error: unknown };
+
+export const readStreamResult = async <T>(
+    read: () => Promise<T>,
+): Promise<StreamReadResult<T>> => {
+    try {
+        return { status: 'success', value: await read() };
+    } catch (error) {
+        return { status: 'error', error };
+    }
+};
+
 export const getStepProgressFromChunk = (
     chunk: UIMessageChunk,
 ): { message: string; toolName: string | null } | null => {
@@ -236,6 +252,18 @@ export function useAiAgentThreadStreamMutation() {
         }: AiAgentThreadStreamOptions) => {
             const abortController = new AbortController();
             setAbortController(threadUuid, abortController);
+            let isRecovering = false;
+            const beginRecovery = () => {
+                if (isRecovering || abortController.signal.aborted) return;
+
+                isRecovering = true;
+                dispatch(markStreamRecovering({ threadUuid }));
+                refetchThread();
+                abortController.abort();
+            };
+            let inactivityMonitor: ReturnType<
+                typeof createStreamInactivityMonitor
+            > | null = null;
 
             try {
                 dispatch(startStreaming({ threadUuid, messageUuid }));
@@ -252,6 +280,10 @@ export function useAiAgentThreadStreamMutation() {
                     },
                 );
 
+                inactivityMonitor = createStreamInactivityMonitor({
+                    onInactive: beginRecovery,
+                });
+
                 const parser = new ChatStreamParser();
                 const chunkStream = parser.parseStream(response);
                 const [rawChunkStream, uiMessageChunkStream] =
@@ -266,12 +298,34 @@ export function useAiAgentThreadStreamMutation() {
                 const handledToolOutputIds = new Set<string>();
                 const notifiedToolCallIds = new Set<string>();
                 const notifiedToolOutputIds = new Set<string>();
+                let receivedTerminalChunk = false;
+                const handleStreamReadError = () => {
+                    if (
+                        !receivedTerminalChunk &&
+                        !abortController.signal.aborted
+                    ) {
+                        beginRecovery();
+                    }
+                };
 
                 const consumeRawChunks = (async () => {
                     while (true) {
-                        const { done, value } = await rawChunkReader.read();
+                        const rawChunkResult = await readStreamResult(() =>
+                            rawChunkReader.read(),
+                        );
+                        if (rawChunkResult.status === 'error') {
+                            handleStreamReadError();
+                            break;
+                        }
+
+                        const { done, value } = rawChunkResult.value;
                         if (done) {
                             break;
+                        }
+
+                        inactivityMonitor.reset();
+                        if (value.type === 'finish') {
+                            receivedTerminalChunk = true;
                         }
 
                         const stepProgress = getStepProgressFromChunk(value);
@@ -288,8 +342,18 @@ export function useAiAgentThreadStreamMutation() {
                     }
                 })();
 
-                for await (const uiMessage of stream) {
-                    if (abortController.signal.aborted) return;
+                const uiMessageIterator = stream[Symbol.asyncIterator]();
+                while (true) {
+                    const uiMessageResult = await readStreamResult(() =>
+                        uiMessageIterator.next(),
+                    );
+                    if (uiMessageResult.status === 'error') {
+                        handleStreamReadError();
+                        break;
+                    }
+
+                    const { done, value: uiMessage } = uiMessageResult.value;
+                    if (done || abortController.signal.aborted) break;
 
                     // Extract and combine all text content from the complete message
                     const fullTextContent = uiMessage.parts
@@ -326,7 +390,7 @@ export function useAiAgentThreadStreamMutation() {
 
                     // Process tool calls from the complete message
                     for (const part of uiMessage.parts) {
-                        if (abortController.signal.aborted) return;
+                        if (abortController.signal.aborted) break;
 
                         const toolPart = getStreamToolPart(part);
                         const toolCallPart = getStreamToolCallPart(part);
@@ -440,7 +504,7 @@ export function useAiAgentThreadStreamMutation() {
                                             part.toolCallId,
                                         );
 
-                                        void refetchThread?.();
+                                        refetchThread();
                                     }
 
                                     break;
@@ -511,16 +575,33 @@ export function useAiAgentThreadStreamMutation() {
                                 break;
                         }
                     }
+
+                    if (abortController.signal.aborted) break;
                 }
 
                 await consumeRawChunks;
+                if (abortController.signal.aborted) {
+                    if (!isRecovering) {
+                        dispatch(stopStreaming({ threadUuid }));
+                    }
+                    return;
+                }
+
+                if (!receivedTerminalChunk) {
+                    beginRecovery();
+                    return;
+                }
+
                 onFinish?.();
                 dispatch(stopStreaming({ threadUuid }));
             } catch (error) {
+                if (isRecovering) return;
+
                 if (error instanceof Error && error.name === 'AbortError') {
                     dispatch(stopStreaming({ threadUuid }));
                     return;
                 }
+
                 console.error('Error processing stream:', error);
                 captureException(error, {
                     tags: {
@@ -533,6 +614,8 @@ export function useAiAgentThreadStreamMutation() {
                         : 'Unknown error occurred';
                 dispatch(setError({ threadUuid, error: errorMessage }));
                 onError?.(errorMessage);
+            } finally {
+                inactivityMonitor?.stop();
             }
         },
         [dispatch, setAbortController],
