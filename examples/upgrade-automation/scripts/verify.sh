@@ -92,6 +92,7 @@ deadline=$((started_at + window_seconds))
 consecutive=0
 last_reason=not_started
 verified=false
+superseded=false
 response_body=$(mktemp)
 response_headers=$(mktemp)
 summary_file=$(mktemp)
@@ -132,6 +133,12 @@ if [[ "$DEPLOY_CONCLUSION" == "success" ]]; then
                     consecutive=0
                     if [[ -z "$running_version" ]]; then
                         last_reason=version_header_missing
+                    elif [[ "$running_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+                        && [[ "$pinned_public" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+                        && version_gt "$running_version" "$pinned_public"; then
+                        last_reason="superseded:$(printf '%s' "$running_version" | sanitize_evidence)"
+                        superseded=true
+                        break
                     else
                         last_reason="version_mismatch:$(printf '%s' "$running_version" | sanitize_evidence)"
                     fi
@@ -153,6 +160,8 @@ elapsed=$((finished_at - started_at))
 outcome=failure
 if [[ "$verified" == "true" ]]; then
     outcome=success
+elif [[ "$superseded" == "true" ]]; then
+    outcome=superseded
 fi
 
 cat >"$summary_file" <<EOF
@@ -169,7 +178,23 @@ cat >"$summary_file" <<EOF
 $(jq . <<<"$verdict_json")
 \`\`\`
 EOF
+if [[ "$superseded" == "true" ]]; then
+    gh pr comment "$pr_number" --repo "$GITHUB_REPOSITORY" --body-file "$summary_file" \
+        || echo "warning: failed to post the verification summary comment" >&2
+    exit 0
+fi
 if [[ "$verified" == "true" ]]; then
+    if ! marked_freeze_issues=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label "$FREEZE_LABEL" --limit 1000 --json number,body --jq '.[] | select(.body | contains("<!-- upgrade-automation:auto-freeze -->")) | .number'); then
+        echo "warning: failed to inspect open upgrade freeze issues" >&2
+        marked_freeze_issues=
+    fi
+    while IFS= read -r freeze_issue_number; do
+        if [[ -z "$freeze_issue_number" ]]; then
+            continue
+        fi
+        gh issue close "$freeze_issue_number" --repo "$GITHUB_REPOSITORY" --comment "Upgrade automation is re-armed after verifying \`$pinned_public\`: $DEPLOY_RUN_URL" \
+            || echo "warning: failed to close upgrade freeze issue #$freeze_issue_number" >&2
+    done <<<"$marked_freeze_issues"
     gh pr comment "$pr_number" --repo "$GITHUB_REPOSITORY" --body-file "$summary_file"
     exit 0
 fi
