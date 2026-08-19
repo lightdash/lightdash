@@ -36,6 +36,8 @@ type DbtCliArgs = {
     target?: string;
     dbtVersion: SupportedDbtVersions;
     selector?: string;
+    gitConfigGlobalPath?: string;
+    dbtDepsErrorHint?: string;
 };
 
 enum DbtCommands {
@@ -69,6 +71,10 @@ export class DbtCliClient implements DbtClient {
 
     selector?: string;
 
+    gitConfigGlobalPath?: string;
+
+    dbtDepsErrorHint?: string;
+
     constructor({
         dbtProjectDirectory,
         dbtProfilesDirectory,
@@ -78,6 +84,8 @@ export class DbtCliClient implements DbtClient {
         target,
         dbtVersion,
         selector,
+        gitConfigGlobalPath,
+        dbtDepsErrorHint,
     }: DbtCliArgs) {
         this.dbtProjectDirectory = dbtProjectDirectory;
         this.dbtProfilesDirectory = dbtProfilesDirectory;
@@ -88,6 +96,8 @@ export class DbtCliClient implements DbtClient {
         this.targetDirectory = undefined;
         this.dbtVersion = dbtVersion;
         this.selector = selector;
+        this.gitConfigGlobalPath = gitConfigGlobalPath;
+        this.dbtDepsErrorHint = dbtDepsErrorHint;
     }
 
     getSelector(): string | undefined {
@@ -202,6 +212,7 @@ export class DbtCliClient implements DbtClient {
                         this.environmentVariableAllowlist,
                     projectEnvironment: this.environment,
                     targetPath,
+                    gitConfigGlobalPath: this.gitConfigGlobalPath,
                 }),
             });
             return {
@@ -245,7 +256,17 @@ export class DbtCliClient implements DbtClient {
             },
             async () => {
                 const startTime = Date.now();
-                await this._runDbtCommand('deps');
+                try {
+                    await this._runDbtCommand('deps');
+                } catch (error) {
+                    if (error instanceof DbtError && this.dbtDepsErrorHint) {
+                        throw new DbtError(
+                            `${error.message}. ${this.dbtDepsErrorHint}`,
+                            error.logs,
+                        );
+                    }
+                    throw error;
+                }
                 Logger.info(
                     `dbt deps completed in ${Date.now() - startTime}ms`,
                 );
