@@ -8,7 +8,7 @@ import type {
     CacheMetadata,
     ItemsMap,
     KnexPaginatedData,
-    MergeQuery,
+    MetricSourcedMergeQuery,
     ToolDashboardArgs,
     ToolName,
     ToolRunQueryArgs,
@@ -870,7 +870,7 @@ export type ApiAiAgentThreadMessageVizQuery = {
     type: AiResultType;
     query: ApiExecuteAsyncMetricQueryResults;
     /** The executed merge, so clients need not re-derive it from tool args. */
-    mergeQuery: MergeQuery | null;
+    mergeQuery: MetricSourcedMergeQuery | null;
     metadata: AiVizMetadata;
 };
 

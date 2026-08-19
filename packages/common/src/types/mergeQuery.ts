@@ -45,6 +45,17 @@ export type MergeQueryResultSource = {
 
 export type MergeQuerySource = MergeQueryMetricSource | MergeQueryResultSource;
 
+/**
+ * A merge whose sources are all metric queries — what AI-built artifacts
+ * hold and their endpoints return. Response contracts use this so
+ * `metricQuery` stays required on every returned source, while the
+ * run/compile requests accept the wider MergeQuerySource union
+ * (expand-only: requests widen, responses do not).
+ */
+export type MetricSourcedMergeQuery = Omit<MergeQuery, 'sources'> & {
+    sources: MergeQueryMetricSource[];
+};
+
 export const isMergeResultSource = (
     source: MergeQuerySource,
 ): source is MergeQueryResultSource => 'queryUuid' in source;
