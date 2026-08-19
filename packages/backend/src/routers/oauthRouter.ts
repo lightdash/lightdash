@@ -2,7 +2,6 @@
 import {
     generateOAuthAuthorizePage,
     generateOAuthRedirectPage,
-    getClientName,
     getErrorMessage,
     OAuthIntrospectResponse,
     parseScopeString,
@@ -51,12 +50,15 @@ oauthRouter.get('/authorize', async (req, res, next) => {
 
     // Render authorize page using Handlebars template
     const scopeString = (scope as string) || '';
+    const clientName = await getOAuthService(req).getClientDisplayName(
+        client_id as string,
+    );
     res.set('Content-Type', 'text/html');
     return res.send(
         generateOAuthAuthorizePage({
             action: '/api/v1/oauth/authorize',
             client_id: client_id as string,
-            client_name: getClientName(client_id as string),
+            client_name: clientName,
             scope: scopeString,
             scopes: parseScopeString(scopeString),
             user: {
