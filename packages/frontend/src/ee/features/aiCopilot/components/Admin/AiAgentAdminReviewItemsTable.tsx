@@ -94,6 +94,15 @@ const ACTIVE_REVIEW_ITEM_STATUSES: AiAgentReviewItemStatus[] = [
     'in_progress',
 ];
 
+const reviewItemStatusLabels: Record<AiAgentReviewItemStatus, string> = {
+    triage: 'Needs triage',
+    open: 'To Do',
+    in_progress: 'In Progress',
+    resolved: 'Resolved',
+    dismissed: 'Dismissed',
+    duplicate: 'Duplicate',
+};
+
 const signalLabels: Record<AiAgentTurnSignal, string> = {
     normal_refinement: 'Normal refinement',
     implicit_correction: 'Implicit correction',
@@ -397,6 +406,9 @@ const AiAgentAdminReviewItemsTable = ({
         [],
     );
     const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
+    const [selectedStatuses, setSelectedStatuses] = useState<
+        AiAgentReviewItemStatus[]
+    >([]);
     const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
     const deferredSearch = useDeferredValue(search);
     const updateStatus = useUpdateAiAgentReviewItemStatus();
@@ -548,6 +560,10 @@ const AiAgentAdminReviewItemsTable = ({
 
     const filteredReviewItems = useMemo(() => {
         let items = scopedReviewItems;
+        if (selectedStatuses.length > 0) {
+            const statusSet = new Set(selectedStatuses);
+            items = items.filter((item) => statusSet.has(item.status));
+        }
         if (selectedRootCauses.length > 0) {
             const rootCauseSet = new Set(selectedRootCauses);
             items = items.filter((item) =>
@@ -560,7 +576,12 @@ const AiAgentAdminReviewItemsTable = ({
             );
         }
         return items;
-    }, [scopedReviewItems, selectedRootCauses, selectedAssignees]);
+    }, [
+        scopedReviewItems,
+        selectedStatuses,
+        selectedRootCauses,
+        selectedAssignees,
+    ]);
 
     const filteredReviewSignals = useMemo(() => {
         if (selectedSignals.length === 0) {
@@ -675,6 +696,18 @@ const AiAgentAdminReviewItemsTable = ({
             );
     }, [scopedReviewItems]);
 
+    const statusFacetOptions = useMemo((): FilterFacetOption[] => {
+        const counts = new Map<AiAgentReviewItemStatus, number>();
+        for (const item of scopedReviewItems) {
+            counts.set(item.status, (counts.get(item.status) ?? 0) + 1);
+        }
+        return ACTIVE_REVIEW_ITEM_STATUSES.map((status) => ({
+            value: status,
+            label: reviewItemStatusLabels[status],
+            count: counts.get(status) ?? 0,
+        }));
+    }, [scopedReviewItems]);
+
     const assigneeFacetOptions = useMemo(
         (): FilterFacetOption[] =>
             buildAssigneeFacetOptions({
@@ -712,7 +745,8 @@ const AiAgentAdminReviewItemsTable = ({
         selectedAgentUuids.length > 0 ||
         !hasDefaultRootCauseSelection ||
         selectedSignals.length > 0 ||
-        selectedAssignees.length > 0;
+        selectedAssignees.length > 0 ||
+        selectedStatuses.length > 0;
 
     const clearAllFilters = useCallback(() => {
         setSelectedProjectUuids([]);
@@ -720,6 +754,7 @@ const AiAgentAdminReviewItemsTable = ({
         setSelectedRootCauses(DEFAULT_VISIBLE_ROOT_CAUSES);
         setSelectedSignals([]);
         setSelectedAssignees([]);
+        setSelectedStatuses([]);
     }, []);
 
     const handleRowSelectionChange = useCallback(
@@ -817,6 +852,19 @@ const AiAgentAdminReviewItemsTable = ({
                             }
                             emptyLabel="No root causes in current view"
                             tooltipLabel="Filter by root cause"
+                        />
+                        <FilterFacet
+                            label="Status"
+                            icon={IconListCheck}
+                            options={statusFacetOptions}
+                            selected={selectedStatuses}
+                            onChange={(values) =>
+                                setSelectedStatuses(
+                                    values as AiAgentReviewItemStatus[],
+                                )
+                            }
+                            emptyLabel="No statuses in current view"
+                            tooltipLabel="Filter by status"
                         />
                         <FilterFacet
                             label="Assignee"
