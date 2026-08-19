@@ -9,6 +9,12 @@ export type ActivityViews = {
     uuid: string;
     name: string;
 };
+export type ChartActivityViews = {
+    count: number;
+    uuid: string;
+    name: string;
+    slug: string;
+};
 export type UserActivity = {
     numberUsers: number;
     numberViewers: number;
@@ -34,7 +40,7 @@ export type UserActivity = {
         dashboardName: string;
         dashboardUuid: string;
     })[];
-    chartViews: ActivityViews[];
+    chartViews: ChartActivityViews[];
 };
 
 export type ApiUserActivity = {

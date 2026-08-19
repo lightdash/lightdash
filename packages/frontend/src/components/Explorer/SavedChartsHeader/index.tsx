@@ -124,6 +124,17 @@ import SaveChartButton, {
 } from '../SaveChartButton';
 import { TitleBreadCrumbs } from './TitleBreadcrumbs';
 
+const isChartPath = (
+    pathname: string,
+    projectUuid: string | undefined,
+    chartIdentifier: string | undefined,
+) => {
+    if (!projectUuid || !chartIdentifier) return false;
+
+    const chartPath = `/projects/${projectUuid}/saved/${chartIdentifier}`;
+    return pathname.endsWith(chartPath) || pathname.includes(`${chartPath}/`);
+};
+
 const SavedChartsHeader: FC = () => {
     const { data: changeChartExploreFlag } = useServerFeatureFlag(
         FeatureFlags.ChangeChartExplore,
@@ -315,8 +326,15 @@ const SavedChartsHeader: FC = () => {
             hasUnsavedChanges &&
             isEditMode &&
             !isSaveModalOpen &&
-            !nextLocation.pathname.includes(
-                `/projects/${projectUuid}/saved/${savedChart?.uuid}`,
+            !isChartPath(
+                nextLocation.pathname,
+                projectUuid,
+                savedChart?.slug,
+            ) &&
+            !isChartPath(
+                nextLocation.pathname,
+                projectUuid,
+                savedChart?.uuid,
             ) &&
             !nextLocation.pathname.includes(
                 `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
@@ -448,7 +466,7 @@ const SavedChartsHeader: FC = () => {
 
         if (!isFromDashboard)
             void navigate({
-                pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/view`,
+                pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.slug}/view`,
             });
     }, [dispatch, isEditMode, savedChart, isFromDashboard, navigate]);
 
@@ -619,7 +637,7 @@ const SavedChartsHeader: FC = () => {
                                                 }
                                                 onClick={() =>
                                                     navigate({
-                                                        pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/edit`,
+                                                        pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.slug}/edit`,
                                                     })
                                                 }
                                             >
@@ -826,7 +844,7 @@ const SavedChartsHeader: FC = () => {
                                         }
                                         onClick={() =>
                                             navigate({
-                                                pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/history`,
+                                                pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.slug}/history`,
                                             })
                                         }
                                     >
@@ -1085,7 +1103,7 @@ const SavedChartsHeader: FC = () => {
                     onConfirm={() => {
                         clearDashboardStorage();
                         void navigate(
-                            `/projects/${projectUuid}/saved/${savedChart.uuid}/edit`,
+                            `/projects/${projectUuid}/saved/${savedChart.slug}/edit`,
                         );
                     }}
                 />

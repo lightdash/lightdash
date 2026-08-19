@@ -50,7 +50,7 @@ const getFavoriteItemUrl = (projectUuid: string, item: ResourceViewItem) => {
         case ResourceViewItemType.DASHBOARD:
             return `/projects/${projectUuid}/dashboards/${item.data.uuid}/view`;
         case ResourceViewItemType.CHART:
-            return `/projects/${projectUuid}/saved/${item.data.uuid}`;
+            return `/projects/${projectUuid}/saved/${item.data.slug}`;
         case ResourceViewItemType.SPACE:
             return `/projects/${projectUuid}/spaces/${item.data.uuid}`;
         case ResourceViewItemType.DATA_APP:

@@ -1,5 +1,6 @@
 import {
     type ActivityViews,
+    type ChartActivityViews,
     type UserActivity as UserActivityResponse,
     type UserWithCount,
 } from '@lightdash/common';
@@ -75,27 +76,22 @@ const BigNumberVis: FC<{ value: number | string; label: string }> = ({
 const getDashboardLink = (projectUuid: string, dashboardUuid: string) =>
     `/projects/${projectUuid}/dashboards/${dashboardUuid}`;
 
-const getChartLink = (projectUuid: string, chartUuid: string) =>
-    `/projects/${projectUuid}/saved/${chartUuid}`;
+const getChartLink = (projectUuid: string, chartSlug: string) =>
+    `/projects/${projectUuid}/saved/${chartSlug}`;
 
-const showTableViews = ({
+const showTableViews = <T extends ActivityViews>({
     key,
-    projectUuid,
-    type,
     views,
+    getLink,
 }: {
     key: string;
-    projectUuid: string;
-    type: 'chart' | 'dashboard';
-    views: ActivityViews[];
+    views: T[];
+    getLink: (view: T) => string;
 }) => {
     return (
         <Table.Tbody>
             {views.map((view) => {
-                const to =
-                    type === 'dashboard'
-                        ? getDashboardLink(projectUuid, view.uuid)
-                        : getChartLink(projectUuid, view.uuid);
+                const to = getLink(view);
                 return (
                     <Table.Tr key={`${key}-${view.uuid}`}>
                         <Table.Td>
@@ -481,9 +477,12 @@ const UserActivity: FC = () => {
                                 </Table.Thead>
                                 {showTableViews({
                                     key: 'dashboard-views',
-                                    projectUuid,
-                                    type: 'dashboard',
                                     views: data.dashboardViews,
+                                    getLink: (view) =>
+                                        getDashboardLink(
+                                            projectUuid,
+                                            view.uuid,
+                                        ),
                                 })}
                             </Table>
                         </VisualizationCard>
@@ -500,9 +499,9 @@ const UserActivity: FC = () => {
                                 </Table.Thead>
                                 {showTableViews({
                                     key: 'chart-views',
-                                    projectUuid,
-                                    type: 'chart',
                                     views: data.chartViews,
+                                    getLink: (view: ChartActivityViews) =>
+                                        getChartLink(projectUuid, view.slug),
                                 })}
                             </Table>
                         </VisualizationCard>

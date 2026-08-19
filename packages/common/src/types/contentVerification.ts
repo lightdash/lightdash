@@ -29,6 +29,7 @@ type VerifiedContentListItemBase = {
 
 export type VerifiedChartListItem = VerifiedContentListItemBase & {
     contentType: ContentType.CHART;
+    slug: string;
     chartKind: ChartKind;
     exploreName: string | null;
 };

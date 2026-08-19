@@ -38,7 +38,7 @@ const ChartList: FC<ChartListProps> = ({
                 <Box
                     key={chart.uuid}
                     component={Link}
-                    to={`/projects/${projectUuid}/saved/${chart.uuid}`}
+                    to={`/projects/${projectUuid}/saved/${chart.slug}`}
                     target="_blank"
                     className={styles.chartRow}
                     onClick={() => onChartClick(chart.uuid)}

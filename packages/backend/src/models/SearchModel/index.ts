@@ -998,6 +998,7 @@ export class SearchModel {
             )
             .column(
                 { uuid: 'saved_query_uuid' },
+                `${SavedChartsTableName}.slug`,
                 `${SavedChartsTableName}.name`,
                 `${SavedChartsTableName}.description`,
                 {

@@ -123,6 +123,7 @@ const ChartHistory = () => {
         projectUuid,
     });
     const chartUuid = chartQuery.data?.uuid;
+    const chartSlug = chartQuery.data?.slug ?? chartIdentifier;
     const historyQuery = useChartHistory(chartUuid);
 
     useEffect(() => {
@@ -134,9 +135,7 @@ const ChartHistory = () => {
 
     const rollbackMutation = useChartVersionRollbackMutation(chartUuid, {
         onSuccess: () => {
-            void navigate(
-                `/projects/${projectUuid}/saved/${chartIdentifier}/view`,
-            );
+            void navigate(`/projects/${projectUuid}/saved/${chartSlug}/view`);
         },
     });
 
@@ -172,7 +171,7 @@ const ChartHistory = () => {
                             items={[
                                 {
                                     title: 'Chart',
-                                    to: `/projects/${projectUuid}/saved/${chartIdentifier}/view`,
+                                    to: `/projects/${projectUuid}/saved/${chartSlug}/view`,
                                 },
                                 { title: 'Version history', active: true },
                             ]}
