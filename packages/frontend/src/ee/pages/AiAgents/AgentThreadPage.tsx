@@ -14,6 +14,7 @@ import {
     mergeContentMentionSuggestionItems,
 } from '../../features/aiCopilot/components/ChatElements/contentMentions';
 import { ThreadWorkstreamsPanel } from '../../features/aiCopilot/components/ChatElements/ThreadWorkstreamsPanel';
+import { ThreadRetentionNotice } from '../../features/aiCopilot/components/ThreadRetentionNotice';
 import { findRetryableDeepResearchRun } from '../../features/aiCopilot/deepResearch/deepResearchRegistry';
 import { runDeepResearchAgain } from '../../features/aiCopilot/deepResearch/runAgain';
 import {
@@ -406,6 +407,11 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                     {workstreams && workstreams.length > 0 && (
                         <ThreadWorkstreamsPanel workstreams={workstreams} />
                     )}
+                    <ThreadRetentionNotice
+                        agentThreadRetentionHours={
+                            agent.threadRetentionHours ?? null
+                        }
+                    />
                     <AgentChatInput
                         disabled={inputDisabled}
                         disabledReason={inputDisabledReason}
