@@ -7,11 +7,19 @@ import {
     PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER,
     SupportedDbtAdapter,
     TimeFrames,
+    WeekDay,
     type CompiledDimension,
     type CompiledMetric,
     type Explore,
+    type PreAggregateDef,
 } from '@lightdash/common';
 import { buildPreAggregateExplore } from './buildPreAggregateExplore';
+
+const buildExplore = (
+    explore: Explore,
+    preAggregateDef: PreAggregateDef,
+    startOfWeek: WeekDay | null = null,
+) => buildPreAggregateExplore(explore, preAggregateDef, startOfWeek);
 
 const makeDimension = ({
     name,
@@ -149,12 +157,59 @@ const sourceExplore = (): Explore => ({
                     timeInterval: TimeFrames.DAY,
                     timeIntervalBaseDimensionName: 'order_date',
                 }),
+                order_date_week: makeDimension({
+                    name: 'order_date_week',
+                    table: 'orders',
+                    type: DimensionType.DATE,
+                    timeInterval: TimeFrames.WEEK,
+                    timeIntervalBaseDimensionName: 'order_date',
+                }),
+                order_date_week_num: makeDimension({
+                    name: 'order_date_week_num',
+                    table: 'orders',
+                    type: DimensionType.NUMBER,
+                    timeInterval: TimeFrames.WEEK_NUM,
+                    timeIntervalBaseDimensionName: 'order_date',
+                }),
                 order_date_month: makeDimension({
                     name: 'order_date_month',
                     table: 'orders',
                     type: DimensionType.DATE,
                     timeInterval: TimeFrames.MONTH,
                     timeIntervalBaseDimensionName: 'order_date',
+                }),
+                order_date_month_name: makeDimension({
+                    name: 'order_date_month_name',
+                    table: 'orders',
+                    type: DimensionType.STRING,
+                    timeInterval: TimeFrames.MONTH_NAME,
+                    timeIntervalBaseDimensionName: 'order_date',
+                }),
+                order_date_quarter: makeDimension({
+                    name: 'order_date_quarter',
+                    table: 'orders',
+                    type: DimensionType.DATE,
+                    timeInterval: TimeFrames.QUARTER,
+                    timeIntervalBaseDimensionName: 'order_date',
+                }),
+                order_date_year: makeDimension({
+                    name: 'order_date_year',
+                    table: 'orders',
+                    type: DimensionType.DATE,
+                    timeInterval: TimeFrames.YEAR,
+                    timeIntervalBaseDimensionName: 'order_date',
+                }),
+                created_at: makeDimension({
+                    name: 'created_at',
+                    table: 'orders',
+                    type: DimensionType.TIMESTAMP,
+                }),
+                created_at_day: makeDimension({
+                    name: 'created_at_day',
+                    table: 'orders',
+                    type: DimensionType.TIMESTAMP,
+                    timeInterval: TimeFrames.DAY,
+                    timeIntervalBaseDimensionName: 'created_at',
                 }),
             },
             metrics: {
@@ -253,7 +308,7 @@ const sourceExplore = (): Explore => ({
 
 describe('buildPreAggregateExplore', () => {
     it('builds a deterministic internal pre-aggregate explore', () => {
-        const result = buildPreAggregateExplore(
+        const result = buildExplore(
             sourceExplore(),
             sourceExplore().preAggregates![0],
         );
@@ -272,8 +327,45 @@ describe('buildPreAggregateExplore', () => {
         );
     });
 
+    it('keeps required filters for query-time application', () => {
+        const explore = sourceExplore();
+        const requiredFilters = [
+            {
+                id: 'required-status',
+                target: { fieldRef: 'status' },
+                operator: FilterOperator.EQUALS,
+                values: ['completed'],
+                required: true,
+            },
+        ];
+        const exploreWithRequiredFilters: Explore = {
+            ...explore,
+            tables: {
+                ...explore.tables,
+                orders: {
+                    ...explore.tables.orders,
+                    requiredFilters,
+                },
+            },
+        };
+
+        const preAggregateDef = exploreWithRequiredFilters.preAggregates?.[0];
+        if (!preAggregateDef) {
+            throw new Error('Expected pre-aggregate definition');
+        }
+
+        const result = buildExplore(
+            exploreWithRequiredFilters,
+            preAggregateDef,
+        );
+
+        expect(result.tables.orders.requiredFilters).toStrictEqual(
+            requiredFilters,
+        );
+    });
+
     it('rewrites supported metrics', () => {
-        const result = buildPreAggregateExplore(
+        const result = buildExplore(
             sourceExplore(),
             sourceExplore().preAggregates![0],
         );
@@ -293,7 +385,7 @@ describe('buildPreAggregateExplore', () => {
     });
 
     it('maps joined dimensions to materialized field-id columns', () => {
-        const result = buildPreAggregateExplore(
+        const result = buildExplore(
             sourceExplore(),
             sourceExplore().preAggregates![0],
         );
@@ -303,23 +395,58 @@ describe('buildPreAggregateExplore', () => {
         );
     });
 
-    it('keeps compatible time intervals and drops finer intervals than rollup granularity', () => {
-        const result = buildPreAggregateExplore(
+    it('keeps derivable time frames and drops finer ones', () => {
+        const result = buildExplore(
             sourceExplore(),
             sourceExplore().preAggregates![0],
         );
 
         expect(result.tables.orders.dimensions.order_date_day.compiledSql).toBe(
-            'CAST(orders.orders_order_date_day AS TIMESTAMP)',
+            'orders.orders_order_date_day',
         );
         expect(
             result.tables.orders.dimensions.order_date_month.compiledSql,
-        ).toContain('CAST(orders.orders_order_date_day AS TIMESTAMP)');
+        ).toContain('orders.orders_order_date_day');
         expect(result.tables.orders.dimensions.order_date_hour).toBeUndefined();
     });
 
+    it('does not expose calendar months or week numbers from a week-grain pre-aggregate', () => {
+        const result = buildExplore(sourceExplore(), {
+            ...sourceExplore().preAggregates![0],
+            granularity: TimeFrames.WEEK,
+        });
+
+        expect(result.tables.orders.dimensions.order_date_week).toBeDefined();
+        expect(
+            result.tables.orders.dimensions.order_date_month,
+        ).toBeUndefined();
+        expect(
+            result.tables.orders.dimensions.order_date_quarter,
+        ).toBeUndefined();
+        expect(result.tables.orders.dimensions.order_date_year).toBeUndefined();
+        expect(
+            result.tables.orders.dimensions.order_date_week_num,
+        ).toBeUndefined();
+    });
+
+    it('exposes a raw date but not a raw timestamp from a day-grain pre-aggregate', () => {
+        const explore = sourceExplore();
+        const result = buildExplore(explore, {
+            ...explore.preAggregates![0],
+            dimensions: ['created_at'],
+            timeDimension: 'created_at',
+            granularity: TimeFrames.DAY,
+        });
+
+        expect(result.tables.orders.dimensions.created_at).toBeUndefined();
+        expect(result.tables.orders.dimensions.created_at_day).toBeDefined();
+
+        const dateResult = buildExplore(explore, explore.preAggregates![0]);
+        expect(dateResult.tables.orders.dimensions.order_date).toBeDefined();
+    });
+
     it('uses DuckDB-compatible date truncation SQL regardless of source warehouse adapter', () => {
-        const result = buildPreAggregateExplore(
+        const result = buildExplore(
             {
                 ...sourceExplore(),
                 targetDatabase: SupportedDbtAdapter.BIGQUERY, // doesn't matter what's the warehouse type
@@ -329,14 +456,142 @@ describe('buildPreAggregateExplore', () => {
 
         expect(
             result.tables.orders.dimensions.order_date_month.compiledSql,
-        ).toContain(
-            "DATE_TRUNC('MONTH', CAST(orders.orders_order_date_day AS TIMESTAMP))",
+        ).toContain("DATE_TRUNC('MONTH', orders.orders_order_date_day)");
+    });
+
+    it('applies startOfWeek to week re-truncation', () => {
+        const result = buildExplore(
+            sourceExplore(),
+            sourceExplore().preAggregates![0],
+            WeekDay.SUNDAY,
         );
+
+        expect(
+            result.tables.orders.dimensions.order_date_week.compiledSql,
+        ).toBe(
+            "(DATE_TRUNC('WEEK', (orders.orders_order_date_day - interval '6 days')) + interval '6 days')",
+        );
+    });
+
+    it('uses default week truncation when startOfWeek is not configured', () => {
+        const result = buildExplore(
+            sourceExplore(),
+            sourceExplore().preAggregates![0],
+        );
+
+        expect(
+            result.tables.orders.dimensions.order_date_week.compiledSql,
+        ).toBe("DATE_TRUNC('WEEK', orders.orders_order_date_day)");
+    });
+
+    it('derives named time frames with the serving warehouse function', () => {
+        const result = buildExplore(
+            sourceExplore(),
+            sourceExplore().preAggregates![0],
+        );
+
+        expect(
+            result.tables.orders.dimensions.order_date_month_name.compiledSql,
+        ).toBe("TO_CHAR(orders.orders_order_date_day, 'FMMonth')");
+    });
+
+    describe('external pre-aggregates', () => {
+        const externalDef = () => ({
+            ...sourceExplore().preAggregates![0],
+            table: '"analytics"."orders_rollup_mv"',
+        });
+
+        it('bakes the external table into every sqlTable and marks the source external', () => {
+            const result = buildExplore(sourceExplore(), externalDef());
+
+            expect(result.tables.orders.sqlTable).toBe(
+                '"analytics"."orders_rollup_mv"',
+            );
+            expect(result.tables.customers.sqlTable).toBe(
+                '"analytics"."orders_rollup_mv"',
+            );
+            expect(result.preAggregateSource).toEqual({
+                sourceExploreName: 'orders',
+                preAggregateName: 'orders_rollup',
+                externalTable: '"analytics"."orders_rollup_mv"',
+            });
+        });
+
+        it('compiles average re-aggregation casts in the project warehouse dialect', () => {
+            const postgresResult = buildExplore(
+                sourceExplore(), // targetDatabase: postgres
+                externalDef(),
+            );
+            expect(
+                postgresResult.tables.orders.metrics.avg_order_amount
+                    .compiledSql,
+            ).toBe(
+                'CAST(SUM(orders.orders_avg_order_amount__sum) AS FLOAT) / CAST(NULLIF(SUM(orders.orders_avg_order_amount__count), 0) AS FLOAT)',
+            );
+
+            const bigqueryResult = buildExplore(
+                {
+                    ...sourceExplore(),
+                    targetDatabase: SupportedDbtAdapter.BIGQUERY,
+                },
+                externalDef(),
+            );
+            expect(
+                bigqueryResult.tables.orders.metrics.avg_order_amount
+                    .compiledSql,
+            ).toBe(
+                'CAST(SUM(orders.orders_avg_order_amount__sum) AS FLOAT64) / CAST(NULLIF(SUM(orders.orders_avg_order_amount__count), 0) AS FLOAT64)',
+            );
+        });
+
+        it('derives coarser grains with the project warehouse date truncation', () => {
+            const result = buildExplore(
+                {
+                    ...sourceExplore(),
+                    targetDatabase: SupportedDbtAdapter.BIGQUERY,
+                },
+                externalDef(),
+            );
+
+            // BigQuery argument order, not DuckDB's DATE_TRUNC('MONTH', x)
+            expect(
+                result.tables.orders.dimensions.order_date_month.compiledSql,
+            ).toBe('DATE_TRUNC(orders.orders_order_date_day, MONTH)');
+        });
+
+        it('derives named time frames with the project warehouse function', () => {
+            const result = buildExplore(
+                {
+                    ...sourceExplore(),
+                    targetDatabase: SupportedDbtAdapter.BIGQUERY,
+                },
+                externalDef(),
+            );
+
+            expect(
+                result.tables.orders.dimensions.order_date_month_name
+                    .compiledSql,
+            ).toBe("FORMAT_DATE('%B', orders.orders_order_date_day)");
+        });
+
+        it('preserves timestamp materialization types for named time frames', () => {
+            const explore = sourceExplore();
+            explore.targetDatabase = SupportedDbtAdapter.BIGQUERY;
+            explore.tables.orders.dimensions.order_date.type =
+                DimensionType.TIMESTAMP;
+
+            const result = buildExplore(explore, externalDef());
+
+            expect(
+                result.tables.orders.dimensions.order_date_month_name
+                    .compiledSql,
+            ).toBe("FORMAT_DATETIME('%B', orders.orders_order_date_day)");
+        });
     });
 
     it('throws when pre-aggregate references unknown fields', () => {
         expect(() =>
-            buildPreAggregateExplore(sourceExplore(), {
+            buildExplore(sourceExplore(), {
                 name: 'invalid_rollup',
                 dimensions: ['unknown_dimension'],
                 metrics: ['order_count'],
@@ -346,23 +601,77 @@ describe('buildPreAggregateExplore', () => {
 
     it('throws when pre-aggregate references unsupported metric types', () => {
         expect(() =>
-            buildPreAggregateExplore(sourceExplore(), {
+            buildExplore(sourceExplore(), {
                 name: 'invalid_rollup',
                 dimensions: ['status'],
+                metrics: ['custom_sql'],
+            }),
+        ).toThrow(
+            'Pre-aggregate "invalid_rollup" references unsupported metrics: "custom_sql" (number). Supported metric types: sum, count, min, max, average, count_distinct, sum_distinct, average_distinct, median, percentile',
+        );
+    });
+
+    it('rewrites exact-only metrics to MAX over the stored value column and hides them from the explore', () => {
+        const result = buildExplore(sourceExplore(), {
+            name: 'unique_rollup',
+            dimensions: ['status'],
+            metrics: ['distinct_customer_count', 'median_order_amount'],
+        });
+
+        expect(
+            result.tables.orders.metrics.distinct_customer_count.compiledSql,
+        ).toBe('MAX(orders.orders_distinct_customer_count)');
+        expect(
+            result.tables.orders.metrics.distinct_customer_count.hidden,
+        ).toBe(true);
+        expect(
+            result.tables.orders.metrics.median_order_amount.compiledSql,
+        ).toBe('MAX(orders.orders_median_order_amount)');
+        expect(result.tables.orders.metrics.median_order_amount.hidden).toBe(
+            true,
+        );
+    });
+
+    it('keeps re-aggregatable metrics visible alongside hidden exact-only metrics', () => {
+        const result = buildExplore(sourceExplore(), {
+            name: 'mixed_rollup',
+            dimensions: ['status'],
+            metrics: ['distinct_customer_count', 'order_count'],
+        });
+
+        expect(result.tables.orders.metrics.order_count.hidden).toBe(false);
+        expect(
+            result.tables.orders.metrics.distinct_customer_count.hidden,
+        ).toBe(true);
+    });
+
+    it('rejects number metrics that reference exact-only metrics', () => {
+        const explore = sourceExplore();
+        explore.tables.orders.metrics.distinct_plus_total = makeCustomMetric({
+            name: 'distinct_plus_total',
+            table: 'orders',
+            type: MetricType.NUMBER,
+            sql: '${distinct_customer_count} + ${total_order_amount}',
+        });
+
+        expect(() =>
+            buildExplore(explore, {
+                name: 'invalid_number_rollup',
+                dimensions: ['status'],
                 metrics: [
+                    'distinct_plus_total',
                     'distinct_customer_count',
-                    'median_order_amount',
-                    'custom_sql',
+                    'total_order_amount',
                 ],
             }),
         ).toThrow(
-            'Pre-aggregate "invalid_rollup" references unsupported metrics: "distinct_customer_count" (count_distinct), "median_order_amount" (median), "custom_sql" (number). Supported metric types: sum, count, min, max, average',
+            'Pre-aggregate "invalid_number_rollup" references unsupported metrics: "distinct_plus_total" (number)',
         );
     });
 
     it('requires dependent metrics for supported number metrics', () => {
         expect(() =>
-            buildPreAggregateExplore(sourceExplore(), {
+            buildExplore(sourceExplore(), {
                 name: 'number_metric_preagg',
                 dimensions: ['status'],
                 metrics: ['gross_total', 'total_order_amount'],
@@ -373,7 +682,7 @@ describe('buildPreAggregateExplore', () => {
     });
 
     it('keeps supported number metrics on the pre-aggregate explore and rewrites them to use materialized dependencies', () => {
-        const result = buildPreAggregateExplore(sourceExplore(), {
+        const result = buildExplore(sourceExplore(), {
             name: 'number_metric_preagg',
             dimensions: ['status'],
             metrics: ['gross_total', 'total_order_amount', 'shipping_total'],
@@ -391,7 +700,7 @@ describe('buildPreAggregateExplore', () => {
     });
 
     it('rewrites supported cross-model number metrics to use materialized dependencies from joined tables', () => {
-        const result = buildPreAggregateExplore(sourceExplore(), {
+        const result = buildExplore(sourceExplore(), {
             name: 'cross_model_number_metric_preagg',
             dimensions: ['status'],
             metrics: [
@@ -413,7 +722,7 @@ describe('buildPreAggregateExplore', () => {
     });
 
     it('includes time dimension even when not in dimensions array', () => {
-        const result = buildPreAggregateExplore(sourceExplore(), {
+        const result = buildExplore(sourceExplore(), {
             name: 'time_dim_separate',
             dimensions: ['status'],
             metrics: ['order_count'],
@@ -423,13 +732,13 @@ describe('buildPreAggregateExplore', () => {
 
         expect(result.tables.orders.dimensions.order_date_day).toBeDefined();
         expect(result.tables.orders.dimensions.order_date_day.compiledSql).toBe(
-            'CAST(orders.orders_order_date_day AS TIMESTAMP)',
+            'orders.orders_order_date_day',
         );
         expect(result.tables.orders.dimensions.status).toBeDefined();
     });
 
     it('supports legacy metric fieldIds in pre-aggregate definitions', () => {
-        const result = buildPreAggregateExplore(sourceExplore(), {
+        const result = buildExplore(sourceExplore(), {
             name: 'legacy_field_id_rollup',
             dimensions: ['status'],
             metrics: ['orders_order_count'],
@@ -447,7 +756,7 @@ describe('buildPreAggregateExplore', () => {
             compiledSql: "concat(orders.status, '-ok')",
         });
 
-        const result = buildPreAggregateExplore(explore, {
+        const result = buildExplore(explore, {
             name: 'derived_dimension_rollup',
             dimensions: ['status_label'],
             metrics: ['order_count'],
@@ -474,7 +783,7 @@ describe('buildPreAggregateExplore', () => {
         });
 
         expect(() =>
-            buildPreAggregateExplore(explore, {
+            buildExplore(explore, {
                 name: 'invalid_rollup',
                 dimensions: ['parameterized_status'],
                 metrics: ['order_count'],
@@ -493,7 +802,7 @@ describe('buildPreAggregateExplore', () => {
         });
 
         expect(() =>
-            buildPreAggregateExplore(explore, {
+            buildExplore(explore, {
                 name: 'invalid_rollup',
                 dimensions: ['region_aware_status'],
                 metrics: ['order_count'],
@@ -523,7 +832,7 @@ describe('buildPreAggregateExplore', () => {
         });
 
         expect(() =>
-            buildPreAggregateExplore(explore, {
+            buildExplore(explore, {
                 name: 'invalid_rollup',
                 dimensions: ['status_wrapper'],
                 metrics: ['order_count'],
@@ -550,7 +859,7 @@ describe('buildPreAggregateExplore', () => {
             compiledSql: 'SUM(orders.amount)',
         });
 
-        const result = buildPreAggregateExplore(explore, {
+        const result = buildExplore(explore, {
             name: 'metric_rollup',
             dimensions: ['status'],
             metrics: ['order_revenue'],
@@ -578,7 +887,7 @@ describe('buildPreAggregateExplore', () => {
         });
 
         expect(() =>
-            buildPreAggregateExplore(explore, {
+            buildExplore(explore, {
                 name: 'invalid_rollup',
                 dimensions: ['status'],
                 metrics: ['parameterized_revenue'],
@@ -620,7 +929,7 @@ describe('buildPreAggregateExplore', () => {
         });
 
         expect(() =>
-            buildPreAggregateExplore(explore, {
+            buildExplore(explore, {
                 name: 'invalid_rollup',
                 dimensions: ['status'],
                 metrics: ['filtered_revenue'],

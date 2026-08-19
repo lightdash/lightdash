@@ -598,8 +598,11 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
     {
         path: 'autopilot',
         lazy: async () => {
-            const { ManagedAgentActivityPage } =
-                await import('./ee/features/managedAgent/ManagedAgentActivityPage');
+            const ManagedAgentActivityPage = await loadLazyRouteDefault(
+                './ee/features/managedAgent/ManagedAgentActivityPage',
+                () =>
+                    import('./ee/features/managedAgent/ManagedAgentActivityPage'),
+            );
             return { Component: ManagedAgentActivityPage };
         },
     },
@@ -623,6 +626,38 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
                 () => import('./pages/SavedApps'),
             );
             return { Component: SavedApps };
+        },
+    },
+    {
+        path: 'gallery',
+        lazy: async () => {
+            const ChartTypeGallery = await loadLazyRouteDefault(
+                './pages/ChartTypeGallery',
+                () => import('./pages/ChartTypeGallery'),
+            );
+            return { Component: ChartTypeGallery };
+        },
+    },
+    {
+        path: 'chart-types/new',
+        handle: { hideAILauncher: true },
+        lazy: async () => {
+            const ChartTypeBuilder = await loadLazyRouteDefault(
+                './pages/ChartTypeBuilder',
+                () => import('./pages/ChartTypeBuilder'),
+            );
+            return { Component: ChartTypeBuilder };
+        },
+    },
+    {
+        path: 'chart-types/:dataAppVizUuid',
+        handle: { hideAILauncher: true },
+        lazy: async () => {
+            const ChartTypeBuilder = await loadLazyRouteDefault(
+                './pages/ChartTypeBuilder',
+                () => import('./pages/ChartTypeBuilder'),
+            );
+            return { Component: ChartTypeBuilder };
         },
     },
     {

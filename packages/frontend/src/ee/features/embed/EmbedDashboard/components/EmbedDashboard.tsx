@@ -859,6 +859,7 @@ const EmbedDashboard: FC<{
                     <EmbedDashboardHeader
                         dashboard={dashboard}
                         projectUuid={projectUuid}
+                        activeTiles={filteredTiles}
                     />
                     {renderDashboardEditToolbar()}
                     <Box mt="lg">
@@ -880,6 +881,7 @@ const EmbedDashboard: FC<{
                     <EmbedDashboardHeader
                         dashboard={dashboard}
                         projectUuid={projectUuid}
+                        activeTiles={filteredTiles}
                         tabs={
                             <Tabs.List px="lg">
                                 {visibleTabs.map((tab) => (
@@ -904,6 +906,7 @@ const EmbedDashboard: FC<{
                     <EmbedDashboardHeader
                         dashboard={dashboard}
                         projectUuid={projectUuid}
+                        activeTiles={filteredTiles}
                     />
                     {renderDashboardEditToolbar()}
                     {renderGridWithGuidedSetup()}

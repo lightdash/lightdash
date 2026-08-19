@@ -13,6 +13,7 @@ import {
     getItemLabelWithoutTableName,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
+    isBooleanItem,
     isConditionalFormattingWithCompareTarget,
     isConditionalFormattingWithValues,
     isNumericItem,
@@ -125,13 +126,20 @@ export const ConditionalFormattingItem: FC<Props> = ({
                     const currentField = draft.target?.fieldId
                         ? itemsMap?.[draft.target?.fieldId]
                         : undefined;
-                    // Reset the config if the field type changes
-                    // TODO: move to a helper function
+                    // Reset the config if the field type family changes,
+                    // since operators and values are type-specific
+                    const getTypeFamily = (
+                        f: typeof newField | typeof currentField,
+                    ) => {
+                        if (isNumericItem(f)) return 'numeric';
+                        if (isStringDimension(f)) return 'string';
+                        if (isBooleanItem(f)) return 'boolean';
+                        return undefined;
+                    };
+                    const currentFamily =
+                        getTypeFamily(currentField) ?? 'numeric';
                     const shouldReset =
-                        ((!currentField || isNumericItem(currentField)) &&
-                            isStringDimension(newField)) ||
-                        (isStringDimension(currentField) &&
-                            isNumericItem(newField));
+                        currentFamily !== getTypeFamily(newField);
 
                     if (shouldReset && newField) {
                         // Reset the config if the field type changes

@@ -12,6 +12,7 @@ import {
     IconAlertTriangle,
     IconCode,
     IconDots,
+    IconGitMerge,
     IconPencil,
     IconTrash,
 } from '@tabler/icons-react';
@@ -29,11 +30,20 @@ import {
     explorerActions,
     selectAdditionalMetrics,
     selectIsVisualizationConfigOpen,
+    selectMetricQuery,
     selectSavedChart,
     selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { MergeJoinBar } from '../../../features/mergeQuery/components/MergeJoinBar';
+import { MergeQuerySidebar } from '../../../features/mergeQuery/components/MergeQuerySidebar';
+import {
+    DEFAULT_ADDITIONAL_SOURCE_ID,
+    PRIMARY_SOURCE_ID,
+} from '../../../features/mergeQuery/constants';
+import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
+import { isMergeSourceReady } from '../../../features/mergeQuery/utils/mergeWorkflow';
 import { useSourceCodeEditor } from '../../../features/sourceCodeEditor';
 import {
     DeleteVirtualViewModal,
@@ -42,7 +52,6 @@ import {
 import { useExplore } from '../../../hooks/useExplore';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
-import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -75,8 +84,21 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const { data: editYamlInUiFlag } = useServerFeatureFlag(
         FeatureFlags.EditYamlInUi,
     );
-
+    const { data: mergeFlag } = useServerFeatureFlag(FeatureFlags.MergeQueries);
+    const merge = useMergeSafe();
+    const additionalSource = merge?.additionalSources[0];
+    const [isChoosingMergeExplore, setIsChoosingMergeExplore] = useState(
+        !additionalSource?.exploreName,
+    );
+    useEffect(() => {
+        if (!additionalSource?.exploreName) setIsChoosingMergeExplore(true);
+    }, [additionalSource?.exploreName]);
+    const isGuidedMerge =
+        mergeFlag?.enabled === true &&
+        merge?.isMerging === true &&
+        !merge.readOnly;
     const activeTableName = useExplorerSelector(selectTableName);
+    const metricQuery = useExplorerSelector(selectMetricQuery);
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
 
     // Get savedChart from Redux
@@ -165,6 +187,16 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         openSourceCodeEditor({ explore: activeTableName });
     }, [openSourceCodeEditor, activeTableName]);
 
+    const handleAddMergeSource = useCallback(() => {
+        if (!merge) return;
+        merge.addSource(DEFAULT_ADDITIONAL_SOURCE_ID, {
+            kind: 'source',
+            sourceId: isMergeSourceReady(metricQuery)
+                ? DEFAULT_ADDITIONAL_SOURCE_ID
+                : PRIMARY_SOURCE_ID,
+        });
+    }, [merge, metricQuery]);
+
     const breadcrumbs = useMemo(() => {
         if (!explore) return [];
         const items = onBack
@@ -201,6 +233,24 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
             projectUuid,
         }),
     );
+    const canViewSourceCode =
+        explore.type !== ExploreType.VIRTUAL &&
+        isGitProject &&
+        !!explore.ymlPath &&
+        editYamlInUiFlag?.enabled === true &&
+        user.data?.ability.can(
+            'view',
+            subject('SourceCode', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+            }),
+        ) === true;
+    const canMergeAnotherQuery =
+        explore.type !== ExploreType.VIRTUAL &&
+        mergeFlag?.enabled === true &&
+        !!merge &&
+        !merge.isMerging &&
+        !merge.readOnly;
 
     // Only call `onBack` for 4XX errors, otherwise we lose URL state when there's a Network error or backend is down
     if (status === 'error' && error.error.statusCode < 500) {
@@ -226,7 +276,14 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                     display: isVisualizationConfigOpen ? 'none' : 'flex',
                 }}
             >
-                <Group justify="space-between">
+                {merge?.isMerging && merge.readOnly && <MergeJoinBar />}
+                {/* The breadcrumbs, warnings and menu all belong to the
+                    primary source's explore; shown above an added source's
+                    picker they read as its header, which they are not. */}
+                <Group
+                    justify="space-between"
+                    display={isGuidedMerge ? 'none' : undefined}
+                >
                     <Group gap="xs">
                         <PageBreadcrumbs size="md" items={breadcrumbs} />
                         {explore.warnings && explore.warnings.length > 0 && (
@@ -332,50 +389,67 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                 </Menu.Dropdown>
                             </Menu>
                         )}
-                    {explore.type !== ExploreType.VIRTUAL &&
-                        isGitProject &&
-                        explore.ymlPath &&
-                        editYamlInUiFlag?.enabled && (
-                            <Can
-                                I="view"
-                                this={subject('SourceCode', {
-                                    organizationUuid:
-                                        user.data?.organizationUuid,
-                                    projectUuid,
-                                })}
-                            >
-                                <Menu withArrow offset={-2}>
-                                    <Menu.Target>
-                                        <ActionIcon
-                                            color="gray"
-                                            variant="transparent"
-                                        >
-                                            <MantineIcon icon={IconDots} />
-                                        </ActionIcon>
-                                    </Menu.Target>
-                                    <Menu.Dropdown>
-                                        <Menu.Item
-                                            leftSection={
-                                                <MantineIcon icon={IconCode} />
-                                            }
-                                            onClick={handleViewSourceCode}
-                                        >
-                                            <Text fz="xs" fw={500}>
-                                                View source code
-                                            </Text>
-                                        </Menu.Item>
-                                    </Menu.Dropdown>
-                                </Menu>
-                            </Can>
-                        )}
+                    {(canViewSourceCode || canMergeAnotherQuery) && (
+                        <Menu withArrow offset={-2}>
+                            <Menu.Target>
+                                <ActionIcon
+                                    aria-label="Query options"
+                                    color="gray"
+                                    variant="transparent"
+                                >
+                                    <MantineIcon icon={IconDots} />
+                                </ActionIcon>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                                {canViewSourceCode && (
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon icon={IconCode} />
+                                        }
+                                        onClick={handleViewSourceCode}
+                                    >
+                                        <Text fz="xs" fw={500}>
+                                            View source code
+                                        </Text>
+                                    </Menu.Item>
+                                )}
+                                {canViewSourceCode && canMergeAnotherQuery && (
+                                    <Menu.Divider />
+                                )}
+                                {canMergeAnotherQuery && (
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon icon={IconGitMerge} />
+                                        }
+                                        onClick={handleAddMergeSource}
+                                    >
+                                        <Text fz="xs" fw={500}>
+                                            Merge another query
+                                        </Text>
+                                    </Menu.Item>
+                                )}
+                            </Menu.Dropdown>
+                        </Menu>
+                    )}
                 </Group>
 
-                <ItemDetailProvider>
-                    <ExploreTree
-                        explore={explore}
-                        onSelectedFieldChange={toggleActiveField}
+                {isGuidedMerge ? (
+                    <MergeQuerySidebar
+                        primaryExplore={explore}
+                        onPrimaryFieldChange={toggleActiveField}
+                        isChoosingAdditionalExplore={isChoosingMergeExplore}
+                        setIsChoosingAdditionalExplore={
+                            setIsChoosingMergeExplore
+                        }
                     />
-                </ItemDetailProvider>
+                ) : (
+                    <ItemDetailProvider>
+                        <ExploreTree
+                            explore={explore}
+                            onSelectedFieldChange={toggleActiveField}
+                        />
+                    </ItemDetailProvider>
+                )}
 
                 {isEditVirtualViewOpen && (
                     <EditVirtualViewModal

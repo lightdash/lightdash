@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { type DbAppVersion } from '../../../database/entities/apps';
 import { type AppModel } from '../../../models/AppModel';
+import { type BundleServableChecker } from './appBundleStorage';
 
 export type DataAppVisualizationForRender = NonNullable<
     Awaited<ReturnType<AppModel['findVisualizationApp']>>
@@ -29,6 +30,7 @@ export const resolveDataAppVisualizationForRender = async (
 export const resolveDataAppVizRenderMetadata = async (
     appModel: AppModel,
     appUuid: string,
+    isBundleServable: BundleServableChecker,
 ): Promise<DataAppVizRenderMetadata> => {
     const [latestVersion, latestRenderableVersion] = await Promise.all([
         appModel.getLatestVersion(appUuid),
@@ -37,14 +39,23 @@ export const resolveDataAppVizRenderMetadata = async (
     const latestBuildInProgress =
         latestVersion !== null && isAppVersionInProgress(latestVersion.status);
 
-    if (
+    const renderableVersion =
         latestRenderableVersion !== null &&
         latestRenderableVersion.viz_schema !== null
+            ? latestRenderableVersion
+            : null;
+
+    // A `ready` row whose bundle is gone from storage would frame the preview
+    // route's raw JSON error, so check storage before promising a render.
+    if (
+        renderableVersion !== null &&
+        renderableVersion.viz_schema !== null &&
+        (await isBundleServable(appUuid, renderableVersion.version))
     ) {
         return {
             state: 'ready',
-            version: latestRenderableVersion.version,
-            schema: latestRenderableVersion.viz_schema,
+            version: renderableVersion.version,
+            schema: renderableVersion.viz_schema,
             latestBuildInProgress,
         };
     }
@@ -53,6 +64,15 @@ export const resolveDataAppVizRenderMetadata = async (
         return {
             state: 'building',
             latestBuildInProgress: true,
+        };
+    }
+
+    // A build that succeeded and then lost its bundle is not a build failure,
+    // and the two read very differently to whoever is looking at the chart.
+    if (renderableVersion !== null) {
+        return {
+            state: 'unavailable',
+            latestBuildInProgress: false,
         };
     }
 

@@ -23,7 +23,6 @@ import { ConfigTabs as SankeyConfigTabs } from '../../VisualizationConfigs/Sanke
 import { ConfigTabs as TableConfigTabs } from '../../VisualizationConfigs/TableConfigPanel/TableConfigTabs';
 import { ConfigTabs as TreemapConfigTabs } from '../../VisualizationConfigs/TreemapConfig/TreemapConfigTabs';
 import VisualizationCardOptions from '../VisualizationCardOptions';
-import classes from './VisualizationConfig.module.css';
 
 // Lazy load CustomVisConfig as it includes the heavy Monaco editor
 const CustomVisConfigTabsLazy = lazy(() =>
@@ -106,10 +105,7 @@ const VisualizationConfig: FC<Props> = ({ chartType, onClose }) => {
                 offsetScrollbars
                 scrollbars="y"
                 classNames={{
-                    content:
-                        chartType === ChartType.DATA_APP_VIZ
-                            ? `${scrollAreaClasses.verticalContent} ${classes.fillHeight}`
-                            : scrollAreaClasses.verticalContent,
+                    content: scrollAreaClasses.verticalContent,
                 }}
                 style={{ flex: 1 }}
                 type="hover"

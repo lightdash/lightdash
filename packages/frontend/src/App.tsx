@@ -10,7 +10,8 @@ import {
 import { AgentOnboardingCompletionWatcher } from './ee/features/agentOnboarding/AgentOnboardingCompletionWatcher';
 import { AiAgentsGlobalProvider } from './ee/features/aiCopilot/components/Launcher/AiAgentsGlobalProvider';
 import { parseEmbedThemeParams } from './ee/providers/Embed/parseEmbedThemeParams';
-import { installChunkLoadErrorHandler } from './features/chunkErrorHandler';
+import BuildSkewRefresher from './features/buildHashHandshake/BuildSkewRefresher';
+import { installChunkLoadErrorHandler } from './features/chunkErrorHandler/chunkErrorHandler';
 import ChunkErrorRouteBoundary from './features/errorBoundary/ChunkErrorRouteBoundary';
 import ErrorBoundary from './features/errorBoundary/ErrorBoundary';
 import { SourceCodeEditorProvider } from './features/sourceCodeEditor';
@@ -59,6 +60,7 @@ const router = sentryCreateBrowserRouter([
             <AppProvider>
                 <FullscreenProvider enabled={isMobile || !isMinimalPage}>
                     <VersionAutoUpdater />
+                    <BuildSkewRefresher />
                     <ThirdPartyProvider enabled={isMobile || !isMinimalPage}>
                         <ErrorBoundary wrapper={{ mt: '4xl' }}>
                             <TrackingProvider

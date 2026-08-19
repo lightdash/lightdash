@@ -30,6 +30,7 @@ import {
     friendlyName,
     getColumnOrderFromVizTableConfig,
     getConditionalFormattingsFromChartConfig,
+    getCronCadence,
     getCustomLabelsFromTableConfig,
     getCustomLabelsFromVizTableConfig,
     getDownloadPivotConfig,
@@ -203,6 +204,7 @@ import { UserService } from '../services/UserService';
 import { ValidationService } from '../services/ValidationService/ValidationService';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import { sanitizeGenericFileName } from '../utils/FileDownloadUtils/FileDownloadUtils';
+import { buildGoogleSheetsFilterSummaryRows } from '../utils/googleSheetsFilterSummary';
 import { SchedulerClient } from './SchedulerClient';
 import { SchedulerDeliveryError } from './SchedulerDeliveryError';
 
@@ -1950,7 +1952,7 @@ export default class SchedulerTask {
             return undefined;
         }
         try {
-            const stream =
+            const { stream } =
                 await this.fileStorageClient.getFileStream(imageS3Key);
             const chunks: Buffer[] = [];
             for await (const chunk of stream) {
@@ -2169,9 +2171,11 @@ export default class SchedulerTask {
                     try {
                         // Add the pdf to the thread
                         const pdfBuffer = this.fileStorageClient.isEnabled()
-                            ? await this.fileStorageClient.getFileStream(
-                                  pdfFile.fileName,
-                              )
+                            ? (
+                                  await this.fileStorageClient.getFileStream(
+                                      pdfFile.fileName,
+                                  )
+                              ).stream
                             : await fs.readFile(pdfFile.source);
 
                         await this.slackClient.postFileToThread({
@@ -2220,9 +2224,11 @@ export default class SchedulerTask {
 
                 // Post PDF file as a separate message
                 const pdfBuffer = this.fileStorageClient.isEnabled()
-                    ? await this.fileStorageClient.getFileStream(
-                          pdfFile.fileName,
-                      )
+                    ? (
+                          await this.fileStorageClient.getFileStream(
+                              pdfFile.fileName,
+                          )
+                      ).stream
                     : await fs.readFile(pdfFile.source);
 
                 await this.slackClient.postFileToThread({
@@ -3564,7 +3570,13 @@ export default class SchedulerTask {
                 name,
                 thresholds,
                 includeLinks,
+                plainTextEmail,
             } = scheduler;
+
+            // Email-only: strips the branded template in favour of a text body.
+            const plainText = plainTextEmail
+                ? { cadence: getCronCadence(scheduler.cron) }
+                : undefined;
 
             await this.schedulerService.logSchedulerJob({
                 task: SCHEDULER_TASKS.SEND_EMAIL_NOTIFICATION,
@@ -3677,6 +3689,7 @@ export default class SchedulerTask {
                     'This is a data alert sent by Lightdash',
                     imageBuffer,
                     senderIdentity,
+                    plainText,
                 );
             } else if (
                 format === SchedulerFormat.IMAGE ||
@@ -3711,6 +3724,7 @@ export default class SchedulerTask {
                     undefined, // deliveryType
                     format === SchedulerFormat.IMAGE ? imageBuffer : undefined,
                     senderIdentity,
+                    plainText,
                 );
             } else if (savedChartUuid) {
                 if (csvUrl === undefined) {
@@ -3736,6 +3750,7 @@ export default class SchedulerTask {
                     csvOptions?.asAttachment,
                     format,
                     senderIdentity,
+                    plainText,
                 );
             } else if (dashboardUuid || appUuid) {
                 if (csvUrls === undefined) {
@@ -3765,6 +3780,7 @@ export default class SchedulerTask {
                     notices,
                     senderIdentity,
                     !!appUuid,
+                    plainText,
                 );
             } else {
                 throw new Error('Not implemented');
@@ -4026,6 +4042,9 @@ export default class SchedulerTask {
             const tabName = isSchedulerGsheetsOptions(scheduler.options)
                 ? scheduler.options.tabName
                 : undefined;
+            const showFilters =
+                isSchedulerGsheetsOptions(scheduler.options) &&
+                scheduler.options.showFilters === true;
 
             await this.schedulerService.logSchedulerJob({
                 task: SCHEDULER_TASKS.UPLOAD_GSHEETS,
@@ -4125,6 +4144,12 @@ export default class SchedulerTask {
                     reportUrl,
                 );
                 const pivotConfig = getPivotConfig(chart);
+                const filterSummaryRows = showFilters
+                    ? buildGoogleSheetsFilterSummaryRows(
+                          chart.metricQuery.filters,
+                          itemMap,
+                      )
+                    : [];
                 if (
                     pivotConfig &&
                     pivotDetails &&
@@ -4151,7 +4176,7 @@ export default class SchedulerTask {
                     await this.googleDriveClient.appendCsvToSheet(
                         refreshToken,
                         gdriveId,
-                        pivotedResults,
+                        [...filterSummaryRows, ...pivotedResults],
                         tabName,
                     );
                 } else {
@@ -4166,6 +4191,7 @@ export default class SchedulerTask {
                         customLabels,
                         getHiddenTableFields(chart.chartConfig),
                         displayTimezone ?? undefined,
+                        filterSummaryRows,
                     );
                 }
             } else if (dashboardUuid) {
@@ -4573,7 +4599,7 @@ export default class SchedulerTask {
                     readyItems,
                     pacingDelayMs,
                     async (item) => {
-                        const { rows, fields, displayTimezone } =
+                        const { rows, fields, displayTimezone, metricQuery } =
                             await this.asyncQueryService.getRawAsyncQueryResults(
                                 {
                                     account: account!,
@@ -4594,6 +4620,12 @@ export default class SchedulerTask {
                                 ),
                             ),
                         );
+                        const filterSummaryRows = showFilters
+                            ? buildGoogleSheetsFilterSummaryRows(
+                                  metricQuery?.filters,
+                                  fields,
+                              )
+                            : [];
 
                         // appendCsvToSheet creates the tab itself when given
                         // a tabName — itemTabName is already fully
@@ -4607,7 +4639,11 @@ export default class SchedulerTask {
                                 this.googleDriveClient.appendCsvToSheet(
                                     refreshToken,
                                     gdriveId,
-                                    [columnNames, ...dataRows],
+                                    [
+                                        ...filterSummaryRows,
+                                        columnNames,
+                                        ...dataRows,
+                                    ],
                                     itemTabName,
                                 ),
                             undefined,
@@ -5983,6 +6019,7 @@ export default class SchedulerTask {
                     appName: null,
                     enabled: true,
                     includeLinks: false,
+                    plainTextEmail: false,
                     projectUuid: payload.projectUuid,
                     targets: [],
                     customViewportWidth: payload.customViewportWidth,

@@ -1,4 +1,8 @@
-import { isDimension, type FilterableItem } from '@lightdash/common';
+import {
+    isDimension,
+    isFilterAutocompleteManualOnly,
+    type FilterableItem,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -288,13 +292,16 @@ const FilterStringAutoComplete: FC<Props> = ({
             value,
             label: resultLabels.get(value) ?? formatDisplayValue(value),
         }));
-        return showNull
+        const showNullInData =
+            showNull && (!isInitialLoading || includeNull === true);
+
+        return showNullInData
             ? [
                   ...valueData,
                   { value: NULL_VALUE_TOKEN, label: NULL_VALUE_LABEL },
               ]
             : valueData;
-    }, [results, values, showNull]);
+    }, [includeNull, isInitialLoading, results, showNull, values]);
 
     const isSummaryMode =
         !singleValue && values.length > SUMMARY_MODE_THRESHOLD;
@@ -318,6 +325,9 @@ const FilterStringAutoComplete: FC<Props> = ({
         [handleAdd, handleResetSearch, onInputBlur, pastePopUpOpened, search],
     );
 
+    // Nothing to autocomplete (no warehouse fetch, no curated values):
+    // the input is plain entry with no dropdown.
+    const manualEntryOnly = isFilterAutocompleteManualOnly(filterAutocomplete);
     const searchedMaxResults = results.length >= MAX_AUTOCOMPLETE_RESULTS;
     const canRefreshAutocomplete =
         filterAutocomplete?.fetchFromWarehouse !== false &&
@@ -401,7 +411,9 @@ const FilterStringAutoComplete: FC<Props> = ({
                             placeholder={
                                 values.length > 0 || disabled
                                     ? undefined
-                                    : placeholder
+                                    : manualEntryOnly
+                                      ? 'Type a value and press Enter'
+                                      : placeholder
                             }
                             disabled={disabled}
                             shouldCreate={(query: string) =>
@@ -428,6 +440,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                             onSearchChange={setSearch}
                             comboboxProps={comboboxProps}
                             onPaste={handlePaste}
+                            withDropdown={!manualEntryOnly}
                             nothingFoundMessage={
                                 isInitialLoading
                                     ? 'Loading...'

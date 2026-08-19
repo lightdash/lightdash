@@ -2,7 +2,6 @@ import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     CommercialFeatureFlags,
     DimensionType,
-    FeatureFlags,
     FieldType,
     ForbiddenError,
     NotFoundError,
@@ -150,13 +149,13 @@ describe('AiAgentMemoryService', () => {
     const build = ({
         enabledOrganization = 'org-enabled',
         consolidationDryRun = false,
+        memorySettingEnabled = true,
     } = {}) => {
         const getFlag = vi.fn(async ({ user, featureFlagId }) => ({
             id: featureFlagId,
             enabled:
                 user.organizationUuid === enabledOrganization &&
-                (featureFlagId === FeatureFlags.AiAgentMemory ||
-                    featureFlagId === CommercialFeatureFlags.AiCopilot),
+                featureFlagId === CommercialFeatureFlags.AiCopilot,
         }));
         const findByProjectAndSlug = vi.fn();
         const findByProjectAndUuid = vi.fn();
@@ -274,13 +273,11 @@ describe('AiAgentMemoryService', () => {
             userModel: { findSessionUserAndOrgByUuid } as AnyType,
             featureFlagService: { get: getFlag } as AnyType,
             aiOrganizationSettingsService: {
-                isAiAgentMemoryEnabled: async (user) =>
-                    (
-                        await getFlag({
-                            user,
-                            featureFlagId: FeatureFlags.AiAgentMemory,
-                        })
-                    ).enabled,
+                isAiAgentMemoryEnabled: async (user: {
+                    organizationUuid?: string;
+                }) =>
+                    memorySettingEnabled &&
+                    user.organizationUuid === enabledOrganization,
                 isAiAgentReviewsEnabled: vi.fn().mockResolvedValue(true),
             },
             schedulerClient: {
@@ -1006,6 +1003,145 @@ describe('AiAgentMemoryService', () => {
             forced.service.distillThread({ ...payload, force: true }),
         ).resolves.toBe('no_op');
         expect(forced.distillCall).toHaveBeenCalledOnce();
+    });
+
+    it('distills an event-triggered job only through the latest successful turn', async () => {
+        const completedActivity = new Date('2026-07-22T04:00:00.000Z');
+        const latestActivity = new Date('2026-07-22T05:00:00.000Z');
+        const completedTurn = distillableThread(completedActivity).turns[0];
+        const unfinishedTurn = {
+            ...completedTurn,
+            promptUuid: 'prompt-2',
+            createdAt: latestActivity,
+            userText: 'Unfinished follow-up',
+            assistantText: null,
+            respondedAt: null,
+        };
+        const {
+            service,
+            findThreadForDistill,
+            upsertThreadDistill,
+            distillCall,
+        } = build();
+        findThreadForDistill.mockResolvedValue(
+            distillableThread(latestActivity, {
+                distilledUpTo: null,
+                turns: [completedTurn, unfinishedTurn],
+            }),
+        );
+        distillCall.mockResolvedValue({
+            result: { type: 'no_op', reason: 'no_positive_evidence' },
+        });
+
+        await expect(
+            service.distillThread({
+                organizationUuid: 'org-enabled',
+                projectUuid: 'project-enabled',
+                userUuid: 'current-user',
+                threadUuid: 'thread-enabled',
+            }),
+        ).resolves.toBe('no_op');
+
+        expect(upsertThreadDistill).toHaveBeenCalledWith(
+            expect.objectContaining({ distilledUpTo: completedActivity }),
+        );
+        expect(distillCall).toHaveBeenCalledWith(
+            expect.objectContaining({
+                thread: expect.objectContaining({ turns: [completedTurn] }),
+            }),
+        );
+        expect(distillCall.mock.calls[0][0].transcript).not.toContain(
+            'Unfinished follow-up',
+        );
+    });
+
+    it('does not move the event watermark past an unfinished follow-up', async () => {
+        const completedActivity = new Date('2026-07-22T04:00:00.000Z');
+        const latestActivity = new Date('2026-07-22T05:00:00.000Z');
+        const completedTurn = distillableThread(completedActivity).turns[0];
+        const {
+            service,
+            findThreadForDistill,
+            upsertThreadDistill,
+            distillCall,
+        } = build();
+        findThreadForDistill.mockResolvedValue(
+            distillableThread(latestActivity, {
+                distilledUpTo: completedActivity,
+                turns: [
+                    completedTurn,
+                    {
+                        ...completedTurn,
+                        promptUuid: 'prompt-2',
+                        createdAt: latestActivity,
+                        userText: 'Unfinished follow-up',
+                        assistantText: null,
+                        respondedAt: null,
+                    },
+                ],
+            }),
+        );
+
+        await expect(
+            service.distillThread({
+                organizationUuid: 'org-enabled',
+                projectUuid: 'project-enabled',
+                userUuid: 'current-user',
+                threadUuid: 'thread-enabled',
+            }),
+        ).resolves.toBe('skipped');
+        expect(distillCall).not.toHaveBeenCalled();
+        expect(upsertThreadDistill).not.toHaveBeenCalled();
+    });
+
+    it('re-distills on a forced feedback event even though the watermark has not moved', async () => {
+        const completedActivity = new Date('2026-07-22T04:00:00.000Z');
+        const latestActivity = new Date('2026-07-22T05:00:00.000Z');
+        const completedTurn = distillableThread(completedActivity).turns[0];
+        const {
+            service,
+            findThreadForDistill,
+            upsertThreadDistill,
+            distillCall,
+        } = build();
+        findThreadForDistill.mockResolvedValue(
+            distillableThread(latestActivity, {
+                distilledUpTo: completedActivity,
+                turns: [
+                    completedTurn,
+                    {
+                        ...completedTurn,
+                        promptUuid: 'prompt-2',
+                        createdAt: latestActivity,
+                        userText: 'Unfinished follow-up',
+                        assistantText: null,
+                        respondedAt: null,
+                    },
+                ],
+            }),
+        );
+        distillCall.mockResolvedValue({
+            result: { type: 'no_op', reason: 'no_positive_evidence' },
+        });
+
+        await expect(
+            service.distillThread({
+                organizationUuid: 'org-enabled',
+                projectUuid: 'project-enabled',
+                userUuid: 'current-user',
+                threadUuid: 'thread-enabled',
+                force: true,
+            }),
+        ).resolves.toBe('no_op');
+
+        expect(distillCall).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                thread: expect.objectContaining({ turns: [completedTurn] }),
+            }),
+        );
+        expect(upsertThreadDistill).toHaveBeenCalledWith(
+            expect.objectContaining({ distilledUpTo: completedActivity }),
+        );
     });
 
     it('forcing does not override the inactive-memory guard', async () => {
@@ -2209,7 +2345,7 @@ describe('AiAgentMemoryService', () => {
         ).toHaveBeenCalledOnce();
     });
 
-    it('returns not found without reading rows when the flag is off', async () => {
+    it('returns not found without reading rows when copilot is off', async () => {
         const { service, findByProjectAndSlug } = build({
             enabledOrganization: 'none',
         });
@@ -2219,6 +2355,78 @@ describe('AiAgentMemoryService', () => {
             service.getMemory(user, 'project-enabled', 'net-revenue'),
         ).rejects.toThrow('Memory not found: net-revenue');
         expect(findByProjectAndSlug).not.toHaveBeenCalled();
+    });
+
+    it('still returns a memory after the org disables the memory setting', async () => {
+        const { service, findByProjectAndSlug } = build({
+            memorySettingEnabled: false,
+        });
+        findByProjectAndSlug.mockResolvedValue({
+            memory: memoryRow({ user_uuid: 'current-user' }),
+            sources: [lineageSource()],
+            replacement: null,
+        });
+
+        await expect(
+            service.getMemory(
+                buildUser(true),
+                'project-enabled',
+                'net-revenue-ab12cd34',
+            ),
+        ).resolves.toMatchObject({ uuid: 'memory-1' });
+    });
+
+    it('still lets the owner retire a memory after the org disables the memory setting', async () => {
+        const { service, findByProjectAndUuid, updateStatus } = build({
+            memorySettingEnabled: false,
+        });
+        findByProjectAndUuid.mockResolvedValue(
+            memoryRow({ user_uuid: 'current-user' }),
+        );
+
+        await expect(
+            service.updateMemoryStatus(
+                buildUser(true),
+                'project-enabled',
+                'memory-1',
+                'retired',
+            ),
+        ).resolves.toBeUndefined();
+        expect(updateStatus).toHaveBeenCalledWith({
+            memoryUuid: 'memory-1',
+            status: 'retired',
+        });
+    });
+
+    it('refuses a promotion when the memory setting is off', async () => {
+        const { service, findByProjectAndUuid } = build({
+            memorySettingEnabled: false,
+        });
+
+        await expect(
+            service.promoteMemory(
+                buildUser(true),
+                'project-enabled',
+                'memory-1',
+            ),
+        ).rejects.toThrow('Memory not found: memory-1');
+        expect(findByProjectAndUuid).not.toHaveBeenCalled();
+    });
+
+    it('refuses a manual distill when the memory setting is off', async () => {
+        const { service, findThreadForDistill, aiAgentMemoryDistill } = build({
+            memorySettingEnabled: false,
+        });
+
+        await expect(
+            service.triggerThreadDistill(
+                buildUser(true, { canManageAgents: true }),
+                'project-enabled',
+                'thread-enabled',
+            ),
+        ).rejects.toThrow('Thread not found: thread-enabled');
+        expect(findThreadForDistill).not.toHaveBeenCalled();
+        expect(aiAgentMemoryDistill).not.toHaveBeenCalled();
     });
 
     it('rejects users who cannot view the project before checking flags', async () => {
@@ -2272,7 +2480,21 @@ describe('AiAgentMemoryService', () => {
         ]);
     });
 
-    it('returns not found for the memory list when the flag is off', async () => {
+    it('still lists memories after the org disables the memory setting', async () => {
+        const { service, findUserMemoriesPaginated } = build({
+            memorySettingEnabled: false,
+        });
+        const user = buildUser(true);
+
+        await service.listMyMemories(user, 'project-enabled', {
+            page: 1,
+            pageSize: 50,
+        });
+
+        expect(findUserMemoriesPaginated).toHaveBeenCalled();
+    });
+
+    it('returns not found for the memory list when copilot is off', async () => {
         const { service, findUserMemoriesPaginated } = build({
             enabledOrganization: 'none',
         });

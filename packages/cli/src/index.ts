@@ -41,6 +41,7 @@ import { lintHandler } from './handlers/lint';
 import { listProjectsHandler } from './handlers/listProjects';
 import { login } from './handlers/login';
 import { preAggregateAuditHandler } from './handlers/preAggregateAudit';
+import { preAggregateCheckExternalHandler } from './handlers/preAggregateCheckExternal';
 import {
     previewHandler,
     startPreviewHandler,
@@ -51,7 +52,9 @@ import { renameProjectHandler } from './handlers/renameProject';
 import { runChartHandler } from './handlers/runChart';
 import { setProjectHandler, unsetProjectHandler } from './handlers/setProject';
 import { setWarehouseHandler } from './handlers/setWarehouse';
+import { slugUpdateHandler } from './handlers/slugUpdate';
 import { sqlHandler } from './handlers/sql';
+import { registerUpgradeCheckCommand } from './handlers/upgradeCheck';
 import { validateHandler } from './handlers/validate';
 import { warehouseCatalogHandler } from './handlers/warehouseCatalog';
 import * as styles from './styles';
@@ -184,6 +187,8 @@ ${styles.bold('Examples:')}
   )} ${styles.secondary('-- logs in to a Lightdash instance')}
 `,
     );
+
+registerUpgradeCheckCommand(program);
 
 program
     .command('connect-snowflake')
@@ -950,7 +955,7 @@ const downloadCommand = program
     )
     .option(
         '--organization',
-        'download all organization-scoped resources without selecting a project',
+        'download all organization-scoped resources, including Data App themes, without selecting a project',
         false,
     );
 
@@ -1086,7 +1091,7 @@ const uploadCommand = program
     )
     .option(
         '--organization',
-        'upload all organization-scoped resources without selecting a project',
+        'upload all organization-scoped resources, including Data App themes, without selecting a project',
         false,
     )
     .option(
@@ -1523,6 +1528,30 @@ program
     .action(renameHandler);
 
 program
+    .command('slug-update')
+    .description('Rename a chart slug and update its local references')
+    .option('--verbose', 'show verbose output', false)
+    .option(
+        '-p, --project <project uuid>',
+        'specify a project UUID',
+        parseProjectArgument,
+        undefined,
+    )
+    .option(
+        '--path <path>',
+        'specify the local content-as-code path to update',
+        undefined,
+    )
+    .option(
+        '--dry-run',
+        'preview the chart rename and local file changes without making changes',
+        false,
+    )
+    .requiredOption('--from <slug>', 'current content slug')
+    .requiredOption('--to <slug>', 'new content slug')
+    .action(slugUpdateHandler);
+
+program
     .command('generate-exposures')
     .description(
         '[Experimental command] Generates a .yml file for Lightdash exposures',
@@ -1710,6 +1739,73 @@ program
     .action(preAggregateAuditHandler);
 
 program
+    .command('pre-aggregate-check-external')
+    .description(
+        'Generate the expected table shape and materialization SQL for an external pre-aggregate, and check the declared table against it. Runs fully locally against the dbt project and warehouse credentials from profiles.yml.',
+    )
+    .option('--model <model>', 'Model the pre-aggregate is defined on')
+    .option('--name <name>', 'Pre-aggregate name')
+    .option(
+        '--all',
+        'Check every external pre-aggregate (with a `table:` key) in the project',
+        false,
+    )
+    .option(
+        '--project-dir <path>',
+        'The directory of the dbt project',
+        defaultProjectDir,
+    )
+    .option(
+        '--profiles-dir <path>',
+        'The directory of the dbt profiles',
+        defaultProfilesDir,
+    )
+    .option(
+        '--profile <name>',
+        'The name of the profile to use (defaults to profile name in dbt_project.yml)',
+        undefined,
+    )
+    .option('--target <name>', 'target to use in profiles.yml file', undefined)
+    .option(
+        '--target-path <path>',
+        'The target directory for dbt (overrides DBT_TARGET_PATH and dbt_project.yml)',
+        undefined,
+    )
+    .option('--vars <vars>')
+    .option(
+        '--skip-dbt-compile',
+        'Skip `dbt compile` and deploy from the existing ./target/manifest.json',
+        false,
+    )
+    .option(
+        '--skip-warehouse-catalog',
+        'Skip fetch warehouse catalog and use types defined in the YAML.',
+        false,
+    )
+    .option(
+        '--json',
+        'Emit machine-readable JSON instead of human output',
+        false,
+    )
+    .option(
+        '--sql',
+        'Print bare materialization SQL on stdout (human output goes to stderr)',
+        false,
+    )
+    .option(
+        '--fail-on-mismatch',
+        'Exit 1 if any checked pre-aggregate has missing columns, an unreachable table, or an SQL error (CI-friendly)',
+        false,
+    )
+    .option(
+        '--clear-cache',
+        'Bypass warehouse result caches when probing table shapes (use after rebuilding a table, or the warehouse may report its old schema)',
+        false,
+    )
+    .option('--verbose', undefined, false)
+    .action(preAggregateCheckExternalHandler);
+
+program
     .command('sql')
     .description(
         'Run raw SQL query against the warehouse using project credentials',
@@ -1885,7 +1981,13 @@ const errorHandler = (err: Error) => {
         );
     } else if (err.name === 'AuthorizationError') {
         console.error(
-            `Looks like you did not authenticate or the personal access token expired.\n\n👀 See https://docs.lightdash.com/guides/cli/cli-authentication for help and examples`,
+            `Looks like you did not authenticate or the personal access token expired.${
+                process.env.LIGHTDASH_API_KEY
+                    ? `\n\nLIGHTDASH_API_KEY is set, and it takes precedence over the token saved by \`lightdash login\`. If you expected your saved login to be used, run ${styles.bold(
+                          'unset LIGHTDASH_API_KEY',
+                      )}.`
+                    : ''
+            }\n\n👀 See https://docs.lightdash.com/guides/cli/cli-authentication for help and examples`,
         );
     } else if (!(err instanceof LightdashError)) {
         console.error(err);

@@ -1,7 +1,11 @@
 /* eslint-disable @typescript-eslint/no-floating-promises */
 import { AnyType, QueryExecutionContext } from '@lightdash/common';
 import { Columns, Iterator, QueryData, QueryResult, Trino } from 'trino-client';
-import { TrinoTypes, TrinoWarehouseClient } from './TrinoWarehouseClient';
+import {
+    TrinoSqlBuilder,
+    TrinoTypes,
+    TrinoWarehouseClient,
+} from './TrinoWarehouseClient';
 import {
     credentials,
     queryResponse,
@@ -166,5 +170,27 @@ describe('TrinoWarehouseClient', () => {
 
             expect(queryResultMock).toHaveBeenCalledWith('SELECT 1');
         });
+    });
+});
+
+describe('TrinoSqlBuilder temporal literals', () => {
+    // Trino rejects zone-suffixed strings cast to plain TIMESTAMP.
+    const builder = new TrinoSqlBuilder();
+    const epoch = new Date(0);
+
+    it('emits a zone-free TIMESTAMP literal', () => {
+        expect(builder.castToTimestamp(epoch)).toBe(
+            "TIMESTAMP '1970-01-01 00:00:00.000'",
+        );
+    });
+
+    it('emits a DATE literal', () => {
+        expect(builder.castToDate(epoch)).toBe("DATE '1970-01-01'");
+    });
+
+    it('reuses the plain TIMESTAMP literal for naive timestamps', () => {
+        expect(builder.castToNaiveTimestamp(epoch)).toBe(
+            "TIMESTAMP '1970-01-01 00:00:00.000'",
+        );
     });
 });

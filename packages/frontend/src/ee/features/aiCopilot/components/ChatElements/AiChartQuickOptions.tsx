@@ -3,6 +3,8 @@ import {
     type AiAgentMessageAssistant,
     type AiArtifact,
     type ApiError,
+    type MergeQuery,
+    type ParametersValuesMap,
     type SavedChart,
 } from '@lightdash/common';
 import { ActionIcon, Button, Menu, Tooltip } from '@mantine/core';
@@ -28,6 +30,11 @@ import MantineModal from '../../../../../components/common/MantineModal';
 import { SaveToSpaceOrDashboard } from '../../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
 import { useVisualizationContext } from '../../../../../components/LightdashVisualization/useVisualizationContext';
 import useEmbed from '../../../../../ee/providers/Embed/useEmbed';
+import {
+    MERGE_URL_PARAM,
+    serializeMergeState,
+} from '../../../../../features/mergeQuery/context/mergeUrlState';
+import { toSavedMerge } from '../../../../../features/mergeQuery/hooks/useSavedMerge';
 import useToaster from '../../../../../hooks/toaster/useToaster';
 import useCreateInAnySpaceAccess from '../../../../../hooks/user/useCreateInAnySpaceAccess';
 import { useCreateShareMutation } from '../../../../../hooks/useShare';
@@ -48,6 +55,10 @@ import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
+import {
+    canonicalizeAiMerge,
+    remapFieldIdsDeep,
+} from '../../utils/canonicalizeAiMerge';
 import { AiScheduleDeliveryModal } from './AiScheduleDeliveryModal';
 
 type Props = {
@@ -61,6 +72,11 @@ type Props = {
     message: AiAgentMessageAssistant;
     compiledSql?: string;
     artifactData?: AiArtifact;
+    /** Set for merge artifacts; `query` is null until the viz query loads. */
+    merge: {
+        query: MergeQuery | null;
+        parameters: ParametersValuesMap | undefined;
+    } | null;
 };
 
 export const AiChartQuickOptions = ({
@@ -70,6 +86,7 @@ export const AiChartQuickOptions = ({
     message,
     compiledSql,
     artifactData,
+    merge,
 }: Props) => {
     const { track } = useTracking();
     const { user } = useApp();
@@ -141,8 +158,43 @@ export const AiChartQuickOptions = ({
 
     const isDisabled = !metricQuery || !type || !visualizationConfig;
 
+    // Renamed to the merge editor's conventions so the saved chart and the
+    // explore link are indistinguishable from a merge built by hand.
+    const canonicalMerge = useMemo(
+        () => (merge?.query ? canonicalizeAiMerge(merge.query) : null),
+        [merge],
+    );
+
     const savedData = useMemo(() => {
         if (!metricQuery) return undefined;
+        // A merged result's own metricQuery is synthetic; the chart persists
+        // the primary source's query (always first) plus the stored merge.
+        if (merge) {
+            if (!canonicalMerge) return undefined;
+            const { fieldIdByAiFieldId } = canonicalMerge;
+            const [primary] = canonicalMerge.mergeQuery.sources;
+            return {
+                metricQuery: primary.metricQuery,
+                tableName: primary.metricQuery.exploreName,
+                chartConfig: remapFieldIdsDeep(chartConfig, fieldIdByAiFieldId),
+                tableConfig: {
+                    columnOrder: remapFieldIdsDeep(
+                        columnOrder,
+                        fieldIdByAiFieldId,
+                    ),
+                },
+                pivotConfig: pivotDimensions?.length
+                    ? {
+                          columns: remapFieldIdsDeep(
+                              pivotDimensions,
+                              fieldIdByAiFieldId,
+                          ),
+                      }
+                    : undefined,
+                merge: toSavedMerge(canonicalMerge.mergeQuery),
+                parameters: merge.parameters,
+            };
+        }
         return {
             metricQuery,
             tableName: metricQuery.exploreName,
@@ -152,7 +204,14 @@ export const AiChartQuickOptions = ({
                 ? { columns: pivotDimensions }
                 : undefined,
         };
-    }, [metricQuery, chartConfig, columnOrder, pivotDimensions]);
+    }, [
+        metricQuery,
+        chartConfig,
+        columnOrder,
+        pivotDimensions,
+        merge,
+        canonicalMerge,
+    ]);
 
     const trackChartCreated = useCallback(() => {
         if (
@@ -247,6 +306,49 @@ export const AiChartQuickOptions = ({
 
     const openInExploreUrl = useMemo(() => {
         if (isDisabled) return undefined;
+        // A merge opens on its primary source with the whole merge carried in
+        // the merge search param, landing in the merge editor fully set up.
+        if (merge) {
+            if (!canonicalMerge || !projectUuid) return undefined;
+            const { fieldIdByAiFieldId } = canonicalMerge;
+            const [primary, additional] = canonicalMerge.mergeQuery.sources;
+            const url = getOpenInExploreUrl({
+                metricQuery: primary.metricQuery,
+                projectUuid,
+                columnOrder: remapFieldIdsDeep(columnOrder, fieldIdByAiFieldId),
+                chartConfig: remapFieldIdsDeep(chartConfig, fieldIdByAiFieldId),
+                pivotColumns: pivotDimensions?.length
+                    ? remapFieldIdsDeep(pivotDimensions, fieldIdByAiFieldId)
+                    : undefined,
+            });
+            const search = new URLSearchParams(url.search);
+            search.set(
+                MERGE_URL_PARAM,
+                serializeMergeState({
+                    focus: { kind: 'source', sourceId: primary.id },
+                    additionalSources: [
+                        {
+                            id: additional.id,
+                            exploreName: additional.metricQuery.exploreName,
+                            dimensions: additional.metricQuery.dimensions,
+                            metrics: additional.metricQuery.metrics,
+                            filters: additional.metricQuery.filters,
+                            additionalMetrics:
+                                additional.metricQuery.additionalMetrics,
+                            customDimensions:
+                                additional.metricQuery.customDimensions,
+                        },
+                    ],
+                    joinParts: canonicalMerge.mergeQuery.joinKey.map(
+                        (part) => ({
+                            fieldIdBySourceId: part.fieldIdBySourceId,
+                        }),
+                    ),
+                    joinType: canonicalMerge.mergeQuery.joinType,
+                }),
+            );
+            return { pathname: url.pathname, search: search.toString() };
+        }
         return getOpenInExploreUrl({
             metricQuery,
             projectUuid,
@@ -256,6 +358,8 @@ export const AiChartQuickOptions = ({
         });
     }, [
         isDisabled,
+        merge,
+        canonicalMerge,
         metricQuery,
         projectUuid,
         columnOrder,
@@ -355,10 +459,15 @@ export const AiChartQuickOptions = ({
 
     const canVerify = !!artifactData && canManageAgent;
     const hasSavedChartAction = !!message.savedQueryUuid && !isEmbed;
-    const hasSaveActions = !message.savedQueryUuid;
+    const hasSaveActions =
+        !message.savedQueryUuid && (!merge || !!canonicalMerge);
     const canExploreFromEmbed =
         content?.type === 'aiAgent' && content.canExplore === true;
-    const hasExploreAction = !isEmbed || canExploreFromEmbed;
+    // The embedded explorer has not been exercised with merge state, so merge
+    // artifacts only offer the explore action in the full app.
+    const hasExploreAction = merge
+        ? !isEmbed && !!canonicalMerge
+        : !isEmbed || canExploreFromEmbed;
     const hasSqlActions = !!compiledSql;
     const hasQuickActions =
         hasSavedChartAction ||
@@ -430,7 +539,7 @@ export const AiChartQuickOptions = ({
                                     )}
                                 </>
                             )
-                        ) : (
+                        ) : hasSaveActions ? (
                             <>
                                 {quickSaveDashboard && (
                                     <Menu.Item
@@ -464,7 +573,7 @@ export const AiChartQuickOptions = ({
                                     </Menu.Item>
                                 )}
                             </>
-                        )}
+                        ) : null}
 
                         {hasExploreAction && (
                             <Menu.Item
@@ -518,28 +627,22 @@ export const AiChartQuickOptions = ({
                     closeOnClickOutside: false,
                 }}
             >
-                <SaveToSpaceOrDashboard
-                    projectUuid={projectUuid}
-                    savedData={{
-                        metricQuery: metricQuery,
-                        tableName: metricQuery.exploreName,
-                        chartConfig,
-                        tableConfig: { columnOrder },
-                        pivotConfig: pivotDimensions?.length
-                            ? { columns: pivotDimensions }
-                            : undefined,
-                    }}
-                    onConfirm={onSaveChart}
-                    onClose={close}
-                    chartMetadata={{
-                        name: saveChartOptions.name ?? '',
-                        description: saveChartOptions.description ?? '',
-                    }}
-                    forcedSpaceUuid={
-                        isEmbed ? writeActions?.spaceUuid : undefined
-                    }
-                    redirectOnSuccess={false}
-                />
+                {savedData && (
+                    <SaveToSpaceOrDashboard
+                        projectUuid={projectUuid}
+                        savedData={savedData}
+                        onConfirm={onSaveChart}
+                        onClose={close}
+                        chartMetadata={{
+                            name: saveChartOptions.name ?? '',
+                            description: saveChartOptions.description ?? '',
+                        }}
+                        forcedSpaceUuid={
+                            isEmbed ? writeActions?.spaceUuid : undefined
+                        }
+                        redirectOnSuccess={false}
+                    />
+                )}
             </MantineModal>
             {!!compiledSql && (
                 <MantineModal

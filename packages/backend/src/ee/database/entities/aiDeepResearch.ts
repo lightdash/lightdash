@@ -21,6 +21,8 @@ export type DbAiDeepResearchRun = {
     prompt_uuid: string;
     tool_call_id: string | null;
     prompt: string;
+    /** Terminal run whose evidence should be reused by this resume. */
+    resume_from_run_uuid: string | null;
     status: AiDeepResearchRunStatus;
     /** Why the run reached its terminal status; null while running or on success. */
     terminal_reason: AiDeepResearchTerminalReason | null;
@@ -41,6 +43,10 @@ export type DbAiDeepResearchRun = {
     tool_call_count: number | null;
     tool_error_count: number | null;
     warehouse_query_count: number | null;
+    warehouse_limit_prevented_count: number | null;
+    warehouse_limit_retry_count: number | null;
+    warehouse_limit_recovered_count: number | null;
+    warehouse_limit_unrecovered_count: number | null;
     findings_count: number | null;
     chart_count: number | null;
     error_message: string | null;
@@ -63,6 +69,7 @@ export type AiDeepResearchRunsTable = Knex.CompositeTableType<
         | 'prompt_uuid'
         | 'tool_call_id'
         | 'prompt'
+        | 'resume_from_run_uuid'
         | 'entry_point'
         | 'budget_snapshot'
         | 'execution_context_snapshot'
@@ -92,6 +99,10 @@ export type AiDeepResearchRunsTable = Knex.CompositeTableType<
             | 'tool_call_count'
             | 'tool_error_count'
             | 'warehouse_query_count'
+            | 'warehouse_limit_prevented_count'
+            | 'warehouse_limit_retry_count'
+            | 'warehouse_limit_recovered_count'
+            | 'warehouse_limit_unrecovered_count'
             | 'findings_count'
             | 'chart_count'
         >

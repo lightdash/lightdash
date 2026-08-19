@@ -12,6 +12,7 @@ import {
     createExplorerStore,
     explorerActions,
 } from '../features/explorer/store';
+import { MergeProvider } from '../features/mergeQuery/context/MergeContext';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import { useSavedQuery } from '../hooks/useSavedQuery';
@@ -121,7 +122,12 @@ const SavedExplorer = () => {
 
     return (
         <Provider store={store} key={`saved-${savedQueryUuid}`}>
-            <SavedExplorerContent />
+            <MergeProvider
+                savedMerge={data?.merge ?? null}
+                readOnly={mode !== 'edit'}
+            >
+                <SavedExplorerContent />
+            </MergeProvider>
         </Provider>
     );
 };

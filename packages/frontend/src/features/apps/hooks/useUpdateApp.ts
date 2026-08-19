@@ -28,7 +28,8 @@ const updateApp = async ({
     return data;
 };
 
-export const useUpdateApp = () => {
+export const useUpdateApp = (options?: { resourceLabel?: string }) => {
+    const resourceLabel = options?.resourceLabel ?? 'App';
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<UpdateAppResult, ApiError, UpdateAppParams>({
@@ -45,12 +46,12 @@ export const useUpdateApp = () => {
                   ? 'description'
                   : 'metadata';
             showToastSuccess({
-                title: `App ${field} updated successfully`,
+                title: `${resourceLabel} ${field} updated successfully`,
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to update app',
+                title: `Failed to update ${resourceLabel.toLowerCase()}`,
                 apiError: error,
             });
         },

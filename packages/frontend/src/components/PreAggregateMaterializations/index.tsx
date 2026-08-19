@@ -61,6 +61,7 @@ import {
     SettingsPageActions,
     SettingsPageDocumentationLink,
 } from '../common/Settings/SettingsPage';
+import TruncatedText from '../common/TruncatedText';
 import MaterializationDetailDrawer from './MaterializationDetailDrawer';
 import classes from './PreAggregateMaterializations.module.css';
 import { StatusBadge } from './StatusBadge';
@@ -78,13 +79,18 @@ const TimeAgoText: FC<{ date: Date | string }> = ({ date }) => {
     );
 };
 
-type StatusType = PreAggregateMaterializationStatus;
+type StatusType =
+    | PreAggregateMaterializationStatus
+    | 'external'
+    | 'never_materialized';
 
 const STATUS_LABELS: Record<StatusType, string> = {
     active: 'Active',
     in_progress: 'Building',
     failed: 'Failed',
     superseded: 'Superseded',
+    external: 'External',
+    never_materialized: 'Never materialized',
 };
 
 const ALL_STATUSES: StatusType[] = [
@@ -92,7 +98,16 @@ const ALL_STATUSES: StatusType[] = [
     'in_progress',
     'failed',
     'superseded',
+    'external',
+    'never_materialized',
 ];
+
+const getStatusType = (
+    summary: PreAggregateMaterializationSummary,
+): StatusType => {
+    if (summary.externalTable) return 'external';
+    return summary.materialization?.status ?? 'never_materialized';
+};
 
 const StatusFilter: FC<{
     selected: StatusType | null;
@@ -221,6 +236,10 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
         () => data?.pages.flatMap((page) => page.data.materializations) ?? [],
         [data],
     );
+    const managedMaterializations = useMemo(
+        () => materializations.filter((item) => !item.externalTable),
+        [materializations],
+    );
 
     const [sorting, setSorting] = useState<ContentTableSortingState>([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -250,14 +269,14 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
         let rows = materializations;
         if (searchQuery) {
             const query = searchQuery.toLowerCase();
-            rows = rows.filter((r) =>
-                r.preAggregateName.toLowerCase().includes(query),
+            rows = rows.filter(
+                (r) =>
+                    r.preAggregateName.toLowerCase().includes(query) ||
+                    r.externalTable?.toLowerCase().includes(query),
             );
         }
         if (selectedStatus) {
-            rows = rows.filter(
-                (r) => r.materialization?.status === selectedStatus,
-            );
+            rows = rows.filter((r) => getStatusType(r) === selectedStatus);
         }
         return rows;
     }, [materializations, searchQuery, selectedStatus]);
@@ -270,8 +289,11 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
         const warningCount = filteredMaterializations.filter(
             (m) => m.warnings.length > 0,
         ).length;
+        const external = filteredMaterializations.filter(
+            (m) => m.externalTable !== null,
+        ).length;
 
-        return { total, active, warningCount };
+        return { total, active, external, warningCount };
     }, [filteredMaterializations]);
 
     const columns = useMemo<
@@ -289,9 +311,14 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     </Group>
                 ),
                 Cell: ({ row }) => (
-                    <Text size="xs" fw={500} ff="monospace">
+                    <TruncatedText
+                        maxWidth={180}
+                        fz="xs"
+                        fw={500}
+                        ff="monospace"
+                    >
                         {row.original.preAggregateName}
-                    </Text>
+                    </TruncatedText>
                 ),
             },
             {
@@ -499,7 +526,16 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     </Group>
                 ),
                 Cell: ({ row }) => {
-                    const { refreshCron } = row.original;
+                    const { externalTable, refreshCron } = row.original;
+                    if (externalTable) {
+                        return (
+                            <Tooltip label="Refreshes are managed outside Lightdash">
+                                <Text size="xs" c="ldGray.7" fw={500}>
+                                    Customer managed
+                                </Text>
+                            </Tooltip>
+                        );
+                    }
                     if (!refreshCron) {
                         return (
                             <Text size="xs" c="ldGray.6">
@@ -531,6 +567,8 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 enableSorting: false,
                 size: 50,
                 Cell: ({ row }) => {
+                    if (row.original.externalTable) return null;
+
                     const isThisRowRefreshing =
                         isRefreshingOne &&
                         refreshingDefinitionName ===
@@ -613,7 +651,9 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 </Group>
                 <Group gap="xs" wrap="nowrap">
                     <Text size="xs" c="dimmed">
-                        {summary.active}/{summary.total} active
+                        {summary.active} active, {summary.total} total
+                        {summary.external > 0 &&
+                            `, ${summary.external} external`}
                         {summary.warningCount > 0 &&
                             `, ${summary.warningCount} warning${summary.warningCount > 1 ? 's' : ''}`}
                     </Text>
@@ -671,16 +711,21 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 actions={
                     <SettingsPageActions>
                         <SettingsPageDocumentationLink href="https://docs.lightdash.com/references/pre-aggregates" />
-                        <Button
-                            size="xs"
-                            leftSection={
-                                <MantineIcon icon={IconRefreshDot} size="sm" />
-                            }
-                            loading={isRefreshingAll || hasActiveJobs}
-                            onClick={handleRefreshAllClick}
-                        >
-                            Rebuild all
-                        </Button>
+                        {managedMaterializations.length > 0 && (
+                            <Button
+                                size="xs"
+                                leftSection={
+                                    <MantineIcon
+                                        icon={IconRefreshDot}
+                                        size="sm"
+                                    />
+                                }
+                                loading={isRefreshingAll || hasActiveJobs}
+                                onClick={handleRefreshAllClick}
+                            >
+                                Rebuild managed
+                            </Button>
+                        )}
                     </SettingsPageActions>
                 }
             >
@@ -729,13 +774,13 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
             <MantineModal
                 opened={isRefreshModalOpen}
                 onClose={closeRefreshModal}
-                title="Rebuild all pre-aggregates"
+                title="Rebuild managed pre-aggregates"
                 icon={IconRefreshDot}
                 size="lg"
                 onConfirm={handleRefreshAllConfirm}
-                confirmLabel="Rebuild all"
+                confirmLabel="Rebuild managed"
                 confirmLoading={isRefreshingAll}
-                description="This will rebuild all pre-aggregate definitions in this project by re-running their warehouse queries to regenerate the cached data."
+                description={`This rebuilds ${managedMaterializations.length} Lightdash-managed pre-aggregate${managedMaterializations.length === 1 ? '' : 's'}. External definitions stay untouched.`}
             >
                 <Stack gap="sm">
                     <Text fz="xs" c="ldGray.6">

@@ -3,6 +3,7 @@ import { Knex } from 'knex';
 import { AppsTableName } from '../database/entities/apps';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
+import { SavedChartSlugMappingsTableName } from '../database/entities/savedChartSlugMappings';
 import { SavedSqlTableName } from '../database/entities/savedSql';
 import { SpaceTableName } from '../database/entities/spaces';
 
@@ -94,6 +95,16 @@ export async function generateUniqueSlugScopedToProject(
     let increment = 0;
     for (;;) {
         const candidate = getSlugCandidate(tableName, baseSlug, increment);
+        if (tableName === SavedChartsTableName) {
+            // Alias and canonical rows cannot share a database constraint, so
+            // all chart writers lock the exact candidate before checking both.
+            // eslint-disable-next-line no-await-in-loop
+            await acquireProjectSlugLock(
+                trx,
+                projectOwner as string,
+                candidate,
+            );
+        }
         const ownerColumn =
             tableName === SpaceTableName
                 ? `${SpaceTableName}.project_id`
@@ -106,7 +117,22 @@ export async function generateUniqueSlugScopedToProject(
             .where(ownerColumn, projectOwner)
             .where(`${tableName}.slug`, candidate)
             .first();
-        if (!existing) return candidate;
+        let isReserved = existing !== undefined;
+
+        if (!isReserved && tableName === SavedChartsTableName) {
+            // eslint-disable-next-line no-await-in-loop
+            const historical = await trx(SavedChartSlugMappingsTableName)
+                .select(`${SavedChartSlugMappingsTableName}.slug`)
+                .where(
+                    `${SavedChartSlugMappingsTableName}.project_uuid`,
+                    projectOwner,
+                )
+                .where(`${SavedChartSlugMappingsTableName}.slug`, candidate)
+                .first();
+            isReserved = historical !== undefined;
+        }
+
+        if (!isReserved) return candidate;
         increment += 1;
     }
 }

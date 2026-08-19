@@ -19,12 +19,15 @@ import {
     formatFilterExamplesAsJsonLines,
     getCustomMetricType,
     getErrorMessage,
+    getExploreParameterDefinitions,
+    getExploreParameterReferences,
     getFields,
     getFilterExamples,
     getFilterRulesFromGroup,
     getFilterTypeFromItemType,
     getItemId,
     getItemLabelWithoutTableName,
+    getParameterOptionValues,
     isAdditionalMetric,
     isDimension,
     isMetric,
@@ -33,6 +36,8 @@ import {
     MetricType,
     nullaryWindowFunctions,
     numberFilterSchema,
+    ParameterDefinitions,
+    ParametersValuesMap,
     renderFilterRuleSql,
     renderFilterRuleSqlFromField,
     renderTableCalculationFilterRuleSql,
@@ -1579,6 +1584,83 @@ export function validatePeriodComparisons(
 ${errors.join('\n')}
 \`\`\``;
         Logger.error(`[AiAgent][Validate Period Comparisons] ${errorMessage}`);
+        throw new AiAgentValidatorError(errorMessage);
+    }
+}
+
+/**
+ * Reject parameter values the query engine would silently ignore or misapply:
+ * names that aren't defined, names the explore never references (setting them
+ * is a no-op, almost always a wrong-explore mistake), values outside a
+ * parameter's declared options, and lists for single-value parameters.
+ */
+export function validateQueryParameters(
+    parameters: ParametersValuesMap | null | undefined,
+    explore: Explore,
+    projectParameterDefinitions: ParameterDefinitions,
+): void {
+    if (!parameters || Object.keys(parameters).length === 0) return;
+
+    const definitions: ParameterDefinitions = {
+        ...projectParameterDefinitions,
+        ...getExploreParameterDefinitions(explore),
+    };
+    const referenced = new Set(getExploreParameterReferences(explore));
+    const referencedNames = [...referenced].filter((name) => definitions[name]);
+    const referencedNamesText =
+        referencedNames.length > 0
+            ? referencedNames.join(', ')
+            : '(none — no field in this explore is parameter-driven)';
+
+    const errors = Object.entries(parameters).flatMap(([name, value]) => {
+        const definition = definitions[name];
+        if (!definition) {
+            return [
+                `Error: unknown parameter "${name}". Parameters referenced by explore "${explore.name}": ${referencedNamesText}.`,
+            ];
+        }
+        if (!referenced.has(name)) {
+            return [
+                `Error: parameter "${name}" exists but nothing in explore "${explore.name}" references it — setting it would have no effect. Parameters referenced by this explore: ${referencedNamesText}.`,
+            ];
+        }
+        const valueErrors: string[] = [];
+        if (Array.isArray(value) && !definition.multiple) {
+            valueErrors.push(
+                `Error: parameter "${name}" takes a single value, not a list.`,
+            );
+        }
+        const optionValues = getParameterOptionValues(definition);
+        if (optionValues && !definition.allow_custom_values) {
+            const values = Array.isArray(value) ? value : [value];
+            const invalidValues = values.filter(
+                (candidate) =>
+                    !optionValues.some(
+                        (option) => String(option) === String(candidate),
+                    ),
+            );
+            if (invalidValues.length > 0) {
+                valueErrors.push(
+                    `Error: invalid value(s) ${invalidValues
+                        .map((invalid) => `"${invalid}"`)
+                        .join(
+                            ', ',
+                        )} for parameter "${name}". Allowed options: ${optionValues.join(
+                        ', ',
+                    )}.`,
+                );
+            }
+        }
+        return valueErrors;
+    });
+
+    if (errors.length > 0) {
+        const errorMessage = `The following query parameters are invalid:
+
+\`\`\`json
+${errors.join('\n')}
+\`\`\``;
+        Logger.error(`[AiAgent][Validate Query Parameters] ${errorMessage}`);
         throw new AiAgentValidatorError(errorMessage);
     }
 }

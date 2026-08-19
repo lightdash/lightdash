@@ -4,6 +4,8 @@ import {
     APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
     FilterOperator,
+    JWT_HEADER_NAME,
+    LightdashAppPreviewTokenHeader,
     LightdashAppUuidHeader,
     LightdashSignedDownloadHeader,
     QueryExecutionContext,
@@ -116,8 +118,12 @@ function pollQueryResult(id: string = GET_ID) {
 }
 
 const APP_UUID = 'app-uuid';
+const PREVIEW_TOKEN = 'signed-preview-token';
 
-function renderBridge(onQueryEvent: (event: QueryEvent) => void) {
+function renderBridge(
+    onQueryEvent: (event: QueryEvent) => void,
+    previewToken = PREVIEW_TOKEN,
+) {
     const iframeRef = {
         current: { contentWindow: window } as unknown as HTMLIFrameElement,
     } as RefObject<HTMLIFrameElement | null>;
@@ -128,6 +134,7 @@ function renderBridge(onQueryEvent: (event: QueryEvent) => void) {
             expectedPreviewOrigin: window.location.origin,
             projectUuid: PROJECT_UUID,
             appUuid: APP_UUID,
+            previewToken,
             onQueryEvent,
         }),
     );
@@ -278,7 +285,8 @@ describe('useAppSdkBridge', () => {
     });
 
     it('attaches the app UUID header to metric-query requests for warehouse attribution', async () => {
-        renderBridge(() => undefined);
+        const previewToken = 'signed-preview-token';
+        renderBridge(() => undefined, previewToken);
 
         mockFetchOk({
             status: 'ok',
@@ -295,6 +303,7 @@ describe('useAppSdkBridge', () => {
 
         const [, init] = (fetch as Mock).mock.calls[0];
         expect(init.headers).toMatchObject({
+            [LightdashAppPreviewTokenHeader]: previewToken,
             [LightdashAppUuidHeader]: APP_UUID,
         });
         // App attribution rides on the header, not the request body.
@@ -566,6 +575,7 @@ describe('lineage message routing', () => {
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 onLineageSelected,
             }),
         );
@@ -590,6 +600,7 @@ describe('lineage message routing', () => {
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 onLineageAvailable,
             }),
         );
@@ -614,6 +625,7 @@ describe('lineage message routing', () => {
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 onLineageAvailable,
             }),
         );
@@ -637,6 +649,7 @@ describe('lineage message routing', () => {
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 onLineageAvailable,
             }),
         );
@@ -675,6 +688,7 @@ describe('url-state-change routing', () => {
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 onUrlStateChange,
             }),
         );
@@ -800,6 +814,7 @@ describe('chart-query routing', () => {
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 dashboardFilters,
             }),
         );
@@ -893,6 +908,7 @@ describe('external-fetch branch', () => {
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 onExternalRequestEvent,
             }),
         );
@@ -942,33 +958,39 @@ describe('external-fetch branch', () => {
             query: { limit: '10' },
             body: { amount: 500 },
         });
-        // No app-supplied headers leak through; external fetch never sends the
-        // embed JWT (it is not supported in embed mode).
+        // No app-supplied headers leak through.
         expect(Object.keys(init.headers)).toEqual(['Content-Type']);
     });
 
-    it('rejects external fetch in embed mode without calling the backend', async () => {
+    it('authenticates external fetches in embed mode with the embed JWT', async () => {
         mockUseEmbed.mockReturnValue({
             embedToken: 'embed-jwt',
-            projectUuid: undefined,
+            projectUuid: PROJECT_UUID,
         });
         renderBridge(() => undefined);
-        const { responses } = captureResponses();
+        mockFetchOk({
+            status: 'ok',
+            results: {
+                status: 200,
+                contentType: 'application/json',
+                body: { temperature: 18 },
+                truncated: false,
+            },
+        });
 
         postExternalFetch({ alias: 'weather', path: '/today' });
 
         await vi.waitFor(() =>
-            expect(
-                responses.find(
-                    (r) =>
-                        r['type'] === 'lightdash:sdk:external-fetch-response',
-                ),
-            ).toMatchObject({
-                id: POST_ID,
-                error: 'External data access is not available in embedded apps',
-            }),
+            expect(fetch).toHaveBeenCalledWith(
+                `/api/v1/ee/projects/${PROJECT_UUID}/apps/${APP_UUID}/external-fetch`,
+                expect.objectContaining({ method: 'POST' }),
+            ),
         );
-        expect(fetch).not.toHaveBeenCalled();
+        const [, init] = (fetch as Mock).mock.calls[0];
+        expect(init.headers).toEqual({
+            'Content-Type': 'application/json',
+            [JWT_HEADER_NAME]: 'embed-jwt',
+        });
     });
 
     it('posts back the result on success', async () => {
@@ -1157,6 +1179,7 @@ describe('data-app-viz-context push', () => {
         ],
         options: { showLegend: true, barColor: '#ff0000' },
         colorPalette: ['#7162FF', '#1A1B1E'],
+        underlyingData: { enabled: false },
     };
 
     function renderWithDataAppVizContext(ctx: DataAppVizContext | undefined) {
@@ -1170,6 +1193,7 @@ describe('data-app-viz-context push', () => {
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 dataAppVizContext: ctx,
             }),
         );
@@ -1203,6 +1227,7 @@ describe('data-app-viz-context push', () => {
                     expectedPreviewOrigin: window.location.origin,
                     projectUuid: PROJECT_UUID,
                     appUuid: APP_UUID,
+                    previewToken: PREVIEW_TOKEN,
                     dataAppVizContext: ctx,
                 }),
             { initialProps: { ctx: dataAppVizContext } },
@@ -1238,6 +1263,7 @@ describe('data-app-viz-context push', () => {
                     expectedPreviewOrigin: window.location.origin,
                     projectUuid: PROJECT_UUID,
                     appUuid: APP_UUID,
+                    previewToken: PREVIEW_TOKEN,
                     dataAppVizContext: ctx,
                 }),
             { initialProps: { ctx: dataAppVizContext } },
@@ -1327,6 +1353,7 @@ describe('delivery capture accumulator integration', () => {
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 dashboardFilters,
                 invalidateCache: true,
                 deliveryCapture,
@@ -1401,6 +1428,7 @@ describe('delivery capture accumulator integration', () => {
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 deliveryCapture,
                 colorScheme: 'light',
             }),
@@ -1464,6 +1492,7 @@ describe('delivery capture accumulator integration', () => {
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 invalidateCache: true,
                 queryContextOverride: QueryExecutionContext.SCHEDULED_DELIVERY,
                 colorScheme: 'light',
@@ -1517,6 +1546,7 @@ describe('color scheme push', () => {
                     expectedPreviewOrigin: window.location.origin,
                     projectUuid: PROJECT_UUID,
                     appUuid: APP_UUID,
+                    previewToken: PREVIEW_TOKEN,
                     colorScheme: scheme,
                 }),
             { initialProps: { scheme: colorScheme } },
@@ -1611,6 +1641,7 @@ describe('delivery-render flag on the ready handshake', () => {
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 colorScheme: 'light',
                 captureRender,
             }),
@@ -1637,5 +1668,158 @@ describe('delivery-render flag on the ready handshake', () => {
         expect(postSpy.mock.calls[0][0]).toEqual({
             type: 'lightdash:sdk:ready',
         });
+    });
+});
+
+describe('viz underlying-data virtual route', () => {
+    beforeEach(() => {
+        vi.stubGlobal('fetch', vi.fn());
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.clearAllMocks();
+    });
+
+    const VIRTUAL_PATH = '/__sdk/viz/underlying-data';
+    const INTENT = {
+        row: {
+            orders_status: {
+                value: { raw: 'completed', formatted: 'Completed' },
+            },
+        },
+        metric: 'value',
+    };
+
+    function renderBridgeWithRewrite(
+        rewriteVizUnderlyingDataRequest?: (intentBody: unknown) => {
+            method: 'POST';
+            path: string;
+            body: unknown;
+        },
+    ) {
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        renderHook(() =>
+            useAppSdkBridge({
+                colorScheme: 'light',
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
+                rewriteVizUnderlyingDataRequest,
+            }),
+        );
+    }
+
+    function postVirtualRoute() {
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: POST_ID,
+            method: 'POST',
+            path: VIRTUAL_PATH,
+            body: INTENT,
+        });
+    }
+
+    it('rewrites the virtual route and continues through the standard pipeline', async () => {
+        const rewrite = vi.fn((intentBody: unknown) => ({
+            method: 'POST' as const,
+            path: UNDERLYING_DATA_PATH,
+            body: { rewritten: true, original: intentBody },
+        }));
+        renderBridgeWithRewrite(rewrite);
+
+        mockFetchOk({
+            status: 'ok',
+            results: { queryUuid: QUERY_UUID },
+        });
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        postVirtualRoute();
+
+        await vi.waitFor(() =>
+            expect(fetch).toHaveBeenCalledWith(
+                UNDERLYING_DATA_PATH,
+                expect.objectContaining({
+                    method: 'POST',
+                    body: JSON.stringify({ rewritten: true, original: INTENT }),
+                }),
+            ),
+        );
+        expect(rewrite).toHaveBeenCalledWith(INTENT);
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    result: { queryUuid: QUERY_UUID },
+                }),
+                '*',
+            ),
+        );
+    });
+
+    it('answers the virtual route with an error when no rewrite callback is installed', async () => {
+        renderBridgeWithRewrite(undefined);
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        postVirtualRoute();
+
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    error: expect.stringMatching(/not available/i),
+                }),
+                '*',
+            ),
+        );
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('answers with the thrown message when the rewrite callback rejects the intent', async () => {
+        renderBridgeWithRewrite(() => {
+            throw new Error(
+                '"nope" is not bound to a query field on this chart.',
+            );
+        });
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        postVirtualRoute();
+
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    error: '"nope" is not bound to a query field on this chart.',
+                }),
+                '*',
+            ),
+        );
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('a rewritten path is still subject to the allowlist', async () => {
+        renderBridgeWithRewrite(() => ({
+            method: 'POST' as const,
+            path: '/api/v1/org/projects',
+            body: {},
+        }));
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        postVirtualRoute();
+
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    error: expect.stringMatching(/^Blocked:/),
+                }),
+                '*',
+            ),
+        );
+        expect(fetch).not.toHaveBeenCalled();
     });
 });

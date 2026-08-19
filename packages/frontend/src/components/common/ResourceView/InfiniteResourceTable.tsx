@@ -77,7 +77,10 @@ import {
 type ResourceView2Props = Partial<ContentTableOptions<ResourceViewItem>> & {
     filters: Pick<
         ContentArgs,
-        'spaceUuids' | 'contentTypes' | 'includePersonalDataApps'
+        | 'spaceUuids'
+        | 'contentTypes'
+        | 'includePersonalDataApps'
+        | 'dataAppVizsFilter'
     > & {
         projectUuid: string;
     };
@@ -438,6 +441,7 @@ const InfiniteResourceTable = ({
                 sortBy: sortBy?.sortBy,
                 sortDirection: sortBy?.sortDirection,
                 includePersonalDataApps: filters.includePersonalDataApps,
+                dataAppVizsFilter: filters.dataAppVizsFilter,
             },
             { keepPreviousData: true },
         );

@@ -766,16 +766,6 @@ export class OrganizationService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        // Race condition between check and delete
-        const [admin, ...remainingAdmins] =
-            await this.organizationMemberProfileModel.getOrganizationAdmins(
-                organizationUuid,
-            );
-        if (remainingAdmins.length === 0 && admin.userUuid === memberUserUuid) {
-            throw new ForbiddenError(
-                'Organization must have at least one admin',
-            );
-        }
         if (data.role !== undefined) {
             await validateOrganizationScopesCanBeGranted({
                 user: authenticatedUser,
@@ -808,6 +798,7 @@ export class OrganizationService extends BaseService {
             });
         }
 
+        // The model refuses to demote the organization's last active admin.
         return this.organizationMemberProfileModel.updateOrganizationMember(
             organizationUuid,
             memberUserUuid,

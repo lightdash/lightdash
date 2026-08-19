@@ -2005,6 +2005,114 @@ describe('AiWritebackService.startTracking', () => {
             }),
         });
     });
+
+    it('derives uncapped repository context analytics from a full listing', () => {
+        const track = vi.fn();
+        const service = buildService({ analytics: { track } as AnyType });
+        const tracker = (service as AnyType).startTracking({
+            user: { userUuid: 'u1' },
+            projectUuid: 'p1',
+            turn: turnContext(),
+            workstream: 'dbt-writeback',
+            aiThreadUuid: undefined,
+            promptUuid: undefined,
+        });
+        const listing = 'models/orders.sql\nREADME.md\n';
+
+        tracker.completed({
+            exitCode: 0,
+            hasChanges: true,
+            prCreated: true,
+            usage: null,
+            repoContext: { kind: 'full', listing },
+        });
+
+        expect(track).toHaveBeenLastCalledWith({
+            event: 'ai_writeback.completed',
+            userId: 'u1',
+            properties: expect.objectContaining({
+                repoContextBytes: Buffer.byteLength(listing, 'utf8'),
+                repoContextCapped: false,
+                repoContextFileCount: 2,
+            }),
+        });
+    });
+
+    it('uses pre-cap measurements for summarised repository context', () => {
+        const track = vi.fn();
+        const service = buildService({ analytics: { track } as AnyType });
+        const tracker = (service as AnyType).startTracking({
+            user: { userUuid: 'u1' },
+            projectUuid: 'p1',
+            turn: turnContext(),
+            workstream: 'general',
+            aiThreadUuid: undefined,
+            promptUuid: undefined,
+        });
+
+        tracker.failed('agent', new Error('agent failed'), {
+            kind: 'summarised',
+            listing: 'models/ (600 files)',
+            bytes: 123456,
+            fileCount: 600,
+        });
+
+        expect(track).toHaveBeenLastCalledWith({
+            event: 'ai_writeback.failed',
+            userId: 'u1',
+            properties: expect.objectContaining({
+                repoContextBytes: 123456,
+                repoContextCapped: true,
+                repoContextFileCount: 600,
+            }),
+        });
+    });
+
+    it('tracks unavailable repository context as explicit nulls', () => {
+        const track = vi.fn();
+        const service = buildService({ analytics: { track } as AnyType });
+        const tracker = (service as AnyType).startTracking({
+            user: { userUuid: 'u1' },
+            projectUuid: 'p1',
+            turn: turnContext(),
+            workstream: 'general',
+            aiThreadUuid: undefined,
+            promptUuid: undefined,
+        });
+
+        tracker.completed({
+            exitCode: 0,
+            hasChanges: false,
+            prCreated: false,
+            usage: null,
+            repoContext: null,
+        });
+
+        expect(track).toHaveBeenLastCalledWith({
+            event: 'ai_writeback.completed',
+            userId: 'u1',
+            properties: expect.objectContaining({
+                repoContextBytes: null,
+                repoContextCapped: null,
+                repoContextFileCount: null,
+            }),
+        });
+
+        tracker.failed('agent', new Error('agent failed'), {
+            kind: 'full',
+            listing: '\n  \n',
+        });
+
+        expect(track).toHaveBeenLastCalledWith({
+            event: 'ai_writeback.failed',
+            userId: 'u1',
+            properties: expect.objectContaining({
+                repoContextBytes: null,
+                repoContextCapped: null,
+                repoContextFileCount: null,
+            }),
+        });
+    });
 });
 
 describe('mergeSourceCodeRepoAccess', () => {
@@ -2416,6 +2524,32 @@ describe('AiWritebackService.resolveWritableRepoTarget (fail-closed authz)', () 
     });
 });
 
+describe('AiWritebackService.dbtWritebackConfig', () => {
+    it('returns gathered repository context through the agent setup', async () => {
+        const service = buildService();
+        const repoContext = {
+            kind: 'full',
+            listing: 'models/orders.sql\nmodels/schema.yml\n',
+        };
+        vi.spyOn(service as AnyType, 'gatherRepoContext').mockResolvedValue(
+            repoContext,
+        );
+        vi.spyOn(service as AnyType, 'prepareProfiles').mockResolvedValue(
+            false,
+        );
+
+        const setup = await (service as AnyType)
+            .dbtWritebackConfig()
+            .buildAgentSetup({
+                sandbox: {},
+                turn: turnContext(),
+                repository: 'acme/analytics',
+            });
+
+        expect(setup.repoContext).toBe(repoContext);
+    });
+});
+
 describe('AiWritebackService.generalCodingAgentConfig (general-agent invariants, H3)', () => {
     const buildGeneralService = () =>
         buildService({
@@ -2456,6 +2590,10 @@ describe('AiWritebackService.generalCodingAgentConfig (general-agent invariants,
         });
         expect(setup.allowedTools).toBe(GENERAL_ALLOWED_TOOLS);
         expect(setup.disallowedTools).toBe(GENERAL_DISALLOWED_TOOLS);
+        expect(setup.repoContext).toEqual({
+            kind: 'full',
+            listing: 'models/a.sql\nREADME.md',
+        });
     });
 
     it('mints a scoped contents:read clone token and revokes it after clone (R2)', async () => {

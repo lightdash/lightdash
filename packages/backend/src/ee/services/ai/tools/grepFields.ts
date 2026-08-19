@@ -225,6 +225,7 @@ const groupOrderedHitsByExplore = (
             defaultTimeDimension: field.defaultTimeDimension,
             defaultTimeDimensionGranularity:
                 field.defaultTimeDimensionGranularity,
+            requiredParameters: field.requiredParameters,
             usageInVerifiedCharts: field.verifiedUsage,
             matchLocality: matchLocality(field, matches),
         })),
@@ -257,7 +258,11 @@ const renderGroupedHits = (
                     const defaultTimeDimension = field.defaultTimeDimension
                         ? ` default_time_dimension: ${field.defaultTimeDimension} default_time_dimension_granularity: ${field.defaultTimeDimensionGranularity}`
                         : '';
-                    return `  ${field.path}  [${field.kind} ${field.fieldType}]${verified} ${field.label}${defaultTimeDimension}${desc}${hint}`;
+                    const params =
+                        field.requiredParameters.length > 0
+                            ? ` ⚠params: ${field.requiredParameters.join(',')}`
+                            : '';
+                    return `  ${field.path}  [${field.kind} ${field.fieldType}]${verified}${params} ${field.label}${defaultTimeDimension}${desc}${hint}`;
                 })
                 .join('\n');
             const header = `  ${exploreName} (${exploreLabel})`;
@@ -643,8 +648,7 @@ export const executeGrepFields = async (
  * Deterministic field discovery: grep an in-memory, annotated view of the
  * project's compiled explores (explore = directory, field = file). Reads only
  * the cached explores passed in, so it works for every connection type and
- * never touches the warehouse or git. Gated by the `ai-grep-fields` flag as an
- * alternative to the discoverFields sub-agent.
+ * never touches the warehouse or git.
  */
 export const getGrepFields = (dependencies: Dependencies) => {
     // The tool instance persists across every grep call in an agent run, so the

@@ -17,7 +17,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
 import { useProjectColorPalette } from '../../../hooks/appearance/useProjectColorPalette';
-import { useQueryRetryConfig } from '../../../hooks/useQueryRetry';
+import {
+    CHART_RESULTS_ERROR_NAME,
+    useQueryRetryConfig,
+} from '../../../hooks/useQueryRetry';
 import {
     getDashboardSqlChartPivotChartData,
     getEmbedDashboardSqlChartPivotChartData,
@@ -220,7 +223,7 @@ export const useSavedSqlChartResults = (
                 const wrapped: ApiError = {
                     status: 'error',
                     error: {
-                        name: 'ChartResultsError',
+                        name: CHART_RESULTS_ERROR_NAME,
                         statusCode: 500,
                         message,
                         data: {},

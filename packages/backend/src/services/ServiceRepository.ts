@@ -40,6 +40,7 @@ import { GithubAppService } from './GithubAppService/GithubAppService';
 import { GitIntegrationService } from './GitIntegrationService/GitIntegrationService';
 import { GitlabAppService } from './GitlabAppService/GitlabAppService';
 import { GroupsService } from './GroupService';
+import { HeadlessBrowserService } from './HeadlessBrowserService';
 import { HealthService } from './HealthService/HealthService';
 import { LicenseService } from './LicenseService/LicenseService';
 import { LightdashAnalyticsService } from './LightdashAnalyticsService/LightdashAnalyticsService';
@@ -64,6 +65,7 @@ import { ProjectService } from './ProjectService/ProjectService';
 import { PromoteService } from './PromoteService/PromoteService';
 import { PromptService } from './PromptService/PromptService';
 import { PullRequestsService } from './PullRequestsService/PullRequestsService';
+import type { ReadinessService } from './ReadinessService/ReadinessService';
 import { RenameService } from './RenameService/RenameService';
 import { RolesService } from './RolesService/RolesService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
@@ -103,6 +105,7 @@ interface ServiceManifest {
     gitlabAppService: GitlabAppService;
     gdriveService: GdriveService;
     groupService: GroupsService;
+    headlessBrowserService: HeadlessBrowserService;
     healthService: HealthService;
     licenseService: LicenseService;
     notificationService: NotificationsService;
@@ -287,6 +290,11 @@ abstract class ServiceRepositoryBase {
 
     protected readonly prometheusMetrics?: PrometheusMetrics;
 
+    protected readonly readinessService?: Pick<
+        ReadinessService,
+        'getReadiness'
+    >;
+
     constructor({
         serviceProviders,
         context,
@@ -294,6 +302,7 @@ abstract class ServiceRepositoryBase {
         models,
         utils,
         prometheusMetrics,
+        readinessService,
     }: {
         serviceProviders?: ServiceProviderMap<ServiceManifest>;
         context: OperationContext;
@@ -301,6 +310,7 @@ abstract class ServiceRepositoryBase {
         models: ModelRepository;
         utils: UtilRepository;
         prometheusMetrics?: PrometheusMetrics;
+        readinessService?: Pick<ReadinessService, 'getReadiness'>;
     }) {
         this.providers = serviceProviders ?? {};
         this.context = context;
@@ -308,6 +318,7 @@ abstract class ServiceRepositoryBase {
         this.models = models;
         this.utils = utils;
         this.prometheusMetrics = prometheusMetrics;
+        this.readinessService = readinessService;
     }
 }
 
@@ -449,6 +460,7 @@ export class ServiceRepository
                 new DownloadFileService({
                     lightdashConfig: this.context.lightdashConfig,
                     downloadFileModel: this.models.getDownloadFileModel(),
+                    projectModel: this.models.getProjectModel(),
                 }),
         );
     }
@@ -461,6 +473,8 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     savedChartModel: this.models.getSavedChartModel(),
                     projectModel: this.models.getProjectModel(),
+                    projectDbtSourcesModel:
+                        this.models.getProjectDbtSourcesModel(),
                     spaceModel: this.models.getSpaceModel(),
                     githubAppInstallationsModel:
                         this.models.getGithubAppInstallationsModel(),
@@ -565,6 +579,17 @@ export class ServiceRepository
         );
     }
 
+    public getHeadlessBrowserService(): HeadlessBrowserService {
+        return this.getService(
+            'headlessBrowserService',
+            () =>
+                new HeadlessBrowserService({
+                    headlessBrowserLoginGrantModel:
+                        this.models.getHeadlessBrowserLoginGrantModel(),
+                }),
+        );
+    }
+
     public getHealthService(): HealthService {
         return this.getService(
             'healthService',
@@ -576,6 +601,7 @@ export class ServiceRepository
                     migrationModel: this.models.getMigrationModel(),
                     organizationSettingsModel:
                         this.models.getOrganizationSettingsModel(),
+                    readinessService: this.readinessService,
                 }),
         );
     }
@@ -857,6 +883,13 @@ export class ServiceRepository
                         this.providers.appGenerateService
                             ? this.getAppGenerateService<AppGenerateService>()
                             : undefined,
+                    // Core has no data apps. EE replaces this provider with a
+                    // capability resolver backed by AppGenerateService.
+                    getDataAppCustomSqlProvenance: async () => ({
+                        tableCalculations: new Set(),
+                        customDimensions: new Set(),
+                        additionalMetrics: new Set(),
+                    }),
                 }),
         );
     }
@@ -934,6 +967,11 @@ export class ServiceRepository
                     spacePermissionService: this.getSpacePermissionService(),
                     organizationSettingsModel:
                         this.models.getOrganizationSettingsModel(),
+                    getDataAppCustomSqlProvenance: async () => ({
+                        tableCalculations: new Set(),
+                        customDimensions: new Set(),
+                        additionalMetrics: new Set(),
+                    }),
                 }),
         );
     }
@@ -1068,6 +1106,8 @@ export class ServiceRepository
                     projectModel: this.models.getProjectModel(),
                     spaceModel: this.models.getSpaceModel(),
                     organizationModel: this.models.getOrganizationModel(),
+                    organizationMemberProfileModel:
+                        this.models.getOrganizationMemberProfileModel(),
                     pinnedListModel: this.models.getPinnedListModel(),
                     spacePermissionService: this.getSpacePermissionService(),
                     savedChartService: this.getSavedChartService(),
@@ -1102,6 +1142,8 @@ export class ServiceRepository
                     slackAuthenticationModel:
                         this.models.getSlackAuthenticationModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    headlessBrowserLoginGrantModel:
+                        this.models.getHeadlessBrowserLoginGrantModel(),
                 }),
         );
     }
@@ -1326,6 +1368,7 @@ export class ServiceRepository
                     savedChartService: this.getSavedChartService(),
                     savedSqlService: this.getSavedSqlService(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    validationModel: this.models.getValidationModel(),
                     // Only wired when EE license is active. Core builds get
                     // undefined and fail DATA_APP moves with a clear error.
                     appMoveService: this.providers.appGenerateService
@@ -1547,6 +1590,7 @@ export class ServiceRepository
                     inviteLinkModel: this.models.getInviteLinkModel(),
                     organizationMemberProfileModel:
                         this.models.getOrganizationMemberProfileModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }

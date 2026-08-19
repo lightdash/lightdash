@@ -1,16 +1,16 @@
 import { Center, Loader, useComputedColorScheme } from '@mantine/core';
-import Editor, {
-    useMonaco,
-    type BeforeMount,
-    type OnChange,
-    type OnMount,
-} from '@monaco-editor/react';
 import { IconAlertCircle } from '@tabler/icons-react';
 import debounce from 'lodash/debounce';
 import isEmpty from 'lodash/isEmpty';
 import { type editor } from 'monaco-editor';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
+import Editor, {
+    useMonaco,
+    type BeforeMount,
+    type OnChange,
+    type OnMount,
+} from '../../../components/MonacoEditor';
 import { useParameters } from '../../../hooks/parameters/useParameters';
 import '../../../styles/monaco.css';
 import { useDetectedTableFields } from '../hooks/useDetectedTableFields';

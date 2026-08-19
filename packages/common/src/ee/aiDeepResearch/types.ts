@@ -39,6 +39,7 @@ export const AI_DEEP_RESEARCH_TERMINAL_REASONS = [
     'query_limit',
     'token_limit',
     'time_limit',
+    'no_relevant_data',
     'provider_error',
     'internal_error',
 ] as const;
@@ -193,6 +194,8 @@ export type AiDeepResearchRequestBody = {
     promptUuid: string;
     /** Product surface that accepted the run. */
     entryPoint: AiDeepResearchEntryPoint;
+    /** Resume unfinished work from a terminal run with preserved evidence. */
+    resumeFromRunUuid?: string;
 };
 
 export const AI_DEEP_RESEARCH_CONFIDENCE_LEVELS = [
@@ -246,6 +249,7 @@ export const AI_DEEP_RESEARCH_EVENT_TYPES = [
     'status_changed',
     'cancellation_requested',
     'progress',
+    'report_adjusted',
 ] as const;
 
 export type AiDeepResearchEventType =
@@ -282,12 +286,24 @@ export type AiDeepResearchEventPayloadMap = {
     status_changed: { status: AiDeepResearchRunStatus };
     cancellation_requested: Record<string, never>;
     progress: { progress: AiDeepResearchProgress };
+    report_adjusted: {
+        repaired: string[];
+        dropped: Array<{
+            key: string;
+            reason:
+                | 'malformed'
+                | 'unknown_chart'
+                | 'duplicate'
+                | 'unverifiable';
+        }>;
+    };
 };
 
 export type AiDeepResearchEventPayload =
     | { status: AiDeepResearchRunStatus }
     | Record<string, never>
-    | { progress: AiDeepResearchProgress };
+    | { progress: AiDeepResearchProgress }
+    | AiDeepResearchEventPayloadMap['report_adjusted'];
 
 // TSOA cannot resolve the equivalent mapped/indexed discriminated union.
 export type AiDeepResearchEvent =
@@ -310,6 +326,13 @@ export type AiDeepResearchEvent =
           aiDeepResearchRunUuid: string;
           eventType: 'progress';
           payload: { progress: AiDeepResearchProgress };
+          createdAt: string;
+      }
+    | {
+          aiDeepResearchEventUuid: string;
+          aiDeepResearchRunUuid: string;
+          eventType: 'report_adjusted';
+          payload: AiDeepResearchEventPayloadMap['report_adjusted'];
           createdAt: string;
       };
 
@@ -335,9 +358,11 @@ export type AiDeepResearchRun = {
     agentUuid: string;
     aiThreadUuid: string;
     promptUuid: string;
+    resumedFromRunUuid: string | null;
     entryPoint: AiDeepResearchEntryPoint;
     prompt: string;
     status: AiDeepResearchRunStatus;
+    terminalReason: AiDeepResearchTerminalReason | null;
     /** The report narrative with compact <chart> references. */
     resultMarkdown: string | null;
     reportExpiresAt: string | null;

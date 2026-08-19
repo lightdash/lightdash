@@ -66,7 +66,10 @@ function formatMissDetail(
     missFieldLabel: string | null,
 ): string {
     const base = preAggregateMissReasonLabels[miss.reason];
-    if (miss.reason === PreAggregateMissReason.GRANULARITY_TOO_FINE) {
+    if (
+        miss.reason === PreAggregateMissReason.GRANULARITY_TOO_FINE ||
+        miss.reason === PreAggregateMissReason.TIME_FRAME_NOT_DERIVABLE
+    ) {
         return `${base} (query ${miss.queryGranularity}, pre-agg ${miss.preAggregateGranularity})`;
     }
     if (missFieldLabel) {

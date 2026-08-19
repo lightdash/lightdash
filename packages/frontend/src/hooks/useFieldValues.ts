@@ -109,6 +109,7 @@ const getEmbedFilterValues = async (options: {
     tableName: string | undefined;
     fieldId: string | undefined;
     timezone: string | null;
+    parameters: ParametersValuesMap | undefined;
 }) => {
     return lightdashApi<FieldValueSearchResult>({
         url: `/embed/${options.projectId}/filter/${options.filterId}/search`,
@@ -121,6 +122,7 @@ const getEmbedFilterValues = async (options: {
             tableName: options.tableName,
             fieldId: options.fieldId,
             timezone: options.timezone ?? undefined,
+            parameters: options.parameters,
         }),
     });
 };
@@ -393,6 +395,7 @@ export const useFieldValues = (
                     tableName,
                     fieldId,
                     timezone: sessionTimezone,
+                    parameters: parameterValues,
                 });
             }
             if (useAsyncPath) {

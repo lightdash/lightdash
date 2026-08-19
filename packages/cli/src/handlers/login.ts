@@ -1,4 +1,4 @@
-import { AuthorizationError } from '@lightdash/common';
+import { AuthorizationError, getErrorMessage } from '@lightdash/common';
 import inquirer from 'inquirer';
 import fetch from 'node-fetch';
 import { URL } from 'url';
@@ -72,6 +72,29 @@ const getLoginMethod = (options: LoginOptions): string => {
     if (options.email) return 'password';
     return 'oauth';
 };
+
+/**
+ * `LIGHTDASH_API_KEY` takes precedence over the token saved by `lightdash login`,
+ * so a login that saves a different token has no effect until the variable is
+ * unset. We warn rather than refuse, because `lightdash login --token
+ * $LIGHTDASH_API_KEY` is a documented CI pattern — there both tokens are the
+ * same and nothing is shadowed.
+ */
+export const isApiKeyEnvVarShadowing = (
+    token: string | undefined,
+    env: NodeJS.ProcessEnv = process.env,
+): boolean => !!env.LIGHTDASH_API_KEY && env.LIGHTDASH_API_KEY !== token;
+
+const apiKeyEnvVarWarning = (when: 'before-login' | 'after-login') =>
+    styles.warning(
+        when === 'before-login'
+            ? `\n⚠️  LIGHTDASH_API_KEY is set and takes precedence over the token saved by \`lightdash login\` (${configFilePath}).\n   Every command will keep using LIGHTDASH_API_KEY until you unset it:\n\n     ${styles.bold(
+                  'unset LIGHTDASH_API_KEY',
+              )}\n`
+            : `  ⚠️  LIGHTDASH_API_KEY is still set and takes precedence — run ${styles.bold(
+                  'unset LIGHTDASH_API_KEY',
+              )} for this login to take effect.\n`,
+    );
 
 const loginWithToken = async (url: string, token: string) => {
     const userInfoUrl = new URL(`/api/v1/user`, url).href;
@@ -243,6 +266,10 @@ export const login = async (
         );
     }
 
+    if (isApiKeyEnvVarShadowing(options.token)) {
+        console.error(apiKeyEnvVarWarning('before-login'));
+    }
+
     const email = options.email || process.env.LIGHTDASH_CLI_EMAIL;
     const password = process.env.LIGHTDASH_CLI_PASSWORD;
 
@@ -309,6 +336,10 @@ export const login = async (
 
     console.error(`\n  ✅️ Login successful\n`);
 
+    if (isApiKeyEnvVarShadowing(token)) {
+        console.error(apiKeyEnvVarWarning('after-login'));
+    }
+
     try {
         if (options.project) {
             await setProjectCommand(undefined, options.project);
@@ -334,7 +365,8 @@ export const login = async (
                 );
             }
         }
-    } catch {
+    } catch (e) {
+        GlobalState.debug(`> Failed to select project: ${getErrorMessage(e)}`);
         console.error('Unable to select projects, try with: ');
         console.error(
             `\n  ${styles.bold(`⚡️ lightdash config set-project`)}\n`,

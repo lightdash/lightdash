@@ -34,7 +34,7 @@ This gives you:
 - `$LD_COMPOSE_PROJECT` — docker compose project name
 - `$LD_VOLUME_PREFIX` / `$LD_CONTAINER_PREFIX` — prefixes for volumes and containers
 - `$LD_PG_PORT` — per-instance PostgreSQL port
-- `$PORT`, `$FE_PORT`, `$SCHEDULER_PORT`, `$DEBUG_PORT`, `$SDK_TEST_PORT`, `$SPOTLIGHT_PORT`, `$LIGHTDASH_PROMETHEUS_PORT` — per-instance app ports
+- `$PORT`, `$FE_PORT`, `$SCHEDULER_PORT`, `$DEBUG_PORT`, `$SDK_TEST_PORT`, `$MAPLE_PORT`, `$LIGHTDASH_PROMETHEUS_PORT` — per-instance app ports
 - `$PGPORT`, `$SITE_URL`, `$S3_ENDPOINT`, `$HEADLESS_BROWSER_PORT`, `$EMAIL_SMTP_PORT` — app config (shared ports hardcoded: S3=9000, browser=3001, SMTP=1025)
 
 **Shared services** (minio, headless-browser, mailpit, nats) run once on fixed ports via `docker-compose.dev.shared.yml`. Only PostgreSQL is per-instance via `docker-compose.dev.instance.yml`.
@@ -433,7 +433,7 @@ Then the reconcile steps:
 
 Interpreting the result:
 
-- **Exit 0, ends with `READY: ...`** → done. Report the printed frontend/API/Spotlight URLs and start the **Monitor watchers** (see "Monitor Logs with Monitor Tool"). **Do not run any of the agentic steps below** — the environment is up.
+- **Exit 0, ends with `READY: ...`** → done. Report the printed frontend/API/Maple URLs and start the **Monitor watchers** (see "Monitor Logs with Monitor Tool"). **Do not run any of the agentic steps below** — the environment is up.
 - **Non-zero exit with a `FAIL: <step> -- <reason>` line** → enter **self-repair** (next section). Do NOT blindly re-run the script; diagnose first.
 
 The script prints `STEP:`/`OK:`/`SKIP:` markers so you can see exactly how far it got. Steady-state runs (everything cached) finish in well under a minute; a fresh worktree pays for `pnpm install` + builds once.
@@ -518,7 +518,7 @@ FE_PORT=${FE_PORT}
 SCHEDULER_PORT=${SCHEDULER_PORT}
 DEBUG_PORT=${DEBUG_PORT}
 SDK_TEST_PORT=${SDK_TEST_PORT}
-SPOTLIGHT_PORT=${SPOTLIGHT_PORT}
+MAPLE_PORT=${MAPLE_PORT}
 LIGHTDASH_PROMETHEUS_PORT=${LIGHTDASH_PROMETHEUS_PORT}
 SITE_URL=http://localhost:${FE_PORT}
 S3_ENDPOINT=http://localhost:9000
@@ -604,9 +604,9 @@ Symptom if you forget: you change a flag, restart, and nothing changes. \`pm2 jl
 
 ## Debugging
 
-Use the \`/debug-local\` skill for comprehensive debugging combining PM2 logs, Spotlight traces, and browser automation.
+Use the \`/debug-local\` skill for comprehensive debugging combining PM2 logs, Maple traces, and browser automation.
 
-Spotlight UI: http://localhost:${SPOTLIGHT_PORT}
+Maple trace UI: http://localhost:${MAPLE_PORT}
 
 ## Database Snapshots
 
@@ -623,7 +623,7 @@ Spotlight UI: http://localhost:${SPOTLIGHT_PORT}
 - **Backend API**: http://localhost:${PORT}
 - **Demo login**: \`demo@lightdash.com\` / \`demo_password!\`
 - **Mailpit** (email inbox): http://localhost:8025
-- **Spotlight** (traces): http://localhost:${SPOTLIGHT_PORT}
+- **Maple** (traces): http://localhost:${MAPLE_PORT}
 
 ## Service Ports (this instance)
 
@@ -636,7 +636,7 @@ Spotlight UI: http://localhost:${SPOTLIGHT_PORT}
 | MinIO             | 9000/9001 |                                    |
 | Headless Browser  | 3001      |                                    |
 | Mailpit           | 8025/1025 | http://localhost:8025         |
-| Spotlight         | ${SPOTLIGHT_PORT}      | http://localhost:${SPOTLIGHT_PORT}             |
+| Maple (traces)    | ${MAPLE_PORT}      | http://localhost:${MAPLE_PORT}             |
 EOF
 ````
 
@@ -784,7 +784,7 @@ If PM2 shows `MISMATCH`, delete this instance's processes first:
 # One name per call — `pm2 delete a b c` aborts at the first name it cannot
 # find (e.g. sdk-test on an instance that never ran SDK test mode), leaving
 # every later name running.
-for suffix in api scheduler frontend common-watch formula-watch warehouses-watch sdk-test spotlight; do
+for suffix in api api-routes-watch scheduler frontend common-watch formula-watch warehouses-watch sdk-test maple; do
   pm2 delete "${LD_INSTANCE_ID}-${suffix}" 2>/dev/null || true
 done
 ```
@@ -926,7 +926,7 @@ For permanent worktree removal, use `destroy` instead.
 # One name per call — `pm2 delete a b c` aborts at the first name it cannot
 # find (e.g. sdk-test on an instance that never ran SDK test mode), leaving
 # every later name running.
-for suffix in api scheduler frontend common-watch formula-watch warehouses-watch sdk-test spotlight; do
+for suffix in api api-routes-watch scheduler frontend common-watch formula-watch warehouses-watch sdk-test maple; do
   pm2 delete "${LD_INSTANCE_ID}-${suffix}" 2>/dev/null || true
 done
 
@@ -943,7 +943,7 @@ Permanently remove this instance's services, PostgreSQL volumes, and port slot. 
 
 ```bash
 # One name per call — see the note under `stop`.
-for suffix in api scheduler frontend common-watch formula-watch warehouses-watch sdk-test spotlight; do
+for suffix in api api-routes-watch scheduler frontend common-watch formula-watch warehouses-watch sdk-test maple; do
   pm2 delete "${LD_INSTANCE_ID}-${suffix}" 2>/dev/null || true
 done
 
@@ -972,7 +972,7 @@ for f in ~/.lightdash/dev-instances/*.json; do
   [ -f "$f" ] || continue
   INST_ID=$(python3 -c "import json; print(json.load(open('$f'))['instanceId'])")
   # One name per call — see the note under `stop`.
-  for suffix in api scheduler frontend common-watch formula-watch warehouses-watch sdk-test spotlight; do
+  for suffix in api api-routes-watch scheduler frontend common-watch formula-watch warehouses-watch sdk-test maple; do
     pm2 delete "${INST_ID}-${suffix}" 2>/dev/null || true
   done
 done

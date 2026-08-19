@@ -97,15 +97,18 @@ describe('PreAggregateMaterializationService', () => {
     test('runs query and promotes active materialization for valid definition', async () => {
         const queryUpdatedAt = new Date('2024-02-01T10:00:00.000Z');
         preAggregateModel.getPreAggregateDefinitionByUuid.mockResolvedValue({
-            ...baseStoredPreAggregateDefinition,
+            preAggregateDefinition: {
+                ...baseStoredPreAggregateDefinition.preAggregateDefinition,
+                sorts: [{ fieldId: 'orders_status', descending: false }],
+            },
             preAggregateDefinitionUuid: 'def-1',
             materializationMetricQuery: {
                 metricQuery: {
                     exploreName: 'orders',
-                    dimensions: [],
+                    dimensions: ['orders_status'],
                     metrics: [],
                     filters: {},
-                    sorts: [],
+                    sorts: [{ fieldId: 'orders_status', descending: false }],
                     limit: 100,
                     tableCalculations: [],
                 },
@@ -148,10 +151,10 @@ describe('PreAggregateMaterializationService', () => {
                 context: QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
                 metricQuery: {
                     exploreName: 'orders',
-                    dimensions: [],
+                    dimensions: ['orders_status'],
                     metrics: [],
                     filters: {},
-                    sorts: [],
+                    sorts: [{ fieldId: 'orders_status', descending: false }],
                     limit: 100,
                     tableCalculations: [],
                 },
@@ -172,10 +175,28 @@ describe('PreAggregateMaterializationService', () => {
         });
     });
 
-    test('sorts by dimensions with time dimension first and descending', async () => {
+    test.each([
+        {
+            name: 'applies automatic sorts to stored definitions without sort config',
+            preAggregateDefinition:
+                baseStoredPreAggregateDefinition.preAggregateDefinition,
+            expectedSorts: [
+                { fieldId: 'orders_order_date_day', descending: true },
+                { fieldId: 'orders_status', descending: false },
+            ],
+        },
+        {
+            name: 'preserves explicitly disabled materialization sorting',
+            preAggregateDefinition: {
+                ...baseStoredPreAggregateDefinition.preAggregateDefinition,
+                sorts: [],
+            },
+            expectedSorts: [],
+        },
+    ])('$name', async ({ preAggregateDefinition, expectedSorts }) => {
         const queryUpdatedAt = new Date('2024-02-01T10:00:00.000Z');
         preAggregateModel.getPreAggregateDefinitionByUuid.mockResolvedValue({
-            ...baseStoredPreAggregateDefinition,
+            preAggregateDefinition,
             preAggregateDefinitionUuid: 'def-1',
             materializationMetricQuery: {
                 metricQuery: {
@@ -218,10 +239,7 @@ describe('PreAggregateMaterializationService', () => {
         expect(asyncQueryService.executeAsyncMetricQuery).toHaveBeenCalledWith(
             expect.objectContaining({
                 metricQuery: expect.objectContaining({
-                    sorts: [
-                        { fieldId: 'orders_order_date_day', descending: true },
-                        { fieldId: 'orders_status', descending: false },
-                    ],
+                    sorts: expectedSorts,
                 }),
             }),
         );

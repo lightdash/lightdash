@@ -65,6 +65,39 @@ describe('Scheduler model test', () => {
         ]);
     });
 
+    describe('webhook validation', () => {
+        const database = { transaction: vi.fn() };
+        const model = new SchedulerModel({ database: database as AnyType });
+
+        afterEach(() => {
+            vi.clearAllMocks();
+        });
+
+        it('rejects private webhook targets before creating a scheduler', async () => {
+            await expect(
+                model.createScheduler({
+                    targets: [{ webhook: 'https://169.254.169.254/hook' }],
+                } as AnyType),
+            ).rejects.toThrow('must use a public URL');
+
+            expect(database.transaction).not.toHaveBeenCalled();
+        });
+
+        it('rejects private webhook targets before updating a scheduler', async () => {
+            await expect(
+                model.updateScheduler({
+                    targets: [
+                        {
+                            googleChatWebhook: 'https://127.0.0.1/hook',
+                        },
+                    ],
+                } as AnyType),
+            ).rejects.toThrow('must use a public URL');
+
+            expect(database.transaction).not.toHaveBeenCalled();
+        });
+    });
+
     describe('getRuns pagination with filtering', () => {
         test('should return correct totalResults when filtering by status', () => {
             // Scenario: DB has 50 total runs, 25 are COMPLETED

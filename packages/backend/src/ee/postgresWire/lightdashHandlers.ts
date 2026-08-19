@@ -15,6 +15,7 @@ import Logger from '../../logging/logger';
 import type { ServiceRepository } from '../../services/ServiceRepository';
 import type { ServiceAccountService } from '../services/ServiceAccountService/ServiceAccountService';
 import { tryHandleInformationSchema } from './informationSchema';
+import { PG_OID } from './pgTypes';
 import {
     PgWireServerError,
     type PgWireHandlers,
@@ -22,7 +23,12 @@ import {
     type PgWireResultField,
 } from './PostgresWireServer';
 import { compileSqlToMetricQuery, SqlCompileError } from './sqlToMetricQuery';
-import { type PgWireColumn, type PgWireField, type PgWireTable } from './types';
+import {
+    type PgWireColumn,
+    type PgWireCompiledQuery,
+    type PgWireField,
+    type PgWireTable,
+} from './types';
 
 export type LightdashPgWireSession = {
     account: Account;
@@ -33,28 +39,23 @@ export type LightdashPgWireSession = {
 const VERSION_STRING =
     'PostgreSQL 16.3 (Lightdash semantic layer, wire protocol)';
 
-const TEXT_OID = 25;
-const BOOL_OID = 16;
-const INT8_OID = 20;
-const FLOAT8_OID = 701;
-const DATE_OID = 1082;
-const TIMESTAMP_OID = 1114;
+const TEXT_OID = PG_OID.text;
 
 /** DimensionType / MetricType value -> Postgres type OID */
 const TYPE_OIDS: Record<string, number> = {
-    string: TEXT_OID,
-    number: FLOAT8_OID,
-    boolean: BOOL_OID,
-    date: DATE_OID,
-    timestamp: TIMESTAMP_OID,
-    count: INT8_OID,
-    count_distinct: INT8_OID,
-    sum: FLOAT8_OID,
-    average: FLOAT8_OID,
-    median: FLOAT8_OID,
-    percentile: FLOAT8_OID,
-    min: FLOAT8_OID,
-    max: FLOAT8_OID,
+    string: PG_OID.text,
+    number: PG_OID.float8,
+    boolean: PG_OID.bool,
+    date: PG_OID.date,
+    timestamp: PG_OID.timestamp,
+    count: PG_OID.int8,
+    count_distinct: PG_OID.int8,
+    sum: PG_OID.float8,
+    average: PG_OID.float8,
+    median: PG_OID.float8,
+    percentile: PG_OID.float8,
+    min: PG_OID.float8,
+    max: PG_OID.float8,
 };
 
 const oidForColumn = (column: PgWireColumn): number =>
@@ -106,7 +107,11 @@ const SHOW_PARAMETERS: Record<string, string> = {
  */
 const tryHandleSessionStatement = (sql: string): PgWireQueryResult | null => {
     const trimmed = sql.trim().replace(/;\s*$/, '');
-    const firstWord = trimmed.split(/\s+/)[0]?.toUpperCase() ?? '';
+    const [firstWord = '', secondWord = ''] = (
+        /^(\w+)(?:\s+(\w+))?/.exec(trimmed) ?? []
+    )
+        .slice(1)
+        .map((word) => word?.toUpperCase() ?? '');
     switch (firstWord) {
         case 'BEGIN':
         case 'START':
@@ -122,11 +127,14 @@ const tryHandleSessionStatement = (sql: string): PgWireQueryResult | null => {
         case 'RESET':
             return { type: 'command', commandTag: 'RESET' };
         case 'DISCARD':
-            return { type: 'command', commandTag: 'DISCARD ALL' };
+            return {
+                type: 'command',
+                commandTag: secondWord === 'ALL' ? 'DISCARD ALL' : 'DISCARD',
+            };
         case 'DEALLOCATE':
             return { type: 'command', commandTag: 'DEALLOCATE' };
         case 'SHOW': {
-            const param = trimmed.split(/\s+/)[1]?.toLowerCase() ?? '';
+            const param = secondWord.toLowerCase();
             const value = SHOW_PARAMETERS[param];
             if (value === undefined) {
                 throw new PgWireServerError(
@@ -171,22 +179,22 @@ const tryHandleConstantSelect = (
     for (const col of statement.columns ?? []) {
         const { expr } = col;
         let name = col.alias?.name ?? '?column?';
-        let oid = TEXT_OID;
+        let oid: number = TEXT_OID;
         let value: string | null;
         switch (expr.type) {
             case 'string':
                 value = expr.value;
                 break;
             case 'integer':
-                oid = INT8_OID;
+                oid = PG_OID.int8;
                 value = String(expr.value);
                 break;
             case 'numeric':
-                oid = FLOAT8_OID;
+                oid = PG_OID.float8;
                 value = String(expr.value);
                 break;
             case 'boolean':
-                oid = BOOL_OID;
+                oid = PG_OID.bool;
                 value = expr.value ? 't' : 'f';
                 break;
             case 'null':
@@ -199,7 +207,7 @@ const tryHandleConstantSelect = (
                 else if (fn === 'current_database') value = session.projectUuid;
                 else if (fn === 'current_schema') value = 'public';
                 else if (fn === 'now' || fn === 'current_timestamp') {
-                    oid = TIMESTAMP_OID;
+                    oid = PG_OID.timestamp;
                     value = new Date()
                         .toISOString()
                         .replace('T', ' ')
@@ -233,6 +241,63 @@ const tryHandleConstantSelect = (
 
 const UUID_PATTERN =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Session statements, constant SELECTs and information_schema lookups are
+ * answered in memory; anything else compiles to a metric query that only
+ * `query` runs. `describe` shares this so it always agrees with `query`.
+ */
+type ResolvedStatement =
+    | { kind: 'result'; result: PgWireQueryResult }
+    | { kind: 'explore'; compiled: PgWireCompiledQuery };
+
+const resolveStatement = (
+    session: LightdashPgWireSession,
+    sql: string,
+): ResolvedStatement => {
+    const sessionResult = tryHandleSessionStatement(sql);
+    if (sessionResult) {
+        return { kind: 'result', result: sessionResult };
+    }
+
+    const constantResult = tryHandleConstantSelect(sql, session);
+    if (constantResult) {
+        return { kind: 'result', result: constantResult };
+    }
+
+    // catalog discovery via information_schema.tables / .columns
+    try {
+        const infoResult = tryHandleInformationSchema(
+            parse(sql),
+            session.catalog,
+            session.projectUuid,
+        );
+        if (infoResult) {
+            return { kind: 'result', result: infoResult };
+        }
+    } catch (e) {
+        if (e instanceof PgWireServerError) throw e;
+        // parse errors fall through to the compiler for consistent messages
+    }
+
+    try {
+        return {
+            kind: 'explore',
+            compiled: compileSqlToMetricQuery(sql, session.catalog),
+        };
+    } catch (e) {
+        if (e instanceof SqlCompileError) {
+            throw compileErrorToServerError(e);
+        }
+        throw e;
+    }
+};
+
+const fieldsOf = (compiled: PgWireCompiledQuery): PgWireResultField[] =>
+    compiled.columns.map((column) => ({
+        name: column.name,
+        oid: oidForColumn(column),
+    }));
 
 export const createLightdashPgWireHandlers = (
     serviceRepository: ServiceRepository,
@@ -430,35 +495,22 @@ export const createLightdashPgWireHandlers = (
             return { account, projectUuid, catalog };
         },
 
+        describe: async (session, sql) => {
+            const resolved = resolveStatement(session, sql);
+            if (resolved.kind === 'result') {
+                return resolved.result.type === 'rows'
+                    ? resolved.result.fields
+                    : null;
+            }
+            return fieldsOf(resolved.compiled);
+        },
+
         query: async (session, sql) => {
-            const sessionResult = tryHandleSessionStatement(sql);
-            if (sessionResult) return sessionResult;
-
-            const constantResult = tryHandleConstantSelect(sql, session);
-            if (constantResult) return constantResult;
-
-            // catalog discovery via information_schema.tables / .columns
-            try {
-                const infoResult = tryHandleInformationSchema(
-                    parse(sql),
-                    session.catalog,
-                    session.projectUuid,
-                );
-                if (infoResult) return infoResult;
-            } catch (e) {
-                if (e instanceof PgWireServerError) throw e;
-                // parse errors fall through to the compiler for consistent messages
+            const resolved = resolveStatement(session, sql);
+            if (resolved.kind === 'result') {
+                return resolved.result;
             }
-
-            let compiled;
-            try {
-                compiled = compileSqlToMetricQuery(sql, session.catalog);
-            } catch (e) {
-                if (e instanceof SqlCompileError) {
-                    throw compileErrorToServerError(e);
-                }
-                throw e;
-            }
+            const { compiled } = resolved;
 
             const results = await serviceRepository
                 .getProjectService()
@@ -472,12 +524,7 @@ export const createLightdashPgWireHandlers = (
                     QueryExecutionContext.API,
                 );
 
-            const fields: PgWireResultField[] = compiled.columns.map(
-                (column) => ({
-                    name: column.name,
-                    oid: oidForColumn(column),
-                }),
-            );
+            const fields = fieldsOf(compiled);
             const rows = results.rows.map((row: ResultRow) =>
                 compiled.columns.map((column) =>
                     toTextValue(row[column.source]?.value?.raw, column.type),

@@ -23,9 +23,12 @@ import { memo, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
 import useHealth from '../../../../../hooks/health/useHealth';
-import { useCompiledSqlFromMetricQuery } from '../../../../../hooks/useCompiledSql';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useAiAgentArtifact } from '../../hooks/useAiAgentArtifacts';
+import {
+    getAiArtifactChartSource,
+    useAiArtifactCompiledSql,
+} from '../../hooks/useAiArtifactChart';
 import {
     useAiAgentArtifactVizQuery,
     useAiAgentThread,
@@ -106,10 +109,8 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
         const isSqlArtifact = isAiSqlChartArtifactConfig(
             artifactData?.chartConfig,
         );
-        const semanticChartConfig =
-            artifactData?.chartConfig?.source === 'semantic'
-                ? artifactData.chartConfig.config
-                : null;
+        const { isMergeArtifact, semanticChartConfig } =
+            getAiArtifactChartSource(artifactData?.chartConfig);
 
         const vizConfig = useMemo(() => {
             if (!isFloatingChart || !semanticChartConfig) return null;
@@ -146,10 +147,10 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             queryUuid,
         );
 
-        const { data: compiledSql } = useCompiledSqlFromMetricQuery({
-            tableName: semanticVizQueryData?.query.metricQuery?.exploreName,
+        const compiledSqlQuery = useAiArtifactCompiledSql({
             projectUuid: artifact.projectUuid,
-            metricQuery: semanticVizQueryData?.query.metricQuery,
+            isMergeArtifact,
+            vizQueryData: semanticVizQueryData,
         });
 
         // Same parse the renderer does — needed so the floating pill can
@@ -337,7 +338,19 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                                 description: description,
                                 linkToMessage: true,
                             }}
-                            compiledSql={compiledSql?.query}
+                            compiledSql={compiledSqlQuery}
+                            merge={
+                                isMergeArtifact
+                                    ? {
+                                          query:
+                                              semanticVizQueryData?.mergeQuery ??
+                                              null,
+                                          parameters:
+                                              semanticVizQueryData?.query
+                                                  .usedParametersValues,
+                                      }
+                                    : null
+                            }
                         />
                     )}
                     {showCloseButton && (
@@ -391,6 +404,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                         chartConfig={semanticChartConfig}
                         selectedChartType={selectedChartType}
                         headerContent={floatingHead}
+                        loadExplore={!isMergeArtifact}
                     />
                 </div>
                 {shouldShowPill && metricQuery && (

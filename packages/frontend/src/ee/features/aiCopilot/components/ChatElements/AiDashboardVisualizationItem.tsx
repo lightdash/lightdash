@@ -184,6 +184,7 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
                         }}
                         message={message}
                         compiledSql={compiledSql?.query}
+                        merge={null}
                     />
                 </Group>
             </Group>

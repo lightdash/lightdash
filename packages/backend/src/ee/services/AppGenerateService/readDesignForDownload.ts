@@ -6,7 +6,15 @@ import {
 } from '@lightdash/common';
 import type { Logger } from 'winston';
 import type { OrganizationDesignModel } from '../../../models/OrganizationDesignModel';
-import { designS3Key } from '../../../services/OrganizationDesignService/OrganizationDesignService';
+import {
+    designS3Key,
+    getEffectiveOrganizationDesignFiles,
+} from '../../../services/OrganizationDesignService/OrganizationDesignService';
+import {
+    inspectThemeFileForBundling,
+    omittedThemeFontGuidance,
+    type RestrictedAppleFontMatch,
+} from '../../../services/OrganizationDesignService/restrictedAppleFonts';
 import { contextFile } from './appContext';
 import { readS3ObjectAsBuffer } from './s3Utils';
 
@@ -42,10 +50,13 @@ export async function readDesignForDownload(args: {
         return { instructions: null, assets: [], skippedAssetCount: 0 };
     }
 
-    const instructionFiles = design.files.filter(
+    const effectiveFiles = [
+        ...getEffectiveOrganizationDesignFiles(design.files).values(),
+    ];
+    const instructionFiles = effectiveFiles.filter(
         (f) => f.kind === 'instruction',
     );
-    const assetFiles = design.files.filter((f) => f.kind !== 'instruction');
+    const assetFiles = effectiveFiles.filter((f) => f.kind !== 'instruction');
 
     // Read instruction files first — always fetched regardless of asset cap
     const instructionParts: string[] = [];
@@ -66,9 +77,48 @@ export async function readDesignForDownload(args: {
         instructionParts.push(design.extraInstructions);
     }
 
-    const assetBytes = getThemeTotalBytes(assetFiles);
+    const fontFiles = assetFiles.filter((file) => file.kind === 'font');
+    const nonFontAssetFiles = assetFiles.filter((file) => file.kind !== 'font');
+    const includedFonts: { file: (typeof fontFiles)[number]; body: Buffer }[] =
+        [];
+    const omittedRestrictedFonts: RestrictedAppleFontMatch[] = [];
+
+    // Inspect effective font files before applying the aggregate cap. A
+    // restricted legacy font does not consume Data App download-context bytes.
+    /* eslint-disable no-await-in-loop */
+    for (const file of fontFiles) {
+        const key = designS3Key(
+            organizationUuid,
+            design.designUuid,
+            file.fileUuid,
+            file.filename,
+        );
+        const buffer = await readS3ObjectAsBuffer(s3Client, bucket, key);
+        const decision = await inspectThemeFileForBundling({
+            file,
+            body: buffer,
+            designUuid: design.designUuid,
+            logger,
+        });
+        if (decision.status === 'omit') {
+            omittedRestrictedFonts.push(decision.match);
+        } else {
+            includedFonts.push({ file, body: buffer });
+        }
+    }
+    /* eslint-enable no-await-in-loop */
+
+    if (omittedRestrictedFonts.length > 0) {
+        instructionParts.push(omittedThemeFontGuidance(omittedRestrictedFonts));
+    }
+
+    const assetBytes =
+        getThemeTotalBytes(nonFontAssetFiles) +
+        includedFonts.reduce((sum, { file }) => sum + file.sizeBytes, 0);
     if (assetBytes > MAX_THEME_TOTAL_BYTES) {
         const mb = (n: number) => Math.round(n / (1024 * 1024));
+        const cappedAssetCount =
+            nonFontAssetFiles.length + includedFonts.length;
         logger.warn(
             `Theme ${design.designUuid}: assets total ${mb(
                 assetBytes,
@@ -77,7 +127,7 @@ export async function readDesignForDownload(args: {
             )} MB; skipping all assets`,
         );
         instructionParts.push(
-            `> **Note**: ${assetFiles.length} theme asset(s) (${mb(
+            `> **Note**: ${cappedAssetCount} theme asset(s) (${mb(
                 assetBytes,
             )} MB) were skipped because they exceed the download cap of ${mb(
                 MAX_THEME_TOTAL_BYTES,
@@ -91,10 +141,11 @@ export async function readDesignForDownload(args: {
         };
     }
 
-    // Read all asset buffers
-    const assets = [];
+    const assets = includedFonts.map(({ file, body }) =>
+        contextFile(`theme/assets/${file.filename}`, body),
+    );
     /* eslint-disable no-await-in-loop */
-    for (const file of assetFiles) {
+    for (const file of nonFontAssetFiles) {
         const key = designS3Key(
             organizationUuid,
             design.designUuid,
@@ -117,6 +168,6 @@ export async function readDesignForDownload(args: {
     return {
         instructions,
         assets,
-        skippedAssetCount: 0,
+        skippedAssetCount: omittedRestrictedFonts.length,
     };
 }

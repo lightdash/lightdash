@@ -67,6 +67,7 @@ import { USER_AGENT_PREFERENCES } from './useUserAgentPreferences';
 
 const PROJECT_AI_AGENTS_KEY = 'projectAiAgents';
 const AI_AGENTS_KEY = 'aiAgents';
+const AI_AGENT_ARTIFACT_VIZ_QUERY_STALE_TIME = 5 * 60 * 1000;
 
 const listProjectAgents = (projectUuid: string) =>
     lightdashApi<ApiAiAgentSummaryResponse['results']>({
@@ -1731,6 +1732,7 @@ export const useAiAgentArtifactVizQuery = (
             'versions',
             versionUuid,
         ],
+        staleTime: AI_AGENT_ARTIFACT_VIZ_QUERY_STALE_TIME,
         ...useQueryOptions,
         queryFn: () => {
             return getAiAgentArtifactVizQuery({

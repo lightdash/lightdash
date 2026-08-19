@@ -16,7 +16,6 @@ import {
     TableCalculationType,
     type CompiledField,
     type CustomSqlDimension,
-    type DashboardFilterableField,
     type Dimension,
     type Field,
     type FilterableDimension,
@@ -27,6 +26,7 @@ import {
     type TableCalculation,
 } from '../types/field';
 import {
+    FilterGroupOperator,
     FilterOperator,
     FilterType,
     isAndFilterGroup,
@@ -81,6 +81,59 @@ export const getTotalFilterRules = (filters: Filters): FilterRule[] => [
     ...getFilterRulesFromGroup(filters.metrics),
     ...getFilterRulesFromGroup(filters.tableCalculations),
 ];
+
+export type FilterExpression = {
+    operator: FilterGroupOperator;
+    items: Array<FilterRule | FilterExpression>;
+};
+
+export const isFilterExpression = (
+    item: FilterRule | FilterExpression,
+): item is FilterExpression => 'items' in item;
+
+const getFilterGroupExpression = (
+    group: FilterGroup,
+    includeRule: (rule: FilterRule) => boolean,
+): FilterExpression | undefined => {
+    const operator = isAndFilterGroup(group)
+        ? FilterGroupOperator.and
+        : FilterGroupOperator.or;
+    const groupItems = isAndFilterGroup(group) ? group.and : group.or;
+    const items = groupItems.flatMap<FilterRule | FilterExpression>((item) => {
+        if (isFilterGroup(item)) {
+            const expression = getFilterGroupExpression(item, includeRule);
+            return expression ? [expression] : [];
+        }
+        return includeRule(item) ? [item] : [];
+    });
+
+    return items.length > 0 ? { operator, items } : undefined;
+};
+
+export const getFilterExpression = (
+    filters: Filters,
+    includeRule: (rule: FilterRule) => boolean = () => true,
+): FilterExpression | undefined => {
+    const groups = [
+        filters.dimensions,
+        filters.metrics,
+        filters.tableCalculations,
+    ].flatMap((group) => {
+        if (!group) return [];
+        const expression = getFilterGroupExpression(group, includeRule);
+        return expression ? [expression] : [];
+    });
+
+    if (groups.length === 0) return undefined;
+    if (groups.length === 1) return groups[0];
+
+    return {
+        operator: FilterGroupOperator.and,
+        items: groups.flatMap((group) =>
+            group.operator === FilterGroupOperator.and ? group.items : [group],
+        ),
+    };
+};
 
 export const countTotalFilterRules = (filters: Filters): number =>
     getTotalFilterRules(filters).length;
@@ -395,24 +448,38 @@ export const getFilterRuleFromFieldWithDefaultValue = <T extends FilterRule>(
         timezone,
     );
 
+// Quick filters created from a cell/chart value are either inclusive or exclusive
+export type QuickFilterOperator =
+    | FilterOperator.EQUALS
+    | FilterOperator.NOT_EQUALS;
+
 export const createFilterRuleFromField = (
     field: FilterableField,
     value?: AnyType,
     timezone?: string,
-): FilterRule =>
-    getFilterRuleFromFieldWithDefaultValue(
+    operator: QuickFilterOperator = FilterOperator.EQUALS,
+): FilterRule => {
+    const isExclude = operator === FilterOperator.NOT_EQUALS;
+    let ruleOperator: FilterOperator = operator;
+    if (value === null) {
+        ruleOperator = isExclude
+            ? FilterOperator.NOT_NULL
+            : FilterOperator.NULL;
+    }
+    return getFilterRuleFromFieldWithDefaultValue(
         field,
         {
             id: uuidv4(),
             target: {
                 fieldId: getItemId(field),
             },
-            operator:
-                value === null ? FilterOperator.NULL : FilterOperator.EQUALS,
+            operator: ruleOperator,
         },
-        value ? [value] : [],
+        // isNil, not truthiness: false and 0 are real filter values
+        isNil(value) ? [] : [value],
         timezone,
     );
+};
 
 export const matchFieldExact = (a: Field) => (b: Field) =>
     a.type === b.type && a.name === b.name && a.table === b.table;
@@ -449,9 +516,6 @@ const getDefaultTileTargets = (
             [tileUuid]: {
                 fieldId: getItemId(filterableField),
                 tableName: filterableField.table,
-                ...(isDimension(filterableField)
-                    ? { fallbackType: filterableField.type }
-                    : {}),
             },
         };
     }, {});
@@ -504,7 +568,6 @@ export const createDashboardFilterRuleFromField = ({
                 fieldId: getItemId(field),
                 tableName: field.table,
                 fieldName: field.name,
-                ...(isDimension(field) ? { fallbackType: field.type } : {}),
             },
             tileTargets: getDefaultTileTargets(field, availableTileFilters),
             disabled: !isTemporary,
@@ -572,15 +635,20 @@ export const createDashboardFilterRuleFromSqlColumn = ({
 type AddFilterRuleArgs = {
     filters: Filters;
     field: FilterableField;
+    /** Override the display field's id when it represents another source. */
+    targetFieldId?: string;
     value?: AnyType;
     timezone?: string;
+    operator?: QuickFilterOperator;
 };
 
 export const addFilterRule = ({
     filters,
     field,
+    targetFieldId,
     value,
     timezone,
+    operator,
 }: AddFilterRuleArgs): Filters => {
     const groupKey = ((f: AnyType) => {
         if (isDimension(f) || isCustomSqlDimension(f)) {
@@ -592,6 +660,21 @@ export const addFilterRule = ({
         return 'metrics';
     })(field);
     const group = filters[groupKey];
+    const createdRule = createFilterRuleFromField(
+        field,
+        value,
+        timezone,
+        operator,
+    );
+    const rule = targetFieldId
+        ? {
+              ...createdRule,
+              target: {
+                  ...createdRule.target,
+                  fieldId: targetFieldId,
+              },
+          }
+        : createdRule;
     return {
         ...filters,
         [groupKey]: {
@@ -599,7 +682,7 @@ export const addFilterRule = ({
             ...group,
             [getFilterGroupItemsPropertyName(group)]: [
                 ...getItemsFromFilterGroup(group),
-                createFilterRuleFromField(field, value, timezone),
+                rule,
             ],
         },
     };
@@ -1454,85 +1537,6 @@ export const getAvailableFilterFieldIds = (explore: Explore): string[] => [
         .map(([fieldId]) => fieldId),
 ];
 
-export const getExploreDefaultTimeDimension = (
-    explore: Explore,
-): FilterableDimension | undefined => {
-    const baseTable = explore.tables[explore.baseTable];
-    const defaultTimeDimension = baseTable?.defaultTimeDimension;
-    if (!baseTable || !defaultTimeDimension) {
-        return undefined;
-    }
-
-    const fieldId = convertFieldRefToFieldId(
-        defaultTimeDimension.field,
-        baseTable.name,
-    );
-    const dimension = getDimensionMapFromTables(explore.tables)[fieldId];
-    return dimension && isFilterableDimension(dimension)
-        ? dimension
-        : undefined;
-};
-
-export const getDashboardFieldTarget = (
-    field: FilterableDimension,
-): DashboardFieldTarget => ({
-    fieldId: getItemId(field),
-    tableName: field.table,
-    fallbackType: field.type,
-});
-
-const isDateDimensionType = (type: DimensionType | undefined): boolean =>
-    type === DimensionType.DATE || type === DimensionType.TIMESTAMP;
-
-export const applyDefaultTimeDimensionTileTargets = (
-    dashboardFilters: DashboardFilters,
-    filterableFieldsByTileUuid: Record<string, DashboardFilterableField[]>,
-    defaultTimeDimensions: Record<string, DashboardFieldTarget>,
-): DashboardFilters => ({
-    ...dashboardFilters,
-    dimensions: dashboardFilters.dimensions.map((filter) => {
-        const sourceField = Object.values(filterableFieldsByTileUuid)
-            .flat()
-            .find((field) => getItemId(field) === filter.target.fieldId);
-        const filterType =
-            filter.target.fallbackType ??
-            (sourceField && isDimension(sourceField)
-                ? sourceField.type
-                : undefined);
-        if (!isDateDimensionType(filterType)) {
-            return filter;
-        }
-
-        const tileTargets = Object.entries(defaultTimeDimensions).reduce(
-            (targets, [tileUuid, defaultTimeDimensionTarget]) => {
-                if (targets[tileUuid] !== undefined) {
-                    return targets;
-                }
-                const tileHasSourceField = filterableFieldsByTileUuid[
-                    tileUuid
-                ]?.some((field) => getItemId(field) === filter.target.fieldId);
-                if (tileHasSourceField) {
-                    return targets;
-                }
-                return {
-                    ...targets,
-                    [tileUuid]: defaultTimeDimensionTarget,
-                };
-            },
-            { ...filter.tileTargets },
-        );
-
-        return {
-            ...filter,
-            target: {
-                ...filter.target,
-                fallbackType: filterType,
-            },
-            tileTargets,
-        };
-    }),
-});
-
 export const applyDashboardFiltersForTile = ({
     tileUuid,
     metricQuery,
@@ -1547,29 +1551,10 @@ export const applyDashboardFiltersForTile = ({
     metricQuery: MetricQuery;
     appliedDashboardFilters: DashboardFilters;
 } => {
-    const availableFieldIds = getAvailableFilterFieldIds(explore);
-    const defaultTimeDimension = getExploreDefaultTimeDimension(explore);
-    const dimensionFilters = dashboardFilters.dimensions.map((filter) => {
-        const tileTarget = filter.tileTargets?.[tileUuid];
-        if (
-            tileTarget !== undefined ||
-            availableFieldIds.includes(filter.target.fieldId) ||
-            !isDateDimensionType(filter.target.fallbackType) ||
-            !defaultTimeDimension
-        ) {
-            return filter;
-        }
-        return {
-            ...filter,
-            target: {
-                ...getDashboardFieldTarget(defaultTimeDimension),
-            },
-        };
-    });
     const appliedDashboardFilters = getDashboardFiltersForTileAndTables(
         tileUuid,
-        availableFieldIds,
-        { ...dashboardFilters, dimensions: dimensionFilters },
+        getAvailableFilterFieldIds(explore),
+        dashboardFilters,
     );
     return {
         metricQuery: addDashboardFiltersToMetricQuery(

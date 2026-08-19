@@ -3,16 +3,46 @@ import * as ipaddr from 'ipaddr.js';
 import { lookup } from 'node:dns/promises';
 
 const PRIVATE_HOSTNAMES = new Set(['localhost']);
-const PRIVATE_ADDRESS_ERROR_MESSAGE =
+const MCP_PRIVATE_ADDRESS_ERROR_MESSAGE =
     'MCP servers must use a public URL. Localhost and private network addresses are not supported.';
-const INVALID_URL_ERROR_MESSAGE =
+const MCP_INVALID_URL_ERROR_MESSAGE =
     'Enter a valid MCP server URL, including http:// or https://.';
-const INVALID_PROTOCOL_ERROR_MESSAGE =
+const MCP_INVALID_PROTOCOL_ERROR_MESSAGE =
     'MCP server URLs must start with http:// or https://.';
-const URL_CREDENTIALS_ERROR_MESSAGE =
+const MCP_URL_CREDENTIALS_ERROR_MESSAGE =
     'Remove the username or password from the MCP server URL. Use the auth settings instead.';
-const HOSTNAME_LOOKUP_ERROR_MESSAGE =
+const MCP_HOSTNAME_LOOKUP_ERROR_MESSAGE =
     "We couldn't find a server at that URL. Check the hostname and try again.";
+
+const WEBHOOK_PRIVATE_ADDRESS_ERROR_MESSAGE =
+    'Webhook destinations must use a public URL. Localhost and private network addresses are not supported.';
+const WEBHOOK_INVALID_URL_ERROR_MESSAGE =
+    'Enter a valid webhook URL, including https://.';
+const WEBHOOK_INVALID_PROTOCOL_ERROR_MESSAGE =
+    'Webhook URLs must start with https://.';
+const WEBHOOK_URL_CREDENTIALS_ERROR_MESSAGE =
+    'Remove the username or password from the webhook URL.';
+const WEBHOOK_HOSTNAME_LOOKUP_ERROR_MESSAGE =
+    "We couldn't find a server at that webhook URL. Check the hostname and try again.";
+
+type PublicHttpUrlContext = 'mcp' | 'webhook';
+
+const getErrorMessages = (context: PublicHttpUrlContext) =>
+    context === 'webhook'
+        ? {
+              privateAddress: WEBHOOK_PRIVATE_ADDRESS_ERROR_MESSAGE,
+              invalidUrl: WEBHOOK_INVALID_URL_ERROR_MESSAGE,
+              invalidProtocol: WEBHOOK_INVALID_PROTOCOL_ERROR_MESSAGE,
+              urlCredentials: WEBHOOK_URL_CREDENTIALS_ERROR_MESSAGE,
+              hostnameLookup: WEBHOOK_HOSTNAME_LOOKUP_ERROR_MESSAGE,
+          }
+        : {
+              privateAddress: MCP_PRIVATE_ADDRESS_ERROR_MESSAGE,
+              invalidUrl: MCP_INVALID_URL_ERROR_MESSAGE,
+              invalidProtocol: MCP_INVALID_PROTOCOL_ERROR_MESSAGE,
+              urlCredentials: MCP_URL_CREDENTIALS_ERROR_MESSAGE,
+              hostnameLookup: MCP_HOSTNAME_LOOKUP_ERROR_MESSAGE,
+          };
 
 const normalizeHostname = (hostname: string): string =>
     hostname.replace(/^\[/, '').replace(/\]$/, '').toLowerCase();
@@ -76,23 +106,25 @@ export const validatePublicHttpUrl = async (
     options: {
         allowedProtocols?: string[];
         allowPrivateAddresses?: boolean;
+        context?: PublicHttpUrlContext;
     } = {},
 ): Promise<URL> => {
     const allowedProtocols = options.allowedProtocols ?? ['https:'];
+    const errorMessages = getErrorMessages(options.context ?? 'mcp');
 
     let parsedUrl: URL;
     try {
         parsedUrl = new URL(rawUrl);
     } catch {
-        throw new ParameterError(INVALID_URL_ERROR_MESSAGE);
+        throw new ParameterError(errorMessages.invalidUrl);
     }
 
     if (!allowedProtocols.includes(parsedUrl.protocol)) {
-        throw new ParameterError(INVALID_PROTOCOL_ERROR_MESSAGE);
+        throw new ParameterError(errorMessages.invalidProtocol);
     }
 
     if (parsedUrl.username || parsedUrl.password) {
-        throw new ParameterError(URL_CREDENTIALS_ERROR_MESSAGE);
+        throw new ParameterError(errorMessages.urlCredentials);
     }
 
     if (options.allowPrivateAddresses) {
@@ -101,18 +133,21 @@ export const validatePublicHttpUrl = async (
 
     const hostname = normalizeHostname(parsedUrl.hostname);
     if (isPrivateAddress(hostname)) {
-        throw new ParameterError(PRIVATE_ADDRESS_ERROR_MESSAGE);
+        throw new ParameterError(errorMessages.privateAddress);
     }
 
     let addresses: { address: string }[];
     try {
         addresses = await lookup(hostname, { all: true });
     } catch {
-        throw new ParameterError(HOSTNAME_LOOKUP_ERROR_MESSAGE);
+        throw new ParameterError(errorMessages.hostnameLookup);
     }
 
-    if (addresses.some(({ address }) => isPrivateAddress(address))) {
-        throw new ParameterError(PRIVATE_ADDRESS_ERROR_MESSAGE);
+    if (
+        addresses.length === 0 ||
+        addresses.some(({ address }) => isPrivateAddress(address))
+    ) {
+        throw new ParameterError(errorMessages.privateAddress);
     }
 
     return parsedUrl;

@@ -28,6 +28,12 @@ import {
     formatGroupUploadSummary,
     uploadGroups,
 } from './groups';
+import {
+    downloadThemes,
+    formatThemeUploadSummary,
+    prepareThemeUploads,
+    uploadThemes,
+} from './themes';
 import { downloadUsers, formatUserUploadSummary, uploadUsers } from './users';
 
 type OrganizationContentOptions = {
@@ -44,6 +50,9 @@ const createUserPartialUploadError = (message: string): Error =>
 
 const createGroupPartialUploadError = (message: string): Error =>
     new CodeResourcePhaseError('group', message);
+
+const createThemePartialUploadError = (message: string): Error =>
+    new CodeResourcePhaseError('theme', message);
 
 const isPartialUploadError = isCodeResourcePhaseError;
 
@@ -111,6 +120,11 @@ export const downloadOrganizationContent = async ({
                 '> Warning: groups were not downloaded because the group service is not enabled',
             );
         }
+        const themesTotal = await output.runItem({
+            label: 'Themes',
+            action: () => downloadThemes(organizationContentPath),
+            detail: (total) => `${total} downloaded`,
+        });
 
         const renderedSummary = output.complete(
             organizationContentPath,
@@ -133,6 +147,7 @@ export const downloadOrganizationContent = async ({
                 customRolesNum: customRolesTotal,
                 usersNum: usersTotal,
                 groupsNum: groupsTotal,
+                themesNum: themesTotal,
                 timeToCompleted: (Date.now() - start) / 1000,
             },
         });
@@ -180,6 +195,9 @@ export const uploadOrganizationContent = async ({
         scope: 'organization',
     });
     try {
+        const preparedThemes = await prepareThemeUploads(
+            organizationContentPath,
+        );
         output.startItem('Custom roles');
         const summary = await uploadCustomRoles(
             organizationUuid,
@@ -255,6 +273,26 @@ export const uploadOrganizationContent = async ({
             );
         }
         output.completeItem(groupSummaryMessage);
+        output.startItem('Themes');
+        const themeSummary = await uploadThemes(preparedThemes);
+        const themeSummaryMessage = formatThemeUploadSummary(themeSummary);
+        if (themeSummary.failed > 0) {
+            themeSummary.failures.forEach(({ message }) =>
+                GlobalState.log(styles.error(message)),
+            );
+            if (themeSummary.completedSlugs.length > 0) {
+                GlobalState.log(
+                    styles.warning(
+                        `Processed themes before failure: ${themeSummary.completedSlugs.join(', ')}`,
+                    ),
+                );
+            }
+            output.prepareForFailureDetails();
+            throw createThemePartialUploadError(
+                `Processed themes: ${themeSummaryMessage}`,
+            );
+        }
+        output.completeItem(themeSummaryMessage);
         const renderedSummary = output.complete(
             organizationContentPath,
             (Date.now() - start) / 1000,
@@ -283,6 +321,10 @@ export const uploadOrganizationContent = async ({
                 groupsCreated: groupSummary.created,
                 groupsUpdated: groupSummary.updated,
                 groupsUnchanged: groupSummary.unchanged,
+                themesCreated: themeSummary.created,
+                themesUpdated: themeSummary.updated,
+                themesUnchanged: themeSummary.unchanged,
+                themesUploaded: themeSummary.created + themeSummary.updated,
                 timeToCompleted: (Date.now() - start) / 1000,
             },
         });

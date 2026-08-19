@@ -10,24 +10,22 @@ exports[`MCP tool contracts > matches the current MCP tool and prompt contract s
         "properties": {},
         "type": "object",
       },
-      "description": "Guidelines for querying Lightdash data using MCP tools. After setting project context, call route_agent at the start of each new user request to activate the best agent automatically. Includes explore selection, query building, visualization rules, and active agent context (instructions, verified questions, available explores). Inject this into your system prompt for best results.",
+      "description": "Guidelines for querying Lightdash data using MCP tools. Call get_context first, pass projectUuid to every project-scoped tool, and pass route_agent results as agentUuid when scoped agent behavior is desired. Includes explore selection, query building, and visualization rules. Inject this into your system prompt for best results.",
       "name": "lightdash-analyst",
       "prompt": "# Lightdash MCP Tools — Usage Guidelines
 
 ## Query Building Workflow
 
-0. **Route to the right agent first**: After project context is set, call \`route_agent\` at the start of each new user request so subsequent MCP tools inherit the best agent's scope and instructions
-1. **Find explores first**: Use \`find_explores\` with a natural language search query to discover relevant data models and any matching verified answers
-   - If the response includes a verified answer that clearly matches, prefer its returned config over constructing a new query from scratch
-   - Use matching verified answers as the starting point, then adapt only if the user asked for a clear modification
-   - Review the \`topMatchingFields\` to understand which explores match
-   - If multiple explores match with similar scores, ask the user which data source they mean
-2. **Get fields**: Use \`find_fields\` for the chosen explore to see all available dimensions and metrics
-   - Read field labels, descriptions, and hints carefully — hints are written specifically for AI guidance
-   - Never invent field IDs; only use exact values returned by \`find_fields\`
-   - Search for business terms, not technical field names
-   - Use multiple search queries in one call to find related fields efficiently
-   - Look for both dimensions (for grouping) and metrics (for aggregation)
+0. **Get started with context**: Call \`get_context\` first, select the relevant project, and pass its \`projectUuid\` to every project-scoped tool. When agent-specific scope is useful, call \`route_agent\` with that project UUID and pass its returned \`agentUuid\` to subsequent scoped tools. If routing is unavailable or full project scope is desired, omit \`agentUuid\`; use \`set_agent\` to select an agent manually
+1. **Search fields first**: Use \`grep_fields\` with 1–5 high-signal keyword patterns to discover the relevant explore and field IDs
+   - Search with business terms and synonyms, not long natural-language phrases
+   - Use \`|\` to OR synonyms (for example \`revenue|sales\`) and spaces or \`.*\` to require terms together (for example \`order.*status\`)
+   - Pass several patterns in one call so you can compare the different angles of the request together
+   - Pick the single explore whose fields answer the question at the right grain; if several still fit, ask the user which data source they mean
+2. **Get metadata**: Use \`get_metadata\` for the explores and fields you selected from \`grep_fields\`
+   - Batch all needed explores and fields in one call
+   - Use it to confirm joined tables, required filters, filter types, case-sensitivity, and field-level hints before building the query
+   - Never invent field IDs; only use exact values returned by \`grep_fields\` / \`get_metadata\`
 3. **Search field values**: Use \`search_field_values\` to discover valid filter values for a dimension
 4. **Run queries**: Use \`run_metric_query\` for semantic-layer metric queries, or \`run_sql\` for custom SQL
 5. **Poll long-running queries**: If a query returns \`status: "running"\`, call \`get_query_result\` with the \`queryUuid\` until it returns done/error/cancelled/expired
@@ -38,8 +36,8 @@ exports[`MCP tool contracts > matches the current MCP tool and prompt contract s
 ## Critical Rules
 
 ### Explore Selection
-- When the user's query contains a domain word matching an explore name, use that explore
-- When multiple explores match, check \`usageInCharts\` to find the most commonly used one
+- When the user's query contains a domain word matching an explore name, prefer that explore if \`grep_fields\` also surfaces relevant fields there
+- When multiple explores surface plausible fields, choose the one whose dimensions and metrics match the user's intended grain
 - If still ambiguous, ask the user which data source they want — do NOT guess
 
 ### When to Use run_sql vs run_metric_query
@@ -77,7 +75,7 @@ Use table calculations for:
 
 ### Custom Metrics
 - Use when the explore lacks a needed aggregation
-- Always confirm the metric doesn't already exist via \`find_fields\` first
+- Always confirm the metric doesn't already exist via \`grep_fields\` / \`get_metadata\` first
 - Reference using the pattern \`table_metricname\`
 ",
       "title": "Lightdash Data Analyst",
@@ -124,7 +122,21 @@ Usage Tips:
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
-        "properties": {},
+        "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
+        },
+        "required": [
+          "projectUuid",
+        ],
         "type": "object",
       },
       "name": "list_explores",
@@ -138,41 +150,333 @@ Usage Tips:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Tool: find_explores
+      "description": "Tool: grep_fields
 
 Purpose:
-Returns explores matching the query with their joined tables, required filters, AI hints and descriptions, plus the top 50 matching fields across ALL explores. Search matches explore and field name, label, and description. A follow-up query runs against a single explore, so this tool is meant to identify the explore whose fields can answer the user's question.
-IMPORTANT: Each explore may include fields from multiple joined tables. Check the "joinedTables" elements to see which tables are included in the explore.
+Find which explores and fields can answer a question by grepping an in-memory, annotated view of the project's fields (names, labels, descriptions, hints and tags). Returns matching fields as \`explore/fieldId  [kind type]\` lines grouped by explore.
 
-Parameters:
-- searchQuery: Keyword terms for finding relevant explores
+Use this as the FIRST step whenever the user asks a data question (counts, totals, breakdowns, trends, "what is", "show me", "how many"). Do NOT call this for questions about existing dashboards/charts (use find_content).
 
-Output:
-- Matching explores with searchRank scores
-- Top matching fields with their explore names and searchRank scores
-- Required filters set on matching explores, including default values
+Each pattern is a case-insensitive keyword pattern (not a full regex): use \`|\` to OR synonyms ("revenue|sales") and a space or \`.*\` between words to require all of them ("order.*status" matches fields mentioning both "order" and "status"). Pass 1–5 patterns in a SINGLE call covering the different angles of the question — they run together so you see all results at once instead of grepping one at a time. Start broad with meaningful keywords (e.g. ["revenue|sales", "country|region", "segment|tier"]) and narrow from there — long natural-language phrases will not match. If results are empty, try synonyms or broader patterns before giving up. Read the returned fieldIds and pick the single explore that answers at the right grain before building a query.
+
+A description or hint ending in "...(truncated)" is incomplete — call get_metadata to read the full text before using that field.
+
+A field annotated with \`⚠params: <names>\` depends on those Lightdash parameters — what it returns changes with the parameter values the query runs with (unset parameters resolve to their default). Call get_metadata on its explore to see the parameter definitions before querying such a field.
 ",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
-          "searchQuery": {
-            "description": "set of high-signal keyword terms for query. Search uses PostgreSQL websearch_to_tsquery after joining whitespace-separated terms with OR. It searches explore and field name, label, and description. Prefer metric/entity/dimension nouns that capture the user's analytical intent.",
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
+          "exploreName": {
+            "description": "Restrict the search to this explore only, or null to search all explores., ",
+            "type": "string",
+          },
+          "patterns": {
+            "description": "Up to 5 case-insensitive keyword patterns, run together in one call. Use \`|\` to OR synonyms and a space or \`.*\` between words to require all of them. Each is matched against field names, labels, descriptions, hints and tags.",
+            "items": {
+              "minLength": 1,
+              "type": "string",
+            },
+            "maxItems": 5,
+            "minItems": 1,
+            "type": "array",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
             "type": "string",
           },
         },
         "required": [
-          "searchQuery",
+          "patterns",
+          "projectUuid",
         ],
         "type": "object",
       },
-      "name": "find_explores",
+      "name": "grep_fields",
       "outputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "description": {
             "type": "string",
+          },
+          "exploreName": {
+            "type": [
+              "string",
+              "null",
+            ],
+          },
+          "fuzzyMatches": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "description": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "exploreName": {
+                  "type": "string",
+                },
+                "fieldId": {
+                  "type": "string",
+                },
+                "fieldType": {
+                  "type": "string",
+                },
+                "label": {
+                  "type": "string",
+                },
+                "searchRank": {
+                  "type": [
+                    "number",
+                    "null",
+                  ],
+                },
+                "usageInCharts": {
+                  "type": "number",
+                },
+                "usageInVerifiedCharts": {
+                  "type": "number",
+                },
+              },
+              "required": [
+                "exploreName",
+                "fieldId",
+                "label",
+                "fieldType",
+                "description",
+                "searchRank",
+                "usageInCharts",
+                "usageInVerifiedCharts",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+          "patterns": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "matchCount": {
+                  "type": "number",
+                },
+                "matchedAllFields": {
+                  "type": "boolean",
+                },
+                "matchingExploresByName": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "exploreLabel": {
+                        "type": "string",
+                      },
+                      "exploreName": {
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "exploreName",
+                      "exploreLabel",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+                "metricAmbiguityNote": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "note": {
+                  "type": "string",
+                },
+                "pattern": {
+                  "type": "string",
+                },
+                "resultsByExplore": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "exploreLabel": {
+                        "type": "string",
+                      },
+                      "exploreName": {
+                        "type": "string",
+                      },
+                      "fields": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "defaultTimeDimension": {
+                              "type": [
+                                "string",
+                                "null",
+                              ],
+                            },
+                            "defaultTimeDimensionGranularity": {
+                              "type": [
+                                "string",
+                                "null",
+                              ],
+                            },
+                            "description": {
+                              "type": [
+                                "string",
+                                "null",
+                              ],
+                            },
+                            "exploreLabel": {
+                              "type": "string",
+                            },
+                            "exploreName": {
+                              "type": "string",
+                            },
+                            "fieldId": {
+                              "type": "string",
+                            },
+                            "fieldType": {
+                              "type": "string",
+                            },
+                            "hint": {
+                              "type": [
+                                "string",
+                                "null",
+                              ],
+                            },
+                            "kind": {
+                              "enum": [
+                                "dimension",
+                                "metric",
+                              ],
+                              "type": "string",
+                            },
+                            "label": {
+                              "type": "string",
+                            },
+                            "matchLocality": {
+                              "enum": [
+                                "name",
+                                "description",
+                                "hint",
+                                "mixed",
+                              ],
+                              "type": "string",
+                            },
+                            "path": {
+                              "type": "string",
+                            },
+                            "requiredParameters": {
+                              "items": {
+                                "type": "string",
+                              },
+                              "type": "array",
+                            },
+                            "usageInVerifiedCharts": {
+                              "type": "number",
+                            },
+                          },
+                          "required": [
+                            "exploreName",
+                            "exploreLabel",
+                            "fieldId",
+                            "path",
+                            "kind",
+                            "fieldType",
+                            "label",
+                            "description",
+                            "hint",
+                            "defaultTimeDimension",
+                            "defaultTimeDimensionGranularity",
+                            "requiredParameters",
+                            "usageInVerifiedCharts",
+                            "matchLocality",
+                          ],
+                          "type": "object",
+                        },
+                        "type": "array",
+                      },
+                      "requiredFilters": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "fieldId": {
+                              "type": "string",
+                            },
+                            "fieldRef": {
+                              "type": "string",
+                            },
+                            "operator": {
+                              "type": "string",
+                            },
+                            "required": {
+                              "type": "boolean",
+                            },
+                            "settings": {},
+                            "tableName": {
+                              "type": "string",
+                            },
+                            "values": {
+                              "items": {},
+                              "type": "array",
+                            },
+                          },
+                          "required": [
+                            "fieldId",
+                            "fieldRef",
+                            "tableName",
+                            "operator",
+                            "required",
+                          ],
+                          "type": "object",
+                        },
+                        "type": "array",
+                      },
+                    },
+                    "required": [
+                      "exploreName",
+                      "exploreLabel",
+                      "requiredFilters",
+                      "fields",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+                "scopeSize": {
+                  "type": "number",
+                },
+                "status": {
+                  "enum": [
+                    "matches",
+                    "no_matches",
+                    "no_signal",
+                  ],
+                  "type": "string",
+                },
+              },
+              "required": [
+                "pattern",
+                "status",
+                "matchCount",
+                "scopeSize",
+                "matchedAllFields",
+                "note",
+                "resultsByExplore",
+                "metricAmbiguityNote",
+                "matchingExploresByName",
+              ],
+              "type": "object",
+            },
+            "type": "array",
           },
           "relevantVerifiedAnswers": {
             "items": {
@@ -227,47 +531,147 @@ Output:
             },
             "type": "array",
           },
-          "searchQuery": {
+        },
+        "required": [
+          "description",
+          "exploreName",
+          "patterns",
+          "fuzzyMatches",
+        ],
+        "type": "object",
+      },
+      "title": "Search fields",
+    },
+    {
+      "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+      },
+      "description": "Tool: get_metadata
+
+Purpose:
+Get the full metadata for specific explores and/or fields that you already know the IDs of (typically from grep_fields). grep_fields is lean — it tells you WHICH fields exist; get_metadata gives you the DETAIL you need to build a correct query: an explore's joined tables, table filters, and parameters, and a field's filter type, case-sensitivity, resolved default time dimension, parameter dependencies, hints, and whether it comes from a joined table. A field marked with required parameters returns different results depending on the parameter values the query runs with — unset parameters resolve to their default.
+
+Call this AFTER grep_fields, once you have narrowed down to the explore(s) and field(s) you intend to use, and BEFORE render_chart. You can ask for several explores and several fields across explores in a SINGLE call — batch everything you need at once instead of one request per item.
+
+Each entry in \`requests\` is one of:
+- \`{ "type": "explore", "exploreIds": ["orders", "customers"] }\` — full metadata for those explores (joined tables, table filters, field counts).
+- \`{ "type": "field", "fields": [{ "exploreId": "orders", "fieldId": "orders_status" }] }\` — full metadata for those specific fields.
+",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
             "type": "string",
           },
-          "searchResults": {
-            "additionalProperties": false,
-            "properties": {
-              "count": {
-                "type": "number",
-              },
-              "note": {
-                "type": "string",
-              },
-              "results": {
-                "items": {
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
+          "requests": {
+            "description": "A batch of explore and/or field metadata requests, resolved together in one call.",
+            "items": {
+              "anyOf": [
+                {
                   "additionalProperties": false,
                   "properties": {
-                    "aiHints": {
+                    "exploreIds": {
+                      "description": "Explore IDs (names) to fetch full metadata for.",
                       "items": {
+                        "minLength": 1,
                         "type": "string",
                       },
+                      "minItems": 1,
                       "type": "array",
                     },
-                    "description": {
-                      "type": [
-                        "string",
-                        "null",
-                      ],
+                    "type": {
+                      "const": "explore",
+                      "type": "string",
                     },
-                    "joinedTables": {
+                  },
+                  "required": [
+                    "type",
+                    "exploreIds",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "fields": {
+                      "description": "Specific fields to fetch full metadata for.",
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "exploreId": {
+                            "description": "The explore the field belongs to.",
+                            "minLength": 1,
+                            "type": "string",
+                          },
+                          "fieldId": {
+                            "description": "The fieldId, e.g. \`orders_status\`.",
+                            "minLength": 1,
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "exploreId",
+                          "fieldId",
+                        ],
+                        "type": "object",
+                      },
+                      "minItems": 1,
+                      "type": "array",
+                    },
+                    "type": {
+                      "const": "field",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "type",
+                    "fields",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "type": "array",
+          },
+        },
+        "required": [
+          "requests",
+          "projectUuid",
+        ],
+        "type": "object",
+      },
+      "name": "get_metadata",
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "explores": {
+            "items": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "baseDimensions": {
                       "additionalProperties": false,
                       "properties": {
                         "count": {
                           "type": "number",
                         },
-                        "note": {
-                          "type": [
-                            "string",
-                            "null",
-                          ],
-                        },
-                        "tables": {
+                        "fieldIds": {
                           "items": {
                             "type": "string",
                           },
@@ -276,16 +680,169 @@ Output:
                       },
                       "required": [
                         "count",
-                        "note",
-                        "tables",
+                        "fieldIds",
                       ],
                       "type": "object",
+                    },
+                    "baseMetrics": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "count": {
+                          "type": "number",
+                        },
+                        "fieldIds": {
+                          "items": {
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                      },
+                      "required": [
+                        "count",
+                        "fieldIds",
+                      ],
+                      "type": "object",
+                    },
+                    "baseTable": {
+                      "type": "string",
+                    },
+                    "description": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "exploreId": {
+                      "type": "string",
+                    },
+                    "hint": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "joinedTables": {
+                      "items": {
+                        "type": "string",
+                      },
+                      "type": "array",
                     },
                     "label": {
                       "type": "string",
                     },
-                    "name": {
-                      "type": "string",
+                    "parameters": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "allowCustomValues": {
+                            "type": "boolean",
+                          },
+                          "default": {
+                            "anyOf": [
+                              {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                  },
+                                  {
+                                    "type": "number",
+                                  },
+                                  {
+                                    "items": {
+                                      "type": "string",
+                                    },
+                                    "type": "array",
+                                  },
+                                  {
+                                    "items": {
+                                      "type": "number",
+                                    },
+                                    "type": "array",
+                                  },
+                                ],
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "description": {
+                            "type": [
+                              "string",
+                              "null",
+                            ],
+                          },
+                          "label": {
+                            "type": "string",
+                          },
+                          "multiple": {
+                            "type": "boolean",
+                          },
+                          "name": {
+                            "type": "string",
+                          },
+                          "options": {
+                            "anyOf": [
+                              {
+                                "items": {
+                                  "type": [
+                                    "string",
+                                    "number",
+                                  ],
+                                },
+                                "type": "array",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "optionsFromDimension": {
+                            "anyOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "dimension": {
+                                    "type": "string",
+                                  },
+                                  "model": {
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "model",
+                                  "dimension",
+                                ],
+                                "type": "object",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "type": {
+                            "enum": [
+                              "string",
+                              "number",
+                              "date",
+                            ],
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "name",
+                          "label",
+                          "description",
+                          "type",
+                          "default",
+                          "multiple",
+                          "allowCustomValues",
+                          "options",
+                          "optionsFromDimension",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
                     },
                     "requiredFilters": {
                       "items": {
@@ -323,313 +880,23 @@ Output:
                       },
                       "type": "array",
                     },
-                    "searchRank": {
-                      "type": [
-                        "number",
-                        "null",
-                      ],
+                    "status": {
+                      "const": "found",
+                      "type": "string",
                     },
                   },
                   "required": [
-                    "name",
+                    "exploreId",
+                    "status",
                     "label",
-                    "searchRank",
                     "description",
-                    "aiHints",
+                    "hint",
+                    "baseTable",
                     "joinedTables",
                     "requiredFilters",
-                  ],
-                  "type": "object",
-                },
-                "type": "array",
-              },
-            },
-            "required": [
-              "count",
-              "note",
-              "results",
-            ],
-            "type": "object",
-          },
-          "topMatchingFields": {
-            "additionalProperties": false,
-            "properties": {
-              "count": {
-                "type": "number",
-              },
-              "fields": {
-                "items": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "exploreName": {
-                      "type": "string",
-                    },
-                    "fieldType": {
-                      "type": "string",
-                    },
-                    "label": {
-                      "type": "string",
-                    },
-                    "name": {
-                      "type": "string",
-                    },
-                    "searchRank": {
-                      "type": [
-                        "number",
-                        "null",
-                      ],
-                    },
-                    "usageInCharts": {
-                      "type": "number",
-                    },
-                    "usageInVerifiedCharts": {
-                      "type": "number",
-                    },
-                  },
-                  "required": [
-                    "name",
-                    "label",
-                    "exploreName",
-                    "fieldType",
-                    "searchRank",
-                    "usageInCharts",
-                    "usageInVerifiedCharts",
-                  ],
-                  "type": "object",
-                },
-                "type": "array",
-              },
-              "note": {
-                "type": "string",
-              },
-            },
-            "required": [
-              "count",
-              "note",
-              "fields",
-            ],
-            "type": "object",
-          },
-        },
-        "required": [
-          "searchQuery",
-          "description",
-          "searchResults",
-          "topMatchingFields",
-        ],
-        "type": "object",
-      },
-      "title": "Find explores",
-    },
-    {
-      "agentName": null,
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-      },
-      "description": "Tool: "find_fields"
-
-Purpose:
-Finds the most relevant Fields (Metrics & Dimensions) within Explores, returning detailed info about each.
-
-Usage tips:
-- Use "find_explores" first to discover available Explores and their field labels.
-- Use full field labels in search terms (e.g. "Total Revenue", "Order Date").
-- Pass all needed fields in one request.
-- Fields are sorted by relevance, with a maximum score of 1 and a minimum of 0, so the top results are the most relevant.
-- If results aren't relevant, retry with clearer or more specific terms.
-- Results are paginated — use the next page token to get more results if needed.
-",
-      "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "additionalProperties": false,
-        "properties": {
-          "fieldSearchQueries": {
-            "items": {
-              "additionalProperties": false,
-              "properties": {
-                "label": {
-                  "description": "Full field label",
-                  "type": "string",
-                },
-              },
-              "required": [
-                "label",
-              ],
-              "type": "object",
-            },
-            "type": "array",
-          },
-          "page": {
-            "description": "Use this to paginate through the results. Starts at 1., ",
-            "exclusiveMinimum": 0,
-            "type": "number",
-          },
-          "table": {
-            "description": "The table to search in.",
-            "type": "string",
-          },
-        },
-        "required": [
-          "table",
-          "fieldSearchQueries",
-        ],
-        "type": "object",
-      },
-      "name": "find_fields",
-      "outputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "additionalProperties": false,
-        "properties": {
-          "searchResults": {
-            "items": {
-              "anyOf": [
-                {
-                  "additionalProperties": false,
-                  "properties": {
-                    "fields": {
-                      "items": {
-                        "additionalProperties": false,
-                        "properties": {
-                          "aiHints": {
-                            "items": {
-                              "type": "string",
-                            },
-                            "type": "array",
-                          },
-                          "baseTable": {
-                            "type": "string",
-                          },
-                          "caseSensitiveFilters": {
-                            "type": [
-                              "boolean",
-                              "null",
-                            ],
-                          },
-                          "categories": {
-                            "items": {
-                              "type": "string",
-                            },
-                            "type": "array",
-                          },
-                          "chartUsage": {
-                            "type": [
-                              "number",
-                              "null",
-                            ],
-                          },
-                          "description": {
-                            "type": [
-                              "string",
-                              "null",
-                            ],
-                          },
-                          "emoji": {
-                            "type": [
-                              "string",
-                              "null",
-                            ],
-                          },
-                          "fieldFilterType": {
-                            "type": "string",
-                          },
-                          "fieldId": {
-                            "type": "string",
-                          },
-                          "fieldType": {
-                            "type": "string",
-                          },
-                          "isFromJoinedTable": {
-                            "type": "boolean",
-                          },
-                          "label": {
-                            "type": "string",
-                          },
-                          "name": {
-                            "type": "string",
-                          },
-                          "note": {
-                            "type": [
-                              "string",
-                              "null",
-                            ],
-                          },
-                          "searchRank": {
-                            "type": [
-                              "number",
-                              "null",
-                            ],
-                          },
-                          "type": {
-                            "type": "string",
-                          },
-                          "usageInVerifiedCharts": {
-                            "type": "number",
-                          },
-                        },
-                        "required": [
-                          "type",
-                          "baseTable",
-                          "name",
-                          "fieldId",
-                          "fieldType",
-                          "fieldFilterType",
-                          "usageInVerifiedCharts",
-                          "isFromJoinedTable",
-                          "caseSensitiveFilters",
-                          "note",
-                          "label",
-                          "aiHints",
-                          "description",
-                          "categories",
-                          "emoji",
-                        ],
-                        "type": "object",
-                      },
-                      "type": "array",
-                    },
-                    "page": {
-                      "type": [
-                        "number",
-                        "null",
-                      ],
-                    },
-                    "pageSize": {
-                      "type": [
-                        "number",
-                        "null",
-                      ],
-                    },
-                    "searchQuery": {
-                      "type": "string",
-                    },
-                    "status": {
-                      "const": "success",
-                      "type": "string",
-                    },
-                    "totalPageCount": {
-                      "type": [
-                        "number",
-                        "null",
-                      ],
-                    },
-                    "totalResults": {
-                      "type": [
-                        "number",
-                        "null",
-                      ],
-                    },
-                  },
-                  "required": [
-                    "status",
-                    "searchQuery",
-                    "page",
-                    "pageSize",
-                    "totalPageCount",
-                    "totalResults",
-                    "fields",
+                    "parameters",
+                    "baseDimensions",
+                    "baseMetrics",
                   ],
                   "type": "object",
                 },
@@ -639,17 +906,143 @@ Usage tips:
                     "error": {
                       "type": "string",
                     },
-                    "searchQuery": {
+                    "exploreId": {
                       "type": "string",
                     },
                     "status": {
-                      "const": "error",
+                      "const": "not_found",
                       "type": "string",
                     },
                   },
                   "required": [
+                    "exploreId",
                     "status",
-                    "searchQuery",
+                    "error",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "type": "array",
+          },
+          "fields": {
+            "items": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "caseSensitiveFilters": {
+                      "type": [
+                        "boolean",
+                        "null",
+                      ],
+                    },
+                    "defaultTimeDimension": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "defaultTimeDimensionGranularity": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "description": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "exploreId": {
+                      "type": "string",
+                    },
+                    "fieldId": {
+                      "type": "string",
+                    },
+                    "fieldType": {
+                      "type": "string",
+                    },
+                    "filterType": {
+                      "type": "string",
+                    },
+                    "hint": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "isFromJoinedTable": {
+                      "type": "boolean",
+                    },
+                    "joinedTableName": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "kind": {
+                      "enum": [
+                        "dimension",
+                        "metric",
+                      ],
+                      "type": "string",
+                    },
+                    "label": {
+                      "type": "string",
+                    },
+                    "requiredParameters": {
+                      "items": {
+                        "type": "string",
+                      },
+                      "type": "array",
+                    },
+                    "status": {
+                      "const": "found",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "exploreId",
+                    "fieldId",
+                    "status",
+                    "kind",
+                    "fieldType",
+                    "label",
+                    "filterType",
+                    "isFromJoinedTable",
+                    "joinedTableName",
+                    "caseSensitiveFilters",
+                    "defaultTimeDimension",
+                    "defaultTimeDimensionGranularity",
+                    "requiredParameters",
+                    "description",
+                    "hint",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                    },
+                    "exploreId": {
+                      "type": "string",
+                    },
+                    "fieldId": {
+                      "type": "string",
+                    },
+                    "status": {
+                      "const": "not_found",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "exploreId",
+                    "fieldId",
+                    "status",
                     "error",
                   ],
                   "type": "object",
@@ -660,11 +1053,12 @@ Usage tips:
           },
         },
         "required": [
-          "searchResults",
+          "explores",
+          "fields",
         ],
         "type": "object",
       },
-      "title": "Find fields",
+      "title": "Get metadata",
     },
     {
       "agentName": null,
@@ -683,6 +1077,7 @@ Usage tips:
 - The search engine understands natural language and context — more descriptive queries yield better results.
 - You can provide multiple search queries to look for different topics simultaneously (e.g., ["monthly revenue", "user acquisition trends"]).
 - Pass spaceSlug to search only inside that space and its descendants.
+- verifiedOnly=true searches only admin-verified charts/dashboards (spaces omitted). Verification is a status, not text — search topic keywords, never the word "verified". If nothing verified matches, the result is empty; verified content may still exist under other terms, so never claim the project has none from one query. Re-run with verifiedOnly=false only if unverified content is acceptable.
 - If results aren't relevant, retry with the full user query or more specific terms.
 - Dashboards with validation errors will be deprioritized.
 - Returns space breadcrumb/path metadata and chart/dashboard URLs when available.
@@ -692,6 +1087,16 @@ Usage tips:
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
           "searchQueries": {
             "items": {
               "additionalProperties": false,
@@ -712,9 +1117,17 @@ Usage tips:
             "description": "Optional space slug/path. Use null to search the whole project. When set, only content in this space and descendants is returned., ",
             "type": "string",
           },
+          "verifiedOnly": {
+            "description": "Set to true to search only admin-verified charts and dashboards. Null or false searches all content.",
+            "type": [
+              "boolean",
+              "null",
+            ],
+          },
         },
         "required": [
           "searchQueries",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -742,16 +1155,29 @@ Usage tips:
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
           "page": {
             "description": "Use this to paginate through the results. Starts at 1., ",
             "exclusiveMinimum": 0,
             "type": "number",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
           },
           "spaceSlug": {
             "description": "Optional space slug/path to list. Use null to list root-level content., ",
             "type": "string",
           },
         },
+        "required": [
+          "projectUuid",
+        ],
         "type": "object",
       },
       "name": "list_content",
@@ -770,6 +1196,16 @@ Usage tips:
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
           "slug": {
             "description": "Slug of the dashboard or chart to read.",
             "minLength": 1,
@@ -787,6 +1223,7 @@ Usage tips:
         "required": [
           "slug",
           "type",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -817,6 +1254,16 @@ Usage tips:
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
           "url": {
             "description": "The Lightdash URL to resolve, exactly as provided.",
             "minLength": 1,
@@ -825,6 +1272,7 @@ Usage tips:
         },
         "required": [
           "url",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -844,6 +1292,11 @@ Usage tips:
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
           "content": {
             "anyOf": [
               {
@@ -995,6 +1448,11 @@ Usage tips:
               },
             ],
           },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
           "type": {
             "description": "Type of Lightdash content to create.",
             "enum": [
@@ -1007,6 +1465,7 @@ Usage tips:
         "required": [
           "type",
           "content",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -1026,10 +1485,20 @@ Usage tips:
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
           "patch": {
             "description": "RFC6902 Patch objects array to apply to the current dashboard or chart JSON",
             "items": {},
             "type": "array",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
           },
           "slug": {
             "description": "Slug of the dashboard or chart to edit",
@@ -1049,6 +1518,7 @@ Usage tips:
           "slug",
           "type",
           "patch",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -1068,6 +1538,11 @@ Usage tips:
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
           "aiAugmentationPrompt": {
             "description": "Instructions for the AI-written delivery message, regenerated from the delivered data on every send. null = plain delivery without AI augmentation., ",
             "type": "string",
@@ -1127,6 +1602,11 @@ Usage tips:
           "name": {
             "description": "Human-readable delivery name.",
             "minLength": 1,
+            "type": "string",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
             "type": "string",
           },
           "resourceType": {
@@ -1201,6 +1681,7 @@ Usage tips:
           "format",
           "targets",
           "enabled",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -1215,7 +1696,172 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "List all accessible projects in the organization. Projects contain explores, fields, and content. Use this to discover available projects before calling set_project to select one as the active context for subsequent operations. Each project includes a "type": prefer DEFAULT projects, which are live production environments. PREVIEW projects are ephemeral CI/PR environments that may be decommissioned — their warehouse credentials are often gone, so queries can fail with 403 errors even when the schema is still visible. Only select a PREVIEW project if the user explicitly asks for it.",
+      "description": "Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. Pass the selected projectUuid to every project-scoped tool call and an available agentUuid when agent-specific scope is desired. This tool reports context but does not establish implicit execution state.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object",
+      },
+      "name": "get_context",
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "activeAgent": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "agentName": {
+                    "type": "string",
+                  },
+                  "agentUuid": {
+                    "type": "string",
+                  },
+                  "projectUuid": {
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "agentUuid",
+                  "agentName",
+                  "projectUuid",
+                ],
+                "type": "object",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
+          "activeProject": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "projectName": {
+                    "type": "string",
+                  },
+                  "projectUuid": {
+                    "type": "string",
+                  },
+                  "selectedTags": {
+                    "anyOf": [
+                      {
+                        "items": {
+                          "type": "string",
+                        },
+                        "type": "array",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                  },
+                },
+                "required": [
+                  "projectUuid",
+                  "projectName",
+                  "selectedTags",
+                ],
+                "type": "object",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
+          "availableProjects": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "availableAgents": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "agentUuid": {
+                        "type": "string",
+                      },
+                      "description": {
+                        "type": [
+                          "string",
+                          "null",
+                        ],
+                      },
+                      "name": {
+                        "type": "string",
+                      },
+                      "tags": {
+                        "anyOf": [
+                          {
+                            "items": {
+                              "type": "string",
+                            },
+                            "type": "array",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                      },
+                    },
+                    "required": [
+                      "agentUuid",
+                      "name",
+                      "description",
+                      "tags",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+                "expiresAt": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "name": {
+                  "type": "string",
+                },
+                "projectUuid": {
+                  "type": "string",
+                },
+                "type": {
+                  "type": "string",
+                },
+              },
+              "required": [
+                "projectUuid",
+                "name",
+                "type",
+                "expiresAt",
+                "availableAgents",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+        },
+        "required": [
+          "activeProject",
+          "activeAgent",
+          "availableProjects",
+        ],
+        "type": "object",
+      },
+      "title": "Get context",
+    },
+    {
+      "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+      },
+      "description": "List all accessible projects in the organization. Projects contain explores, fields, and content. Prefer get_context for bootstrap, then pass the selected projectUuid explicitly to every project-scoped operation. Each project includes a "type": prefer DEFAULT projects, which are live production environments. PREVIEW projects are ephemeral CI/PR environments that may be decommissioned — their warehouse credentials are often gone, so queries can fail with 403 errors even when the schema is still visible. Only select a PREVIEW project if the user explicitly asks for it.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
@@ -1233,7 +1879,7 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": false,
       },
-      "description": "Set the active project for all subsequent MCP operations. Most tools (list_explores, MCP schema-discovery tools, run_metric_query, etc.) require an active project. Setting a project clears any previously selected agent, since agents are scoped to a project. After setting a project, prefer route_agent to auto-select the best agent for each request; use list_agents and set_agent only for manual override.",
+      "description": "Set the configured project context. Most tools (list_explores, MCP schema-discovery tools, run_metric_query, etc.) also require its projectUuid explicitly. Setting a project clears any previously selected agent, since agents are scoped to a project. After setting a project, prefer route_agent to auto-select the best agent for each request and pass its returned agentUuid explicitly to subsequent scoped tools; use list_agents and set_agent only for manual override.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
@@ -1264,7 +1910,7 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Get the currently active project and its configuration. Returns the project UUID, name, and any selected tags. Use this to verify context before calling data tools.",
+      "description": "@deprecated Use get_context instead. Returns legacy shared project context for older clients.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
@@ -1272,7 +1918,7 @@ Usage tips:
         "type": "object",
       },
       "name": "get_current_project",
-      "title": "Get current project",
+      "title": "Get current project (deprecated)",
     },
     {
       "agentName": null,
@@ -1282,15 +1928,20 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "List accessible AI agents for the active project. Optionally filter by project UUID. Each agent is pre-configured with specific explores, tags, verified questions, and instructions that define its domain expertise. Prefer route_agent for automatic selection; use this tool when you need to inspect candidates or choose one manually before calling set_agent.",
+      "description": "List accessible AI agents for the required projectUuid. Each agent is pre-configured with specific explores, tags, verified questions, and instructions that define its domain expertise. Prefer route_agent for automatic selection.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
             "type": "string",
           },
         },
+        "required": [
+          "projectUuid",
+        ],
         "type": "object",
       },
       "name": "list_agents",
@@ -1304,12 +1955,14 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": false,
       },
-      "description": "Automatically select and activate the best AI agent for a user request within the active project. Call this at the start of each new user request after setting project context. Returns routing metadata plus the selected agent context; use set_agent only when you want to override the automatic choice manually.",
+      "description": "Select the best AI agent for a user request within the required projectUuid when agent-specific scope is useful and routing is available. Pass the returned agentUuid explicitly to subsequent scoped tools. If routing is unavailable, use list_agents and set_agent for manual selection; omit agentUuid when full project scope is desired. Also updates shared agent context for clients that use it.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
             "type": "string",
           },
           "prompt": {
@@ -1318,6 +1971,7 @@ Usage tips:
         },
         "required": [
           "prompt",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -1442,7 +2096,7 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": false,
       },
-      "description": "Manually set the active AI agent for the active project. Prefer route_agent for default automatic selection; use this when you need to override that choice explicitly. Returns the agent's full context including: explores it has access to, space restrictions, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Use this context to guide subsequent tool calls — prefer the agent's explores when calling MCP schema-discovery tools, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
+      "description": "Manually select an AI agent for the required projectUuid. Prefer route_agent for default automatic selection; use this when you need to override that choice explicitly. Returns the agent's full context including: explores it has access to, space restrictions, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Pass the agentUuid explicitly to subsequent scoped tools and use this context to guide them — prefer the agent's explores when calling MCP schema-discovery tools, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
@@ -1450,9 +2104,15 @@ Usage tips:
           "agentUuid": {
             "type": "string",
           },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
         },
         "required": [
           "agentUuid",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -1467,15 +2127,24 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": false,
       },
-      "description": "Clear the active AI agent from context. After clearing, tool calls will no longer be scoped to a specific agent's explores, tags, or instructions. The active project is preserved.",
+      "description": "@deprecated Omit agentUuid from scoped tool calls instead. Clears legacy shared agent context for older clients only.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
-        "properties": {},
+        "properties": {
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
+        },
+        "required": [
+          "projectUuid",
+        ],
         "type": "object",
       },
       "name": "clear_agent",
-      "title": "Clear agent",
+      "title": "Clear agent (deprecated)",
     },
     {
       "agentName": null,
@@ -1485,15 +2154,24 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Get the currently active AI agent with its full context: explores it has access to, space restrictions, verified questions (curated example queries), and custom instructions. The active agent is usually established by route_agent; use this to inspect the current automatic or manually overridden selection before making data queries.",
+      "description": "@deprecated Use get_context for legacy configured context or route_agent for an explicit agent selection.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
-        "properties": {},
+        "properties": {
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
+        },
+        "required": [
+          "projectUuid",
+        ],
         "type": "object",
       },
       "name": "get_current_agent",
-      "title": "Get current agent",
+      "title": "Get current agent (deprecated)",
     },
     {
       "agentName": "runQuery",
@@ -1504,6 +2182,8 @@ Usage tips:
         "readOnlyHint": true,
       },
       "description": "Execute a metric query.
+
+If any selected field is marked "requires parameters" in field discovery or metadata, set the right values in queryConfig.parameters — an unset parameter silently resolves to its default, which can make the query return data that does not match the question.
 
 This tool returns metric query data only. If the user asked for a visual, or if a chart would make the answer easier to understand than raw rows alone, call render_chart after run_metric_query returns done.
 
@@ -1537,6 +2217,11 @@ Notes:
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
           "chartConfig": {
             "additionalProperties": false,
             "description": ", ",
@@ -1620,6 +2305,11 @@ Notes:
           },
           "description": {
             "description": "A descriptive summary or explanation for the chart.",
+            "type": "string",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
             "type": "string",
           },
           "queryConfig": {
@@ -4564,6 +5254,40 @@ Example B — "Revenue by month with year-over-year comparison"
                 },
                 "type": "array",
               },
+              "parameters": {
+                "anyOf": [
+                  {
+                    "additionalProperties": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                        },
+                        {
+                          "type": "number",
+                        },
+                        {
+                          "items": {
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                        {
+                          "items": {
+                            "type": "number",
+                          },
+                          "type": "array",
+                        },
+                      ],
+                    },
+                    "type": "object",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+                "default": null,
+                "description": "Lightdash parameter values for this query, keyed by parameter name exactly as shown in the explore metadata (e.g. {"orders.metric": "active_users"}). REQUIRED whenever a selected field is marked "requires parameters" and the default value does not match what the user asked for — an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.",
+              },
               "sorts": {
                 "description": "Sort configuration for the query, it can use a combination of metrics and dimensions.",
                 "items": {
@@ -5030,6 +5754,7 @@ Empty array or null: single partition (calculations across all rows)., ",
           "title",
           "description",
           "queryConfig",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -5147,6 +5872,11 @@ Response shape (MCP CallToolResult):
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
           "chartConfig": {
             "additionalProperties": false,
             "description": ", ",
@@ -5232,6 +5962,11 @@ Response shape (MCP CallToolResult):
             "description": "Optional chart description used in the saved Explore URL.",
             "type": "string",
           },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
           "queryUuid": {
             "description": "Completed query UUID returned by run_metric_query (or get_query_result) in this conversation, copied from the \`queryUuid: <id>\` text block of that response. Do not fabricate, guess, or reuse a UUID from another query. Currently render_chart supports UUIDs from run_metric_query and does not support SQL Runner/run_sql UUIDs.",
             "format": "uuid",
@@ -5244,6 +5979,7 @@ Response shape (MCP CallToolResult):
         },
         "required": [
           "queryUuid",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -5317,6 +6053,11 @@ Usage Tips:
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
           "fieldId": {
             "description": "The ID of the field to search values for "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
             "type": "string",
@@ -7250,6 +7991,11 @@ Usage Tips:
             ],
             "type": "object",
           },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
           "query": {
             "description": "Query string to filter field values, Query string to filter field values",
             "type": "string",
@@ -7262,6 +8008,7 @@ Usage Tips:
         "required": [
           "table",
           "fieldId",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -7329,6 +8076,11 @@ Notes:
             "maximum": 500,
             "type": "integer",
           },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
           "sql": {
             "description": "The SQL query to execute against the data warehouse.",
             "type": "string",
@@ -7336,6 +8088,7 @@ Notes:
         },
         "required": [
           "sql",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -7462,6 +8215,16 @@ Notes:
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
           "queryUuid": {
             "description": "Async query UUID returned by the query tool.",
             "format": "uuid",
@@ -7470,6 +8233,7 @@ Notes:
         },
         "required": [
           "queryUuid",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -7644,11 +8408,25 @@ Notes:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "List all verified charts and dashboards in the active project. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Requires an active project set via set_project. Each item includes contentType (chart or dashboard), contentUuid, name, description, space, view count, last update time, and verification metadata (who verified it and when); charts also include chartKind and exploreName. To learn the full structure of a verified item (dimensions, metrics, filters), drill into it with find_content or MCP schema-discovery tools on its explore.",
+      "description": "List all verified charts and dashboards in the required projectUuid. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Each item includes contentType (chart or dashboard), contentUuid, name, description, space, view count, last update time, and verification metadata (who verified it and when); charts also include chartKind and exploreName. To learn the full structure of a verified item (dimensions, metrics, filters), drill into it with find_content or MCP schema-discovery tools on its explore.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
-        "properties": {},
+        "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
+        },
+        "required": [
+          "projectUuid",
+        ],
         "type": "object",
       },
       "name": "list_verified_content",
@@ -8055,6 +8833,11 @@ Response shape (MCP CallToolResult):
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
           "prompt": {
             "description": "A clear, self-contained description of the change to make to the dbt project that backs the active Lightdash project. If the project has more than one dbt source, name the intended one here (e.g. "In jaffle-2, add ...") — a later get_ai_writeback_status call reports whether the run could tell which source you meant.",
             "minLength": 1,
@@ -8063,6 +8846,7 @@ Response shape (MCP CallToolResult):
         },
         "required": [
           "prompt",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -8138,9 +8922,15 @@ Response shape (MCP CallToolResult):
             "format": "uuid",
             "type": "string",
           },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
         },
         "required": [
           "aiWritebackRunUuid",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -8183,8 +8973,6 @@ Response shape (MCP CallToolResult):
 
 exports[`MCP tool contracts > matches the shared MCP tool definition names snapshot 1`] = `
 [
-  "find_explores",
-  "find_fields",
   "find_content",
   "search_field_values",
   "run_metric_query",
@@ -8205,6 +8993,7 @@ exports[`MCP tool contracts > matches the shared MCP tool definition names snaps
   "read_skill",
   "read_skill_resource",
   "list_projects",
+  "get_context",
   "set_project",
   "get_current_project",
   "list_agents",

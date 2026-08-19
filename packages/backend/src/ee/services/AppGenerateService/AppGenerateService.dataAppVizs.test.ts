@@ -74,6 +74,9 @@ function buildService(
         lightdashConfig: {
             lightdashSecret: 'test-secret',
             lightdashSecrets: testLightdashSecrets,
+            // No app-runtime storage configured, so the bundle-existence
+            // check fails open and metadata comes from the DB alone.
+            appRuntime: { s3: null },
         } as never,
         analytics: {} as never,
         analyticsModel: {} as never,
@@ -332,6 +335,114 @@ describe('AppGenerateService data app vizs', () => {
                 'not-a-data-app-viz',
             ),
         ).rejects.toThrow(NotFoundError);
+    });
+
+    describe('reading a schema at a version', () => {
+        // The options a version declares live on that version's row, so an
+        // older one describes a different chart than the latest ready.
+        const olderSchema: DataAppVizSchema = {
+            fields: [
+                {
+                    name: 'category',
+                    label: 'Category',
+                    type: 'dimension',
+                    required: true,
+                },
+            ],
+            configOptions: [
+                {
+                    name: 'showLegend',
+                    label: 'Show legend',
+                    type: 'boolean',
+                    default: true,
+                },
+            ],
+            colorPalette: null,
+        };
+
+        const olderVersionRow = (overrides: Record<string, unknown> = {}) => ({
+            app_version_id: 'app-version-2',
+            app_id: 'data-app-viz-1',
+            version: 2,
+            prompt: 'add a legend toggle',
+            status: 'ready',
+            error: null,
+            status_message: null,
+            status_history: [],
+            status_updated_at: new Date('2026-06-30'),
+            resources: null,
+            dependencies: null,
+            viz_schema: olderSchema,
+            generation_usage: null,
+            created_at: new Date('2026-06-30'),
+            created_by_user_uuid: 'user-1',
+            ...overrides,
+        });
+
+        it('answers with the asked-for version schema, not the latest ready one', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi.fn().mockResolvedValue(olderVersionRow()),
+            };
+            const service = buildService(appModel);
+
+            const result = await service.getDataAppVisualization(
+                USER,
+                'project-1',
+                'data-app-viz-1',
+                2,
+            );
+
+            expect(appModel.getVersion).toHaveBeenCalledWith(
+                'data-app-viz-1',
+                2,
+            );
+            expect(result.schema).toEqual(olderSchema);
+        });
+
+        it('answers with the latest ready schema when no version is asked for', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi.fn(),
+            };
+            const service = buildService(appModel);
+
+            const result = await service.getDataAppVisualization(
+                USER,
+                'project-1',
+                'data-app-viz-1',
+            );
+
+            expect(appModel.getVersion).not.toHaveBeenCalled();
+            expect(result.schema).toEqual(vizSchema);
+        });
+
+        it('404s a version that never became renderable', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi
+                    .fn()
+                    .mockResolvedValue(
+                        olderVersionRow({ status: 'error', viz_schema: null }),
+                    ),
+            };
+            const service = buildService(appModel);
+
+            await expect(
+                service.getDataAppVisualization(
+                    USER,
+                    'project-1',
+                    'data-app-viz-1',
+                    2,
+                ),
+            ).rejects.toThrow(NotFoundError);
+        });
     });
 
     describe('viz-only render metadata', () => {
@@ -825,5 +936,55 @@ describe('AppGenerateService data app vizs', () => {
 
         expect(res.versions[0].resources?.vizSchema).toEqual(vizSchema);
         expect(res.versions[1].resources?.vizSchema ?? null).toBeNull();
+    });
+});
+
+describe('moving a viz into a space', () => {
+    it('rejects moveToSpace for viz-template apps before any access checks', async () => {
+        const appModel = {
+            getApp: vi.fn().mockResolvedValue(makeDataAppVizRow()),
+            moveToSpace: vi.fn(),
+        };
+        const service = buildService(appModel);
+
+        await expect(
+            service.moveToSpace(USER, {
+                projectUuid: 'project-1',
+                itemUuid: 'data-app-viz-1',
+                targetSpaceUuid: 'space-1',
+            }),
+        ).rejects.toThrow('Custom chart types cannot be moved into spaces');
+        expect(appModel.moveToSpace).not.toHaveBeenCalled();
+    });
+
+    it('still moves standalone apps', async () => {
+        const appModel = {
+            getApp: vi.fn().mockResolvedValue(
+                makeDataAppVizRow({
+                    template: null,
+                    space_uuid: 'space-0',
+                }),
+            ),
+            moveToSpace: vi.fn().mockResolvedValue(undefined),
+        };
+        const service = buildService(appModel);
+
+        await service.moveToSpace(
+            USER,
+            {
+                projectUuid: 'project-1',
+                itemUuid: 'data-app-viz-1',
+                targetSpaceUuid: 'space-1',
+            },
+            { trackEvent: false },
+        );
+        expect(appModel.moveToSpace).toHaveBeenCalledWith(
+            {
+                appId: 'data-app-viz-1',
+                projectUuid: 'project-1',
+                targetSpaceUuid: 'space-1',
+            },
+            { tx: undefined },
+        );
     });
 });

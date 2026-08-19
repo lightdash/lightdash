@@ -24,6 +24,12 @@ import useUser from '../../../../../hooks/user/useUser';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { subscribeToDeepResearchComposerPrompt } from '../../deepResearch/deepResearchRegistry';
+import {
+    canShowDeepResearchNudge,
+    dismissDeepResearchNudgeForSession,
+    isDeepResearchDraft,
+    markDeepResearchNudgeShown,
+} from '../../deepResearch/draftNudge';
 import { type StartDeepResearchArgs } from '../../deepResearch/types';
 import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
 import { useAgentSuggestions } from '../../hooks/useAgentSuggestions';
@@ -113,6 +119,7 @@ interface AgentChatInputProps {
     revealControlsOnFocus?: boolean;
     // Shrinks padding/min-heights for a more compact composer.
     dense?: boolean;
+    showDeepResearchBelowComposer?: boolean;
 }
 
 const extractToolHints = (editor: Editor | null): string[] => {
@@ -158,6 +165,7 @@ export const AgentChatInput = ({
     contentMentionPriorityItems = [],
     revealControlsOnFocus = false,
     dense = false,
+    showDeepResearchBelowComposer = false,
 }: AgentChatInputProps) => {
     const user = useUser(true);
     const [value, setValueState] = useState(defaultValue ?? '');
@@ -168,6 +176,11 @@ export const AgentChatInput = ({
         if (revealControlsOnFocus) setHasClickedInput(true);
     }, [revealControlsOnFocus]);
     const [composerMode, setComposerMode] = useState<AgentComposerMode>('ask');
+    // 'idle' → watching the draft; 'shown' → pulsing; 'done' → over for this
+    // composer instance.
+    const [nudgeState, setNudgeState] = useState<'idle' | 'shown' | 'done'>(
+        'idle',
+    );
     const navigate = useNavigate();
     const onSubmitRef = useRef(onSubmit);
     onSubmitRef.current = onSubmit;
@@ -487,6 +500,12 @@ export const AgentChatInput = ({
             return;
         }
         if (loading) return;
+        // Sending an investigative draft in plain chat while the nudge is up
+        // is an implicit "no thanks" — stop nudging for the whole session.
+        if (nudgeState === 'shown') {
+            dismissDeepResearchNudgeForSession();
+            setNudgeState('done');
+        }
         onSubmitRef.current({
             message: text,
             toolHints: extractToolHints(ed),
@@ -534,25 +553,59 @@ export const AgentChatInput = ({
         }
     }, [canStartDeepResearch, hasActiveDeepResearchRun]);
 
-    const deepResearchControl = canStartDeepResearch ? (
-        <DeepResearchModeControl
-            mode={composerMode}
-            onModeChange={setComposerMode}
-            disabled={hasActiveDeepResearchRun}
-            disabledReason={ACTIVE_DEEP_RESEARCH_DISABLED_REASON}
-        />
-    ) : null;
-    const compactDeepResearchControl = canStartDeepResearch ? (
-        <DeepResearchModeControl
-            mode={composerMode}
-            onModeChange={setComposerMode}
-            disabled={hasActiveDeepResearchRun}
-            disabledReason={ACTIVE_DEEP_RESEARCH_DISABLED_REASON}
-            iconOnly
-            actionSize="sm"
-            iconSize={14}
-        />
-    ) : null;
+    // Pulse once per scope (thread or new-thread composer) when the draft
+    // first reads as investigative; a session-wide dismissal (set when the
+    // user sends such a draft without enabling Deep Research) silences it
+    // everywhere.
+    const nudgeScope = threadUuid ?? 'new-thread';
+    useEffect(() => {
+        if (nudgeState !== 'idle') return;
+        if (!canStartDeepResearch || hasActiveDeepResearchRun || disabled) {
+            return;
+        }
+        if (!isDeepResearchDraft(value)) return;
+        if (!canShowDeepResearchNudge(nudgeScope)) {
+            setNudgeState('done');
+            return;
+        }
+        markDeepResearchNudgeShown(nudgeScope);
+        setNudgeState('shown');
+    }, [
+        nudgeState,
+        value,
+        canStartDeepResearch,
+        hasActiveDeepResearchRun,
+        disabled,
+        nudgeScope,
+    ]);
+    const showDeepResearchNudge =
+        nudgeState === 'shown' && isDeepResearchDraft(value);
+
+    const shouldShowDeepResearchBelowComposer =
+        isThreadInput || showDeepResearchBelowComposer;
+    const deepResearchControl =
+        canStartDeepResearch && !shouldShowDeepResearchBelowComposer ? (
+            <DeepResearchModeControl
+                mode={composerMode}
+                onModeChange={setComposerMode}
+                disabled={hasActiveDeepResearchRun}
+                disabledReason={ACTIVE_DEEP_RESEARCH_DISABLED_REASON}
+                nudge={showDeepResearchNudge}
+            />
+        ) : null;
+    const compactDeepResearchControl =
+        canStartDeepResearch && shouldShowDeepResearchBelowComposer ? (
+            <DeepResearchModeControl
+                mode={composerMode}
+                onModeChange={setComposerMode}
+                disabled={hasActiveDeepResearchRun}
+                disabledReason={ACTIVE_DEEP_RESEARCH_DISABLED_REASON}
+                iconOnly
+                actionSize="sm"
+                iconSize={14}
+                nudge={showDeepResearchNudge}
+            />
+        ) : null;
     const chipRow = useMemo(() => {
         if (!emptyStateMode && !postResponseMode) return null;
         if (suggestionsQuery.isError) return null;
@@ -641,7 +694,7 @@ export const AgentChatInput = ({
         iconSize: number;
     }) => {
         if (
-            !isThreadInput ||
+            !shouldShowDeepResearchBelowComposer ||
             (!compactDeepResearchControl && !showSqlModeControl)
         ) {
             return null;
@@ -732,14 +785,14 @@ export const AgentChatInput = ({
                         variant="inline"
                         toolbarRight={
                             <Group gap={4} align="center" wrap="nowrap">
-                                {!isThreadInput && deepResearchControl}
+                                {deepResearchControl}
                                 {renderComposerAction('sm')}
                             </Group>
                         }
                     />
                 </Box>
 
-                {isThreadInput
+                {shouldShowDeepResearchBelowComposer
                     ? renderExternalModeControls({
                           actionSize: 'sm',
                           iconSize: 14,
@@ -785,7 +838,7 @@ export const AgentChatInput = ({
                 className={styles.agentComposer}
                 onMouseDown={handleInputCardMouseDown}
                 toolbarLeft={
-                    !isThreadInput &&
+                    !shouldShowDeepResearchBelowComposer &&
                     renderSqlModeControl({
                         actionSize: 30,
                         iconSize: 15,
@@ -793,14 +846,13 @@ export const AgentChatInput = ({
                 }
                 toolbarRight={
                     <Group gap="xs" align="center" wrap="nowrap">
-                        {((!isThreadInput && deepResearchControl) ||
-                            showAgentSelector) && (
+                        {(deepResearchControl || showAgentSelector) && (
                             <Box
                                 className={styles.controlsReveal}
                                 data-visible={hasClickedInput}
                             >
                                 <Group gap="xs" align="center" wrap="nowrap">
-                                    {!isThreadInput && deepResearchControl}
+                                    {deepResearchControl}
 
                                     {showAgentSelector && (
                                         <AgentSelector

@@ -235,6 +235,16 @@ export class BigquerySqlBuilder extends WarehouseBaseSqlBuilder {
         return `TIMESTAMP('${date.toISOString()}')`;
     }
 
+    castToDate(date: Date): string {
+        // BigQuery does not coerce between DATE and TIMESTAMP
+        return `DATE '${date.toISOString().slice(0, 10)}'`;
+    }
+
+    castToNaiveTimestamp(date: Date): string {
+        // DATETIME is BigQuery's zoneless timestamp type
+        return `DATETIME '${date.toISOString().slice(0, 19).replace('T', ' ')}'`;
+    }
+
     getIntervalSql(value: number, unit: TimeIntervalUnit): string {
         // BigQuery uses INTERVAL with value and keyword unit (no quotes)
         const unitStr = BigquerySqlBuilder.intervalUnitsSingular[unit];

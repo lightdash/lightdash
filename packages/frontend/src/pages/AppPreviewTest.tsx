@@ -12,6 +12,7 @@ import AppIframePreview, {
 import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
+import { getVisiblePreviewTokenError } from '../features/apps/hooks/previewTokenQueryOptions';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
@@ -195,17 +196,18 @@ export default function AppPreviewTest() {
         return <div>Missing route params</div>;
     }
 
-    const error = appQuery.error ?? tokenError;
+    const visibleTokenError = getVisiblePreviewTokenError(tokenError, !!token);
+    const error = appQuery.error ?? visibleTokenError;
 
     const isForbidden =
         appQuery.error?.error?.statusCode === 403 ||
-        tokenError?.error?.statusCode === 403;
+        visibleTokenError?.error?.statusCode === 403;
     if (isForbidden) {
         return <ForbiddenPanel />;
     }
     const isNotFound =
         appQuery.error?.error?.statusCode === 404 ||
-        tokenError?.error?.statusCode === 404;
+        visibleTokenError?.error?.statusCode === 404;
     if (isNotFound) {
         return (
             <Box mt="30vh">
@@ -265,7 +267,7 @@ export default function AppPreviewTest() {
                 description="There's no ready version of this app to preview yet."
             />
         );
-    } else if (isTokenLoading || !previewUrl) {
+    } else if (isTokenLoading || !previewUrl || !token) {
         body = <SuboptimalState loading title="Loading app..." />;
     } else {
         body = (
@@ -273,6 +275,7 @@ export default function AppPreviewTest() {
                 <AppIframePreview
                     ref={previewRef}
                     src={previewUrl}
+                    previewToken={token}
                     expectedPreviewOrigin={previewOrigin}
                     projectUuid={projectUuid}
                     appUuid={appUuid}

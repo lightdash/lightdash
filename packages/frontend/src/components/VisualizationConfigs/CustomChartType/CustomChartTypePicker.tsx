@@ -1,6 +1,5 @@
 import { getAppDisplayName, type DataAppViz } from '@lightdash/common';
 import {
-    Badge,
     Box,
     CloseButton,
     Combobox,
@@ -12,10 +11,9 @@ import {
     useCombobox,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import { IconPlus, IconPuzzle } from '@tabler/icons-react';
+import { IconLayoutGrid, IconPlus, IconPuzzle } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
-import { type DataAppVizDraftOption } from '../../../features/apps/dataAppVizDraft';
-import { useDataAppVisualizations } from '../../../features/apps/hooks/useDataAppVisualizations';
+import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/useDataAppVisualizations';
 import MantineIcon from '../../common/MantineIcon';
 import {
     BUILT_IN_GROUP,
@@ -30,37 +28,33 @@ import {
 type Props = {
     projectUuid: string;
     /** What the chart is on now: Vega, one of the project's types, or nothing
-     *  yet while a new type is being described. */
+     *  selected yet. */
     selected: CustomChartTypeOption | null;
     /** The selected project type, so its label survives a filtered page. */
     selectedDataAppViz: DataAppViz | null;
     disabled: boolean;
-    /** A build in flight, listed under Project until it lands. */
-    draft: DataAppVizDraftOption | null;
     onSelectVega: () => void;
     /** Receives the whole viz so the caller can bind its contract without
      *  waiting on a fetch for the newly selected uuid. */
     onSelectProjectType: (dataAppViz: DataAppViz) => void;
-    onSelectDraft: () => void;
-    /** Clearing selects nothing, which is what asks for a new type. Null where
-     *  that is not on offer, since landing there without the composer would
-     *  strand the chart on no visualization at all. */
+    /** Null where an empty selection is not a state the caller can be left in. */
     onClear: (() => void) | null;
+    /** Opens the chart type builder; null hides the create action. */
+    onCreateNew: (() => void) | null;
+    /** Opens the chart type gallery; null hides the action. */
+    onBrowseGallery: (() => void) | null;
 };
 
 type CustomChartTypeItem = {
     value: string;
     label: string;
     description: string;
-    isBuilding: boolean;
 };
 
-const DRAFT_LABEL = 'Untitled chart type';
-
-/** Not a chart type: picking it clears the selection, and nothing selected is
- *  what puts the composer on screen. */
 const CREATE_NEW_CHART_TYPE_OPTION_VALUE = '__create_new_chart_type__';
 const CREATE_LABEL = 'Create new chart type';
+const BROWSE_GALLERY_OPTION_VALUE = '__browse_gallery__';
+const BROWSE_LABEL = 'Browse the gallery';
 
 const fieldSummary = (dataAppViz: DataAppViz): string => {
     const count = dataAppViz.schema?.fields.length ?? 0;
@@ -74,14 +68,12 @@ const toItem = (dataAppViz: DataAppViz): CustomChartTypeItem => ({
     }),
     label: getAppDisplayName(dataAppViz.name, dataAppViz.dataAppVizUuid),
     description: dataAppViz.description || fieldSummary(dataAppViz),
-    isBuilding: false,
 });
 
 const VEGA_ITEM: CustomChartTypeItem = {
     value: toOptionValue({ kind: 'builtInVega' }),
     label: BUILT_IN_VEGA_LABEL,
     description: BUILT_IN_VEGA_DESCRIPTION,
-    isBuilding: false,
 };
 
 const matchesSearch = (item: CustomChartTypeItem, search: string): boolean =>
@@ -93,9 +85,6 @@ const matchesSearch = (item: CustomChartTypeItem, search: string): boolean =>
  * keeps the main chart type menu down to a single "Custom" entry, and what lets
  * a future custom chart source be added without renaming anything.
  *
- * Creating is offered as an action rather than a type: it clears the selection,
- * and nothing selected is what puts the composer on screen.
- *
  * Project search is server-side (debounced) so it scales past the first page;
  * the built-in group is filtered locally against the same term.
  */
@@ -104,11 +93,11 @@ const CustomChartTypePicker: FC<Props> = ({
     selected,
     selectedDataAppViz,
     disabled,
-    draft,
     onSelectVega,
     onSelectProjectType,
-    onSelectDraft,
     onClear,
+    onCreateNew,
+    onBrowseGallery,
 }) => {
     const combobox = useCombobox({
         onDropdownClose: () => combobox.resetSelectedOption(),
@@ -118,26 +107,17 @@ const CustomChartTypePicker: FC<Props> = ({
     // falling back to the label there is what made the text undeletable.
     const [search, setSearch] = useState<string | null>(null);
 
-    const isOnDraft =
-        draft !== null &&
-        selected?.kind === 'projectType' &&
-        selected.dataAppVizUuid === draft.dataAppVizUuid;
-
-    // A build in flight has no visualization to name yet, so the draft names
-    // itself — otherwise the field falls back to its placeholder and reads as
-    // though nothing is happening.
-    const selectedLabel = isOnDraft
-        ? DRAFT_LABEL
-        : selected === null
-          ? null
-          : selected.kind === 'builtInVega'
-            ? BUILT_IN_VEGA_LABEL
-            : selectedDataAppViz
-              ? getAppDisplayName(
-                    selectedDataAppViz.name,
-                    selectedDataAppViz.dataAppVizUuid,
-                )
-              : null;
+    const selectedLabel =
+        selected === null
+            ? null
+            : selected.kind === 'builtInVega'
+              ? BUILT_IN_VEGA_LABEL
+              : selectedDataAppViz
+                ? getAppDisplayName(
+                      selectedDataAppViz.name,
+                      selectedDataAppViz.dataAppVizUuid,
+                  )
+                : null;
     // The selected label is shown by the input rather than held in `search`, so
     // an empty search means the whole list, not a query for the current label.
     const [debouncedSearch] = useDebouncedValue(search ?? '', 300);
@@ -176,19 +156,8 @@ const CustomChartTypePicker: FC<Props> = ({
         ) {
             items.unshift(toItem(selectedDataAppViz));
         }
-        if (draft) {
-            items.unshift({
-                value: toOptionValue({
-                    kind: 'projectType',
-                    dataAppVizUuid: draft.dataAppVizUuid,
-                }),
-                label: DRAFT_LABEL,
-                description: 'Building… available when ready',
-                isBuilding: true,
-            });
-        }
         return items;
-    }, [data?.pages, selectedDataAppViz, draft]);
+    }, [data?.pages, selectedDataAppViz]);
 
     const builtInItems = matchesSearch(VEGA_ITEM, debouncedSearch)
         ? [VEGA_ITEM]
@@ -201,17 +170,17 @@ const CustomChartTypePicker: FC<Props> = ({
         // the query that found it sitting there.
         setSearch(null);
         if (value === CREATE_NEW_CHART_TYPE_OPTION_VALUE) {
-            onClear?.();
+            onCreateNew?.();
+            return;
+        }
+        if (value === BROWSE_GALLERY_OPTION_VALUE) {
+            onBrowseGallery?.();
             return;
         }
         const option = fromOptionValue(value);
         if (!option) return;
         if (option.kind === 'builtInVega') {
             onSelectVega();
-            return;
-        }
-        if (option.dataAppVizUuid === draft?.dataAppVizUuid) {
-            onSelectDraft();
             return;
         }
         const picked = dataAppVizsByUuid.get(option.dataAppVizUuid);
@@ -225,14 +194,7 @@ const CustomChartTypePicker: FC<Props> = ({
             active={item.value === (selected ? toOptionValue(selected) : null)}
         >
             <Box>
-                <Group gap="xs" wrap="nowrap">
-                    <Text size="sm">{item.label}</Text>
-                    {item.isBuilding && (
-                        <Badge size="xs" variant="light" radius="sm">
-                            Building
-                        </Badge>
-                    )}
-                </Group>
+                <Text size="sm">{item.label}</Text>
                 <Text size="xs" c="dimmed" lineClamp={2}>
                     {item.description}
                 </Text>
@@ -242,28 +204,25 @@ const CustomChartTypePicker: FC<Props> = ({
 
     const isClearable = onClear !== null && selected !== null && !disabled;
 
-    const decoration = isOnDraft ? (
-        <Badge size="xs" variant="light" radius="sm">
-            Building
-        </Badge>
-    ) : isFetching && !isInitialLoading ? (
-        <Loader size={14} />
-    ) : isClearable ? (
-        <CloseButton
-            size="sm"
-            variant="transparent"
-            aria-label="Clear custom chart type"
-            // The input's blur would close the dropdown and swallow the click.
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={() => {
-                setSearch(null);
-                combobox.closeDropdown();
-                onClear();
-            }}
-        />
-    ) : (
-        <Combobox.Chevron />
-    );
+    const decoration =
+        isFetching && !isInitialLoading ? (
+            <Loader size={14} />
+        ) : isClearable ? (
+            <CloseButton
+                size="sm"
+                variant="transparent"
+                aria-label="Clear custom chart type"
+                // The input's blur would close the dropdown and swallow the click.
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                    setSearch(null);
+                    combobox.closeDropdown();
+                    onClear();
+                }}
+            />
+        ) : (
+            <Combobox.Chevron />
+        );
 
     return (
         <Combobox store={combobox} onOptionSubmit={handleSubmit}>
@@ -274,9 +233,6 @@ const CustomChartTypePicker: FC<Props> = ({
                     placeholder="Search custom chart types…"
                     leftSection={<MantineIcon icon={IconPuzzle} />}
                     rightSection={decoration}
-                    // The default section is sized for an icon, which clips the
-                    // badge to "Bu…".
-                    rightSectionWidth={isOnDraft ? 70 : undefined}
                     rightSectionPointerEvents={isClearable ? 'auto' : 'none'}
                     onChange={(event) => {
                         setSearch(event.currentTarget.value);
@@ -314,20 +270,34 @@ const CustomChartTypePicker: FC<Props> = ({
                         )}
                     </ScrollArea.Autosize>
 
-                    {/* Pinned below the list: an action, not a chart type, and
-                        finding nothing is exactly when it is wanted. */}
-                    {onClear !== null && (
+                    {/* Actions, not chart types; wanted even when the search
+                        finds nothing. */}
+                    {(onCreateNew !== null || onBrowseGallery !== null) && (
                         <Combobox.Footer>
-                            <Combobox.Option
-                                value={CREATE_NEW_CHART_TYPE_OPTION_VALUE}
-                            >
-                                <Group gap="xs" wrap="nowrap">
-                                    <MantineIcon icon={IconPlus} />
-                                    <Text size="sm" truncate="end">
-                                        {CREATE_LABEL}
-                                    </Text>
-                                </Group>
-                            </Combobox.Option>
+                            {onCreateNew !== null && (
+                                <Combobox.Option
+                                    value={CREATE_NEW_CHART_TYPE_OPTION_VALUE}
+                                >
+                                    <Group gap="xs" wrap="nowrap">
+                                        <MantineIcon icon={IconPlus} />
+                                        <Text size="sm" truncate="end">
+                                            {CREATE_LABEL}
+                                        </Text>
+                                    </Group>
+                                </Combobox.Option>
+                            )}
+                            {onBrowseGallery !== null && (
+                                <Combobox.Option
+                                    value={BROWSE_GALLERY_OPTION_VALUE}
+                                >
+                                    <Group gap="xs" wrap="nowrap">
+                                        <MantineIcon icon={IconLayoutGrid} />
+                                        <Text size="sm" truncate="end">
+                                            {BROWSE_LABEL}
+                                        </Text>
+                                    </Group>
+                                </Combobox.Option>
+                            )}
                         </Combobox.Footer>
                     )}
                 </Combobox.Options>

@@ -19,7 +19,7 @@ import {
 import { SettingsPage } from '../../../../../../components/common/Settings/SettingsPage';
 import { isDeepResearchBeta } from '../../../deepResearch/deepResearchBeta';
 import {
-    useAiOrganizationSettings,
+    useAiOrganizationAdminSettings,
     useUpdateAiOrganizationSettings,
 } from '../../../hooks/useAiOrganizationSettings';
 
@@ -193,7 +193,7 @@ export const AiDeepResearchSettingsPage = () => {
         isError,
         error,
         refetch,
-    } = useAiOrganizationSettings();
+    } = useAiOrganizationAdminSettings();
 
     if (!isInitialLoading && !isError && settings) {
         return (

@@ -23,6 +23,9 @@ import {
     Filters,
     ItemsMap,
     KnexPaginateArgs,
+    MergeQuery,
+    MetricQuery,
+    ParameterDefinitions,
     ParametersValuesMap,
     PreviewDeploySetupResult,
     ProjectType,
@@ -61,6 +64,11 @@ export type AiAgentRequiredFilterMetadata = {
 };
 
 export type ListExploresFn = () => Promise<Explore[]>;
+
+// Project-level parameter definitions (the project_parameters table);
+// model-level definitions live on the explores themselves.
+export type GetProjectParameterDefinitionsFn =
+    () => Promise<ParameterDefinitions>;
 
 export type FindExploresFn = (args: {
     fieldSearchSize: number;
@@ -207,6 +215,7 @@ export type FindContentResult =
 export type FindContentFn = (args: {
     searchQuery: ToolFindContentArgs['searchQueries'][number];
     spaceSlug: ToolFindContentArgs['spaceSlug'];
+    verifiedOnly: boolean;
 }) => Promise<{
     content: FindContentResult[];
 }>;
@@ -377,6 +386,17 @@ export type RunAsyncQueryFn = (
     fields: ItemsMap;
 }>;
 
+export type RunAsyncMergeQueryFn = (
+    mergeQuery: MergeQuery,
+    parameters?: ParametersValuesMap,
+) => Promise<{
+    queryUuid: string;
+    rows: Record<string, AnyType>[];
+    cacheMetadata: CacheMetadata;
+    fields: ItemsMap;
+    metricQuery: MetricQuery;
+}>;
+
 export type RunSavedChartQueryFn = (args: {
     chartUuid: string;
     dashboardSlug: string | null;
@@ -467,7 +487,10 @@ export type SearchFieldValuesFn = (args: {
     fieldId: string;
     query: string;
     filters?: Filters;
-}) => Promise<Array<string | number | boolean>>;
+}) => Promise<
+    | Array<string | number | boolean>
+    | { results: Array<string | number | boolean>; note: string }
+>;
 
 export type CreateOrUpdateArtifactFn = (data: {
     threadUuid: string;
@@ -496,9 +519,11 @@ export type ListWarehouseTablesFn = () => Promise<WarehouseTablesCatalog>;
 export type DescribeWarehouseTableFn = (args: {
     table: string;
     schema?: string;
+    database?: string;
 }) => Promise<{
     columns: Array<{ name: string; type: string }>;
     resolvedSchema: string | null;
+    resolvedDatabase: string | null;
 }>;
 
 export type ListKnowledgeDocumentsFn = () => Promise<AiAgentDocumentSummary[]>;

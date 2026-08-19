@@ -1,0 +1,20 @@
+/* Clicks and hovers belong to whatever hosts the preview. */
+.root {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+/* Absolutely positioned so the unscaled layout width doesn't feed back into
+   the host's own flex sizing and balloon it to the natural width. */
+.scaled {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--preview-natural-width);
+    height: var(--preview-natural-height);
+    transform: scale(var(--preview-scale));
+    transform-origin: top left;
+}

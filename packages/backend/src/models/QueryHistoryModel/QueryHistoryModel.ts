@@ -77,6 +77,7 @@ function convertDbQueryHistoryToQueryHistory(
         columns: queryHistory.columns,
         originalColumns: queryHistory.original_columns,
         preAggregateCompiledSql: queryHistory.pre_aggregate_compiled_sql,
+        preAggregateExecution: queryHistory.pre_aggregate_execution,
         processingStartedAt: queryHistory.processing_started_at,
     };
 }
@@ -168,6 +169,7 @@ export class QueryHistoryModel {
             | 'resultsExpiresAt'
             | 'columns'
             | 'preAggregateCompiledSql'
+            | 'preAggregateExecution'
             | 'processingStartedAt'
             | 'createdByAccount'
             | 'createdByUserUuid'
@@ -214,6 +216,7 @@ export class QueryHistoryModel {
                 // read pivotDetails.originalColumns for dashboard filters).
                 original_columns: queryHistory.originalColumns,
                 pre_aggregate_compiled_sql: null,
+                pre_aggregate_execution: null,
                 processing_started_at: null,
             })
             .returning('query_uuid');

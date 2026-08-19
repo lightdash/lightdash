@@ -6,6 +6,7 @@ import {
     LightdashError,
     OpenIdIdentityIssuerType,
     OpenIdUser,
+    OrganizationSsoProvider,
 } from '@lightdash/common';
 import {
     Issuer,
@@ -104,10 +105,22 @@ const createOpenIdUserFromProfile = (
     return openIdUser;
 };
 
+/**
+ * Identifies the per-org SSO method whose strategy authenticated a request, so
+ * the callback can confirm the IdP-asserted email domain is one that method is
+ * actually allowed to route. Absent for env-based single-tenant strategies,
+ * which are trusted instance-wide and carry no per-org whitelist.
+ */
+export type PerOrgSsoContext = {
+    organizationUuid: string;
+    provider: OrganizationSsoProvider;
+};
+
 export const genericOidcHandler =
     (
         issuerType: OpenIdUser['openId']['issuerType'],
         issuerOverride?: string,
+        perOrgSso?: PerOrgSsoContext,
     ): VerifyFunctionWithRequest =>
     async (req, issuer, profile, done) => {
         try {
@@ -122,6 +135,25 @@ export const genericOidcHandler =
             );
 
             if (openIdUser) {
+                if (perOrgSso) {
+                    const isAllowed = await req.services
+                        .getOrganizationSsoService()
+                        .isEmailDomainAllowedForOrgSso(
+                            openIdUser.openId.email,
+                            perOrgSso.organizationUuid,
+                            perOrgSso.provider,
+                        );
+                    if (!isAllowed) {
+                        Logger.error(
+                            `Authentication failed: OpenID email domain is not allowed for the authenticating SSO method (org ${perOrgSso.organizationUuid}, provider ${perOrgSso.provider}).`,
+                        );
+                        return done(null, false, {
+                            message:
+                                'Authentication failed: email domain is not allowed for this login method.',
+                        });
+                    }
+                }
+
                 const user = await req.services
                     .getUserService()
                     .loginWithOpenId(
@@ -218,6 +250,7 @@ export const createGenericOidcPassportStrategy = async () => {
  */
 export const createGenericOidcStrategyForConfig = async (
     config: GenericOidcSsoConfig,
+    organizationUuid?: string,
 ) => {
     const issuer = await Issuer.discover(config.metadataDocumentEndpoint);
 
@@ -242,6 +275,12 @@ export const createGenericOidcStrategyForConfig = async (
         genericOidcHandler(
             OpenIdIdentityIssuerType.GENERIC_OIDC,
             issuer.metadata.issuer,
+            organizationUuid
+                ? {
+                      organizationUuid,
+                      provider: OrganizationSsoProvider.GENERIC_OIDC,
+                  }
+                : undefined,
         ) as unknown as StrategyVerifyCallback<unknown>,
     );
 };

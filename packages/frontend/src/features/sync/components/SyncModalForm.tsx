@@ -29,9 +29,15 @@ type Props = {
     /** App syncs always write one tab per captured query — there's no single
      *  "first tab" to override, so the tab-name override doesn't apply. */
     isApp?: boolean;
+    supportsFilters?: boolean;
 };
 
-export const SyncModalForm: FC<Props> = ({ id, onSubmit, isApp = false }) => {
+export const SyncModalForm: FC<Props> = ({
+    id,
+    onSubmit,
+    isApp = false,
+    supportsFilters = false,
+}) => {
     const { activeProjectUuid } = useActiveProjectUuid();
     const { data: project } = useProject(activeProjectUuid);
 
@@ -87,6 +93,16 @@ export const SyncModalForm: FC<Props> = ({ id, onSubmit, isApp = false }) => {
                 </Input.Wrapper>
 
                 <SelectGoogleSheetButton />
+
+                {supportsFilters && (
+                    <Switch
+                        label="Show filters applied"
+                        description="Add a fixed three-row filter summary above the synced data"
+                        {...form.getInputProps('showFilters', {
+                            type: 'checkbox',
+                        })}
+                    />
+                )}
 
                 {isApp && (
                     <Text size="xs" c="ldGray.6">

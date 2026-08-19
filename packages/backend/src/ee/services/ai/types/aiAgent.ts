@@ -7,6 +7,7 @@ import {
     AiWritebackAttribution,
     ProjectContextEntry,
     WarehouseTypes,
+    type AgentSqlScope,
     type AiDeepResearchActivity,
     type AiDeepResearchExecutionContextSnapshot,
     type AiDeepResearchPhase,
@@ -46,11 +47,10 @@ import {
     ExploreRepoFn,
     FindContentFn,
     FindExploresFn,
-    FindFieldsFn,
     GetDashboardChartsFn,
-    GetExploreFn,
     GetKnowledgeDocumentContentFn,
     GetProjectInfoFn,
+    GetProjectParameterDefinitionsFn,
     GetPromptFn,
     GetPullRequestDiffFn,
     GetSavedChartFn,
@@ -68,6 +68,7 @@ import {
     ReadPinnedThreadFn,
     RecordSqlApprovalFn,
     ResolveUrlFn,
+    RunAsyncMergeQueryFn,
     RunAsyncQueryFn,
     RunSavedChartQueryFn,
     RunSqlJobFn,
@@ -159,6 +160,7 @@ export type AiAgentExecutionConfig =
           budget: AiDeepResearchBudget;
           canUseRawSql: boolean;
           initialTokenUsage: number;
+          resumeContext?: string;
           onStepUsage?: (
               usage: AiDeepResearchStepUsage,
           ) => void | Promise<void>;
@@ -219,10 +221,7 @@ export type AiAgentArgs = AnyAiModel & {
     writebackAttribution: AiWritebackAttribution | null;
     enablePreviewDeploySetup: boolean;
     enableRepoDiscovery: boolean;
-    // Experimental: swap the discoverFields sub-agent for a deterministic grep
-    // over the in-memory annotated explores (the `grepFields` tool). Gated by
-    // the `ai-grep-fields` feature flag.
-    enableGrepFields: boolean;
+    enableMergeQueries: boolean;
     // Whether the general-purpose coding agent (`editRepo`) is available — the
     // CodingAgent flag, the org has a writable Git installation, and (in Slack)
     // a trusted prompt identity. Independent of enableAiWriteback.
@@ -251,12 +250,11 @@ export type AiAgentArgs = AnyAiModel & {
     availableSkills: AiAgentSkillReference[];
     modelReasoningEnabled: boolean | null;
 
-    findExploresFieldSearchSize: number;
-    findFieldsPageSize: number;
     toolDescriptionMaxChars: number;
     getDashboardChartsPageSize: number;
     maxQueryLimit: number;
     runSqlMaxLimit: number;
+    sqlScope?: AgentSqlScope | null;
     /** Rows of a query result written into model context; the query keeps the rest. */
     maxContextRows: number;
     siteUrl: string;
@@ -284,6 +282,7 @@ export type PerformanceMetrics = {
 
 export type AiAgentDependencies = {
     listExplores: ListExploresFn;
+    getProjectParameterDefinitions: GetProjectParameterDefinitionsFn;
     // The whole cached project_context document.
     getProjectContextDocument: () => Promise<ProjectContextEntry[]>;
     getAiAgentMemoryContextEntries: () => Promise<MemorySearchEntry[]>;
@@ -302,11 +301,10 @@ export type AiAgentDependencies = {
     getDashboardCharts: GetDashboardChartsFn;
     findExplores: FindExploresFn;
     getVerifiedFieldUsage: GetVerifiedFieldUsageFn;
-    findFields: FindFieldsFn;
     searchSemanticLayer: SearchSemanticLayerFn;
     analyzeFieldImpact: AnalyzeFieldImpactFn;
-    getExplore: GetExploreFn;
     runAsyncQuery: RunAsyncQueryFn;
+    runAsyncMergeQuery: RunAsyncMergeQueryFn;
     runSavedChartQuery: RunSavedChartQueryFn;
     runSqlJob: RunSqlJobFn;
     listWarehouseTables: ListWarehouseTablesFn;

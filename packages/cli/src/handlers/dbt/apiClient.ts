@@ -12,7 +12,7 @@ import {
     type PossibleAbilities,
     type Project,
 } from '@lightdash/common';
-import fetch, { BodyInit } from 'node-fetch';
+import fetch, { BodyInit, type Response } from 'node-fetch';
 import { URL } from 'url';
 import { gzipSync } from 'zlib';
 import { getConfig } from '../../config';
@@ -27,6 +27,10 @@ type LightdashApiProps = {
     body: BodyInit | undefined;
 };
 
+type LightdashRawApiProps = LightdashApiProps & {
+    headers?: Record<string, string>;
+};
+
 const MIN_GZIP_SIZE = 1024;
 let gzipEnabled = false;
 
@@ -34,20 +38,49 @@ export const setGzipEnabled = (enabled: boolean) => {
     gzipEnabled = enabled;
 };
 
-export const lightdashApi = async <T extends ApiResponse['results']>({
+export const lightdashRawApi = async ({
     method,
     url,
     body,
-}: LightdashApiProps): Promise<T> => {
+    headers: requestHeaders = {},
+}: LightdashRawApiProps): Promise<Response> => {
     const config = await getConfig();
     if (!(config.context?.apiKey && config.context.serverUrl)) {
         throw new AuthorizationError(
             `Not logged in. Run 'lightdash login --help'`,
         );
     }
-    const headers = buildRequestHeaders(config.context.apiKey);
+    const headers = {
+        ...buildRequestHeaders(config.context.apiKey),
+        ...requestHeaders,
+    };
     const fullUrl = new URL(url, config.context.serverUrl).href;
     GlobalState.debug(`> Making HTTP ${method} request to: ${fullUrl}`);
+
+    const response = await fetch(fullUrl, { method, headers, body });
+    GlobalState.debug(`> HTTP request returned status: ${response.status}`);
+
+    if (!response.ok) {
+        const contentType = response.headers.get('content-type');
+        if (contentType?.includes('application/json')) {
+            const data = await response.json();
+            throw new LightdashError(data.error);
+        }
+        const responseText = await response.text();
+        throw new Error(
+            `Received non-JSON response from server (status ${response.status}): ${responseText}`,
+        );
+    }
+
+    return response;
+};
+
+export const lightdashApi = async <T extends ApiResponse['results']>({
+    method,
+    url,
+    body,
+}: LightdashApiProps): Promise<T> => {
+    const headers: Record<string, string> = {};
 
     let requestBody: BodyInit | undefined = body;
     if (
@@ -71,25 +104,12 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
         }
     }
 
-    return fetch(fullUrl, { method, headers, body: requestBody })
-        .then((r) => {
-            GlobalState.debug(`> HTTP request returned status: ${r.status}`);
-
-            if (!r.ok) {
-                const contentType = r.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) {
-                    return r.json().then((d) => {
-                        throw new LightdashError(d.error);
-                    });
-                }
-                return r.text().then((text) => {
-                    throw new Error(
-                        `Received non-JSON response from server (status ${r.status}): ${text}`,
-                    );
-                });
-            }
-            return r;
-        })
+    return lightdashRawApi({
+        method,
+        url,
+        body: requestBody,
+        headers,
+    })
         .then((r) => r.json())
         .then((d: ApiResponse | ApiError) => {
             GlobalState.debug(`> HTTP request returned status: ${d.status}`);
@@ -175,6 +195,19 @@ export const getContentAsCodeUploadPermissions = async (
             },
         ],
     };
+    const dataAppSubject = subject('DataApp', {
+        ...baseSubject,
+        upstreamProjectUuid: project.upstreamProjectUuid,
+        projectType: project.type,
+        projectCreatedByUserUuid: project.createdByUserUuid,
+        inheritsFromOrgOrProject: true,
+        access: [
+            {
+                userUuid: user.userUuid,
+                role: SpaceMemberRole.ADMIN,
+            },
+        ],
+    });
     const canManageScheduledDeliveries = ability.can(
         'manage',
         subject('ScheduledDeliveries', {
@@ -207,14 +240,8 @@ export const getContentAsCodeUploadPermissions = async (
             (canManageScheduledDeliveries || canCreateScheduledDeliveries) &&
             ability.can('manage', subject('GoogleSheets', { ...baseSubject })),
         dataApps:
-            ability.can(
-                'create',
-                subject('DataApp', { ...accessibleResourceSubject }),
-            ) ||
-            ability.can(
-                'manage',
-                subject('DataApp', { ...accessibleResourceSubject }),
-            ),
+            ability.can('create', dataAppSubject) ||
+            ability.can('manage', dataAppSubject),
         externalConnections: ability.can(
             'manage',
             subject('ExternalConnection', { ...baseSubject }),

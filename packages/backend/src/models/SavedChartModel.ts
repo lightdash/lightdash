@@ -37,8 +37,10 @@ import {
     NotFoundError,
     Organization,
     ParameterError,
+    parseSavedMergeQuery,
     Project,
     ResolvedProjectColorPalette,
+    SAVED_MERGE_QUERY_SCHEMA_VERSION,
     SavedChartDAO,
     SessionUser,
     SortField,
@@ -92,6 +94,7 @@ import {
     SavedChartVersionFieldsTableName,
     SavedChartVersionsTableName,
 } from '../database/entities/savedCharts';
+import { SavedChartSlugMappingsTableName } from '../database/entities/savedChartSlugMappings';
 import { SchedulerTableName } from '../database/entities/scheduler';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
@@ -239,6 +242,7 @@ const createSavedChartVersion = async (
         pivotConfig,
         parameters,
         updatedByUser,
+        merge,
     }: CreateSavedChartVersion,
 ): Promise<void> => {
     await db.transaction(async (trx) => {
@@ -275,6 +279,16 @@ const createSavedChartVersion = async (
                 timezone: toTimezoneSetting(timezone),
             })
             .returning('*');
+        // Chart versions are immutable, so this is an insert per version and
+        // never an update. Only versions that actually merge get a row.
+        if (merge) {
+            await trx('saved_queries_version_merges').insert({
+                saved_queries_version_id: version.saved_queries_version_id,
+                schema_version: SAVED_MERGE_QUERY_SCHEMA_VERSION,
+                merge: JSON.stringify(merge),
+            });
+        }
+
         await createSavedChartVersionFields(
             trx,
             dimensions.map((dimension) => ({
@@ -433,8 +447,8 @@ const getSavedChartSlugOwner = async (
     database: Knex,
     projectUuid: string,
     slug: string,
-): Promise<SavedChartSlugOwner | undefined> =>
-    database(SavedChartsTableName)
+): Promise<SavedChartSlugOwner | undefined> => {
+    const canonicalOwner = await database(SavedChartsTableName)
         .where(`${SavedChartsTableName}.project_uuid`, projectUuid)
         .where(`${SavedChartsTableName}.slug`, slug)
         .select(
@@ -442,6 +456,22 @@ const getSavedChartSlugOwner = async (
             `${SavedChartsTableName}.deleted_at`,
         )
         .first();
+    if (canonicalOwner) return canonicalOwner;
+
+    return database(SavedChartSlugMappingsTableName)
+        .innerJoin(
+            SavedChartsTableName,
+            `${SavedChartsTableName}.saved_query_uuid`,
+            `${SavedChartSlugMappingsTableName}.saved_query_uuid`,
+        )
+        .where(`${SavedChartSlugMappingsTableName}.project_uuid`, projectUuid)
+        .where(`${SavedChartSlugMappingsTableName}.slug`, slug)
+        .select(
+            `${SavedChartsTableName}.saved_query_uuid`,
+            `${SavedChartsTableName}.deleted_at`,
+        )
+        .first();
+};
 
 const resolveForcedChartSlug = async (
     database: Knex,
@@ -482,6 +512,7 @@ export const createSavedChart = async (
         colorPaletteUuid,
         slug,
         forceSlug,
+        merge,
     }: CreateSavedChart & {
         updatedByUser: UpdatedByUser;
         slug: string;
@@ -586,6 +617,7 @@ export const createSavedChart = async (
                         pivotConfig,
                         parameters,
                         updatedByUser,
+                        merge,
                     },
                 );
                 return newSavedChart.saved_query_uuid;
@@ -1067,6 +1099,103 @@ export class SavedChartModel {
         return this.get(savedChartUuid);
     }
 
+    async renameSlug({
+        projectUuid,
+        savedChartUuid,
+        from,
+        to,
+    }: {
+        projectUuid: string;
+        savedChartUuid: string;
+        from: string;
+        to: string;
+    }): Promise<void> {
+        return this.database.transaction(async (trx) => {
+            const slugsToLock = [...new Set([from, to])].sort();
+            for (const slug of slugsToLock) {
+                // eslint-disable-next-line no-await-in-loop
+                await acquireProjectSlugLock(trx, projectUuid, slug);
+            }
+
+            const sourceOwner = await getSavedChartSlugOwner(
+                trx,
+                projectUuid,
+                from,
+            );
+            if (
+                !sourceOwner ||
+                sourceOwner.deleted_at ||
+                sourceOwner.saved_query_uuid !== savedChartUuid
+            ) {
+                throw new NotFoundError(`Chart slug "${from}" not found`);
+            }
+
+            const chart = await trx(SavedChartsTableName)
+                .where(`${SavedChartsTableName}.project_uuid`, projectUuid)
+                .where(
+                    `${SavedChartsTableName}.saved_query_uuid`,
+                    savedChartUuid,
+                )
+                .whereNull(`${SavedChartsTableName}.deleted_at`)
+                .select(`${SavedChartsTableName}.slug`)
+                .first();
+            if (!chart) {
+                throw new NotFoundError(`Chart slug "${from}" not found`);
+            }
+
+            if (chart.slug === to) {
+                return;
+            }
+
+            if (chart.slug !== from) {
+                throw new ConflictError(
+                    `Chart slug "${from}" is a historical alias. Use the current slug "${chart.slug}" as the source`,
+                );
+            }
+
+            const targetOwner = await getSavedChartSlugOwner(
+                trx,
+                projectUuid,
+                to,
+            );
+            if (
+                targetOwner &&
+                targetOwner.saved_query_uuid !== savedChartUuid
+            ) {
+                throw new ConflictError(
+                    `Chart slug "${to}" is already in use in this project`,
+                );
+            }
+
+            const targetIsAlias = targetOwner !== undefined;
+            if (targetIsAlias) {
+                await trx(SavedChartSlugMappingsTableName)
+                    .where('project_uuid', projectUuid)
+                    .where('saved_query_uuid', savedChartUuid)
+                    .where('slug', to)
+                    .delete();
+            }
+
+            await trx(SavedChartSlugMappingsTableName).insert({
+                project_uuid: projectUuid,
+                saved_query_uuid: savedChartUuid,
+                slug: chart.slug,
+            });
+
+            const updated = await trx(SavedChartsTableName)
+                .where('project_uuid', projectUuid)
+                .where('saved_query_uuid', savedChartUuid)
+                .where('slug', chart.slug)
+                .whereNull('deleted_at')
+                .update({ slug: to });
+            if (updated !== 1) {
+                throw new ConflictError(
+                    `Chart slug "${chart.slug}" changed while it was being renamed`,
+                );
+            }
+        });
+    }
+
     async updateMultiple(
         projectUuid: string,
         data: UpdateMultipleSavedChart[],
@@ -1534,13 +1663,49 @@ export class SavedChartModel {
             savedChartUuidOrSlug,
         );
 
-        // Fallback for uuid-shaped slugs
-        const lookupBySlug = buildProbe().where(
+        // Fallback for uuid-shaped canonical slugs
+        const lookupByCanonicalSlug = buildProbe().where(
             `${SavedChartsTableName}.slug`,
             savedChartUuidOrSlug,
         );
 
-        void queryBuilder.unionAll([lookupByUuid, lookupBySlug], true);
+        // Fallback for uuid-shaped historical slugs
+        const lookupByHistoricalSlug = buildProbe()
+            .innerJoin(
+                SavedChartSlugMappingsTableName,
+                `${SavedChartSlugMappingsTableName}.saved_query_uuid`,
+                `${SavedChartsTableName}.saved_query_uuid`,
+            )
+            .where(
+                `${SavedChartSlugMappingsTableName}.slug`,
+                savedChartUuidOrSlug,
+            );
+
+        void queryBuilder.unionAll(
+            [lookupByUuid, lookupByCanonicalSlug, lookupByHistoricalSlug],
+            true,
+        );
+    }
+
+    private applyChartSlugFilter(
+        queryBuilder: Knex.QueryBuilder,
+        slugs: string[],
+    ): void {
+        void queryBuilder.where((slugQuery) => {
+            void slugQuery
+                .whereIn(`${SavedChartsTableName}.slug`, slugs)
+                .orWhereExists(
+                    this.database(SavedChartSlugMappingsTableName)
+                        .select(this.database.raw('1'))
+                        .whereRaw(
+                            `${SavedChartSlugMappingsTableName}.saved_query_uuid = ${SavedChartsTableName}.saved_query_uuid`,
+                        )
+                        .whereIn(
+                            `${SavedChartSlugMappingsTableName}.slug`,
+                            slugs,
+                        ),
+                );
+        });
     }
 
     async get(
@@ -1692,10 +1857,9 @@ export class SavedChartModel {
                             `${SavedChartsTableName}.saved_query_id = ANY(ARRAY(SELECT saved_query_id FROM chart_lookup))`,
                         );
                 } else {
-                    void chartQuery.where(
-                        `${SavedChartsTableName}.slug`,
+                    this.applyChartSlugFilter(chartQuery, [
                         savedChartUuidOrSlug,
-                    );
+                    ]);
                 }
 
                 if (options?.projectUuid) {
@@ -1781,6 +1945,11 @@ export class SavedChartModel {
                     SavedChartCustomSqlDimensionsTableName,
                 ).where('saved_queries_version_id', savedQueriesVersionId);
 
+                const mergeQuery = this.database('saved_queries_version_merges')
+                    .select(['schema_version', 'merge'])
+                    .where('saved_queries_version_id', savedQueriesVersionId)
+                    .first();
+
                 const [
                     fields,
                     sorts,
@@ -1789,6 +1958,7 @@ export class SavedChartModel {
                     customBinDimensionsRows,
                     customSqlDimensionsRows,
                     resolvedPalette,
+                    mergeRow,
                 ] = await Promise.all([
                     fieldsQuery,
                     sortsQuery,
@@ -1801,7 +1971,17 @@ export class SavedChartModel {
                         chartUuid: savedQuery.saved_query_uuid,
                         dashboardUuid: savedQuery.dashboard_uuid ?? undefined,
                     }),
+                    mergeQuery,
                 ]);
+
+                // An unknown future shape leaves the chart working without its
+                // merge rather than failing the whole chart.
+                const merge = mergeRow
+                    ? parseSavedMergeQuery(
+                          mergeRow.schema_version,
+                          mergeRow.merge,
+                      )
+                    : null;
 
                 // Filters out "null" fields
                 const additionalMetricsFiltered: DBFilteredAdditionalMetrics[] =
@@ -1857,6 +2037,7 @@ export class SavedChartModel {
                     name: savedQuery.name,
                     description: savedQuery.description,
                     tableName: savedQuery.explore_name,
+                    merge,
                     updatedAt: savedQuery.created_at,
                     updatedByUser: {
                         userUuid: savedQuery.user_uuid,
@@ -2226,6 +2407,37 @@ export class SavedChartModel {
         return charts.map((chart) => chart.slug);
     }
 
+    async getSlugAliasesForUuids(uuids: string[]): Promise<string[]> {
+        if (uuids.length === 0) return [];
+        const aliases = await this.database(SavedChartSlugMappingsTableName)
+            .whereIn(
+                `${SavedChartSlugMappingsTableName}.saved_query_uuid`,
+                uuids,
+            )
+            .select(`${SavedChartSlugMappingsTableName}.slug`);
+        return aliases.map((alias) => alias.slug);
+    }
+
+    async getSlugAliasMappingsForUuids(
+        projectUuid: string,
+        uuids: string[],
+    ): Promise<Array<{ slug: string; savedChartUuid: string }>> {
+        if (uuids.length === 0) return [];
+        return this.database(SavedChartSlugMappingsTableName)
+            .where(
+                `${SavedChartSlugMappingsTableName}.project_uuid`,
+                projectUuid,
+            )
+            .whereIn(
+                `${SavedChartSlugMappingsTableName}.saved_query_uuid`,
+                uuids,
+            )
+            .select({
+                slug: `${SavedChartSlugMappingsTableName}.slug`,
+                savedChartUuid: `${SavedChartSlugMappingsTableName}.saved_query_uuid`,
+            });
+    }
+
     async find(filters: {
         projectUuid?: string;
         spaceUuids?: string[];
@@ -2318,16 +2530,10 @@ export class SavedChartModel {
                     );
                 }
                 if (filters.slug) {
-                    void query.where(
-                        `${SavedChartsTableName}.slug`,
-                        filters.slug,
-                    );
+                    this.applyChartSlugFilter(query, [filters.slug]);
                 }
                 if (filters.slugs) {
-                    void query.whereIn(
-                        `${SavedChartsTableName}.slug`,
-                        filters.slugs,
-                    );
+                    this.applyChartSlugFilter(query, filters.slugs);
                 }
 
                 if (filters.exploreName) {

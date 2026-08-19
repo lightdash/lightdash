@@ -287,4 +287,36 @@ describe('DeepResearchChartTile', () => {
         screen.getByRole('button', { name: 'Retry' }).click();
         expect(refetchRows).toHaveBeenCalledOnce();
     });
+
+    it('explains warehouse limits without offering an unchanged retry', () => {
+        mocks.useQueryResults.mockReturnValue({
+            ...idleResults,
+            error: {
+                status: 'error',
+                error: {
+                    name: 'Error',
+                    statusCode: 500,
+                    message:
+                        'BigQuery error: bytesBilledLimitExceeded. Query exceeded limit for bytes billed.',
+                    data: {},
+                },
+            },
+        });
+
+        renderTile();
+
+        expect(
+            screen.getByText(
+                'This chart exceeds the warehouse query limit. Open it in Explore to narrow the query.',
+            ),
+        ).toBeVisible();
+        expect(
+            screen.getByRole('link', {
+                name: `Open ${chart.title} in Explore`,
+            }),
+        ).toBeVisible();
+        expect(
+            screen.queryByRole('button', { name: 'Retry' }),
+        ).not.toBeInTheDocument();
+    });
 });

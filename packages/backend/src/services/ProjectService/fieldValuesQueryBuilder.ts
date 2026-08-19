@@ -7,10 +7,12 @@ import {
     isFilterRule,
     NotFoundError,
     ParameterError,
+    searchFilterAutocompleteValues,
     type AndFilterGroup,
     type Dimension,
     type Explore,
     type ExploreError,
+    type FilterAutocompleteValue,
     type FilterGroupItem,
     type MetricQuery,
 } from '@lightdash/common';
@@ -67,6 +69,10 @@ export async function getFieldValuesMetricQuery({
     field: Dimension;
     fieldId: string;
     labelFieldId: string | null;
+    /** Non-null when the field's config turns warehouse fetching off: the
+     *  curated values matching the search (empty when none are configured).
+     *  Callers must serve these instead of running the metric query. */
+    staticResults: FilterAutocompleteValue[] | null;
 }> {
     const parsedLimit = parseFieldValuesLimit(limit, maxLimit);
 
@@ -214,5 +220,21 @@ export async function getFieldValuesMetricQuery({
         limit: parsedLimit,
     };
 
-    return { metricQuery, explore, field, fieldId, labelFieldId };
+    const { filterAutocomplete } = field;
+    const staticResults =
+        filterAutocomplete && !filterAutocomplete.fetchFromWarehouse
+            ? searchFilterAutocompleteValues(
+                  filterAutocomplete.values ?? [],
+                  search,
+              ).slice(0, parsedLimit)
+            : null;
+
+    return {
+        metricQuery,
+        explore,
+        field,
+        fieldId,
+        labelFieldId,
+        staticResults,
+    };
 }

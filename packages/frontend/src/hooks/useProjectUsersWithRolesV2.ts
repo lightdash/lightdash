@@ -9,6 +9,8 @@ import { useProjectRoleAssignments } from './useProjectRoles';
 export type ProjectUserWithRoleV2 = OrganizationMemberProfile & {
     projectUuid: string;
     projectRole: ProjectMemberRole | null;
+    /** True when the direct project assignment holds extra custom roles. */
+    projectRoleHasMultiple: boolean;
 };
 
 export const useProjectUsersWithRoles = (projectUuid: string) => {
@@ -24,12 +26,14 @@ export const useProjectUsersWithRoles = (projectUuid: string) => {
             return {};
 
         return projectRoleAssignmentsQuery.data.reduce<
-            Record<string, ProjectMemberRole>
-        >((acc: Record<string, ProjectMemberRole>, assignment) => {
+            Record<string, { role: ProjectMemberRole; hasMultiple: boolean }>
+        >((acc, assignment) => {
             if (assignment.assigneeType === 'user') {
-                // Convert the role id to ProjectMemberRole
-                acc[assignment.assigneeId] =
-                    assignment.roleId as ProjectMemberRole;
+                acc[assignment.assigneeId] = {
+                    // Convert the role id to ProjectMemberRole
+                    role: assignment.roleId as ProjectMemberRole,
+                    hasMultiple: assignment.hasMultipleRoles === true,
+                };
             }
             return acc;
         }, {});
@@ -44,7 +48,9 @@ export const useProjectUsersWithRoles = (projectUuid: string) => {
         const mappedUsers = organizationUsersQuery.data.map((orgUser) => ({
             ...orgUser,
             projectUuid,
-            projectRole: projectRoles[orgUser.userUuid] || null,
+            projectRole: projectRoles[orgUser.userUuid]?.role ?? null,
+            projectRoleHasMultiple:
+                projectRoles[orgUser.userUuid]?.hasMultiple ?? false,
         }));
 
         // Sort users: project roles first, then alphabetically by firstName

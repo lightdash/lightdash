@@ -117,6 +117,9 @@ export const useSyncModalForm = (resource: SyncResource) => {
                 saveInNewTab:
                     isSchedulerGsheetsOptions(schedulerData.options) &&
                     !!schedulerData.options.tabName,
+                showFilters:
+                    isSchedulerGsheetsOptions(schedulerData.options) &&
+                    schedulerData.options.showFilters === true,
             });
             form.resetDirty();
         }
@@ -131,6 +134,7 @@ export const useSyncModalForm = (resource: SyncResource) => {
                 targets: [],
                 // TODO: Related to scheduled deliveries, not syncs. Irrelevant.
                 includeLinks: false,
+                plainTextEmail: false,
                 appUuid: null,
                 appName: null,
             };
@@ -145,6 +149,7 @@ export const useSyncModalForm = (resource: SyncResource) => {
                     tabName: values.saveInNewTab
                         ? values.options.tabName
                         : undefined,
+                    ...(values.showFilters ? { showFilters: true } : {}),
                 },
             };
 

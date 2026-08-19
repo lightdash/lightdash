@@ -41,6 +41,8 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
+import { resolveMergeColumnOrder } from '../../../features/mergeQuery/utils/resolveMergeColumnOrder';
 import { useColorPalettes } from '../../../hooks/appearance/useOrganizationAppearance';
 import { useProjectColorPalette } from '../../../hooks/appearance/useProjectColorPalette';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
@@ -146,19 +148,73 @@ const VisualizationCard: FC<Props> = memo((props) => {
         getDownloadQueryUuid,
         validQueryArgs,
     } = useExplorerQuery();
-    const isLoadingQueryResults = isLoading || queryResults.isFetchingRows;
+    // A configured merge replaces the query it was built from: its result is
+    // the chart's result, so running both would cost two warehouse queries to
+    // show one of them.
+    const merge = useMergeSafe();
+    const mergeResults = merge?.mergeResults ?? null;
+    // A restored merge is the chart. Until it lands, the primary source's rows are the
+    // wrong numbers wearing the right config — show loading, not them.
+    const awaitingRestoredMerge =
+        !!merge?.isMerging &&
+        merge.wasRestored &&
+        !mergeResults &&
+        !merge.runError &&
+        merge.runErrors.length === 0;
+    const suppressPrimaryResults =
+        awaitingRestoredMerge ||
+        (!!merge?.isMerging &&
+            !mergeResults &&
+            (merge.isRunning ||
+                !!merge.runError ||
+                merge.runErrors.length > 0));
+    const isLoadingQueryResults = mergeResults
+        ? mergeResults.results.isFetchingRows
+        : !!merge?.isRunning ||
+          awaitingRestoredMerge ||
+          isLoading ||
+          queryResults.isFetchingRows;
 
-    const resultsData = useMemo(
-        () => ({
+    const resultsData = useMemo(() => {
+        if (mergeResults) {
+            return {
+                ...mergeResults.results,
+                metricQuery: mergeResults.metricQuery,
+                fields: mergeResults.fields,
+                resolvedTimezone: undefined,
+            };
+        }
+        // No fields and no rows while the restored merge is pending: the
+        // chart config validates its layout against whatever fields it is
+        // given, and primary-source fields would fail the saved merged layout and
+        // rebuild it from defaults — silently discarding the saved config.
+        if (suppressPrimaryResults) {
+            return {
+                ...queryResults,
+                rows: [],
+                metricQuery: undefined,
+                fields: undefined,
+                resolvedTimezone: undefined,
+            };
+        }
+        return {
             ...queryResults,
             metricQuery: query.data?.metricQuery,
             fields: query.data?.fields,
             resolvedTimezone: query.data?.resolvedTimezone ?? undefined,
-        }),
-        [query.data, queryResults],
-    );
+        };
+    }, [query.data, queryResults, mergeResults, suppressPrimaryResults]);
 
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
+    const visualizationMetricQuery = suppressPrimaryResults
+        ? undefined
+        : (mergeResults?.metricQuery ?? unsavedChartVersion.metricQuery);
+    const visualizationColumnOrder = mergeResults
+        ? resolveMergeColumnOrder(
+              mergeResults.columnOrder,
+              unsavedChartVersion.tableConfig.columnOrder,
+          )
+        : unsavedChartVersion.tableConfig.columnOrder;
 
     const handleSetPivotFields = useCallback(
         (fields: FieldId[] = []) => {
@@ -264,17 +320,29 @@ const VisualizationCard: FC<Props> = memo((props) => {
         (e: EchartsSeriesClickEvent, series: EChartsSeries[]) => {
             setEchartsClickEvent({
                 event: e,
-                dimensions: unsavedChartVersion.metricQuery.dimensions,
+                dimensions: visualizationMetricQuery?.dimensions ?? [],
                 series,
             });
         },
-        [unsavedChartVersion],
+        [visualizationMetricQuery],
     );
 
     const { missingRequiredParameters } = useExplorerQuery();
 
     const apiErrorDetail = useMemo(() => {
         const queryError = query.error?.error ?? queryResults.error?.error;
+
+        if (merge?.runError) return merge.runError.error;
+        if (merge?.runErrors.length) {
+            return {
+                message: merge.runErrors
+                    .map((error) => error.message)
+                    .join(' '),
+                name: 'Error',
+                statusCode: 400,
+                data: {},
+            } satisfies ApiErrorDetail;
+        }
 
         return !missingRequiredParameters?.length
             ? queryError
@@ -289,20 +357,33 @@ const VisualizationCard: FC<Props> = memo((props) => {
         query.error?.error,
         queryResults.error?.error,
         missingRequiredParameters,
+        merge?.runError,
+        merge?.runErrors,
     ]);
 
     const dirtyPivotConfiguration = useMemo(() => {
-        return explore
-            ? derivePivotConfigurationFromChart(
-                  unsavedChartVersion,
-                  unsavedChartVersion.metricQuery,
-                  getFieldsFromMetricQuery(
+        const fields =
+            mergeResults?.fields ??
+            (explore
+                ? getFieldsFromMetricQuery(
                       unsavedChartVersion.metricQuery,
                       explore,
-                  ),
+                  )
+                : undefined);
+
+        return visualizationMetricQuery && fields
+            ? derivePivotConfigurationFromChart(
+                  unsavedChartVersion,
+                  visualizationMetricQuery,
+                  fields,
               )
             : undefined;
-    }, [unsavedChartVersion, explore]);
+    }, [
+        unsavedChartVersion,
+        explore,
+        mergeResults?.fields,
+        visualizationMetricQuery,
+    ]);
 
     if (!unsavedChartVersion.tableName) {
         return <CollapsableCard title="Charts" disabled />;
@@ -344,11 +425,11 @@ const VisualizationCard: FC<Props> = memo((props) => {
                     unsavedChartVersion.pivotConfig?.columns
                 }
                 initialPivotRows={unsavedChartVersion.pivotConfig?.rows}
-                unsavedMetricQuery={unsavedChartVersion.metricQuery}
+                unsavedMetricQuery={visualizationMetricQuery}
                 resultsData={resultsData}
                 apiErrorDetail={apiErrorDetail}
                 isLoading={isLoadingQueryResults}
-                columnOrder={unsavedChartVersion.tableConfig.columnOrder}
+                columnOrder={visualizationColumnOrder}
                 onSeriesContextMenu={onSeriesContextMenu}
                 savedChartUuid={isEditMode ? undefined : savedChart?.uuid}
                 onChartConfigChange={handleSetChartConfig}
@@ -357,7 +438,10 @@ const VisualizationCard: FC<Props> = memo((props) => {
                 onPivotRowsChange={handleSetPivotRows}
                 colorPalette={colorPalette}
                 tableCalculationsMetadata={tableCalculationsMetadata}
-                parameters={query.data?.usedParametersValues}
+                parameters={
+                    mergeResults?.usedParametersValues ??
+                    query.data?.usedParametersValues
+                }
                 containerWidth={containerWidth}
                 containerHeight={containerHeight}
                 isDashboard={false}
@@ -456,11 +540,17 @@ const VisualizationCard: FC<Props> = memo((props) => {
                                     {!!projectUuid && (
                                         <ChartDownloadMenu
                                             getDownloadQueryUuid={
-                                                getDownloadQueryUuid
+                                                mergeResults && merge
+                                                    ? merge.getDownloadQueryUuid
+                                                    : getDownloadQueryUuid
                                             }
                                             projectUuid={projectUuid}
                                             chartName={savedChart?.name}
-                                            getGsheetLink={getGsheetLink}
+                                            getGsheetLink={
+                                                mergeResults
+                                                    ? undefined
+                                                    : getGsheetLink
+                                            }
                                         />
                                     )}
                                 </Can>

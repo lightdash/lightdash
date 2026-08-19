@@ -819,6 +819,29 @@ export class OrganizationSsoService extends BaseService {
         );
     }
 
+    /**
+     * Callback-time counterpart to {@link findEnabledMethodForEmail}. Given the
+     * org + provider whose strategy authenticated the request, confirms the
+     * IdP-asserted email is actually routed to that org's enabled method.
+     * Strategy selection is gated on the user-supplied login hint, so this
+     * re-applies the routing rule to the asserted identity to keep the two ends
+     * consistent — including the existing-user org-membership filter in
+     * {@link findEnabledMethodsForEmail}, without which another org's IdP could
+     * assert an existing user's address and have it accepted.
+     */
+    async isEmailDomainAllowedForOrgSso(
+        email: string,
+        organizationUuid: string,
+        provider: OrganizationSsoProvider,
+    ): Promise<boolean> {
+        const matches = await this.findEnabledMethodsForEmail(email);
+        return matches.some(
+            (m) =>
+                m.organizationUuid === organizationUuid &&
+                m.provider === provider,
+        );
+    }
+
     async findEnabledOktaMethodForIssuer(
         issuer: string,
     ): Promise<

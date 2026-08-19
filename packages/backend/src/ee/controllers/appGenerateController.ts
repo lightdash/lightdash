@@ -99,6 +99,7 @@ export class AppGenerateController extends BaseController {
                 creationExperience: body.creationExperience,
                 designUuidInput: body.designUuid,
                 externalConnections: body.externalConnections,
+                codexModelInput: body.codexModel,
             },
         );
         return {
@@ -162,6 +163,7 @@ export class AppGenerateController extends BaseController {
 
     /**
      * @summary Get a data app visualization
+     * @param version Answer with this version's schema instead of the latest ready one
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -171,6 +173,7 @@ export class AppGenerateController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() dataAppVizUuid: string,
+        @Query() version?: number,
     ): Promise<ApiGetDataAppVizResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -179,6 +182,7 @@ export class AppGenerateController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 dataAppVizUuid,
+                version,
             );
         return {
             status: 'ok',
@@ -502,6 +506,7 @@ export class AppGenerateController extends BaseController {
                 creationExperience: body.creationExperience,
                 designUuidInput: body.designUuid,
                 externalConnections: body.externalConnections,
+                codexModelInput: body.codexModel,
             },
         );
         return {

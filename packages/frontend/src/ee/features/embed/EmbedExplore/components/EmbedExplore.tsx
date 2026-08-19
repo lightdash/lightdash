@@ -14,6 +14,7 @@ import {
     buildInitialExplorerState,
     createExplorerStore,
 } from '../../../../../features/explorer/store';
+import { MergeProvider } from '../../../../../features/mergeQuery/context/MergeContext';
 import { useExplore } from '../../../../../hooks/useExplore';
 import { useExplorerQueryEffects } from '../../../../../hooks/useExplorerQueryEffects';
 import { ExplorerSection } from '../../../../../providers/Explorer/types';
@@ -47,7 +48,9 @@ const EmbedExploreView: FC<{
             withFullHeight
             withPaddedContent
         >
-            <Explorer />
+            <MergeProvider>
+                <Explorer />
+            </MergeProvider>
         </Page>
     );
 };

@@ -4,6 +4,7 @@ import {
     isCustomDimension,
     isDimension,
     isField,
+    isFilterableField,
     type ResultValue,
 } from '@lightdash/common';
 import { Menu } from '@mantine/core';
@@ -19,13 +20,16 @@ import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
 import { type CellContextMenuProps } from '../common/Table/types';
+import QuickFilterMenuItems from '../Explorer/QuickFilterMenuItems';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
+import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 
 const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     const { openUnderlyingDataModal, metricQuery } =
         useMetricQueryDataContext();
+    const { isEditMode, hasExplorerStore } = useVisualizationContext();
     const { showToastSuccess } = useToaster();
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
@@ -123,6 +127,13 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
                     projectUuid: projectUuid,
                 })}
             >
+                {isEditMode &&
+                    hasExplorerStore &&
+                    item &&
+                    isFilterableField(item) && (
+                        <QuickFilterMenuItems item={item} value={value} />
+                    )}
+
                 <DrillDownMenuItem
                     item={item}
                     fieldValues={fieldValues}

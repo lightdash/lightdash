@@ -1,0 +1,203 @@
+.bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--mantine-color-ldGray-0);
+    border: 1px solid var(--mantine-color-ldGray-3);
+    border-radius: 6px;
+    padding: 6px 10px;
+    min-height: 32px;
+}
+
+.summary {
+    flex: 1;
+    min-width: 0;
+    font-size: 12px;
+    color: var(--mantine-color-ldGray-7);
+}
+
+.summary b {
+    font-weight: 650;
+    color: var(--mantine-color-text);
+}
+
+.root {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.editor {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border: 1px solid var(--mantine-color-ldGray-3);
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    padding: 8px 10px;
+    background: var(--mantine-color-body);
+}
+
+.editor[data-guided='true'] {
+    border: 0;
+    border-radius: 0;
+}
+
+.bar[data-expanded='true'] {
+    border-radius: 6px 6px 0 0;
+}
+
+.pair {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pairFields {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr) 28px;
+    gap: 8px;
+    align-items: end;
+}
+
+.fieldSide,
+.sourceLabel {
+    min-width: 0;
+}
+
+.operator {
+    display: flex;
+    height: 30px;
+    align-items: center;
+    justify-content: center;
+    color: var(--mantine-color-ldGray-7);
+}
+
+.removeKey,
+.removeKeySpacer {
+    align-self: end;
+    width: 28px;
+    height: 30px;
+}
+
+.andDivider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.andDivider::before,
+.andDivider::after {
+    height: 1px;
+    flex: 1;
+    background: var(--mantine-color-ldGray-2);
+    content: '';
+}
+
+.suggestion {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: var(--mantine-color-ldGray-0);
+}
+
+.joinTypeGrid {
+    padding: 3px;
+    border: 1px solid var(--mantine-color-ldGray-3);
+    border-radius: 8px;
+    background: var(--mantine-color-ldGray-0);
+}
+
+.joinTypeCard {
+    min-width: 0;
+    background: transparent;
+    transition:
+        transform 120ms cubic-bezier(0.23, 1, 0.32, 1),
+        background-color 120ms ease;
+}
+
+.joinTypeCard[data-checked] {
+    background: var(--mantine-color-body);
+    box-shadow:
+        0 1px 2px rgb(0 0 0 / 8%),
+        0 0 0 1px var(--mantine-color-ldGray-3);
+}
+
+.joinTypeCard:focus-visible {
+    outline: 2px solid var(--mantine-color-blue-6);
+    outline-offset: 2px;
+}
+
+.joinTypeCard:active {
+    transform: scale(0.98);
+}
+
+.joinTypeDiagram {
+    width: 36px;
+    height: 21px;
+    flex: none;
+    overflow: visible;
+}
+
+.retainedRegion {
+    fill: var(--mantine-color-ldGray-6);
+    fill-opacity: 0.42;
+}
+
+.circleOutline {
+    fill: none;
+    stroke: var(--mantine-color-ldGray-6);
+    stroke-width: 1.5;
+}
+
+@media (max-width: 48em) {
+    .pairFields {
+        grid-template-columns: minmax(0, 1fr) 24px;
+    }
+
+    .fieldSide {
+        grid-column: 1 / -1;
+    }
+
+    .operator {
+        grid-column: 1 / -1;
+        height: 18px;
+    }
+
+    .removeKey,
+    .removeKeySpacer {
+        grid-column: 2;
+        grid-row: 1;
+        justify-self: end;
+    }
+
+    .suggestion {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 4px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .joinTypeCard {
+        transition: none;
+    }
+
+    .joinTypeCard:active {
+        transform: none;
+    }
+}
+
+.note {
+    display: flex;
+    gap: 6px;
+    align-items: flex-start;
+}
+
+.noteIcon {
+    flex: none;
+    margin-top: 2px;
+}

@@ -25,6 +25,7 @@ import type {
     ApiAiAgentReviewItemPrDiffResponse,
     ApiAiAgentReviewItemWritebackPreviewResponse,
     ApiAiAgentThreadCreateResponse,
+    ApiAiAgentThreadDumpResponse,
     ApiAiAgentThreadGenerateTitleResponse,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageInterruptResponse,
@@ -38,12 +39,11 @@ import type {
     ApiAiAgentThreadWorkstreamsResponse,
     ApiAiAgentUserMemoriesResponse,
     ApiAiAgentVerifiedArtifactsResponse,
-    ApiAiDashboardSummaryResponse,
     ApiAiGenerateChartMetadataResponse,
     ApiAiGenerateCustomDimensionResponse,
     ApiAiGenerateFormulaTableCalculationResponse,
     ApiAiGenerateTableCalculationResponse,
-    ApiAiGetDashboardSummaryResponse,
+    ApiAiOrganizationRuntimeSettingsResponse,
     ApiAiOrganizationSettingsResponse,
     ApiAiReviewNotificationSettingsResponse,
     ApiAiRouterDecisionCommitResponse,
@@ -112,6 +112,7 @@ import {
     type ApiGetComments,
 } from './api/comments';
 import { type Email } from './api/email';
+import type { ExecuteAsyncMergeQueryRequestParams } from './api/paginatedQuery';
 import {
     type ApiGetProjectParametersListResults,
     type ApiGetProjectParametersResults,
@@ -201,6 +202,11 @@ import type {
     ApiGroupListResponse,
 } from './groups';
 import { type ApiImpersonationOrganizationSettingsResponse } from './impersonationOrganizationSettings';
+import {
+    type ApiCompiledMergeQueryResults,
+    type MergeFieldOrigins,
+    type MergeQueryError,
+} from './mergeQuery';
 import { type MetricQuery, type QueryWarning } from './metricQuery';
 import type {
     ApiMetricsExplorerQueryResults,
@@ -284,10 +290,13 @@ import { type ApiRoadmapResponse } from './roadmap';
 import {
     type ApiCustomRoleAsCodeListResponse,
     type ApiCustomRoleAsCodeUpsertResponse,
+    type ApiOrganizationRoleSetResponse,
+    type ApiProjectRoleSetResponse,
 } from './roles';
 import {
     type ApiCalculateSubtotalsResponse,
     type ApiCalculateTotalResponse,
+    type ChartConfig,
     type ChartHistory,
     type ChartVersion,
     type SavedChart,
@@ -346,6 +355,7 @@ import {
     type ApiDashboardValidationResponse,
     type ApiPaginatedValidateResponse,
     type ApiSingleValidationResponse,
+    type ApiValidationSummaryResponse,
     type ValidationResponse,
 } from './validation';
 import {
@@ -512,8 +522,14 @@ export enum LightdashMode {
     DEV = 'development',
 }
 
+export type MigrationReadinessWarning =
+    | 'migration_parked'
+    | 'migration_ledger_unavailable';
+
 export type HealthState = {
     healthy: boolean;
+    requiresMigration: boolean;
+    migrationWarnings?: MigrationReadinessWarning[];
     license?: {
         hasLicenseKey: boolean;
         valid: boolean;
@@ -661,6 +677,7 @@ export type HealthState = {
         analyticsProjectUuid?: string;
         analyticsDashboardUuid?: string;
         isAmbientAiEnabled: boolean;
+        threadDumpEnabled: boolean;
     };
     echarts6: {
         enabled: boolean;
@@ -723,6 +740,7 @@ export type ApiStartDeploySessionResponse = {
 export type ApiAddDeployBatchRequest = {
     explores: (Explore | ExploreError)[];
     batchNumber: number;
+    complete?: boolean;
 };
 
 export type ApiAddDeployBatchResponse = {
@@ -792,6 +810,7 @@ export type CreateProject = Omit<
     | 'colorPaletteUuid'
     | 'expiresAt'
     | 'provisioningSource'
+    | 'agentSqlScope'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
     copyWarehouseConnectionFromUpstreamProject?: boolean;
@@ -830,6 +849,7 @@ export type UpdateProject = Omit<
     | 'hasDefaultUserSpaces'
     | 'colorPaletteUuid'
     | 'expiresAt'
+    | 'agentSqlScope'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
 };
@@ -867,6 +887,39 @@ export type ApiExecuteAsyncMetricQueryResults =
         fields: ItemsMap;
         warnings: QueryWarning[];
     };
+
+type ApiExecuteAsyncMergeQueryMetadata = {
+    parameterReferences: string[];
+    fieldOrigins: MergeFieldOrigins;
+};
+
+export type ApiExecuteAsyncMergeQueryResults =
+    | (ApiExecuteAsyncMergeQueryMetadata & {
+          outcome: 'started';
+          query: ApiExecuteAsyncMetricQueryResults;
+      })
+    | (ApiExecuteAsyncMergeQueryMetadata & {
+          outcome: 'refused';
+          errors: MergeQueryError[];
+      });
+
+export type MergeQueryExecutionMode =
+    | { type: 'interactive' }
+    | { type: 'export'; limit: number | null };
+
+export type MergeQueryChart = {
+    chartConfig: ChartConfig;
+    pivotConfig?: SavedChart['pivotConfig'];
+};
+
+/** One-call merge execution request. Derived pivot SQL remains server-owned. */
+export type ApiExecuteAsyncMergeQueryRequest = Omit<
+    ExecuteAsyncMergeQueryRequestParams,
+    'pivotConfiguration' | 'usePreAggregateCache'
+> & {
+    mode?: MergeQueryExecutionMode;
+    chart?: MergeQueryChart;
+};
 
 export type ApiExecuteAsyncDashboardChartQueryResults =
     ApiExecuteAsyncQueryResultsCommon & {
@@ -1083,6 +1136,8 @@ type ApiResults =
     | ApiQueryResults
     | ApiSqlQueryResults
     | ApiCompiledQueryResults
+    | ApiCompiledMergeQueryResults
+    | ApiExecuteAsyncMergeQueryResults
     | ApiFormulaValidationResults
     | ApiExploresResults
     | ApiExploreResults
@@ -1152,6 +1207,7 @@ type ApiResults =
     | SchedulerWithLogs
     | ValidationResponse[]
     | ApiPaginatedValidateResponse['results']
+    | ApiValidationSummaryResponse['results']
     | ApiRoadmapResponse['results']
     | ChartHistory
     | ChartVersion
@@ -1193,8 +1249,6 @@ type ApiResults =
     | ApiSuccessEmpty
     | ApiCreateProjectResults
     | ApiDeployExploresResults
-    | ApiAiDashboardSummaryResponse['results']
-    | ApiAiGetDashboardSummaryResponse['results']
     | ApiAiGenerateChartMetadataResponse['results']
     | ApiAiGenerateCustomDimensionResponse['results']
     | ApiAiGenerateFormulaTableCalculationResponse['results']
@@ -1225,6 +1279,8 @@ type ApiResults =
     | ApiAgentAsCodeUpsertResponse['results']
     | ApiCustomRoleAsCodeListResponse['results']
     | ApiCustomRoleAsCodeUpsertResponse['results']
+    | ApiOrganizationRoleSetResponse['results']
+    | ApiProjectRoleSetResponse['results']
     | ApiUserAsCodeListResponse['results']
     | ApiUserAsCodeUpsertResponse['results']
     | ApiAlertAsCodeListResponse['results']
@@ -1289,6 +1345,7 @@ type ApiResults =
     | ApiAiAgentProjectThreadSummaryListResponse['results']
     | Account
     | ApiAiAgentAdminConversationsResponse['results']
+    | ApiAiAgentThreadDumpResponse['results']
     | ApiAiAgentAdminEvalPromptsResponse['results']
     | ApiAiAgentAdminEvalsResponse['results']
     | ApiAiAgentAdminMemoriesResponse['results']
@@ -1310,6 +1367,7 @@ type ApiResults =
     | ApiAgentSuggestionsResponse['results']
     | ApiAppendInstructionResponse['results']
     | ApiAiOrganizationSettingsResponse['results']
+    | ApiAiOrganizationRuntimeSettingsResponse['results']
     | ApiUpdateAiOrganizationSettingsResponse['results']
     | ApiAiReviewNotificationSettingsResponse['results']
     | ApiAiRouterResponse['results']

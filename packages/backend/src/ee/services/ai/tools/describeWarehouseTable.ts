@@ -14,23 +14,29 @@ export const getDescribeWarehouseTable = ({
 }: Dependencies) =>
     tool({
         ...toolDefinition,
-        execute: async ({ table, schema }) => {
+        execute: async ({ table, schema, database }) => {
             try {
-                const { columns, resolvedSchema } =
-                    await describeWarehouseTable({ table, schema });
+                const { columns, resolvedSchema, resolvedDatabase } =
+                    await describeWarehouseTable({ table, schema, database });
+
+                const qualified = [
+                    resolvedDatabase ?? database,
+                    resolvedSchema ?? schema ?? '(default schema)',
+                    table,
+                ]
+                    .filter(
+                        (part) =>
+                            part !== null && part !== undefined && part !== '',
+                    )
+                    .join('.');
 
                 if (columns.length === 0) {
                     return {
-                        result: `No columns found for \`${
-                            resolvedSchema ?? schema ?? '(default schema)'
-                        }.${table}\`. The table may not exist or may be empty of metadata. Confirm the name via listWarehouseTables or ask the user.`,
+                        result: `No columns found for \`${qualified}\`. The table may not exist or may be empty of metadata. Confirm the name via listWarehouseTables or ask the user.`,
                         metadata: { status: 'not_found' },
                     };
                 }
 
-                const qualified = `${
-                    resolvedSchema ?? schema ?? '(default schema)'
-                }.${table}`;
                 const columnLines = columns
                     .map((c) => `  - ${c.name}: ${c.type}`)
                     .join('\n');

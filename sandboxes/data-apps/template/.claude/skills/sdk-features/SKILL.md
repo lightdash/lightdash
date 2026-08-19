@@ -25,6 +25,7 @@ Users describe features by what they see in the Lightdash editor. Translate:
 | "delivery has all tabs", full data in scheduled deliveries | `delivery-render` | app code opt-in |
 | external API data | `external-fetch` | app code opt-in |
 | runs inside a dashboard tile | `viz-context` | required — see below |
+| "view underlying data", raw rows behind a point (viz only) | `viz-underlying-data` | app code opt-in |
 | light/dark mode, "matches my Lightdash theme" | `follow-host-theme` | CSS tokens — see below |
 
 ## Automatic (zero wiring — active on any current-SDK bundle)
@@ -98,6 +99,12 @@ re-rendering on every host toggle.
   every tab's queries execute during capture while only the active tab stays
   visible — never mount all tabs unconditionally (interactive loads must stay
   lazy).
+- `viz-underlying-data` (vizs only): keep the untransformed `sourceRow` on each
+  interactive datum, gate a data-point action menu on
+  `useVizContext().underlyingData.enabled`, render
+  `underlyingData.get({ row, metric })` in a themed dialog, and wire its
+  Download button to `underlyingData.download`. Full contract in the
+  `reusable-visualization` skill.
 
 ## After a template upgrade
 

@@ -1,7 +1,7 @@
 import { type FieldId, type MetricType } from './field';
 import { type MetricFilterRule } from './filter';
 import { type KnexPaginatedData } from './knex-paginate';
-import { type MetricQuery } from './metricQuery';
+import { type MetricQuery, type SortField } from './metricQuery';
 import { type ResultColumns } from './results';
 import { type PreAggregateMaterializationTrigger } from './scheduler';
 import { type TimeFrames } from './timeFrames';
@@ -40,10 +40,17 @@ export type PreAggregateMaterializationRole = {
     attributes: UserAttributeValueMap;
 };
 
+export type PreAggregateSort = Pick<SortField, 'fieldId' | 'descending'>;
+
 export type PreAggregateDef = {
     name: string;
     dimensions: string[];
     metrics: string[];
+    // Qualified warehouse table identifier. Present ⇒ external pre-aggregate:
+    // never materialized, served from the project warehouse.
+    table?: string;
+    // Omitted sorts all dimensions automatically; [] disables sorting; entries use canonical field IDs.
+    sorts?: PreAggregateSort[];
     filters?: MetricFilterRule[];
     // Parser validation enforces that timeDimension and granularity are provided together
     timeDimension?: string;
@@ -60,10 +67,12 @@ export enum PreAggregateMissReason {
     DIMENSION_NOT_IN_PRE_AGGREGATE = 'dimension_not_in_pre_aggregate',
     METRIC_NOT_IN_PRE_AGGREGATE = 'metric_not_in_pre_aggregate',
     NON_ADDITIVE_METRIC = 'non_additive_metric',
+    NON_ADDITIVE_METRIC_REQUIRES_EXACT_MATCH = 'non_additive_metric_requires_exact_match',
     CUSTOM_SQL_METRIC = 'custom_sql_metric',
     FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE = 'filter_dimension_not_in_pre_aggregate',
     PRE_AGGREGATE_FILTER_NOT_SATISFIED = 'pre_aggregate_filter_not_satisfied',
     GRANULARITY_TOO_FINE = 'granularity_too_fine',
+    TIME_FRAME_NOT_DERIVABLE = 'time_frame_not_derivable',
     CUSTOM_DIMENSION_PRESENT = 'custom_dimension_present',
     CUSTOM_METRIC_PRESENT = 'custom_metric_present',
     TABLE_CALCULATION_PRESENT = 'table_calculation_present',
@@ -89,6 +98,10 @@ export type PreAggregateMatchMiss =
           fieldId: FieldId;
       }
     | {
+          reason: PreAggregateMissReason.NON_ADDITIVE_METRIC_REQUIRES_EXACT_MATCH;
+          fieldId: FieldId;
+      }
+    | {
           reason: PreAggregateMissReason.CUSTOM_SQL_METRIC;
           fieldId: FieldId;
       }
@@ -102,6 +115,13 @@ export type PreAggregateMatchMiss =
       }
     | {
           reason: PreAggregateMissReason.GRANULARITY_TOO_FINE;
+          fieldId: FieldId;
+          queryGranularity: TimeFrames;
+          preAggregateGranularity: TimeFrames;
+          preAggregateTimeDimension: string;
+      }
+    | {
+          reason: PreAggregateMissReason.TIME_FRAME_NOT_DERIVABLE;
           fieldId: FieldId;
           queryGranularity: TimeFrames;
           preAggregateGranularity: TimeFrames;
@@ -184,12 +204,16 @@ export const preAggregateMissReasonLabels: Record<
     [PreAggregateMissReason.METRIC_NOT_IN_PRE_AGGREGATE]:
         'Metric not in pre-aggregate',
     [PreAggregateMissReason.NON_ADDITIVE_METRIC]: 'Non-additive metric',
+    [PreAggregateMissReason.NON_ADDITIVE_METRIC_REQUIRES_EXACT_MATCH]:
+        'Non-additive metric: select exactly the pre-aggregate dimensions',
     [PreAggregateMissReason.CUSTOM_SQL_METRIC]: 'Custom SQL metric',
     [PreAggregateMissReason.FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE]:
         'Filter dimension not in pre-aggregate',
     [PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED]:
         'Pre-aggregate filter not satisfied',
     [PreAggregateMissReason.GRANULARITY_TOO_FINE]: 'Granularity too fine',
+    [PreAggregateMissReason.TIME_FRAME_NOT_DERIVABLE]:
+        'Time frame not derivable',
     [PreAggregateMissReason.CUSTOM_DIMENSION_PRESENT]:
         'Custom dimension detected',
     [PreAggregateMissReason.CUSTOM_METRIC_PRESENT]: 'Custom metric detected',
@@ -260,6 +284,7 @@ export const computePreAggregateWarnings = (
 export type PreAggregateMaterializationSummary = {
     preAggregateDefinitionUuid: string;
     preAggregateName: string;
+    externalTable: string | null;
     preAggExploreName: string;
     sourceExploreName: string;
     materializationRole: PreAggregateMaterializationRole | null;

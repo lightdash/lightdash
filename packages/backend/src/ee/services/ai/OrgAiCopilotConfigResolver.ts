@@ -192,6 +192,34 @@ export class OrgAiCopilotConfigResolver {
     }
 
     /**
+     * Copilot config for a data-app sandbox running Codex. Mirrors the Claude
+     * resolver's BYOK boundary: once an org supplies any provider key, Codex
+     * may use only that org's OpenAI key and never the instance OpenAI key.
+     */
+    async getCodexConfig(
+        organizationUuid: string | null | undefined,
+    ): Promise<ResolvedCopilotConfig> {
+        const base = this.lightdashConfig.ai.copilot;
+        const managed: ResolvedCopilotConfig = { ...base, byoProviders: [] };
+        if (!organizationUuid) return managed;
+        if (!(await this.isEnabled(organizationUuid))) return managed;
+        const orgKeys =
+            await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
+                organizationUuid,
+            );
+        if (!orgKeys) return managed;
+        const overlaid = overlayOrgProviderApiKeys(base, orgKeys);
+        return {
+            ...overlaid,
+            defaultProvider: 'openai',
+            providers: {
+                ...overlaid.providers,
+                openai: orgKeys.openai ? overlaid.providers.openai : undefined,
+            },
+        };
+    }
+
+    /**
      * Org overrides for model LISTINGS (visibility settings + which hidden
      * models the org's own Anthropic key unlocks). Both are null unless the
      * feature flag is on AND the org has at least one BYO key, so deleting

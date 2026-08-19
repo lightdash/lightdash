@@ -54,6 +54,25 @@ describe('Query phase metrics config', () => {
     });
 });
 
+describe('database probe config', () => {
+    it('uses the readiness TTL default and leaves the Knex timeout unset', () => {
+        expect(parseConfig().database).toMatchObject({
+            acquireConnectionTimeout: undefined,
+            readinessProbeTtlMs: 10_000,
+        });
+    });
+
+    it('parses readiness and connection acquisition overrides', () => {
+        process.env.PGACQUIRECONNECTIONTIMEOUT = '2500';
+        process.env.READINESS_PROBE_TTL_MS = '5000';
+
+        expect(parseConfig().database).toMatchObject({
+            acquireConnectionTimeout: 2500,
+            readinessProbeTtlMs: 5000,
+        });
+    });
+});
+
 describe('MotherDuck instance cache config', () => {
     afterEach(() => {
         vi.restoreAllMocks();
@@ -123,6 +142,7 @@ describe('MotherDuck instance cache config', () => {
 test('Should default results S3 config to S3 config', () => {
     process.env.S3_ACCESS_KEY = 'mock_access_key';
     process.env.S3_SECRET_KEY = 'mock_secret_key';
+    process.env.S3_FORCE_PATH_STYLE = 'true';
     const config = parseConfig();
     expect(config.results.s3).toEqual({
         endpoint: 'mock_endpoint',
@@ -130,24 +150,34 @@ test('Should default results S3 config to S3 config', () => {
         region: 'mock_region',
         accessKey: 'mock_access_key',
         secretKey: 'mock_secret_key',
-        forcePathStyle: false,
+        forcePathStyle: true,
     });
 });
 
 test('Should use explicit results S3 config when set', () => {
+    process.env.S3_FORCE_PATH_STYLE = 'true';
+    process.env.RESULTS_S3_ENDPOINT = 'new_endpoint';
+    process.env.RESULTS_S3_FORCE_PATH_STYLE = 'false';
     process.env.RESULTS_S3_BUCKET = 'new_bucket';
     process.env.RESULTS_S3_REGION = 'new_region';
     process.env.RESULTS_S3_ACCESS_KEY = 'new_access_key';
     process.env.RESULTS_S3_SECRET_KEY = 'new_secret_key';
     const config = parseConfig();
     expect(config.results.s3).toEqual({
-        endpoint: 'mock_endpoint',
+        endpoint: 'new_endpoint',
         bucket: 'new_bucket',
         region: 'new_region',
         accessKey: 'new_access_key',
         secretKey: 'new_secret_key',
         forcePathStyle: false,
     });
+});
+
+test('Should treat an empty results S3 force path style as unset', () => {
+    process.env.S3_FORCE_PATH_STYLE = 'true';
+    process.env.RESULTS_S3_FORCE_PATH_STYLE = '';
+
+    expect(parseConfig().results.s3?.forcePathStyle).toBe(true);
 });
 
 test('Should prioritize new results S3 config over deprecated config when both are set', () => {
@@ -1373,6 +1403,48 @@ describe('scheduler poll interval', () => {
     });
 });
 
+describe('scheduler migration quiesce', () => {
+    const environmentVariables = [
+        'SCHEDULER_QUIESCE_POLL_INTERVAL',
+        'SCHEDULER_QUIESCE_GRACE_PERIOD',
+        'SCHEDULER_RESUME_JITTER',
+        'SCHEDULER_RESUME_RAMP_PERIOD',
+    ] as const;
+
+    afterEach(() => {
+        environmentVariables.forEach((name) => {
+            delete process.env[name];
+        });
+    });
+
+    test('uses bounded grace and ramp defaults', () => {
+        const config = parseConfig();
+
+        expect(config.scheduler.quiesce).toEqual({
+            pollInterval: 2_000,
+            gracePeriod: 180_000,
+            resumeJitter: 60_000,
+            resumeRampPeriod: 180_000,
+        });
+    });
+
+    test('parses migration quiesce timings from the environment', () => {
+        process.env.SCHEDULER_QUIESCE_POLL_INTERVAL = '3000';
+        process.env.SCHEDULER_QUIESCE_GRACE_PERIOD = '240000';
+        process.env.SCHEDULER_RESUME_JITTER = '90000';
+        process.env.SCHEDULER_RESUME_RAMP_PERIOD = '300000';
+
+        const config = parseConfig();
+
+        expect(config.scheduler.quiesce).toEqual({
+            pollInterval: 3_000,
+            gracePeriod: 240_000,
+            resumeJitter: 90_000,
+            resumeRampPeriod: 300_000,
+        });
+    });
+});
+
 test('should set groups.enabled only when the environment variable is set', () => {
     const undefinedConfig = parseConfig();
     expect(undefinedConfig.groups.enabled).toBeUndefined();
@@ -1794,5 +1866,21 @@ describe('SANDBOX_PROVIDER', () => {
     test('normalizes case and whitespace instead of crashing boot', () => {
         process.env.SANDBOX_PROVIDER = ' E2B ';
         expect(parseConfig().appRuntime.sandboxProvider).toBe('e2b');
+    });
+});
+
+describe('APPS_CODING_AGENT', () => {
+    test('defaults to claude when unset', () => {
+        expect(parseConfig().appRuntime.dataAppCodingAgent).toBe('claude');
+    });
+
+    test('parses codex case-insensitively', () => {
+        process.env.APPS_CODING_AGENT = ' Codex ';
+        expect(parseConfig().appRuntime.dataAppCodingAgent).toBe('codex');
+    });
+
+    test('throws on an unknown coding agent', () => {
+        process.env.APPS_CODING_AGENT = 'cursor';
+        expect(() => parseConfig()).toThrowError(ParseError);
     });
 });

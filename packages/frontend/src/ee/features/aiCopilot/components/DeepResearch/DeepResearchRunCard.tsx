@@ -24,6 +24,7 @@ import {
     type FC,
     type ReactNode,
 } from 'react';
+import { Link } from 'react-router';
 import { type StreamdownProps } from 'streamdown';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -37,7 +38,6 @@ import {
     useCancelDeepResearchMutation,
     useTrackDeepResearchReportEngagement,
 } from '../../hooks/useDeepResearch';
-import { DeepResearchReport } from './DeepResearchReport';
 import styles from './DeepResearchRunCard.module.css';
 
 const PreviewLink: FC<AnchorHTMLAttributes<HTMLAnchorElement>> = ({
@@ -48,6 +48,7 @@ const PREVIEW_MARKDOWN_COMPONENTS: StreamdownProps['components'] = {
     a: PreviewLink as unknown as NonNullable<
         StreamdownProps['components']
     >['a'],
+    img: () => null,
 };
 
 const STATUS_CONFIG: Record<DeepResearchRunView['status'], { label: string }> =
@@ -189,10 +190,12 @@ export const DeepResearchRunCard = ({
     const status = STATUS_CONFIG[run.status];
     const cancelMutation = useCancelDeepResearchMutation(projectUuid, run.uuid);
     const [isActivityOpen, setIsActivityOpen] = useState(false);
-    const [isReportOpen, setIsReportOpen] = useState(false);
     const activityId = useId();
     const trackReportEngagement = useTrackDeepResearchReportEngagement();
     const [announcedStatus, setAnnouncedStatus] = useState(run.status);
+    const hasNoRelevantData =
+        run.status === 'failed' && run.terminalReason === 'no_relevant_data';
+    const statusLabel = hasNoRelevantData ? 'No relevant data' : status.label;
 
     useEffect(() => {
         if (announcedStatus !== run.status) {
@@ -223,7 +226,7 @@ export const DeepResearchRunCard = ({
             <Stack gap="md">
                 <DeepResearchRunHeading
                     statusLabel={
-                        isCompleted ? completedStatusLabel : status.label
+                        isCompleted ? completedStatusLabel : statusLabel
                     }
                     elapsedLabel={
                         run.status === 'queued' || isCompleted
@@ -248,7 +251,7 @@ export const DeepResearchRunCard = ({
                 />
 
                 <Text className={styles.liveRegion} aria-live="polite">
-                    Research status changed to {status.label}
+                    Research status changed to {statusLabel}
                 </Text>
 
                 {run.phase && !isTerminal && (
@@ -341,10 +344,24 @@ export const DeepResearchRunCard = ({
                                 {run.errorMessage ??
                                     'Research stopped before the report was ready.'}
                             </Text>
-                            <Text size="sm">
-                                Any completed queries and findings are saved
-                                below.
-                            </Text>
+                            {hasNoRelevantData ? (
+                                <Text size="sm">
+                                    Try refining your question or choosing data
+                                    that covers the topic.
+                                </Text>
+                            ) : (
+                                <>
+                                    <Text size="sm">
+                                        Any completed queries and findings are
+                                        saved below.
+                                    </Text>
+                                    <Text size="sm">
+                                        Starting over creates a new research
+                                        run. Previous queries won&apos;t be
+                                        reused.
+                                    </Text>
+                                </>
+                            )}
                             {canRunAgain && onRunAgain && (
                                 <Button
                                     size="xs"
@@ -352,7 +369,7 @@ export const DeepResearchRunCard = ({
                                     w="fit-content"
                                     onClick={onRunAgain}
                                 >
-                                    Run research again
+                                    Start over
                                 </Button>
                             )}
                         </Stack>
@@ -420,6 +437,8 @@ export const DeepResearchRunCard = ({
                                 </AiMarkdown>
                             )}
                             <Button
+                                component={Link}
+                                to={`/projects/${run.projectUuid}/ai-agents/deep-research/${run.uuid}`}
                                 color="ldDark"
                                 size="xs"
                                 w="fit-content"
@@ -440,7 +459,6 @@ export const DeepResearchRunCard = ({
                                             updatedAt: run.updatedAt,
                                         });
                                     }
-                                    setIsReportOpen(true);
                                 }}
                             >
                                 View full report
@@ -511,12 +529,6 @@ export const DeepResearchRunCard = ({
                     </Stack>
                 )}
             </Stack>
-
-            <DeepResearchReport
-                run={run}
-                opened={isReportOpen}
-                onClose={() => setIsReportOpen(false)}
-            />
         </Paper>
     );
 };

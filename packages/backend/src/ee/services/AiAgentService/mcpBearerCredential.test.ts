@@ -1,5 +1,9 @@
 import { ParameterError, type SessionUser } from '@lightdash/common';
-import { AiAgentService } from './AiAgentService';
+import {
+    AiAgentService,
+    assertDeepResearchBedrockProfile,
+    assertDeepResearchFinalizerKeyManagement,
+} from './AiAgentService';
 
 vi.mock('../ai/AiAgentMcpRuntimeClient', () => ({
     AiAgentMcpRuntimeClient: vi
@@ -35,6 +39,37 @@ const bearerServer = {
     createdAt: new Date(),
     updatedAt: new Date(),
 };
+
+describe('assertDeepResearchFinalizerKeyManagement', () => {
+    it('fails closed when a self-managed run would fall back to a managed key', () => {
+        expect(() =>
+            assertDeepResearchFinalizerKeyManagement(
+                'self-managed',
+                'lightdash-managed',
+            ),
+        ).toThrow('key management changed during the run');
+    });
+});
+
+describe('assertDeepResearchBedrockProfile', () => {
+    it('accepts a matching inference profile and rejects profile drift', () => {
+        expect(() =>
+            assertDeepResearchBedrockProfile(
+                'eu.anthropic.claude-opus-5',
+                'eu',
+            ),
+        ).not.toThrow();
+        expect(() =>
+            assertDeepResearchBedrockProfile(
+                'eu.anthropic.claude-opus-5',
+                'us',
+            ),
+        ).toThrow('inference profile changed during the run');
+        expect(() =>
+            assertDeepResearchBedrockProfile('eu.retired-model', 'us'),
+        ).toThrow('Bedrock model is unavailable');
+    });
+});
 
 const agent = {
     uuid: 'agent-1',

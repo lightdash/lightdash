@@ -1,4 +1,6 @@
 import { Readable } from 'stream';
+import { makeTestTrueTypeFont } from '../../../testing/makeTestTrueTypeFont';
+import { readDesignForDownload } from './readDesignForDownload';
 
 // A minimal helper that builds a fake S3 response body from a Buffer.
 // readS3ObjectAsBuffer checks for `.on` (stream-like) then iterates as async iterable.
@@ -74,8 +76,6 @@ describe('readDesignForDownload', () => {
     });
 
     it('(a) returns empty context when designUuid is null', async () => {
-        const { readDesignForDownload } =
-            await import('./readDesignForDownload');
         const s3Client = makeS3Client();
         const organizationDesignModel = makeOrganizationDesignModel(undefined);
         const logger = makeLogger();
@@ -101,8 +101,6 @@ describe('readDesignForDownload', () => {
     });
 
     it('(b) returns 2 assets and instructions when design has 2 assets + 1 instruction file', async () => {
-        const { readDesignForDownload } =
-            await import('./readDesignForDownload');
         const files = [
             makeDesignFile('css', 1),
             makeDesignFile('image', 1),
@@ -136,8 +134,6 @@ describe('readDesignForDownload', () => {
     });
 
     it('(c) returns 0 assets and skippedAssetCount when assets exceed the total-size cap, with instructions still present', async () => {
-        const { readDesignForDownload } =
-            await import('./readDesignForDownload');
         // 11 x 10 MB = 110 MB of assets, over the 100 MB cap. File count is
         // irrelevant now — only aggregate size triggers the skip.
         const assetFiles = Array.from({ length: 11 }, (_, i) => ({
@@ -170,5 +166,57 @@ describe('readDesignForDownload', () => {
         // Only the 1 instruction file is fetched from S3 (assets are skipped)
         expect(s3Client.send).toHaveBeenCalledTimes(1);
         expect(logger.warn).toHaveBeenCalled();
+    });
+
+    it('applies the asset cap after omitting a restricted font', async () => {
+        const fontFile = {
+            ...makeDesignFile('font', 1),
+            filename: 'legacy-brand.ttf',
+            sizeBytes: 10 * 1024 * 1024,
+        };
+        const imageFiles = Array.from({ length: 10 }, (_, index) => ({
+            ...makeDesignFile('image', index),
+            sizeBytes: 10 * 1024 * 1024,
+        }));
+        const design = makeDesign([fontFile, ...imageFiles]);
+        const restrictedBody = makeTestTrueTypeFont({
+            familyName: 'SF Pro',
+            fullName: 'SF Pro Regular',
+            postscriptName: 'SFPro-Regular',
+        });
+        const send = vi.fn((command: { input: { Key?: string } }) =>
+            Promise.resolve({
+                Body: makeS3Body(
+                    command.input.Key?.includes(fontFile.fileUuid)
+                        ? restrictedBody
+                        : Buffer.from('image'),
+                ),
+            }),
+        );
+        const logger = makeLogger();
+
+        const result = await readDesignForDownload({
+            s3Client: { send } as never,
+            bucket: 'test-bucket',
+            organizationDesignModel: makeOrganizationDesignModel(
+                design,
+            ) as never,
+            organizationUuid: 'org-uuid-1',
+            designUuid: design.designUuid,
+            logger: logger as never,
+        });
+
+        expect(result.assets).toHaveLength(10);
+        expect(result.skippedAssetCount).toBe(1);
+        expect(send).toHaveBeenCalledTimes(11);
+        expect(
+            Buffer.from(
+                result.instructions?.contentBase64 ?? '',
+                'base64',
+            ).toString('utf8'),
+        ).toContain('system-ui, -apple-system');
+        expect(logger.warn).toHaveBeenCalledWith(
+            expect.stringContaining('omitted restricted Apple font'),
+        );
     });
 });

@@ -1,0 +1,72 @@
+name: Merge freeze status
+
+# Companion to merge-freeze.yml. That workflow stamps every PR that was already
+# open when the freeze went on; this one covers PRs opened or pushed during the
+# window, so their blocked merge names whoever froze it instead of GitHub's
+# bare "Expected - Waiting for status to be reported".
+#
+# Messaging only: the required status check on the main ruleset is what blocks
+# the merge, and `vars.MERGE_FREEZE` is a mirror the toggle maintains, so a
+# stale variable degrades the message and never the enforcement.
+#
+# Fork PRs are skipped - a pull_request run from a fork gets a read-only token
+# and cannot post a status. They stay blocked by the missing required check,
+# which is the outcome we want anyway; reaching for pull_request_target to
+# prettify that would expose secrets to fork PRs for no enforcement gain.
+#
+# SPK-985.
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  statuses: write
+
+concurrency:
+  group: merge-freeze-status-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  flag:
+    name: freeze
+    # Stacked PRs merging into their parent are not covered by the main ruleset
+    # and are not blocked, so they are not flagged either.
+    if: >-
+      vars.MERGE_FREEZE == 'true'
+      && github.event.pull_request.base.ref == github.event.repository.default_branch
+      && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Explain the freeze on this PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          FREEZE_ACTOR: ${{ vars.MERGE_FREEZE_ACTOR }}
+          FREEZE_URL: ${{ github.server_url }}/${{ github.repository }}/actions/workflows/merge-freeze.yml
+        run: |
+          set -euo pipefail
+
+          # Names the person, never the reason: this workflow's log and the
+          # statuses it writes are both public, and a freeze reason is exactly
+          # the sort of sentence that names a customer. A username carries
+          # nothing sensitive and tells the author who to go and ask.
+          if [ -n "${FREEZE_ACTOR:-}" ]; then
+            description="Merges to main are frozen by $FREEZE_ACTOR - ask them in Slack"
+          else
+            description="Merges to main are frozen while a release is cut"
+          fi
+
+          gh api --method POST "repos/$REPO/statuses/$SHA" \
+            -f state=failure \
+            -f context=merge-freeze \
+            -f description="${description:0:140}" \
+            -f target_url="$FREEZE_URL" >/dev/null
+
+          echo "Flagged PR #${{ github.event.pull_request.number }} as blocked by the active merge freeze."

@@ -1,7 +1,8 @@
 import {
     DATA_APP_CLAUDE_MODELS,
+    DATA_APP_CODEX_MODELS,
     type DataAppActivityFilters,
-    type DataAppClaudeModel,
+    type DataAppCodingAgentModel,
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router';
@@ -27,7 +28,7 @@ const DEFAULT_PERIOD: DataAppActivityPeriod = 'all';
 type DataAppActivityFiltersState = {
     projectUuids: string[];
     userUuids: string[];
-    models: DataAppClaudeModel[];
+    models: DataAppCodingAgentModel[];
     period: DataAppActivityPeriod;
 };
 
@@ -35,8 +36,10 @@ const isPeriod = (value: string | null): value is DataAppActivityPeriod =>
     value !== null &&
     (DATA_APP_ACTIVITY_PERIODS as readonly string[]).includes(value);
 
-const isModel = (value: string): value is DataAppClaudeModel =>
-    (DATA_APP_CLAUDE_MODELS as readonly string[]).includes(value);
+const isModel = (value: string): value is DataAppCodingAgentModel =>
+    [...DATA_APP_CLAUDE_MODELS, ...DATA_APP_CODEX_MODELS].includes(
+        value as DataAppCodingAgentModel,
+    );
 
 /** Data app activity filters, persisted in the URL so a view is shareable. */
 export const useDataAppActivityFilters = () => {

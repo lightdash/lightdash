@@ -1,4 +1,5 @@
 import { createOpenAI } from '@ai-sdk/openai';
+import { DEFAULT_OPENAI_BASE_URL } from '../../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../../config/parseConfig';
 import { ModelPreset } from './presets';
 import { AiModel } from './types';
@@ -14,7 +15,7 @@ export const getOpenaiGptmodel = (
 ): AiModel<typeof PROVIDER> => {
     const openai = createOpenAI({
         apiKey: config.apiKey,
-        ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
+        baseURL: config.baseUrl || DEFAULT_OPENAI_BASE_URL,
         headers: config.customHeaders,
     });
     const { supportsReasoning, modelId } = preset;

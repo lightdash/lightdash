@@ -1,0 +1,74 @@
+.root {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    height: 100%;
+    min-height: 0;
+}
+
+.datasets {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.sourcesLabel {
+    padding: 0 4px;
+    font-size: 10px;
+    font-weight: 650;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--mantine-color-ldGray-6);
+}
+
+.sourceList {
+    flex-shrink: 0;
+    overflow: hidden;
+    border: 1px solid var(--mantine-color-ldGray-3);
+    border-radius: 7px;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    background: var(--mantine-color-body);
+}
+
+.header + .header {
+    border-top: 1px solid var(--mantine-color-ldGray-3);
+}
+
+.header[data-open='true'] {
+    background: var(--mantine-color-blue-0);
+    box-shadow: inset 3px 0 0 var(--mantine-color-blue-5);
+}
+
+.headerButton {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+    flex: 1;
+    padding: 7px 9px;
+    text-align: left;
+}
+
+.headerCopy {
+    min-width: 0;
+    line-height: 1.15;
+}
+
+.remove {
+    flex: none;
+    margin-right: 5px;
+}
+
+.body {
+    flex: 1;
+    min-height: 220px;
+    overflow: hidden;
+    padding: 2px 1px 6px;
+}

@@ -350,7 +350,14 @@ export default class SchedulerApp {
             signals: ['SIGUSR2', 'SIGTERM', 'SIGINT', 'SIGHUP', 'SIGABRT'],
             healthChecks: {
                 '/api/v1/health': () => {
-                    const status = workerHealth.isHealthy();
+                    const status = worker.isQuiesced
+                        ? workerHealth.isHealthyWhileQuiesced()
+                        : workerHealth.isHealthy();
+                    if (worker.isQuiesced && status.ok) {
+                        return Promise.resolve(
+                            'Scheduler worker is quiesced for migration',
+                        );
+                    }
                     const runnerUp = Boolean(
                         worker?.runner && worker.isRunning,
                     );
@@ -393,7 +400,7 @@ export default class SchedulerApp {
                 Logger.info('Stopping Prometheus metrics');
                 await this.prometheusMetrics.stop();
                 await shutdownOtelTracing();
-                if (worker && worker.runner) {
+                if (worker) {
                     Logger.info('Stopping scheduler worker');
                     // worker.stop() (not runner.stop()) so the settling runner
                     // promise is recognised as graceful, not a pool crash.

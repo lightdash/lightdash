@@ -294,7 +294,7 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                         }
                         description={
                             isInstallationValid ? (
-                                <Text>
+                                <>
                                     You are connected to GitHub.{' '}
                                     <Anchor
                                         inherit
@@ -303,7 +303,7 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                                     >
                                         Click here to use another account
                                     </Anchor>
-                                </Text>
+                                </>
                             ) : undefined
                         }
                         w={isInstallationValid ? '90%' : '100%'}

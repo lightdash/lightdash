@@ -4,11 +4,9 @@ import {
     AiAgentToolResult,
     AiArtifact,
     ChartType,
-    followUpToolsText,
     getGroupByDimensions,
     getItemMap,
     getWebAiChartConfig,
-    isActiveFollowUpTool,
     isAiSqlChartArtifactConfig,
     isToolEditDbtProjectResult,
     isToolSetupPreviewDeployResult,
@@ -433,67 +431,6 @@ export function getReferencedArtifactsBlocks(
                     action_id: `view_artifact_${artifact.artifactUuid}`,
                 };
             }),
-        },
-    ];
-}
-
-export function getFollowUpToolBlocks(
-    slackPrompt: SlackPrompt,
-    artifacts?: AiArtifact[],
-): KnownBlock[] {
-    // TODO: Assuming each thread has just one artifact for now
-    // TODO: Handle multiple artifacts per thread in the future
-
-    if (!artifacts || artifacts.length === 0) {
-        return [];
-    }
-
-    // Find the first chart artifact (assuming one artifact per thread for now)
-    const chartArtifact = artifacts.find((artifact) => artifact.chartConfig);
-    if (!chartArtifact || !chartArtifact.chartConfig) {
-        return [];
-    }
-
-    // Extract follow-up tools from the chart config if they exist
-    let savedFollowUpTools: unknown[] = [];
-    if (
-        'followUpTools' in chartArtifact.chartConfig &&
-        Array.isArray(chartArtifact.chartConfig.followUpTools)
-    ) {
-        savedFollowUpTools = chartArtifact.chartConfig.followUpTools;
-    }
-
-    const activeSavedFollowUpTools =
-        savedFollowUpTools.filter(isActiveFollowUpTool);
-
-    if (!activeSavedFollowUpTools.length) {
-        return [];
-    }
-
-    return [
-        {
-            type: 'divider',
-        },
-        {
-            type: 'context',
-            elements: [
-                {
-                    type: 'plain_text',
-                    text: `❓ What would you like me to do next?`,
-                },
-            ],
-        },
-        {
-            type: 'actions',
-            elements: activeSavedFollowUpTools.map((tool) => ({
-                type: 'button',
-                text: {
-                    type: 'plain_text',
-                    text: followUpToolsText[tool],
-                },
-                value: slackPrompt.promptUuid,
-                action_id: `execute_follow_up_tool.${tool}`,
-            })),
         },
     ];
 }

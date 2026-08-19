@@ -979,10 +979,15 @@ export const parseResultsS3Config = (): LightdashConfig['results']['s3'] => {
         process.env.RESULTS_S3_SECRET_KEY ||
         process.env.RESULTS_CACHE_S3_SECRET_KEY || // Deprecated
         baseSecretKey;
+    const endpoint = process.env.RESULTS_S3_ENDPOINT || baseEndpoint;
+    const resultsForcePathStyle = process.env.RESULTS_S3_FORCE_PATH_STYLE;
+    const forcePathStyle = resultsForcePathStyle
+        ? resultsForcePathStyle === 'true'
+        : baseForcePathStyle;
 
     return {
-        endpoint: baseEndpoint, // ! For now we keep reusing the S3_ENDPOINT like we have been so far, we are just going to enforce it
-        forcePathStyle: baseForcePathStyle, // ! For now we keep reusing the S3_FORCE_PATH_STYLE like we have been so far, we are just going to enforce it
+        endpoint,
+        forcePathStyle,
         bucket,
         region,
         accessKey,
@@ -1208,6 +1213,7 @@ export const getAiConfig = () => ({
     debugLoggingEnabled:
         process.env.AI_COPILOT_DEBUG_LOGGING_ENABLED === 'true',
     telemetryEnabled: process.env.AI_COPILOT_TELEMETRY_ENABLED === 'true',
+    threadDumpEnabled: process.env.AI_COPILOT_THREAD_DUMP_ENABLED === 'true',
     requiresFeatureFlag:
         process.env.AI_COPILOT_REQUIRES_FEATURE_FLAG === 'true',
     askAiButtonEnabled: process.env.ASK_AI_BUTTON_ENABLED === 'true',
@@ -1261,7 +1267,7 @@ export const getAiConfig = () => ({
                   embeddingModelName:
                       process.env.OPENAI_EMBEDDING_MODEL ||
                       DEFAULT_OPENAI_EMBEDDING_MODEL,
-                  baseUrl: process.env.OPENAI_BASE_URL,
+                  baseUrl: process.env.OPENAI_BASE_URL?.trim() || undefined,
                   availableModels: getArrayFromCommaSeparatedList(
                       'OPENAI_AVAILABLE_MODELS',
                   ),
@@ -1427,10 +1433,15 @@ export type LightdashConfig = {
     queryPhaseMetrics: {
         projectUuids: string[];
     };
+    dbt: {
+        environmentVariableAllowlist: string[];
+    };
     database: {
         connectionUri: string | undefined;
         maxConnections: number | undefined;
         minConnections: number | undefined;
+        acquireConnectionTimeout: number | undefined;
+        readinessProbeTtlMs: number;
         allowMissingMigrations: boolean;
     };
     allowMultiOrgs: boolean;
@@ -1485,6 +1496,12 @@ export type LightdashConfig = {
         jobTimeout: number;
         screenshotTimeout?: number;
         tasks: Array<SchedulerTaskName>;
+        quiesce: {
+            pollInterval: number;
+            gracePeriod: number;
+            resumeJitter: number;
+            resumeRampPeriod: number;
+        };
         queryHistory: {
             cleanup: {
                 enabled: boolean;
@@ -1769,6 +1786,8 @@ export type S3Config = {
 };
 export type AppRuntimeConfig = {
     enabled: boolean;
+    /** Coding agent invoked by the data-app generation pipeline. */
+    dataAppCodingAgent: 'claude' | 'codex';
     lightdashOrigin: string;
     cdnOrigin: string | null;
     /**
@@ -2236,6 +2255,14 @@ const parseDataAppOtelConfig = (): DataAppOtelConfig => {
 
 const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
     const enabled = process.env.APPS_RUNTIME_ENABLED === 'true';
+    const dataAppCodingAgent = (() => {
+        const value = process.env.APPS_CODING_AGENT?.trim().toLowerCase();
+        if (!value || value === 'claude') return 'claude' as const;
+        if (value === 'codex') return 'codex' as const;
+        throw new ParseError(
+            `Cannot parse environment variable "APPS_CODING_AGENT". Value must be one of claude, codex but APPS_CODING_AGENT=${process.env.APPS_CODING_AGENT}`,
+        );
+    })();
     const appsBucket = process.env.APPS_S3_BUCKET;
 
     const baseS3Config = parseBaseS3Config();
@@ -2283,6 +2310,7 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
 
     return {
         enabled,
+        dataAppCodingAgent,
         lightdashOrigin: process.env.APP_RUNTIME_LIGHTDASH_ORIGIN || siteUrl,
         cdnOrigin: process.env.APP_RUNTIME_CDN_ORIGIN || null,
         previewOrigin: process.env.APP_RUNTIME_PREVIEW_ORIGIN || null,
@@ -2735,6 +2763,12 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable('PGMAXCONNECTIONS'),
             minConnections:
                 getIntegerFromEnvironmentVariable('PGMINCONNECTIONS'),
+            acquireConnectionTimeout: getIntegerFromEnvironmentVariable(
+                'PGACQUIRECONNECTIONTIMEOUT',
+            ),
+            readinessProbeTtlMs:
+                getIntegerFromEnvironmentVariable('READINESS_PROBE_TTL_MS') ??
+                10_000,
             allowMissingMigrations:
                 process.env.ALLOW_MISSING_MIGRATIONS === 'true',
         },
@@ -2920,6 +2954,11 @@ export const parseConfig = (): LightdashConfig => {
                 'QUERY_PHASE_METRICS_PROJECT_UUIDS',
             ),
         },
+        dbt: {
+            environmentVariableAllowlist: getArrayFromCommaSeparatedList(
+                'ALLOW_DBT_COMMANDS_ACCESS_TO_ENV_VARS',
+            ),
+        },
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
         maxPayloadSize: process.env.LIGHTDASH_MAX_PAYLOAD || '5mb',
         query: {
@@ -3049,6 +3088,24 @@ export const parseConfig = (): LightdashConfig => {
                 ? parseInt(process.env.SCHEDULER_SCREENSHOT_TIMEOUT, 10)
                 : undefined,
             tasks: parseAndSanitizeSchedulerTasks(),
+            quiesce: {
+                pollInterval:
+                    getIntegerFromEnvironmentVariable(
+                        'SCHEDULER_QUIESCE_POLL_INTERVAL',
+                    ) ?? 2_000,
+                gracePeriod:
+                    getIntegerFromEnvironmentVariable(
+                        'SCHEDULER_QUIESCE_GRACE_PERIOD',
+                    ) ?? 180_000,
+                resumeJitter:
+                    getIntegerFromEnvironmentVariable(
+                        'SCHEDULER_RESUME_JITTER',
+                    ) ?? 60_000,
+                resumeRampPeriod:
+                    getIntegerFromEnvironmentVariable(
+                        'SCHEDULER_RESUME_RAMP_PERIOD',
+                    ) ?? 180_000,
+            },
             queryHistory: {
                 cleanup: {
                     enabled:

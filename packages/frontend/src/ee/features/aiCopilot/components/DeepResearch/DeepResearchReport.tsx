@@ -18,14 +18,14 @@ import {
     getDeepResearchReportHeadings,
     getDeepResearchReportSourceCount,
 } from '../../deepResearch/reportDocument';
-import { type DeepResearchRunView } from '../../deepResearch/types';
+import { type DeepResearchReportView } from '../../deepResearch/types';
 import { DeepResearchInlineMarkdown } from './DeepResearchInlineMarkdown';
 import { DeepResearchMarkdownReport } from './DeepResearchMarkdownReport';
 import styles from './DeepResearchReport.module.css';
 import { DeepResearchReportContent } from './DeepResearchReportContent';
 
 type Props = {
-    run: DeepResearchRunView;
+    run: DeepResearchReportView;
     opened: boolean;
     onClose: () => void;
 };

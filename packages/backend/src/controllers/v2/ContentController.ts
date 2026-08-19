@@ -1,6 +1,7 @@
 import {
     ApiContentActionBody,
     ApiContentBulkActionBody,
+    ApiContentBulkDeleteResponse,
     ApiContentResponse,
     ApiDeletedContentResponse,
     ApiErrorPayload,
@@ -8,6 +9,7 @@ import {
     ApiRestoreContentBody,
     ApiSuccessEmpty,
     assertRegisteredAccount,
+    ContentActionDelete,
     ContentActionMove,
     ContentType,
     ParameterError,
@@ -59,6 +61,7 @@ export class ContentController extends BaseController {
         @Query() sortBy?: ContentArgs['sortBy'],
         @Query() sortDirection?: ContentArgs['sortDirection'],
         @Query() includePersonalDataApps?: boolean,
+        @Query() dataAppVizsFilter?: 'exclude' | 'only',
     ): Promise<ApiContentResponse> {
         const { user } = getAccountApiAccessContext(req.account!);
         this.setStatus(200);
@@ -73,6 +76,7 @@ export class ContentController extends BaseController {
                     contentTypes,
                     search,
                     includePersonalDataApps,
+                    dataAppVizsFilter,
                 },
                 {
                     sortBy,
@@ -150,6 +154,69 @@ export class ContentController extends BaseController {
             );
 
         return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Delete a single item (Chart, Dashboard, Space). Soft-deletes when the
+     * instance has soft delete enabled, otherwise deletes permanently.
+     * @summary Delete content
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/:projectUuid/delete')
+    @OperationId('Delete content')
+    @Tags('Content', 'Delete content')
+    async deleteContent(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: ApiContentActionBody<ContentActionDelete>,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+
+        if (body.action.type !== 'delete') {
+            throw new ParameterError('Invalid action type');
+        }
+
+        await this.services
+            .getContentService()
+            .delete(toSessionUser(req.account), projectUuid, body.item);
+
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Delete multiple items (Charts, Dashboards, Spaces). Items the caller
+     * cannot delete are skipped and reported in the response.
+     * @summary Bulk delete content
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/bulk-action/:projectUuid/delete')
+    @OperationId('Bulk delete content')
+    @Tags('Content', 'Bulk action', 'Delete content')
+    async bulkDeleteContent(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: ApiContentBulkActionBody<ContentActionDelete>,
+    ): Promise<ApiContentBulkDeleteResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+
+        if (body.action.type !== 'delete') {
+            throw new ParameterError('Invalid action type');
+        }
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getContentService()
+                .bulkDelete(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    body.content,
+                ),
+        };
     }
 
     /**

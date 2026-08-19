@@ -55,9 +55,9 @@ const dashboardAbilities: EmbeddedAbilityBuilder = ({
     // Data app tiles require an explicit opt-in on the JWT — same trust
     // model as canExplore. Off by default, the data app tile renders as a
     // "not authorized" placeholder. With the flag set, the customer is
-    // accepting that the embed user can run the data app's metric queries
-    // (arbitrary against any explore in the project, still filtered at
-    // query time by the JWT's user attributes via getFilteredExplore).
+    // accepting that the embed user can run the app's metric queries and use
+    // its admin-linked external connections. Metric queries remain filtered
+    // by the JWT's user attributes via getFilteredExplore.
     if (
         embedUser.content.type === 'dashboard' &&
         embedUser.content.canViewDataApps
@@ -129,8 +129,8 @@ const dataAppAbilities: EmbeddedAbilityBuilder = ({
     // A standalone data app runs arbitrary metric queries against any explore
     // in the project. The Explore grant MUST be unconstrained (no exploreNames)
     // — a scoped grant would 403 queries the app legitimately needs. Rows are
-    // still filtered at query time by the JWT's user attributes
-    // (getFilteredExplore). Same trust model as a dashboard's canViewDataApps.
+    // still filtered at query time by the JWT's user attributes. The app may
+    // also use admin-linked external connections, matching canViewDataApps.
     can('view', 'Explore', {
         organizationUuid: organization.organizationUuid,
         projectUuid: embed.projectUuid,

@@ -1,122 +1,132 @@
 import {
     ActionIcon,
     Box,
-    Button,
     Collapse,
     Group,
     Stack,
-    Text,
-    Title,
-    useMantineColorScheme,
+    UnstyledButton,
 } from '@mantine/core';
-import { IconChevronDown, IconChevronUp, IconX } from '@tabler/icons-react';
+import { IconX } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import rehypeExternalLinks from 'rehype-external-links';
 import MantineIcon from '../../components/common/MantineIcon';
-import ApiErrorDisplay from './ApiErrorDisplay';
+import ApiErrorDisplay, { CopyErrorButton } from './ApiErrorDisplay';
+import { errorClipboardValue } from './errorClipboardValue';
 import styles from './MultipleToastBody.module.css';
 import { type NotificationData } from './types';
 
 const MultipleToastBody = ({
     toastsData,
-    onCloseError,
+    onDismissError,
 }: {
-    title?: ReactNode;
     toastsData: NotificationData[];
-    onCloseError?: (errorData: NotificationData) => void;
+    onDismissError?: (messageKey: string) => void;
 }) => {
-    const { colorScheme } = useMantineColorScheme();
-    const isDark = colorScheme === 'dark';
-    const [listCollapsed, setListCollapsed] = useState(true);
+    const [expanded, setExpanded] = useState(false);
+    const newest = toastsData[toastsData.length - 1];
+    const older = toastsData.slice(0, -1).reverse();
 
     return (
-        <Stack gap={listCollapsed ? 'two' : 'xs'} align="stretch">
-            <Group>
-                <Title className={styles.errorsTitle} order={6}>
-                    Errors
-                </Title>
-                <Button
-                    className={styles.toggleButton}
-                    size="compact-xs"
-                    variant="outline"
-                    color={isDark ? 'red.4' : 'red.8'}
-                    rightSection={
-                        <MantineIcon
-                            color={isDark ? 'red.4' : 'red.8'}
-                            icon={
-                                listCollapsed ? IconChevronUp : IconChevronDown
-                            }
-                        />
-                    }
-                    onClick={() => setListCollapsed(!listCollapsed)}
-                >
-                    <Text className={styles.toggleButtonText}>{`${
-                        listCollapsed ? 'Show' : 'Hide'
-                    } ${toastsData.length}`}</Text>
-                </Button>
-            </Group>
+        <Stack gap={0} align="stretch">
+            {newest.apiError ? (
+                <ApiErrorDisplay apiError={newest.apiError} />
+            ) : typeof newest.subtitle === 'string' ? (
+                <MarkdownPreview
+                    className={styles.markdown}
+                    source={newest.subtitle}
+                    rehypePlugins={[
+                        [rehypeExternalLinks, { target: '_blank' }],
+                    ]}
+                />
+            ) : (
+                <Box className={styles.newestMessage}>
+                    {newest.subtitle || newest.title}
+                </Box>
+            )}
 
-            <Box className={styles.collapseContainer}>
-                <Collapse in={!listCollapsed}>
-                    <Stack gap="xs" pb="sm">
-                        {toastsData.map((toastData, index) => (
-                            <Group
-                                className={styles.errorItem}
-                                key={`${toastData.subtitle}-${index}`}
-                                justify="space-between"
-                                gap="xxs"
-                                wrap="nowrap"
-                            >
-                                {toastData.apiError ? (
-                                    <ApiErrorDisplay
-                                        apiError={toastData.apiError}
-                                        onClose={() =>
-                                            onCloseError?.(toastData)
-                                        }
-                                    />
-                                ) : (
-                                    <>
-                                        {toastData.title && (
-                                            <Title
-                                                className={
-                                                    styles.errorItemTitle
+            {older.length > 0 && (
+                <>
+                    <UnstyledButton
+                        className={styles.toggle}
+                        onClick={() => setExpanded(!expanded)}
+                    >
+                        {`${expanded ? 'Hide' : 'Show'} ${older.length} older`}
+                    </UnstyledButton>
+
+                    <Collapse in={expanded}>
+                        <Box className={styles.olderList}>
+                            {older.map((toastData) => {
+                                const { messageKey } = toastData;
+                                const olderText = toastData.apiError
+                                    ? toastData.apiError.message
+                                    : toastData.subtitle || toastData.title;
+
+                                return (
+                                    <Group
+                                        key={toastData.messageKey}
+                                        className={styles.olderItem}
+                                        gap={12}
+                                        align="flex-start"
+                                        wrap="nowrap"
+                                    >
+                                        <Box className={styles.olderMessage}>
+                                            {typeof olderText === 'string' ? (
+                                                <MarkdownPreview
+                                                    className={styles.markdown}
+                                                    source={olderText}
+                                                    rehypePlugins={[
+                                                        [
+                                                            rehypeExternalLinks,
+                                                            {
+                                                                target: '_blank',
+                                                            },
+                                                        ],
+                                                    ]}
+                                                />
+                                            ) : (
+                                                olderText
+                                            )}
+                                        </Box>
+                                        {toastData.receivedAt && (
+                                            <Box className={styles.olderTime}>
+                                                {toastData.receivedAt}
+                                            </Box>
+                                        )}
+                                        {toastData.apiError &&
+                                            (toastData.apiError.sentryEventId ||
+                                                toastData.apiError
+                                                    .sentryTraceId) && (
+                                                <CopyErrorButton
+                                                    value={errorClipboardValue(
+                                                        toastData.apiError,
+                                                    )}
+                                                    color="ldGray.7"
+                                                />
+                                            )}
+                                        {onDismissError && messageKey && (
+                                            <ActionIcon
+                                                aria-label="Dismiss error"
+                                                className={styles.olderDismiss}
+                                                size="xs"
+                                                variant="transparent"
+                                                onClick={() =>
+                                                    onDismissError(messageKey)
                                                 }
-                                                order={6}
                                             >
-                                                {toastData.title}
-                                            </Title>
+                                                <MantineIcon
+                                                    icon={IconX}
+                                                    size={14}
+                                                />
+                                            </ActionIcon>
                                         )}
-                                        {toastData.subtitle && (
-                                            <MarkdownPreview
-                                                className={
-                                                    styles.markdownPreview
-                                                }
-                                                source={toastData.subtitle.toString()}
-                                                rehypePlugins={[
-                                                    [
-                                                        rehypeExternalLinks,
-                                                        { target: '_blank' },
-                                                    ],
-                                                ]}
-                                            />
-                                        )}
-                                    </>
-                                )}
-
-                                <ActionIcon
-                                    className={styles.closeButton}
-                                    variant="transparent"
-                                    size="xs"
-                                    onClick={() => onCloseError?.(toastData)}
-                                >
-                                    <MantineIcon icon={IconX} />
-                                </ActionIcon>
-                            </Group>
-                        ))}
-                    </Stack>
-                </Collapse>
-            </Box>
+                                    </Group>
+                                );
+                            })}
+                        </Box>
+                    </Collapse>
+                </>
+            )}
         </Stack>
     );
 };

@@ -21,6 +21,12 @@ export {
     supportedMetricTypes,
 } from './metricRepresentation';
 export {
+    getEffectiveDimensionTimeFrame,
+    getPreAggregateGranularityRank,
+    getTimeFrameDerivability,
+    TimeFrameDerivability,
+} from './timeFrameDerivability';
+export {
     getDimensionBaseName,
     getDimensionReferences,
     getMetricReferences,

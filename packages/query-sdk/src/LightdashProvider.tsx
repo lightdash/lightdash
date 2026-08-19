@@ -33,6 +33,13 @@ export function useLightdashClient(): LightdashClient | null {
     return ctx?.client ?? null;
 }
 
+/** Non-throwing transport lookup for hooks that must keep working without a
+ *  provider (`useVizContext` supports standalone self-subscription). */
+export function useOptionalTransport(): Transport | null {
+    const ctx = useContext(LightdashContext);
+    return ctx?.transport ?? null;
+}
+
 type LightdashProviderProps = {
     children: ReactNode;
 } & (

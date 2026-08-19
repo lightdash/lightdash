@@ -46,6 +46,11 @@ type TestableUserModel = {
         userUuid: string,
         trx?: Knex,
     ) => Promise<never[]>;
+    getOrganizationExtraRoleUuids: (
+        userId: number,
+        organizationId: number,
+        trx?: Knex,
+    ) => Promise<string[]>;
     findServiceAccountByUserUuid: (
         userUuid: string,
         options?: { trx?: Knex },
@@ -124,6 +129,7 @@ const createUserModel = (): TestableUserModel => {
     model.hasAuthentication = vi.fn(async () => true);
     model.getUserProjectRoles = vi.fn(async () => []);
     model.getUserGroupProjectRoles = vi.fn(async () => []);
+    model.getOrganizationExtraRoleUuids = vi.fn(async () => []);
     model.findServiceAccountByUserUuid = vi.fn(async (userUuid) => ({
         uuid: 'service-account',
         description: 'Service account',
@@ -401,6 +407,114 @@ describe('UserModel', () => {
         expectCollapsedDashboardProjectRule(abilityBuilder.rules);
     });
 
+    describe('extra custom roles (role sets)', () => {
+        const humanDetails: DbUserDetails = {
+            ...userDetails,
+            user_uuid: 'human-user',
+            is_internal: false,
+            role: OrganizationMemberRole.VIEWER,
+            role_uuid: undefined,
+        };
+
+        const createHumanModel = () => {
+            const model = new UserModel({
+                database: vi.fn() as unknown as Knex,
+                lightdashConfig: {
+                    ...lightdashConfig,
+                    customRoles: { enabled: true },
+                } as LightdashConfig,
+                featureFlagModel,
+            }) as unknown as TestableUserModel;
+            model.hasAuthentication = vi.fn(async () => true);
+            model.getUserProjectRoles = vi.fn(async () => [
+                {
+                    projectUuid: 'project-1',
+                    role: ProjectMemberRole.VIEWER,
+                    userUuid: humanDetails.user_uuid,
+                    roleUuid: undefined,
+                    extraRoleUuids: ['project-extra'],
+                },
+            ]) as unknown as TestableUserModel['getUserProjectRoles'];
+            model.getUserGroupProjectRoles = vi.fn(async () => []);
+            model.getOrganizationExtraRoleUuids = vi.fn(async () => [
+                'org-extra',
+            ]);
+            model.customRoleScopes = vi.fn(async () => ({
+                'org-extra': ['manage:Organization'],
+                'project-extra': ['manage:SqlRunner'],
+            }));
+            model.findServiceAccountByUserUuid = vi.fn(async () => undefined);
+            model.applyServiceAccountProjectMemberships = vi.fn(async () => {});
+            return model;
+        };
+
+        it('unions org and project extra roles into a human user ability', async () => {
+            const model = createHumanModel();
+
+            const { abilityBuilder } =
+                await model.generateUserAbilityBuilder(humanDetails);
+            const ability = abilityBuilder.build();
+
+            expect(model.customRoleScopes).toHaveBeenCalledWith(
+                expect.arrayContaining(['org-extra', 'project-extra']),
+                expect.anything(),
+            );
+            // base viewer ability kept
+            expect(
+                ability.can(
+                    'view',
+                    subject('OrganizationMemberProfile', {
+                        organizationUuid: humanDetails.organization_uuid,
+                    }),
+                ),
+            ).toBe(true);
+            // extra org role adds manage:Organization (a viewer cannot)
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Organization', {
+                        organizationUuid: humanDetails.organization_uuid,
+                    }),
+                ),
+            ).toBe(true);
+            // extra project role adds manage:SqlRunner in that project only
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SqlRunner', { projectUuid: 'project-1' }),
+                ),
+            ).toBe(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SqlRunner', { projectUuid: 'project-2' }),
+                ),
+            ).toBe(false);
+        });
+
+        it('applies org extra roles to a legacy-scopes service account', async () => {
+            const model = createUserModel();
+            model.getOrganizationExtraRoleUuids = vi.fn(async () => [
+                'org-extra',
+            ]);
+            model.customRoleScopes = vi.fn(async () => ({
+                'org-extra': ['manage:Organization'],
+            }));
+
+            const { abilityBuilder } =
+                await model.generateUserAbilityBuilder(userDetails);
+
+            expect(
+                abilityBuilder.build().can(
+                    'manage',
+                    subject('Organization', {
+                        organizationUuid: userDetails.organization_uuid,
+                    }),
+                ),
+            ).toBe(true);
+        });
+    });
+
     it('uses one transaction executor for every ability source', async () => {
         const model = createUserModel();
         const trx = vi.fn() as unknown as Knex;
@@ -419,6 +533,11 @@ describe('UserModel', () => {
             userDetails.user_id,
             userDetails.organization_id,
             userDetails.user_uuid,
+            trx,
+        );
+        expect(model.getOrganizationExtraRoleUuids).toHaveBeenCalledWith(
+            userDetails.user_id,
+            userDetails.organization_id,
             trx,
         );
         expect(model.findServiceAccountByUserUuid).toHaveBeenCalledWith(

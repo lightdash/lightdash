@@ -6,6 +6,7 @@ import {
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
+import { validExplore } from '../../../services/ProjectService/ProjectService.mock';
 import { EmbedService } from './EmbedService';
 import {
     EmbedServiceArgumentsMock,
@@ -643,5 +644,124 @@ describe('EmbedService', () => {
                 { projectUuid: mockProjectUuid },
             );
         });
+
+        test.each([
+            {
+                isInteractivityEnabled: true,
+                expectedRequestParameters: { date_granularity: 'Month' },
+            },
+            {
+                isInteractivityEnabled: false,
+                expectedRequestParameters: {},
+            },
+        ])(
+            'combines embed autocomplete parameters when interactivity is $isInteractivityEnabled',
+            async ({ isInteractivityEnabled, expectedRequestParameters }) => {
+                const dashboardUuid = 'dashboard-1';
+                const field = validExplore.tables.a.dimensions.dim1;
+                const effectiveParameters = { date_granularity: 'Month' };
+                const combineParameters = vi
+                    .fn()
+                    .mockResolvedValue(effectiveParameters);
+                const runEmbedQuery = vi.fn().mockResolvedValue({
+                    rows: [{ a_dim1: 'result' }],
+                    cacheMetadata: { cacheHit: false },
+                });
+                const scopedService = new EmbedService({
+                    ...EmbedServiceArgumentsMock,
+                    embedModel: {
+                        get: vi.fn().mockResolvedValue({
+                            dashboardUuids: [dashboardUuid],
+                            allowAllDashboards: false,
+                            user: { userUuid: mockUserUuid },
+                        }),
+                    },
+                    dashboardModel: {
+                        getByIdOrSlug: vi.fn().mockResolvedValue({
+                            uuid: dashboardUuid,
+                            projectUuid: mockProjectUuid,
+                            organizationUuid: mockOrganizationUuid,
+                            filters: {
+                                dimensions: [
+                                    {
+                                        id: 'filter-uuid',
+                                        target: {
+                                            tableName: 'a',
+                                            fieldId: 'a_dim1',
+                                        },
+                                    },
+                                ],
+                            },
+                            parameters: {
+                                date_granularity: {
+                                    value: 'Week',
+                                    isPinned: true,
+                                },
+                            },
+                            tiles: [],
+                        }),
+                    },
+                    projectService: {
+                        _getFieldValuesMetricQuery: vi.fn().mockResolvedValue({
+                            metricQuery: {
+                                exploreName: validExplore.name,
+                                dimensions: ['a_dim1'],
+                                metrics: [],
+                                filters: {},
+                                sorts: [],
+                                limit: 50,
+                                tableCalculations: [],
+                            },
+                            explore: validExplore,
+                            field,
+                            staticResults: null,
+                        }),
+                        combineParameters,
+                        isTimezoneSupportEnabled: vi
+                            .fn()
+                            .mockResolvedValue(false),
+                        getQueryTimezoneForProject: vi
+                            .fn()
+                            .mockResolvedValue('UTC'),
+                    },
+                } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+                Object.assign(scopedService, {
+                    _runEmbedQuery: runEmbedQuery,
+                });
+                const account = {
+                    access: {
+                        content: { dashboardUuid },
+                        parameters: { enabled: isInteractivityEnabled },
+                    },
+                    user: { id: mockUserUuid },
+                    organization: {
+                        organizationUuid: mockOrganizationUuid,
+                    },
+                } as unknown as AnonymousAccount;
+
+                await scopedService.searchFilterValues({
+                    account,
+                    projectUuid: mockProjectUuid,
+                    filterUuid: 'filter-uuid',
+                    search: '',
+                    limit: 50,
+                    filters: undefined,
+                    forceRefresh: false,
+                    parameters: { date_granularity: 'Month' },
+                });
+
+                expect(combineParameters).toHaveBeenCalledWith(
+                    mockProjectUuid,
+                    validExplore,
+                    expectedRequestParameters,
+                    { date_granularity: 'Week' },
+                );
+                expect(runEmbedQuery).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        combinedParameters: effectiveParameters,
+                    }),
+                );
+            },
+        );
     });
 });

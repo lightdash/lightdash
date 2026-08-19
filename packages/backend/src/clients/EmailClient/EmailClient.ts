@@ -33,6 +33,10 @@ import {
     buildFailureCountPhrase,
     toEmailFailureFields,
 } from '../../utils/partialFailureUtils';
+import {
+    buildPlainTextEmailBody,
+    type PlainTextEmailMode,
+} from './plainTextEmailBody';
 
 const RETRYABLE_ERROR_CODES = ['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'];
 
@@ -268,44 +272,11 @@ export default class EmailClient {
         };
     }
 
-    private async sendEmail(
-        options: Mail.Options & EmailTemplate,
-    ): Promise<void> {
+    private async deliverMail(emailOptions: Mail.Options): Promise<void> {
         if (this.initPromise) {
             await this.initPromise;
         }
         if (this.transporter) {
-            const useCid = this.lightdashConfig.smtp?.inlineImageCid === true;
-            const host = this.lightdashConfig.siteUrl;
-
-            const imageSources: Record<string, string> = {};
-            for (const img of EmailClient.STATIC_CID_IMAGES) {
-                imageSources[img.contextKey] = useCid
-                    ? `cid:${img.cid}`
-                    : `${host}${img.hostPath}`;
-            }
-
-            const emailOptions: Mail.Options & EmailTemplate = {
-                ...options,
-                context: { ...options.context, ...imageSources },
-                attachments: [
-                    ...(Array.isArray(options.attachments)
-                        ? options.attachments
-                        : []),
-                    ...(useCid
-                        ? EmailClient.STATIC_CID_IMAGES.map((img) => ({
-                              filename: img.filename,
-                              path: path.join(
-                                  __dirname,
-                                  `./templates/${img.filename}`,
-                              ),
-                              cid: img.cid,
-                              contentDisposition: 'inline' as const,
-                          }))
-                        : []),
-                ],
-            };
-
             const maxRetries = 3;
             const baseDelay = 1000; // 1 second
 
@@ -365,6 +336,55 @@ export default class EmailClient {
                 }
             }
         }
+    }
+
+    private async sendEmail(
+        options: Mail.Options & EmailTemplate,
+    ): Promise<void> {
+        const useCid = this.lightdashConfig.smtp?.inlineImageCid === true;
+        const host = this.lightdashConfig.siteUrl;
+
+        const imageSources: Record<string, string> = {};
+        for (const img of EmailClient.STATIC_CID_IMAGES) {
+            imageSources[img.contextKey] = useCid
+                ? `cid:${img.cid}`
+                : `${host}${img.hostPath}`;
+        }
+
+        const emailOptions: Mail.Options & EmailTemplate = {
+            ...options,
+            context: { ...options.context, ...imageSources },
+            attachments: [
+                ...(Array.isArray(options.attachments)
+                    ? options.attachments
+                    : []),
+                ...(useCid
+                    ? EmailClient.STATIC_CID_IMAGES.map((img) => ({
+                          filename: img.filename,
+                          path: path.join(
+                              __dirname,
+                              `./templates/${img.filename}`,
+                          ),
+                          cid: img.cid,
+                          contentDisposition: 'inline' as const,
+                      }))
+                    : []),
+            ],
+        };
+
+        return this.deliverMail(emailOptions);
+    }
+
+    /**
+     * Sends a text-only email. No template is attached, so the compile plugin
+     * leaves `html` unset and nodemailer emits a single text/plain part
+     * (multipart/mixed once files are attached) — recipients never fall back to
+     * an HTML alternative. The branding images are skipped for the same reason.
+     */
+    private async sendPlainTextEmail(
+        options: Mail.Options & { text: string },
+    ): Promise<void> {
+        return this.deliverMail(options);
     }
 
     public canSendEmail() {
@@ -733,7 +753,37 @@ export default class EmailClient {
         deliveryType: string = 'Scheduled delivery',
         imageBuffer?: Buffer,
         sender?: EmailSenderIdentity | null,
+        plainText?: PlainTextEmailMode,
     ) {
+        if (plainText) {
+            return this.sendPlainTextEmail({
+                ...EmailClient.senderMailFields(sender),
+                to: recipient,
+                subject,
+                text: buildPlainTextEmailBody({
+                    title,
+                    message,
+                    cadence: plainText.cadence,
+                    // The chart image only exists inside the HTML body, so it
+                    // is offered as a link unless a PDF carries it.
+                    downloads:
+                        !pdfFile && imageUrl
+                            ? [{ filename: `${title}.png`, url: imageUrl }]
+                            : [],
+                    noResults: false,
+                }),
+                attachments: pdfFile
+                    ? [
+                          {
+                              filename: `${title}.pdf`,
+                              path: pdfFile,
+                              contentType: 'application/pdf',
+                          },
+                      ]
+                    : undefined,
+            });
+        }
+
         const useCidImage =
             this.lightdashConfig.smtp?.inlineImageCid === true &&
             imageBuffer !== undefined;
@@ -809,14 +859,40 @@ export default class EmailClient {
         asAttachment?: boolean,
         format?: SchedulerFormat,
         sender?: EmailSenderIdentity | null,
+        plainText?: PlainTextEmailMode,
     ) {
         const csvUrl = attachment.path;
+        const noResults = attachment.path === '#no-results';
         const attachments =
             asAttachment &&
             (attachment.localPath || attachment.path) &&
-            attachment.path !== '#no-results'
+            !noResults
                 ? [EmailClient.createFileAttachment(attachment, format)]
                 : undefined;
+
+        if (plainText) {
+            return this.sendPlainTextEmail({
+                ...EmailClient.senderMailFields(sender),
+                to: recipient,
+                subject,
+                text: buildPlainTextEmailBody({
+                    title,
+                    message,
+                    cadence: plainText.cadence,
+                    downloads:
+                        attachments || noResults
+                            ? []
+                            : [
+                                  {
+                                      filename: attachment.filename,
+                                      url: csvUrl,
+                                  },
+                              ],
+                    noResults,
+                }),
+                attachments,
+            });
+        }
 
         return this.sendEmail({
             ...EmailClient.senderMailFields(sender),
@@ -870,6 +946,7 @@ export default class EmailClient {
         notices?: DeliveryNotice[],
         sender?: EmailSenderIdentity | null,
         isApp: boolean = false,
+        plainText?: PlainTextEmailMode,
     ) {
         // App deliveries carry the query label; dashboards fall back to the
         // (timestamped) download filename.
@@ -886,20 +963,46 @@ export default class EmailClient {
             .filter((attachment) => attachment.truncated)
             .map(withDisplayName);
 
+        const attachableCsvUrls = csvUrls.filter(
+            (attachment) =>
+                (attachment.localPath || attachment.path) &&
+                attachment.path !== '#no-results',
+        );
+
         const emailAttachments = asAttachment
-            ? csvUrls
-                  .filter(
-                      (attachment) =>
-                          (attachment.localPath || attachment.path) &&
-                          attachment.path !== '#no-results',
-                  )
-                  .map((attachment) =>
-                      EmailClient.createFileAttachment(attachment, format),
-                  )
+            ? attachableCsvUrls.map((attachment) =>
+                  EmailClient.createFileAttachment(attachment, format),
+              )
             : undefined;
 
         const allChartsFailed =
             csvUrls.length === 0 && failures && failures.length > 0;
+
+        if (plainText) {
+            const attached = new Set(asAttachment ? attachableCsvUrls : []);
+            return this.sendPlainTextEmail({
+                ...EmailClient.senderMailFields(sender),
+                to: recipient,
+                subject,
+                text: buildPlainTextEmailBody({
+                    title,
+                    message,
+                    cadence: plainText.cadence,
+                    downloads: [...csvUrls, ...truncatedCsvUrls]
+                        .filter(
+                            (csvAttachment) =>
+                                csvAttachment.path !== '#no-results' &&
+                                !attached.has(csvAttachment),
+                        )
+                        .map((csvAttachment) => ({
+                            filename: csvAttachment.displayName,
+                            url: csvAttachment.path,
+                        })),
+                    noResults: csvUrls.length === 0,
+                }),
+                attachments: emailAttachments,
+            });
+        }
 
         return this.sendEmail({
             ...EmailClient.senderMailFields(sender),

@@ -1,6 +1,7 @@
 import { Box, Button, Group, Paper, Portal, Stack, Text } from '@mantine/core';
 import { clsx } from 'clsx';
 import { type FC, type ReactNode, useEffect, useState } from 'react';
+import { cardLayout } from './cardLayout';
 import styles from './GuidedTour.module.css';
 
 export type GuidedTourStep = {
@@ -23,11 +24,6 @@ type GuidedTourProps = {
 };
 
 const SPOTLIGHT_PADDING = 6;
-const VIEWPORT_MARGIN = 12;
-/** Space between the spotlight and the card, enough to fit the caret. */
-const CARD_GAP = 14;
-const CARD_MIN_WIDTH = 340;
-const CARD_MAX_WIDTH = 480;
 /** Used until the card has been measured. */
 const CARD_FALLBACK_HEIGHT = 220;
 
@@ -89,50 +85,6 @@ const useCardHeight = (): [number, (el: HTMLDivElement | null) => void] => {
     return [height, setEl];
 };
 
-type CardLayout = {
-    top: number;
-    left: number;
-    width: number;
-    placement: 'below' | 'above';
-    /** Caret offset from the card's left edge, aimed at the target's centre. */
-    caretLeft: number;
-};
-
-/**
- * Sit the card under the target, spanning as much of the target's width as it
- * can so a wide banner doesn't get a lone card tucked in its corner. Flips
- * above only when the card genuinely doesn't fit below.
- */
-const cardLayout = (rect: DOMRect, cardHeight: number): CardLayout => {
-    const available = window.innerWidth - VIEWPORT_MARGIN * 2;
-    const width = Math.min(
-        Math.max(CARD_MIN_WIDTH, rect.width),
-        CARD_MAX_WIDTH,
-        available,
-    );
-    const fitsBelow =
-        rect.bottom + CARD_GAP + cardHeight + VIEWPORT_MARGIN <=
-        window.innerHeight;
-    const fitsAbove = rect.top - CARD_GAP - cardHeight >= VIEWPORT_MARGIN;
-    const placement = fitsBelow || !fitsAbove ? 'below' : 'above';
-    const top =
-        placement === 'below'
-            ? rect.bottom + CARD_GAP
-            : rect.top - CARD_GAP - cardHeight;
-    const targetCentre = rect.left + rect.width / 2;
-    const left = Math.min(
-        Math.max(VIEWPORT_MARGIN, targetCentre - width / 2),
-        window.innerWidth - width - VIEWPORT_MARGIN,
-    );
-    return {
-        top,
-        left,
-        width,
-        placement,
-        caretLeft: Math.min(Math.max(20, targetCentre - left), width - 20),
-    };
-};
-
 export const GuidedTour: FC<GuidedTourProps> = ({
     steps,
     opened,
@@ -173,7 +125,7 @@ export const GuidedTour: FC<GuidedTourProps> = ({
             withBorder={false}
             className={styles.paper}
         >
-            {layout && (
+            {layout && layout.placement !== 'inside' && (
                 <Box
                     className={clsx(
                         styles.caret,

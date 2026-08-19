@@ -21,7 +21,10 @@ import {
     type QueryExecutionContext,
 } from '@lightdash/common';
 import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
-import { type PreAggregationRoute } from './types';
+import {
+    type PreAggregateExecutionEngine,
+    type PreAggregationRoute,
+} from './types';
 
 export type PreAggregationRoutingDecision =
     | {
@@ -102,7 +105,7 @@ export type ResolveExecutionArgs = {
 };
 
 export type PreAggregateExecutionResolution =
-    | { resolved: true; query: string }
+    | { resolved: true; query: string; execution: PreAggregateExecutionEngine }
     | { resolved: false; reason: string; isFatal: boolean };
 
 /* eslint-disable class-methods-use-this */
@@ -116,7 +119,7 @@ export class NoOpPreAggregateStrategy implements PreAggregateStrategy {
     }
 
     createExecutionWarehouseClient(): never {
-        throw new Error(
+        throw new NotImplementedError(
             'Pre-aggregate execution is not available in this edition',
         );
     }

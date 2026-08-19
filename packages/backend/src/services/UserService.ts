@@ -31,6 +31,7 @@ import {
     hasProperty,
     InviteLink,
     InviteLinkPurpose,
+    isEmailOnlyUser,
     isOpenIdIdentityIssuerType,
     isOpenIdUser,
     isUserAvatarColorValue,
@@ -71,6 +72,7 @@ import {
     validateEmail,
     validateOrganizationEmailDomains,
     validateOrganizationNameOrThrow,
+    validateUserName,
     WarehouseTypes,
     type RegisteredAccount,
 } from '@lightdash/common';
@@ -133,6 +135,7 @@ import { getOrganizationSettingsInstanceDefaults } from './OrganizationSettingsS
 
 const AWS_SSO_DEVICE_GRANT_TYPE =
     'urn:ietf:params:oauth:grant-type:device_code';
+const MAX_INVITE_LINK_TTL_MS = 3 * 24 * 60 * 60 * 1000;
 
 type RedshiftAwsSsoSession = {
     clientId: string;
@@ -712,10 +715,15 @@ export class UserService extends BaseService {
         }
         const { email, role } = createInviteLink;
         const purpose = createInviteLink.purpose ?? InviteLinkPurpose.Member;
-        // Same default expiry as the invite modal in the frontend
+        // Same expiry as the invite modal in the frontend
+        const now = Date.now();
+        const maximumExpiresAt = new Date(now + MAX_INVITE_LINK_TTL_MS);
         const expiresAt =
-            createInviteLink.expiresAt ??
-            new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+            createInviteLink.expiresAt &&
+            createInviteLink.expiresAt.getTime() > now &&
+            createInviteLink.expiresAt < maximumExpiresAt
+                ? createInviteLink.expiresAt
+                : maximumExpiresAt;
         const inviteCode = nanoid(30);
         if (organizationUuid === undefined) {
             throw new NotFoundError('Organization not found');
@@ -1088,7 +1096,7 @@ export class UserService extends BaseService {
                 throw new DeactivatedAccountError();
             }
 
-            const organization = this.loginToOrganization(
+            const organization = await this.loginToOrganization(
                 openIdSession?.userUuid,
                 openIdUser.openId.issuerType,
             );
@@ -1626,7 +1634,7 @@ export class UserService extends BaseService {
             if (!user.isActive) {
                 throw new DeactivatedAccountError();
             }
-            const userOrganization = this.loginToOrganization(
+            const userOrganization = await this.loginToOrganization(
                 user.userUuid,
                 LocalIssuerTypes.EMAIL,
             );
@@ -1651,7 +1659,7 @@ export class UserService extends BaseService {
                 metadata: { loginProvider: 'password' },
                 context,
             });
-            return user;
+            return userWithOrganization;
         } catch (e) {
             if (e instanceof NotFoundError) {
                 emitFailure('Email and password not recognized');
@@ -1705,6 +1713,16 @@ export class UserService extends BaseService {
         data: Partial<UpdateUserArgs>,
     ): Promise<LightdashUser> {
         const emailChanged = data.email && user.email !== data.email;
+
+        if (
+            (data.firstName !== undefined &&
+                !validateUserName(data.firstName)) ||
+            (data.lastName !== undefined && !validateUserName(data.lastName))
+        ) {
+            throw new ParameterError(
+                'First name and last name must not contain HTML',
+            );
+        }
 
         if (data.email !== undefined && !validateEmail(data.email)) {
             throw new ParameterError(`Invalid email: ${data.email}`);
@@ -1828,6 +1846,16 @@ export class UserService extends BaseService {
         user: RegisterOrActivateUser,
     ): Promise<SessionUser> {
         let lightdashUser;
+        if (
+            !isEmailOnlyUser(user) &&
+            (!validateUserName(user.firstName) ||
+                !validateUserName(user.lastName))
+        ) {
+            throw new ParameterError(
+                'First name and last name must not contain HTML',
+            );
+        }
+
         if (hasInviteCode(user)) {
             lightdashUser = await this.activateUserFromInvite(user.inviteCode, {
                 firstName: user.firstName,
@@ -2078,7 +2106,7 @@ export class UserService extends BaseService {
                 'You do not have permission to login with personal access tokens',
             );
         }
-        const organization = this.loginToOrganization(
+        const organization = await this.loginToOrganization(
             user.userUuid,
             LocalIssuerTypes.API_TOKEN,
         );
@@ -2364,6 +2392,11 @@ export class UserService extends BaseService {
             }
             throw error;
         }
+        const organization = await this.loginToOrganization(
+            sessionUser.userUuid,
+            LocalIssuerTypes.EMAIL_OTP,
+        );
+        sessionUser = { ...sessionUser, ...organization };
         await this.tryVerifyUserEmail(sessionUser, emailStatus.email, 'otp');
         await this.emailModel.deleteEmailOtp(
             sessionUser.userUuid,
@@ -2667,16 +2700,15 @@ export class UserService extends BaseService {
         userUuid: string,
         loginMethod: LoginOptionTypes,
     ): Promise<
-        Pick<
-            LightdashUser,
-            'organizationUuid' | 'organizationCreatedAt' | 'organizationName'
-        >
+        | Pick<
+              LightdashUser,
+              'organizationUuid' | 'organizationCreatedAt' | 'organizationName'
+          >
+        | undefined
     > {
         const organizations =
             await this.userModel.getOrganizationsForUser(userUuid);
-        if (organizations.length === 0) {
-            throw new NotFoundError('User not part of any organization');
-        } else if (organizations.length > 1) {
+        if (organizations.length > 1) {
             throw new ForbiddenError('User is part of multiple organizations');
         }
         // TODO check valid login methods allowed in org

@@ -1,4 +1,5 @@
 import {
+    AgentSqlScope,
     AlreadyExistsError,
     AnyType,
     AthenaAuthenticationType,
@@ -64,6 +65,7 @@ import {
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
 import { Knex } from 'knex';
+import chunk from 'lodash/chunk';
 import isEqual from 'lodash/isEqual';
 import NodeCache from 'node-cache';
 import { DatabaseError } from 'pg';
@@ -78,6 +80,7 @@ import {
 } from '../../database/entities/dashboards';
 import { GroupMembershipTableName } from '../../database/entities/groupMemberships';
 import { GroupTableName } from '../../database/entities/groups';
+import { OrganizationMembershipCustomRolesTableName } from '../../database/entities/organizationMembershipCustomRoles';
 import { OrganizationMembershipsTableName } from '../../database/entities/organizationMemberships';
 import {
     DbOrganization,
@@ -85,6 +88,8 @@ import {
 } from '../../database/entities/organizations';
 import { PinnedListTableName } from '../../database/entities/pinnedList';
 import { ProjectGroupAccessTableName } from '../../database/entities/projectGroupAccess';
+import { ProjectGroupAccessCustomRolesTableName } from '../../database/entities/projectGroupAccessCustomRoles';
+import { ProjectMembershipCustomRolesTableName } from '../../database/entities/projectMembershipCustomRoles';
 import {
     DbProjectMembership,
     ProjectMembershipsTableName,
@@ -105,6 +110,7 @@ import {
     SavedChartCustomSqlDimensionsTableName,
     SavedChartsTableName,
 } from '../../database/entities/savedCharts';
+import { SavedChartSlugMappingsTableName } from '../../database/entities/savedChartSlugMappings';
 import {
     DbSavedSql,
     InsertSql,
@@ -138,6 +144,7 @@ import {
     acquireProjectSlugLock,
     generateUniqueSlugScopedToProject,
 } from '../../utils/SlugUtils';
+import { clearProjectExtraRoles } from '../roleSetUtils';
 import { omitProjectUuid, replaceProjectUuid } from './previewContent';
 import Transaction = Knex.Transaction;
 
@@ -202,6 +209,11 @@ type RawSummaryRow = {
         | null;
     baseTableAnyAttributes: Explore['tables'][string]['anyAttributes'] | null;
     aiHint: Explore['aiHint'] | null;
+};
+
+type PreviewChartUuidMapping = {
+    sourceChartUuid: string;
+    previewChartUuid: string;
 };
 
 export class ProjectModel {
@@ -934,6 +946,7 @@ export class ProjectModel {
                   color_palette_uuid: string | null;
                   expires_at: Date | null;
                   provisioning_source: string | null;
+                  agent_sql_scope: AgentSqlScope | null;
               }
             | {
                   name: string;
@@ -958,6 +971,7 @@ export class ProjectModel {
                   color_palette_uuid: string | null;
                   expires_at: Date | null;
                   provisioning_source: string | null;
+                  agent_sql_scope: AgentSqlScope | null;
               }
         )[];
         return wrapSentryTransaction(
@@ -1045,6 +1059,9 @@ export class ProjectModel {
                         this.database
                             .ref('provisioning_source')
                             .withSchema(ProjectTableName),
+                        this.database
+                            .ref('agent_sql_scope')
+                            .withSchema(ProjectTableName),
                     ])
                     .select<QueryResult>()
                     .where('projects.project_uuid', projectUuid);
@@ -1098,6 +1115,7 @@ export class ProjectModel {
                     colorPaletteUuid: project.color_palette_uuid ?? null,
                     expiresAt: project.expires_at ?? null,
                     provisioningSource: project.provisioning_source ?? null,
+                    agentSqlScope: project.agent_sql_scope ?? null,
                 };
 
                 // If project uses organization warehouse credentials, load them
@@ -1331,6 +1349,7 @@ export class ProjectModel {
             colorPaletteUuid: project.colorPaletteUuid ?? null,
             expiresAt: project.expiresAt,
             provisioningSource: project.provisioningSource ?? null,
+            agentSqlScope: project.agentSqlScope ?? null,
         };
     }
 
@@ -1640,6 +1659,7 @@ export class ProjectModel {
     async saveExploresToCache(
         projectUuid: string,
         explores: (Explore | ExploreError)[],
+        complete = false,
     ) {
         return wrapSentryTransaction(
             'ProjectModel.saveExploresToCache',
@@ -1650,24 +1670,40 @@ export class ProjectModel {
                         trx,
                         projectUuid,
                     );
-                    // Get custom explores/virtual views before deleting them
-                    const virtualViews = await trx(CachedExploreTableName)
-                        .select('explore')
-                        .where('project_uuid', projectUuid)
-                        .whereRaw("explore->>'type' = ?", [
+                    const cachedExploresQuery = trx(CachedExploreTableName)
+                        .select<{ explore: Explore | ExploreError }[]>(
+                            'explore',
+                        )
+                        .where('project_uuid', projectUuid);
+                    if (complete) {
+                        cachedExploresQuery.whereRaw("explore->>'type' = ?", [
                             ExploreType.VIRTUAL,
                         ]);
-
-                    // Delete previous individually cached explores
-                    await trx(CachedExploreTableName)
-                        .where('project_uuid', projectUuid)
-                        .delete();
+                    }
+                    const cachedExplores = await cachedExploresQuery;
+                    const virtualViews = cachedExplores.filter(
+                        ({ explore }) => explore.type === ExploreType.VIRTUAL,
+                    );
+                    const virtualViewsByName = new Map(
+                        virtualViews.map(({ explore }) => [
+                            explore.name,
+                            explore,
+                        ]),
+                    );
 
                     // NOTE: virtual views with the same name as explores will override the explore.
                     // This isn't new behavior, but it's still a bit of a bug. However, it's
                     // not clear what a better approach would be at the moment.
                     const exploresMap = new Map(
-                        explores.map((e) => [e.name, e]),
+                        complete
+                            ? []
+                            : cachedExplores.map(({ explore }) => [
+                                  explore.name,
+                                  explore,
+                              ]),
+                    );
+                    explores.forEach((explore) =>
+                        exploresMap.set(explore.name, explore),
                     );
                     virtualViews.forEach((e) =>
                         exploresMap.set(e.explore.name, e.explore),
@@ -1678,18 +1714,47 @@ export class ProjectModel {
                         throw new ParameterError('No explores to save');
                     }
 
-                    // Cache explores individually
-                    const individualCachedExplores = await trx
-                        .batchInsert<DbCachedExplore>(
-                            CachedExploreTableName,
-                            uniqueExplores.map((explore) => ({
-                                project_uuid: projectUuid,
-                                name: explore.name,
-                                table_names: Object.keys(explore.tables || {}),
-                                explore: JSON.stringify(explore),
-                            })),
-                        )
-                        .returning('cached_explore_uuid');
+                    const exploresToSave = complete
+                        ? uniqueExplores
+                        : Array.from(
+                              new Map(
+                                  explores.map((explore) => [
+                                      explore.name,
+                                      explore,
+                                  ]),
+                              ).values(),
+                          ).map(
+                              (explore) =>
+                                  virtualViewsByName.get(explore.name) ??
+                                  explore,
+                          );
+
+                    if (complete) {
+                        await trx(CachedExploreTableName)
+                            .where('project_uuid', projectUuid)
+                            .delete();
+                    }
+
+                    const rowsToSave = exploresToSave.map((explore) => ({
+                        project_uuid: projectUuid,
+                        name: explore.name,
+                        table_names: Object.keys(explore.tables || {}),
+                        explore: JSON.stringify(explore),
+                    }));
+                    const savedExploreBatches = await Promise.all(
+                        chunk(rowsToSave, 1000).map((rows) => {
+                            const insertQuery = trx<DbCachedExplore>(
+                                CachedExploreTableName,
+                            ).insert(rows);
+                            return complete
+                                ? insertQuery.returning('cached_explore_uuid')
+                                : insertQuery
+                                      .onConflict(['name', 'project_uuid'])
+                                      .merge(['table_names', 'explore'])
+                                      .returning('cached_explore_uuid');
+                        }),
+                    );
+                    const individualCachedExplores = savedExploreBatches.flat();
 
                     // Cache explores together
                     await trx(CachedExploresTableName)
@@ -1845,7 +1910,16 @@ export class ProjectModel {
                 'project_memberships.project_id',
                 'projects.project_id',
             )
-            .select<QueryResult[]>()
+            .select<(QueryResult & { has_extra_roles: boolean })[]>(
+                'project_memberships.*',
+                'users.*',
+                'emails.*',
+                'projects.*',
+                this.database.raw(
+                    `EXISTS (SELECT 1 FROM ?? AS x WHERE x.project_id = project_memberships.project_id AND x.user_id = project_memberships.user_id) AS has_extra_roles`,
+                    [ProjectMembershipCustomRolesTableName],
+                ),
+            )
             .where('project_uuid', projectUuid)
             .andWhere('is_primary', true);
 
@@ -1857,6 +1931,7 @@ export class ProjectModel {
             projectUuid,
             lastName: membership.last_name,
             roleUuid: membership.role_uuid || undefined,
+            hasMultipleRoles: membership.has_extra_roles,
         }));
     }
 
@@ -1983,6 +2058,27 @@ export class ProjectModel {
                     )
                     .onConflict(['user_id', 'project_id'])
                     .merge(['role', 'role_uuid']);
+                // Extra custom roles follow their membership into the preview.
+                const eligibleUserIds = eligibleProjectAccesses.map(
+                    ({ user_id }) => user_id,
+                );
+                await trx(ProjectMembershipCustomRolesTableName)
+                    .where('project_id', previewProject.project_id)
+                    .whereIn('user_id', eligibleUserIds)
+                    .delete();
+                await trx.raw(
+                    `INSERT INTO ?? (project_id, user_id, role_uuid)
+                     SELECT ?, user_id, role_uuid FROM ??
+                     WHERE project_id = ? AND user_id = ANY(?)
+                     ON CONFLICT DO NOTHING`,
+                    [
+                        ProjectMembershipCustomRolesTableName,
+                        previewProject.project_id,
+                        ProjectMembershipCustomRolesTableName,
+                        upstreamProject.project_id,
+                        eligibleUserIds,
+                    ],
+                );
             }
             if (groupAccesses.length > 0) {
                 await trx(ProjectGroupAccessTableName)
@@ -1998,6 +2094,26 @@ export class ProjectModel {
                     )
                     .onConflict(['project_uuid', 'group_uuid'])
                     .merge(['role', 'role_uuid']);
+                const groupUuids = groupAccesses.map(
+                    ({ group_uuid }) => group_uuid,
+                );
+                await trx(ProjectGroupAccessCustomRolesTableName)
+                    .where('project_uuid', previewProjectUuid)
+                    .whereIn('group_uuid', groupUuids)
+                    .delete();
+                await trx.raw(
+                    `INSERT INTO ?? (project_uuid, group_uuid, role_uuid)
+                     SELECT ?, group_uuid, role_uuid FROM ??
+                     WHERE project_uuid = ? AND group_uuid = ANY(?)
+                     ON CONFLICT DO NOTHING`,
+                    [
+                        ProjectGroupAccessCustomRolesTableName,
+                        previewProjectUuid,
+                        ProjectGroupAccessCustomRolesTableName,
+                        upstreamProjectUuid,
+                        groupUuids,
+                    ],
+                );
             }
 
             return {
@@ -2067,18 +2183,28 @@ export class ProjectModel {
     ): Promise<void> {
         // Clear role_uuid when switching to a system role so that stale FK
         // references don't prevent custom role deletion later (see #20690).
-        await this.database.raw<(DbProjectMembership & DbProject & DbUser)[]>(
-            `
+        // A singular write replaces the whole role set, so extras go too.
+        await this.database.transaction(async (trx) => {
+            const { rows } = await trx.raw<{
+                rows: Pick<DbProjectMembership, 'project_id' | 'user_id'>[];
+            }>(
+                `
                 UPDATE project_memberships AS m
                 SET role = :role, role_uuid = NULL FROM projects AS p, users AS u
                 WHERE p.project_id = m.project_id
                   AND u.user_id = m.user_id
                   AND user_uuid = :userUuid
                   AND p.project_uuid = :projectUuid
-                    RETURNING *
+                    RETURNING m.project_id, m.user_id
             `,
-            { projectUuid, userUuid, role },
-        );
+                { projectUuid, userUuid, role },
+            );
+            await Promise.all(
+                rows.map((row) =>
+                    clearProjectExtraRoles(trx, row.project_id, row.user_id),
+                ),
+            );
+        });
     }
 
     async updateMetadata(
@@ -2502,6 +2628,10 @@ export class ProjectModel {
                         role: OrganizationMemberRole.MEMBER,
                         role_uuid: null,
                     });
+                // A singular write replaces the whole role set, so extras go too.
+                await trx(OrganizationMembershipCustomRolesTableName)
+                    .where('user_id', sa.user_id)
+                    .delete();
             }
         });
     }
@@ -2771,6 +2901,52 @@ export class ProjectModel {
         }
 
         return swapped;
+    }
+
+    async copyChartSlugMappingsToPreview(
+        trx: Knex,
+        sourceProjectUuid: string,
+        previewProjectUuid: string,
+        chartUuidMapping: PreviewChartUuidMapping[],
+    ): Promise<void> {
+        if (chartUuidMapping.length === 0) return;
+
+        const aliases = await trx(SavedChartSlugMappingsTableName)
+            .where('project_uuid', sourceProjectUuid)
+            .whereIn(
+                'saved_query_uuid',
+                chartUuidMapping.map(({ sourceChartUuid }) => sourceChartUuid),
+            )
+            .select('saved_query_uuid', 'slug');
+        if (aliases.length === 0) return;
+
+        const previewChartUuidBySource = new Map(
+            chartUuidMapping.map(({ sourceChartUuid, previewChartUuid }) => [
+                sourceChartUuid,
+                previewChartUuid,
+            ]),
+        );
+        const previewAliases = aliases.map((alias) => {
+            const previewChartUuid = previewChartUuidBySource.get(
+                alias.saved_query_uuid,
+            );
+            if (!previewChartUuid) {
+                throw new UnexpectedServerError(
+                    `Missing preview chart mapping for ${alias.saved_query_uuid}`,
+                );
+            }
+            return {
+                project_uuid: previewProjectUuid,
+                saved_query_uuid: previewChartUuid,
+                slug: alias.slug,
+            };
+        });
+
+        await trx.batchInsert(
+            SavedChartSlugMappingsTableName,
+            previewAliases,
+            INSERT_BATCH_SIZE,
+        );
     }
 
     async duplicateContent(
@@ -3229,6 +3405,25 @@ export class ProjectModel {
                 id: c.saved_query_id,
                 newId: newChartsInDashboards[i].saved_query_id,
             }));
+
+            const chartUuidMapping = [
+                ...charts.map((chart, index) => ({
+                    sourceChartUuid: chart.saved_query_uuid,
+                    previewChartUuid: newCharts[index].saved_query_uuid,
+                })),
+                ...chartsInDashboards.map((chart, index) => ({
+                    sourceChartUuid: chart.saved_query_uuid,
+                    previewChartUuid:
+                        newChartsInDashboards[index].saved_query_uuid,
+                })),
+            ];
+
+            await this.copyChartSlugMappingsToPreview(
+                trx,
+                projectUuid,
+                previewProjectUuid,
+                chartUuidMapping,
+            );
 
             const chartMapping = [
                 ...chartInSpacesMapping,
@@ -4098,6 +4293,59 @@ export class ProjectModel {
                 project.organization_warehouse_credentials_uuid,
             queryTimezone: project.query_timezone,
         };
+    }
+
+    async getAgentSqlScope(projectUuid: string): Promise<AgentSqlScope | null> {
+        const [project] = await this.database(ProjectTableName)
+            .select('agent_sql_scope')
+            .where('project_uuid', projectUuid);
+
+        if (!project) {
+            throw new NotFoundError(
+                `Cannot find project with id: ${projectUuid}`,
+            );
+        }
+
+        return project.agent_sql_scope ?? null;
+    }
+
+    async updateAgentSqlScope(
+        projectUuid: string,
+        agentSqlScope: AgentSqlScope | null,
+    ): Promise<void> {
+        // Empty everywhere means "unrestricted", stored as NULL so there is
+        // exactly one representation of the default. An allow list is not
+        // required: a scope may consist only of exclusions.
+        const isEmpty =
+            !agentSqlScope ||
+            (agentSqlScope.schemas.length === 0 &&
+                !agentSqlScope.catalogs?.length &&
+                !agentSqlScope.deniedSchemas?.length &&
+                !agentSqlScope.deniedCatalogs?.length);
+        const normalised = isEmpty
+            ? null
+            : {
+                  schemas: agentSqlScope!.schemas,
+                  ...(agentSqlScope!.catalogs?.length
+                      ? { catalogs: agentSqlScope!.catalogs }
+                      : {}),
+                  ...(agentSqlScope!.deniedSchemas?.length
+                      ? { deniedSchemas: agentSqlScope!.deniedSchemas }
+                      : {}),
+                  ...(agentSqlScope!.deniedCatalogs?.length
+                      ? { deniedCatalogs: agentSqlScope!.deniedCatalogs }
+                      : {}),
+              };
+
+        const updated = await this.database(ProjectTableName)
+            .update({ agent_sql_scope: normalised })
+            .where('project_uuid', projectUuid);
+
+        if (updated === 0) {
+            throw new NotFoundError(
+                `Cannot find project with id: ${projectUuid}`,
+            );
+        }
     }
 
     async getQueryTimezone(projectUuid: string): Promise<string | null> {

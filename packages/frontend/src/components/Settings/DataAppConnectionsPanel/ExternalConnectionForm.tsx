@@ -196,18 +196,6 @@ export const ExternalConnectionForm: FC<Props> = ({
                 disabled={disabled}
             />
 
-            <Switch
-                label="Allow public images in linked apps"
-                description="App code can send data to this origin through image URLs. Enable only for trusted public image or tile hosts."
-                disabled={
-                    disabled ||
-                    (type !== 'none' && !form.values.allowBrowserImages)
-                }
-                {...form.getInputProps('allowBrowserImages', {
-                    type: 'checkbox',
-                })}
-            />
-
             <PathRulesField
                 label="Which paths can apps call?"
                 mode={form.values.pathMode}
@@ -226,6 +214,18 @@ export const ExternalConnectionForm: FC<Props> = ({
                     form.setFieldValue('allowDataAppBuilderLinking', value)
                 }
                 disabled={disabled}
+            />
+
+            <Switch
+                label="Allow public images in linked apps"
+                description="App code can send data to this origin through image URLs. Enable only for trusted public image or tile hosts."
+                disabled={
+                    disabled ||
+                    (type !== 'none' && !form.values.allowBrowserImages)
+                }
+                {...form.getInputProps('allowBrowserImages', {
+                    type: 'checkbox',
+                })}
             />
 
             <FormSection name="advanced" isOpen={isAdvancedOpen}>

@@ -56,10 +56,14 @@ const createAccount = (authentication: TestAuthentication) =>
 const createMcpService = () =>
     Object.assign(Object.create(McpService.prototype), {
         createServer: vi.fn().mockResolvedValue({ connect: vi.fn() }),
-        isAiGrepFieldsEnabled: vi.fn().mockResolvedValue(false),
+        getLegacyToolScope: vi.fn().mockResolvedValue({
+            projectUuid: PROJECT_UUID,
+            agentUuid: 'agent-uuid',
+        }),
         isContentToolsEnabled: vi.fn().mockResolvedValue(false),
         isCreateScheduledDeliveryEnabled: vi.fn().mockResolvedValue(false),
         isEnabled: vi.fn().mockResolvedValue(true),
+        isRunMetricQueryEnabled: vi.fn().mockResolvedValue(false),
         isRunSqlEnabled: vi.fn().mockResolvedValue(false),
     }) as McpService;
 
@@ -233,6 +237,40 @@ describe('project-scoped MCP route', () => {
         expect(mcpService.isEnabled).toHaveBeenCalledOnce();
     });
 
+    it('injects legacy scope into cached project-scoped calls', async () => {
+        transport.handleRequest.mockImplementation(
+            async (request: Request, response) => {
+                expect(request.body).toMatchObject({
+                    params: {
+                        arguments: {
+                            projectUuid: PROJECT_UUID,
+                            agentUuid: 'agent-uuid',
+                            slug: 'orders',
+                        },
+                    },
+                });
+                response.status(200).json({ status: 'ok' });
+            },
+        );
+
+        const { response, mcpService } = await requestMcp({
+            account: createAccount({ type: 'service-account' }),
+            method: 'POST',
+            requestBody: {
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'tools/call',
+                params: {
+                    name: 'read_content',
+                    arguments: { slug: 'orders' },
+                },
+            },
+        });
+
+        expect(response.status).toBe(200);
+        expect(mcpService.getLegacyToolScope).toHaveBeenCalledOnce();
+    });
+
     it('pins POST requests to the route project', async () => {
         transport.handleRequest.mockImplementation(
             async (_request, response) => {
@@ -256,6 +294,10 @@ describe('project-scoped MCP route', () => {
             status: 200,
         });
         expect(mcpService.isRunSqlEnabled).toHaveBeenCalledWith(
+            expect.objectContaining({ userUuid: 'user-uuid' }),
+            PROJECT_UUID,
+        );
+        expect(mcpService.isRunMetricQueryEnabled).toHaveBeenCalledWith(
             expect.objectContaining({ userUuid: 'user-uuid' }),
             PROJECT_UUID,
         );

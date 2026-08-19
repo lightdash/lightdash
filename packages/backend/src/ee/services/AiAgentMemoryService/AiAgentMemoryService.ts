@@ -73,7 +73,6 @@ import { getModel } from '../ai/models';
 import {
     authorMemoryProjectContextEntry,
     type MemoryProjectContextAuthoringResult,
-    type MemoryProjectContextRejectionReason,
 } from '../ai/projectContext/authorMemoryProjectContextEntry';
 import {
     resolveReviewJudgeModel,
@@ -157,18 +156,6 @@ export type AiAgentMemoryPromotionAuthoringCall = (args: {
     currentEntries: ProjectContextEntry[];
 }) => Promise<MemoryProjectContextAuthoringResult>;
 
-const memoryPromotionRejectionMessages: Record<
-    MemoryProjectContextRejectionReason,
-    string
-> = {
-    not_project_context:
-        'This memory does not contain durable project context to propose.',
-    insufficient_context:
-        'This memory does not contain enough standalone information to draft a project-context proposal.',
-    conflicts_with_project_context:
-        'This memory conflicts with existing project context and could not be proposed safely.',
-};
-
 export { type AiAgentMemoryConsolidateOutcome };
 
 /** Configuration shared by scheduled and manual consolidation runs. */
@@ -223,6 +210,26 @@ type ConsolidationPromotionPreparation =
           status: 'rejected';
           rejection: AiAgentMemoryConsolidationRejection;
       };
+
+const isSuccessfulTurn = (
+    turn: AiAgentMemoryThread['turns'][number],
+): boolean =>
+    !turn.interrupted &&
+    turn.respondedAt !== null &&
+    turn.errorMessage === null &&
+    turn.assistantText !== null;
+
+const getLatestCompletedTurnActivity = (
+    thread: AiAgentMemoryThread,
+): Date | undefined =>
+    thread.turns.reduce<Date | undefined>(
+        (latest, turn) =>
+            isSuccessfulTurn(turn) &&
+            (latest === undefined || turn.createdAt > latest)
+                ? turn.createdAt
+                : latest,
+        undefined,
+    );
 
 type Dependencies = {
     analytics: LightdashAnalytics;
@@ -527,8 +534,9 @@ export class AiAgentMemoryService extends BaseService {
         }
     }
 
-    /** Shared gate for every memory read: project access + both feature flags. */
-    private async getMemoryAccessContext(
+    /** Read gate: project access + copilot flag. Stored memories stay readable
+     * after the org disables memory generation. */
+    private async getMemoryReadContext(
         user: SessionUser,
         projectUuid: string,
         notFoundMessage: string,
@@ -544,17 +552,36 @@ export class AiAgentMemoryService extends BaseService {
             throw new ForbiddenError('Cannot view project');
         }
 
-        const [copilot, memoryEnabled] = await Promise.all([
-            this.featureFlagService.get({
-                user,
-                featureFlagId: CommercialFeatureFlags.AiCopilot,
-            }),
-            this.aiOrganizationSettingsService.isAiAgentMemoryEnabled(user),
-        ]);
-        if (!copilot.enabled || !memoryEnabled) {
+        const copilot = await this.featureFlagService.get({
+            user,
+            featureFlagId: CommercialFeatureFlags.AiCopilot,
+        });
+        if (!copilot.enabled) {
             throw new NotFoundError(notFoundMessage);
         }
 
+        return organizationUuid;
+    }
+
+    /** Gate for generation paths (promotion, distill): read gate + the
+     * memory setting. */
+    private async getMemoryGenerationContext(
+        user: SessionUser,
+        projectUuid: string,
+        notFoundMessage: string,
+    ): Promise<string> {
+        const organizationUuid = await this.getMemoryReadContext(
+            user,
+            projectUuid,
+            notFoundMessage,
+        );
+        if (
+            !(await this.aiOrganizationSettingsService.isAiAgentMemoryEnabled(
+                user,
+            ))
+        ) {
+            throw new NotFoundError(notFoundMessage);
+        }
         return organizationUuid;
     }
 
@@ -585,7 +612,7 @@ export class AiAgentMemoryService extends BaseService {
         projectUuid: string,
         slug: string,
     ): Promise<AiAgentMemory> {
-        const organizationUuid = await this.getMemoryAccessContext(
+        const organizationUuid = await this.getMemoryReadContext(
             user,
             projectUuid,
             `Memory not found: ${slug}`,
@@ -712,7 +739,7 @@ export class AiAgentMemoryService extends BaseService {
         reason?: string,
     ): Promise<MemoryReviewItemUpsert> {
         const nominationReason = reason?.trim() || null;
-        const organizationUuid = await this.getMemoryAccessContext(
+        const organizationUuid = await this.getMemoryGenerationContext(
             user,
             projectUuid,
             `Memory not found: ${memoryUuid}`,
@@ -789,30 +816,6 @@ export class AiAgentMemoryService extends BaseService {
                 { attempts: 1 },
             );
         }
-        if (authoringResult.type === 'rejected') {
-            const rejectionMessage =
-                memoryPromotionRejectionMessages[authoringResult.reason];
-            this.logger.warn('AI agent memory promotion authoring rejected', {
-                organizationUuid,
-                projectUuid,
-                memoryUuid,
-                reason: authoringResult.reason,
-            });
-            this.track({
-                event: 'ai_agent_memory.promotion_authoring_failed',
-                userId: user.userUuid,
-                properties: {
-                    organizationId: organizationUuid,
-                    projectId: projectUuid,
-                    memoryId: memoryUuid,
-                    attempts: 1,
-                    reasons: [authoringResult.reason],
-                },
-            });
-            throw new ParameterError(rejectionMessage, {
-                reason: authoringResult.reason,
-            });
-        }
         const projectContextEntry = buildMemoryPromotionEntry({
             proposal: authoringResult.entry,
             memory,
@@ -882,7 +885,7 @@ export class AiAgentMemoryService extends BaseService {
         projectUuid: string,
         paginateArgs: KnexPaginateArgs,
     ): Promise<KnexPaginatedData<AiAgentUserMemoriesSummary>> {
-        const organizationUuid = await this.getMemoryAccessContext(
+        const organizationUuid = await this.getMemoryReadContext(
             user,
             projectUuid,
             `Memories not found for project: ${projectUuid}`,
@@ -902,7 +905,7 @@ export class AiAgentMemoryService extends BaseService {
         memoryUuid: string,
         status: AiAgentMemoryEditableStatus,
     ): Promise<void> {
-        const organizationUuid = await this.getMemoryAccessContext(
+        const organizationUuid = await this.getMemoryReadContext(
             user,
             projectUuid,
             `Memory not found: ${memoryUuid}`,
@@ -949,6 +952,11 @@ export class AiAgentMemoryService extends BaseService {
         }
     }
 
+    /**
+     * Cron backfill behind the event triggers (turn saved, feedback changed):
+     * catches threads whose event jobs were lost (maxAttempts 1, worker
+     * restarts) and threads from before an org enabled memory.
+     */
     async sweep(now = new Date()): Promise<number> {
         const candidates =
             await this.aiAgentMemoryModel.findThreadsDueForDistill({
@@ -986,7 +994,7 @@ export class AiAgentMemoryService extends BaseService {
         threadUuid: UUID,
     ): Promise<{ jobId: string }> {
         const notFoundMessage = `Thread not found: ${threadUuid}`;
-        const organizationUuid = await this.getMemoryAccessContext(
+        const organizationUuid = await this.getMemoryGenerationContext(
             user,
             projectUuid,
             notFoundMessage,
@@ -1681,16 +1689,17 @@ export class AiAgentMemoryService extends BaseService {
         payload: AiAgentMemoryDistillJobPayload,
         abortSignal?: AbortSignal,
     ): Promise<AiAgentMemoryDistillOutcome> {
-        const sweptUpdatedAt =
-            typeof payload.sweptUpdatedAt === 'string'
-                ? new Date(payload.sweptUpdatedAt)
-                : undefined;
-        if (
-            !sweptUpdatedAt ||
-            Number.isNaN(sweptUpdatedAt.getTime()) ||
-            sweptUpdatedAt.toISOString() !== payload.sweptUpdatedAt
-        ) {
-            return 'skipped';
+        // Sweep/manual jobs carry a watermark; event jobs derive one from the
+        // latest successfully completed turn.
+        let payloadWatermark: Date | undefined;
+        if (payload.sweptUpdatedAt !== undefined) {
+            payloadWatermark = new Date(payload.sweptUpdatedAt);
+            if (
+                Number.isNaN(payloadWatermark.getTime()) ||
+                payloadWatermark.toISOString() !== payload.sweptUpdatedAt
+            ) {
+                return 'skipped';
+            }
         }
 
         if (!(await this.isEnabled(payload.organizationUuid))) {
@@ -1708,7 +1717,13 @@ export class AiAgentMemoryService extends BaseService {
             return 'skipped';
         }
 
-        if (sweptUpdatedAt.getTime() > thread.latestActivity.getTime()) {
+        const distillUpTo =
+            payloadWatermark ?? getLatestCompletedTurnActivity(thread);
+
+        if (
+            distillUpTo === undefined ||
+            distillUpTo.getTime() > thread.latestActivity.getTime()
+        ) {
             return 'skipped';
         }
 
@@ -1717,25 +1732,26 @@ export class AiAgentMemoryService extends BaseService {
         if (
             !payload.force &&
             thread.distilledUpTo !== null &&
-            thread.distilledUpTo.getTime() >= sweptUpdatedAt.getTime()
+            thread.distilledUpTo.getTime() >= distillUpTo.getTime()
         ) {
             return 'skipped';
         }
+
+        const threadThroughWatermark = {
+            ...thread,
+            turns: thread.turns.filter(
+                (turn) => turn.createdAt.getTime() <= distillUpTo.getTime(),
+            ),
+        };
 
         if (
             thread.projectType === ProjectType.PREVIEW ||
             !AI_AGENT_MEMORY_THREAD_SOURCES.some(
                 (createdFrom) => createdFrom === thread.createdFrom,
             ) ||
-            !thread.turns.some(
-                (turn) =>
-                    !turn.interrupted &&
-                    turn.respondedAt !== null &&
-                    turn.errorMessage === null &&
-                    turn.assistantText !== null,
-            )
+            !threadThroughWatermark.turns.some(isSuccessfulTurn)
         ) {
-            return this.recordSkip(thread.threadUuid, sweptUpdatedAt);
+            return this.recordSkip(thread.threadUuid, distillUpTo);
         }
 
         // A thread whose memory was consolidated away or retired stops feeding
@@ -1746,7 +1762,7 @@ export class AiAgentMemoryService extends BaseService {
                 thread.threadUuid,
             );
         if (memoryState === 'inactive') {
-            return this.recordSkip(thread.threadUuid, sweptUpdatedAt);
+            return this.recordSkip(thread.threadUuid, distillUpTo);
         }
 
         let failureStage: AiAgentMemoryGenerationFailedEvent['properties']['failureStage'] =
@@ -1755,7 +1771,7 @@ export class AiAgentMemoryService extends BaseService {
         try {
             abortSignal?.throwIfAborted();
             const transcript = serializeTranscript(
-                await sanitizeThread(thread, {
+                await sanitizeThread(threadThroughWatermark, {
                     onUnknownTool: (toolName) => {
                         this.logger.warn(
                             'Unknown AI agent tool uses fallback distill policy',
@@ -1766,7 +1782,7 @@ export class AiAgentMemoryService extends BaseService {
                 }),
             );
             const output = await this.distillCall({
-                thread,
+                thread: threadThroughWatermark,
                 transcript,
                 abortSignal,
             });
@@ -1779,7 +1795,7 @@ export class AiAgentMemoryService extends BaseService {
                     outcome: 'no_op',
                     noOpReason: output.result.reason,
                     distillPromptHash,
-                    distilledUpTo: sweptUpdatedAt,
+                    distilledUpTo: distillUpTo,
                 });
                 return 'no_op';
             }
@@ -1803,7 +1819,7 @@ export class AiAgentMemoryService extends BaseService {
                     thread.threadUuid,
                 )) === 'inactive'
             ) {
-                return await this.recordSkip(thread.threadUuid, sweptUpdatedAt);
+                return await this.recordSkip(thread.threadUuid, distillUpTo);
             }
             const memory =
                 await this.aiAgentMemoryModel.upsertSourceThreadMemory({
@@ -1842,7 +1858,7 @@ export class AiAgentMemoryService extends BaseService {
                 aiThreadUuid: thread.threadUuid,
                 outcome: 'memory',
                 distillPromptHash,
-                distilledUpTo: sweptUpdatedAt,
+                distilledUpTo: distillUpTo,
             });
             return 'memory';
         } catch (error) {
@@ -1852,7 +1868,7 @@ export class AiAgentMemoryService extends BaseService {
                 outcome: 'failed',
                 errorMessage,
                 distillPromptHash: await distillPromptHashPromise,
-                distilledUpTo: sweptUpdatedAt,
+                distilledUpTo: distillUpTo,
             });
             this.logger.warn('Dropping AI agent memory distill', {
                 threadUuid: thread.threadUuid,

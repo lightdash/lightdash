@@ -8,12 +8,14 @@ import {
     ApiGetAsyncQueryResults,
     ApiSuccess,
     ApiSuccessEmpty,
+    assertRegisteredAccount,
     DownloadAsyncQueryResultsRequestParams,
     ExecuteAsyncSqlQueryRequestParams,
     ForbiddenError,
     isExecuteAsyncDashboardSqlChartByUuidParams,
     isExecuteAsyncSqlChartByUuidParams,
     isJwtUser,
+    LightdashAppPreviewTokenHeader,
     LightdashSignedDownloadHeader,
     PersistentDownloadFileAccessMode,
     QueryExecutionContext,
@@ -25,10 +27,13 @@ import {
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
     type ApiDownloadAsyncQueryResultsAsXlsx,
+    type ApiExecuteAsyncMergeQueryRequest,
+    type ApiExecuteAsyncMergeQueryResults,
     type ApiExecuteAsyncMetricQueryResults,
     type ApiJobScheduledResponse,
     type ApiQueryHistoryListResponse,
     type ExecuteAsyncCalculateTotalRequestParams,
+    type ExecuteAsyncComposeSqlQueryRequestParams,
     type ExecuteAsyncDashboardChartRequestParams,
     type ExecuteAsyncDashboardSqlChartRequestParams,
     type ExecuteAsyncFieldValueSearchRequestParams,
@@ -37,6 +42,7 @@ import {
     type ExecuteAsyncSqlChartRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
     type MetricQuery,
+    type UUID,
 } from '@lightdash/common';
 import {
     Body,
@@ -243,6 +249,40 @@ export class QueryController extends BaseController {
     }
 
     /**
+     * Validates and executes a merge as one asynchronous query request.
+     * @summary Execute merge query
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/merge-query')
+    @OperationId('executeAsyncMergeQuery')
+    async executeAsyncMergeQuery(
+        @Body() body: ApiExecuteAsyncMergeQueryRequest,
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<ApiExecuteAsyncMergeQueryResults>> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.services
+            .getAsyncQueryService()
+            .executeAsyncMergeQuery({
+                account: req.account,
+                projectUuid,
+                mergeQuery: body.mergeQuery,
+                context:
+                    body.context ??
+                    getContextFromHeader(req) ??
+                    QueryExecutionContext.API,
+                invalidateCache: body.invalidateCache,
+                parameters: body.parameters,
+                mode: body.mode ?? { type: 'interactive' },
+                chart: body.chart,
+            });
+
+        return { status: 'ok', results };
+    }
+
+    /**
      * Executes a metric query asynchronously against your data warehouse using dimensions, metrics, filters, and sorts
      * @summary Execute metric query
      */
@@ -258,6 +298,12 @@ export class QueryController extends BaseController {
     ): Promise<ApiSuccess<ApiExecuteAsyncMetricQueryResults>> {
         this.setStatus(200);
         const context = body.context ?? getContextFromHeader(req);
+        const previewTokenHeader =
+            req.headers[LightdashAppPreviewTokenHeader.toLowerCase()];
+        const dataAppPreviewToken =
+            typeof previewTokenHeader === 'string'
+                ? previewTokenHeader
+                : undefined;
 
         const metricQuery: MetricQuery = {
             exploreName: body.query.exploreName,
@@ -288,6 +334,7 @@ export class QueryController extends BaseController {
                 parameters: body.parameters,
                 pivotConfiguration: body.pivotConfiguration,
                 dashboardFilters: body.dashboardFilters,
+                dataAppPreviewToken,
             });
 
         return {
@@ -492,6 +539,40 @@ export class QueryController extends BaseController {
                 pivotConfiguration: body.pivotConfiguration,
                 limit: body.limit,
                 parameters: body.parameters,
+            });
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Executes a DuckDB SQL query asynchronously on the pre-aggregate DuckDB engine. Requires run-queries access (interactive viewer and up) and the compose-sql-runner feature flag. The references map exposes previous async queries' results as named tables the SQL can select from ({"orders": "queryUuid"} lets the SQL run SELECT * FROM orders); each referenced query is authorized with the same access checks as Get results, so you can reference any query you can already fetch by uuid. Direct file access in the SQL is rejected. Returns a queryUuid to poll for results via Get results.
+     * @summary Execute compose SQL query
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/compose-sql')
+    @OperationId('executeAsyncComposeSqlQuery')
+    async executeAsyncComposeSqlQuery(
+        @Body()
+        body: ExecuteAsyncComposeSqlQueryRequestParams,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<ApiExecuteAsyncSqlQueryResults>> {
+        this.setStatus(200);
+        const context = body.context ?? getContextFromHeader(req);
+
+        const results = await this.services
+            .getAsyncQueryService()
+            .executeAsyncComposeSqlQuery({
+                account: req.account!,
+                projectUuid,
+                sql: body.sql,
+                limit: body.limit,
+                references: body.references,
+                context: context ?? QueryExecutionContext.COMPOSE_SQL_RUNNER,
             });
 
         return {

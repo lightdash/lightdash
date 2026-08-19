@@ -1,80 +1,85 @@
-.errorsTitle {
-    color: var(--mantine-color-red-9);
-
-    @mixin dark {
-        color: var(--mantine-color-red-4);
-    }
+.newestMessage {
+    color: var(--mantine-color-ldGray-7);
+    font-size: 13px;
+    line-height: 18px;
 }
 
-.toggleButton {
-    background-color: var(--mantine-color-red-1);
-    border: 1px solid var(--mantine-color-red-2);
-
-    @mixin dark {
-        background-color: color-mix(
-            in srgb,
-            var(--mantine-color-red-9) 40%,
-            black
-        );
-        border-color: var(--mantine-color-red-9);
-    }
-}
-
-.toggleButtonText {
-    font-size: var(--mantine-font-size-xs);
-    color: var(--mantine-color-red-9);
-
-    @mixin dark {
-        color: var(--mantine-color-red-1);
-    }
-}
-
-.collapseContainer {
-    max-height: 155px;
-    overflow: auto;
-    display: flex;
-    flex-direction: column;
-}
-
-.errorItem {
-    width: 100%;
-    border: 1px solid var(--mantine-color-red-2);
-    border-radius: var(--mantine-radius-md);
-    padding: var(--mantine-spacing-xs);
-    background-color: var(--mantine-color-red-0);
-
-    @mixin dark {
-        border-color: var(--mantine-color-red-9);
-        background-color: color-mix(
-            in srgb,
-            var(--mantine-color-red-9) 30%,
-            black
-        );
-    }
-}
-
-.errorItemTitle {
-    color: var(--mantine-color-red-9);
-
-    @mixin dark {
-        color: var(--mantine-color-red-2);
-    }
-}
-
-.markdownPreview {
+.markdown {
     background-color: transparent;
-    color: var(--mantine-color-red-9);
-    font-size: 12px;
+    color: var(--mantine-color-ldGray-7);
+    font-size: 13px;
+    line-height: 18px;
 
-    @mixin dark {
-        color: var(--mantine-color-red-2);
+    & :global(p) {
+        margin: 0;
     }
 }
 
-.closeButton {
-    color: var(--mantine-color-red-9);
+.toggle {
+    align-self: flex-start;
+    margin-top: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: -0.15px;
+    color: light-dark(var(--mantine-color-red-9), var(--mantine-color-red-3));
 
-    @mixin dark {
-        color: var(--mantine-color-red-4);
+    &:hover {
+        text-decoration: underline;
+    }
+}
+
+.olderList {
+    margin-top: 6px;
+    max-height: 180px;
+    overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: light-dark(
+            color-mix(in srgb, var(--mantine-color-red-8) 30%, transparent),
+            color-mix(in srgb, var(--mantine-color-red-5) 35%, transparent)
+        )
+        transparent;
+    border-top: 1px solid
+        light-dark(
+            color-mix(in srgb, var(--mantine-color-red-8) 14%, transparent),
+            color-mix(in srgb, var(--mantine-color-red-5) 20%, transparent)
+        );
+}
+
+.olderItem {
+    padding: 8px 0;
+}
+
+.olderItem:not(:last-child) {
+    border-bottom: 1px solid
+        light-dark(
+            color-mix(in srgb, var(--mantine-color-red-8) 10%, transparent),
+            color-mix(in srgb, var(--mantine-color-red-5) 14%, transparent)
+        );
+}
+
+.olderMessage {
+    flex: 1;
+    min-width: 0;
+    color: var(--mantine-color-ldGray-7);
+    font-size: 13px;
+    line-height: 18px;
+}
+
+.olderTime {
+    flex: none;
+    font-size: 12px;
+    color: var(--mantine-color-ldGray-7);
+    font-variant-numeric: tabular-nums;
+}
+
+.olderDismiss {
+    flex: none;
+    color: var(--mantine-color-ldGray-6);
+
+    &:hover {
+        color: light-dark(
+            var(--mantine-color-red-9),
+            var(--mantine-color-red-3)
+        );
     }
 }

@@ -3,6 +3,7 @@ import {
     AiWritebackAttribution,
     Explore,
     WarehouseTypes,
+    type AgentSqlScope,
 } from '@lightdash/common';
 import { SystemModelMessage } from 'ai';
 import moment from 'moment';
@@ -11,7 +12,7 @@ import {
     AiAgentDeepResearchRunContext,
     AiAgentRequestingUser,
 } from '../types/aiAgent';
-import { xmlBuilder } from '../xmlBuilder';
+import { escapeXmlText, xmlBuilder } from '../xmlBuilder';
 import { renderAvailableExplores } from './availableExplores';
 import { getAiWritebackSection } from './systemV2AiWriteback';
 import { getCodingAgentSection } from './systemV2CodingAgent';
@@ -30,12 +31,6 @@ import { getSchedulingToolsSection } from './systemV2SchedulingTools';
 import { SEARCH_SEMANTIC_LAYER_SECTION } from './systemV2SearchSemanticLayer';
 import { renderAvailableSkills } from './systemV2Skills';
 import { SYSTEM_PROMPT_TEMPLATE } from './systemV2Template';
-
-const escapeXmlText = (value: string): string =>
-    value
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;');
 
 export const getSystemPromptV2 = (args: {
     availableExplores: Explore[];
@@ -57,17 +52,16 @@ export const getSystemPromptV2 = (args: {
     // Whether the repo host supports server-side code search (GitHub yes,
     // GitLab no). Defaults true; when false the prompt steers off `search`.
     repoFsSupportsCodeSearch?: boolean;
-    // Experimental: steer field discovery to the grepFields tool instead of
-    // discoverFields (the ai-grep-fields flag).
-    enableGrepFields?: boolean;
     enableContentTools?: boolean;
     enableAiAgentMemory?: boolean;
     // Originating Slack channel for "this channel" scheduling targets; null on
     // web and MCP prompts.
     slackChannelId?: string | null;
     canRunSql?: boolean;
+    enableMergeQueries?: boolean;
     warehouseType?: WarehouseTypes | null;
     warehouseSchema?: string | null;
+    sqlScope?: AgentSqlScope | null;
     // runSql's own max, quoted in its prompt section.
     runSqlMaxLimit?: number;
     unauthenticatedMcpServerNames?: string[];
@@ -86,21 +80,30 @@ export const getSystemPromptV2 = (args: {
         enableRepoDiscovery = false,
         repoFsRoot = null,
         repoFsSupportsCodeSearch = true,
-        enableGrepFields = false,
         enableContentTools = false,
         enableAiAgentMemory = false,
         slackChannelId = null,
         canRunSql = false,
+        enableMergeQueries = false,
         warehouseType = null,
         warehouseSchema = null,
+        sqlScope = null,
         runSqlMaxLimit,
         unauthenticatedMcpServerNames = [],
         mcpServers = [],
     } = args;
 
-    const crossExploreJoinRule = canRunSql
-        ? '  - You cannot mix fields from different explores in a single generateVisualization call. When the user needs data combined across explores that are not joined in the semantic layer, use the runSql tool to write raw SQL across those tables.'
-        : '  - You can not mix fields from different explores.';
+    let crossExploreJoinRule: string;
+    if (enableMergeQueries) {
+        crossExploreJoinRule =
+            '  - To combine fields from two explores that are not joined in the semantic layer, use generateVisualization with mergeConfig. Keep the primary query in queryConfig, put exactly one additional query in mergeConfig.additionalSources, and join dimensions at the same type and grain. Do not use runSql merely to combine explores.';
+    } else if (canRunSql) {
+        crossExploreJoinRule =
+            '  - You cannot mix fields from different explores in a single generateVisualization call. When the user needs data combined across explores that are not joined in the semantic layer, use the runSql tool to write raw SQL across those tables.';
+    } else {
+        crossExploreJoinRule =
+            '  - You can not mix fields from different explores.';
+    }
 
     const customSqlLimitation = canRunSql
         ? ''
@@ -109,11 +112,15 @@ export const getSystemPromptV2 = (args: {
     const renderKnowledgeDocument = (doc: AiAgentDocumentContext): string => {
         const { summary } = doc;
         const children: string[] = [
-            xmlBuilder('description', null, summary.description),
+            xmlBuilder('description', null, escapeXmlText(summary.description)),
         ];
         if (summary.definedTerms.length > 0) {
             children.push(
-                xmlBuilder('defines', null, summary.definedTerms.join(', ')),
+                xmlBuilder(
+                    'defines',
+                    null,
+                    escapeXmlText(summary.definedTerms.join(', ')),
+                ),
             );
         }
         if (summary.relatedExploreNames.length > 0) {
@@ -121,15 +128,19 @@ export const getSystemPromptV2 = (args: {
                 xmlBuilder(
                     'applies_to_explores',
                     null,
-                    summary.relatedExploreNames.join(', '),
+                    escapeXmlText(summary.relatedExploreNames.join(', ')),
                 ),
             );
         }
         if (summary.useWhen) {
-            children.push(xmlBuilder('use_when', null, summary.useWhen));
+            children.push(
+                xmlBuilder('use_when', null, escapeXmlText(summary.useWhen)),
+            );
         }
         if (summary.warning) {
-            children.push(xmlBuilder('warning', null, summary.warning));
+            children.push(
+                xmlBuilder('warning', null, escapeXmlText(summary.warning)),
+            );
         }
         const fullContent = doc.content ?? '';
         const hasFullContent =
@@ -193,7 +204,7 @@ export const getSystemPromptV2 = (args: {
               ].join('\n');
 
     const projectContextContent = args.hasProjectContext
-        ? 'This project has curated business context (acronyms, definitions, rules). Call the `loadProjectContext` tool BEFORE findExplores/findFields/discoverFields — it can change which explore, field, or filter value you should use. Treat it as authoritative over your own assumptions.'
+        ? 'This project has curated business context (acronyms, definitions, rules). Call the `loadProjectContext` tool BEFORE grepFields — it can change which explore, field, or filter value you should use. Treat it as authoritative over your own assumptions.'
         : 'No project context has been configured for this project.';
 
     const AVAILABLE_EXPLORES_INLINE_LIMIT = 15;
@@ -209,7 +220,7 @@ export const getSystemPromptV2 = (args: {
             args.availableExplores,
         ).toString();
     } else {
-        availableExploresContent = `This agent has access to ${args.availableExplores.length} explores. Use findExplores to discover the relevant one for each request.`;
+        availableExploresContent = `This agent has access to ${args.availableExplores.length} explores. Use grepFields to discover the relevant one for each request.`;
     }
 
     const content = SYSTEM_PROMPT_TEMPLATE.replace(
@@ -254,6 +265,7 @@ export const getSystemPromptV2 = (args: {
                 ? getRunSqlSection({
                       warehouseType,
                       warehouseSchema,
+                      sqlScope,
                       runSqlMaxLimit,
                   })
                 : '',
@@ -315,24 +327,20 @@ export const getSystemPromptV2 = (args: {
               ].join('\n')
             : '';
 
-    // Experimental: when grepFields replaces discoverFields, override the
-    // discovery guidance so the agent greps the field catalog itself.
-    const grepFieldsSection = enableGrepFields
-        ? [
-              '## Finding fields (grepFields)',
-              'To find which explore and fields can answer a question, use the `grepFields` tool instead of any other discovery step. It greps the field catalog (names, labels, descriptions, hints, tags) with case-insensitive keyword patterns (`|` for OR, space or .* between words for AND) and returns `explore/fieldId  [kind type]` lines grouped by explore.',
-              '- The user message may already include a "Candidate fields pre-grepped from the catalog" block. Read it FIRST — if it contains the fields you need, use them directly and skip calling grepFields. Only call grepFields when those candidates do not cover the question or you need a different angle.',
-              '- When you do call grepFields, pass several patterns in ONE call (the `patterns` array) covering the different angles of the question at once — e.g. `["revenue|sales", "country|region"]`. Do not grep one pattern, wait, then grep another.',
-              '- Use meaningful keywords, not long natural-language phrases. Read the returned fieldIds and pick the single explore that answers at the right grain before building a query.',
-              "- Once you have narrowed down to the explore(s) and field(s) you intend to use, call `getMetadata` (batching all of them in one call) to get the detail you need to build a correct query — an explore's joined tables and table filters, and a field's filter type, case-sensitivity, default time dimension and hints. grepFields tells you what exists; getMetadata tells you how to use it.",
-              '- A description or hint ending in "...(truncated)" is incomplete — call getMetadata to read the full text before using that field.',
-              "- Respect a metric's default time dimension, if it has one, unless the user explicitly requests a different time dimension.",
-              '- Table filters marked `required` are hard constraints: they are always applied to queries on that table. You may provide a compatible filter on the same field when the user asks for a specific range, e.g. if `created_at inThePast [4 weeks]` is required, `created_at inThePast [10 months]` or `created_at inThePast [2 days]` is compatible.',
-              '- Table filters marked `suggested` are soft suggestions: apply them unless the user asks for a different range or scope.',
-              '- If your literal patterns miss, grepFields automatically returns the closest catalog matches (fuzzy search, verified fields first) under "No exact grep matches" — use those rather than re-grepping a long list of synonyms.',
-              '- Once you have the fieldIds you need, build the query. Do NOT re-grep for fields you already found, and do not call grepFields again between generateVisualization attempts — if a query fails, fix the query itself (filters, metric, grain), not the discovery. If you need a filter value you are unsure of (e.g. which status string exists), use searchFieldValues rather than guessing.',
-          ].join('\n')
-        : '';
+    const grepFieldsSection = [
+        '## Finding fields (grepFields)',
+        'To find which explore and fields can answer a question, use the `grepFields` tool instead of any other discovery step. It greps the field catalog (names, labels, descriptions, hints, tags) with case-insensitive keyword patterns (`|` for OR, space or .* between words for AND) and returns `explore/fieldId  [kind type]` lines grouped by explore.',
+        '- The user message may already include a "Candidate fields pre-grepped from the catalog" block. Read it FIRST — if it contains the fields you need, use them directly and skip calling grepFields. Only call grepFields when those candidates do not cover the question or you need a different angle.',
+        '- When you do call grepFields, pass several patterns in ONE call (the `patterns` array) covering the different angles of the question at once — e.g. `["revenue|sales", "country|region"]`. Do not grep one pattern, wait, then grep another.',
+        '- Use meaningful keywords, not long natural-language phrases. Read the returned fieldIds and pick the single explore that answers at the right grain before building a query.',
+        "- Once you have narrowed down to the explore(s) and field(s) you intend to use, call `getMetadata` (batching all of them in one call) to get the detail you need to build a correct query — an explore's joined tables and table filters, and a field's filter type, case-sensitivity, default time dimension and hints. grepFields tells you what exists; getMetadata tells you how to use it.",
+        '- A description or hint ending in "...(truncated)" is incomplete — call getMetadata to read the full text before using that field.',
+        "- Respect a metric's default time dimension, if it has one, unless the user explicitly requests a different time dimension.",
+        '- Table filters marked `required` are hard constraints: they are always applied to queries on that table. You may provide a compatible filter on the same field when the user asks for a specific range, e.g. if `created_at inThePast [4 weeks]` is required, `created_at inThePast [10 months]` or `created_at inThePast [2 days]` is compatible.',
+        '- Table filters marked `suggested` are soft suggestions: apply them unless the user asks for a different range or scope.',
+        '- If your literal patterns miss, grepFields automatically returns the closest catalog matches (fuzzy search, verified fields first) under "No exact grep matches" — use those rather than re-grepping a long list of synonyms.',
+        '- Once you have the fieldIds you need, build the query. Do NOT re-grep for fields you already found, and do not call grepFields again between generateVisualization attempts — if a query fails, fix the query itself (filters, metric, grain), not the discovery. If you need a filter value you are unsure of (e.g. which status string exists), use searchFieldValues rather than guessing.',
+    ].join('\n');
 
     const finalContent = [
         content,
@@ -350,6 +358,7 @@ export const getSystemPromptV2 = (args: {
         content: finalContent,
         providerOptions: {
             anthropic: { cacheControl: { type: 'ephemeral' } },
+            bedrock: { cachePoint: { type: 'default' } },
         },
     };
 };

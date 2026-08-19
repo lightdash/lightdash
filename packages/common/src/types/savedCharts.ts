@@ -7,6 +7,7 @@ import { type ChartSourceType } from './content';
 import { type ContentVerificationInfo } from './contentVerification';
 import { type CompactOrAlias, type FieldId } from './field';
 import { type KnexPaginatedData } from './knex-paginate';
+import { type SavedMergeQuery } from './mergeQuery';
 import { type MetricQuery, type MetricQueryRequest } from './metricQuery';
 import { type ResolvedProjectColorPalette } from './organization';
 import { type ParametersValuesMap } from './parameters';
@@ -933,6 +934,11 @@ export type SavedChart = {
         /** Ordered fields to render on the pivot row axis */
         rows?: string[];
     };
+    /**
+     * Second query this chart's query is merged with, when it has one. Absent
+     * on the overwhelming majority of charts.
+     */
+    merge?: SavedMergeQuery | null;
     /** Visualization configuration for the chart */
     chartConfig: ChartConfig;
     /** Table view configuration */
@@ -994,6 +1000,7 @@ type CreateChartBase = Pick<
     | 'chartConfig'
     | 'tableConfig'
     | 'parameters'
+    | 'merge'
 >;
 
 // colorPaletteUuid is on each member to avoid an allOf in the OpenAPI schema.

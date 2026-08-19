@@ -1,0 +1,54 @@
+name: Verify a Lightdash upgrade
+description: Verify a deployed Lightdash version and record durable evidence on its pin pull request
+inputs:
+  instance_url:
+    description: Public base URL of the Lightdash instance to verify
+    required: true
+  bump_target:
+    description: Relative YAML or JSON file and value path in file#path.to.version format
+    required: true
+  tag_suffix:
+    description: Suffix appended to the public release version for the deployed image tag
+    required: false
+    default: ''
+  verify_window:
+    description: Maximum verification duration expressed as seconds or with an s, m, or h suffix
+    required: false
+    default: 20m
+  escalation:
+    description: Optional Slack incoming webhook from a repository secret; never commit the URL in plaintext
+    required: false
+    default: ''
+  freeze_label:
+    description: Issue label created on verification failure to disarm future upgrades
+    required: false
+    default: upgrade-freeze
+  deploy_run_url:
+    description: URL of the completed deployment workflow run
+    required: true
+  deploy_conclusion:
+    description: Conclusion of the completed deployment workflow run
+    required: true
+  deployed_sha:
+    description: Commit SHA deployed by the completed workflow run
+    required: true
+  github_token:
+    description: GitHub token used to inspect the deploy commit, comment on the pin pull request, and open freeze issues
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Verify and record the deployed upgrade
+      shell: bash
+      env:
+        INSTANCE_URL: ${{ inputs.instance_url }}
+        BUMP_TARGET: ${{ inputs.bump_target }}
+        TAG_SUFFIX: ${{ inputs.tag_suffix }}
+        VERIFY_WINDOW: ${{ inputs.verify_window }}
+        ESCALATION: ${{ inputs.escalation }}
+        FREEZE_LABEL: ${{ inputs.freeze_label }}
+        DEPLOY_RUN_URL: ${{ inputs.deploy_run_url }}
+        DEPLOY_CONCLUSION: ${{ inputs.deploy_conclusion }}
+        DEPLOYED_SHA: ${{ inputs.deployed_sha }}
+        GH_TOKEN: ${{ inputs.github_token }}
+      run: "$GITHUB_ACTION_PATH/../scripts/verify.sh"

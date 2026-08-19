@@ -8,16 +8,16 @@ import {
     useComputedColorScheme,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import Editor, { type EditorProps, type Monaco } from '@monaco-editor/react';
 import { type IDisposable, type languages } from 'monaco-editor';
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { useDeepCompareEffect } from 'react-use';
 import { useCanCreateDataApp } from '../../../../features/apps/hooks/useCanCreateDataApp';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
 import { isCustomVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
+import Editor, { type EditorProps, type Monaco } from '../../../MonacoEditor';
 import { Config } from '../../common/Config';
 import CustomChartTypeSection from '../../CustomChartType/CustomChartTypeSection';
 import {
@@ -126,6 +126,7 @@ export const ConfigTabs: React.FC = memo(() => {
     const { visualizationConfig } = useVisualizationContext();
     const colorScheme = useComputedColorScheme();
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const navigate = useNavigate();
 
     const isCustomConfig = isCustomVisualizationConfig(visualizationConfig);
 
@@ -256,17 +257,23 @@ export const ConfigTabs: React.FC = memo(() => {
                         // Vega needs no columns to be usable, so the picker
                         // stays open even before the query has run.
                         hasColumns
-                        // Builds run from the data-app-viz dock, so there is
-                        // never one in flight while the chart is on Vega.
-                        draft={null}
                         onSelectVega={() => {}}
                         onSelectProjectType={(picked) =>
                             selectProjectChartType(picked, itemsMap ?? {})
                         }
-                        onSelectDraft={() => {}}
-                        // Clearing leaves Vega for an empty project type,
-                        // which is the state the dock composes from.
+                        // Clearing leaves Vega for the empty project-type state.
                         onClear={canCreateApp ? createProjectChartType : null}
+                        onCreateNew={
+                            canCreateApp
+                                ? () =>
+                                      void navigate(
+                                          `/projects/${projectUuid}/chart-types/new`,
+                                      )
+                                : null
+                        }
+                        onBrowseGallery={() =>
+                            void navigate(`/projects/${projectUuid}/gallery`)
+                        }
                     />
                 )}
 

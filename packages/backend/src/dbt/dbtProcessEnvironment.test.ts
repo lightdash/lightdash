@@ -19,12 +19,17 @@ const processEnvironment: NodeJS.ProcessEnv = {
     ANTHROPIC_API_KEY: 'anthropic-key',
     MY_AWS_SECRET_KEY: 'lookalike-secret',
     UNKNOWN_VARIABLE: 'unknown',
+    UTILS_PII_SALT: 'machine-owned-salt',
+    OTHER_ALLOWED_VARIABLE: 'other-machine-value',
+    ALLOW_DBT_COMMANDS_ACCESS_TO_ENV_VARS:
+        'UTILS_PII_SALT,OTHER_ALLOWED_VARIABLE',
     EMPTY_VARIABLE: undefined,
 };
 
 const buildEnvironment = (projectEnvironment: Record<string, string> = {}) =>
     getDbtProcessEnvironment({
         processEnvironment,
+        environmentVariableAllowlist: [],
         projectEnvironment,
         targetPath: '/tmp/dbt_target_test',
     });
@@ -71,6 +76,44 @@ describe('getDbtProcessEnvironment', () => {
         expect(environment).not.toHaveProperty('MY_AWS_SECRET_KEY');
         expect(environment).not.toHaveProperty('UNKNOWN_VARIABLE');
         expect(environment).not.toHaveProperty('EMPTY_VARIABLE');
+    });
+
+    it('forwards machine variables named in the dbt allowlist', () => {
+        const environment = getDbtProcessEnvironment({
+            processEnvironment: {
+                ...processEnvironment,
+            },
+            environmentVariableAllowlist: [
+                'UTILS_PII_SALT',
+                'OTHER_ALLOWED_VARIABLE',
+            ],
+            projectEnvironment: {},
+            targetPath: '/tmp/dbt_target_test',
+        });
+
+        expect(environment.UTILS_PII_SALT).toEqual('machine-owned-salt');
+        expect(environment.OTHER_ALLOWED_VARIABLE).toEqual(
+            'other-machine-value',
+        );
+        expect(environment).not.toHaveProperty(
+            'ALLOW_DBT_COMMANDS_ACCESS_TO_ENV_VARS',
+        );
+        expect(environment).not.toHaveProperty('UNKNOWN_VARIABLE');
+    });
+
+    it('lets project variables override allowlisted machine variables', () => {
+        const environment = getDbtProcessEnvironment({
+            processEnvironment: {
+                ...processEnvironment,
+            },
+            environmentVariableAllowlist: ['UTILS_PII_SALT'],
+            projectEnvironment: {
+                UTILS_PII_SALT: 'project-owned-salt',
+            },
+            targetPath: '/tmp/dbt_target_test',
+        });
+
+        expect(environment.UTILS_PII_SALT).toEqual('project-owned-salt');
     });
 
     it('keeps the Lightdash controlled dbt variables', () => {
@@ -134,6 +177,7 @@ describe('getMissingEnvironmentVariableHint', () => {
 
         expect(hint).toContain('MY_VAR');
         expect(hint).toContain('OTHER_VAR');
+        expect(hint).toContain('ALLOW_DBT_COMMANDS_ACCESS_TO_ENV_VARS');
     });
 
     it('returns nothing for unrelated dbt failures', () => {

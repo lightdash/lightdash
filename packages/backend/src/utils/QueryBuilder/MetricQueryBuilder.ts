@@ -57,6 +57,7 @@ import {
     parseAllReferences,
     parseTableCalculationFunctions,
     PivotConfiguration,
+    QueryExecutionContext,
     QueryWarning,
     quoteFieldReference,
     renderFilterRuleSqlFromField,
@@ -147,6 +148,8 @@ export type BuildQueryProps = {
      * invalid filters. Useful for debugging/viewing SQL even with errors.
      */
     continueOnError?: boolean;
+    /** Model required filters are skipped only for pre-aggregate materialization. */
+    skipModelRequiredFilters?: boolean;
     /**
      * The original explore before date zoom modifications.
      * When date zoom changes granularity, the explore's dimension compiledSql
@@ -175,6 +178,7 @@ export type BuildQueryProps = {
      *  SELECT. Gated behind NaiveTimestampFilterRebase (the wrap defeats
      *  partition pruning). */
     rebaseRawTimestampFilters?: boolean;
+    queryExecutionContext?: QueryExecutionContext;
     /**
      * Turns this into a totals query: the builder collapses
      * `compiledMetricQuery` + `pivotConfiguration` to the requested grain (via
@@ -431,6 +435,10 @@ export class MetricQueryBuilder {
 
     private get columnTimezone(): string {
         return this.args.columnTimezone ?? 'UTC';
+    }
+
+    private get shouldApplyModelRequiredFilters() {
+        return !this.args.skipModelRequiredFilters;
     }
 
     /** Falls back to `columnTimezone`, which is equal on every warehouse
@@ -2012,6 +2020,8 @@ export class MetricQueryBuilder {
         table: CompiledTable,
         dimensionsFilterGroup: FilterGroup | undefined,
     ): string | undefined {
+        if (!this.shouldApplyModelRequiredFilters) return undefined;
+
         const { explore } = this.args;
         // We only force required filters that are not explicitly set to false
         // requiredFilters with required:false will be added on the UI, but not enforced on the backend
@@ -2351,7 +2361,11 @@ export class MetricQueryBuilder {
 
         // Apply default sort if no sorts are specified
         let effectiveSorts: SortField[] = sorts;
-        if (sorts.length === 0) {
+        if (
+            sorts.length === 0 &&
+            this.args.queryExecutionContext !==
+                QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
+        ) {
             const defaultSort = this.getDefaultSort();
             effectiveSorts = defaultSort ? [defaultSort] : [];
         }
@@ -2506,15 +2520,16 @@ export class MetricQueryBuilder {
             ? tableSqlWhereTableReferences.map((ref) => ref.refTable)
             : [];
 
-        const requiredFilterJoinedTables =
-            explore.tables[explore.baseTable].requiredFilters
-                ?.map((filter) => {
-                    if (isJoinModelRequiredFilter(filter)) {
-                        return filter.target.tableName;
-                    }
-                    return undefined;
-                })
-                .filter((s): s is string => Boolean(s)) || [];
+        const requiredFilterJoinedTables = this.shouldApplyModelRequiredFilters
+            ? explore.tables[explore.baseTable].requiredFilters
+                  ?.map((filter) => {
+                      if (isJoinModelRequiredFilter(filter)) {
+                          return filter.target.tableName;
+                      }
+                      return undefined;
+                  })
+                  .filter((s): s is string => Boolean(s)) || []
+            : [];
 
         const joinedTables = new Set([
             ...selectedTables,
@@ -5835,7 +5850,13 @@ export class MetricQueryBuilder {
         };
     }
 
-    public compileQuery(): CompiledQuery {
+    public compileQuery(options?: {
+        /**
+         * Omit ORDER BY and LIMIT, for embedding as the body of a CTE in an
+         * outer query that orders and limits once for the whole statement.
+         */
+        excludeOrderByAndLimit?: boolean;
+    }): CompiledQuery {
         const {
             fields,
             warnings,
@@ -5848,8 +5869,7 @@ export class MetricQueryBuilder {
         const query = MetricQueryBuilder.assembleSqlParts([
             MetricQueryBuilder.buildCtesSQL(ctes),
             ...finalSelectParts,
-            sqlOrderBy,
-            sqlLimit,
+            ...(options?.excludeOrderByAndLimit ? [] : [sqlOrderBy, sqlLimit]),
         ]);
 
         const {

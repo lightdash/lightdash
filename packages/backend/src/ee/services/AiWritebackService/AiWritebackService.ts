@@ -81,6 +81,7 @@ import {
 } from '../SandboxRuntime';
 import {
     ALLOWED_TOOLS,
+    ASSISTANT_TEXT_TAIL_CHARS,
     CLAUDE_MODEL,
     CLAUDE_SKILLS_DIR,
     COMPILE_STRIPPED_ENV_VARS,
@@ -96,6 +97,7 @@ import {
     PR_DESCRIPTION_PATH,
     PR_TITLE_PATH,
     PROMPT_PATH,
+    REPO_CONTEXT_MAX_BYTES,
     REPO_CONTEXT_TIMEOUT_MS,
     RUN_TIMEOUT_MS,
     SANDBOX_TIMEOUT_MS,
@@ -129,6 +131,7 @@ import type {
     CodingAgentConfig,
     GitConnection,
     GitInstallation,
+    RepoContext,
     ResolvedTurnTarget,
     SetStage,
     TurnContext,
@@ -149,6 +152,7 @@ import {
     resolveSandboxDbtVersion,
     resolveSandboxTemplateRef,
     splitStreamBuffer,
+    summarizeRepoListing,
     summarizeToolInput,
 } from './utils';
 
@@ -416,6 +420,36 @@ export const workstreamLockKey = (
     return turn.existingRow
         ? `${aiThreadUuid}::ws::${turn.existingRow.ai_writeback_thread_uuid}`
         : `${aiThreadUuid}::new::${repository}`;
+};
+
+const getRepoContextAnalyticsProperties = (repoContext: RepoContext | null) => {
+    if (repoContext === null) {
+        return {
+            repoContextBytes: null,
+            repoContextCapped: null,
+            repoContextFileCount: null,
+        };
+    }
+    if (repoContext.kind === 'summarised') {
+        return {
+            repoContextBytes: repoContext.bytes,
+            repoContextCapped: true,
+            repoContextFileCount: repoContext.fileCount,
+        };
+    }
+    const { fileCount } = summarizeRepoListing(repoContext.listing);
+    if (fileCount === 0) {
+        return {
+            repoContextBytes: null,
+            repoContextCapped: null,
+            repoContextFileCount: null,
+        };
+    }
+    return {
+        repoContextBytes: Buffer.byteLength(repoContext.listing, 'utf8'),
+        repoContextCapped: false,
+        repoContextFileCount: fileCount,
+    };
 };
 
 export class AiWritebackService extends BaseService {
@@ -2158,6 +2192,7 @@ export class AiWritebackService extends BaseService {
 
         let sandbox: SandboxHandle | undefined;
         let sandboxUuid: string | undefined;
+        let repoContext: RepoContext | null = null;
         // Default to preserving a resumed sandbox through failures — its
         // sandbox_uuid is referenced by an ai_writeback_thread row and killing
         // it would poison the row for every future turn. Fresh turns have no
@@ -2243,6 +2278,7 @@ export class AiWritebackService extends BaseService {
                 turn,
                 repository,
             });
+            repoContext = setup.repoContext;
             const agent = await this.runAgentInSandbox({
                 sandbox,
                 systemPrompt: setup.systemPrompt,
@@ -2348,6 +2384,7 @@ export class AiWritebackService extends BaseService {
                 hasChanges,
                 prCreated: applied.prCreated,
                 usage: agent.usage,
+                repoContext,
             });
 
             this.logger.info('AI writeback run completed', {
@@ -2429,7 +2466,7 @@ export class AiWritebackService extends BaseService {
                     sandboxId: sandbox?.sandboxId ?? null,
                 },
             });
-            tracker.failed(failureStage, error);
+            tracker.failed(failureStage, error, repoContext);
             await persistRunFailed(error);
             throw error;
         } finally {
@@ -3277,6 +3314,7 @@ export class AiWritebackService extends BaseService {
                 hasChanges: boolean;
                 prCreated: boolean;
                 usage: AiWritebackUsage | null;
+                repoContext: RepoContext | null;
             }) =>
                 this.analytics.track({
                     event: 'ai_writeback.completed',
@@ -3296,9 +3334,14 @@ export class AiWritebackService extends BaseService {
                             props.usage?.cacheCreationInputTokens ?? null,
                         numTurns: props.usage?.numTurns ?? null,
                         durationApiMs: props.usage?.durationApiMs ?? null,
+                        ...getRepoContextAnalyticsProperties(props.repoContext),
                     },
                 }),
-            failed: (stage: AiWritebackFailureStage, error: unknown) =>
+            failed: (
+                stage: AiWritebackFailureStage,
+                error: unknown,
+                repoContext: RepoContext | null,
+            ) =>
                 this.analytics.track({
                     event: 'ai_writeback.failed',
                     userId: user.userUuid,
@@ -3307,6 +3350,7 @@ export class AiWritebackService extends BaseService {
                         failureStage: stage,
                         errorMessage: getErrorMessage(error),
                         totalDurationMs: Date.now() - startedAt,
+                        ...getRepoContextAnalyticsProperties(repoContext),
                     },
                 }),
         };
@@ -3505,7 +3549,7 @@ export class AiWritebackService extends BaseService {
     private async gatherRepoContext(
         sandbox: SandboxHandle,
         projectSubPath: string,
-    ): Promise<string | null> {
+    ): Promise<RepoContext | null> {
         const start = performance.now();
         try {
             await sandbox.files.write(
@@ -3525,11 +3569,45 @@ export class AiWritebackService extends BaseService {
                 );
                 return null;
             }
+            // An empty listing is worse than no listing: the `full` branch
+            // would emit an empty <repo_context> block alongside the "do NOT
+            // run find/ls/Glob" instruction, leaving the agent with an empty
+            // index and no sanctioned way to search. Fall through to null so
+            // the block is omitted entirely.
+            if (!result.stdout.trim()) {
+                return null;
+            }
             const bytes = Buffer.byteLength(result.stdout, 'utf8');
+            // Past the cap the listing no longer fits the model's context
+            // window alongside the prompt and the agent's own file reads, and
+            // the run dies before doing any work. Hand over a directory digest
+            // instead — the prompt then points the agent at Glob/Grep.
+            if (bytes > REPO_CONTEXT_MAX_BYTES) {
+                const { digest, fileCount } = summarizeRepoListing(
+                    result.stdout,
+                );
+                this.logger.warn(
+                    `AiWriteback: repo context too large to inject — summarising (sandboxId=${sandbox.sandboxId}, bytes=${bytes}, cap=${REPO_CONTEXT_MAX_BYTES}, files=${fileCount}, ${AiWritebackService.elapsed(start)}ms)`,
+                    {
+                        event: 'ai_writeback.repo_context.summarised',
+                        sandboxId: sandbox.sandboxId,
+                        bytes,
+                        capBytes: REPO_CONTEXT_MAX_BYTES,
+                        fileCount,
+                        digestBytes: Buffer.byteLength(digest, 'utf8'),
+                    },
+                );
+                return {
+                    kind: 'summarised',
+                    listing: digest,
+                    fileCount,
+                    bytes,
+                };
+            }
             this.logger.info(
                 `AiWriteback: repo context gathered (sandboxId=${sandbox.sandboxId}, bytes=${bytes}, ${AiWritebackService.elapsed(start)}ms)`,
             );
-            return result.stdout;
+            return { kind: 'full', listing: result.stdout };
         } catch (error) {
             this.logger.warn(
                 `AiWriteback: gatherRepoContext failed — running without context: ${getErrorMessage(error)}`,
@@ -3611,6 +3689,15 @@ export class AiWritebackService extends BaseService {
             stderrTail = (stderrTail + chunk).slice(-STDERR_TAIL_BYTES);
         };
 
+        // The CLI's own verdict on the run, kept so the failure path can report
+        // *why* `claude -p` exited non-zero. The `result` event arrives and is
+        // parsed moments before the subprocess exit propagates, so on a failed
+        // run this is populated by the time the catch block reads it.
+        let agentResult: { isError: boolean | null; subtype: string | null } = {
+            isError: null,
+            subtype: null,
+        };
+
         const handleEvent = (event: unknown): void => {
             const interpreted = interpretAgentEvent(event);
             if (interpreted.type === 'result') {
@@ -3624,6 +3711,10 @@ export class AiWritebackService extends BaseService {
                     interpreted.durationApiMs !== null
                         ? interpreted.durationMs - interpreted.durationApiMs
                         : null;
+                agentResult = {
+                    isError: interpreted.isError,
+                    subtype: interpreted.subtype,
+                };
                 agentUsage = {
                     costUsd: interpreted.costUsd,
                     inputTokens: interpreted.inputTokens,
@@ -3650,6 +3741,8 @@ export class AiWritebackService extends BaseService {
                         event: 'ai_writeback.run.summary',
                         source,
                         sandboxId: sandbox.sandboxId,
+                        resultIsError: interpreted.isError,
+                        resultSubtype: interpreted.subtype,
                         costUsd: interpreted.costUsd,
                         durationMs: interpreted.durationMs,
                         durationApiMs: interpreted.durationApiMs,
@@ -3762,6 +3855,12 @@ export class AiWritebackService extends BaseService {
             const stderrSnippet = (errStderr || stderrTail).slice(
                 -STDERR_TAIL_BYTES,
             );
+            // On the dominant failure mode (agent gives up, CLI exits 1) stderr
+            // is empty and the only account of what happened is the CLI's own
+            // result classification plus the agent's closing message.
+            const assistantTextTail = assistantText
+                ? assistantText.slice(-ASSISTANT_TEXT_TAIL_CHARS)
+                : null;
             this.logger.error('AI writeback agent subprocess failed', {
                 event: 'ai_writeback.run.agent_failed',
                 sandboxId: sandbox.sandboxId,
@@ -3771,11 +3870,16 @@ export class AiWritebackService extends BaseService {
                 exitCode,
                 errorMessage: getErrorMessage(error),
                 stderrTail: stderrSnippet || null,
+                resultIsError: agentResult.isError,
+                resultSubtype: agentResult.subtype,
+                assistantTextTail,
+                toolCounts,
             });
             Sentry.captureException(error, {
                 tags: {
                     errorType: 'AiWritebackAgentSubprocessFailed',
                     timedOut: String(timedOut),
+                    resultSubtype: agentResult.subtype ?? 'unknown',
                 },
                 extra: {
                     sandboxId: sandbox.sandboxId,
@@ -3783,6 +3887,9 @@ export class AiWritebackService extends BaseService {
                     runTimeoutMs: RUN_TIMEOUT_MS,
                     exitCode,
                     stderrTail: stderrSnippet,
+                    resultIsError: agentResult.isError,
+                    resultSubtype: agentResult.subtype,
+                    assistantTextTail,
                     toolCounts,
                 },
             });
@@ -4015,6 +4122,7 @@ export class AiWritebackService extends BaseService {
                 );
                 return {
                     systemPrompt,
+                    repoContext,
                     allowedTools: ALLOWED_TOOLS,
                     addDirs: ['/tmp', SKILLS_DIR, CLAUDE_SKILLS_DIR],
                     model: CLAUDE_MODEL,
@@ -4186,6 +4294,7 @@ export class AiWritebackService extends BaseService {
                         repository,
                         repoContext,
                     }),
+                    repoContext,
                     allowedTools: GENERAL_ALLOWED_TOOLS,
                     disallowedTools: GENERAL_DISALLOWED_TOOLS,
                     addDirs: ['/tmp', GENERAL_SKILLS_DIR],
@@ -4207,7 +4316,7 @@ export class AiWritebackService extends BaseService {
      */
     private async gatherGeneralRepoContext(
         sandbox: SandboxHandle,
-    ): Promise<string | null> {
+    ): Promise<RepoContext | null> {
         const MAX_FILES = 600;
         try {
             const result = await sandbox.commands.run(
@@ -4218,7 +4327,34 @@ export class AiWritebackService extends BaseService {
             if (!listing) {
                 return null;
             }
-            return listing;
+            const bytes = Buffer.byteLength(listing, 'utf8');
+            // `head` truncates silently, so on any repo with more than
+            // MAX_FILES files the agent was being handed a partial listing and
+            // told to treat it as the index — it would conclude a file simply
+            // did not exist. Summarise instead, which flips the prompt to
+            // "explore with Glob/Grep" and stops the false negatives.
+            const truncated = listing.split('\n').length >= MAX_FILES;
+            if (truncated || bytes > REPO_CONTEXT_MAX_BYTES) {
+                const { digest, fileCount } = summarizeRepoListing(listing);
+                this.logger.warn(
+                    `AiCodingAgent: repo listing truncated at ${MAX_FILES} files — summarising (sandboxId=${sandbox.sandboxId}, bytes=${bytes}, files=${fileCount})`,
+                    {
+                        event: 'ai_writeback.repo_context.summarised',
+                        sandboxId: sandbox.sandboxId,
+                        bytes,
+                        capBytes: REPO_CONTEXT_MAX_BYTES,
+                        fileCount,
+                        digestBytes: Buffer.byteLength(digest, 'utf8'),
+                    },
+                );
+                return {
+                    kind: 'summarised',
+                    listing: digest,
+                    fileCount,
+                    bytes,
+                };
+            }
+            return { kind: 'full', listing };
         } catch (error) {
             this.logger.warn(
                 `AiCodingAgent: gatherGeneralRepoContext failed — running without context: ${getErrorMessage(

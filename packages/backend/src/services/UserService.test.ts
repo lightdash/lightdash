@@ -69,7 +69,9 @@ const userModel = {
     hasPasswordByEmail: vi.fn<UserModel['hasPasswordByEmail']>(
         async () => false,
     ),
-    findSessionUserByOpenId: vi.fn(async () => undefined),
+    findSessionUserByOpenId: vi.fn<UserModel['findSessionUserByOpenId']>(
+        async () => undefined,
+    ),
     findSessionUserByUUID: vi.fn<UserModel['findSessionUserByUUID']>(
         async () => sessionUser,
     ),
@@ -85,7 +87,12 @@ const userModel = {
     activateUser: vi.fn(async () => sessionUser),
     activateUserWithoutPassword: vi.fn(async () => sessionUser),
     addProjectMemberships: vi.fn(async () => undefined),
-    getOrganizationsForUser: vi.fn(async () => [sessionUser]),
+    getOrganizationsForUser: vi.fn<UserModel['getOrganizationsForUser']>(
+        async () => [sessionUser],
+    ),
+    getUserByPrimaryEmailAndPassword: vi.fn<
+        UserModel['getUserByPrimaryEmailAndPassword']
+    >(async () => userWithoutOrg),
     findUserByEmail: vi.fn<UserModel['findUserByEmail']>(async () => undefined),
     createPendingUser: vi.fn<UserModel['createPendingUser']>(
         async () => newUser,
@@ -217,7 +224,20 @@ type UserServiceTestOverrides = {
         PasswordResetLinkModel,
         'getByCode' | 'deleteByCode'
     >;
-    rolesModel?: Pick<RolesModel, 'getRoleWithScopesByUuid'>;
+    rolesModel?: Partial<
+        Pick<
+            RolesModel,
+            'getRoleWithScopesByUuid' | 'getOrganizationUserRoleSet'
+        >
+    >;
+};
+
+// Delegation checks read the caller's extra custom roles; default to none.
+const rolesModelWithoutExtraRoles = {
+    getOrganizationUserRoleSet: vi.fn(async () => ({
+        systemRole: null,
+        customRoleUuids: [],
+    })),
 };
 
 const createUserService = (
@@ -268,7 +288,10 @@ const createUserService = (
             } as unknown as FeatureFlagModel),
         userAvatarModel: {} as UserAvatarModel,
         userOnboardingModel: {} as UserOnboardingModel,
-        rolesModel: (overrides.rolesModel as RolesModel) ?? ({} as RolesModel),
+        rolesModel: {
+            ...rolesModelWithoutExtraRoles,
+            ...overrides.rolesModel,
+        } as unknown as RolesModel,
     });
 
 vi.spyOn(analyticsMock, 'track');
@@ -281,6 +304,108 @@ describe('UserService', () => {
 
     afterEach(() => {
         vi.clearAllMocks();
+    });
+
+    describe('organization selection during login', () => {
+        const selectedOrganization = {
+            organizationUuid: 'selected-organization-uuid',
+            organizationName: 'Selected organization',
+            organizationCreatedAt: new Date('2025-01-01T00:00:00.000Z'),
+        };
+        const otherOrganization = {
+            organizationUuid: 'other-organization-uuid',
+            organizationName: 'Other organization',
+            organizationCreatedAt: new Date('2025-01-02T00:00:00.000Z'),
+        };
+        const organizationlessSessionUser: SessionUser = { ...sessionUser };
+        delete organizationlessSessionUser.organizationUuid;
+        delete organizationlessSessionUser.organizationName;
+        delete organizationlessSessionUser.organizationCreatedAt;
+        delete organizationlessSessionUser.role;
+
+        test('allows password login for a user without an organization', async () => {
+            userModel.getOrganizationsForUser.mockResolvedValueOnce([]);
+
+            const result = await userService.loginWithPassword(
+                'user@example.com',
+                'password',
+            );
+
+            expect(result).not.toHaveProperty('organizationUuid');
+        });
+
+        test('rejects password login for a user in multiple organizations', async () => {
+            userModel.getOrganizationsForUser.mockResolvedValueOnce([
+                selectedOrganization,
+                otherOrganization,
+            ]);
+
+            await expect(
+                userService.loginWithPassword('user@example.com', 'password'),
+            ).rejects.toThrow(
+                new ForbiddenError('User is part of multiple organizations'),
+            );
+        });
+
+        test('returns the resolved organization for a single-organization password login', async () => {
+            userModel.getOrganizationsForUser.mockResolvedValueOnce([
+                selectedOrganization,
+            ]);
+
+            await expect(
+                userService.loginWithPassword('user@example.com', 'password'),
+            ).resolves.toEqual({
+                ...userWithoutOrg,
+                ...selectedOrganization,
+            });
+        });
+
+        test('allows OpenID login for a user without an organization', async () => {
+            userModel.findSessionUserByOpenId.mockResolvedValueOnce(
+                organizationlessSessionUser,
+            );
+            userModel.getOrganizationsForUser.mockResolvedValueOnce([]);
+
+            const result = await userService.loginWithOpenId(
+                openIdUser,
+                undefined,
+                undefined,
+            );
+
+            expect(result).not.toHaveProperty('organizationUuid');
+        });
+
+        test('rejects OpenID login for a user in multiple organizations', async () => {
+            userModel.findSessionUserByOpenId.mockResolvedValueOnce(
+                organizationlessSessionUser,
+            );
+            userModel.getOrganizationsForUser.mockResolvedValueOnce([
+                selectedOrganization,
+                otherOrganization,
+            ]);
+
+            await expect(
+                userService.loginWithOpenId(openIdUser, undefined, undefined),
+            ).rejects.toThrow(
+                new ForbiddenError('User is part of multiple organizations'),
+            );
+        });
+
+        test('returns the resolved organization for a single-organization OpenID login', async () => {
+            userModel.findSessionUserByOpenId.mockResolvedValueOnce(
+                organizationlessSessionUser,
+            );
+            userModel.getOrganizationsForUser.mockResolvedValueOnce([
+                selectedOrganization,
+            ]);
+
+            await expect(
+                userService.loginWithOpenId(openIdUser, undefined, undefined),
+            ).resolves.toEqual({
+                ...organizationlessSessionUser,
+                ...selectedOrganization,
+            });
+        });
     });
 
     describe('OAuth grants', () => {
@@ -423,6 +548,20 @@ describe('UserService', () => {
                 email: sessionUser.email!,
             });
             expect(userModel.updateUser).toHaveBeenCalled();
+        });
+
+        test.each([
+            { firstName: '<script>alert(1)</script>' },
+            { lastName: '<img src=x onerror=alert(1)>' },
+        ])('rejects HTML in a user name before persisting', async (data) => {
+            await expect(
+                userService.updateUser(sessionUser, data),
+            ).rejects.toThrow(
+                new ParameterError(
+                    'First name and last name must not contain HTML',
+                ),
+            );
+            expect(userModel.updateUser).not.toHaveBeenCalled();
         });
     });
 
@@ -580,6 +719,22 @@ describe('UserService', () => {
                 id: featureFlagId,
                 enabled,
             })),
+        });
+
+        test('rejects HTML in a user name before registration', async () => {
+            await expect(
+                userService.registerOrActivateUser({
+                    firstName: '<svg onload=alert(1)>',
+                    lastName: 'User',
+                    email: 'xss@example.com',
+                    password: 'password1!',
+                }),
+            ).rejects.toThrow(
+                new ParameterError(
+                    'First name and last name must not contain HTML',
+                ),
+            );
+            expect(userModel.createUser).not.toHaveBeenCalled();
         });
 
         test('registers an email-only user when the feature is enabled', async () => {
@@ -1140,7 +1295,7 @@ describe('UserService', () => {
 
                 await expect(
                     service.loginWithEmailOtp('EMAIL', '123456'),
-                ).resolves.toBe(sessionUser);
+                ).resolves.toEqual(sessionUser);
 
                 expect(
                     emailModel.getPrimaryEmailStatusByUserAndOtp,
@@ -1204,6 +1359,48 @@ describe('UserService', () => {
                         onboardingFlow: 'new',
                     },
                 });
+            });
+
+            test('rejects OTP login for a user in multiple organizations', async () => {
+                const service = createUserService(lightdashConfigMock, {
+                    featureFlagModel: createFeatureFlagModel(true),
+                });
+                const emailStatus = activeOtp();
+                userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
+                userModel.hasPassword.mockResolvedValueOnce(false);
+                userModel.hasOpenIdIdentity.mockResolvedValueOnce(false);
+                emailModel.getPrimaryEmailStatus.mockResolvedValueOnce(
+                    emailStatus,
+                );
+                emailModel.getPrimaryEmailStatusByUserAndOtp.mockResolvedValueOnce(
+                    emailStatus,
+                );
+                userModel.getOrganizationsForUser.mockResolvedValueOnce([
+                    {
+                        organizationUuid: 'first-organization-uuid',
+                        organizationName: 'First organization',
+                        organizationCreatedAt: new Date(
+                            '2025-01-01T00:00:00.000Z',
+                        ),
+                    },
+                    {
+                        organizationUuid: 'second-organization-uuid',
+                        organizationName: 'Second organization',
+                        organizationCreatedAt: new Date(
+                            '2025-01-02T00:00:00.000Z',
+                        ),
+                    },
+                ]);
+
+                await expect(
+                    service.loginWithEmailOtp('EMAIL', '123456'),
+                ).rejects.toThrow(
+                    new ForbiddenError(
+                        'User is part of multiple organizations',
+                    ),
+                );
+
+                expect(emailModel.deleteEmailOtp).not.toHaveBeenCalled();
             });
 
             test('rejects a sixth attempt without comparing the code', async () => {
@@ -1308,7 +1505,7 @@ describe('UserService', () => {
 
                 await expect(
                     service.loginWithEmailOtp('EMAIL', '123456'),
-                ).resolves.toBe(sessionUser);
+                ).resolves.toEqual(sessionUser);
             });
         });
 
@@ -3102,20 +3299,78 @@ describe('UserService', () => {
             ).toHaveBeenCalledTimes(1);
         });
         test('should default the purpose to member', async () => {
-            await userService.createPendingUserAndInviteLink(
-                sessionUser,
-                inviteUser,
-            );
+            const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+            await userService.createPendingUserAndInviteLink(sessionUser, {
+                ...inviteUser,
+                expiresAt,
+            });
 
             expect(vi.mocked(inviteLinkModel.upsert)).toHaveBeenCalledWith(
                 expect.any(String),
-                inviteUser.expiresAt,
+                expiresAt,
+                sessionUser.organizationUuid,
+                newUser.userUuid,
+                InviteLinkPurpose.Member,
+            );
+        });
+        test('should cap invite expiry at three days', async () => {
+            const now = new Date('2026-08-11T12:00:00.000Z');
+            const dateNowSpy = vi
+                .spyOn(Date, 'now')
+                .mockReturnValue(now.getTime());
+
+            await userService.createPendingUserAndInviteLink(sessionUser, {
+                ...inviteUser,
+                expiresAt: new Date('2099-01-01T00:00:00.000Z'),
+            });
+
+            expect(vi.mocked(inviteLinkModel.upsert)).toHaveBeenCalledWith(
+                expect.any(String),
+                new Date('2026-08-14T12:00:00.000Z'),
+                sessionUser.organizationUuid,
+                newUser.userUuid,
+                InviteLinkPurpose.Member,
+            );
+            dateNowSpy.mockRestore();
+        });
+        test('should replace a past invite expiry with three days', async () => {
+            const now = new Date('2026-08-11T12:00:00.000Z');
+            const dateNowSpy = vi
+                .spyOn(Date, 'now')
+                .mockReturnValue(now.getTime());
+
+            await userService.createPendingUserAndInviteLink(sessionUser, {
+                ...inviteUser,
+                expiresAt: new Date('2026-08-10T12:00:00.000Z'),
+            });
+
+            expect(vi.mocked(inviteLinkModel.upsert)).toHaveBeenCalledWith(
+                expect.any(String),
+                new Date('2026-08-14T12:00:00.000Z'),
+                sessionUser.organizationUuid,
+                newUser.userUuid,
+                InviteLinkPurpose.Member,
+            );
+            dateNowSpy.mockRestore();
+        });
+        test('should preserve an invite expiry shorter than three days', async () => {
+            const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+            await userService.createPendingUserAndInviteLink(sessionUser, {
+                ...inviteUser,
+                expiresAt,
+            });
+
+            expect(vi.mocked(inviteLinkModel.upsert)).toHaveBeenCalledWith(
+                expect.any(String),
+                expiresAt,
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Member,
             );
         });
         test('should force setup invites to use the admin role', async () => {
+            const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
             const adminUser = {
                 ...sessionUser,
                 ability: defineUserAbility(
@@ -3138,6 +3393,7 @@ describe('UserService', () => {
 
             await userService.createPendingUserAndInviteLink(adminUser, {
                 ...inviteUser,
+                expiresAt,
                 role: OrganizationMemberRole.MEMBER,
                 purpose: InviteLinkPurpose.Setup,
             });
@@ -3155,7 +3411,7 @@ describe('UserService', () => {
             );
             expect(vi.mocked(inviteLinkModel.upsert)).toHaveBeenCalledWith(
                 expect.any(String),
-                inviteUser.expiresAt,
+                expiresAt,
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Setup,
@@ -3334,8 +3590,8 @@ describe('UserService', () => {
                 );
             });
 
-            // rolesModel is left unstubbed here: a system-role caller must be
-            // measured from its own role, without a custom-role lookup.
+            // getRoleWithScopesByUuid is left unstubbed here: a system-role
+            // caller must be measured from its own role, without a custom-role lookup.
             test('allows an organization admin to invite an admin', async () => {
                 const adminUser = {
                     ...sessionUser,

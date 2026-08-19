@@ -19,6 +19,7 @@ import {
     ProjectType,
     ServiceAccountScope,
     ValidationErrorType,
+    ValidationSourceType,
     type ChartConfig,
     type ManagedAgentAction,
     type ManagedAgentActionFilters,
@@ -50,6 +51,7 @@ import type { ValidationModel } from '../../../models/ValidationModel/Validation
 import { SchedulerClient } from '../../../scheduler/SchedulerClient';
 import { BaseService } from '../../../services/BaseService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
+import { ValidationService } from '../../../services/ValidationService/ValidationService';
 import {
     ManagedAgentClient,
     type ManagedAgentSessionConfig,
@@ -61,6 +63,11 @@ import {
     buildManagedAgentToolListResult,
     formatManagedAgentToolListResult,
     getManagedAgentToolResultLimit,
+    getValidationRootCauseTableName,
+    MANAGED_AGENT_BROKEN_CONTENT_GROUP_ITEM_LIMIT,
+    MANAGED_AGENT_BULK_DELETE_RUN_LIMIT,
+    MANAGED_AGENT_SOFT_DELETE_RUN_LIMIT,
+    MANAGED_AGENT_TOOL_RESULT_ITEM_LIMIT,
     summarizeManagedAgentBrokenContent,
 } from './toolResults';
 
@@ -1983,7 +1990,7 @@ export class ManagedAgentService extends BaseService {
                     'dashboards',
                 );
             case 'get_broken_content':
-                return this.handleGetBrokenContent(actor, projectUuid);
+                return this.handleGetBrokenContent(actor, projectUuid, input);
             case 'get_preview_projects':
                 return this.handleGetPreviewProjects(actor, projectUuid);
             case 'get_popular_content':
@@ -1998,6 +2005,14 @@ export class ManagedAgentService extends BaseService {
                 );
             case 'soft_delete_content':
                 return this.handleSoftDelete(
+                    actor,
+                    projectUuid,
+                    sessionId,
+                    runUuid,
+                    input,
+                );
+            case 'bulk_delete_broken_content':
+                return this.handleBulkDeleteBrokenContent(
                     actor,
                     projectUuid,
                     sessionId,
@@ -2143,23 +2158,15 @@ export class ManagedAgentService extends BaseService {
         );
     }
 
-    private async handleGetBrokenContent(
+    private async mapVisibleBrokenContentRows(
         actor: SessionUser,
         projectUuid: string,
-    ): Promise<string> {
-        const validations: ValidationResponse[] = (
-            await this.validationModel.get(projectUuid)
-        ).filter(
-            // Exclude advisory "unused field" warnings so Autopilot does not
-            // remove valid fields or table calculations that are merely flagged
-            // as unused. These are the only validations using ChartConfiguration.
-            (validation) =>
-                validation.errorType !== ValidationErrorType.ChartConfiguration,
-        );
+        validations: ValidationResponse[],
+    ) {
         const { canViewChartUuid, canViewDashboardUuid } =
             this.createContentVisibilityChecker(actor, projectUuid);
 
-        const visibleValidations = (
+        return (
             await Promise.all(
                 validations.map(async (validation) => {
                     if ('chartUuid' in validation && validation.chartUuid) {
@@ -2201,9 +2208,118 @@ export class ManagedAgentService extends BaseService {
                 }),
             )
         ).filter((validation) => validation !== null);
-        return formatManagedAgentToolListResult(
-            summarizeManagedAgentBrokenContent(visibleValidations),
+    }
+
+    private async handleGetBrokenContent(
+        actor: SessionUser,
+        projectUuid: string,
+        input: Record<string, unknown>,
+    ): Promise<string> {
+        const validations: ValidationResponse[] = (
+            await this.validationModel.get(projectUuid)
+        ).filter(
+            // Exclude advisory "unused field" warnings so Autopilot does not
+            // remove valid fields or table calculations that are merely flagged
+            // as unused. These are the only validations using ChartConfiguration.
+            (validation) =>
+                validation.errorType !== ValidationErrorType.ChartConfiguration,
         );
+
+        // Detail mode: full item list for one root-cause model. Scoping by
+        // model keeps every item reachable without raising the global cap.
+        const tableNameFilter =
+            typeof input.table_name === 'string' && input.table_name.length > 0
+                ? input.table_name
+                : undefined;
+        if (tableNameFilter) {
+            const matching = validations.filter(
+                (validation) =>
+                    getValidationRootCauseTableName(validation) ===
+                    tableNameFilter,
+            );
+            const visibleValidations = await this.mapVisibleBrokenContentRows(
+                actor,
+                projectUuid,
+                matching,
+            );
+            return formatManagedAgentToolListResult(
+                summarizeManagedAgentBrokenContent(visibleValidations),
+                getManagedAgentToolResultLimit(
+                    input.limit,
+                    MANAGED_AGENT_TOOL_RESULT_ITEM_LIMIT,
+                ),
+            );
+        }
+
+        // Summary mode: EVERY root-cause group with complete counts (never
+        // truncated), plus a capped sample of affected content per group
+        const summary =
+            ValidationService.groupValidationsByRootCause(validations);
+        const { canViewChartUuid, canViewDashboardUuid } =
+            this.createContentVisibilityChecker(actor, projectUuid);
+
+        const groups = await Promise.all(
+            summary.groups.map(async (group) => {
+                const visibleContent = (
+                    await Promise.all(
+                        group.affectedContent.map(async (content) => {
+                            if (content.uuid === null) return null;
+                            if (
+                                content.source === ValidationSourceType.Chart &&
+                                !(await canViewChartUuid(content.uuid))
+                            ) {
+                                return null;
+                            }
+                            if (
+                                content.source ===
+                                    ValidationSourceType.Dashboard &&
+                                !(await canViewDashboardUuid(content.uuid))
+                            ) {
+                                return null;
+                            }
+                            return {
+                                uuid: content.uuid,
+                                name: content.name,
+                                source: content.source,
+                                views: content.views,
+                                error_count: content.errorCount,
+                            };
+                        }),
+                    )
+                ).filter((content) => content !== null);
+
+                const items = visibleContent.slice(
+                    0,
+                    MANAGED_AGENT_BROKEN_CONTENT_GROUP_ITEM_LIMIT,
+                );
+                const totalItems =
+                    group.affectedCharts +
+                    group.affectedDashboards +
+                    group.affectedTables +
+                    group.affectedDataApps;
+                return {
+                    group_key: group.groupKey,
+                    error_type: group.errorType,
+                    table_name: group.tableName,
+                    field_name: group.fieldName,
+                    error_count: group.errorCount,
+                    affected_charts: group.affectedCharts,
+                    affected_dashboards: group.affectedDashboards,
+                    affected_tables: group.affectedTables,
+                    affected_data_apps: group.affectedDataApps,
+                    sample_error: group.sampleError,
+                    items,
+                    items_truncated: items.length < totalItems,
+                };
+            }),
+        );
+
+        return JSON.stringify({
+            total_errors: summary.totalErrors,
+            total_affected_items: summary.totalAffectedItems,
+            groups,
+            note: 'This is the COMPLETE set of validation error groups. To list every affected item for one group, call get_broken_content again with table_name set to that group. Counts include content outside your visibility scope; items only list content you can act on.',
+        });
     }
 
     private async handleGetPreviewProjects(
@@ -2810,6 +2926,42 @@ chartConfig:
             );
         }
 
+        // Flags on deleted content are pointless: refuse instead of
+        // recording an action nobody can act on
+        if (
+            targetType === ManagedAgentTargetType.CHART ||
+            targetType === ManagedAgentTargetType.DASHBOARD
+        ) {
+            try {
+                if (targetType === ManagedAgentTargetType.CHART) {
+                    await this.savedChartModel.get(targetUuid);
+                } else {
+                    await this.dashboardModel.getByIdOrSlug(targetUuid);
+                }
+            } catch {
+                return JSON.stringify({
+                    skipped: true,
+                    note: `"${targetName}" no longer exists (deleted); no flag was created.`,
+                });
+            }
+        }
+
+        // Idempotency: re-flagging an actively flagged target would reset the
+        // escalation clock and duplicate the activity feed, so report the
+        // existing flag instead of creating a new action
+        const existingFlaggedAt =
+            await this.managedAgentModel.findLatestActiveFlagCreatedAt(
+                projectUuid,
+                targetUuid,
+            );
+        if (existingFlaggedAt) {
+            return JSON.stringify({
+                already_flagged: true,
+                flagged_at: existingFlaggedAt.toISOString(),
+                note: 'This target already carries an active flag; no new action was created. Once the flag is older than the escalation window it becomes eligible for soft_delete_content.',
+            });
+        }
+
         // Block flagging agent-created charts as stale
         if (
             flagType === ManagedAgentActionType.FLAGGED_STALE &&
@@ -2843,30 +2995,40 @@ chartConfig:
         return JSON.stringify({ action_uuid: action.actionUuid });
     }
 
-    // Code-enforced escalation: content with views may only be deleted after
-    // carrying an unreversed flag for the policy's escalation window.
-    // Never-viewed content may be deleted directly (recency guard still applies).
+    // Code-enforced escalation: content may only be deleted after carrying an
+    // unreversed flag for the policy's escalation window. Callers that target
+    // provably dead content (bulk deleted-model cleanup) opt out of the
+    // flag-first requirement for never-viewed items via flagFirstAlways=false.
     private async checkEscalationGuard(
         projectUuid: string,
         targetType: ManagedAgentTargetType,
         targetUuid: string,
         targetName: string,
         policy: ManagedAgentPolicy,
+        options: {
+            // Individual soft-deletes require a prior flag for ALL content.
+            // Bulk deletion of charts on deleted models keeps the viewed-only
+            // gate: that content is provably dead, and flag-first there would
+            // defeat the automatable cleanup.
+            flagFirstAlways: boolean;
+        },
     ): Promise<string | null> {
-        const lastViewed =
-            targetType === ManagedAgentTargetType.CHART
-                ? (
-                      await this.analyticsModel.getLastViewedAtForCharts([
-                          targetUuid,
-                      ])
-                  ).get(targetUuid)
-                : (
-                      await this.analyticsModel.getLastViewedAtForDashboards([
-                          targetUuid,
-                      ])
-                  ).get(targetUuid);
-        if (!lastViewed) {
-            return null;
+        if (!options.flagFirstAlways) {
+            const lastViewed =
+                targetType === ManagedAgentTargetType.CHART
+                    ? (
+                          await this.analyticsModel.getLastViewedAtForCharts([
+                              targetUuid,
+                          ])
+                      ).get(targetUuid)
+                    : (
+                          await this.analyticsModel.getLastViewedAtForDashboards(
+                              [targetUuid],
+                          )
+                      ).get(targetUuid);
+            if (!lastViewed) {
+                return null;
+            }
         }
         const flaggedAt =
             await this.managedAgentModel.findLatestActiveFlagCreatedAt(
@@ -2875,7 +3037,7 @@ chartConfig:
             );
         if (!flaggedAt) {
             return JSON.stringify({
-                error: `"${targetName}" has views, so it must be flagged first and stay flagged for ${policy.escalationHours}+ hours before soft-deleting. Use flag_content instead.`,
+                error: `"${targetName}" must be flagged first and stay flagged for ${policy.escalationHours}+ hours before soft-deleting. Use flag_content instead.`,
                 blocked: true,
             });
         }
@@ -2886,6 +3048,95 @@ chartConfig:
                 blocked: true,
             });
         }
+        return null;
+    }
+
+    // Full chart soft-delete guard chain shared by soft_delete_content and
+    // bulk_delete_broken_content. Returns a blocked JSON payload, or null
+    // after a successful soft delete.
+    private async guardAndSoftDeleteChart(args: {
+        actor: SessionUser;
+        projectUuid: string;
+        sessionId: string;
+        runUuid: string;
+        chartUuid: string;
+        chartName: string;
+        policy: ManagedAgentPolicy;
+        actorUuid: string;
+        attemptedAction: 'fix' | 'flag' | 'soft-delete';
+        flagFirstAlways: boolean;
+    }): Promise<string | null> {
+        const {
+            actor,
+            projectUuid,
+            sessionId,
+            runUuid,
+            chartUuid,
+            chartName,
+            policy,
+            actorUuid,
+            attemptedAction,
+            flagFirstAlways,
+        } = args;
+
+        const deleteProtectionBlock = await this.checkTargetProtectionGuard(
+            projectUuid,
+            ManagedAgentTargetType.CHART,
+            chartUuid,
+            chartName,
+            { actor, sessionId, runUuid, attemptedAction },
+        );
+        if (deleteProtectionBlock) {
+            return deleteProtectionBlock;
+        }
+
+        const protectCutoff = new Date();
+        protectCutoff.setDate(
+            protectCutoff.getDate() - policy.protectRecentDays,
+        );
+
+        const chart = await this.savedChartModel.get(chartUuid);
+        ManagedAgentService.assertProjectOwnership(
+            chart.projectUuid,
+            projectUuid,
+            'Chart',
+            chartUuid,
+        );
+        await this.assertActorCanDeleteChart(actor, chart);
+        // Hard guardrail: never delete agent-created charts
+        if (chart.slug?.startsWith('agent-')) {
+            return JSON.stringify({
+                error: `Chart "${chartName}" was created by the agent (slug: ${chart.slug}). Cannot soft-delete own content.`,
+                blocked: true,
+            });
+        }
+        // Hard guardrail: never delete recently created or edited charts
+        const chartModifiedAt =
+            await this.managedAgentModel.getChartLastModifiedAt(chartUuid);
+        if (chartModifiedAt && chartModifiedAt > protectCutoff) {
+            return JSON.stringify({
+                error: `Chart "${chartName}" was created or last edited on ${chartModifiedAt.toISOString().split('T')[0]}, less than ${policy.protectRecentDays} days ago. Cannot soft-delete recently touched content.`,
+                blocked: true,
+            });
+        }
+        const chartEscalationBlock = await this.checkEscalationGuard(
+            projectUuid,
+            ManagedAgentTargetType.CHART,
+            chartUuid,
+            chartName,
+            policy,
+            { flagFirstAlways },
+        );
+        if (chartEscalationBlock) {
+            return chartEscalationBlock;
+        }
+        await this.savedChartModel.softDelete(chartUuid, actorUuid);
+        // Clear the chart's validation errors so the Validator updates
+        // without waiting for the next validation run
+        await this.validationModel.deleteChartValidations(
+            chartUuid,
+            projectUuid,
+        );
         return null;
     }
 
@@ -2925,60 +3176,50 @@ chartConfig:
             });
         }
 
-        const deleteProtectionBlock = await this.checkTargetProtectionGuard(
-            projectUuid,
-            targetType,
-            targetUuid,
-            targetName,
-            { actor, sessionId, runUuid, attemptedAction: 'soft-delete' },
-        );
-        if (deleteProtectionBlock) {
-            return deleteProtectionBlock;
+        // Per-run blast-radius cap so a first run on a low-traffic project
+        // cannot sweep everything in one pass
+        const deletedThisRun =
+            await this.managedAgentModel.countNonBulkSoftDeletesForRun(runUuid);
+        if (deletedThisRun >= MANAGED_AGENT_SOFT_DELETE_RUN_LIMIT) {
+            return JSON.stringify({
+                error: `Soft-delete run cap reached (${MANAGED_AGENT_SOFT_DELETE_RUN_LIMIT} per run). Flag remaining candidates instead and mention the backlog in your summary; the next run can continue the cleanup.`,
+                blocked: true,
+            });
         }
-
-        const protectCutoff = new Date();
-        protectCutoff.setDate(
-            protectCutoff.getDate() - policy.protectRecentDays,
-        );
 
         // Verify entity exists, belongs to this project, and apply guardrails
         if (targetType === ManagedAgentTargetType.CHART) {
-            const chart = await this.savedChartModel.get(targetUuid);
-            ManagedAgentService.assertProjectOwnership(
-                chart.projectUuid,
+            const chartBlock = await this.guardAndSoftDeleteChart({
+                actor,
                 projectUuid,
-                'Chart',
-                targetUuid,
-            );
-            await this.assertActorCanDeleteChart(actor, chart);
-            // Hard guardrail: never delete agent-created charts
-            if (chart.slug?.startsWith('agent-')) {
-                return JSON.stringify({
-                    error: `Chart "${targetName}" was created by the agent (slug: ${chart.slug}). Cannot soft-delete own content.`,
-                    blocked: true,
-                });
+                sessionId,
+                runUuid,
+                chartUuid: targetUuid,
+                chartName: targetName,
+                policy,
+                actorUuid,
+                attemptedAction: 'soft-delete',
+                flagFirstAlways: true,
+            });
+            if (chartBlock) {
+                return chartBlock;
             }
-            // Hard guardrail: never delete recently created or edited charts
-            const chartModifiedAt =
-                await this.managedAgentModel.getChartLastModifiedAt(targetUuid);
-            if (chartModifiedAt && chartModifiedAt > protectCutoff) {
-                return JSON.stringify({
-                    error: `Chart "${targetName}" was created or last edited on ${chartModifiedAt.toISOString().split('T')[0]}, less than ${policy.protectRecentDays} days ago. Cannot soft-delete recently touched content.`,
-                    blocked: true,
-                });
-            }
-            const chartEscalationBlock = await this.checkEscalationGuard(
+        } else if (targetType === ManagedAgentTargetType.DASHBOARD) {
+            const deleteProtectionBlock = await this.checkTargetProtectionGuard(
                 projectUuid,
                 targetType,
                 targetUuid,
                 targetName,
-                policy,
+                { actor, sessionId, runUuid, attemptedAction: 'soft-delete' },
             );
-            if (chartEscalationBlock) {
-                return chartEscalationBlock;
+            if (deleteProtectionBlock) {
+                return deleteProtectionBlock;
             }
-            await this.savedChartModel.softDelete(targetUuid, actorUuid);
-        } else if (targetType === ManagedAgentTargetType.DASHBOARD) {
+
+            const protectCutoff = new Date();
+            protectCutoff.setDate(
+                protectCutoff.getDate() - policy.protectRecentDays,
+            );
             const dashboard =
                 await this.dashboardModel.getByIdOrSlug(targetUuid);
             ManagedAgentService.assertProjectOwnership(
@@ -3005,11 +3246,18 @@ chartConfig:
                 targetUuid,
                 targetName,
                 policy,
+                { flagFirstAlways: true },
             );
             if (dashEscalationBlock) {
                 return dashEscalationBlock;
             }
             await this.dashboardModel.softDelete(targetUuid, actorUuid);
+            // Clear the dashboard's validation errors so the Validator
+            // updates without waiting for the next validation run
+            await this.validationModel.deleteDashboardValidations(
+                targetUuid,
+                projectUuid,
+            );
         } else {
             throw new Error(
                 `soft_delete_content only supports chart and dashboard, got: ${targetType}`,
@@ -3031,6 +3279,149 @@ chartConfig:
         return JSON.stringify({
             action_uuid: action.actionUuid,
             recoverable: true,
+        });
+    }
+
+    private async handleBulkDeleteBrokenContent(
+        actor: SessionUser,
+        projectUuid: string,
+        sessionId: string,
+        runUuid: string,
+        input: Record<string, unknown>,
+    ): Promise<string> {
+        const tableName = input.table_name as string;
+        const reason = input.reason as string;
+        if (!tableName || !reason) {
+            throw new Error('table_name and reason are required');
+        }
+
+        await this.assertActorCanManageProject(actor, projectUuid);
+        const settings = await this.managedAgentModel.getSettings(projectUuid);
+        const actorUuid = settings?.enabledByUserUuid ?? projectUuid;
+        const policy = settings?.policy ?? DEFAULT_MANAGED_AGENT_POLICY;
+
+        // Hard guardrail: aggression below 'cleanup' never deletes
+        if (policy.aggression !== 'cleanup') {
+            return JSON.stringify({
+                error: `Bulk delete is disabled by project policy (cleanup mode: ${policy.aggression}). Flag or log an insight instead.`,
+                blocked: true,
+            });
+        }
+
+        // Candidates: charts whose whole model is gone. Dashboards referencing
+        // the model are never bulk-deleted; they usually have healthy tiles
+        const validations = await this.validationModel.get(projectUuid);
+        const candidates = new Map<string, string>();
+        validations.forEach((validation) => {
+            if (
+                validation.source === ValidationSourceType.Chart &&
+                validation.errorType === ValidationErrorType.Model &&
+                'chartUuid' in validation &&
+                validation.chartUuid &&
+                getValidationRootCauseTableName(validation) === tableName
+            ) {
+                candidates.set(validation.chartUuid, validation.name);
+            }
+        });
+
+        if (candidates.size === 0) {
+            return JSON.stringify({
+                error: `No charts with a model-level validation error were found for model '${tableName}'. Run get_broken_content to see current groups.`,
+            });
+        }
+
+        const entries = [...candidates.entries()];
+        const toProcess = entries.slice(0, MANAGED_AGENT_BULK_DELETE_RUN_LIMIT);
+        const remaining = entries.length - toProcess.length;
+
+        const deleted: { uuid: string; name: string; action_uuid: string }[] =
+            [];
+        const blocked: { uuid: string; name: string; reason: string }[] = [];
+
+        // Sequential on purpose: each delete runs the full guard chain and
+        // writes an action row
+        for (const [chartUuid, chartName] of toProcess) {
+            // eslint-disable-next-line no-await-in-loop
+            const chart = await this.savedChartModel.get(chartUuid);
+            // Defense against stale validation rows: the chart must still
+            // reference the deleted model
+            if (chart.tableName !== tableName) {
+                blocked.push({
+                    uuid: chartUuid,
+                    name: chartName,
+                    reason: `Chart no longer references model '${tableName}'`,
+                });
+            } else {
+                // eslint-disable-next-line no-await-in-loop
+                const chartBlock = await this.guardAndSoftDeleteChart({
+                    actor,
+                    projectUuid,
+                    sessionId,
+                    runUuid,
+                    chartUuid,
+                    chartName,
+                    policy,
+                    actorUuid,
+                    attemptedAction: 'soft-delete',
+                    flagFirstAlways: false,
+                });
+                if (chartBlock) {
+                    let blockReason = chartBlock;
+                    try {
+                        const parsed: unknown = JSON.parse(chartBlock);
+                        if (
+                            parsed !== null &&
+                            typeof parsed === 'object' &&
+                            'error' in parsed &&
+                            typeof parsed.error === 'string'
+                        ) {
+                            blockReason = parsed.error;
+                        }
+                    } catch {
+                        // keep the raw payload as the reason
+                    }
+                    blocked.push({
+                        uuid: chartUuid,
+                        name: chartName,
+                        reason: blockReason,
+                    });
+                } else {
+                    // eslint-disable-next-line no-await-in-loop
+                    const action = await this.managedAgentModel.createAction({
+                        projectUuid,
+                        sessionId,
+                        managedAgentRunUuid: runUuid,
+                        actionType: ManagedAgentActionType.SOFT_DELETED,
+                        targetType: ManagedAgentTargetType.CHART,
+                        targetUuid: chartUuid,
+                        targetName: chartName,
+                        description: reason,
+                        metadata: {
+                            bulk: true,
+                            table_name: tableName,
+                            reason,
+                        },
+                    });
+                    this.trackActionCreated(actor, runUuid, action);
+                    deleted.push({
+                        uuid: chartUuid,
+                        name: chartName,
+                        action_uuid: action.actionUuid,
+                    });
+                }
+            }
+        }
+
+        return JSON.stringify({
+            deleted_count: deleted.length,
+            deleted,
+            blocked,
+            remaining,
+            recoverable: true,
+            note:
+                remaining > 0
+                    ? `Run cap reached: ${remaining} more broken charts remain for model '${tableName}'. They will be picked up on the next run.`
+                    : undefined,
         });
     }
 

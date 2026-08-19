@@ -2,6 +2,7 @@ export {
     getAdditivityType as getPreAggregateMetricAdditivityType,
     isCompatible as isPreAggregateCompatibleMetricType,
 } from './additivity';
+export * as preAggregateMaterialization from './materialization';
 export * from './audit';
 export {
     analyzePreAggregateDerivedDimensionEligibility,

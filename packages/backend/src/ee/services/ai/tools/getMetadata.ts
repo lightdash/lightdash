@@ -3,11 +3,15 @@ import {
     getEffectiveFieldAiHints,
     getFilterTypeFromItemType,
     getMetadataToolDefinition,
+    getParameterOptionValues,
+    getReferencedExploreParameterDefinitions,
     isDimension,
     isMetric,
     type CompiledField,
     type Explore,
+    type GetMetadataParameter,
     type GetMetadataResult,
+    type ParameterDefinitions,
     type ToolGetMetadataArgs,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -24,6 +28,9 @@ const toolDefinition = getMetadataToolDefinition.for('agent');
 
 type Dependencies = {
     availableExplores: Explore[];
+    // Project-level parameter definitions (from the project_parameters table).
+    // Model-level definitions come from the explores themselves.
+    projectParameterDefinitions: ParameterDefinitions;
 };
 
 const collapse = (text: string, max = 240): string =>
@@ -64,7 +71,59 @@ const renderFieldList = (
     return `  base ${kind} (${ids.length}): ${shown.join(', ')}${overflow}`;
 };
 
-const renderExplore = (explore: Explore): string => {
+// Only parameters the explore's compiled SQL actually references can change
+// query results, so only those are surfaced.
+const getExploreParameters = (
+    explore: Explore,
+    projectParameterDefinitions: ParameterDefinitions,
+): GetMetadataParameter[] =>
+    Object.entries(
+        getReferencedExploreParameterDefinitions(
+            explore,
+            projectParameterDefinitions,
+        ),
+    ).map(([name, definition]) => ({
+        name,
+        label: definition.label,
+        description: definition.description ?? null,
+        type: definition.type ?? 'string',
+        default: definition.default ?? null,
+        multiple: definition.multiple ?? false,
+        allowCustomValues: definition.allow_custom_values ?? false,
+        options: getParameterOptionValues(definition),
+        optionsFromDimension: definition.options_from_dimension ?? null,
+    }));
+
+const renderParameter = (parameter: GetMetadataParameter): string => {
+    const parts = [
+        `    ${parameter.name}  [${parameter.type}${
+            parameter.multiple ? ', multi-value' : ''
+        }] ${parameter.label}`,
+    ];
+    if (parameter.default !== null) {
+        parts.push(`default: ${JSON.stringify(parameter.default)}`);
+    }
+    if (parameter.options) {
+        parts.push(`options: ${parameter.options.join(', ')}`);
+    }
+    if (parameter.optionsFromDimension) {
+        parts.push(
+            `options from dimension: ${parameter.optionsFromDimension.model}.${parameter.optionsFromDimension.dimension}`,
+        );
+    }
+    if (parameter.allowCustomValues) {
+        parts.push('(custom values allowed)');
+    }
+    const description = parameter.description
+        ? ` — ${collapse(parameter.description)}`
+        : '';
+    return parts.join('  ') + description;
+};
+
+const renderExplore = (
+    explore: Explore,
+    parameters: GetMetadataParameter[],
+): string => {
     const baseTable = explore.tables[explore.baseTable];
     const lines = [`Explore: ${explore.name} (${explore.label})`];
     if (baseTable?.description) {
@@ -83,6 +142,12 @@ const renderExplore = (explore: Explore): string => {
     }
     const required = summarizeRequiredFilters(explore);
     if (required) lines.push(`  ${required}`);
+    if (parameters.length > 0) {
+        lines.push(
+            '  ⚠ parameters — fields marked "requires parameters" return different results depending on these values; an unset parameter resolves to its default:',
+            ...parameters.map(renderParameter),
+        );
+    }
     lines.push(
         renderFieldList(
             'dimensions',
@@ -143,6 +208,13 @@ const renderField = (
     if (isDimension(field) && field.type === 'string') {
         lines.push(`  case-sensitive filters: ${field.caseSensitive ?? true}`);
     }
+    if (field.parameterReferences && field.parameterReferences.length > 0) {
+        lines.push(
+            `  ⚠ requires parameters: ${field.parameterReferences.join(
+                ', ',
+            )} — what this field returns depends on their values; an unset parameter resolves to its default. See the explore metadata for the definitions.`,
+        );
+    }
     const defaultTimeDimension = getResolvedDefaultTimeDimension(
         explore,
         field,
@@ -167,6 +239,7 @@ const renderField = (
 
 const buildExploreStructuredResult = (
     explore: Explore,
+    parameters: GetMetadataParameter[],
 ): GetMetadataResult['explores'][number] => {
     const baseTable = explore.tables[explore.baseTable];
     const hint = flattenAiHints(explore.aiHint);
@@ -187,6 +260,7 @@ const buildExploreStructuredResult = (
         baseTable: explore.baseTable,
         joinedTables: explore.joinedTables.map((join) => join.table),
         requiredFilters: getExploreRequiredFilters(explore),
+        parameters,
         baseDimensions: {
             count: dimensionIds.length,
             fieldIds: dimensionIds.slice(0, FIELD_LIST_MAX),
@@ -230,6 +304,7 @@ const buildFieldStructuredResult = (
             defaultTimeDimension?.defaultTimeDimension ?? null,
         defaultTimeDimensionGranularity:
             defaultTimeDimension?.defaultTimeDimensionGranularity ?? null,
+        requiredParameters: field.parameterReferences ?? [],
         description: field.description
             ? collapse(field.description, FIELD_DESCRIPTION_MAX)
             : null,
@@ -281,7 +356,7 @@ const buildFieldNotFoundError = (
 
 export const executeGetMetadata = (
     { requests }: ToolGetMetadataArgs,
-    { availableExplores }: Dependencies,
+    { availableExplores, projectParameterDefinitions }: Dependencies,
 ): ExecuteStructuredToolResult<GetMetadataResult> => {
     const byName = new Map(
         availableExplores.map((explore) => [explore.name, explore]),
@@ -303,8 +378,14 @@ export const executeGetMetadata = (
                         error,
                     });
                 } else {
-                    textBlocks.push(renderExplore(explore));
-                    explores.push(buildExploreStructuredResult(explore));
+                    const parameters = getExploreParameters(
+                        explore,
+                        projectParameterDefinitions,
+                    );
+                    textBlocks.push(renderExplore(explore, parameters));
+                    explores.push(
+                        buildExploreStructuredResult(explore, parameters),
+                    );
                 }
             }
         } else {

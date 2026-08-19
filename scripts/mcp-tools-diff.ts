@@ -3,8 +3,9 @@
  *
  * Populates the release-safety marker's `api.mcp` block by diffing a committed
  * snapshot of the MCP tool surface (`packages/common/src/schemas/json/mcp-tools-1.0.json`,
- * produced by `scripts/gen-mcp-tools-snapshot.ts` and regenerated in
- * `postgenerate-api`) between the PREVIOUS release tag and HEAD.
+ * produced by `packages/common/src/schemas/generateMcpToolsSnapshot.ts` via the
+ * root `generate:mcp-tools-snapshot` script in `postgenerate-api`) between the
+ * PREVIOUS release tag and HEAD.
  *
  * The snapshot is the DECLARED MCP tool set (`mcpToolDefinitions` from
  * `@lightdash/common`, the superset of every MCP-available tool) — not the
@@ -30,6 +31,7 @@
  * CLI:  npx tsx scripts/mcp-tools-diff.ts --last-tag 0.3260.2 [--new-ref HEAD]
  */
 import { execFileSync } from 'child_process';
+import * as fs from 'fs';
 
 export type TriState = boolean | 'unknown';
 
@@ -37,6 +39,9 @@ export interface ApiSurface {
     checked: boolean;
     breaking: TriState;
     changes: string[];
+    breakingCount: number;
+    advisories: string[];
+    advisoryCount: number;
 }
 
 /** Repo-relative path to the committed MCP tool-surface snapshot. */
@@ -85,7 +90,8 @@ function typeLabel(t: string | string[] | undefined): string {
 
 /**
  * PURE. Conservative 4-rule breaking-change classifier over two tool snapshots.
- * Returns `breaking` + a capped, human-readable list. The four rules:
+ * Returns `breaking`, an uncapped count, and a capped human-readable list. The
+ * four rules:
  *   R1 tool removed
  *   R2 input field became required (added to `required`)
  *   R3 input field removed (a top-level property disappeared)
@@ -96,7 +102,7 @@ function typeLabel(t: string | string[] | undefined): string {
 export function diffSnapshots(
     oldSnap: ToolsSnapshot,
     newSnap: ToolsSnapshot,
-): { breaking: boolean; changes: string[] } {
+): { breaking: boolean; changes: string[]; breakingCount: number } {
     const oldByName = new Map(oldSnap.tools.map((t) => [t.name, t]));
     const newByName = new Map(newSnap.tools.map((t) => [t.name, t]));
     const changes: string[] = [];
@@ -147,10 +153,21 @@ export function diffSnapshots(
     if (changes.length > MAX_CHANGES) {
         capped.push(`… and ${changes.length - MAX_CHANGES} more breaking change(s)`);
     }
-    return { breaking: changes.length > 0, changes: capped };
+    return {
+        breaking: changes.length > 0,
+        changes: capped,
+        breakingCount: changes.length,
+    };
 }
 
-const UNCHECKED: ApiSurface = { checked: false, breaking: false, changes: [] };
+const UNCHECKED: ApiSurface = {
+    checked: false,
+    breaking: false,
+    changes: [],
+    breakingCount: 0,
+    advisories: [],
+    advisoryCount: 0,
+};
 
 /** IO: read a file at a git ref. Returns null if the path didn't exist there. */
 function showAtRef(ref: string, repoPath: string): string | null {
@@ -159,6 +176,14 @@ function showAtRef(ref: string, repoPath: string): string | null {
             encoding: 'utf-8',
             maxBuffer: 64 * 1024 * 1024,
         });
+    } catch {
+        return null;
+    }
+}
+
+function readSnapshotFile(snapshotPath: string): string | null {
+    try {
+        return fs.readFileSync(snapshotPath, 'utf-8');
     } catch {
         return null;
     }
@@ -175,8 +200,10 @@ function parseSnapshot(raw: string): ToolsSnapshot | null {
 }
 
 export interface DiffMcpToolsOpts {
-    lastTag: string;
+    lastTag?: string;
+    baseSnapshotPath?: string;
     newRef?: string;
+    newSnapshotPath?: string;
     log?: (msg: string) => void;
 }
 
@@ -189,14 +216,27 @@ export function diffMcpTools(opts: DiffMcpToolsOpts): ApiSurface {
     const log = opts.log ?? (() => {});
     const newRef = opts.newRef ?? 'HEAD';
 
-    const oldRaw = showAtRef(opts.lastTag, SNAPSHOT_PATH);
+    if (opts.newRef !== undefined && opts.newSnapshotPath !== undefined) {
+        throw new Error('Provide either newRef or newSnapshotPath, not both');
+    }
+    if ((opts.lastTag === undefined) === (opts.baseSnapshotPath === undefined)) {
+        throw new Error('Provide exactly one of lastTag or baseSnapshotPath');
+    }
+
+    const oldRaw = opts.baseSnapshotPath
+        ? readSnapshotFile(opts.baseSnapshotPath)
+        : showAtRef(opts.lastTag as string, SNAPSHOT_PATH);
     if (oldRaw === null) {
-        log(`snapshot not found at ${opts.lastTag}:${SNAPSHOT_PATH}; api.mcp stays unchecked`);
+        const source = opts.baseSnapshotPath ?? `${opts.lastTag}:${SNAPSHOT_PATH}`;
+        log(`snapshot not found at ${source}; api.mcp stays unchecked`);
         return UNCHECKED;
     }
-    const newRaw = showAtRef(newRef, SNAPSHOT_PATH);
+    const newRaw = opts.newSnapshotPath
+        ? readSnapshotFile(opts.newSnapshotPath)
+        : showAtRef(newRef, SNAPSHOT_PATH);
     if (newRaw === null) {
-        log(`snapshot not found at ${newRef}:${SNAPSHOT_PATH}; api.mcp stays unchecked`);
+        const source = opts.newSnapshotPath ?? `${newRef}:${SNAPSHOT_PATH}`;
+        log(`snapshot not found at ${source}; api.mcp stays unchecked`);
         return UNCHECKED;
     }
 
@@ -207,9 +247,16 @@ export function diffMcpTools(opts: DiffMcpToolsOpts): ApiSurface {
         return UNCHECKED;
     }
 
-    const { breaking, changes } = diffSnapshots(oldSnap, newSnap);
-    log(`api.mcp checked: ${breaking ? `BREAKING (${changes.length})` : 'no breaking changes'}`);
-    return { checked: true, breaking, changes };
+    const result = diffSnapshots(oldSnap, newSnap);
+    log(
+        `api.mcp checked: ${result.breakingCount} breaking, 0 advisory`,
+    );
+    return {
+        checked: true,
+        ...result,
+        advisories: [],
+        advisoryCount: 0,
+    };
 }
 
 // ---- CLI --------------------------------------------------------------------
@@ -220,11 +267,17 @@ function arg(name: string): string | undefined {
 }
 
 function main(): void {
-    const lastTag = arg('last-tag') ?? arg('previous-version');
-    if (!lastTag) throw new Error('--last-tag (or --previous-version) is required');
+    const baseSnapshotPath = arg('base-snapshot');
+    const lastTag = baseSnapshotPath ? undefined : arg('last-tag') ?? arg('previous-version');
+    if (!lastTag && !baseSnapshotPath) {
+        throw new Error('--last-tag (or --previous-version) or --base-snapshot is required');
+    }
+    const newSnapshotPath = arg('new-snapshot');
     const result = diffMcpTools({
         lastTag,
-        newRef: arg('new-ref'),
+        baseSnapshotPath,
+        newRef: newSnapshotPath ? undefined : arg('new-ref'),
+        newSnapshotPath,
         log: (m) => console.log(`[mcp-tools-diff] ${m}`),
     });
     console.log(JSON.stringify(result, null, 2));

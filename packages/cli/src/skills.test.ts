@@ -103,7 +103,7 @@ describe('effective-dbt-sql skill content policy', () => {
     });
 });
 
-describe('developing-in-lightdash catalog workflow', () => {
+describe('developing-in-lightdash routed workflows', () => {
     const skillDir = path.join(SKILLS_DIR, 'developing-in-lightdash');
     const skillMd = fs.readFileSync(path.join(skillDir, 'SKILL.md'), 'utf-8');
     const workflowPath = path.join(
@@ -119,6 +119,18 @@ describe('developing-in-lightdash catalog workflow', () => {
         );
         expect(skillMd).toMatch(
             /no usable dbt project[\s\S]*always read and follow/i,
+        );
+    });
+
+    it('routes organization Data App theme work through its focused reference', () => {
+        const { description } = parseFrontmatter(skillMd);
+
+        expect(description?.toLowerCase()).toContain(
+            'organization data app themes',
+        );
+        expect(skillMd).toContain('./resources/data-app-themes-reference.md');
+        expect(skillMd).toMatch(
+            /any task that creates, edits, migrates, downloads, uploads, or tests an organization Data App theme,[\s\S]*always read and follow/i,
         );
     });
 

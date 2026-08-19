@@ -1,3 +1,7 @@
+.descriptionTooltipLabel {
+    white-space: pre-line;
+}
+
 .bigNumberText {
     color: var(--big-number-color, var(--mantine-color-foreground-0));
 }

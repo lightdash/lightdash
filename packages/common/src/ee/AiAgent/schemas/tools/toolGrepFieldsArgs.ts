@@ -23,6 +23,8 @@ Use this as the FIRST step whenever the user asks a data question (counts, total
 Each pattern is a case-insensitive keyword pattern (not a full regex): use \`|\` to OR synonyms ("revenue|sales") and a space or \`.*\` between words to require all of them ("order.*status" matches fields mentioning both "order" and "status"). Pass 1–5 patterns in a SINGLE call covering the different angles of the question — they run together so you see all results at once instead of grepping one at a time. Start broad with meaningful keywords (e.g. ["revenue|sales", "country|region", "segment|tier"]) and narrow from there — long natural-language phrases will not match. If results are empty, try synonyms or broader patterns before giving up. Read the returned fieldIds and pick the single explore that answers at the right grain before building a query.
 
 A description or hint ending in "...(truncated)" is incomplete — call ${getMetadata} to read the full text before using that field.
+
+A field annotated with \`⚠params: <names>\` depends on those Lightdash parameters — what it returns changes with the parameter values the query runs with (unset parameters resolve to their default). Call ${getMetadata} on its explore to see the parameter definitions before querying such a field.
 `;
 };
 
@@ -68,6 +70,7 @@ const grepFieldsPatternFieldSchema = z.object({
     hint: z.string().nullable(),
     defaultTimeDimension: z.string().nullable(),
     defaultTimeDimensionGranularity: z.string().nullable(),
+    requiredParameters: z.array(z.string()),
     usageInVerifiedCharts: z.number(),
     matchLocality: z.enum(['name', 'description', 'hint', 'mixed']),
 });

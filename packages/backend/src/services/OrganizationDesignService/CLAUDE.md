@@ -5,7 +5,7 @@ Service for managing organization-shared design assets (CSS, fonts, images, inst
 </summary>
 
 <howToUse>
-Access via `ServiceRepository.getOrganizationDesignService()`. Service methods all take an `Account` and enforce CASL permissions internally (`view:OrganizationDesign` for reads, `manage:OrganizationDesign` for writes). Designs have an immutable, organization-scoped slug; all single-design methods accept either that slug or the UUID and resolve it to the canonical UUID before accessing Postgres or S3. The `designS3Key` helper is exported separately for the Stage 3 pipeline copy.
+Access via `ServiceRepository.getOrganizationDesignService()`. Service methods all take an `Account` and enforce CASL permissions internally (`view:OrganizationDesign` for ordinary reads, `manage:OrganizationDesign` for writes and package export). Designs have an immutable, organization-scoped slug; all single-design methods accept either that slug or the UUID and resolve it to the canonical UUID before accessing Postgres or S3. The `designS3Key` helper is exported separately for the Stage 3 pipeline copy.
 
 ```typescript
 const designService = serviceRepository.getOrganizationDesignService();
@@ -17,6 +17,16 @@ await designService.createDesign(account, { name, description });
 await designService.updateDesign(account, designUuidOrSlug, { name });
 await designService.deleteDesign(account, designUuidOrSlug); // cascades S3 prefix
 await designService.setAsDefault(account, designUuidOrSlug);
+
+// Canonical theme-as-code tar package
+const { body: archive } = await designService.exportPackage(
+    account,
+    designUuidOrSlug,
+);
+await designService.importPackage(account, {
+    body: archiveStream,
+    contentLength,
+});
 
 // Files
 await designService.uploadFile(account, designUuidOrSlug, {
@@ -89,6 +99,8 @@ Every upload runs `ensureContentMatchesExtension` after the body is buffered:
 - **Text kinds** (`.css/.md/.svg`) — `TextDecoder('utf-8', { fatal: true })` rejects invalid UTF-8; first 1KB must contain no null bytes.
 - **`.svg` specifically** — must start with `<?xml`, `<svg`, `<!--`, or `<!DOCTYPE`.
 
+Font uploads receive an additional metadata-policy check after signature validation. A narrow, bounds-checked reader extracts internal family, full, PostScript, and typographic-family names; WOFF/WOFF2 decompression uses asynchronous native zlib with explicit output limits. Restricted Apple system-font families are rejected with the filename, matching evidence, and an actionable system-stack fallback. If metadata is absent or cannot be safely inspected, the filename is used as fallback evidence and the otherwise-valid font remains accepted. Theme-package import uses the same check after its byte-identical `NO_CHANGES` path, preserving legacy download/upload round-trips. Generation rechecks only effective last-write-wins legacy files before copying them into a Data App sandbox.
+
 ### SVG sanitize-on-write via DOMPurify
 
 SVGs run through DOMPurify with `USE_PROFILES: { svg: true, svgFilters: true }` before the bytes hit S3. Strips `<script>`, `on*=` handlers, `<foreignObject>`, and `javascript:` hrefs. **The sanitized buffer is what's stored**, so downstream consumers can't accidentally serve the unsanitized original.
@@ -99,16 +111,23 @@ This is not a full XSS defense — for a hypothetical future cross-origin consum
 
 `getS3Client()` reads from `lightdashConfig.appRuntime.s3` (not the general S3 config) so designs share the same bucket and credentials as data-app sources. Throws `MissingConfigError` if `APPS_RUNTIME_ENABLED` is off or the bucket isn't configured.
 
+### Theme-as-code package activation
+
+The canonical uncompressed tar contains `lightdash-theme.yml` plus files under `css/`, `fonts/`, `images/`, and `instructions/`. Import validates the entire archive before mutation, stages each validated object under a fresh file UUID, and then swaps metadata and file rows in one row-locked transaction. If activation fails, staged objects are removed; after a successful swap, replaced objects are removed best-effort. Per-file mutations take the same design-row lock so they serialize with package replacement.
+
+The manifest slug selects the remote design. Import creates it when absent and replaces its metadata/files when present, while preserving the existing `designUuid` and default status. UUID-shaped slugs are forbidden so UUID-or-slug routes remain unambiguous.
+
 <importantToKnow>
 - **Bucket bootstrap is a known gap** — `APPS_S3_BUCKET` (default `lightdash-apps`) is not auto-provisioned in the dev MinIO setup. If you blow away your MinIO volume, create the bucket manually: `docker exec lightdash-app-minio-1 sh -c 'mc alias set l http://localhost:9000 minioadmin minioadmin >/dev/null 2>&1; mc mb l/lightdash-apps'`. Tracked as a follow-up.
 - **NoSuchBucket returns 500, not 400** — if the bucket is missing the AWS SDK error bubbles up as `UnexpectedServerError`. Worth translating to a clearer 4xx with a hint. Tracked as a follow-up.
 - **CSS sanitization is not implemented.** CSS files are stored as-uploaded. The vectors (`@import url(http://evil)`, `url('javascript:...')`) are mostly mitigated by browser behavior but would need a CSS-AST sanitizer if these files are ever served cross-origin. Out of scope for Stage 1.
 - **Instruction-MD goes into the LLM system prompt**, not the DOM. The threat is prompt injection ("ignore prior instructions"), not HTML XSS. DOMPurify doesn't help here; a separate prompt-hygiene pass would.
-- **Tests** — Model has 18 unit tests in `packages/backend/src/models/OrganizationDesignModel.test.ts`. Service is currently smoke-tested via the controller's E2E path (curl + UI). No service-level unit test yet; would benefit from one covering the magic-byte + sanitize-SVG paths.
+- **Tests** — Model tests cover the transactional behaviors, including slug allocation and row-locked replacement. `OrganizationDesignPackage.test.ts` covers deterministic package parsing/building, hostile archive rejection, activation order, and staged-object cleanup.
 </importantToKnow>
 
 <links>
 - @/packages/backend/src/services/OrganizationDesignService/OrganizationDesignService.ts - Service implementation
+- @/packages/backend/src/services/OrganizationDesignService/OrganizationDesignPackage.ts - Canonical tar parser/builder
 - @/packages/backend/src/models/OrganizationDesignModel.ts - Data access
 - @/packages/backend/src/controllers/organizationDesignController.ts - TSOA controller
 - @/packages/common/src/ee/designs/types.ts - API types

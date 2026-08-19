@@ -420,6 +420,7 @@ const ValidDashboardChartTile: FC<{
                     isDashboard
                     tileUuid={tileUuid}
                     isTitleHidden={isTitleHidden}
+                    description={chart.description}
                     onScreenshotReady={handleScreenshotReady}
                 />
             </VisualizationProvider>
@@ -570,6 +571,7 @@ const ValidDashboardChartTileMinimal: FC<{
                 isDashboard
                 tileUuid={tileUuid}
                 isTitleHidden={isTitleHidden}
+                description={chart.description}
                 onScreenshotReady={handleScreenshotReady}
             />
         </VisualizationProvider>
