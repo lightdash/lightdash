@@ -13,6 +13,7 @@ import {
 import { memo, useState, type FC } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import { useSpaceSummaries } from '../../hooks/useSpaces';
 import { Can } from '../../providers/Ability';
 import useApp from '../../providers/App/useApp';
 import LargeMenuItem from '../common/LargeMenuItem';
@@ -35,6 +36,20 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isCreateSpaceOpen, setIsCreateSpaceOpen] = useState(false);
     const [isCreateDashboardOpen, setIsCreateDashboardOpen] = useState(false);
+
+    const { data: spaces } = useSpaceSummaries(projectUuid, true, {
+        enabled: isOpen,
+    });
+    const canCreateDashboard =
+        spaces?.some((space) =>
+            user.data?.ability.can(
+                'create',
+                subject('Dashboard', {
+                    ...space,
+                    access: space.userAccess ? [space.userAccess] : [],
+                }),
+            ),
+        ) ?? false;
 
     return (
         <>
@@ -111,13 +126,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 icon={IconTerminal2}
                             />
                         </Can>
-                        <Can
-                            I="create"
-                            this={subject('Dashboard', {
-                                organizationUuid: user.data?.organizationUuid,
-                                projectUuid,
-                            })}
-                        >
+                        {canCreateDashboard && (
                             <LargeMenuItem
                                 title="Dashboard"
                                 description="Arrange multiple charts into a single view."
@@ -125,7 +134,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 icon={IconLayoutDashboard}
                                 data-testid="ExploreMenu/NewDashboardButton"
                             />
-                        </Can>
+                        )}
 
                         {dataAppsFlag.data?.enabled && (
                             <Can
