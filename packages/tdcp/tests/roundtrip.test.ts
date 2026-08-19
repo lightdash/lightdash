@@ -3,7 +3,7 @@ import { TdcpClient } from '../src/client';
 import { TdcpDatasetStore } from '../src/datasetStore';
 import { JsonRpcErrorCodes, TdcpError } from '../src/jsonrpc';
 import type { JsonRpcRequest } from '../src/jsonrpc';
-import { createTdcpRequestHandler } from '../src/server';
+import { createTdcpRequestHandler, createTdcpServer } from '../src/server';
 import type { TdcpCatalog } from '../src/types';
 
 /**
@@ -53,7 +53,7 @@ const CATALOG: TdcpCatalog = {
 const buildServer = () => {
     const store = new TdcpDatasetStore({ baseUrl: 'https://tdcp.test' });
 
-    const handler = createTdcpRequestHandler({
+    const tdcpServer = createTdcpServer({
         catalog: async () => CATALOG,
         read: async (_ctx, request) => {
             if (request.table !== 'orders') {
@@ -86,8 +86,9 @@ const buildServer = () => {
             });
         },
     });
+    const handler = createTdcpRequestHandler(tdcpServer);
 
-    return { handler, store };
+    return { handler, store, tdcpServer };
 };
 
 /**
@@ -190,6 +191,38 @@ describe('TDCP round trip: SDK client against SDK server', () => {
                 predicateMode: 'exact',
             }),
         ).rejects.toThrow(`(${JsonRpcErrorCodes.PREDICATES_NOT_SATISFIABLE})`);
+    });
+
+    it('compares exact predicates by value, not only by count', async () => {
+        const store = new TdcpDatasetStore({ baseUrl: 'https://tdcp.test' });
+        const server = createTdcpServer({
+            catalog: async () => CATALOG,
+            scan: async () =>
+                store.mint({
+                    schema: CATALOG.tables[0].columns,
+                    rows: ORDERS,
+                    pushedPredicates: [
+                        {
+                            column: 'status',
+                            operator: 'eq',
+                            values: ['completed'],
+                        },
+                    ],
+                }),
+        });
+
+        await expect(
+            server.execute(undefined, {
+                method: 'tabular/scan',
+                table: 'orders',
+                predicates: [
+                    { column: 'amount', operator: 'gt', values: [15] },
+                ],
+                predicateMode: 'exact',
+            }),
+        ).rejects.toMatchObject({
+            code: JsonRpcErrorCodes.PREDICATES_NOT_SATISFIABLE,
+        });
     });
 
     it('serves best-effort mode for the same unpushable predicate', async () => {

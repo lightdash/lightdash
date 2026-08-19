@@ -1,23 +1,21 @@
 import { assertRegisteredAccount } from '@lightdash/common';
 import {
-    TDCP_PROTOCOL_REVISION,
+    createTdcpServer,
     TdcpDialects,
-    type TdcpCapabilities,
     type TdcpCatalog,
     type TdcpCatalogTable,
-    type TdcpDataRequest,
     type TdcpDatasetDescriptor,
+    type TdcpQueryRequest,
+    type TdcpServer,
 } from '@lightdash/tdcp';
 import { toSessionUser } from '../../../../auth/account';
 import type { AsyncQueryService } from '../../../AsyncQueryService/AsyncQueryService';
 import type { ProjectService } from '../../../ProjectService/ProjectService';
 import {
-    assertDialectQuery,
     localDatasetDescriptor,
     type TdcpCatalogContext,
     type TdcpRequestContext,
-    type TdcpServer,
-} from '../TdcpServer';
+} from '../host';
 
 type SqlTdcpServerArguments = {
     asyncQueryService: AsyncQueryService;
@@ -34,7 +32,7 @@ type SqlTdcpServerArguments = {
  * should be sql:<warehouse type> resolved from the project connection, so a
  * consumer knows which SQL it is writing before submitting.
  */
-export class SqlTdcpServer implements TdcpServer {
+class SqlTdcpHandlers {
     private readonly asyncQueryService: AsyncQueryService;
 
     private readonly projectService: ProjectService;
@@ -42,17 +40,6 @@ export class SqlTdcpServer implements TdcpServer {
     constructor(args: SqlTdcpServerArguments) {
         this.asyncQueryService = args.asyncQueryService;
         this.projectService = args.projectService;
-    }
-
-    // eslint-disable-next-line class-methods-use-this
-    async capabilities(): Promise<TdcpCapabilities> {
-        return {
-            revision: TDCP_PROTOCOL_REVISION,
-            read: false,
-            scan: false,
-            queryDialects: [TdcpDialects.WAREHOUSE_SQL],
-            compose: false,
-        };
     }
 
     async catalog({
@@ -86,14 +73,8 @@ export class SqlTdcpServer implements TdcpServer {
 
     async query(
         ctx: TdcpRequestContext,
-        request: TdcpDataRequest,
+        queryRequest: TdcpQueryRequest,
     ): Promise<TdcpDatasetDescriptor> {
-        const queryRequest = assertDialectQuery(
-            request,
-            TdcpDialects.WAREHOUSE_SQL,
-            'warehouse SQL',
-        );
-
         const results = await this.asyncQueryService.executeAsyncSqlQuery({
             account: ctx.account,
             projectUuid: ctx.projectUuid,
@@ -109,3 +90,14 @@ export class SqlTdcpServer implements TdcpServer {
         });
     }
 }
+
+export const createSqlTdcpServer = (
+    args: SqlTdcpServerArguments,
+): TdcpServer<TdcpCatalogContext, TdcpRequestContext> => {
+    const handlers = new SqlTdcpHandlers(args);
+    return createTdcpServer({
+        catalog: handlers.catalog.bind(handlers),
+        queryDialects: [TdcpDialects.WAREHOUSE_SQL],
+        query: handlers.query.bind(handlers),
+    });
+};

@@ -2,7 +2,7 @@
 
 Runnable both-sides demos of the draft protocol:
 
-- [`orders-server.ts`](orders-server.ts) — a complete TDCP server in one file: two CRM tables, JSON-RPC control plane, bearer-checked JSONL data plane. Tier 0 (`read`), tier 1 (`scan` with equality/IN pushdown), and the smallest possible tier 2 dialect (`table:name`). Every protocol guarantee comes from `createTdcpRequestHandler`, not from this file.
+- [`orders-server.ts`](orders-server.ts) — a complete TDCP server in one file: two CRM tables, JSON-RPC control plane, bearer-checked JSONL data plane. Tier 0 (`read`), tier 1 (`scan` with equality/IN pushdown), and the smallest possible tier 2 dialect (`table:name`). Every protocol guarantee comes from `createTdcpServer`, not from this file.
 - [`csv-server.ts`](csv-server.ts) — a directory of CSV files as a TDCP server, nothing hardcoded: catalog from headers, column types inferred from the data ([`data/signups.csv`](data/signups.csv) infers `seats: number`, `signed_up_at: date`), rows served typed. Honestly tier 0/1 only — a CSV is not a query engine; the consumer's compose engine does the joining.
 - [`query-client.ts`](query-client.ts) — the consumer: capabilities, catalog, an exact-mode scan with predicate pushdown, streamed rows.
 

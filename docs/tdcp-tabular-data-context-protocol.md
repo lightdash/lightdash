@@ -67,7 +67,8 @@ flowchart LR
 | Piece | Location |
 | --- | --- |
 | Protocol home: spec, JSON Schemas, server + client SDK | `packages/tdcp/` (`@lightdash/tdcp`) — the single type vocabulary |
-| `TdcpServer` contract (host-side, transport-agnostic) | `packages/backend/src/services/QuerySourceService/tdcp/TdcpServer.ts` |
+| `TdcpServer` module (SDK-owned, transport-independent) | `packages/tdcp/src/server.ts` |
+| Lightdash host contexts and local descriptors | `packages/backend/src/services/QuerySourceService/tdcp/host.ts` |
 | In-process servers (the former `sources/` built-ins) | `packages/backend/src/services/QuerySourceService/tdcp/servers/` |
 | Built-in source inventory (also the outbound list) | `packages/backend/src/services/QuerySourceService/tdcp/index.ts` |
 | Protocol ↔ host type bridge (the one meeting point) | `packages/backend/src/services/QuerySourceService/tdcp/typeMapping.ts` |
@@ -80,7 +81,7 @@ In-process servers return descriptors with `links: null` — the dataset already
 
 ## Draft status and what is deliberately not here
 
-The `@oliver:` comments in the source mark every decision point. What the draft already holds: the data plane streams end to end (fetch → S3 upload, one line in memory at a time), both planes go through an SSRF-guarded fetch (`validatePublicHttpUrl` + timeout), every wire payload is structurally validated before it is typed, and the SDK's request handler enforces the tier guarantees (exact-mode refusal, declared dialects, links on wire descriptors) so integrators cannot get them wrong.
+The `@oliver:` comments in the source mark every decision point. What the draft already holds: the data plane streams end to end (fetch → S3 upload, one line in memory at a time), both planes go through an SSRF-guarded fetch (`validatePublicHttpUrl` + timeout), every wire payload is structurally validated before it is typed, and the SDK server module enforces the tier guarantees before either in-process or wire execution.
 
 The headline gaps, all blocking ship but none blocking the walkable loop:
 

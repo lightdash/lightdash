@@ -11,6 +11,7 @@ import { readdirSync, readFileSync } from 'fs';
 import { basename, join, resolve } from 'path';
 import {
     createTdcpRequestHandler,
+    createTdcpServer,
     JsonRpcErrorCodes,
     TdcpDatasetStore,
     TdcpError,
@@ -138,7 +139,7 @@ const requireTable = (reference: string): CsvTable => {
     return table;
 };
 
-const handler = createTdcpRequestHandler({
+const tdcpServer = createTdcpServer({
     catalog: async () => CATALOG,
     read: async (_ctx, request) => {
         const table = requireTable(request.table);
@@ -170,6 +171,7 @@ const handler = createTdcpRequestHandler({
         });
     },
 });
+const handler = createTdcpRequestHandler(tdcpServer);
 
 startTdcpNodeServer({
     handler,

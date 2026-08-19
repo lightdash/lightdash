@@ -11,103 +11,195 @@ import {
     TdcpMethods,
     type TdcpCapabilities,
     type TdcpCatalog,
+    type TdcpDataRequest,
     type TdcpDatasetDescriptor,
     type TdcpQueryRequest,
     type TdcpReadRequest,
     type TdcpRefreshRequest,
+    type TdcpScanPredicate,
     type TdcpScanRequest,
 } from './types';
 
-/**
- * What an integrator implements. catalog is the only required handler —
- * a tier 0 server adds read; capabilities are derived from what is
- * provided unless declared explicitly.
- *
- * TContext is whatever the transport resolves per request (the
- * authenticated principal on the MCP transport; undefined for anonymous
- * reference servers).
- */
-export type TdcpServerHandlers<TContext = undefined> = {
-    capabilities?: (ctx: TContext) => Promise<TdcpCapabilities>;
-    catalog: (ctx: TContext) => Promise<TdcpCatalog>;
+export type TdcpServerHandlers<
+    TCatalogContext = undefined,
+    TRequestContext extends TCatalogContext = TCatalogContext,
+> = {
+    catalog: (ctx: TCatalogContext) => Promise<TdcpCatalog>;
     read?: (
-        ctx: TContext,
+        ctx: TRequestContext,
         request: TdcpReadRequest,
     ) => Promise<TdcpDatasetDescriptor>;
     scan?: (
-        ctx: TContext,
+        ctx: TRequestContext,
         request: TdcpScanRequest,
     ) => Promise<TdcpDatasetDescriptor>;
     query?: (
-        ctx: TContext,
+        ctx: TRequestContext,
         request: TdcpQueryRequest,
     ) => Promise<TdcpDatasetDescriptor>;
     refresh?: (
-        ctx: TContext,
+        ctx: TRequestContext,
         request: TdcpRefreshRequest,
     ) => Promise<TdcpDatasetDescriptor>;
-    /** Declared tier 2 dialects; required when query is provided. */
     queryDialects?: string[];
-    /** Whether query accepts dataset references (compose). */
     compose?: boolean;
 };
 
-const deriveCapabilities = <TContext>(
-    handlers: TdcpServerHandlers<TContext>,
+/**
+ * The transport-independent TDCP server used by production hosts and wire
+ * adapters alike. Protocol guarantees live behind this interface.
+ */
+export type TdcpServer<
+    TCatalogContext = undefined,
+    TRequestContext extends TCatalogContext = TCatalogContext,
+> = {
+    capabilities: (ctx: TCatalogContext) => Promise<TdcpCapabilities>;
+    catalog: (ctx: TCatalogContext) => Promise<TdcpCatalog>;
+    execute: (
+        ctx: TRequestContext,
+        request: TdcpDataRequest | TdcpRefreshRequest,
+    ) => Promise<TdcpDatasetDescriptor>;
+};
+
+const deriveCapabilities = <
+    TCatalogContext,
+    TRequestContext extends TCatalogContext,
+>(
+    handlers: TdcpServerHandlers<TCatalogContext, TRequestContext>,
 ): TdcpCapabilities => ({
     revision: TDCP_PROTOCOL_REVISION,
     read: handlers.read !== undefined,
     scan: handlers.scan !== undefined,
-    queryDialects: handlers.query ? (handlers.queryDialects ?? []) : [],
-    compose: handlers.compose ?? false,
+    queryDialects: handlers.query ? [...(handlers.queryDialects ?? [])] : [],
+    compose: handlers.query !== undefined && (handlers.compose ?? false),
+});
+
+const predicatesEqual = (
+    left: TdcpScanPredicate,
+    right: TdcpScanPredicate,
+): boolean =>
+    left.column === right.column &&
+    left.operator === right.operator &&
+    left.values.length === right.values.length &&
+    left.values.every((value, index) => Object.is(value, right.values[index]));
+
+export const createTdcpServer = <
+    TCatalogContext,
+    TRequestContext extends TCatalogContext,
+>(
+    handlers: TdcpServerHandlers<TCatalogContext, TRequestContext>,
+): TdcpServer<TCatalogContext, TRequestContext> => ({
+    capabilities: async () => deriveCapabilities(handlers),
+    catalog: handlers.catalog,
+    execute: async (ctx, request) => {
+        switch (request.method) {
+            case TdcpMethods.READ:
+                if (!handlers.read) {
+                    throw new TdcpError(
+                        JsonRpcErrorCodes.CAPABILITY_NOT_SUPPORTED,
+                        'This server does not support tabular/read',
+                    );
+                }
+                return handlers.read(ctx, request);
+            case TdcpMethods.SCAN: {
+                if (!handlers.scan) {
+                    throw new TdcpError(
+                        JsonRpcErrorCodes.CAPABILITY_NOT_SUPPORTED,
+                        'This server does not support tabular/scan',
+                    );
+                }
+                const descriptor = await handlers.scan(ctx, request);
+                const requested = request.predicates ?? [];
+                const pushed = descriptor.pushedPredicates ?? [];
+                if (
+                    request.predicateMode === 'exact' &&
+                    requested.some(
+                        (predicate) =>
+                            !pushed.some((candidate) =>
+                                predicatesEqual(predicate, candidate),
+                            ),
+                    )
+                ) {
+                    throw new TdcpError(
+                        JsonRpcErrorCodes.PREDICATES_NOT_SATISFIABLE,
+                        'Predicates not fully satisfiable in exact mode',
+                    );
+                }
+                return { ...descriptor, pushedPredicates: pushed };
+            }
+            case TdcpMethods.QUERY:
+                if (!handlers.query) {
+                    throw new TdcpError(
+                        JsonRpcErrorCodes.CAPABILITY_NOT_SUPPORTED,
+                        'This server does not support tabular/query',
+                    );
+                }
+                if (!(handlers.queryDialects ?? []).includes(request.dialect)) {
+                    throw new TdcpError(
+                        JsonRpcErrorCodes.CAPABILITY_NOT_SUPPORTED,
+                        `Dialect "${request.dialect}" not declared by this server`,
+                    );
+                }
+                if (request.references && !handlers.compose) {
+                    throw new TdcpError(
+                        JsonRpcErrorCodes.CAPABILITY_NOT_SUPPORTED,
+                        'This server does not support compose references',
+                    );
+                }
+                return handlers.query(ctx, request);
+            case TdcpMethods.REFRESH:
+                if (!handlers.refresh) {
+                    throw new TdcpError(
+                        JsonRpcErrorCodes.CAPABILITY_NOT_SUPPORTED,
+                        'This server does not support tabular/refresh',
+                    );
+                }
+                return handlers.refresh(ctx, request);
+            default: {
+                const unreachable: never = request;
+                throw new TdcpError(
+                    JsonRpcErrorCodes.METHOD_NOT_FOUND,
+                    `Unknown TDCP request ${JSON.stringify(unreachable)}`,
+                );
+            }
+        }
+    },
 });
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null && !Array.isArray(value);
 
-/**
- * Builds the request handler at the heart of a TDCP server: one JSON-RPC
- * request in, one response out, transport left to the caller. A wire
- * descriptor MUST carry data-plane links — this is enforced here so no
- * conforming server can leak a linkless (in-process) descriptor.
- */
-export const createTdcpRequestHandler = <TContext = undefined>(
-    handlers: TdcpServerHandlers<TContext>,
-) => {
-    const requireLinks = (
-        descriptor: TdcpDatasetDescriptor,
-    ): TdcpDatasetDescriptor => {
-        if (!descriptor.links || descriptor.links.length === 0) {
-            throw new Error(
-                'A wire-serving TDCP server must return data-plane links on every descriptor',
-            );
-        }
-        return descriptor;
-    };
+const requireLinks = (
+    descriptor: TdcpDatasetDescriptor,
+): TdcpDatasetDescriptor => {
+    if (!descriptor.links?.some((link) => link.encoding === 'jsonl')) {
+        throw new Error(
+            'A wire-serving TDCP server must return a jsonl data-plane link',
+        );
+    }
+    return descriptor;
+};
 
-    return async (
+/** JSON-RPC adapter over the same server module production hosts call directly. */
+export const createTdcpRequestHandler =
+    <
+        TCatalogContext = undefined,
+        TRequestContext extends TCatalogContext = TCatalogContext,
+    >(
+        server: TdcpServer<TCatalogContext, TRequestContext>,
+    ) =>
+    async (
         request: JsonRpcRequest,
-        ctx: TContext,
+        ctx: TRequestContext,
     ): Promise<JsonRpcResponse> => {
         const { id, method, params } = request;
         try {
             switch (method) {
-                case TdcpMethods.CAPABILITIES: {
-                    const capabilities = handlers.capabilities
-                        ? await handlers.capabilities(ctx)
-                        : deriveCapabilities(handlers);
-                    return jsonRpcResult(id, capabilities);
-                }
+                case TdcpMethods.CAPABILITIES:
+                    return jsonRpcResult(id, await server.capabilities(ctx));
                 case TdcpMethods.CATALOG:
-                    return jsonRpcResult(id, await handlers.catalog(ctx));
-                case TdcpMethods.READ: {
-                    if (!handlers.read) {
-                        return jsonRpcError(
-                            id,
-                            JsonRpcErrorCodes.CAPABILITY_NOT_SUPPORTED,
-                            'This server does not support tabular/read',
-                        );
-                    }
+                    return jsonRpcResult(id, await server.catalog(ctx));
+                case TdcpMethods.READ:
                     if (!isRecord(params) || typeof params.table !== 'string') {
                         return jsonRpcError(
                             id,
@@ -115,54 +207,38 @@ export const createTdcpRequestHandler = <TContext = undefined>(
                             'tabular/read requires a table',
                         );
                     }
-                    const descriptor = await handlers.read(
-                        ctx,
-                        params as TdcpReadRequest,
+                    return jsonRpcResult(
+                        id,
+                        requireLinks(
+                            await server.execute(ctx, {
+                                ...params,
+                                method: TdcpMethods.READ,
+                            } as TdcpReadRequest),
+                        ),
                     );
-                    return jsonRpcResult(id, requireLinks(descriptor));
-                }
-                case TdcpMethods.SCAN: {
-                    if (!handlers.scan) {
-                        return jsonRpcError(
-                            id,
-                            JsonRpcErrorCodes.CAPABILITY_NOT_SUPPORTED,
-                            'This server does not support tabular/scan',
-                        );
-                    }
-                    if (!isRecord(params) || typeof params.table !== 'string') {
+                case TdcpMethods.SCAN:
+                    if (
+                        !isRecord(params) ||
+                        typeof params.table !== 'string' ||
+                        (params.predicateMode !== 'exact' &&
+                            params.predicateMode !== 'bestEffort')
+                    ) {
                         return jsonRpcError(
                             id,
                             JsonRpcErrorCodes.INVALID_PARAMS,
-                            'tabular/scan requires a table',
+                            'tabular/scan requires a table and predicateMode',
                         );
                     }
-                    const scanRequest = params as TdcpScanRequest;
-                    const descriptor = requireLinks(
-                        await handlers.scan(ctx, scanRequest),
+                    return jsonRpcResult(
+                        id,
+                        requireLinks(
+                            await server.execute(ctx, {
+                                ...params,
+                                method: TdcpMethods.SCAN,
+                            } as TdcpScanRequest),
+                        ),
                     );
-                    // The exact contract: fully pushed or refused, never
-                    // silently partial — thin clients depend on this.
-                    if (scanRequest.predicateMode === 'exact') {
-                        const requested = scanRequest.predicates?.length ?? 0;
-                        const pushed = descriptor.pushedPredicates?.length ?? 0;
-                        if (pushed < requested) {
-                            return jsonRpcError(
-                                id,
-                                JsonRpcErrorCodes.PREDICATES_NOT_SATISFIABLE,
-                                'Predicates not fully satisfiable in exact mode',
-                            );
-                        }
-                    }
-                    return jsonRpcResult(id, descriptor);
-                }
-                case TdcpMethods.QUERY: {
-                    if (!handlers.query) {
-                        return jsonRpcError(
-                            id,
-                            JsonRpcErrorCodes.CAPABILITY_NOT_SUPPORTED,
-                            'This server does not support tabular/query',
-                        );
-                    }
+                case TdcpMethods.QUERY:
                     if (
                         !isRecord(params) ||
                         typeof params.dialect !== 'string' ||
@@ -174,33 +250,16 @@ export const createTdcpRequestHandler = <TContext = undefined>(
                             'tabular/query requires a dialect and a query',
                         );
                     }
-                    const queryRequest = params as TdcpQueryRequest;
-                    const dialects = handlers.queryDialects ?? [];
-                    if (!dialects.includes(queryRequest.dialect)) {
-                        return jsonRpcError(
-                            id,
-                            JsonRpcErrorCodes.CAPABILITY_NOT_SUPPORTED,
-                            `Dialect "${queryRequest.dialect}" not declared by this server`,
-                        );
-                    }
-                    if (queryRequest.references && !handlers.compose) {
-                        return jsonRpcError(
-                            id,
-                            JsonRpcErrorCodes.CAPABILITY_NOT_SUPPORTED,
-                            'This server does not support compose references',
-                        );
-                    }
-                    const descriptor = await handlers.query(ctx, queryRequest);
-                    return jsonRpcResult(id, requireLinks(descriptor));
-                }
-                case TdcpMethods.REFRESH: {
-                    if (!handlers.refresh) {
-                        return jsonRpcError(
-                            id,
-                            JsonRpcErrorCodes.CAPABILITY_NOT_SUPPORTED,
-                            'This server does not support tabular/refresh',
-                        );
-                    }
+                    return jsonRpcResult(
+                        id,
+                        requireLinks(
+                            await server.execute(ctx, {
+                                ...params,
+                                method: TdcpMethods.QUERY,
+                            } as TdcpQueryRequest),
+                        ),
+                    );
+                case TdcpMethods.REFRESH:
                     if (
                         !isRecord(params) ||
                         typeof params.datasetId !== 'string'
@@ -211,12 +270,15 @@ export const createTdcpRequestHandler = <TContext = undefined>(
                             'tabular/refresh requires a datasetId',
                         );
                     }
-                    const descriptor = await handlers.refresh(
-                        ctx,
-                        params as TdcpRefreshRequest,
+                    return jsonRpcResult(
+                        id,
+                        requireLinks(
+                            await server.execute(ctx, {
+                                ...params,
+                                method: TdcpMethods.REFRESH,
+                            } as TdcpRefreshRequest),
+                        ),
                     );
-                    return jsonRpcResult(id, requireLinks(descriptor));
-                }
                 default:
                     return jsonRpcError(
                         id,
@@ -224,15 +286,14 @@ export const createTdcpRequestHandler = <TContext = undefined>(
                         `Unknown method "${method}"`,
                     );
             }
-        } catch (e) {
-            if (e instanceof TdcpError) {
-                return jsonRpcError(id, e.code, e.message);
+        } catch (error) {
+            if (error instanceof TdcpError) {
+                return jsonRpcError(id, error.code, error.message);
             }
             return jsonRpcError(
                 id,
                 JsonRpcErrorCodes.INTERNAL_ERROR,
-                e instanceof Error ? e.message : 'Internal error',
+                error instanceof Error ? error.message : 'Internal error',
             );
         }
     };
-};
