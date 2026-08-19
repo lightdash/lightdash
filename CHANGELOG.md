@@ -1,3 +1,10 @@
+## [1.202.8](https://github.com/lightdash/lightdash/compare/1.202.7...1.202.8) (2026-08-19)
+
+
+### Bug Fixes
+
+* **frontend:** shorten shared dashboard links ([#27604](https://github.com/lightdash/lightdash/issues/27604)) ([93948a2](https://github.com/lightdash/lightdash/commit/93948a2837edada89915594cf98005f282fdcac4))
+
 ## [1.202.7](https://github.com/lightdash/lightdash/compare/1.202.6...1.202.7) (2026-08-19)
 
 
