@@ -115,17 +115,61 @@ const OAUTH_AUTHORIZE_TEMPLATE = `
             }
             .oauth-message {
                 text-align: center;
-                margin-bottom: 24px;
+                margin-bottom: 12px;
                 font-size: 14px;
                 color: #111418;
             }
             .oauth-message strong {
                 font-weight: 600;
             }
+            .oauth-account {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 12px;
+                border: 1px solid #e9ecef;
+                border-radius: 8px;
+                background: #f8fafc;
+            }
+            .oauth-avatar {
+                flex-shrink: 0;
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+                background: #111418;
+                color: #fff;
+                font-size: 12px;
+                font-weight: 600;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                text-transform: uppercase;
+            }
+            .oauth-account-details {
+                min-width: 0;
+            }
+            .oauth-account-name {
+                font-weight: 600;
+                color: #111418;
+            }
+            .oauth-account-meta {
+                font-size: 12px;
+                color: #6c757d;
+                overflow-wrap: anywhere;
+            }
+            .oauth-switch {
+                text-align: center;
+                margin: 12px 0 0 0;
+                font-size: 12px;
+            }
+            .oauth-switch a {
+                color: #111418;
+                font-weight: 500;
+            }
             .oauth-scopes {
                 border-top: 1px solid #e9ecef;
                 padding-top: 16px;
-                margin-bottom: 16px;
+                margin: 16px 0;
             }
             .oauth-scope-item {
                 display: flex;
@@ -198,7 +242,24 @@ const OAUTH_AUTHORIZE_TEMPLATE = `
                 </div>
 
                 <p class="oauth-message">
-                    <strong>{{client_name}}</strong> wants to access your Lightdash account <strong>{{user.firstName}} {{user.lastName}}</strong>
+                    <strong>{{client_name}}</strong> wants to access your Lightdash account
+                </p>
+
+                <div class="oauth-account">
+                    <div class="oauth-avatar">{{user.initials}}</div>
+                    <div class="oauth-account-details">
+                        <div class="oauth-account-name">{{user.firstName}} {{user.lastName}}</div>
+                        {{#if user.email}}
+                        <div class="oauth-account-meta">{{user.email}}</div>
+                        {{/if}}
+                        {{#if user.organizationName}}
+                        <div class="oauth-account-meta">Organization: {{user.organizationName}}</div>
+                        {{/if}}
+                    </div>
+                </div>
+
+                <p class="oauth-switch">
+                    Not the right account? <a id="oauth-switch-account" href="{{loginUrl}}">Sign in with a different account</a>
                 </p>
 
                 <div class="oauth-scopes">
@@ -226,6 +287,20 @@ const OAUTH_AUTHORIZE_TEMPLATE = `
                 </div>
             </form>
         </div>
+        <script>
+            (function () {
+                var link = document.getElementById('oauth-switch-account');
+                link.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    var target = link.href;
+                    fetch('/api/v1/logout', { credentials: 'same-origin' })
+                        .catch(function () {})
+                        .then(function () {
+                            window.location.href = target;
+                        });
+                });
+            })();
+        </script>
     </body>
 </html>
 `;
@@ -305,6 +380,7 @@ export interface OAuthHiddenInput {
 export interface OAuthUser {
     firstName: string;
     lastName: string;
+    email: string;
     organizationName: string;
 }
 
@@ -320,6 +396,8 @@ export interface OAuthAuthorizeParams {
     scope: string;
     scopes: OAuthScopeDescription[];
     user: OAuthUser;
+    /** Where "Sign in with a different account" sends the user, after logging out */
+    loginUrl: string;
     hiddenInputs: OAuthHiddenInput[];
 }
 
@@ -364,6 +442,11 @@ export const parseScopeString = (
     return scopes
         .map((scope) => SCOPE_DESCRIPTIONS[scope])
         .filter((scope): scope is OAuthScopeDescription => scope !== undefined);
+};
+
+const getUserInitials = (user: OAuthUser): string => {
+    const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`;
+    return initials.trim() || user.email.charAt(0);
 };
 
 /**
@@ -432,6 +515,10 @@ export const generateOAuthAuthorizePage = (
         styles: oauthPageStyles,
         logo: LIGHTDASH_LOGO_SVG,
         ...params,
+        user: {
+            ...params.user,
+            initials: getUserInitials(params.user),
+        },
     });
 
 /**
