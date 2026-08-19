@@ -123,7 +123,9 @@ A match where the query's selected dimensions equal the pre-aggregate's
 dimensions, with the time dimension at exactly the pre-aggregate's
 granularity — so each result row is served from a single materialization row
 and no re-aggregation occurs. The only kind of match that can serve
-non-additive metrics. A definition dimension referenced only by a query
+non-additive metrics. Fields that group identically are interchangeable: a
+date-type base field counts as day grain, and the day alias of a date-type
+dimension counts as its stored raw values. A definition dimension referenced only by a query
 filter, or reached through a custom bin, does not count as selected.
 
 **Audit**:

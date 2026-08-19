@@ -917,12 +917,28 @@ const isExactDimensionSetMatch = ({
             !!preAggregateDef.granularity &&
             getDimensionBaseName(dimension) === preAggregateDef.timeDimension;
         if (isDefTimeDimension) {
-            if (dimension.timeInterval !== preAggregateDef.granularity) {
+            if (
+                getEffectiveDimensionTimeFrame(dimension) !==
+                preAggregateDef.granularity
+            ) {
                 return false;
             }
         } else if (!isRawTimeInterval(dimension.timeInterval)) {
-            // A truncated variant collapses the stored raw values.
-            return false;
+            // A truncated variant is exact only when truncation is an
+            // identity on the stored raw values (e.g. day alias of a DATE).
+            const baseDimension = dimensionsByFieldId.get(
+                convertFieldRefToFieldId(
+                    `${dimension.table}.${getDimensionBaseName(dimension)}`,
+                    explore.baseTable,
+                ),
+            );
+            if (
+                !baseDimension ||
+                getEffectiveDimensionTimeFrame(dimension) !==
+                    getEffectiveDimensionTimeFrame(baseDimension)
+            ) {
+                return false;
+            }
         }
 
         matchedReferences.forEach((reference) =>
