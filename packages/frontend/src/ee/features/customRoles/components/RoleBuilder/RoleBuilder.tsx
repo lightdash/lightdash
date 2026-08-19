@@ -1,5 +1,5 @@
 import {
-    isRolePresetAssignableAtLevel,
+    isRolePresetAvailableAtLevel,
     isScopeAssignableAtLevel,
     type RoleLevel,
     type RolePreset,
@@ -146,7 +146,7 @@ export const RoleBuilder: FC<Props> = ({
         useState(START_FROM_SCRATCH);
 
     const availablePresets = presets?.filter((preset) =>
-        isRolePresetAssignableAtLevel(preset, form.values.level),
+        isRolePresetAvailableAtLevel(preset, form.values.level),
     );
 
     const handleSubmit = form.onSubmit((values) => {
@@ -195,7 +195,7 @@ export const RoleBuilder: FC<Props> = ({
         );
         if (
             selectedPreset &&
-            !isRolePresetAssignableAtLevel(selectedPreset, level)
+            !isRolePresetAvailableAtLevel(selectedPreset, level)
         ) {
             setSelectedPresetTitle(START_FROM_SCRATCH);
         }

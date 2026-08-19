@@ -117,6 +117,9 @@ describe('RoleBuilder presets', () => {
         );
         await user.click(screen.getByRole('textbox', { name: 'Preset' }));
 
+        expect(
+            screen.queryByRole('option', { name: 'SQL Runner user' }),
+        ).not.toBeInTheDocument();
         await user.click(
             await screen.findByRole('option', { name: 'Roadmap viewer' }),
         );

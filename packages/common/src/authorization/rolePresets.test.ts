@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isRolePresetAssignableAtLevel, rolePresets } from './rolePresets';
+import { isRolePresetAvailableAtLevel, rolePresets } from './rolePresets';
 import { getScopes } from './scopes';
 
 describe('rolePresets', () => {
@@ -9,18 +9,21 @@ describe('rolePresets', () => {
                 title: 'Roadmap viewer',
                 description:
                     "View the organization's enterprise roadmap without organization administration permissions.",
+                level: 'organization',
                 scopes: ['view:Roadmap'],
             },
             {
                 title: 'SQL Runner user',
                 description:
                     'Run warehouse SQL through SQL Runner, AI agents, and MCP without project deployment or SQL-authoring permissions.',
+                level: 'project',
                 scopes: ['manage:SqlRunner'],
             },
             {
                 title: 'SQL author',
                 description:
                     'Run warehouse SQL and author SQL charts, custom SQL dimensions, and SQL table calculations.',
+                level: 'project',
                 scopes: [
                     'manage:SqlRunner',
                     'manage:CustomSql',
@@ -33,12 +36,14 @@ describe('rolePresets', () => {
                 title: 'Data App builder',
                 description:
                     'Create Data Apps and manage the apps you build, including in production projects.',
+                level: 'project',
                 scopes: ['create:DataApp'],
             },
             {
                 title: 'AI agent manager',
                 description:
                     'Create and manage all AI agents and their knowledge documents in assigned projects.',
+                level: 'project',
                 scopes: ['manage:AiAgent', 'manage:AiAgentDocument'],
             },
         ]);
@@ -56,11 +61,11 @@ describe('rolePresets', () => {
         ).toBe(true);
     });
 
-    it('excludes organization-only presets from project roles', () => {
+    it('only makes presets available at their intended role level', () => {
         expect(
             rolePresets
                 .filter((preset) =>
-                    isRolePresetAssignableAtLevel(preset, 'project'),
+                    isRolePresetAvailableAtLevel(preset, 'project'),
                 )
                 .map(({ title }) => title),
         ).toEqual([
@@ -71,9 +76,11 @@ describe('rolePresets', () => {
         ]);
 
         expect(
-            rolePresets.every((preset) =>
-                isRolePresetAssignableAtLevel(preset, 'organization'),
-            ),
-        ).toBe(true);
+            rolePresets
+                .filter((preset) =>
+                    isRolePresetAvailableAtLevel(preset, 'organization'),
+                )
+                .map(({ title }) => title),
+        ).toEqual(['Roadmap viewer']);
     });
 });
