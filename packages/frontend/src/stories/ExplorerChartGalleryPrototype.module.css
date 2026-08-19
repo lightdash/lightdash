@@ -1,0 +1,522 @@
+.prototype {
+    min-width: 1180px;
+    min-height: 820px;
+    background: light-dark(
+        var(--mantine-color-gray-0),
+        var(--mantine-color-dark-8)
+    );
+    color: light-dark(var(--mantine-color-gray-9), var(--mantine-color-gray-1));
+}
+
+.featureBar {
+    height: 52px;
+    padding: 0 var(--mantine-spacing-md);
+    border-bottom: 1px solid
+        light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+    background: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-7)
+    );
+}
+
+.workspace {
+    display: grid;
+    grid-template-columns: 292px minmax(660px, 1fr);
+    height: calc(100vh - 52px);
+    min-height: 768px;
+}
+
+.workspaceWithRightSidebar {
+    grid-template-columns: 292px minmax(620px, 1fr) 390px;
+}
+
+.workspaceWithWideRightSidebar {
+    grid-template-columns: 292px minmax(600px, 1fr) 500px;
+}
+
+.sidebar {
+    min-width: 0;
+    overflow: hidden;
+    background: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-7)
+    );
+}
+
+.leftSidebar {
+    border-right: 1px solid
+        light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+}
+
+.rightSidebar {
+    border-left: 1px solid
+        light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+}
+
+.sidebarHeader {
+    height: 58px;
+    padding: 0 var(--mantine-spacing-md);
+    border-bottom: 1px solid
+        light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+}
+
+.sidebarScroll {
+    height: calc(100% - 58px);
+}
+
+.main {
+    min-width: 0;
+    overflow: auto;
+    padding: var(--mantine-spacing-md);
+}
+
+.toolbar {
+    min-height: 44px;
+}
+
+.sectionCard {
+    overflow: hidden;
+    border: 1px solid
+        light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+    background: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-7)
+    );
+}
+
+.sectionHeader {
+    min-height: 42px;
+    padding: 0 var(--mantine-spacing-sm);
+    border-bottom: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-5));
+}
+
+.chartStage {
+    height: 330px;
+    padding: var(--mantine-spacing-xl);
+}
+
+.chartPreview {
+    width: 100%;
+    height: 100%;
+}
+
+.barChart {
+    display: flex;
+    height: 100%;
+    align-items: end;
+    gap: clamp(16px, 7%, 72px);
+    padding: 28px 28px 34px;
+    border-bottom: 1px solid
+        light-dark(var(--mantine-color-gray-4), var(--mantine-color-dark-4));
+    background-image: linear-gradient(
+        to bottom,
+        transparent 24%,
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-5)) 25%,
+        transparent 26%,
+        transparent 49%,
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-5)) 50%,
+        transparent 51%,
+        transparent 74%,
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-5)) 75%,
+        transparent 76%
+    );
+}
+
+.barColumn {
+    position: relative;
+    flex: 1;
+    min-width: 26px;
+    max-width: 210px;
+    border-radius: 5px 5px 0 0;
+    transition: height 160ms ease;
+}
+
+.barLabel {
+    position: absolute;
+    bottom: -26px;
+    left: 50%;
+    width: 90px;
+    transform: translateX(-50%);
+    color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-gray-4));
+    font-size: 11px;
+    text-align: center;
+}
+
+.barValue {
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-gray-4));
+    font-size: 10px;
+}
+
+.lineChart {
+    width: 100%;
+    height: 100%;
+    color: var(--chart-color);
+}
+
+.donutLayout {
+    display: flex;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    gap: 36px;
+}
+
+.donut {
+    width: min(210px, 48%);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: conic-gradient(
+        var(--chart-color) 0 50.1%,
+        color-mix(in srgb, var(--chart-color) 70%, white) 50.1% 95%,
+        color-mix(in srgb, var(--chart-color) 38%, white) 95% 100%
+    );
+    mask: radial-gradient(circle at center, transparent 0 52%, black 53%);
+}
+
+.scorecard {
+    display: flex;
+    height: 100%;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.horizontalBars {
+    display: flex;
+    height: 100%;
+    flex-direction: column;
+    justify-content: center;
+    gap: 18px;
+    padding: 20px;
+}
+
+.horizontalTrack {
+    height: 26px;
+    overflow: hidden;
+    border-radius: var(--mantine-radius-sm);
+    background: light-dark(
+        var(--mantine-color-gray-1),
+        var(--mantine-color-dark-5)
+    );
+}
+
+.horizontalFill {
+    height: 100%;
+    border-radius: inherit;
+}
+
+.funnel {
+    width: 82%;
+    height: 100%;
+    margin: auto;
+}
+
+.treemap {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    gap: 3px;
+    padding: 12px;
+    grid-template-columns: 1.45fr 1fr 0.8fr;
+    grid-template-rows: 1.2fr 1fr;
+    grid-template-areas:
+        'a b c'
+        'a d d';
+}
+
+.treemap > div {
+    border-radius: 3px;
+}
+
+.gaugeWrap {
+    position: relative;
+    display: flex;
+    height: 100%;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    padding-bottom: 12%;
+}
+
+.gauge {
+    width: min(240px, 75%);
+    aspect-ratio: 2 / 1;
+    border: 22px solid;
+    border-bottom: 0;
+    border-radius: 999px 999px 0 0;
+    opacity: 0.3;
+}
+
+.gaugeNeedle {
+    position: absolute;
+    bottom: 24%;
+    left: 50%;
+    width: 32%;
+    height: 4px;
+    border-radius: 4px;
+    transform: rotate(-34deg);
+    transform-origin: left center;
+}
+
+.sankey {
+    width: 100%;
+    height: 100%;
+    color: var(--chart-color);
+}
+
+.mapPreview {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: var(--mantine-radius-sm);
+    background:
+        radial-gradient(
+            circle at 28% 42%,
+            transparent 0 18%,
+            rgba(255, 255, 255, 0.75) 19% 20%,
+            transparent 21%
+        ),
+        linear-gradient(135deg, #e7ecef 0%, #f7f8f9 100%);
+}
+
+.mapDot {
+    position: absolute;
+    border: 2px solid white;
+    border-radius: 50%;
+    box-shadow: var(--mantine-shadow-xs);
+}
+
+.tablePreview {
+    height: 100%;
+    justify-content: center;
+    padding: 12px;
+}
+
+.tablePreview > div {
+    padding-bottom: 6px;
+    border-bottom: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-5));
+}
+
+.vegaPreview {
+    display: flex;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    gap: var(--mantine-spacing-lg);
+    background: light-dark(#f8f7ff, #1f1b2d);
+}
+
+.vegaEditor {
+    font-family: var(--mantine-font-family-monospace);
+    font-size: 11px;
+    line-height: 1.55;
+    background: light-dark(#fbfbfd, var(--mantine-color-dark-8));
+}
+
+.miniPreview {
+    height: 78px;
+    padding: 10px;
+    overflow: hidden;
+    background: light-dark(#f8f9fb, var(--mantine-color-dark-8));
+}
+
+.miniPreview .barChart {
+    gap: 7px;
+    padding: 12px 10px 8px;
+}
+
+.miniPreview .barLabel,
+.miniPreview .barValue {
+    display: none;
+}
+
+.miniPreview .donutLayout {
+    gap: 8px;
+}
+
+.miniPreview .donut {
+    width: 52px;
+}
+
+.miniPreview .horizontalBars {
+    gap: 6px;
+    padding: 4px;
+}
+
+.miniPreview .horizontalTrack {
+    height: 8px;
+}
+
+.miniPreview .gauge {
+    width: 58px;
+    border-width: 9px;
+}
+
+.miniPreview .gaugeNeedle {
+    bottom: 30%;
+    width: 30%;
+    height: 2px;
+}
+
+.miniPreview .treemap,
+.miniPreview .tablePreview {
+    padding: 2px;
+}
+
+.miniPreview .funnel {
+    width: 74%;
+}
+
+.chartTypeCard {
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    border: 1px solid
+        light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+    border-radius: var(--mantine-radius-md);
+    background: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-7)
+    );
+    text-align: left;
+    transition:
+        border-color 120ms ease,
+        box-shadow 120ms ease,
+        transform 120ms ease;
+}
+
+.chartTypeCard:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--mantine-shadow-sm);
+}
+
+.chartTypeCardSelected {
+    border-color: var(--mantine-color-blue-5);
+    box-shadow: 0 0 0 2px
+        color-mix(in srgb, var(--mantine-color-blue-5) 20%, transparent);
+}
+
+.catalogRow {
+    width: 100%;
+    padding: var(--mantine-spacing-sm);
+    border: 1px solid transparent;
+    border-radius: var(--mantine-radius-md);
+    text-align: left;
+}
+
+.catalogRow:hover {
+    background: light-dark(
+        var(--mantine-color-gray-0),
+        var(--mantine-color-dark-6)
+    );
+}
+
+.catalogRowSelected {
+    border-color: var(--mantine-color-blue-5);
+    background: light-dark(
+        var(--mantine-color-blue-0),
+        color-mix(in srgb, var(--mantine-color-blue-9) 26%, transparent)
+    );
+}
+
+.catalogThumbnail {
+    width: 86px;
+    flex: 0 0 86px;
+    overflow: hidden;
+    border: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-5));
+    border-radius: var(--mantine-radius-sm);
+}
+
+.railLayout {
+    display: grid;
+    grid-template-columns: 142px minmax(0, 1fr);
+    min-height: 100%;
+}
+
+.typeRail {
+    padding: var(--mantine-spacing-xs);
+    overflow-y: auto;
+    border-right: 1px solid
+        light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+    background: light-dark(
+        var(--mantine-color-gray-0),
+        var(--mantine-color-dark-8)
+    );
+}
+
+.railItem {
+    width: 100%;
+    padding: 9px 8px;
+    border-radius: var(--mantine-radius-md);
+    text-align: left;
+}
+
+.railItemSelected {
+    color: var(--mantine-color-blue-7);
+    background: light-dark(
+        var(--mantine-color-blue-0),
+        var(--mantine-color-blue-9)
+    );
+}
+
+.inspectorPreview {
+    height: 150px;
+    overflow: hidden;
+    border: 1px solid
+        light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+    border-radius: var(--mantine-radius-md);
+}
+
+.fieldItem {
+    padding: 9px 10px;
+    border: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-5));
+    border-radius: var(--mantine-radius-sm);
+    background: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-7)
+    );
+}
+
+.resultTable {
+    font-size: 12px;
+}
+
+.resultTable th {
+    background: light-dark(
+        var(--mantine-color-indigo-0),
+        var(--mantine-color-dark-6)
+    );
+}
+
+.stateBlock {
+    white-space: pre-wrap;
+    font-size: 10px;
+    line-height: 1.45;
+}
+
+.prototypeSwitcher {
+    position: fixed;
+    z-index: 10001;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: white;
+    background: #15171a;
+    box-shadow: var(--mantine-shadow-xl);
+}
+
+.switcherButton {
+    color: white;
+}
+
+.switcherButton:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
