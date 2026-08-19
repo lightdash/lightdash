@@ -3,6 +3,7 @@ import { Stack } from '@mantine/core';
 import { useNavigate } from 'react-router';
 import PageBreadcrumbs from '../../../components/common/PageBreadcrumbs';
 import { RoleBuilder } from '../../features/customRoles/components/RoleBuilder';
+import { rolePresets } from '../../features/customRoles/rolePresets';
 import { useCustomRoles } from '../../features/customRoles/useCustomRoles';
 
 export const CustomRoleCreate = () => {
@@ -51,6 +52,7 @@ export const CustomRoleCreate = () => {
                 onSubmit={handleCreateRole}
                 isWorking={createRole.isLoading}
                 mode="create"
+                presets={rolePresets}
             />
         </Stack>
     );

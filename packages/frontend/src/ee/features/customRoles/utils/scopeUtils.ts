@@ -4,6 +4,7 @@ import {
     ScopeGroup,
     type RoleLevel,
     type Scope,
+    type ScopeName,
 } from '@lightdash/common';
 import startCase from 'lodash/startCase';
 
@@ -108,7 +109,9 @@ export const getScopeDependencies = (scopeName: string): ScopeDependency[] => {
     return dependencies;
 };
 
-export const getScopeNamesWithDependencies = (scopeName: string): string[] => [
+export const getScopeNamesWithDependencies = (
+    scopeName: ScopeName,
+): ScopeName[] => [
     scopeName,
     ...getScopeDependencies(scopeName).map((dependency) => dependency.name),
 ];

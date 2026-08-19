@@ -5,6 +5,7 @@ import {
     Flex,
     Group,
     Input,
+    Select,
     Stack,
     Text,
     Textarea,
@@ -23,6 +24,11 @@ import { type FC, useState } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SettingsCard } from '../../../../../components/common/Settings/SettingsCard';
+import {
+    getRolePresetScopes,
+    isRolePresetAssignableAtLevel,
+    type RolePreset,
+} from '../../rolePresets';
 import { validateRoleName, validateScopes } from '../../utils/roleValidation';
 import {
     getScopeDependencyStatusCounts,
@@ -60,7 +66,10 @@ type Props = {
      * restores the source role's scopes rather than progressively losing them.
      */
     rederiveScopesOnLevelChange?: boolean;
+    presets?: RolePreset[];
 };
+
+const START_FROM_SCRATCH = '__start_from_scratch__';
 
 const dependencyStatusItems = [
     { key: 'full', icon: IconCircleCheckFilled, color: 'green' },
@@ -105,6 +114,7 @@ export const RoleBuilder: FC<Props> = ({
     levelLocked = false,
     levelLockedHint,
     rederiveScopesOnLevelChange = false,
+    presets,
 }) => {
     // Convert array of scopes to object format, keeping only scopes assignable
     // at the initial level — duplicated roles (e.g. system Admin) can carry
@@ -131,6 +141,12 @@ export const RoleBuilder: FC<Props> = ({
     });
     const [dependencyStatus, setDependencyStatus] =
         useState<DependencyStatus>();
+    const [selectedPresetTitle, setSelectedPresetTitle] =
+        useState(START_FROM_SCRATCH);
+
+    const availablePresets = presets?.filter((preset) =>
+        isRolePresetAssignableAtLevel(preset, form.values.level),
+    );
 
     const handleSubmit = form.onSubmit((values) => {
         const scopeNames = Object.entries(values.scopes)
@@ -172,6 +188,49 @@ export const RoleBuilder: FC<Props> = ({
             level,
             scopes,
         });
+
+        const selectedPreset = presets?.find(
+            (preset) => preset.title === selectedPresetTitle,
+        );
+        if (
+            selectedPreset &&
+            !isRolePresetAssignableAtLevel(selectedPreset, level)
+        ) {
+            setSelectedPresetTitle(START_FROM_SCRATCH);
+        }
+    };
+
+    const handlePresetChange = (presetTitle: string | null) => {
+        if (!presetTitle || presetTitle === START_FROM_SCRATCH) {
+            setSelectedPresetTitle(START_FROM_SCRATCH);
+            form.setValues({
+                ...form.values,
+                name: '',
+                description: '',
+                scopes: {},
+            });
+            return;
+        }
+
+        const preset = availablePresets?.find(
+            ({ title }) => title === presetTitle,
+        );
+        if (!preset) {
+            return;
+        }
+
+        setSelectedPresetTitle(preset.title);
+        form.setValues({
+            ...form.values,
+            name: preset.title,
+            description: preset.description,
+            scopes: Object.fromEntries(
+                getRolePresetScopes(preset, form.values.level).map((scope) => [
+                    scope,
+                    true,
+                ]),
+            ),
+        });
     };
 
     const isLevelDisabled = isWorking || mode === 'edit' || levelLocked;
@@ -198,6 +257,26 @@ export const RoleBuilder: FC<Props> = ({
                 <Stack gap="xs" className={styles.contentStack}>
                     <SettingsCard>
                         <Stack gap="md">
+                            {availablePresets && (
+                                <Select
+                                    label="Preset"
+                                    description="Start with a common role, then customize its name, description, and permissions."
+                                    data={[
+                                        {
+                                            value: START_FROM_SCRATCH,
+                                            label: 'Start from scratch',
+                                        },
+                                        ...availablePresets.map((preset) => ({
+                                            value: preset.title,
+                                            label: preset.title,
+                                        })),
+                                    ]}
+                                    value={selectedPresetTitle}
+                                    onChange={handlePresetChange}
+                                    allowDeselect={false}
+                                    disabled={isWorking}
+                                />
+                            )}
                             <Stack gap="xs">
                                 <Stack gap="two">
                                     <Input.Label>Role type</Input.Label>
