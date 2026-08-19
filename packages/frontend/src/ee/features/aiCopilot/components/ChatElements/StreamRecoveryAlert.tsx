@@ -22,7 +22,7 @@ export const StreamRecoveryAlert = () => {
     const showRefresh = elapsedSeconds >= RECOVERY_REFRESH_OFFER_DELAY_SECONDS;
 
     return (
-        <Box bg="yellow.0" px="sm" py={7} style={{ borderRadius: 10 }}>
+        <Box bg="yellow.0" px="sm" py={7} bdrs="md">
             <Group gap={8} wrap="nowrap" h={22}>
                 <Loader
                     aria-label="Connection lost. Reconnecting"
