@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import { Anchor, Box, Stack, Text } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../../../features/apps/hooks/useCanEditDataApp';
 import { useDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
@@ -30,6 +30,7 @@ const NO_COLUMNS: ItemsMap = {};
 
 export const ConfigTabs: FC = memo(() => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const location = useLocation();
     const navigate = useNavigate();
     const { visualizationConfig, itemsMap, setChartType, setPivotDimensions } =
         useVisualizationContext();
@@ -138,7 +139,10 @@ export const ConfigTabs: FC = memo(() => {
                     {canEditSelectedType && (
                         <Anchor
                             component={Link}
-                            to={`/projects/${projectUuid}/chart-types/${dataAppViz.dataAppVizUuid}`}
+                            to={{
+                                pathname: `/projects/${projectUuid}/chart-types/${dataAppViz.dataAppVizUuid}`,
+                                search: location.search,
+                            }}
                             fz="xs"
                             fw={500}
                             mt={4}
@@ -177,9 +181,10 @@ export const ConfigTabs: FC = memo(() => {
                     onCreateNew={
                         canCreateApp
                             ? () =>
-                                  void navigate(
-                                      `/projects/${projectUuid}/chart-types/new`,
-                                  )
+                                  void navigate({
+                                      pathname: `/projects/${projectUuid}/chart-types/new`,
+                                      search: location.search,
+                                  })
                             : null
                     }
                     onBrowseGallery={() =>
@@ -210,7 +215,10 @@ export const ConfigTabs: FC = memo(() => {
                                 , or create a new one in the{' '}
                                 <Anchor
                                     component={Link}
-                                    to={`/projects/${projectUuid}/chart-types/new`}
+                                    to={{
+                                        pathname: `/projects/${projectUuid}/chart-types/new`,
+                                        search: location.search,
+                                    }}
                                     size="xs"
                                 >
                                     builder

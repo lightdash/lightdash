@@ -28,6 +28,7 @@ import { ConfigTabs } from './DataAppVizConfigTabs';
 
 type PickerProps = {
     disabled: boolean;
+    onCreateNew: (() => void) | null;
     onSelectProjectType: (dataAppViz: DataAppViz) => void;
 };
 
@@ -36,16 +37,19 @@ type FieldSelectProps = {
     onChange: (item: Item | null) => void;
 };
 
-const { fieldSelectItems, fieldSelectProps, pickerProps } = vi.hoisted(() => {
-    const fieldSelectItems: Item[][] = [];
-    const fieldSelectProps: FieldSelectProps[] = [];
-    const pickerProps: PickerProps[] = [];
-    return {
-        fieldSelectItems,
-        fieldSelectProps,
-        pickerProps,
-    };
-});
+const {
+    fieldSelectItems,
+    fieldSelectProps,
+    locationSearch,
+    navigate,
+    pickerProps,
+} = vi.hoisted(() => ({
+    fieldSelectItems: [] as Item[][],
+    fieldSelectProps: [] as FieldSelectProps[],
+    locationSearch: { current: '' },
+    navigate: vi.fn(),
+    pickerProps: [] as PickerProps[],
+}));
 
 vi.mock('../CustomChartType/CustomChartTypePicker', () => ({
     default: (props: PickerProps) => {
@@ -60,10 +64,18 @@ vi.mock('../../../features/chartTypes/hooks/useDataAppVisualization', () => ({
 vi.mock('react-router', async (importOriginal) => ({
     ...(await importOriginal<typeof ReactRouter>()),
     useParams: () => ({ projectUuid: 'project-1' }),
+    useLocation: () => ({ search: locationSearch.current }),
     // The panel navigates to the builder; this test does not mount a router.
-    useNavigate: () => vi.fn(),
+    useNavigate: () => navigate,
     Link: ({ to, children, ...rest }: ReactRouter.LinkProps) => (
-        <a href={typeof to === 'string' ? to : ''} {...rest}>
+        <a
+            href={
+                typeof to === 'string'
+                    ? to
+                    : `${to.pathname ?? ''}${to.search ?? ''}`
+            }
+            {...rest}
+        >
             {children}
         </a>
     ),
@@ -227,6 +239,8 @@ describe('DataAppVizConfigTabs', () => {
         fieldSelectItems.length = 0;
         fieldSelectProps.length = 0;
         pickerProps.length = 0;
+        locationSearch.current = '';
+        navigate.mockClear();
         setOption.mockClear();
         setDataAppVizUuid.mockClear();
         setField.mockClear();
@@ -394,6 +408,30 @@ describe('DataAppVizConfigTabs', () => {
         ).toHaveAttribute('href', '/projects/project-1/chart-types/new');
     });
 
+    it('keeps the Explorer query in builder links', async () => {
+        signInAs(OrganizationMemberRole.EDITOR);
+        mockContext(queryColumns, '');
+        locationSearch.current =
+            '?create_saved_chart_version=serialized-query&fromSpace=space-1';
+        vi.mocked(useDataAppVisualization).mockReturnValue({
+            data: undefined,
+        } as unknown as ReturnType<typeof useDataAppVisualization>);
+
+        renderWithProviders(<ConfigTabs />);
+
+        expect(
+            (await screen.findByText('builder')).closest('a'),
+        ).toHaveAttribute(
+            'href',
+            '/projects/project-1/chart-types/new?create_saved_chart_version=serialized-query&fromSpace=space-1',
+        );
+        act(() => pickerProps[pickerProps.length - 1].onCreateNew?.());
+        expect(navigate).toHaveBeenCalledWith({
+            pathname: '/projects/project-1/chart-types/new',
+            search: locationSearch.current,
+        });
+    });
+
     it('offers no builder link to who cannot create chart types', async () => {
         signInAs(OrganizationMemberRole.INTERACTIVE_VIEWER);
         mockContext(queryColumns, '');
@@ -411,6 +449,7 @@ describe('DataAppVizConfigTabs', () => {
 
     it('describes the selected type with a jump into its builder', async () => {
         signInAs(OrganizationMemberRole.EDITOR);
+        locationSearch.current = '?fromDashboard=dashboard-1';
         mockSchema([], null, { description: 'A gauge for KPI progress' });
         renderWithProviders(<ConfigTabs />);
 
@@ -423,7 +462,7 @@ describe('DataAppVizConfigTabs', () => {
             (await screen.findByText('Edit ↗')).closest('a'),
         ).toHaveAttribute(
             'href',
-            '/projects/project-1/chart-types/data-app-viz-uuid',
+            '/projects/project-1/chart-types/data-app-viz-uuid?fromDashboard=dashboard-1',
         );
     });
 

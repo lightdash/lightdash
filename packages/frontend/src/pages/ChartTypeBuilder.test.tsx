@@ -1,10 +1,11 @@
 import {
+    ChartType,
     FeatureFlags,
     type ApiAppVersionSummary,
     type ApiGetAppResponse,
 } from '@lightdash/common';
 import { fireEvent, screen } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     useAppVersionHistory,
@@ -87,6 +88,41 @@ vi.mock('../features/chartTypes/hooks/useVizComposerAttachments', () => ({
 
 type AppMeta = ApiGetAppResponse['results'];
 
+const explorerChart = {
+    tableName: 'orders',
+    metricQuery: {
+        exploreName: 'orders',
+        dimensions: ['orders_status'],
+        metrics: ['orders_total'],
+        filters: {},
+        sorts: [{ fieldId: 'orders_total', descending: true }],
+        limit: 100,
+        tableCalculations: [],
+    },
+    chartConfig: {
+        type: ChartType.TABLE,
+        config: { showColumnCalculation: false },
+    },
+    tableConfig: { columnOrder: ['orders_status', 'orders_total'] },
+};
+
+const explorerSearch = () => {
+    const searchParams = new URLSearchParams({
+        create_saved_chart_version: JSON.stringify(explorerChart),
+        fromSpace: 'space-1',
+    });
+    return `?${searchParams.toString()}`;
+};
+
+const LocationDisplay = () => {
+    const location = useLocation();
+    return (
+        <div data-testid="location">
+            {`${location.pathname}${location.search}`}
+        </div>
+    );
+};
+
 const appMeta = (overrides: Partial<AppMeta> = {}): AppMeta =>
     ({
         appUuid: 'viz-1',
@@ -136,6 +172,7 @@ const setApp = (meta: AppMeta | null, error: unknown = null) =>
 
 const builderRoutes = (path: string) => (
     <MemoryRouter initialEntries={[path]}>
+        <LocationDisplay />
         <Routes>
             <Route
                 path="/projects/:projectUuid/chart-types/new"
@@ -157,12 +194,22 @@ const builderRoutes = (path: string) => (
                 path="/projects/:projectUuid/apps/:appUuid"
                 element={<div>app-builder</div>}
             />
+            <Route
+                path="/projects/:projectUuid/tables"
+                element={<div>table-picker</div>}
+            />
+            <Route
+                path="/projects/:projectUuid/tables/:tableId"
+                element={<div>explorer</div>}
+            />
         </Routes>
     </MemoryRouter>
 );
 
-const renderBuilder = (path: string) =>
-    renderWithProviders(builderRoutes(path));
+const renderBuilder = (path: string) => {
+    window.history.replaceState({}, '', path);
+    return renderWithProviders(builderRoutes(path));
+};
 
 const mockedClarificationRound = vi.mocked(
     useClarificationRound<VizBuildRequest>,
@@ -326,6 +373,123 @@ describe('ChartTypeBuilder', () => {
         expect(
             screen.getByText('“a stream graph of category share”'),
         ).toBeInTheDocument();
+    });
+
+    it('preserves Explorer search when the create route adopts the app', () => {
+        vi.mocked(useDataAppVizBuild).mockReturnValue(
+            buildStub({
+                isBuilding: true,
+                appUuid: '1e9a3b2c-0000-4000-8000-000000000009',
+                claimedVersion: 1,
+                pendingPrompt: 'a stream graph of category share',
+            }),
+        );
+        const search = explorerSearch();
+
+        renderBuilder(`/projects/p1/chart-types/new${search}`);
+
+        expect(screen.getByTestId('location')).toHaveTextContent(
+            `/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000009${search}`,
+        );
+    });
+
+    it('returns to the Explorer query with the freshly built chart type', () => {
+        const dataAppVizUuid = '1e9a3b2c-0000-4000-8000-000000000001';
+        setApp(appMeta({ appUuid: dataAppVizUuid }));
+        const search = explorerSearch();
+
+        renderBuilder(`/projects/p1/chart-types/${dataAppVizUuid}${search}`);
+
+        const backLink = screen.getByRole('link', { name: 'Explorer' });
+        const destination = new URL(
+            backLink.getAttribute('href') ?? '',
+            'http://lightdash.local',
+        );
+        expect(destination.pathname).toBe('/projects/p1/tables/orders');
+        expect(destination.searchParams.get('fromSpace')).toBe('space-1');
+        expect(
+            JSON.parse(
+                destination.searchParams.get('create_saved_chart_version') ??
+                    '',
+            ),
+        ).toEqual({
+            ...explorerChart,
+            chartConfig: {
+                type: ChartType.DATA_APP_VIZ,
+                config: {
+                    dataAppVizUuid,
+                    fieldMapping: {},
+                    optionValues: {},
+                },
+            },
+        });
+    });
+
+    it('previews the ready chart type with the existing Explorer query', () => {
+        const dataAppVizUuid = '1e9a3b2c-0000-4000-8000-000000000001';
+        setApp(appMeta({ appUuid: dataAppVizUuid }));
+        vi.mocked(useAppVersionHistory).mockReturnValue(
+            historyStub([appVersion({ version: 1 })], 1),
+        );
+        renderBuilder(
+            `/projects/p1/chart-types/${dataAppVizUuid}${explorerSearch()}`,
+        );
+
+        fireEvent.click(screen.getByText('Preview in explorer'));
+
+        const destination = new URL(
+            screen.getByTestId('location').textContent ?? '',
+            'http://lightdash.local',
+        );
+        expect(destination.pathname).toBe('/projects/p1/tables/orders');
+        expect(destination.searchParams.get('fromSpace')).toBe('space-1');
+        const previewChart = JSON.parse(
+            destination.searchParams.get('create_saved_chart_version') ?? '',
+        );
+        expect(previewChart).toEqual({
+            ...explorerChart,
+            chartConfig: {
+                type: ChartType.DATA_APP_VIZ,
+                config: {
+                    dataAppVizUuid,
+                    fieldMapping: {},
+                    optionValues: {},
+                },
+            },
+        });
+    });
+
+    it('previews a standalone chart type through the table picker', () => {
+        const dataAppVizUuid = '1e9a3b2c-0000-4000-8000-000000000001';
+        setApp(appMeta({ appUuid: dataAppVizUuid }));
+        vi.mocked(useAppVersionHistory).mockReturnValue(
+            historyStub([appVersion({ version: 1 })], 1),
+        );
+        renderBuilder(`/projects/p1/chart-types/${dataAppVizUuid}`);
+
+        expect(screen.getByRole('link', { name: 'Gallery' })).toHaveAttribute(
+            'href',
+            '/projects/p1/gallery',
+        );
+        fireEvent.click(screen.getByText('Preview in explorer'));
+
+        expect(screen.getByTestId('location')).toHaveTextContent(
+            `/projects/p1/tables?dataAppVizUuid=${dataAppVizUuid}`,
+        );
+        expect(screen.getByText('table-picker')).toBeInTheDocument();
+    });
+
+    it('treats malformed Explorer state as a standalone builder session', () => {
+        setApp(appMeta());
+
+        renderBuilder(
+            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001?create_saved_chart_version=not-json',
+        );
+
+        expect(screen.getByRole('link', { name: 'Gallery' })).toHaveAttribute(
+            'href',
+            '/projects/p1/gallery',
+        );
     });
 
     it('keeps a drafted follow-up when the create route adopts the app', () => {
