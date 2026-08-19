@@ -112,6 +112,7 @@ const LoginWithEmailOtp: FC<{
             </Stack>
             <Button
                 fullWidth
+                color="pink"
                 loading={isVerifying}
                 disabled={disabled}
                 onClick={() => submitCode(form.values.passcode)}

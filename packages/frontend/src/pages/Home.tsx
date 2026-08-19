@@ -177,14 +177,12 @@ const Home: FC = () => {
                     {!onboarding.data.ranQuery ? (
                         <OnboardingPanel
                             projectUuid={project.data.projectUuid}
-                            userName={user.data?.firstName}
                         />
                     ) : (
                         <FavoritesProvider
                             projectUuid={project.data.projectUuid}
                         >
                             <LandingPanel
-                                userName={user.data?.firstName}
                                 projectUuid={project.data.projectUuid}
                             />
                             {/* Below the greeting on purpose: an admin-only promo
