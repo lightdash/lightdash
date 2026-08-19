@@ -42,6 +42,7 @@ export const QUERY_TRIGGER_BY_CONTEXT: Record<
     [QueryExecutionContext.MCP_RUN_METRIC_QUERY]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.MCP_RUN_SQL]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.MCP_SEARCH_FIELD_VALUES]: QueryTrigger.INTERACTIVE,
+    [QueryExecutionContext.MCP_MULTI_SOURCE_QUERY]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.DASHBOARD]: QueryTrigger.APPS,
     [QueryExecutionContext.AUTOREFRESHED_DASHBOARD]: QueryTrigger.APPS,
     [QueryExecutionContext.FILTER_AUTOCOMPLETE]: QueryTrigger.APPS,

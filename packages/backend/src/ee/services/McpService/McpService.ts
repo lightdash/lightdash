@@ -27,6 +27,7 @@ import {
     ForbiddenError,
     getAiWritebackStatusToolDefinition,
     getAiWritebackTaskStatusMessage,
+    getComposerQueryStatusToolDefinition,
     getContextToolDefinition,
     getCurrentAgentToolDefinition,
     getCurrentProjectToolDefinition,
@@ -38,7 +39,6 @@ import {
     getQueryResultToolDefinition,
     getQuerySourceSchemaToolDefinition,
     getSlackAiEchartsConfig,
-    getSourceQueryStatusToolDefinition,
     getTotalFilterRules,
     getValidAiQueryLimit,
     grepFieldsToolDefinition,
@@ -71,8 +71,8 @@ import {
     resolveUrlToolDefinition,
     routeAgentToolDefinition,
     runAiWritebackToolDefinition,
+    runComposerQueriesToolDefinition,
     runQueryToolDefinition,
-    runSourceQueriesToolDefinition,
     runSqlToolDefinition,
     searchFieldValuesToolDefinition,
     ServiceAcctAccount,
@@ -81,9 +81,9 @@ import {
     setProjectToolDefinition,
     toolRenderChartArgsSchemaTransformed,
     ToolRenderChartArgsTransformed,
+    toolRunComposerQueriesArgsSchemaTransformed,
     toolRunQueryArgsSchemaTransformed,
     ToolRunQueryArgsTransformed,
-    toolRunSourceQueriesArgsSchemaTransformed,
     UnexpectedServerError,
     UserAttributeValueMap,
 } from '@lightdash/common';
@@ -207,8 +207,8 @@ export enum McpToolName {
     GET_QUERY_RESULT = 'get_query_result',
     LIST_QUERY_SOURCES = 'list_query_sources',
     GET_QUERY_SOURCE_SCHEMA = 'get_query_source_schema',
-    RUN_SOURCE_QUERIES = 'run_source_queries',
-    GET_SOURCE_QUERY_STATUS = 'get_source_query_status',
+    RUN_COMPOSER_QUERIES = 'run_composer_queries',
+    GET_COMPOSER_QUERY_STATUS = 'get_composer_query_status',
     SEARCH_FIELD_VALUES = 'search_field_values',
     LIST_VERIFIED_CONTENT = 'list_verified_content',
     RUN_AI_WRITEBACK = 'run_ai_writeback',
@@ -343,11 +343,11 @@ const mcpListQuerySourcesTool = withProjectUuidInput(
 const mcpGetQuerySourceSchemaTool = withProjectUuidInput(
     getQuerySourceSchemaToolDefinition.for('mcp'),
 );
-const mcpRunSourceQueriesTool = withProjectUuidInput(
-    runSourceQueriesToolDefinition.for('mcp'),
+const mcpRunComposerQueriesTool = withProjectUuidInput(
+    runComposerQueriesToolDefinition.for('mcp'),
 );
-const mcpGetSourceQueryStatusTool = withProjectUuidInput(
-    getSourceQueryStatusToolDefinition.for('mcp'),
+const mcpGetComposerQueryStatusTool = withProjectUuidInput(
+    getComposerQueryStatusToolDefinition.for('mcp'),
 );
 const mcpListVerifiedContentTool = withProjectScopeInput(
     listVerifiedContentToolDefinition.for('mcp'),
@@ -3520,13 +3520,13 @@ export class McpService extends BaseService {
             );
 
             this.registerTrackedTool(
-                mcpRunSourceQueriesTool.name,
+                mcpRunComposerQueriesTool.name,
                 {
-                    title: mcpRunSourceQueriesTool.title,
-                    description: mcpRunSourceQueriesTool.description,
-                    inputSchema: mcpRunSourceQueriesTool.inputSchema.shape,
-                    outputSchema: mcpRunSourceQueriesTool.outputSchema.shape,
-                    annotations: mcpRunSourceQueriesTool.annotations,
+                    title: mcpRunComposerQueriesTool.title,
+                    description: mcpRunComposerQueriesTool.description,
+                    inputSchema: mcpRunComposerQueriesTool.inputSchema.shape,
+                    outputSchema: mcpRunComposerQueriesTool.outputSchema.shape,
+                    annotations: mcpRunComposerQueriesTool.annotations,
                 },
                 async (args, extra) => {
                     const ctx = getMcpContext(extra);
@@ -3537,7 +3537,7 @@ export class McpService extends BaseService {
                     );
                     try {
                         const { queries } =
-                            toolRunSourceQueriesArgsSchemaTransformed.parse(
+                            toolRunComposerQueriesArgsSchemaTransformed.parse(
                                 args,
                             );
                         const results =
@@ -3553,10 +3553,10 @@ export class McpService extends BaseService {
                             queries: results.queries,
                             nextPollAfterMs: MCP_QUERY_POLL_INTERVAL_MS,
                         };
-                        return mcpRunSourceQueriesTool.result.structured(
+                        return mcpRunComposerQueriesTool.result.structured(
                             `Submitted ${results.queries.length} source quer${
                                 results.queries.length === 1 ? 'y' : 'ies'
-                            }. Poll get_source_query_status with the returned queryUuids (polling the terminal query is sufficient), then fetch completed rows with get_query_result.\n${JSON.stringify(
+                            }. Poll get_composer_query_status with the returned queryUuids (polling the terminal query is sufficient), then fetch completed rows with get_query_result.\n${JSON.stringify(
                                 structured,
                                 null,
                                 2,
@@ -3566,9 +3566,9 @@ export class McpService extends BaseService {
                     } catch (e) {
                         const errorMessage = getErrorMessage(e);
                         this.logger.error(
-                            `[McpService] Error in run_source_queries tool: ${errorMessage}`,
+                            `[McpService] Error in run_composer_queries tool: ${errorMessage}`,
                         );
-                        return mcpRunSourceQueriesTool.result.error(
+                        return mcpRunComposerQueriesTool.result.error(
                             `Error submitting source queries: ${errorMessage}`,
                         );
                     }
@@ -3576,14 +3576,15 @@ export class McpService extends BaseService {
             );
 
             this.registerTrackedTool(
-                mcpGetSourceQueryStatusTool.name,
+                mcpGetComposerQueryStatusTool.name,
                 {
-                    title: mcpGetSourceQueryStatusTool.title,
-                    description: mcpGetSourceQueryStatusTool.description,
-                    inputSchema: mcpGetSourceQueryStatusTool.inputSchema.shape,
+                    title: mcpGetComposerQueryStatusTool.title,
+                    description: mcpGetComposerQueryStatusTool.description,
+                    inputSchema:
+                        mcpGetComposerQueryStatusTool.inputSchema.shape,
                     outputSchema:
-                        mcpGetSourceQueryStatusTool.outputSchema.shape,
-                    annotations: mcpGetSourceQueryStatusTool.annotations,
+                        mcpGetComposerQueryStatusTool.outputSchema.shape,
+                    annotations: mcpGetComposerQueryStatusTool.annotations,
                 },
                 async (args, extra) => {
                     const ctx = getMcpContext(extra);
@@ -3608,16 +3609,16 @@ export class McpService extends BaseService {
                                 error: status.error,
                             })),
                         };
-                        return mcpGetSourceQueryStatusTool.result.structured(
+                        return mcpGetComposerQueryStatusTool.result.structured(
                             JSON.stringify(structured, null, 2),
                             structured,
                         );
                     } catch (e) {
                         const errorMessage = getErrorMessage(e);
                         this.logger.error(
-                            `[McpService] Error in get_source_query_status tool: ${errorMessage}`,
+                            `[McpService] Error in get_composer_query_status tool: ${errorMessage}`,
                         );
-                        return mcpGetSourceQueryStatusTool.result.error(
+                        return mcpGetComposerQueryStatusTool.result.error(
                             `Error getting source query status: ${errorMessage}`,
                         );
                     }

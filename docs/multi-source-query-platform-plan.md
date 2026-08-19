@@ -29,7 +29,7 @@ Shipped on `claude/query-dag-agent-ergonomics-p6s957` (see
 - **Saved objects** — not started; the submission body is the serialization format for now
   (node-id references make an interactive session replayable verbatim).
 - **MCP tools** — done (2026-08-19): `list_query_sources`,
-  `get_query_source_schema`, `run_source_queries`, `get_source_query_status`
+  `get_query_source_schema`, `run_composer_queries`, `get_composer_query_status`
   on the Lightdash MCP server, feature-flag gated, with `get_query_result`
   serving completed rows; see
   [multi-source-queries.md](multi-source-queries.md#mcp-tools).

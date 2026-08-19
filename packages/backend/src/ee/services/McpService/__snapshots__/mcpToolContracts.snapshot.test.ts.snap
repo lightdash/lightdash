@@ -8410,7 +8410,7 @@ Notes:
       },
       "description": "List the query sources registered for a project.
 
-A query source is anything that can scan a schema and run a query returning the standard table format behind a queryUuid: the semantic layer (metric queries), raw warehouse SQL, and the DuckDB compose engine over previous results. Every source supports the same operations: scan its schema with get_query_source_schema and submit queries with run_source_queries.
+A query source is anything that can scan a schema and run a query returning the standard table format behind a queryUuid: the semantic layer (metric queries), raw warehouse SQL, and the DuckDB compose engine over previous results. Every source supports the same operations: scan its schema with get_query_source_schema and submit queries with run_composer_queries.
 
 Requires the multi-source-query feature flag.",
       "inputSchema": {
@@ -8485,7 +8485,7 @@ Requires the multi-source-query feature flag.",
 
 The response's totalTables and note report how the result was reduced and what to call next.
 
-For the semanticLayer source, tables are explores and columns are field ids (use these ids as dimensions/metrics in run_source_queries); grep_fields and get_metadata search the same catalog with richer ranking (verified-chart usage, hints, fuzzy search) and their field ids are interchangeable with this source's column references. For the sql source, tables come from the warehouse catalog resolved for your credentials. The duckdb source has no schema of its own — its tables are the references given to each query, and a completed query result carries its own columns.
+For the semanticLayer source, tables are explores and columns are field ids (use these ids as dimensions/metrics in run_composer_queries); grep_fields and get_metadata search the same catalog with richer ranking (verified-chart usage, hints, fuzzy search) and their field ids are interchangeable with this source's column references. For the sql source, tables come from the warehouse catalog resolved for your credentials. The duckdb source has no schema of its own — its tables are the references given to each query, and a completed query result carries its own columns.
 
 Requires the multi-source-query feature flag.",
       "inputSchema": {
@@ -8655,11 +8655,11 @@ Requires the multi-source-query feature flag.",
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Submit one or more source queries through the common multi-source query interface. Every query body is tagged by sourceType and every query returns a queryUuid immediately — this tool does not wait for execution.
+      "description": "Submit a composer query: a multi-source pipeline of one or more source queries through the common query interface. Every query body is tagged by sourceType and every query returns a queryUuid immediately — this tool does not wait for execution.
 
 Queries reference each other's results by nodeId: a duckdb query's references expose other queries' results as tables, named by node id (array shorthand) or by alias (map form, which also accepts queryUuids of results from previous submissions). All queries start executing immediately; a query referencing still-running results waits inside its own execution and fails if a referenced query fails, so no orchestration is needed.
 
-Submit queries one at a time (interactive use — read a completed query's columns as the schema for your next step) or as a whole pipeline in one call; the two are equivalent. Poll submitted queries with get_source_query_status (polling only the terminal duckdb query is sufficient — its completion implies upstream completion and its error carries upstream failures), then fetch a completed query's rows with get_query_result. Results expire, so re-run upstream queries whose results have expired instead of referencing their old queryUuids.
+Submit queries one at a time (interactive use — read a completed query's columns as the schema for your next step) or as a whole pipeline in one call; the two are equivalent. Poll submitted queries with get_composer_query_status (polling only the terminal duckdb query is sufficient — its completion implies upstream completion and its error carries upstream failures), then fetch a completed query's rows with get_query_result. Results expire, so re-run upstream queries whose results have expired instead of referencing their old queryUuids.
 
 Requires the multi-source-query feature flag.",
       "inputSchema": {
@@ -10767,13 +10767,13 @@ Requires the multi-source-query feature flag.",
         ],
         "type": "object",
       },
-      "name": "run_source_queries",
+      "name": "run_composer_queries",
       "outputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "nextPollAfterMs": {
-            "description": "Suggested delay before polling get_source_query_status.",
+            "description": "Suggested delay before polling get_composer_query_status.",
             "exclusiveMinimum": 0,
             "type": "integer",
           },
@@ -10786,7 +10786,7 @@ Requires the multi-source-query feature flag.",
                   "type": "string",
                 },
                 "queryUuid": {
-                  "description": "Query UUID to poll with get_source_query_status and fetch with get_query_result.",
+                  "description": "Query UUID to poll with get_composer_query_status and fetch with get_query_result.",
                   "format": "uuid",
                   "type": "string",
                 },
@@ -10810,7 +10810,7 @@ Requires the multi-source-query feature flag.",
           },
           "status": {
             "const": "submitted",
-            "description": "All queries were submitted and are executing. Poll get_source_query_status.",
+            "description": "All queries were submitted and are executing. Poll get_composer_query_status.",
             "type": "string",
           },
         },
@@ -10831,7 +10831,7 @@ Requires the multi-source-query feature flag.",
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Get the status of queries submitted with run_source_queries — the standard async query lifecycle plus the error message for failed queries.
+      "description": "Get the status of queries submitted with run_composer_queries — the standard async query lifecycle plus the error message for failed queries.
 
 Statuses: "running" (keep polling), "done" (fetch rows with get_query_result), "error", "cancelled", "expired". When polling a multi-query submission, polling only the terminal query is sufficient: its completion implies upstream completion, and its error carries upstream failures. Statuses are visible to the query creator only.",
       "inputSchema": {
@@ -10844,7 +10844,7 @@ Statuses: "running" (keep polling), "done" (fetch rows with get_query_result), "
             "type": "string",
           },
           "queryUuids": {
-            "description": "Query UUIDs returned by run_source_queries to get statuses for.",
+            "description": "Query UUIDs returned by run_composer_queries to get statuses for.",
             "items": {
               "format": "uuid",
               "type": "string",
@@ -10860,7 +10860,7 @@ Statuses: "running" (keep polling), "done" (fetch rows with get_query_result), "
         ],
         "type": "object",
       },
-      "name": "get_source_query_status",
+      "name": "get_composer_query_status",
       "outputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
@@ -11489,8 +11489,8 @@ exports[`MCP tool contracts > matches the shared MCP tool definition names snaps
   "get_query_result",
   "list_query_sources",
   "get_query_source_schema",
-  "run_source_queries",
-  "get_source_query_status",
+  "run_composer_queries",
+  "get_composer_query_status",
   "render_chart",
   "grep_fields",
   "get_metadata",

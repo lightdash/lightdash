@@ -103,17 +103,28 @@ its error carries upstream failures.
 ### MCP tools
 
 The same interface is exposed on the Lightdash MCP server
-(`packages/backend/src/ee/services/McpService/`) so agents can drive it:
+(`packages/backend/src/ee/services/McpService/`) so agents can drive it. A
+multi-source submission is a **composer query** (the product name, aligned
+with [composer-queries-agent-plan.md](composer-queries-agent-plan.md)); the
+submission/status tools use that vocabulary while source discovery keeps the
+"query source" vocabulary:
 
 | Tool | Wraps |
 | --- | --- |
 | `list_query_sources` | `GET /` |
 | `get_query_source_schema` | `GET /{sourceType}/schema` (same overview/search/detail modes, same pattern grammar as `grep_fields`) |
-| `run_source_queries` | `POST /queries` (submits immediately, no waiting) |
-| `get_source_query_status` | `GET /queries/status` (statuses mapped to the MCP polling vocabulary: running/done/error/cancelled/expired) |
+| `run_composer_queries` | `POST /queries` (submits immediately, no waiting) |
+| `get_composer_query_status` | `GET /queries/status` (statuses mapped to the MCP polling vocabulary: running/done/error/cancelled/expired) |
+
+The `runComposerQueries` tool definition (`defineTool`,
+`packages/common/src/ee/AiAgent/schemas/tools/toolQuerySourcesArgs.ts`) is
+the definition the agent-chat plan extends with `availability: ['agent']` —
+one contract for both runtimes, per-runtime execution (the agent tool
+sync-waits on the terminal node and writes a chart artifact; the MCP tool
+returns immediately and the client polls).
 
 Completed rows are fetched with the existing `get_query_result` tool, which
-accepts queries submitted by `run_source_queries` and serves them in the
+accepts queries submitted by `run_composer_queries` and serves them in the
 SQL-result shape (rows + columns) whatever their source. Tool registration is
 gated on the `multi-source-query` feature flag (so the tools stay out of
 `tools/list` elsewhere), and `QuerySourceService` re-checks the flag and

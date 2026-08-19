@@ -112,7 +112,7 @@ const sourceQuerySchema = z
 
 export const TOOL_LIST_QUERY_SOURCES_DESCRIPTION = `List the query sources registered for a project.
 
-A query source is anything that can scan a schema and run a query returning the standard table format behind a queryUuid: the semantic layer (metric queries), raw warehouse SQL, and the DuckDB compose engine over previous results. Every source supports the same operations: scan its schema with get_query_source_schema and submit queries with run_source_queries.
+A query source is anything that can scan a schema and run a query returning the standard table format behind a queryUuid: the semantic layer (metric queries), raw warehouse SQL, and the DuckDB compose engine over previous results. Every source supports the same operations: scan its schema with get_query_source_schema and submit queries with run_composer_queries.
 
 Requires the multi-source-query feature flag.`;
 
@@ -124,19 +124,19 @@ export const TOOL_GET_QUERY_SOURCE_SCHEMA_DESCRIPTION = `Scan the schema of one 
 
 The response's totalTables and note report how the result was reduced and what to call next.
 
-For the semanticLayer source, tables are explores and columns are field ids (use these ids as dimensions/metrics in run_source_queries); grep_fields and get_metadata search the same catalog with richer ranking (verified-chart usage, hints, fuzzy search) and their field ids are interchangeable with this source's column references. For the sql source, tables come from the warehouse catalog resolved for your credentials. The duckdb source has no schema of its own — its tables are the references given to each query, and a completed query result carries its own columns.
+For the semanticLayer source, tables are explores and columns are field ids (use these ids as dimensions/metrics in run_composer_queries); grep_fields and get_metadata search the same catalog with richer ranking (verified-chart usage, hints, fuzzy search) and their field ids are interchangeable with this source's column references. For the sql source, tables come from the warehouse catalog resolved for your credentials. The duckdb source has no schema of its own — its tables are the references given to each query, and a completed query result carries its own columns.
 
 Requires the multi-source-query feature flag.`;
 
-export const TOOL_RUN_SOURCE_QUERIES_DESCRIPTION = `Submit one or more source queries through the common multi-source query interface. Every query body is tagged by sourceType and every query returns a queryUuid immediately — this tool does not wait for execution.
+export const TOOL_RUN_COMPOSER_QUERIES_DESCRIPTION = `Submit a composer query: a multi-source pipeline of one or more source queries through the common query interface. Every query body is tagged by sourceType and every query returns a queryUuid immediately — this tool does not wait for execution.
 
 Queries reference each other's results by nodeId: a duckdb query's references expose other queries' results as tables, named by node id (array shorthand) or by alias (map form, which also accepts queryUuids of results from previous submissions). All queries start executing immediately; a query referencing still-running results waits inside its own execution and fails if a referenced query fails, so no orchestration is needed.
 
-Submit queries one at a time (interactive use — read a completed query's columns as the schema for your next step) or as a whole pipeline in one call; the two are equivalent. Poll submitted queries with get_source_query_status (polling only the terminal duckdb query is sufficient — its completion implies upstream completion and its error carries upstream failures), then fetch a completed query's rows with get_query_result. Results expire, so re-run upstream queries whose results have expired instead of referencing their old queryUuids.
+Submit queries one at a time (interactive use — read a completed query's columns as the schema for your next step) or as a whole pipeline in one call; the two are equivalent. Poll submitted queries with get_composer_query_status (polling only the terminal duckdb query is sufficient — its completion implies upstream completion and its error carries upstream failures), then fetch a completed query's rows with get_query_result. Results expire, so re-run upstream queries whose results have expired instead of referencing their old queryUuids.
 
 Requires the multi-source-query feature flag.`;
 
-export const TOOL_GET_SOURCE_QUERY_STATUS_DESCRIPTION = `Get the status of queries submitted with run_source_queries — the standard async query lifecycle plus the error message for failed queries.
+export const TOOL_GET_COMPOSER_QUERY_STATUS_DESCRIPTION = `Get the status of queries submitted with run_composer_queries — the standard async query lifecycle plus the error message for failed queries.
 
 Statuses: "running" (keep polling), "done" (fetch rows with get_query_result), "error", "cancelled", "expired". When polling a multi-query submission, polling only the terminal query is sufficient: its completion implies upstream completion, and its error carries upstream failures. Statuses are visible to the query creator only.`;
 
@@ -166,7 +166,7 @@ export const toolGetQuerySourceSchemaArgsSchema = createToolSchema()
     })
     .build();
 
-export const toolRunSourceQueriesArgsSchema = createToolSchema()
+export const toolRunComposerQueriesArgsSchema = createToolSchema()
     .extend({
         queries: z
             .array(sourceQuerySchema)
@@ -178,14 +178,14 @@ export const toolRunSourceQueriesArgsSchema = createToolSchema()
     })
     .build();
 
-export const toolGetSourceQueryStatusArgsSchema = createToolSchema()
+export const toolGetComposerQueryStatusArgsSchema = createToolSchema()
     .extend({
         queryUuids: z
             .array(z.string().uuid())
             .min(1)
             .max(50)
             .describe(
-                'Query UUIDs returned by run_source_queries to get statuses for.',
+                'Query UUIDs returned by run_composer_queries to get statuses for.',
             ),
     })
     .build();
@@ -196,11 +196,11 @@ export type ToolListQuerySourcesArgs = z.infer<
 export type ToolGetQuerySourceSchemaArgs = z.infer<
     typeof toolGetQuerySourceSchemaArgsSchema
 >;
-export type ToolRunSourceQueriesArgs = z.infer<
-    typeof toolRunSourceQueriesArgsSchema
+export type ToolRunComposerQueriesArgs = z.infer<
+    typeof toolRunComposerQueriesArgsSchema
 >;
-export type ToolGetSourceQueryStatusArgs = z.infer<
-    typeof toolGetSourceQueryStatusArgsSchema
+export type ToolGetComposerQueryStatusArgs = z.infer<
+    typeof toolGetComposerQueryStatusArgsSchema
 >;
 
 const toSortField = (sort: ToolSortField): SortField => ({
@@ -250,14 +250,14 @@ const toSourceQuery = (query: ToolSourceQuery): SourceQuery => {
     }
 };
 
-export const toolRunSourceQueriesArgsSchemaTransformed =
-    toolRunSourceQueriesArgsSchema.transform((data) => ({
+export const toolRunComposerQueriesArgsSchemaTransformed =
+    toolRunComposerQueriesArgsSchema.transform((data) => ({
         ...data,
         queries: data.queries.map(toSourceQuery),
     }));
 
-export type ToolRunSourceQueriesArgsTransformed = z.infer<
-    typeof toolRunSourceQueriesArgsSchemaTransformed
+export type ToolRunComposerQueriesArgsTransformed = z.infer<
+    typeof toolRunComposerQueriesArgsSchemaTransformed
 >;
 
 export const mcpListQuerySourcesStructuredOutputSchema = z.object({
@@ -305,11 +305,11 @@ export const mcpGetQuerySourceSchemaStructuredOutputSchema = z.object({
         ),
 });
 
-export const mcpRunSourceQueriesStructuredOutputSchema = z.object({
+export const mcpRunComposerQueriesStructuredOutputSchema = z.object({
     status: z
         .literal('submitted')
         .describe(
-            'All queries were submitted and are executing. Poll get_source_query_status.',
+            'All queries were submitted and are executing. Poll get_composer_query_status.',
         ),
     queries: z.array(
         z.object({
@@ -323,7 +323,7 @@ export const mcpRunSourceQueriesStructuredOutputSchema = z.object({
                 .string()
                 .uuid()
                 .describe(
-                    'Query UUID to poll with get_source_query_status and fetch with get_query_result.',
+                    'Query UUID to poll with get_composer_query_status and fetch with get_query_result.',
                 ),
         }),
     ),
@@ -331,10 +331,10 @@ export const mcpRunSourceQueriesStructuredOutputSchema = z.object({
         .number()
         .int()
         .positive()
-        .describe('Suggested delay before polling get_source_query_status.'),
+        .describe('Suggested delay before polling get_composer_query_status.'),
 });
 
-export const mcpGetSourceQueryStatusStructuredOutputSchema = z.object({
+export const mcpGetComposerQueryStatusStructuredOutputSchema = z.object({
     statuses: z.array(
         z.object({
             queryUuid: z.string().uuid(),
@@ -351,9 +351,9 @@ export const mcpGetSourceQueryStatusStructuredOutputSchema = z.object({
     ),
 });
 
-export type McpRunSourceQueriesStructuredOutput = z.infer<
-    typeof mcpRunSourceQueriesStructuredOutputSchema
+export type McpRunComposerQueriesStructuredOutput = z.infer<
+    typeof mcpRunComposerQueriesStructuredOutputSchema
 >;
-export type McpGetSourceQueryStatusStructuredOutput = z.infer<
-    typeof mcpGetSourceQueryStatusStructuredOutputSchema
+export type McpGetComposerQueryStatusStructuredOutput = z.infer<
+    typeof mcpGetComposerQueryStatusStructuredOutputSchema
 >;

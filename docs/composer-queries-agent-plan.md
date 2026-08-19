@@ -18,6 +18,13 @@ It aligns with the shipped execution seam (`executeAsyncComposeSqlQuery`, the
 - New agent tool `runComposerQueries` wrapping
   `QuerySourceService.executeSourceQueries` (service call, not HTTP), gated by
   the `multi-source-query` feature flag (`FeatureFlags.MultiSourceQuery`).
+  The MCP runtime of this tool already shipped (see
+  [multi-source-queries.md](multi-source-queries.md#mcp-tools)): the same
+  `defineTool` definition is registered on the MCP server as
+  `run_composer_queries`, submitting under the
+  `QueryExecutionContext.MCP_MULTI_SOURCE_QUERY` context (agent-scoped, like
+  `AI`). This plan's Phase 1 extends that definition to the agent runtime
+  instead of creating a second tool.
 - The tool submits with `context: QueryExecutionContext.AI`, so `sql` nodes
   inherit the project's agent SQL scope with no new enforcement code — the
   scope check keys on context inside `AsyncQueryService.executeAsyncSqlQuery`
@@ -62,23 +69,34 @@ artifact migration. Never ship a shape that is only `{ lastQueryUuid }`.
    union next to `AiSqlChartArtifactConfig`, plus an
    `isAiComposerChartArtifactConfig` guard mirroring
    `isAiSqlChartArtifactConfig`.
-2. **Tool input schema** — `src/ee/AiAgent/schemas/tools/toolComposerQueryArgs.ts`:
-   Zod union mirroring `SourceQuery` (discriminated on `sourceType`), plus the
-   tool-level fields (optional `title`/`description` for the artifact, like
-   `runSql`). Pin drift at compile time against the canonical TS types in
-   `src/types/querySources.ts` (`satisfies z.ZodType<...>` on each member).
-   Enforce the agent row-limit caps (`maxLimit` pattern from `runSql`) on
-   every node's `limit`. The tool description must teach the workflow: name
-   nodes with `nodeId`, reference them from `duckdb` SQL, referenced columns
-   are the upstream result's `ResultColumns`, prior turns' results are
-   referenced by `queryUuid` in the map form.
-3. **Tool definition** — `schemas/tools/toolDefinitions.ts`: `defineTool` as
-   `runComposerQueries`, `availability: ['agent', 'mcp']` (the MCP tool is the
-   plan's MCP surface item, free from the same definition). Register in all
-   three collections at the bottom of the file
-   (`AgentToolDefinitionsByName`, `agentToolDefinitionsByName`,
-   `builtInToolDefinitions`) and update the contract snapshot
+2. **Tool input schema** — ALREADY EXISTS: the `SourceQuery` Zod union
+   (discriminated on `sourceType`) shipped with the MCP tools in
+   `src/ee/AiAgent/schemas/tools/toolQuerySourcesArgs.ts`
+   (`toolRunComposerQueriesArgsSchema` +
+   `toolRunComposerQueriesArgsSchemaTransformed`, whose `toSourceQuery`
+   mapper returns `SourceQuery` — output-side drift is pinned at compile time
+   there; input-side `satisfies z.ZodType<SourceQuery>` will not hold because
+   the `semanticLayer` member deliberately takes the agent filters shape
+   (`filtersSchemaV2`, shared with `runQuery`) and transforms it to
+   metric-query `Filters`). Extend that file rather than creating
+   `toolComposerQueryArgs.ts`. Still to add for the agent runtime: the
+   tool-level `title`/`description` artifact fields (like `runSql`), the
+   agent row-limit caps (`maxLimit` pattern from `runSql`) on every node's
+   `limit`, and `terminalNodeId`. The existing description already teaches
+   the nodeId/references workflow; extend it with the artifact fields.
+3. **Tool definition** — ALREADY EXISTS as
+   `runComposerQueriesToolDefinition` in `schemas/tools/toolDefinitions.ts`
+   with `availability: ['mcp']` (MCP name `run_composer_queries`, registered
+   in `builtInToolDefinitions`, MCP contract snapshots updated). Extend it:
+   add `'agent'` to availability plus the `agent` config (outputSchema),
+   register in `AgentToolDefinitionsByName`/`agentToolDefinitionsByName`, and
+   update the agent contract snapshot
    (`packages/backend/src/ee/services/ai/tools/agentToolContracts.snapshot.test.ts`).
+   Use a runtime-aware description (`defineTool` accepts a
+   `ToolDescriptionContext` function): the MCP runtime returns immediately
+   and the client polls `get_composer_query_status`; the agent runtime
+   sync-waits on the terminal node and writes the artifact. The MCP
+   registration in `McpService.ts` stays as-is.
 
 ## Phase 2 — backend tool (`packages/backend/src/ee`)
 

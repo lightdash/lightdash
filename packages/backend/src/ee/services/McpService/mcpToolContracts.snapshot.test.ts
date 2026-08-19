@@ -265,8 +265,8 @@ describe('MCP tool contracts', () => {
         const multiSourceToolNames = [
             McpToolName.LIST_QUERY_SOURCES,
             McpToolName.GET_QUERY_SOURCE_SCHEMA,
-            McpToolName.RUN_SOURCE_QUERIES,
-            McpToolName.GET_SOURCE_QUERY_STATUS,
+            McpToolName.RUN_COMPOSER_QUERIES,
+            McpToolName.GET_COMPOSER_QUERY_STATUS,
         ];
 
         mockRegisteredMcpTools.length = 0;

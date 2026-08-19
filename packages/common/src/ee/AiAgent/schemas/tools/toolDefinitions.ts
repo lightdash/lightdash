@@ -226,19 +226,19 @@ import {
     mcpRunSqlStructuredOutputSchema,
 } from './toolQueryResultSchemas';
 import {
+    mcpGetComposerQueryStatusStructuredOutputSchema,
     mcpGetQuerySourceSchemaStructuredOutputSchema,
-    mcpGetSourceQueryStatusStructuredOutputSchema,
     mcpListQuerySourcesStructuredOutputSchema,
-    mcpRunSourceQueriesStructuredOutputSchema,
+    mcpRunComposerQueriesStructuredOutputSchema,
+    TOOL_GET_COMPOSER_QUERY_STATUS_DESCRIPTION,
     TOOL_GET_QUERY_SOURCE_SCHEMA_DESCRIPTION,
-    TOOL_GET_SOURCE_QUERY_STATUS_DESCRIPTION,
     TOOL_LIST_QUERY_SOURCES_DESCRIPTION,
-    TOOL_RUN_SOURCE_QUERIES_DESCRIPTION,
+    TOOL_RUN_COMPOSER_QUERIES_DESCRIPTION,
+    toolGetComposerQueryStatusArgsSchema,
     toolGetQuerySourceSchemaArgsSchema,
-    toolGetSourceQueryStatusArgsSchema,
     toolListQuerySourcesArgsSchema,
-    toolRunSourceQueriesArgsSchema,
-    toolRunSourceQueriesArgsSchemaTransformed,
+    toolRunComposerQueriesArgsSchema,
+    toolRunComposerQueriesArgsSchemaTransformed,
 } from './toolQuerySourcesArgs';
 import {
     TOOL_READ_CONTENT_DESCRIPTION,
@@ -653,40 +653,41 @@ export const getQuerySourceSchemaToolDefinition: ToolDefinitionWithMcpOutput<
     },
 });
 
-export const runSourceQueriesToolDefinition: ToolDefinitionWithMcpOutput<
-    'runSourceQueries',
-    typeof toolRunSourceQueriesArgsSchema,
-    typeof toolRunSourceQueriesArgsSchemaTransformed,
+export const runComposerQueriesToolDefinition: ToolDefinitionWithMcpOutput<
+    'runComposerQueries',
+    typeof toolRunComposerQueriesArgsSchema,
+    typeof toolRunComposerQueriesArgsSchemaTransformed,
     undefined,
-    typeof mcpRunSourceQueriesStructuredOutputSchema
+    typeof mcpRunComposerQueriesStructuredOutputSchema
 > = defineTool({
-    name: 'runSourceQueries',
+    name: 'runComposerQueries',
     title: 'Run source queries',
-    description: TOOL_RUN_SOURCE_QUERIES_DESCRIPTION,
+    description: TOOL_RUN_COMPOSER_QUERIES_DESCRIPTION,
     availability: ['mcp'],
-    inputSchema: toolRunSourceQueriesArgsSchema,
-    inputSchemaTransformed: toolRunSourceQueriesArgsSchemaTransformed,
+    inputSchema: toolRunComposerQueriesArgsSchema,
+    inputSchemaTransformed: toolRunComposerQueriesArgsSchemaTransformed,
     mcp: {
         annotations: readOnlyAnnotations,
-        structuredContentSchema: mcpRunSourceQueriesStructuredOutputSchema,
+        structuredContentSchema: mcpRunComposerQueriesStructuredOutputSchema,
     },
 });
 
-export const getSourceQueryStatusToolDefinition: ToolDefinitionWithMcpOutput<
-    'getSourceQueryStatus',
-    typeof toolGetSourceQueryStatusArgsSchema,
-    typeof toolGetSourceQueryStatusArgsSchema,
+export const getComposerQueryStatusToolDefinition: ToolDefinitionWithMcpOutput<
+    'getComposerQueryStatus',
+    typeof toolGetComposerQueryStatusArgsSchema,
+    typeof toolGetComposerQueryStatusArgsSchema,
     undefined,
-    typeof mcpGetSourceQueryStatusStructuredOutputSchema
+    typeof mcpGetComposerQueryStatusStructuredOutputSchema
 > = defineTool({
-    name: 'getSourceQueryStatus',
+    name: 'getComposerQueryStatus',
     title: 'Get source query status',
-    description: TOOL_GET_SOURCE_QUERY_STATUS_DESCRIPTION,
+    description: TOOL_GET_COMPOSER_QUERY_STATUS_DESCRIPTION,
     availability: ['mcp'],
-    inputSchema: toolGetSourceQueryStatusArgsSchema,
+    inputSchema: toolGetComposerQueryStatusArgsSchema,
     mcp: {
         annotations: readOnlyAnnotations,
-        structuredContentSchema: mcpGetSourceQueryStatusStructuredOutputSchema,
+        structuredContentSchema:
+            mcpGetComposerQueryStatusStructuredOutputSchema,
     },
 });
 
@@ -1824,8 +1825,8 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     getQueryResultToolDefinition,
     listQuerySourcesToolDefinition,
     getQuerySourceSchemaToolDefinition,
-    runSourceQueriesToolDefinition,
-    getSourceQueryStatusToolDefinition,
+    runComposerQueriesToolDefinition,
+    getComposerQueryStatusToolDefinition,
     renderChartToolDefinition,
     discoverFieldsToolDefinition,
     grepFieldsToolDefinition,

@@ -185,11 +185,11 @@ describe('defineTool', () => {
             .sort();
 
         expect(structuredMcpToolNames).toEqual([
+            'get_composer_query_status',
             'get_context',
             'get_metadata',
             'get_query_result',
             'get_query_source_schema',
-            'get_source_query_status',
             'grep_fields',
             'list_query_sources',
             'list_skills',
@@ -198,8 +198,8 @@ describe('defineTool', () => {
             'render_chart',
             'route_agent',
             'run_ai_writeback',
+            'run_composer_queries',
             'run_metric_query',
-            'run_source_queries',
             'run_sql',
         ]);
     });
