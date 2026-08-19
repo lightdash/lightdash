@@ -7,6 +7,7 @@ import {
 } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useParams } from 'react-router';
+import { validate as isUuidString } from 'uuid';
 import { useOrganization } from './organization/useOrganization';
 import { useProject } from './useProject';
 import { useProjects } from './useProjects';
@@ -110,6 +111,9 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
     refetchOnMount: boolean;
 }) => {
     const params = useParams<{ projectUuid?: string }>();
+    const paramProjectUuid = isUuidString(params.projectUuid ?? '')
+        ? params.projectUuid
+        : undefined;
     const { data: lastProjectUuid, isFetched: isLastProjectUuidFetched } =
         useActiveProject();
     const { mutate } = useUpdateActiveProjectMutation();
@@ -123,12 +127,12 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
 
     // Priority 1: Project UUID from URL params
     const { data: paramProject, isInitialLoading: isLoadingParamProject } =
-        useProject(params.projectUuid);
+        useProject(paramProjectUuid);
 
     // Priority 2: Last used project from localStorage
     // Only fetch if no param project and we have a lastProjectUuid
     const shouldFetchLastProject =
-        isLoggedIn && !params.projectUuid && !!lastProjectUuid;
+        isLoggedIn && !paramProjectUuid && !!lastProjectUuid;
     const { data: lastProject, isInitialLoading: isLoadingLastProject } =
         useProject(shouldFetchLastProject ? lastProjectUuid : undefined, {
             onError: () => {
@@ -143,7 +147,7 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
     // Only fetch if no param project, no last project, and org has a default
     const shouldFetchDefaultProject =
         isLoggedIn &&
-        !params.projectUuid &&
+        !paramProjectUuid &&
         isLastProjectUuidFetched &&
         !lastProject &&
         !!organization?.defaultProjectUuid;
@@ -159,7 +163,7 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
     // Try to fetch fallback since the last project might have been a preview that was deleted
     const shouldFetchFallbackProjects =
         isLoggedIn &&
-        !params.projectUuid &&
+        !paramProjectUuid &&
         isLastProjectUuidFetched &&
         !lastProject &&
         !isLoadingOrg &&
@@ -186,12 +190,12 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
 
     const isLoading =
         // Still loading if we haven't checked localStorage yet (unless we have URL param)
-        (!params.projectUuid && !isLastProjectUuidFetched) ||
+        (!paramProjectUuid && !isLastProjectUuidFetched) ||
         isLoadingParamProject ||
         (shouldFetchLastProject && isLoadingLastProject) ||
         (shouldFetchDefaultProject && isLoadingDefaultProject) ||
         (shouldFetchFallbackProjects && isLoadingProjects) ||
-        (!params.projectUuid && !lastProjectUuid && isLoadingOrg);
+        (!paramProjectUuid && !lastProjectUuid && isLoadingOrg);
 
     // Determine the active project UUID
     const activeProjectUuid =
@@ -208,8 +212,7 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
             fallbackProject?.projectUuid;
 
         const hasValidLastProject = !!lastProject?.projectUuid;
-        const shouldPersistProject =
-            !!params.projectUuid || !hasValidLastProject;
+        const shouldPersistProject = !!paramProjectUuid || !hasValidLastProject;
 
         if (
             !isLoading &&
@@ -229,7 +232,7 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
         lastProjectUuid,
         mutate,
         paramProject?.projectUuid,
-        params.projectUuid,
+        paramProjectUuid,
     ]);
 
     return {
