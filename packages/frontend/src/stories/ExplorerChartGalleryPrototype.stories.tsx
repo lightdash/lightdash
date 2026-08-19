@@ -22,7 +22,9 @@ import {
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import {
     IconAdjustmentsHorizontal,
+    IconAlertCircle,
     IconArrowLeft,
+    IconArrowRight,
     IconChartArea,
     IconChartBar,
     IconChartDonut,
@@ -34,16 +36,20 @@ import {
     IconChevronLeft,
     IconChevronRight,
     IconCode,
+    IconCircleCheck,
     IconDeviceFloppy,
+    IconEdit,
     IconFilter,
     IconGauge,
     IconGitMerge,
     IconMap,
+    IconMessageCircle,
     IconPlayerPlay,
     IconPlus,
     IconRefresh,
     IconSearch,
     IconSettings,
+    IconSparkles,
     IconSquareNumber1,
     IconTable,
     IconX,
@@ -53,8 +59,9 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import MantineIcon from '../components/common/MantineIcon';
 import classes from './ExplorerChartGalleryPrototype.module.css';
 
-// PROTOTYPE — three Explorer chart-gallery interactions, switchable through
-// `?prototypeVariant=A|B|C`. Throw this story away after a direction is chosen.
+// PROTOTYPE — three complete Explorer -> embedded chart builder -> Explorer
+// interactions, switchable through `?prototypeVariant=A|B|C`. Throw this story
+// away after the authoring layout and state model are chosen.
 
 type QueryRow = {
     tier: 'Very high' | 'High' | 'Low';
@@ -63,6 +70,8 @@ type QueryRow = {
 };
 
 type PrototypeVariant = 'A' | 'B' | 'C';
+type ExplorerMode = 'explore' | 'authoring';
+type BuildStage = 'brief' | 'clarify' | 'building' | 'ready';
 type ChartPreviewKind =
     | 'bar'
     | 'horizontal'
@@ -267,6 +276,15 @@ const CHART_TYPES: ChartTypeOption[] = [
         source: 'project',
         kind: 'scorecard',
         icon: IconAdjustmentsHorizontal,
+    },
+    {
+        id: 'generated-waterfall',
+        label: 'Event change waterfall',
+        description: 'Generated waterfall · 3 fields',
+        group: 'Project',
+        source: 'project',
+        kind: 'bar',
+        icon: IconChartBar,
     },
 ];
 
@@ -697,7 +715,21 @@ const ChartPreview = ({
     );
 };
 
-const FieldsSidebar = () => (
+const FieldsSidebar = ({
+    extraFieldSelected,
+    queryDirty,
+    dataRevision,
+    authoring,
+    onToggleExtraField,
+    onRunQuery,
+}: {
+    extraFieldSelected: boolean;
+    queryDirty: boolean;
+    dataRevision: number;
+    authoring: boolean;
+    onToggleExtraField: () => void;
+    onRunQuery: () => void;
+}) => (
     <Box className={`${classes.sidebar} ${classes.leftSidebar}`}>
         <Group className={classes.sidebarHeader} justify="space-between">
             <Text fw={600}>Events</Text>
@@ -718,13 +750,16 @@ const FieldsSidebar = () => (
                             SELECTED FIELDS
                         </Text>
                         <Badge variant="light" size="xs">
-                            3
+                            {extraFieldSelected ? 4 : 3}
                         </Badge>
                     </Group>
                     {[
                         ['Abc', 'Event tier', 'blue'],
                         ['Abc', 'Event', 'blue'],
                         ['123', 'Count', 'orange'],
+                        ...(extraFieldSelected
+                            ? [['📅', 'Event date', 'grape']]
+                            : []),
                     ].map(([type, label, color]) => (
                         <Group
                             key={label}
@@ -747,14 +782,26 @@ const FieldsSidebar = () => (
                     <Text size="xs" fw={600} c="dimmed">
                         DIMENSIONS
                     </Text>
-                    {['Event source', 'Event date', 'User id'].map((field) => (
-                        <Group key={field} justify="space-between" px="xs">
-                            <Text size="sm">{field}</Text>
-                            <Button size="compact-xs" variant="subtle">
-                                +
-                            </Button>
-                        </Group>
-                    ))}
+                    {['Event source', 'Event date', 'User id'].map((field) => {
+                        const isInteractive = field === 'Event date';
+                        const isSelected = isInteractive && extraFieldSelected;
+                        return (
+                            <Group key={field} justify="space-between" px="xs">
+                                <Text size="sm">{field}</Text>
+                                <Button
+                                    size="compact-xs"
+                                    variant={isSelected ? 'light' : 'subtle'}
+                                    onClick={
+                                        isInteractive
+                                            ? onToggleExtraField
+                                            : undefined
+                                    }
+                                >
+                                    {isSelected ? 'Remove' : '+'}
+                                </Button>
+                            </Group>
+                        );
+                    })}
                 </Stack>
                 <Stack gap="xs">
                     <Text size="xs" fw={600} c="dimmed">
@@ -771,6 +818,46 @@ const FieldsSidebar = () => (
                         ),
                     )}
                 </Stack>
+                <Paper
+                    withBorder
+                    radius="md"
+                    p="sm"
+                    className={queryDirty ? classes.queryChanged : undefined}
+                >
+                    <Stack gap="xs">
+                        <Group justify="space-between">
+                            <Text size="xs" fw={600}>
+                                QUERY CONTEXT
+                            </Text>
+                            <Badge
+                                size="xs"
+                                color={queryDirty ? 'yellow' : 'green'}
+                                variant="light"
+                            >
+                                {queryDirty ? 'Changed' : `Run ${dataRevision}`}
+                            </Badge>
+                        </Group>
+                        <Text size="xs" c="dimmed">
+                            {queryDirty
+                                ? 'Run the query to refresh the chart and builder preview.'
+                                : authoring
+                                  ? 'The builder is using these executed results.'
+                                  : 'Chart previews use the latest executed results.'}
+                        </Text>
+                        <Button
+                            fullWidth
+                            size="xs"
+                            color={queryDirty ? 'blue' : 'gray'}
+                            variant={queryDirty ? 'filled' : 'default'}
+                            leftSection={
+                                <MantineIcon icon={IconPlayerPlay} size={14} />
+                            }
+                            onClick={onRunQuery}
+                        >
+                            {queryDirty ? 'Run updated query' : 'Run query'}
+                        </Button>
+                    </Stack>
+                </Paper>
             </Stack>
         </ScrollArea>
     </Box>
@@ -782,12 +869,14 @@ const ConfigControls = ({
     setPalette,
     showLabels,
     setShowLabels,
+    onEditProjectChart,
 }: {
     selectedChart: ChartTypeOption;
     palette: Palette;
     setPalette: (palette: Palette) => void;
     showLabels: boolean;
     setShowLabels: (show: boolean) => void;
+    onEditProjectChart?: () => void;
 }) => {
     const mappingLabels =
         selectedChart.id === 'volume-scorecard'
@@ -892,8 +981,15 @@ const ConfigControls = ({
                                 {selectedChart.description}
                             </Text>
                         </Stack>
-                        <Button size="compact-xs" variant="subtle">
-                            Edit ↗
+                        <Button
+                            size="compact-xs"
+                            variant="subtle"
+                            leftSection={
+                                <MantineIcon icon={IconEdit} size={13} />
+                            }
+                            onClick={onEditProjectChart}
+                        >
+                            Edit
                         </Button>
                     </Group>
                 </Paper>
@@ -1133,6 +1229,8 @@ type RightSidebarProps = {
     setPalette: (palette: Palette) => void;
     showLabels: boolean;
     setShowLabels: (show: boolean) => void;
+    onCreateChartType: () => void;
+    onEditProjectChart: () => void;
 };
 
 const RightSidebarVariantA = ({
@@ -1143,6 +1241,8 @@ const RightSidebarVariantA = ({
     setPalette,
     showLabels,
     setShowLabels,
+    onCreateChartType,
+    onEditProjectChart,
 }: RightSidebarProps) => {
     const [search, setSearch] = useState('');
     const [group, setGroup] = useState<'All' | ChartGroup>('All');
@@ -1202,6 +1302,7 @@ const RightSidebarVariantA = ({
                     variant="subtle"
                     size="xs"
                     leftSection={<MantineIcon icon={IconPlus} />}
+                    onClick={onCreateChartType}
                 >
                     Create new chart type
                 </Button>
@@ -1215,6 +1316,7 @@ const RightSidebarVariantA = ({
                     setPalette={setPalette}
                     showLabels={showLabels}
                     setShowLabels={setShowLabels}
+                    onEditProjectChart={onEditProjectChart}
                 />
                 <Divider />
                 <PrototypeState
@@ -1236,6 +1338,8 @@ const RightSidebarVariantB = ({
     setPalette,
     showLabels,
     setShowLabels,
+    onCreateChartType,
+    onEditProjectChart,
 }: RightSidebarProps) => {
     const [step, setStep] = useState<'choose' | 'configure'>('choose');
 
@@ -1320,6 +1424,7 @@ const RightSidebarVariantB = ({
                         <Button
                             variant="default"
                             leftSection={<MantineIcon icon={IconPlus} />}
+                            onClick={onCreateChartType}
                         >
                             Create new chart type
                         </Button>
@@ -1366,6 +1471,7 @@ const RightSidebarVariantB = ({
                             setPalette={setPalette}
                             showLabels={showLabels}
                             setShowLabels={setShowLabels}
+                            onEditProjectChart={onEditProjectChart}
                         />
                         <Divider />
                         <PrototypeState
@@ -1389,6 +1495,8 @@ const RightSidebarVariantC = ({
     setPalette,
     showLabels,
     setShowLabels,
+    onCreateChartType,
+    onEditProjectChart,
 }: RightSidebarProps) => (
     <Box className={classes.railLayout}>
         <Stack className={classes.typeRail} gap={4}>
@@ -1444,6 +1552,7 @@ const RightSidebarVariantC = ({
                 size="compact-xs"
                 variant="subtle"
                 leftSection={<MantineIcon icon={IconPlus} />}
+                onClick={onCreateChartType}
             >
                 New
             </Button>
@@ -1484,6 +1593,7 @@ const RightSidebarVariantC = ({
                     setPalette={setPalette}
                     showLabels={showLabels}
                     setShowLabels={setShowLabels}
+                    onEditProjectChart={onEditProjectChart}
                 />
                 <Divider />
                 <PrototypeState
@@ -1517,6 +1627,416 @@ const RightSidebar = (props: RightSidebarProps) => (
         {props.variant === 'C' && <RightSidebarVariantC {...props} />}
     </Box>
 );
+
+type EmbeddedBuilderProps = {
+    variant: PrototypeVariant;
+    buildStage: BuildStage;
+    prompt: string;
+    queryDirty: boolean;
+    dataRevision: number;
+    extraFieldSelected: boolean;
+    executedExtraFieldSelected: boolean;
+    editingChart: boolean;
+    onPromptChange: (value: string) => void;
+    onAdvance: () => void;
+    onCancel: () => void;
+    onApply: () => void;
+    onRunQuery: () => void;
+};
+
+const BUILD_STAGE_LABELS: Record<BuildStage, string> = {
+    brief: 'Describe',
+    clarify: 'Clarify',
+    building: 'Build',
+    ready: 'Ready',
+};
+
+const BuilderPreview = ({
+    buildStage,
+    queryDirty,
+    dataRevision,
+    onRunQuery,
+}: Pick<
+    EmbeddedBuilderProps,
+    'buildStage' | 'queryDirty' | 'dataRevision' | 'onRunQuery'
+>) => (
+    <Stack className={classes.builderPreviewPanel} gap="md">
+        <Group justify="space-between">
+            <Stack gap={1}>
+                <Text fw={650}>Event change waterfall</Text>
+                <Text size="xs" c="dimmed">
+                    Previewing executed query · Run {dataRevision} · 10 rows
+                </Text>
+            </Stack>
+            <Badge
+                variant="light"
+                color={buildStage === 'ready' ? 'green' : 'violet'}
+                leftSection={
+                    <MantineIcon
+                        icon={
+                            buildStage === 'ready'
+                                ? IconCircleCheck
+                                : IconSparkles
+                        }
+                        size={12}
+                    />
+                }
+            >
+                {buildStage === 'ready' ? 'Ready to use' : 'Draft preview'}
+            </Badge>
+        </Group>
+
+        {queryDirty && (
+            <Paper
+                withBorder
+                radius="md"
+                p="sm"
+                className={classes.staleResultsNotice}
+            >
+                <Group justify="space-between" wrap="nowrap">
+                    <Group gap="xs" wrap="nowrap">
+                        <MantineIcon icon={IconAlertCircle} color="yellow" />
+                        <Stack gap={1}>
+                            <Text size="sm" fw={600}>
+                                Query fields changed
+                            </Text>
+                            <Text size="xs" c="dimmed">
+                                This preview still uses Run {dataRevision}.
+                            </Text>
+                        </Stack>
+                    </Group>
+                    <Button size="xs" onClick={onRunQuery}>
+                        Run updated query
+                    </Button>
+                </Group>
+            </Paper>
+        )}
+
+        <Paper withBorder radius="lg" className={classes.builderChartCanvas}>
+            <ChartPreview kind="bar" palette="grape" showLabels />
+            {buildStage === 'building' && (
+                <Box className={classes.buildingOverlay}>
+                    <Stack align="center" gap="xs">
+                        <MantineIcon
+                            icon={IconSparkles}
+                            size={34}
+                            color="violet"
+                        />
+                        <Text fw={650}>Building your chart type…</Text>
+                        <Text size="xs" c="dimmed">
+                            Generating components and checking field mappings
+                        </Text>
+                    </Stack>
+                </Box>
+            )}
+        </Paper>
+
+        <Group grow>
+            <Paper withBorder radius="md" p="sm">
+                <Text size="xs" c="dimmed">
+                    CATEGORY
+                </Text>
+                <Text size="sm" fw={600}>
+                    Event tier
+                </Text>
+            </Paper>
+            <Paper withBorder radius="md" p="sm">
+                <Text size="xs" c="dimmed">
+                    CHANGE
+                </Text>
+                <Text size="sm" fw={600}>
+                    Count
+                </Text>
+            </Paper>
+            <Paper withBorder radius="md" p="sm">
+                <Text size="xs" c="dimmed">
+                    BREAKDOWN
+                </Text>
+                <Text size="sm" fw={600}>
+                    Event
+                </Text>
+            </Paper>
+        </Group>
+    </Stack>
+);
+
+const BuilderConversation = ({
+    buildStage,
+    prompt,
+    queryDirty,
+    dataRevision,
+    extraFieldSelected,
+    executedExtraFieldSelected,
+    editingChart,
+    onPromptChange,
+    onAdvance,
+}: Omit<
+    EmbeddedBuilderProps,
+    'variant' | 'onCancel' | 'onApply' | 'onRunQuery'
+>) => {
+    const actionLabel: Record<BuildStage, string> = {
+        brief: 'Continue',
+        clarify: 'Build chart type',
+        building: 'Finish simulated build',
+        ready: 'Add another instruction',
+    };
+
+    return (
+        <Stack className={classes.builderConversation} gap="md">
+            <Group gap="xs">
+                <MantineIcon icon={IconMessageCircle} color="violet" />
+                <Stack gap={0}>
+                    <Text fw={650}>Chart type builder</Text>
+                    <Text size="xs" c="dimmed">
+                        Using the latest executed Explorer results
+                    </Text>
+                </Stack>
+            </Group>
+
+            <Paper withBorder radius="md" p="sm">
+                <Text size="xs" c="dimmed" mb={4}>
+                    EXPLORER CONTEXT
+                </Text>
+                <Group gap="xs">
+                    <Badge size="xs" variant="light">
+                        Run {dataRevision}
+                    </Badge>
+                    <Badge size="xs" variant="light">
+                        {executedExtraFieldSelected ? 4 : 3} executed fields
+                    </Badge>
+                    <Badge size="xs" variant="light">
+                        10 rows
+                    </Badge>
+                    {queryDirty && (
+                        <Badge size="xs" color="yellow" variant="light">
+                            Draft has {extraFieldSelected ? 4 : 3}
+                        </Badge>
+                    )}
+                </Group>
+            </Paper>
+
+            <Box className={classes.conversationScroll}>
+                <Stack gap="sm">
+                    <Paper radius="md" p="sm" className={classes.agentMessage}>
+                        <Text size="sm">
+                            {editingChart
+                                ? 'Tell me what you want to change about Event tier pulse.'
+                                : 'Describe the reusable chart type you want to build from these results.'}
+                        </Text>
+                    </Paper>
+
+                    <Paper radius="md" p="sm" className={classes.userMessage}>
+                        <Text size="sm">{prompt}</Text>
+                    </Paper>
+
+                    {buildStage !== 'brief' && (
+                        <Paper
+                            radius="md"
+                            p="sm"
+                            className={classes.agentMessage}
+                        >
+                            <Stack gap="xs">
+                                <Text size="sm">
+                                    Should increases and decreases use different
+                                    colors, and should the total appear at the
+                                    end?
+                                </Text>
+                                <Group grow>
+                                    <Button size="xs" variant="default">
+                                        Different colors
+                                    </Button>
+                                    <Button size="xs" variant="default">
+                                        Show final total
+                                    </Button>
+                                </Group>
+                            </Stack>
+                        </Paper>
+                    )}
+
+                    {(buildStage === 'building' || buildStage === 'ready') && (
+                        <Paper
+                            radius="md"
+                            p="sm"
+                            className={classes.agentMessage}
+                        >
+                            <Stack gap={6}>
+                                {[
+                                    'Read the executed query fields',
+                                    'Mapped category, change, and breakdown',
+                                    'Generated responsive waterfall layout',
+                                ].map((item) => (
+                                    <Group key={item} gap="xs" wrap="nowrap">
+                                        <MantineIcon
+                                            icon={IconCircleCheck}
+                                            color="green"
+                                            size={14}
+                                        />
+                                        <Text size="xs">{item}</Text>
+                                    </Group>
+                                ))}
+                            </Stack>
+                        </Paper>
+                    )}
+
+                    {buildStage === 'ready' && (
+                        <Paper
+                            withBorder
+                            radius="md"
+                            p="sm"
+                            className={classes.readyMessage}
+                        >
+                            <Group gap="xs" wrap="nowrap">
+                                <MantineIcon
+                                    icon={IconCircleCheck}
+                                    color="green"
+                                />
+                                <Stack gap={1}>
+                                    <Text size="sm" fw={650}>
+                                        Event change waterfall is ready
+                                    </Text>
+                                    <Text size="xs" c="dimmed">
+                                        Use it to return to this exact Explorer
+                                        query with the new chart selected.
+                                    </Text>
+                                </Stack>
+                            </Group>
+                        </Paper>
+                    )}
+                </Stack>
+            </Box>
+
+            {buildStage === 'brief' && (
+                <Textarea
+                    label="Your brief"
+                    minRows={4}
+                    value={prompt}
+                    onChange={(event) =>
+                        onPromptChange(event.currentTarget.value)
+                    }
+                />
+            )}
+
+            <Button
+                fullWidth
+                rightSection={<MantineIcon icon={IconArrowRight} size={14} />}
+                onClick={onAdvance}
+                variant={buildStage === 'ready' ? 'default' : 'filled'}
+            >
+                {actionLabel[buildStage]}
+            </Button>
+        </Stack>
+    );
+};
+
+const BuilderHeader = ({
+    buildStage,
+    editingChart,
+    onCancel,
+    onApply,
+}: Pick<
+    EmbeddedBuilderProps,
+    'buildStage' | 'editingChart' | 'onCancel' | 'onApply'
+>) => (
+    <Group className={classes.builderHeader} justify="space-between">
+        <Group gap="sm">
+            <Button
+                variant="subtle"
+                color="gray"
+                size="xs"
+                leftSection={<MantineIcon icon={IconArrowLeft} size={14} />}
+                onClick={onCancel}
+            >
+                Back to Explorer
+            </Button>
+            <Divider orientation="vertical" />
+            <Stack gap={0}>
+                <Text size="sm" fw={650}>
+                    {editingChart ? 'Edit chart type' : 'New chart type'}
+                </Text>
+                <Text size="xs" c="dimmed">
+                    Explorer remains active
+                </Text>
+            </Stack>
+        </Group>
+        <Group gap="xs">
+            {(Object.keys(BUILD_STAGE_LABELS) as BuildStage[]).map((stage) => (
+                <Badge
+                    key={stage}
+                    size="sm"
+                    variant={stage === buildStage ? 'filled' : 'light'}
+                    color={stage === buildStage ? 'violet' : 'gray'}
+                >
+                    {BUILD_STAGE_LABELS[stage]}
+                </Badge>
+            ))}
+            <Button
+                size="xs"
+                color="green"
+                disabled={buildStage !== 'ready'}
+                leftSection={<MantineIcon icon={IconCircleCheck} size={14} />}
+                onClick={onApply}
+            >
+                Use this chart
+            </Button>
+        </Group>
+    </Group>
+);
+
+const EmbeddedBuilderWorkspace = (props: EmbeddedBuilderProps) => {
+    const conversation = <BuilderConversation {...props} />;
+    const preview = <BuilderPreview {...props} />;
+
+    return (
+        <Box className={classes.embeddedBuilder}>
+            <BuilderHeader {...props} />
+            {props.variant === 'A' && (
+                <Box className={classes.builderSplitA}>
+                    {preview}
+                    {conversation}
+                </Box>
+            )}
+            {props.variant === 'B' && (
+                <Stack className={classes.builderCanvasB} gap="md">
+                    {preview}
+                    <Paper
+                        withBorder
+                        radius="lg"
+                        className={classes.builderDockB}
+                    >
+                        {conversation}
+                    </Paper>
+                </Stack>
+            )}
+            {props.variant === 'C' && (
+                <Box className={classes.builderSplitC}>
+                    {conversation}
+                    {preview}
+                </Box>
+            )}
+            <Code block className={classes.authoringState}>
+                {JSON.stringify(
+                    {
+                        mode: 'authoring',
+                        variant: props.variant,
+                        buildStage: props.buildStage,
+                        query: {
+                            executedRevision: props.dataRevision,
+                            draftChanged: props.queryDirty,
+                            selectedFields: props.extraFieldSelected ? 4 : 3,
+                            executedFields: props.executedExtraFieldSelected
+                                ? 4
+                                : 3,
+                        },
+                        previousChart: 'event-tier-pulse',
+                        draftChart: 'generated-waterfall',
+                    },
+                    null,
+                    2,
+                )}
+            </Code>
+        </Box>
+    );
+};
 
 const ResultsTable = () => (
     <ScrollArea>
@@ -1563,10 +2083,16 @@ const ExplorerMain = ({
     selectedChart,
     palette,
     showLabels,
+    queryDirty,
+    dataRevision,
+    onRunQuery,
 }: {
     selectedChart: ChartTypeOption;
     palette: Palette;
     showLabels: boolean;
+    queryDirty: boolean;
+    dataRevision: number;
+    onRunQuery: () => void;
 }) => (
     <Box className={classes.main}>
         <Stack gap="md">
@@ -1584,8 +2110,11 @@ const ExplorerMain = ({
                         size="xs"
                         leftSection={<MantineIcon icon={IconPlayerPlay} />}
                         rightSection={<MantineIcon icon={IconChevronDown} />}
+                        onClick={onRunQuery}
                     >
-                        Run query (500)
+                        {queryDirty
+                            ? 'Run updated query'
+                            : `Run query · ${dataRevision}`}
                     </Button>
                     <Button
                         variant="default"
@@ -1616,9 +2145,11 @@ const ExplorerMain = ({
                         <Text size="sm" fw={600}>
                             Chart
                         </Text>
-                        <Badge size="xs" variant="outline" color="yellow">
-                            Results may be incorrect
-                        </Badge>
+                        {queryDirty && (
+                            <Badge size="xs" variant="outline" color="yellow">
+                                Results are stale
+                            </Badge>
+                        )}
                         {selectedChart.source !== 'standard' && (
                             <Badge
                                 size="xs"
@@ -1685,9 +2216,9 @@ const ExplorerMain = ({
 );
 
 const VARIANT_LABELS: Record<PrototypeVariant, string> = {
-    A: 'Gallery + inline config',
-    B: 'Choose, then configure',
-    C: 'Type rail + live inspector',
+    A: 'Preview + conversation split',
+    B: 'Canvas + conversation dock',
+    C: 'Conversation + studio split',
 };
 
 const PrototypeSwitcher = ({
@@ -1768,6 +2299,19 @@ const ExplorerChartGalleryPrototype = ({
     const [selectedId, setSelectedId] = useState('event-tier-pulse');
     const [palette, setPalette] = useState<Palette>('navy');
     const [showLabels, setShowLabels] = useState(true);
+    const [mode, setMode] = useState<ExplorerMode>('explore');
+    const [buildStage, setBuildStage] = useState<BuildStage>('brief');
+    const [prompt, setPrompt] = useState(
+        'Build a waterfall chart that shows how event volume changes by tier, broken down by event.',
+    );
+    const [queryDirty, setQueryDirty] = useState(false);
+    const [dataRevision, setDataRevision] = useState(1);
+    const [extraFieldSelected, setExtraFieldSelected] = useState(false);
+    const [executedExtraFieldSelected, setExecutedExtraFieldSelected] =
+        useState(false);
+    const [previousSelectedId, setPreviousSelectedId] =
+        useState('event-tier-pulse');
+    const [editingChart, setEditingChart] = useState(false);
 
     useEffect(() => setFlagEnabled(featureFlagEnabled), [featureFlagEnabled]);
 
@@ -1781,6 +2325,47 @@ const ExplorerChartGalleryPrototype = ({
         writeVariant(nextVariant);
     };
 
+    const beginAuthoring = (editing: boolean) => {
+        setPreviousSelectedId(selectedId);
+        setEditingChart(editing);
+        setBuildStage('brief');
+        setMode('authoring');
+    };
+
+    const cancelAuthoring = () => {
+        setSelectedId(previousSelectedId);
+        setMode('explore');
+    };
+
+    const applyDraftChart = () => {
+        setSelectedId('generated-waterfall');
+        setMode('explore');
+    };
+
+    const advanceBuild = () => {
+        const nextStage: Record<BuildStage, BuildStage> = {
+            brief: 'clarify',
+            clarify: 'building',
+            building: 'ready',
+            ready: 'brief',
+        };
+        setBuildStage(nextStage[buildStage]);
+    };
+
+    const toggleExtraField = () => {
+        setExtraFieldSelected((selected) => {
+            const nextSelected = !selected;
+            setQueryDirty(nextSelected !== executedExtraFieldSelected);
+            return nextSelected;
+        });
+    };
+
+    const runQuery = () => {
+        setDataRevision((revision) => revision + 1);
+        setExecutedExtraFieldSelected(extraFieldSelected);
+        setQueryDirty(false);
+    };
+
     return (
         <Box className={classes.prototype}>
             <Group className={classes.featureBar} justify="space-between">
@@ -1790,10 +2375,14 @@ const ExplorerChartGalleryPrototype = ({
                     </Badge>
                     <Stack gap={0}>
                         <Text size="sm" fw={600}>
-                            Explorer chart selection
+                            {mode === 'authoring'
+                                ? 'Explorer · embedded chart authoring'
+                                : 'Explorer chart selection'}
                         </Text>
                         <Text fz={10} c="dimmed">
-                            Project chart types use the current query results
+                            {mode === 'authoring'
+                                ? 'Fields remain available · preview uses the latest executed results'
+                                : 'Project chart types use the current query results'}
                         </Text>
                     </Stack>
                 </Group>
@@ -1815,15 +2404,24 @@ const ExplorerChartGalleryPrototype = ({
 
             <Box
                 className={`${classes.workspace} ${
-                    flagEnabled ? classes.workspaceWithRightSidebar : ''
+                    flagEnabled && mode === 'explore'
+                        ? classes.workspaceWithRightSidebar
+                        : ''
                 } ${
-                    flagEnabled && variant === 'C'
+                    flagEnabled && mode === 'explore' && variant === 'C'
                         ? classes.workspaceWithWideRightSidebar
                         : ''
                 }`}
             >
                 {flagEnabled ? (
-                    <FieldsSidebar />
+                    <FieldsSidebar
+                        extraFieldSelected={extraFieldSelected}
+                        queryDirty={queryDirty}
+                        dataRevision={dataRevision}
+                        authoring={mode === 'authoring'}
+                        onToggleExtraField={toggleExtraField}
+                        onRunQuery={runQuery}
+                    />
                 ) : (
                     <LegacyConfigSidebar
                         selectedId={selectedId}
@@ -1834,21 +2432,46 @@ const ExplorerChartGalleryPrototype = ({
                         setShowLabels={setShowLabels}
                     />
                 )}
-                <ExplorerMain
-                    selectedChart={selectedChart}
-                    palette={palette}
-                    showLabels={showLabels}
-                />
-                {flagEnabled && (
-                    <RightSidebar
+                {mode === 'authoring' ? (
+                    <EmbeddedBuilderWorkspace
                         variant={variant}
-                        selectedChart={selectedChart}
-                        setSelectedId={setSelectedId}
-                        palette={palette}
-                        setPalette={setPalette}
-                        showLabels={showLabels}
-                        setShowLabels={setShowLabels}
+                        buildStage={buildStage}
+                        prompt={prompt}
+                        queryDirty={queryDirty}
+                        dataRevision={dataRevision}
+                        extraFieldSelected={extraFieldSelected}
+                        executedExtraFieldSelected={executedExtraFieldSelected}
+                        editingChart={editingChart}
+                        onPromptChange={setPrompt}
+                        onAdvance={advanceBuild}
+                        onCancel={cancelAuthoring}
+                        onApply={applyDraftChart}
+                        onRunQuery={runQuery}
                     />
+                ) : (
+                    <>
+                        <ExplorerMain
+                            selectedChart={selectedChart}
+                            palette={palette}
+                            showLabels={showLabels}
+                            queryDirty={queryDirty}
+                            dataRevision={dataRevision}
+                            onRunQuery={runQuery}
+                        />
+                        {flagEnabled && (
+                            <RightSidebar
+                                variant={variant}
+                                selectedChart={selectedChart}
+                                setSelectedId={setSelectedId}
+                                palette={palette}
+                                setPalette={setPalette}
+                                showLabels={showLabels}
+                                setShowLabels={setShowLabels}
+                                onCreateChartType={() => beginAuthoring(false)}
+                                onEditProjectChart={() => beginAuthoring(true)}
+                            />
+                        )}
+                    </>
                 )}
             </Box>
 
@@ -1867,7 +2490,7 @@ const meta: Meta<typeof ExplorerChartGalleryPrototype> = {
         docs: {
             description: {
                 component:
-                    'Throwaway interaction prototype for moving chart selection and configuration to a gallery-style right sidebar while keeping Explorer fields on the left.',
+                    'Throwaway interaction prototype for selecting, creating, and editing chart types without leaving Explorer. Fields stay available on the left while three embedded authoring layouts exercise clarification, query refresh, build, apply, and cancel.',
             },
         },
     },

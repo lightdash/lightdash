@@ -34,6 +34,175 @@
     grid-template-columns: 292px minmax(600px, 1fr) 500px;
 }
 
+.embeddedBuilder {
+    position: relative;
+    min-width: 0;
+    height: 100%;
+    overflow: hidden;
+    background: light-dark(
+        var(--mantine-color-gray-0),
+        var(--mantine-color-dark-8)
+    );
+}
+
+.builderHeader {
+    height: 58px;
+    padding: 0 var(--mantine-spacing-md);
+    border-bottom: 1px solid
+        light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+    background: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-7)
+    );
+}
+
+.builderSplitA,
+.builderSplitC {
+    display: grid;
+    height: calc(100% - 58px);
+    min-height: 0;
+}
+
+.builderSplitA {
+    grid-template-columns: minmax(540px, 1fr) 390px;
+}
+
+.builderSplitC {
+    grid-template-columns: 360px minmax(560px, 1fr);
+}
+
+.builderPreviewPanel {
+    min-width: 0;
+    height: 100%;
+    padding: var(--mantine-spacing-lg);
+    overflow: auto;
+}
+
+.builderChartCanvas {
+    position: relative;
+    min-height: 360px;
+    padding: var(--mantine-spacing-xl);
+    overflow: hidden;
+    background: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-7)
+    );
+}
+
+.buildingOverlay {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: light-dark(rgba(255, 255, 255, 0.9), rgba(26, 27, 30, 0.9));
+    backdrop-filter: blur(3px);
+}
+
+.builderConversation {
+    min-width: 0;
+    height: 100%;
+    padding: var(--mantine-spacing-md);
+    overflow: hidden;
+    border-left: 1px solid
+        light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+    background: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-7)
+    );
+}
+
+.builderSplitC .builderConversation {
+    border-right: 1px solid
+        light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+    border-left: 0;
+}
+
+.conversationScroll {
+    flex: 1;
+    min-height: 120px;
+    overflow-y: auto;
+}
+
+.agentMessage {
+    margin-right: var(--mantine-spacing-lg);
+    background: light-dark(
+        var(--mantine-color-gray-1),
+        var(--mantine-color-dark-6)
+    );
+}
+
+.userMessage {
+    margin-left: var(--mantine-spacing-lg);
+    color: white;
+    background: var(--mantine-color-violet-7);
+}
+
+.readyMessage {
+    border-color: light-dark(
+        var(--mantine-color-green-4),
+        var(--mantine-color-green-8)
+    );
+    background: light-dark(
+        var(--mantine-color-green-0),
+        color-mix(in srgb, var(--mantine-color-green-9) 35%, transparent)
+    );
+}
+
+.staleResultsNotice,
+.queryChanged {
+    border-color: light-dark(
+        var(--mantine-color-yellow-5),
+        var(--mantine-color-yellow-8)
+    );
+    background: light-dark(
+        var(--mantine-color-yellow-0),
+        color-mix(in srgb, var(--mantine-color-yellow-9) 28%, transparent)
+    );
+}
+
+.builderCanvasB {
+    height: calc(100% - 58px);
+    padding: var(--mantine-spacing-md);
+    overflow: auto;
+}
+
+.builderCanvasB .builderPreviewPanel {
+    height: auto;
+    max-width: 1040px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0;
+}
+
+.builderDockB {
+    width: min(920px, 100%);
+    min-height: 360px;
+    margin: 0 auto;
+    overflow: hidden;
+    box-shadow: var(--mantine-shadow-lg);
+}
+
+.builderDockB .builderConversation {
+    min-height: 360px;
+    border-left: 0;
+}
+
+.authoringState {
+    position: absolute;
+    z-index: 4;
+    right: 14px;
+    bottom: 14px;
+    width: 260px;
+    max-height: 190px;
+    overflow: auto;
+    opacity: 0.92;
+    pointer-events: none;
+    white-space: pre-wrap;
+    font-size: 9px;
+    line-height: 1.35;
+    box-shadow: var(--mantine-shadow-md);
+}
+
 .sidebar {
     min-width: 0;
     overflow: hidden;
