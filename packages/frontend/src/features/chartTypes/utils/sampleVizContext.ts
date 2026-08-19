@@ -79,6 +79,7 @@ export const buildSampleVizContext = (
         rows,
         options: getEffectiveOptionValues(schema.configOptions, optionValues),
         colorPalette,
+        pivotDetails: null,
         // Sample rows come from no query — there is nothing to drill into.
         underlyingData: { enabled: false },
     };

@@ -27,8 +27,15 @@ fetch anything yourself; the only host interaction is through the helpers the ho
 returns.
 
 ```tsx
-const { fieldMapping, rows, options, colorPalette, ready, underlyingData } =
-    useVizContext();
+const {
+  fieldMapping,
+  rows,
+  options,
+  colorPalette,
+  pivotDetails,
+  ready,
+  underlyingData,
+} = useVizContext();
 ```
 
 - `fieldMapping` — `Record<string, string>`: the field name you declared → the query field
@@ -39,6 +46,8 @@ const { fieldMapping, rows, options, colorPalette, ready, underlyingData } =
   option you declared (the viewer's choice, else your declared `default`).
 - `colorPalette` — `string[]`: the Lightdash palette resolved for this chart. Always pushed,
   whether or not you declared `colorPalette`. Empty only when the host resolved none.
+- `pivotDetails` — the complete backend-pivot layout, or `null` for ordinary rows. See
+  "Backend-pivoted results" below.
 - `ready` — false until the first context arrives.
 - `underlyingData` — host-mediated access to the raw rows behind a clicked data point.
   See "Data-point actions" below.
@@ -80,6 +89,69 @@ This is the same rule as the sandbox skill's "chart series colors must come from
 palette, delivered differently. An app imports `CHART_COLORS`; a viz reads the resolved
 colours off the hook, because the viewer picks the palette per chart. In a viz, use the
 hook, not `CHART_COLORS`.
+
+## Backend-pivoted results
+
+A mapped `series` field makes Lightdash pivot the results before they reach the viz. In
+that case the mapped metric id is no longer a row key: each series becomes a generated
+column described by `pivotDetails.valuesColumns`.
+
+Match `valuesColumns` whose `referenceField` equals the mapped metric id. For each match,
+use `pivotValues` to identify and label the mapped series value. Generated
+`pivotColumnName` keys contain the same `VizContextCell` objects as ordinary field keys:
+read them with `getRaw(row, column.pivotColumnName)` or
+`getFormatted(row, column.pivotColumnName)`. Never coerce `row[fieldId]` directly with
+`String`, `Number`, or template interpolation; that coerces the cell object rather than
+its value. Preserve the ordinary `fieldMapping` row path when `pivotDetails` is `null`, so
+the same viz works without a mapped series and on older unpivoted charts.
+
+The rest of `pivotDetails` describes the full layout rather than assuming the viz is a
+Cartesian chart:
+
+- `indexColumn` — row-grain fields and their `time`/`category` axis semantics.
+- `groupByColumns` — pivot-header fields in backend layout order.
+- `originalColumns` — original field ids and semantic types before pivoting.
+- `sortBy` — the sort applied to the pivoted result, including anchored pivot values.
+- `totalColumnCount` — the untruncated pivot column count; use it when the viz needs to
+  explain that the returned columns hit a limit.
+- `passthroughDimensions` — hidden dimensions retained on rows for cross-field rendering.
+
+Use these when the visualization's shape benefits from them: a table can build row and
+column headers, while a chart can select a time axis from metadata instead of guessing
+from values. Treat `fieldMapping` as the declared interface; metadata describes how those
+fields were laid out, not permission to render unrelated query fields automatically.
+
+```tsx
+const metricId = fieldMapping['value'];
+const seriesId = fieldMapping['series'];
+const pivotedMetrics =
+  pivotDetails?.valuesColumns.filter(
+    (column) => column.referenceField === metricId,
+  ) ?? [];
+
+const series = pivotedMetrics.map((column) => ({
+  columnId: column.pivotColumnName,
+  label:
+    column.pivotValues.find((value) => value.referenceField === seriesId)
+      ?.formatted ?? 'Unknown',
+}));
+
+const categoryId = fieldMapping['category'];
+const data = rows.map((row) => ({
+  label: getFormatted(row, categoryId),
+  ...Object.fromEntries(
+    series.map(({ columnId }) => [
+      columnId,
+      Number(getRaw(row, columnId) ?? 0),
+    ]),
+  ),
+}));
+```
+
+Use the order of `valuesColumns` for stable colour assignment. A chart with multiple
+declared series fields builds its label from each matching `pivotValues` entry in declared
+field order. Backend-pivoted rows do not have safe one-source-row provenance, so the host
+sets `underlyingData.enabled` to false for them.
 
 ## Data-point actions: underlying data
 

@@ -31,10 +31,21 @@ type PickerProps = {
     onSelectProjectType: (dataAppViz: DataAppViz) => void;
 };
 
-const { fieldSelectItems, pickerProps } = vi.hoisted(() => ({
-    fieldSelectItems: [] as Item[][],
-    pickerProps: [] as PickerProps[],
-}));
+type FieldSelectProps = {
+    items: Item[];
+    onChange: (item: Item | null) => void;
+};
+
+const { fieldSelectItems, fieldSelectProps, pickerProps } = vi.hoisted(() => {
+    const fieldSelectItems: Item[][] = [];
+    const fieldSelectProps: FieldSelectProps[] = [];
+    const pickerProps: PickerProps[] = [];
+    return {
+        fieldSelectItems,
+        fieldSelectProps,
+        pickerProps,
+    };
+});
 
 vi.mock('../CustomChartType/CustomChartTypePicker', () => ({
     default: (props: PickerProps) => {
@@ -58,8 +69,9 @@ vi.mock('react-router', async (importOriginal) => ({
     ),
 }));
 vi.mock('../../common/FieldSelect', () => ({
-    default: ({ items }: { items: Item[] }) => {
-        fieldSelectItems.push(items);
+    default: (props: FieldSelectProps) => {
+        fieldSelectItems.push(props.items);
+        fieldSelectProps.push(props);
         return <div data-testid="field-select" />;
     },
 }));
@@ -186,22 +198,26 @@ const queryColumns: ItemsMap = {
 describe('DataAppVizConfigTabs', () => {
     const setOption = vi.fn();
     const setDataAppVizUuid = vi.fn();
+    const setField = vi.fn();
+    const setPivotDimensions = vi.fn();
 
     const mockContext = (
         itemsMap: ItemsMap,
         dataAppVizUuid: string = 'data-app-viz-uuid',
         optionValues: Record<string, boolean | number | string> = {},
+        fieldMapping: Record<string, string> = {},
     ) =>
         vi.mocked(useVisualizationContext).mockReturnValue({
             itemsMap,
+            setPivotDimensions,
             visualizationConfig: {
                 chartType: ChartType.DATA_APP_VIZ,
                 chartConfig: {
                     dataAppVizUuid,
-                    fieldMapping: {},
+                    fieldMapping,
                     optionValues,
                     setDataAppVizUuid,
-                    setField: vi.fn(),
+                    setField,
                     setOption,
                 },
             },
@@ -209,9 +225,12 @@ describe('DataAppVizConfigTabs', () => {
 
     beforeEach(() => {
         fieldSelectItems.length = 0;
+        fieldSelectProps.length = 0;
         pickerProps.length = 0;
         setOption.mockClear();
         setDataAppVizUuid.mockClear();
+        setField.mockClear();
+        setPivotDimensions.mockClear();
         defaultAbility.update([]);
         mockSchema([]);
         mockContext(queryColumns);
@@ -313,6 +332,41 @@ describe('DataAppVizConfigTabs', () => {
             value: 'orders_visible_metric',
             breakdown: 'custom-dimension',
         });
+        expect(setPivotDimensions).toHaveBeenCalledWith(['custom-dimension']);
+    });
+
+    it('updates pivot dimensions when a series mapping changes', () => {
+        const fields: DataAppVizField[] = [
+            ...declaredFields,
+            {
+                name: 'breakdown',
+                label: 'Breakdown',
+                type: 'series',
+                required: false,
+            },
+        ];
+        mockSchema([], null, {
+            schema: { fields, configOptions: [], colorPalette: null },
+        });
+        mockContext(
+            queryColumns,
+            'data-app-viz-uuid',
+            {},
+            {
+                source: 'orders_visible',
+                value: 'orders_visible_metric',
+            },
+        );
+        renderWithProviders(<ConfigTabs />);
+
+        act(() =>
+            fieldSelectProps[fieldSelectProps.length - 1].onChange(
+                customDimension,
+            ),
+        );
+
+        expect(setField).toHaveBeenCalledWith('breakdown', 'custom-dimension');
+        expect(setPivotDimensions).toHaveBeenCalledWith(['custom-dimension']);
     });
 
     it('will not offer the picker before the query has columns', () => {

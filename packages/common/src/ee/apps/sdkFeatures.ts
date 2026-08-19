@@ -95,6 +95,13 @@ export const SDK_FEATURES: SdkFeature[] = [
         wiring: 'Declare configOptions (and colorPalette, if the viz colours series) in the viz schema, then read options[name] and colorPalette from useVizContext().',
     },
     {
+        key: 'viz-pivoted-results',
+        label: 'Pivoted results',
+        description:
+            'Render reusable charts and tables from backend-pivoted rows and their complete layout metadata.',
+        wiring: 'When useVizContext().pivotDetails is non-null, use valuesColumns to resolve generated row keys and use indexColumn, groupByColumns, originalColumns, sortBy, totalColumnCount, and passthroughDimensions when the visualization needs their layout semantics. Keep the existing fieldMapping path when pivotDetails is null.',
+    },
+    {
         key: 'follow-host-theme',
         label: 'Follow the host light/dark mode',
         description:

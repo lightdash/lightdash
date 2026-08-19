@@ -1,5 +1,6 @@
 import {
     ChartType,
+    deriveDataAppVizPivotConfig,
     getAppDisplayName,
     getEffectiveOptionValues,
     type ItemsMap,
@@ -30,7 +31,7 @@ const NO_COLUMNS: ItemsMap = {};
 export const ConfigTabs: FC = memo(() => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const navigate = useNavigate();
-    const { visualizationConfig, itemsMap, setChartType } =
+    const { visualizationConfig, itemsMap, setChartType, setPivotDimensions } =
         useVisualizationContext();
 
     const isDataAppViz = isDataAppVizVisualizationConfig(visualizationConfig);
@@ -93,6 +94,23 @@ export const ConfigTabs: FC = memo(() => {
         fieldMapping,
     );
 
+    const setMappingPivotDimensions = (
+        nextFields: typeof fields,
+        nextMapping: typeof effectiveMapping,
+    ) =>
+        setPivotDimensions(
+            deriveDataAppVizPivotConfig(nextFields, nextMapping)?.columns,
+        );
+
+    const handleFieldChange = (fieldName: string, fieldId: string | null) => {
+        const nextMapping = { ...effectiveMapping };
+        if (fieldId) nextMapping[fieldName] = fieldId;
+        else delete nextMapping[fieldName];
+
+        setField(fieldName, fieldId);
+        setMappingPivotDimensions(fields, nextMapping);
+    };
+
     const selectedOption: CustomChartTypeOption | null = dataAppVizUuid
         ? { kind: 'projectType', dataAppVizUuid }
         : null;
@@ -104,7 +122,7 @@ export const ConfigTabs: FC = memo(() => {
                 itemsMap={itemsMap ?? NO_COLUMNS}
                 fields={fields}
                 fieldMapping={effectiveMapping}
-                onFieldChange={setField}
+                onFieldChange={handleFieldChange}
             />
             {dataAppViz && (
                 <Box className={classes.typeCard}>
@@ -143,16 +161,19 @@ export const ConfigTabs: FC = memo(() => {
                     selectedDataAppViz={dataAppViz ?? null}
                     hasColumns={hasColumns}
                     onSelectVega={() => setChartType(ChartType.CUSTOM)}
-                    onSelectProjectType={(picked) =>
-                        setDataAppVizUuid(
-                            picked.dataAppVizUuid,
-                            autoMapDataAppVizFields(
-                                picked.schema?.fields ?? [],
-                                itemsMap ?? NO_COLUMNS,
-                            ),
-                        )
-                    }
-                    onClear={() => setDataAppVizUuid('', {})}
+                    onSelectProjectType={(picked) => {
+                        const pickedFields = picked.schema?.fields ?? [];
+                        const pickedMapping = autoMapDataAppVizFields(
+                            pickedFields,
+                            itemsMap ?? NO_COLUMNS,
+                        );
+                        setDataAppVizUuid(picked.dataAppVizUuid, pickedMapping);
+                        setMappingPivotDimensions(pickedFields, pickedMapping);
+                    }}
+                    onClear={() => {
+                        setDataAppVizUuid('', {});
+                        setPivotDimensions(undefined);
+                    }}
                     onCreateNew={
                         canCreateApp
                             ? () =>

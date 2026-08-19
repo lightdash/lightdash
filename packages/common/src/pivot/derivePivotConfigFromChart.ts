@@ -18,6 +18,8 @@ import {
     ChartType,
     getHiddenTableFields,
     isCartesianChartConfig,
+    type DataAppVizFieldMapping,
+    type SavedChart,
     type SavedChartDAO,
 } from '../types/savedCharts';
 import assertUnreachable from '../utils/assertUnreachable';
@@ -495,6 +497,60 @@ function isValid(pivotConfiguration: PivotConfiguration): boolean {
     return true;
 }
 
+/**
+ * Derives the backend pivot shape for a reusable custom chart from its
+ * persisted field bindings and lightweight series columns. This function is
+ * intentionally standalone so DATA_APP_VIZ support remains a removable
+ * delegation from the chart-type dispatcher.
+ */
+export function deriveDataAppVizPivotConfiguration(
+    fieldMapping: DataAppVizFieldMapping | undefined,
+    pivotConfig: SavedChart['pivotConfig'],
+    metricQuery: MetricQuery,
+    fields: ItemsMap,
+): PivotConfiguration | undefined {
+    if (!fieldMapping || !pivotConfig?.columns.length) {
+        return undefined;
+    }
+
+    const mappedFieldIds = new Set(Object.values(fieldMapping));
+    const groupByColumns = pivotConfig.columns
+        .filter(
+            (fieldId) =>
+                mappedFieldIds.has(fieldId) &&
+                metricQuery.dimensions.includes(fieldId),
+        )
+        .map((reference) => ({ reference }));
+    const valuesColumns = [
+        ...metricQuery.metrics,
+        ...(metricQuery.tableCalculations ?? []).map(({ name }) => name),
+    ]
+        .filter((fieldId) => mappedFieldIds.has(fieldId))
+        .map((reference) => ({
+            reference,
+            aggregation: VizAggregationOptions.ANY,
+        }));
+    const indexColumn = getIndexColumn(
+        groupByColumns,
+        valuesColumns,
+        fields,
+        metricQuery,
+    );
+    const partialPivotConfiguration: Omit<PivotConfiguration, 'sortBy'> = {
+        indexColumn,
+        valuesColumns,
+        groupByColumns,
+    };
+    const pivotConfiguration: PivotConfiguration = {
+        ...partialPivotConfiguration,
+        sortBy: getSortByForPivotConfiguration(
+            partialPivotConfiguration,
+            metricQuery,
+        ),
+    };
+
+    return isValid(pivotConfiguration) ? pivotConfiguration : undefined;
+}
 export function derivePivotConfigurationFromChart(
     savedChart: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>,
     metricQuery: MetricQuery,
@@ -527,8 +583,15 @@ export function derivePivotConfigurationFromChart(
         case ChartType.BIG_NUMBER:
         case ChartType.MAP:
         case ChartType.SANKEY:
-        case ChartType.DATA_APP_VIZ:
             newConfig = undefined;
+            break;
+        case ChartType.DATA_APP_VIZ:
+            newConfig = deriveDataAppVizPivotConfiguration(
+                chartConfig.config?.fieldMapping,
+                savedChart.pivotConfig,
+                metricQuery,
+                fields,
+            );
             break;
         default:
             return assertUnreachable(type, `Unknown chart type ${type}`);

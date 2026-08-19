@@ -1179,6 +1179,7 @@ describe('data-app-viz-context push', () => {
         ],
         options: { showLegend: true, barColor: '#ff0000' },
         colorPalette: ['#7162FF', '#1A1B1E'],
+        pivotDetails: null,
         underlyingData: { enabled: false },
     };
 
@@ -1209,6 +1210,7 @@ describe('data-app-viz-context push', () => {
                 rows: dataAppVizContext.rows,
                 options: dataAppVizContext.options,
                 colorPalette: dataAppVizContext.colorPalette,
+                pivotDetails: null,
             }),
             '*',
         );
