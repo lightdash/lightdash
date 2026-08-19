@@ -88,10 +88,10 @@ const SqlChartTile: FC<Props> = ({
     ...rest
 }) => {
     const { user } = useApp();
-    const { projectUuid, dashboardUuid } = useParams<{
+    const { projectUuid } = useParams<{
         projectUuid: string;
-        dashboardUuid: string;
     }>();
+    const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const effectiveProjectUuid = projectUuidOverride ?? projectUuid;
     const effectiveDashboardUuid = dashboardUuidOverride ?? dashboardUuid;
     const context = useSearchParams('context') || undefined;

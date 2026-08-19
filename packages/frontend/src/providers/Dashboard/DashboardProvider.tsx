@@ -122,7 +122,11 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     const { showToastWarning, showToastInfo } = useToaster();
     const hasNotifiedLockedOverrideRef = useRef(false);
 
-    const { dashboardUuid, tabUuid, mode } = useParams<{
+    const {
+        dashboardUuid: dashboardIdentifier,
+        tabUuid,
+        mode,
+    } = useParams<{
         dashboardUuid: string;
         tabUuid?: string;
         mode?: string;
@@ -136,13 +140,8 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     // so each dashboard gets a fresh chance to notify the viewer.
     useEffect(() => {
         hasNotifiedLockedOverrideRef.current = false;
-    }, [dashboardUuid]);
+    }, [dashboardIdentifier]);
     const isEditMode = mode === 'edit';
-
-    const {
-        mutateAsync: versionRefresh,
-        isLoading: isRefreshingDashboardVersion,
-    } = useDashboardVersionRefresh(dashboardUuid, projectUuid);
 
     // Embedded dashboards will not be using this query hook to load the dashboard,
     // so we need to set the dashboard manually
@@ -154,7 +153,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         isInitialLoading: isDashboardLoading,
         error: dashboardError,
     } = useDashboardQuery({
-        uuidOrSlug: dashboardUuid,
+        uuidOrSlug: dashboardIdentifier,
         projectUuid,
         useQueryOptions: {
             select: (d) => {
@@ -183,6 +182,11 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             },
         },
     });
+    const dashboardUuid = (dashboard ?? embedDashboard)?.uuid;
+    const {
+        mutateAsync: versionRefresh,
+        isLoading: isRefreshingDashboardVersion,
+    } = useDashboardVersionRefresh(dashboardUuid, projectUuid);
 
     // Embedded dashboards populate `embedDashboard` instead of the query hook,
     // so config-derived state must read from whichever holds the dashboard.

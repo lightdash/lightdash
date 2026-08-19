@@ -25,7 +25,7 @@ import {
     type FC,
 } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
-import { useLocation, useNavigate } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { DASHBOARD_HEADER_HEIGHT } from '../../components/common/Dashboard/dashboard.constants';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -313,6 +313,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
 
     const { search } = useLocation();
     const navigate = useNavigate();
+    const { dashboardUuid: dashboardIdentifier } = useParams<{
+        dashboardUuid: string;
+    }>();
 
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const projectUuid = useDashboardContext((c) => c.projectUuid);
@@ -669,8 +672,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             void navigate(
                 {
                     pathname: isEditMode
-                        ? `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit/tabs/${tab?.uuid}`
-                        : `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tab?.uuid}`,
+                        ? `/projects/${projectUuid}/dashboards/${dashboardIdentifier}/edit/tabs/${tab?.uuid}`
+                        : `/projects/${projectUuid}/dashboards/${dashboardIdentifier}/view/tabs/${tab?.uuid}`,
                     search: newParams.toString(),
                 },
                 { replace: true },
@@ -775,7 +778,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             // If this is the last tab, navigate to the non-tab URL.
             // See `const = sortedTabs` for more context.
             void navigate(
-                `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
+                `/projects/${projectUuid}/dashboards/${dashboardIdentifier}/edit`,
                 { replace: true },
             );
 
