@@ -102,4 +102,9 @@ services:
             PRE_AGGREGATE_RESULTS_S3_BUCKET: ${S3_BUCKET}
             PRE_AGGREGATE_RESULTS_S3_REGION: ${S3_REGION}
 
+            # MCP is config-gated (not a preview flag: ai-copilot is excluded
+            # from preview forced-on), so enable it explicitly for MCP tool
+            # testing in dev sessions
+            MCP_ENABLED: true
+
             LIGHTDASH_LOG_LEVEL: debug
