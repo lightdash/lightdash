@@ -27,6 +27,10 @@ public_version() {
     printf '%s\n' "$mapped_version"
 }
 
+safe_branch_version() {
+    tr -c 'A-Za-z0-9._-' '-' <<<"$1" | sed 's/-$//'
+}
+
 version_gte() {
     python3 - "$1" "$2" <<'PY'
 import sys

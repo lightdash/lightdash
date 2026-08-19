@@ -70,6 +70,17 @@ require_value bump_target "${BUMP_TARGET:-}"
 require_value freeze_label "${FREEZE_LABEL:-}"
 require_value github_token "${GH_TOKEN:-}"
 
+branch_prefix=${BRANCH_PREFIX:-lightdash-upgrade}
+if [[ ! "$branch_prefix" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
+    echo "branch_prefix must match ^[A-Za-z0-9][A-Za-z0-9._-]*$" >&2
+    exit 1
+fi
+safety_gate=${SAFETY_GATE:-true}
+if [[ "$safety_gate" != "true" && "$safety_gate" != "false" ]]; then
+    echo "safety_gate must be true or false" >&2
+    exit 1
+fi
+
 if [[ "$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label "$FREEZE_LABEL" --limit 1 --json number --jq 'length')" != "0" ]]; then
     echo "an open $FREEZE_LABEL issue is disarming the planner; nothing to do"
     exit 0
@@ -106,27 +117,106 @@ if [[ ${#candidates[@]} -eq 0 ]]; then
     exit 0
 fi
 
-cli_root=${RUNNER_TEMP:-$(mktemp -d)}/lightdash-upgrade-cli
-mkdir -p "$cli_root"
-cp "$ACTION_ROOT/cli/package.json" "$ACTION_ROOT/cli/package-lock.json" "$cli_root"
-npm ci --prefix "$cli_root" --ignore-scripts --silent
-cli_bin="$cli_root/node_modules/.bin/lightdash"
+select_target_with_gate() {
+    local cli_root
+    local cli_bin
+    local GATE_JSON=
+    local GATE_STATUS=0
+    local required_stop
+    local required_stop_only
+    local minimum
+    local minimum_met
+    local candidate
+    local next_index
+    local next_version
 
-GATE_JSON=
-GATE_STATUS=0
-run_gate() {
-    local target=$1
-    set +e
-    GATE_JSON=$("$cli_bin" upgrade-check \
-        --from "$current_public" \
-        --to "$target" \
-        --json 2>"$gate_error")
-    GATE_STATUS=$?
-    set -e
-    if ! printf '%s' "$GATE_JSON" | validate_verdict_json; then
-        return 2
+    cli_root=${RUNNER_TEMP:-$(mktemp -d)}/lightdash-upgrade-cli
+    mkdir -p "$cli_root"
+    cp "$ACTION_ROOT/cli/package.json" "$ACTION_ROOT/cli/package-lock.json" "$cli_root"
+    npm ci --prefix "$cli_root" --ignore-scripts --silent
+    cli_bin="$cli_root/node_modules/.bin/lightdash"
+
+    run_gate() {
+        local target=$1
+        set +e
+        GATE_JSON=$("$cli_bin" upgrade-check \
+            --from "$current_public" \
+            --to "$target" \
+            --json 2>"$gate_error")
+        GATE_STATUS=$?
+        set -e
+        if ! printf '%s' "$GATE_JSON" | validate_verdict_json; then
+            return 2
+        fi
+        return 0
+    }
+
+    gate_unusable() {
+        local target=$1
+        echo "the release-safety gate returned unusable output for $target" >&2
+        cat "$gate_error" >&2 || true
+    }
+
+    if ! run_gate "$newest"; then
+        gate_unusable "$newest"
+        exit 1
     fi
-    return 0
+    if [[ "$GATE_STATUS" == "0" ]] && [[ "$(jq -r '.safe' <<<"$GATE_JSON")" == "true" ]]; then
+        selected_version=$newest
+        selected_json=$GATE_JSON
+        selected_green=true
+    else
+        required_stop=$(jq -r '.requiredStops | map(split(".") | map(tonumber)) | sort | first // empty | map(tostring) | join(".")' <<<"$GATE_JSON")
+        if [[ -n "$required_stop" ]] && version_gt "$required_stop" "$current_public"; then
+            if run_gate "$required_stop"; then
+                required_stop_only=$(jq -r --arg stop "$required_stop" '
+                    .verdict == true and
+                    (.missingRanges | length == 0) and
+                    (.requiredStops | length == 1 and .[0] == $stop)
+                ' <<<"$GATE_JSON")
+                minimum=$(jq -r '.minPreviousVersion // empty' <<<"$GATE_JSON")
+                minimum_met=true
+                if [[ -n "$minimum" ]] && ! version_gte "$current_public" "$minimum"; then
+                    minimum_met=false
+                fi
+                if { [[ "$GATE_STATUS" == "0" ]] && [[ "$(jq -r '.safe' <<<"$GATE_JSON")" == "true" ]]; } || { [[ "$required_stop_only" == "true" ]] && [[ "$minimum_met" == "true" ]]; }; then
+                    selected_version=$required_stop
+                    selected_json=$GATE_JSON
+                    selected_green=true
+                fi
+            fi
+        fi
+    fi
+
+    if [[ -z "$selected_version" ]]; then
+        for candidate in "${candidates[@]}"; do
+            if ! run_gate "$candidate"; then
+                continue
+            fi
+            if [[ "$GATE_STATUS" == "0" ]] && [[ "$(jq -r '.safe' <<<"$GATE_JSON")" == "true" ]]; then
+                selected_version=$candidate
+                selected_json=$GATE_JSON
+                selected_green=true
+                break
+            fi
+        done
+    fi
+
+    if [[ -z "$selected_version" ]]; then
+        next_index=$((${#candidates[@]} - 1))
+        next_version=${candidates[$next_index]}
+        if ! run_gate "$next_version"; then
+            gate_unusable "$next_version"
+            exit 1
+        fi
+        selected_version=$next_version
+        selected_json=$GATE_JSON
+        if jq -e '.verdict == false' <<<"$GATE_JSON" >/dev/null; then
+            hold_reason=red
+        else
+            hold_reason=unknown
+        fi
+    fi
 }
 
 selected_version=
@@ -135,71 +225,25 @@ selected_green=false
 hold_reason=
 newest=${candidates[0]}
 
-gate_unusable() {
-    local target=$1
-    echo "the release-safety gate returned unusable output for $target" >&2
-    cat "$gate_error" >&2 || true
-}
-
-if ! run_gate "$newest"; then
-    gate_unusable "$newest"
-    exit 1
-fi
-if [[ "$GATE_STATUS" == "0" ]] && [[ "$(jq -r '.safe' <<<"$GATE_JSON")" == "true" ]]; then
+if [[ "$safety_gate" == "false" ]]; then
     selected_version=$newest
-    selected_json=$GATE_JSON
+    selected_json=$(jq -n \
+        --arg from_version "$current_public" \
+        --arg to_version "$selected_version" \
+        '{
+            coveredVersions: [],
+            direction: "forward",
+            fromVersion: $from_version,
+            minPreviousVersion: null,
+            missingRanges: [],
+            requiredStops: [],
+            safe: true,
+            toVersion: $to_version,
+            verdict: true
+        }')
     selected_green=true
 else
-    required_stop=$(jq -r '.requiredStops | map(split(".") | map(tonumber)) | sort | first // empty | map(tostring) | join(".")' <<<"$GATE_JSON")
-    if [[ -n "$required_stop" ]] && version_gt "$required_stop" "$current_public"; then
-        if run_gate "$required_stop"; then
-            required_stop_only=$(jq -r --arg stop "$required_stop" '
-                .verdict == true and
-                (.missingRanges | length == 0) and
-                (.requiredStops | length == 1 and .[0] == $stop)
-            ' <<<"$GATE_JSON")
-            minimum=$(jq -r '.minPreviousVersion // empty' <<<"$GATE_JSON")
-            minimum_met=true
-            if [[ -n "$minimum" ]] && ! version_gte "$current_public" "$minimum"; then
-                minimum_met=false
-            fi
-            if { [[ "$GATE_STATUS" == "0" ]] && [[ "$(jq -r '.safe' <<<"$GATE_JSON")" == "true" ]]; } || { [[ "$required_stop_only" == "true" ]] && [[ "$minimum_met" == "true" ]]; }; then
-                selected_version=$required_stop
-                selected_json=$GATE_JSON
-                selected_green=true
-            fi
-        fi
-    fi
-fi
-
-if [[ -z "$selected_version" ]]; then
-    for candidate in "${candidates[@]}"; do
-        if ! run_gate "$candidate"; then
-            continue
-        fi
-        if [[ "$GATE_STATUS" == "0" ]] && [[ "$(jq -r '.safe' <<<"$GATE_JSON")" == "true" ]]; then
-            selected_version=$candidate
-            selected_json=$GATE_JSON
-            selected_green=true
-            break
-        fi
-    done
-fi
-
-if [[ -z "$selected_version" ]]; then
-    next_index=$((${#candidates[@]} - 1))
-    next_version=${candidates[$next_index]}
-    if ! run_gate "$next_version"; then
-        gate_unusable "$next_version"
-        exit 1
-    fi
-    selected_version=$next_version
-    selected_json=$GATE_JSON
-    if jq -e '.verdict == false' <<<"$GATE_JSON" >/dev/null; then
-        hold_reason=red
-    else
-        hold_reason=unknown
-    fi
+    select_target_with_gate
 fi
 
 mapped_version="${selected_version}${TAG_SUFFIX:-}"
@@ -215,8 +259,7 @@ if [[ -n "${REGISTRY_CHECK:-}" ]]; then
 fi
 
 default_branch=$(gh api "repos/$GITHUB_REPOSITORY" --jq '.default_branch')
-safe_branch_version=$(tr -c 'A-Za-z0-9._-' '-' <<<"$mapped_version" | sed 's/-$//')
-upgrade_branch="lightdash-upgrade-${safe_branch_version}"
+upgrade_branch="${branch_prefix}-$(safe_branch_version "$mapped_version")"
 bump_file=${BUMP_TARGET%%#*}
 
 cp "$bump_file" "$bump_file_before"
@@ -249,7 +292,9 @@ fi
 jq -e '.data.createCommitOnBranch.commit.oid | type == "string" and length > 0' <<<"$commit_response" >/dev/null
 
 plain_reason='The release-safety gate found a green upgrade path.'
-if [[ "$hold_reason" == "unknown" ]]; then
+if [[ "$safety_gate" == "false" ]]; then
+    plain_reason='The release-safety gate was not run for this instance.'
+elif [[ "$hold_reason" == "unknown" ]]; then
     plain_reason='The release-safety gate could not determine whether the next release hop is safe. This is not a known break: the safety data for that release is incomplete or inconclusive. This pull request is held for manual review and must not merge automatically.'
 elif [[ "$selected_green" != "true" ]]; then
     plain_reason='The next release hop is red. This pull request is held for manual review and must not merge automatically.'
@@ -307,11 +352,18 @@ write_output branch "$upgrade_branch"
 write_output pr_number "$pr_number"
 write_output pr_url "$pr_url"
 
+gate_summary=$hold_reason
+if [[ "$safety_gate" == "false" ]]; then
+    gate_summary='not run'
+elif [[ "$selected_green" == "true" ]]; then
+    gate_summary=green
+fi
+
 cat >"$summary_file" <<EOF
 ## Upgrade plan summary
 
 - Version: \`$current_mapped\` → \`$mapped_version\`
-- Gate: $([[ "$selected_green" == "true" ]] && printf 'green' || printf '%s' "$hold_reason")
+- Gate: $gate_summary
 - Registry check: $([[ -n "${REGISTRY_CHECK:-}" ]] && printf 'passed' || printf 'disabled')
 
 \`\`\`json

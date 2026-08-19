@@ -7,6 +7,10 @@ inputs:
   bump_target:
     description: Relative YAML or JSON file and value path in file#path.to.version format
     required: true
+  branch_prefix:
+    description: Prefix used for upgrade branch names
+    required: false
+    default: lightdash-upgrade
   tag_suffix:
     description: Suffix appended to the public release version for the deployed image tag
     required: false
@@ -43,6 +47,7 @@ runs:
       env:
         INSTANCE_URL: ${{ inputs.instance_url }}
         BUMP_TARGET: ${{ inputs.bump_target }}
+        BRANCH_PREFIX: ${{ inputs.branch_prefix }}
         TAG_SUFFIX: ${{ inputs.tag_suffix }}
         VERIFY_WINDOW: ${{ inputs.verify_window }}
         ESCALATION: ${{ inputs.escalation }}
