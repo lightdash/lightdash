@@ -10,7 +10,7 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import { type IDisposable, type languages } from 'monaco-editor';
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import { useDeepCompareEffect } from 'react-use';
 import { useCanCreateDataApp } from '../../../../features/apps/hooks/useCanCreateDataApp';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
@@ -126,6 +126,7 @@ export const ConfigTabs: React.FC = memo(() => {
     const { visualizationConfig } = useVisualizationContext();
     const colorScheme = useComputedColorScheme();
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const location = useLocation();
     const navigate = useNavigate();
 
     const isCustomConfig = isCustomVisualizationConfig(visualizationConfig);
@@ -266,9 +267,10 @@ export const ConfigTabs: React.FC = memo(() => {
                         onCreateNew={
                             canCreateApp
                                 ? () =>
-                                      void navigate(
-                                          `/projects/${projectUuid}/chart-types/new`,
-                                      )
+                                      void navigate({
+                                          pathname: `/projects/${projectUuid}/chart-types/new`,
+                                          search: location.search,
+                                      })
                                 : null
                         }
                         onBrowseGallery={() =>

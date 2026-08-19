@@ -18,7 +18,7 @@ import {
     IconPencil,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-import { Link } from 'react-router';
+import { Link, type To } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import AppUpdateModal from '../../../components/common/modal/AppUpdateModal';
 import { getVersionAuthorName } from '../../apps/utils/versionsToChatMessages';
@@ -27,6 +27,10 @@ import VersionProvenance from './VersionProvenance';
 
 type Props = {
     projectUuid: string;
+    backLink: {
+        label: string;
+        to: To;
+    };
     /** Null while no app exists yet (create flow before the first build). */
     app: { appUuid: string; name: string; description: string } | null;
     latestReadyVersion: number | null;
@@ -43,6 +47,7 @@ type Props = {
 
 const ChartTypeBuilderHeader: FC<Props> = ({
     projectUuid,
+    backLink,
     app,
     latestReadyVersion,
     provenanceVersion,
@@ -60,13 +65,13 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                 <Button
                     size="xs"
                     component={Link}
-                    to={`/projects/${projectUuid}/gallery`}
+                    to={backLink.to}
                     variant="default"
                     leftSection={
                         <MantineIcon icon={IconChevronLeft} size={15} />
                     }
                 >
-                    Gallery
+                    {backLink.label}
                 </Button>
                 <Box className={classes.divider} />
                 {app ? (

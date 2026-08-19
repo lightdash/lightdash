@@ -1,4 +1,5 @@
 import {
+    ChartType,
     DATA_APP_VIZ_TEMPLATE,
     FeatureFlags,
     isAppVersionInProgress,
@@ -16,7 +17,13 @@ import {
     type FC,
 } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { Link, Navigate, useNavigate, useParams } from 'react-router';
+import {
+    Link,
+    Navigate,
+    useLocation,
+    useNavigate,
+    useParams,
+} from 'react-router';
 import { validate as isUuidString } from 'uuid';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
@@ -47,6 +54,10 @@ import {
 } from '../features/chartTypes/hooks/useDataAppVizBuild';
 import { buildSampleVizContext } from '../features/chartTypes/utils/sampleVizContext';
 import { useResolvedColorPalette } from '../hooks/appearance/useResolvedColorPalette';
+import {
+    getExplorerUrlFromCreateSavedChartVersion,
+    parseChartFromExplorerSearchParams,
+} from '../hooks/useExplorerRoute';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import classes from './ChartTypeBuilder.module.css';
 
@@ -68,7 +79,16 @@ const ChartTypeBuilder: FC = () => {
         projectUuid: string;
         dataAppVizUuid?: string;
     }>();
+    const location = useLocation();
     const navigate = useNavigate();
+    const explorerChart = useMemo(() => {
+        try {
+            const chart = parseChartFromExplorerSearchParams(location.search);
+            return chart?.tableName ? chart : null;
+        } catch {
+            return null;
+        }
+    }, [location.search]);
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const canCreate = useCanCreateDataApp(projectUuid);
 
@@ -138,11 +158,14 @@ const ChartTypeBuilder: FC = () => {
     useEffect(() => {
         if (!urlVizUuid && build.appUuid && projectUuid) {
             void navigate(
-                `/projects/${projectUuid}/chart-types/${build.appUuid}`,
+                {
+                    pathname: `/projects/${projectUuid}/chart-types/${build.appUuid}`,
+                    search: location.search,
+                },
                 { replace: true },
             );
         }
-    }, [urlVizUuid, build.appUuid, projectUuid, navigate]);
+    }, [urlVizUuid, build.appUuid, projectUuid, location.search, navigate]);
 
     // Intentional navigation between vizs resets session state; the
     // post-submit `/new` → uuid replace must not.
@@ -276,6 +299,37 @@ const ChartTypeBuilder: FC = () => {
         (prompt: string) => promptBarRef.current?.setPrompt(prompt),
         [],
     );
+    const explorerDestination = useMemo(() => {
+        if (!explorerChart || !activeVizUuid) return null;
+
+        return getExplorerUrlFromCreateSavedChartVersion(
+            projectUuid,
+            {
+                ...explorerChart,
+                chartConfig: {
+                    type: ChartType.DATA_APP_VIZ,
+                    config: {
+                        dataAppVizUuid: activeVizUuid,
+                        fieldMapping: {},
+                        optionValues: {},
+                    },
+                },
+            },
+            false,
+        );
+    }, [activeVizUuid, explorerChart, projectUuid]);
+    const handlePreviewInExplorer = useCallback(() => {
+        if (!activeVizUuid) return;
+
+        if (explorerDestination) {
+            void navigate(explorerDestination);
+            return;
+        }
+
+        void navigate(
+            `/projects/${projectUuid}/tables?dataAppVizUuid=${activeVizUuid}`,
+        );
+    }, [activeVizUuid, explorerDestination, navigate, projectUuid]);
 
     const canEdit = useCanEditDataApp(projectUuid, {
         spaceUuid: appMeta?.spaceUuid ?? null,
@@ -375,12 +429,25 @@ const ChartTypeBuilder: FC = () => {
     // The composer captures its placeholder at mount, so wait for history
     // before choosing create vs revise wording.
     const isPromptBarMounted = !(activeVizUuid && history.isLoading);
+    const backLink = explorerChart
+        ? {
+              label: 'Explorer',
+              to: explorerDestination ?? {
+                  pathname: `/projects/${projectUuid}/tables/${explorerChart.tableName}`,
+                  search: location.search,
+              },
+          }
+        : {
+              label: 'Gallery',
+              to: `/projects/${projectUuid}/gallery`,
+          };
 
     return (
         <Box className={classes.root}>
             <DocumentTitle title="Chart type builder" />
             <ChartTypeBuilderHeader
                 projectUuid={projectUuid}
+                backLink={backLink}
                 app={appMeta}
                 latestReadyVersion={history.latestReadyVersion}
                 provenanceVersion={provenanceVersion}
@@ -392,11 +459,7 @@ const ChartTypeBuilder: FC = () => {
                         ? handleCloseHistory()
                         : setIsHistoryOpen(true)
                 }
-                onPreviewInExplorer={() =>
-                    void navigate(
-                        `/projects/${projectUuid}/tables?dataAppVizUuid=${activeVizUuid}`,
-                    )
-                }
+                onPreviewInExplorer={handlePreviewInExplorer}
             />
             <PanelGroup direction="horizontal" className={classes.main}>
                 <Panel id="chart-type-builder-canvas" order={1} minSize={50}>
