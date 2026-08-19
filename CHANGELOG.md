@@ -1,3 +1,10 @@
+## [1.206.3](https://github.com/lightdash/lightdash/compare/1.206.2...1.206.3) (2026-08-19)
+
+
+### Bug Fixes
+
+* **ci:** verify release safety comment stamps ([#27696](https://github.com/lightdash/lightdash/issues/27696)) ([16a341d](https://github.com/lightdash/lightdash/commit/16a341d21039740f0ce6f8556e348d26eaad365d))
+
 ## [1.206.2](https://github.com/lightdash/lightdash/compare/1.206.1...1.206.2) (2026-08-19)
 
 
