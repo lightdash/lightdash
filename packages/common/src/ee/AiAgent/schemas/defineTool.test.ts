@@ -201,6 +201,7 @@ describe('defineTool', () => {
             .sort();
 
         expect(structuredMcpToolNames).toEqual([
+            'get_ai_writeback_status',
             'get_context',
             'get_metadata',
             'get_query_result',

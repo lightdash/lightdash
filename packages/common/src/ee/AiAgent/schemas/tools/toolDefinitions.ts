@@ -1790,6 +1790,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     getCurrentAgentToolDefinition,
     listVerifiedContentToolDefinition,
     runAiWritebackToolDefinition,
+    getAiWritebackStatusToolDefinition,
 ] as const;
 
 export type BuiltInToolDefinition = ToolDefinitionInstance;
