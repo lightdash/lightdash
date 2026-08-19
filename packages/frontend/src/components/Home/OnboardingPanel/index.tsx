@@ -8,7 +8,6 @@ import MantineLinkButton from '../../common/MantineLinkButton';
 
 interface Props {
     projectUuid: string;
-    userName?: string;
 }
 
 const onboardingSteps = [
@@ -29,12 +28,10 @@ const onboardingSteps = [
     },
 ];
 
-const OnboardingPanel: FC<Props> = ({ projectUuid, userName }) => {
+const OnboardingPanel: FC<Props> = ({ projectUuid }) => {
     return (
         <Stack justify="flex-start" gap="xs" mt="4xl">
-            <Title order={3}>
-                {`Welcome${userName ? ', ' + userName : ' to Lightdash'}! 👋`}
-            </Title>
+            <Title order={3}>Welcome to Lightdash 💖</Title>
             <Text c="ldGray.7">
                 You&apos;re ready to start exploring. Here&apos;s what you can
                 do with Lightdash:
