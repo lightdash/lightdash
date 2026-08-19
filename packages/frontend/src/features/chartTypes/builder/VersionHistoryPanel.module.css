@@ -96,6 +96,21 @@
     padding: 6px 8px;
 }
 
+.upgradeSummary {
+    padding: 8px;
+    border: 1px solid var(--mantine-color-blue-2);
+    border-radius: var(--mantine-radius-sm);
+    background: light-dark(
+        var(--mantine-color-blue-0),
+        rgba(34, 139, 230, 0.12)
+    );
+}
+
+.upgradeSummaryMarkdown {
+    --ai-markdown-padding-left: 0;
+    --ai-markdown-font-size: 11px;
+}
+
 .buildDetails {
     border-top: 1px solid var(--mantine-color-ldGray-2);
 }
