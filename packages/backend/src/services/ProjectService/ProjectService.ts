@@ -320,7 +320,7 @@ import { omitDbtEnvironment } from '../../utils/dbtProjectConfig';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     applyMergeTerminalWrapper,
-    getMergeNullPlaceholder,
+    getMergeJoinKeySqlOptions,
     MergeQueryBuilder,
 } from '../../utils/QueryBuilder/MergeQueryBuilder';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
@@ -5256,6 +5256,39 @@ export class ProjectService extends BaseService {
     }
 
     /**
+     * Join-key field metadata straight from a merge query, for callers that
+     * need the key types without the full compile (the compose execution
+     * path derives dialect-specific null placeholders from them).
+     */
+    protected async getMergeFieldTypesForQuery(
+        account: Account,
+        projectUuid: string,
+        mergeQuery: MergeQuery,
+    ): Promise<MergeFieldTypes> {
+        const itemMapBySourceId = Object.fromEntries(
+            await Promise.all(
+                mergeQuery.sources.map(async (source) => {
+                    const explore = await this.getExplore(
+                        account,
+                        projectUuid,
+                        source.metricQuery.exploreName,
+                    );
+                    return [
+                        source.id,
+                        getItemMap(
+                            explore,
+                            source.metricQuery.additionalMetrics,
+                            source.metricQuery.tableCalculations,
+                            source.metricQuery.customDimensions,
+                        ),
+                    ] as const;
+                }),
+            ),
+        );
+        return this.getMergeJoinFieldTypes(mergeQuery, itemMapBySourceId);
+    }
+
+    /**
      * Table calculations whose value depends on the query's whole row set.
      * Merging changes that row set, so they cannot be carried across it: a
      * running total would be frozen at its pre-merge value and a pivot-function
@@ -5496,23 +5529,12 @@ export class ProjectService extends BaseService {
         // landing as two unmatched rows. Safe because the join also compares
         // null-ness: a real value equal to the placeholder can never pair with
         // a null.
-        const nullPlaceholderByKeyName = Object.fromEntries(
-            mergeQuery.joinKey.flatMap((part) => {
-                const meta = Object.entries(part.fieldIdBySourceId)
-                    .map(
-                        ([sourceId, fieldId]) =>
-                            fieldTypes[sourceId]?.[fieldId],
-                    )
-                    .find((candidate) => candidate !== undefined);
-                if (meta === undefined) return [];
-                return [
-                    [
-                        part.name,
-                        getMergeNullPlaceholder(meta, warehouseSqlBuilder),
-                    ],
-                ];
-            }),
-        );
+        const { nullPlaceholderByKeyName, stringJoinKeyNames } =
+            getMergeJoinKeySqlOptions(
+                mergeQuery.joinKey,
+                fieldTypes,
+                warehouseSqlBuilder,
+            );
 
         const mergeQueryBuilder = new MergeQueryBuilder({
             sources,
@@ -5528,15 +5550,7 @@ export class ProjectService extends BaseService {
             ),
             tableCalculations: mergeQuery.tableCalculations,
             nullPlaceholderByKeyName,
-            stringJoinKeyNames: mergeQuery.joinKey.flatMap((part) => {
-                const meta = Object.entries(part.fieldIdBySourceId)
-                    .map(
-                        ([sourceId, fieldId]) =>
-                            fieldTypes[sourceId]?.[fieldId],
-                    )
-                    .find((candidate) => candidate !== undefined);
-                return meta?.type === DimensionType.STRING ? [part.name] : [];
-            }),
+            stringJoinKeyNames,
             // Each query is bounded, but reaching the bound is reported rather
             // than trimmed: a join over a trimmed side returns numbers that
             // look complete and are not.

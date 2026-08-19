@@ -334,6 +334,14 @@ export enum FeatureFlags {
      * (GET /api/v2/projects/{projectUuid}/query/history). Off by default.
      */
     QueryHistory = 'query-history',
+
+    /**
+     * Run merges as composition: each source executes separately against
+     * the warehouse and the DuckDB compose engine joins the results. Falls
+     * back to the single-statement warehouse merge when the compose engine
+     * is unavailable or the merge needs a pivot. Off by default.
+     */
+    MergeOnCompose = 'merge-on-compose',
 }
 
 export type FeatureFlag = {

@@ -135,6 +135,7 @@ import {
     type RunQueryTags,
     type SessionUser,
     type SpaceSummaryBase,
+    type UserAttributeValueMap,
     type WarehouseExecuteAsyncQuery,
     type WarehousePhaseTimings,
     type WarehouseResults,
@@ -186,6 +187,7 @@ import {
     processFieldsForExport,
     streamJsonlData,
 } from '../../utils/FileDownloadUtils/FileDownloadUtils';
+import { buildComposeMergeSql } from '../../utils/QueryBuilder/composeMergeSql';
 import { updateExploreWithDateZoom } from '../../utils/QueryBuilder/dateZoom';
 import {
     buildMergeResultMetricQuery,
@@ -6852,6 +6854,18 @@ export class AsyncQueryService extends ProjectService {
     /** How long a compose query waits for a referenced query's results. */
     private static readonly REFERENCE_WAIT_TIMEOUT_MS = 15 * 60 * 1000;
 
+    /** The wrap keeps reference CTEs valid for SQL that starts with its own WITH chain. */
+    private static wrapSqlWithReferenceCtes(
+        sql: string,
+        referenceCtes: string[],
+    ): string {
+        return referenceCtes.length > 0
+            ? `WITH ${referenceCtes.join(
+                  ',\n',
+              )}\nSELECT * FROM (\n${sql}\n) AS lightdash_user_query`
+            : sql;
+    }
+
     /**
      * Background phase of a compose query: wait for referenced results (the
      * whole of pipeline orchestration), build the reference CTEs, discover
@@ -6899,14 +6913,10 @@ export class AsyncQueryService extends ProjectService {
                   })
                 : [];
 
-            // The wrap keeps the reference CTEs valid for user SQL that
-            // starts with its own WITH chain.
-            const resolvedSql =
-                referenceCtes.length > 0
-                    ? `WITH ${referenceCtes.join(
-                          ',\n',
-                      )}\nSELECT * FROM (\n${sql}\n) AS lightdash_user_query`
-                    : sql;
+            const resolvedSql = AsyncQueryService.wrapSqlWithReferenceCtes(
+                sql,
+                referenceCtes,
+            );
 
             // Column discovery (LIMIT 1) also validates the SQL
             const columns: { name: string; type: DimensionType }[] = [];
@@ -7158,6 +7168,30 @@ export class AsyncQueryService extends ProjectService {
             return undefined;
         })();
 
+        // The pivot stage still compiles in the warehouse dialect, so pivoted
+        // merges stay on the single-statement path for now.
+        if (pivotConfiguration === undefined) {
+            const composeQuery = await this.tryExecuteComposeMergeQuery({
+                account,
+                projectUuid,
+                organizationUuid,
+                mergeQuery: effectiveMergeQuery,
+                context,
+                invalidateCache,
+                parameters,
+                userAttributeOverrides,
+                compiledMerge,
+            });
+            if (composeQuery !== null) {
+                return {
+                    outcome: 'started',
+                    query: composeQuery,
+                    parameterReferences: compiledMerge.parameterReferences,
+                    fieldOrigins: compiledMerge.fieldOrigins,
+                };
+            }
+        }
+
         const query = await this.executeCompiledAsyncMergeQuery({
             account,
             projectUuid,
@@ -7285,6 +7319,321 @@ export class AsyncQueryService extends ProjectService {
             usedParametersValues: composer.getUsedParameters(),
             resolvedTimezone: composer.getDisplayTimezone(),
         };
+    }
+
+    /**
+     * Runs a merge as composition when the merge-on-compose flag is on and
+     * the compose engine is available; returns null to fall back to the
+     * single-statement warehouse merge otherwise.
+     *
+     * Each source executes as its own metric query — inheriting that query's
+     * access rules and the metric-query result cache — and the DuckDB
+     * compose engine joins the materialized results. The join is the same
+     * MergeQueryBuilder assembly as the warehouse statement, in the DuckDB
+     * dialect over reference tables, so join semantics are shared by
+     * construction. Submission never blocks on the legs: the background
+     * phase waits for their results through the standard reference wait.
+     */
+    private async tryExecuteComposeMergeQuery({
+        account,
+        projectUuid,
+        organizationUuid,
+        mergeQuery,
+        context,
+        invalidateCache,
+        parameters,
+        userAttributeOverrides,
+        compiledMerge,
+    }: {
+        account: Account;
+        projectUuid: string;
+        organizationUuid: string;
+        mergeQuery: MergeQuery;
+        context: QueryExecutionContext;
+        invalidateCache: boolean | undefined;
+        parameters: ParametersValuesMap | undefined;
+        userAttributeOverrides: UserAttributeValueMap | undefined;
+        compiledMerge: RunnableCompiledMergeQuery;
+    }): Promise<ApiExecuteAsyncMetricQueryResults | null> {
+        assertIsAccountWithOrg(account);
+
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+            },
+            featureFlagId: FeatureFlags.MergeOnCompose,
+        });
+        if (!enabled) return null;
+
+        let warehouseClient: WarehouseClient;
+        try {
+            warehouseClient =
+                this.preAggregateStrategy.createExecutionWarehouseClient();
+        } catch (e) {
+            this.logger.debug(
+                `Merge-on-compose unavailable, using the warehouse merge: ${getErrorMessage(
+                    e,
+                )}`,
+            );
+            return null;
+        }
+
+        const projectSummary = await this.projectModel.getSummary(projectUuid);
+        const sourceRowCap = this.lightdashConfig.query.maxLimit;
+
+        // Legs run whole: the merged statement sorts and limits, and a side
+        // is never silently truncated below the source row cap
+        const legs = await Promise.all(
+            mergeQuery.sources.map(async (source) => {
+                const leg = await this.executeAsyncMetricQuery({
+                    account,
+                    projectUuid,
+                    context,
+                    invalidateCache,
+                    parameters,
+                    userAttributeOverrides,
+                    metricQuery: {
+                        ...source.metricQuery,
+                        sorts: [],
+                        limit: sourceRowCap,
+                    },
+                });
+                return [source.id, leg.queryUuid] as const;
+            }),
+        );
+        const legQueryUuidBySourceId = Object.fromEntries(legs);
+
+        const fieldTypes = await this.getMergeFieldTypesForQuery(
+            account,
+            projectUuid,
+            mergeQuery,
+        );
+        const { sql, referenceTableBySourceId } = buildComposeMergeSql({
+            mergeQuery,
+            fieldTypes,
+            outputAliasByColumn: compiledMerge.fieldIdByColumn,
+            limit: Math.min(mergeQuery.limit, sourceRowCap),
+            sourceRowCap,
+        });
+
+        // Merge table calculations carry user-authored SQL into the DuckDB
+        // statement, so the same file-access block as raw compose SQL applies
+        try {
+            DuckdbWarehouseClient.validateUserSqlFileAccess(sql);
+        } catch (e) {
+            throw new ParameterError(getErrorMessage(e));
+        }
+
+        const references = Object.fromEntries(
+            Object.entries(referenceTableBySourceId).map(
+                ([sourceId, tableName]) => [
+                    tableName,
+                    legQueryUuidBySourceId[sourceId],
+                ],
+            ),
+        );
+        await this.authorizeQueryReferences({
+            account,
+            projectUuid,
+            organizationUuid,
+            references,
+        });
+
+        const columnOrder = Object.values(compiledMerge.fieldIdByColumn);
+        const resultMetricQuery = buildMergeResultMetricQuery({
+            itemsMap: compiledMerge.itemsMap,
+            columnOrder,
+            limit: mergeQuery.limit,
+        });
+        const originalColumns: ResultColumns = Object.fromEntries(
+            compiledMerge.typedColumns.map((column) => [
+                column.reference,
+                { reference: column.reference, type: column.type },
+            ]),
+        );
+
+        const queryTags: RunQueryTags = {
+            ...this.getUserQueryTags(account),
+            ...AsyncQueryService.getSchedulerQueryTags(),
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            query_context: context,
+        };
+
+        // Keyed to the user: legs compile under per-user attributes, so the
+        // merged result is per-user too
+        const cacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
+            sql: JSON.stringify({ mergeSql: sql, references }),
+            userUuid: account.user.id,
+        });
+
+        const requestParameters: ExecuteAsyncMergeQueryRequestParams = {
+            context,
+            invalidateCache,
+            mergeQuery,
+            parameters,
+            pivotConfiguration: undefined,
+        };
+
+        const queryCreatedAt = new Date();
+        const { queryUuid } = await this.queryHistoryModel.create(account, {
+            projectUuid,
+            organizationUuid,
+            context,
+            fields: compiledMerge.itemsMap,
+            compiledSql: sql,
+            requestParameters,
+            metricQuery: resultMetricQuery,
+            cacheKey,
+            pivotConfiguration: null,
+            originalColumns,
+        });
+        this.prometheusMetrics?.trackQueryStateTransition(
+            'new',
+            QueryHistoryStatus.PENDING,
+            context,
+        );
+
+        const onboardingFlow = await this.getOnboardingFlow({
+            userUuid: account.user.id,
+            organizationUuid,
+        });
+
+        void this.runComposeMergeQuery({
+            account,
+            projectUuid,
+            organizationUuid,
+            isPreviewProject:
+                projectSummary.type === ProjectType.PREVIEW ||
+                projectSummary.provisioningSource === 'playground',
+            onboardingFlow,
+            queryUuid,
+            sql,
+            references,
+            warehouseClient,
+            queryTags,
+            queryCreatedAt,
+            cacheKey,
+            context,
+            fieldsMap: compiledMerge.itemsMap,
+            originalColumns,
+        }).catch((e) => {
+            this.logger.error(
+                `Async compose merge query ${queryUuid} failed: ${getErrorMessage(
+                    e,
+                )}`,
+            );
+        });
+
+        return {
+            queryUuid,
+            cacheMetadata: { cacheHit: false },
+            metricQuery: resultMetricQuery,
+            fields: compiledMerge.itemsMap,
+            warnings: [],
+            parameterReferences: compiledMerge.parameterReferences,
+            usedParametersValues: compiledMerge.usedParametersValues,
+            resolvedTimezone: null,
+        };
+    }
+
+    /**
+     * Background phase of a compose-mode merge: wait for the legs' results
+     * (the standard reference wait), bind them as reference CTEs, then run
+     * the join on the compose engine through the standard async pipeline.
+     * The merge fields and columns are known at submit time, so unlike raw
+     * compose SQL there is no column discovery and no metadata overwrite.
+     */
+    private async runComposeMergeQuery({
+        account,
+        projectUuid,
+        organizationUuid,
+        isPreviewProject,
+        onboardingFlow,
+        queryUuid,
+        sql,
+        references,
+        warehouseClient,
+        queryTags,
+        queryCreatedAt,
+        cacheKey,
+        context,
+        fieldsMap,
+        originalColumns,
+    }: {
+        account: Account;
+        projectUuid: string;
+        organizationUuid: string;
+        isPreviewProject: boolean;
+        onboardingFlow: OnboardingFlow;
+        queryUuid: string;
+        sql: string;
+        references: Record<string, string>;
+        warehouseClient: WarehouseClient;
+        queryTags: RunQueryTags;
+        queryCreatedAt: Date;
+        cacheKey: string;
+        context: QueryExecutionContext;
+        fieldsMap: ItemsMap;
+        originalColumns: ResultColumns;
+    }): Promise<void> {
+        try {
+            const referenceCtes = await this.buildQueryReferenceCtes({
+                account,
+                projectUuid,
+                references,
+            });
+            const query = AsyncQueryService.wrapSqlWithReferenceCtes(
+                sql,
+                referenceCtes,
+            );
+            await this.queryHistoryModel.update(
+                queryUuid,
+                projectUuid,
+                { compiled_sql: query },
+                account,
+            );
+
+            this.prometheusMetrics?.trackQueryStateTransition(
+                QueryHistoryStatus.PENDING,
+                QueryHistoryStatus.EXECUTING,
+                context,
+            );
+            this.prometheusMetrics?.observeQueueWaitDuration(0, context);
+
+            await this.runAsyncWarehouseQuery({
+                userUuid: account.user.id,
+                organizationUuid,
+                isPreviewProject,
+                isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
+                onboardingFlow,
+                projectUuid,
+                queryUuid,
+                queryTags,
+                query,
+                fieldsMap,
+                cacheKey,
+                originalColumns,
+                queryCreatedAt,
+                displayTimezone: null,
+                warehouseClientOverride: warehouseClient,
+                warehouseCredentialsTypeOverride:
+                    warehouseClient.credentials.type,
+            });
+        } catch (e) {
+            await this.queryHistoryModel.update(
+                queryUuid,
+                projectUuid,
+                {
+                    status: QueryHistoryStatus.ERROR,
+                    error: getErrorMessage(e),
+                    errored_at: new Date(),
+                },
+                account,
+            );
+        }
     }
 
     private async prepareSqlChartAsyncQueryArgs({
