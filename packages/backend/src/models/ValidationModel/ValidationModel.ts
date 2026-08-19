@@ -276,6 +276,23 @@ export class ValidationModel {
             .delete();
     }
 
+    // `table_name` is only populated for rows written since it was added, so
+    // responses recover the model another way: from the error message for
+    // dashboards (`parseDashboardFilterError`), and from `model_name` for table
+    // and data app rows. Filtering by table has to see the same value, or a
+    // summary chip built from it matches no rows. Dashboards are excluded from
+    // the `model_name` fallback — there it holds the dashboard's name, not a
+    // model. Keep the patterns in sync with `parseDashboardFilterError`.
+    private static readonly EFFECTIVE_TABLE_NAME_SQL = `CASE WHEN source = '${
+        ValidationSourceType.Dashboard
+    }' THEN COALESCE(
+        table_name,
+        substring(error from $re$references table '([^']+)' which is not used by any chart on this dashboard$re$),
+        substring(error from $re$Table '([^']+)' no longer exists$re$),
+        substring(error from $re$the field '[^']+' does not match table '([^']+)'$re$),
+        substring(error from $re$the field '[^']+' on table '([^']+)' no longer exists$re$)
+    ) ELSE COALESCE(table_name, model_name) END`;
+
     public static parseDashboardFilterError(error: string): {
         tableName?: string;
         dashboardFilterErrorType?: DashboardFilterValidationErrorType;
@@ -990,6 +1007,7 @@ export class ValidationModel {
             sourceTypes?: ValidationSourceType[];
             errorTypes?: ValidationErrorType[];
             tableName?: string;
+            fieldName?: string;
             includeChartConfigWarnings?: boolean;
             allowedSpaceUuids?: string[] | 'all';
             allowedAppUuids?: string[] | 'all';
@@ -1003,6 +1021,7 @@ export class ValidationModel {
             sourceTypes,
             errorTypes,
             tableName,
+            fieldName,
             includeChartConfigWarnings = false,
             allowedSpaceUuids = 'all',
             allowedAppUuids = 'all',
@@ -1301,7 +1320,13 @@ export class ValidationModel {
                         void qb.whereIn('error_type', errorTypes);
                     }
                     if (tableName) {
-                        void qb.where('table_name', tableName);
+                        void qb.whereRaw(
+                            `${ValidationModel.EFFECTIVE_TABLE_NAME_SQL} = ?`,
+                            [tableName],
+                        );
+                    }
+                    if (fieldName) {
+                        void qb.where('field_name', fieldName);
                     }
                     if (!includeChartConfigWarnings) {
                         void qb.whereNot((inner) => {
