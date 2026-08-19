@@ -10,7 +10,6 @@ import {
     ScrollArea,
     SegmentedControl,
     Select,
-    SimpleGrid,
     Stack,
     Switch,
     Table,
@@ -33,7 +32,6 @@ import {
     IconChartPie,
     IconChartTreemap,
     IconChevronDown,
-    IconChevronLeft,
     IconChevronRight,
     IconCode,
     IconCircleCheck,
@@ -59,9 +57,9 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import MantineIcon from '../components/common/MantineIcon';
 import classes from './ExplorerChartGalleryPrototype.module.css';
 
-// PROTOTYPE — three complete Explorer -> embedded chart builder -> Explorer
-// interactions, switchable through `?prototypeVariant=A|B|C`. Throw this story
-// away after the authoring layout and state model are chosen.
+// PROTOTYPE — complete Explorer -> embedded chart builder -> Explorer
+// interaction. Throw this story away after the authoring layout and state model
+// are chosen.
 
 type QueryRow = {
     tier: 'Very high' | 'High' | 'Low';
@@ -69,7 +67,6 @@ type QueryRow = {
     count: number;
 };
 
-type PrototypeVariant = 'A' | 'B' | 'C';
 type ExplorerMode = 'explore' | 'authoring';
 type BuildStage = 'brief' | 'clarify' | 'building' | 'ready';
 type ChartPreviewKind =
@@ -296,20 +293,6 @@ const PALETTES = {
 } as const;
 
 type Palette = keyof typeof PALETTES;
-
-const readVariant = (): PrototypeVariant => {
-    if (typeof window === 'undefined') return 'A';
-    const value = new URLSearchParams(window.location.search).get(
-        'prototypeVariant',
-    );
-    return value === 'B' || value === 'C' ? value : 'A';
-};
-
-const writeVariant = (variant: PrototypeVariant) => {
-    const url = new URL(window.location.href);
-    url.searchParams.set('prototypeVariant', variant);
-    window.history.replaceState({}, '', url);
-};
 
 const ChartPreview = ({
     kind,
@@ -1145,55 +1128,11 @@ const LegacyConfigSidebar = ({
     </Box>
 );
 
-const ChartTypeCard = ({
-    chart,
-    selected,
-    palette,
-    onSelect,
-}: {
-    chart: ChartTypeOption;
-    selected: boolean;
-    palette: Palette;
-    onSelect: () => void;
-}) => (
-    <UnstyledButton
-        className={`${classes.chartTypeCard} ${
-            selected ? classes.chartTypeCardSelected : ''
-        }`}
-        onClick={onSelect}
-    >
-        <ChartPreview kind={chart.kind} palette={palette} compact />
-        <Stack gap={2} p="xs">
-            <Group gap={5} wrap="nowrap">
-                <MantineIcon icon={chart.icon} size={13} />
-                <Text size="xs" fw={600} truncate>
-                    {chart.label}
-                </Text>
-                {chart.source !== 'standard' && (
-                    <Badge
-                        ml="auto"
-                        size="xs"
-                        variant="light"
-                        color={chart.source === 'project' ? 'violet' : 'gray'}
-                    >
-                        {chart.source === 'project' ? 'Project' : 'Vega'}
-                    </Badge>
-                )}
-            </Group>
-            <Text fz={10} c="dimmed" truncate>
-                {chart.description}
-            </Text>
-        </Stack>
-    </UnstyledButton>
-);
-
 const PrototypeState = ({
-    variant,
     selectedChart,
     palette,
     showLabels,
 }: {
-    variant: PrototypeVariant;
     selectedChart: ChartTypeOption;
     palette: Palette;
     showLabels: boolean;
@@ -1206,7 +1145,6 @@ const PrototypeState = ({
             {JSON.stringify(
                 {
                     featureFlag: 'new-explorer-chart-sidebar',
-                    variant,
                     selectedChart: selectedChart.id,
                     source: selectedChart.source,
                     resultRows: QUERY_ROWS.length,
@@ -1222,7 +1160,6 @@ const PrototypeState = ({
 );
 
 type RightSidebarProps = {
-    variant: PrototypeVariant;
     selectedChart: ChartTypeOption;
     setSelectedId: (id: string) => void;
     palette: Palette;
@@ -1233,105 +1170,7 @@ type RightSidebarProps = {
     onEditProjectChart: () => void;
 };
 
-const RightSidebarVariantA = ({
-    variant,
-    selectedChart,
-    setSelectedId,
-    palette,
-    setPalette,
-    showLabels,
-    setShowLabels,
-    onCreateChartType,
-    onEditProjectChart,
-}: RightSidebarProps) => {
-    const [search, setSearch] = useState('');
-    const [group, setGroup] = useState<'All' | ChartGroup>('All');
-    const visibleCharts = CHART_TYPES.filter(
-        (chart) =>
-            (group === 'All' || chart.group === group) &&
-            chart.label.toLowerCase().includes(search.toLowerCase()),
-    );
-
-    return (
-        <ScrollArea className={classes.sidebarScroll}>
-            <Stack p="md" gap="md">
-                <TextInput
-                    size="xs"
-                    value={search}
-                    onChange={(event) => setSearch(event.currentTarget.value)}
-                    placeholder="Search chart types"
-                    leftSection={<MantineIcon icon={IconSearch} />}
-                />
-                <SegmentedControl
-                    fullWidth
-                    size="xs"
-                    value={group}
-                    onChange={(value) => setGroup(value as 'All' | ChartGroup)}
-                    data={['All', 'Built in', 'Project']}
-                />
-                {(['Project', 'Built in'] as ChartGroup[]).map((chartGroup) => {
-                    const charts = visibleCharts.filter(
-                        ({ group: itemGroup }) => itemGroup === chartGroup,
-                    );
-                    if (charts.length === 0) return null;
-                    return (
-                        <Stack key={chartGroup} gap="xs">
-                            <Group justify="space-between">
-                                <Text size="xs" fw={600} c="dimmed">
-                                    {chartGroup.toUpperCase()}
-                                </Text>
-                                <Text size="xs" c="dimmed">
-                                    {charts.length}
-                                </Text>
-                            </Group>
-                            <SimpleGrid cols={2} spacing="xs">
-                                {charts.map((chart) => (
-                                    <ChartTypeCard
-                                        key={chart.id}
-                                        chart={chart}
-                                        selected={chart.id === selectedChart.id}
-                                        palette={palette}
-                                        onSelect={() => setSelectedId(chart.id)}
-                                    />
-                                ))}
-                            </SimpleGrid>
-                        </Stack>
-                    );
-                })}
-                <Button
-                    variant="subtle"
-                    size="xs"
-                    leftSection={<MantineIcon icon={IconPlus} />}
-                    onClick={onCreateChartType}
-                >
-                    Create new chart type
-                </Button>
-                <Divider
-                    label="Configure selected chart"
-                    labelPosition="left"
-                />
-                <ConfigControls
-                    selectedChart={selectedChart}
-                    palette={palette}
-                    setPalette={setPalette}
-                    showLabels={showLabels}
-                    setShowLabels={setShowLabels}
-                    onEditProjectChart={onEditProjectChart}
-                />
-                <Divider />
-                <PrototypeState
-                    variant={variant}
-                    selectedChart={selectedChart}
-                    palette={palette}
-                    showLabels={showLabels}
-                />
-            </Stack>
-        </ScrollArea>
-    );
-};
-
-const RightSidebarVariantB = ({
-    variant,
+const ChartGallerySidebar = ({
     selectedChart,
     setSelectedId,
     palette,
@@ -1475,7 +1314,6 @@ const RightSidebarVariantB = ({
                         />
                         <Divider />
                         <PrototypeState
-                            variant={variant}
                             selectedChart={selectedChart}
                             palette={palette}
                             showLabels={showLabels}
@@ -1486,126 +1324,6 @@ const RightSidebarVariantB = ({
         </ScrollArea>
     );
 };
-
-const RightSidebarVariantC = ({
-    variant,
-    selectedChart,
-    setSelectedId,
-    palette,
-    setPalette,
-    showLabels,
-    setShowLabels,
-    onCreateChartType,
-    onEditProjectChart,
-}: RightSidebarProps) => (
-    <Box className={classes.railLayout}>
-        <Stack className={classes.typeRail} gap={4}>
-            <Text size="xs" fw={600} c="dimmed" p="xs">
-                PROJECT
-            </Text>
-            {CHART_TYPES.filter(({ group }) => group === 'Project').map(
-                (chart) => (
-                    <UnstyledButton
-                        key={chart.id}
-                        className={`${classes.railItem} ${
-                            chart.id === selectedChart.id
-                                ? classes.railItemSelected
-                                : ''
-                        }`}
-                        onClick={() => setSelectedId(chart.id)}
-                    >
-                        <Group gap="xs" wrap="nowrap">
-                            <MantineIcon icon={chart.icon} />
-                            <Text size="xs" fw={500} lineClamp={2}>
-                                {chart.label}
-                            </Text>
-                        </Group>
-                    </UnstyledButton>
-                ),
-            )}
-            <Divider my="xs" />
-            <Text size="xs" fw={600} c="dimmed" p="xs">
-                BUILT IN
-            </Text>
-            {CHART_TYPES.filter(({ group }) => group === 'Built in').map(
-                (chart) => (
-                    <UnstyledButton
-                        key={chart.id}
-                        className={`${classes.railItem} ${
-                            chart.id === selectedChart.id
-                                ? classes.railItemSelected
-                                : ''
-                        }`}
-                        onClick={() => setSelectedId(chart.id)}
-                    >
-                        <Group gap="xs" wrap="nowrap">
-                            <MantineIcon icon={chart.icon} />
-                            <Text size="xs" fw={500}>
-                                {chart.label}
-                            </Text>
-                        </Group>
-                    </UnstyledButton>
-                ),
-            )}
-            <Button
-                mt="auto"
-                size="compact-xs"
-                variant="subtle"
-                leftSection={<MantineIcon icon={IconPlus} />}
-                onClick={onCreateChartType}
-            >
-                New
-            </Button>
-        </Stack>
-
-        <ScrollArea className={classes.sidebarScroll}>
-            <Stack p="md" gap="md">
-                <Stack gap={4}>
-                    <Group justify="space-between" wrap="nowrap">
-                        <Text fw={600}>{selectedChart.label}</Text>
-                        <Badge
-                            size="xs"
-                            variant="light"
-                            color={
-                                selectedChart.group === 'Project'
-                                    ? 'violet'
-                                    : 'gray'
-                            }
-                        >
-                            {selectedChart.group}
-                        </Badge>
-                    </Group>
-                    <Text size="xs" c="dimmed">
-                        Live preview with 10 query rows
-                    </Text>
-                </Stack>
-                <Box className={classes.inspectorPreview}>
-                    <ChartPreview
-                        kind={selectedChart.kind}
-                        palette={palette}
-                        showLabels={showLabels}
-                    />
-                </Box>
-                <Divider label="Field mapping" labelPosition="left" />
-                <ConfigControls
-                    selectedChart={selectedChart}
-                    palette={palette}
-                    setPalette={setPalette}
-                    showLabels={showLabels}
-                    setShowLabels={setShowLabels}
-                    onEditProjectChart={onEditProjectChart}
-                />
-                <Divider />
-                <PrototypeState
-                    variant={variant}
-                    selectedChart={selectedChart}
-                    palette={palette}
-                    showLabels={showLabels}
-                />
-            </Stack>
-        </ScrollArea>
-    </Box>
-);
 
 const RightSidebar = (props: RightSidebarProps) => (
     <Box className={`${classes.sidebar} ${classes.rightSidebar}`}>
@@ -1622,14 +1340,11 @@ const RightSidebar = (props: RightSidebarProps) => (
                 <MantineIcon icon={IconX} />
             </ActionIcon>
         </Group>
-        {props.variant === 'A' && <RightSidebarVariantA {...props} />}
-        {props.variant === 'B' && <RightSidebarVariantB {...props} />}
-        {props.variant === 'C' && <RightSidebarVariantC {...props} />}
+        <ChartGallerySidebar {...props} />
     </Box>
 );
 
 type EmbeddedBuilderProps = {
-    variant: PrototypeVariant;
     buildStage: BuildStage;
     prompt: string;
     queryDirty: boolean;
@@ -1770,10 +1485,7 @@ const BuilderConversation = ({
     editingChart,
     onPromptChange,
     onAdvance,
-}: Omit<
-    EmbeddedBuilderProps,
-    'variant' | 'onCancel' | 'onApply' | 'onRunQuery'
->) => {
+}: Omit<EmbeddedBuilderProps, 'onCancel' | 'onApply' | 'onRunQuery'>) => {
     const actionLabel: Record<BuildStage, string> = {
         brief: 'Continue',
         clarify: 'Build chart type',
@@ -1989,35 +1701,16 @@ const EmbeddedBuilderWorkspace = (props: EmbeddedBuilderProps) => {
     return (
         <Box className={classes.embeddedBuilder}>
             <BuilderHeader {...props} />
-            {props.variant === 'A' && (
-                <Box className={classes.builderSplitA}>
-                    {preview}
+            <Stack className={classes.builderCanvasB} gap="md">
+                {preview}
+                <Paper withBorder radius="lg" className={classes.builderDockB}>
                     {conversation}
-                </Box>
-            )}
-            {props.variant === 'B' && (
-                <Stack className={classes.builderCanvasB} gap="md">
-                    {preview}
-                    <Paper
-                        withBorder
-                        radius="lg"
-                        className={classes.builderDockB}
-                    >
-                        {conversation}
-                    </Paper>
-                </Stack>
-            )}
-            {props.variant === 'C' && (
-                <Box className={classes.builderSplitC}>
-                    {conversation}
-                    {preview}
-                </Box>
-            )}
+                </Paper>
+            </Stack>
             <Code block className={classes.authoringState}>
                 {JSON.stringify(
                     {
                         mode: 'authoring',
-                        variant: props.variant,
                         buildStage: props.buildStage,
                         query: {
                             executedRevision: props.dataRevision,
@@ -2215,87 +1908,12 @@ const ExplorerMain = ({
     </Box>
 );
 
-const VARIANT_LABELS: Record<PrototypeVariant, string> = {
-    A: 'Preview + conversation split',
-    B: 'Canvas + conversation dock',
-    C: 'Conversation + studio split',
-};
-
-const PrototypeSwitcher = ({
-    variant,
-    onChange,
-}: {
-    variant: PrototypeVariant;
-    onChange: (variant: PrototypeVariant) => void;
-}) => {
-    const variants: PrototypeVariant[] = ['A', 'B', 'C'];
-    const move = (offset: number) => {
-        const currentIndex = variants.indexOf(variant);
-        onChange(
-            variants[
-                (currentIndex + offset + variants.length) % variants.length
-            ],
-        );
-    };
-
-    useEffect(() => {
-        const onKeyDown = (event: KeyboardEvent) => {
-            const target = event.target as HTMLElement | null;
-            if (
-                target?.matches(
-                    'input, textarea, select, [contenteditable="true"]',
-                )
-            ) {
-                return;
-            }
-            if (event.key === 'ArrowLeft') move(-1);
-            if (event.key === 'ArrowRight') move(1);
-        };
-        window.addEventListener('keydown', onKeyDown);
-        return () => window.removeEventListener('keydown', onKeyDown);
-    });
-
-    if (import.meta.env.PROD) return null;
-
-    return (
-        <Paper className={classes.prototypeSwitcher} radius="xl" px={6} py={5}>
-            <Group gap={4} wrap="nowrap">
-                <ActionIcon
-                    className={classes.switcherButton}
-                    variant="subtle"
-                    aria-label="Previous prototype variant"
-                    onClick={() => move(-1)}
-                >
-                    <MantineIcon icon={IconChevronLeft} />
-                </ActionIcon>
-                <Stack gap={0} miw={190} align="center">
-                    <Text size="xs" fw={700} c="white">
-                        {variant} — {VARIANT_LABELS[variant]}
-                    </Text>
-                    <Text fz={9} c="gray.5">
-                        Use ← → to compare
-                    </Text>
-                </Stack>
-                <ActionIcon
-                    className={classes.switcherButton}
-                    variant="subtle"
-                    aria-label="Next prototype variant"
-                    onClick={() => move(1)}
-                >
-                    <MantineIcon icon={IconChevronRight} />
-                </ActionIcon>
-            </Group>
-        </Paper>
-    );
-};
-
 const ExplorerChartGalleryPrototype = ({
     featureFlagEnabled,
 }: {
     featureFlagEnabled: boolean;
 }) => {
     const [flagEnabled, setFlagEnabled] = useState(featureFlagEnabled);
-    const [variant, setVariant] = useState<PrototypeVariant>(readVariant);
     const [selectedId, setSelectedId] = useState('event-tier-pulse');
     const [palette, setPalette] = useState<Palette>('navy');
     const [showLabels, setShowLabels] = useState(true);
@@ -2319,11 +1937,6 @@ const ExplorerChartGalleryPrototype = ({
         () => CHART_TYPES.find(({ id }) => id === selectedId) ?? CHART_TYPES[0],
         [selectedId],
     );
-
-    const changeVariant = (nextVariant: PrototypeVariant) => {
-        setVariant(nextVariant);
-        writeVariant(nextVariant);
-    };
 
     const beginAuthoring = (editing: boolean) => {
         setPreviousSelectedId(selectedId);
@@ -2407,10 +2020,6 @@ const ExplorerChartGalleryPrototype = ({
                     flagEnabled && mode === 'explore'
                         ? classes.workspaceWithRightSidebar
                         : ''
-                } ${
-                    flagEnabled && mode === 'explore' && variant === 'C'
-                        ? classes.workspaceWithWideRightSidebar
-                        : ''
                 }`}
             >
                 {flagEnabled ? (
@@ -2434,7 +2043,6 @@ const ExplorerChartGalleryPrototype = ({
                 )}
                 {mode === 'authoring' ? (
                     <EmbeddedBuilderWorkspace
-                        variant={variant}
                         buildStage={buildStage}
                         prompt={prompt}
                         queryDirty={queryDirty}
@@ -2460,7 +2068,6 @@ const ExplorerChartGalleryPrototype = ({
                         />
                         {flagEnabled && (
                             <RightSidebar
-                                variant={variant}
                                 selectedChart={selectedChart}
                                 setSelectedId={setSelectedId}
                                 palette={palette}
@@ -2474,10 +2081,6 @@ const ExplorerChartGalleryPrototype = ({
                     </>
                 )}
             </Box>
-
-            {flagEnabled && (
-                <PrototypeSwitcher variant={variant} onChange={changeVariant} />
-            )}
         </Box>
     );
 };
@@ -2490,7 +2093,7 @@ const meta: Meta<typeof ExplorerChartGalleryPrototype> = {
         docs: {
             description: {
                 component:
-                    'Throwaway interaction prototype for selecting, creating, and editing chart types without leaving Explorer. Fields stay available on the left while three embedded authoring layouts exercise clarification, query refresh, build, apply, and cancel.',
+                    'Throwaway interaction prototype for selecting, creating, and editing chart types without leaving Explorer. Fields stay available on the left while the embedded authoring flow exercises clarification, query refresh, build, apply, and cancel.',
             },
         },
     },
