@@ -110,6 +110,55 @@ Use table calculations for:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
+      "description": "Generate deterministic base-36 hashes for input strings.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "inputs": {
+            "description": "Input strings to hash.",
+            "items": {
+              "type": "string",
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "type": "array",
+          },
+        },
+        "required": [
+          "inputs",
+        ],
+        "type": "object",
+      },
+      "name": "generate_hashes",
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "hashes": {
+            "description": "Base-36 hashes in the same order as the input strings.",
+            "items": {
+              "pattern": "^[0-9a-z]{6}$",
+              "type": "string",
+            },
+            "type": "array",
+          },
+        },
+        "required": [
+          "hashes",
+        ],
+        "type": "object",
+      },
+      "title": "Generate hashes",
+    },
+    {
+      "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+      },
       "description": "Tool: list_explores
 
 Purpose:
@@ -8983,6 +9032,7 @@ exports[`MCP tool contracts > matches the shared MCP tool definition names snaps
   "render_chart",
   "grep_fields",
   "get_metadata",
+  "generate_hashes",
   "read_content",
   "resolve_url",
   "edit_content",

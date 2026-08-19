@@ -25,6 +25,7 @@ import {
     FeatureFlags,
     findContentToolDefinition,
     ForbiddenError,
+    generateHashesToolDefinition,
     getAiWritebackStatusToolDefinition,
     getAiWritebackTaskStatusMessage,
     getContextToolDefinition,
@@ -40,6 +41,7 @@ import {
     getTotalFilterRules,
     getValidAiQueryLimit,
     grepFieldsToolDefinition,
+    hashStringToBase36,
     ItemsMap,
     listAgentsToolDefinition,
     listContentToolDefinition,
@@ -176,6 +178,7 @@ import {
 
 export enum McpToolName {
     GET_LIGHTDASH_VERSION = 'get_lightdash_version',
+    GENERATE_HASHES = 'generate_hashes',
     LIST_EXPLORES = 'list_explores',
     GREP_FIELDS = 'grep_fields',
     GET_METADATA = 'get_metadata',
@@ -210,6 +213,7 @@ export enum McpToolName {
 
 const projectIndependentMcpToolNames = new Set<string>([
     McpToolName.GET_LIGHTDASH_VERSION,
+    McpToolName.GENERATE_HASHES,
     McpToolName.LIST_PROJECTS,
     McpToolName.GET_CONTEXT,
     McpToolName.GET_CURRENT_PROJECT,
@@ -267,6 +271,7 @@ const mcpGetAiWritebackStatusTool = withProjectUuidInput(
     getAiWritebackStatusToolDefinition.for('mcp'),
 );
 const mcpGetLightdashVersionTool = getLightdashVersionToolDefinition.for('mcp');
+const mcpGenerateHashesTool = generateHashesToolDefinition.for('mcp');
 const mcpListExploresTool = withProjectScopeInput(
     listExploresToolDefinition.for('mcp'),
 );
@@ -1903,6 +1908,26 @@ export class McpService extends BaseService {
                         },
                     ],
                 };
+            },
+        );
+
+        this.registerTrackedTool(
+            mcpGenerateHashesTool.name,
+            {
+                title: mcpGenerateHashesTool.title,
+                description: mcpGenerateHashesTool.description,
+                inputSchema: mcpGenerateHashesTool.inputSchema.shape,
+                outputSchema: mcpGenerateHashesTool.outputSchema.shape,
+                annotations: mcpGenerateHashesTool.annotations,
+            },
+            ({ inputs }) => {
+                const structuredContent = {
+                    hashes: inputs.map(hashStringToBase36),
+                };
+                return mcpGenerateHashesTool.result.structured(
+                    JSON.stringify(structuredContent),
+                    structuredContent,
+                );
             },
         );
 
