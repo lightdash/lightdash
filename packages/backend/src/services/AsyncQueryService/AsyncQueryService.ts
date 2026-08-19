@@ -7168,28 +7168,25 @@ export class AsyncQueryService extends ProjectService {
             return undefined;
         })();
 
-        // The pivot stage still compiles in the warehouse dialect, so pivoted
-        // merges stay on the single-statement path for now.
-        if (pivotConfiguration === undefined) {
-            const composeQuery = await this.tryExecuteComposeMergeQuery({
-                account,
-                projectUuid,
-                organizationUuid,
-                mergeQuery: effectiveMergeQuery,
-                context,
-                invalidateCache,
-                parameters,
-                userAttributeOverrides,
-                compiledMerge,
-            });
-            if (composeQuery !== null) {
-                return {
-                    outcome: 'started',
-                    query: composeQuery,
-                    parameterReferences: compiledMerge.parameterReferences,
-                    fieldOrigins: compiledMerge.fieldOrigins,
-                };
-            }
+        const composeQuery = await this.tryExecuteComposeMergeQuery({
+            account,
+            projectUuid,
+            organizationUuid,
+            mergeQuery: effectiveMergeQuery,
+            context,
+            invalidateCache,
+            parameters,
+            userAttributeOverrides,
+            pivotConfiguration,
+            compiledMerge,
+        });
+        if (composeQuery !== null) {
+            return {
+                outcome: 'started',
+                query: composeQuery,
+                parameterReferences: compiledMerge.parameterReferences,
+                fieldOrigins: compiledMerge.fieldOrigins,
+            };
         }
 
         const query = await this.executeCompiledAsyncMergeQuery({
@@ -7343,6 +7340,7 @@ export class AsyncQueryService extends ProjectService {
         invalidateCache,
         parameters,
         userAttributeOverrides,
+        pivotConfiguration,
         compiledMerge,
     }: {
         account: Account;
@@ -7353,6 +7351,7 @@ export class AsyncQueryService extends ProjectService {
         invalidateCache: boolean | undefined;
         parameters: ParametersValuesMap | undefined;
         userAttributeOverrides: UserAttributeValueMap | undefined;
+        pivotConfiguration: PivotConfiguration | undefined;
         compiledMerge: RunnableCompiledMergeQuery;
     }): Promise<ApiExecuteAsyncMetricQueryResults | null> {
         assertIsAccountWithOrg(account);
@@ -7409,13 +7408,35 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             mergeQuery,
         );
-        const { sql, referenceTableBySourceId } = buildComposeMergeSql({
-            mergeQuery,
-            fieldTypes,
-            outputAliasByColumn: compiledMerge.fieldIdByColumn,
-            limit: Math.min(mergeQuery.limit, sourceRowCap),
-            sourceRowCap,
+        const columnOrder = Object.values(compiledMerge.fieldIdByColumn);
+        const { coreSql, terminalWrapper, referenceTableBySourceId } =
+            buildComposeMergeSql({
+                mergeQuery,
+                fieldTypes,
+                outputAliasByColumn: compiledMerge.fieldIdByColumn,
+                limit: Math.min(mergeQuery.limit, sourceRowCap),
+                sourceRowCap,
+            });
+
+        // The same composer as the warehouse merge, with the compose engine
+        // as the dialect: the pivot stage and terminal wrapper compile for
+        // DuckDB through the one shared seam
+        const composer = new MergeQueryComposer({
+            coreSql,
+            terminalWrapper,
+            itemsMap: compiledMerge.itemsMap,
+            typedColumns: compiledMerge.typedColumns,
+            columnOrder,
+            limit: mergeQuery.limit,
+            parameterReferences: compiledMerge.parameterReferences,
+            usedParametersValues: compiledMerge.usedParametersValues,
+            warehouseClient,
+            pivotConfiguration,
         });
+        const sql = composer.getSql({
+            columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
+        });
+        const fieldsMap = composer.getFields();
 
         // Merge table calculations carry user-authored SQL into the DuckDB
         // statement, so the same file-access block as raw compose SQL applies
@@ -7440,12 +7461,6 @@ export class AsyncQueryService extends ProjectService {
             references,
         });
 
-        const columnOrder = Object.values(compiledMerge.fieldIdByColumn);
-        const resultMetricQuery = buildMergeResultMetricQuery({
-            itemsMap: compiledMerge.itemsMap,
-            columnOrder,
-            limit: mergeQuery.limit,
-        });
         const originalColumns: ResultColumns = Object.fromEntries(
             compiledMerge.typedColumns.map((column) => [
                 column.reference,
@@ -7473,7 +7488,7 @@ export class AsyncQueryService extends ProjectService {
             invalidateCache,
             mergeQuery,
             parameters,
-            pivotConfiguration: undefined,
+            pivotConfiguration,
         };
 
         const queryCreatedAt = new Date();
@@ -7481,12 +7496,12 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             organizationUuid,
             context,
-            fields: compiledMerge.itemsMap,
+            fields: fieldsMap,
             compiledSql: sql,
             requestParameters,
-            metricQuery: resultMetricQuery,
+            metricQuery: composer.getMetricQuery(),
             cacheKey,
-            pivotConfiguration: null,
+            pivotConfiguration: pivotConfiguration ?? null,
             originalColumns,
         });
         this.prometheusMetrics?.trackQueryStateTransition(
@@ -7516,7 +7531,8 @@ export class AsyncQueryService extends ProjectService {
             queryCreatedAt,
             cacheKey,
             context,
-            fieldsMap: compiledMerge.itemsMap,
+            fieldsMap,
+            pivotConfiguration,
             originalColumns,
         }).catch((e) => {
             this.logger.error(
@@ -7529,12 +7545,12 @@ export class AsyncQueryService extends ProjectService {
         return {
             queryUuid,
             cacheMetadata: { cacheHit: false },
-            metricQuery: resultMetricQuery,
-            fields: compiledMerge.itemsMap,
-            warnings: [],
-            parameterReferences: compiledMerge.parameterReferences,
-            usedParametersValues: compiledMerge.usedParametersValues,
-            resolvedTimezone: null,
+            metricQuery: composer.getMetricQuery(),
+            fields: fieldsMap,
+            warnings: composer.getWarnings(),
+            parameterReferences: composer.getParameterReferences(),
+            usedParametersValues: composer.getUsedParameters(),
+            resolvedTimezone: composer.getDisplayTimezone(),
         };
     }
 
@@ -7560,6 +7576,7 @@ export class AsyncQueryService extends ProjectService {
         cacheKey,
         context,
         fieldsMap,
+        pivotConfiguration,
         originalColumns,
     }: {
         account: Account;
@@ -7576,6 +7593,7 @@ export class AsyncQueryService extends ProjectService {
         cacheKey: string;
         context: QueryExecutionContext;
         fieldsMap: ItemsMap;
+        pivotConfiguration: PivotConfiguration | undefined;
         originalColumns: ResultColumns;
     }): Promise<void> {
         try {
@@ -7615,6 +7633,7 @@ export class AsyncQueryService extends ProjectService {
                 query,
                 fieldsMap,
                 cacheKey,
+                pivotConfiguration,
                 originalColumns,
                 queryCreatedAt,
                 displayTimezone: null,
