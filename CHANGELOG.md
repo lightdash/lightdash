@@ -1,3 +1,10 @@
+# [1.199.0](https://github.com/lightdash/lightdash/compare/1.198.1...1.199.0) (2026-08-19)
+
+
+### Features
+
+* multi-source query API — agent-ergonomic, no DAG executor ([#27614](https://github.com/lightdash/lightdash/issues/27614)) ([a7d6eba](https://github.com/lightdash/lightdash/commit/a7d6eba06520bab39d0062bdbc12b78bbe3d0f6d))
+
 ## [1.198.1](https://github.com/lightdash/lightdash/compare/1.198.0...1.198.1) (2026-08-18)
 
 

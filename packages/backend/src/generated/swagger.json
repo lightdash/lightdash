@@ -45,6 +45,37 @@
                 "type": "object",
                 "description": "The Error object is returned from the api any time there is an error.\nThe message contains"
             },
+            "ApiSuccessEmpty": {
+                "properties": {
+                    "results": {},
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
+            },
+            "ContentType": {
+                "enum": ["chart", "dashboard", "space", "data_app"],
+                "type": "string"
+            },
+            "ContentSlugRenameRequest": {
+                "properties": {
+                    "to": {
+                        "type": "string"
+                    },
+                    "from": {
+                        "type": "string"
+                    },
+                    "resourceType": {
+                        "$ref": "#/components/schemas/ContentType"
+                    }
+                },
+                "required": ["to", "from", "resourceType"],
+                "type": "object"
+            },
             "ChartType.BIG_NUMBER": {
                 "enum": ["big_number"],
                 "type": "string"
@@ -8816,18 +8847,6 @@
                 "type": "object",
                 "description": "Deliberately a flat wrapper, NOT `ExternalConnectionAsCode & { secret }`:\nTSOA validates intersection bodies in remove-extras mode, which empties\nRecord<string, string> fields (customHeaders). Same workaround as\nApiTestExternalConnectionConfigRequest."
             },
-            "ApiSuccessEmpty": {
-                "properties": {
-                    "results": {},
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["status"],
-                "type": "object"
-            },
             "ServiceAccountScope": {
                 "enum": [
                     "scim:manage",
@@ -14198,19 +14217,8 @@
                 "type": "object",
                 "additionalProperties": true
             },
-            "Record_string.DashboardFieldTarget_": {
-                "properties": {},
-                "additionalProperties": {
-                    "$ref": "#/components/schemas/DashboardFieldTarget"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
             "DashboardAvailableFilters": {
                 "properties": {
-                    "defaultTimeDimensions": {
-                        "$ref": "#/components/schemas/Record_string.DashboardFieldTarget_"
-                    },
                     "savedQueryMetricFilters": {
                         "$ref": "#/components/schemas/Record_string.number-Array_"
                     },
@@ -14231,7 +14239,6 @@
                     }
                 },
                 "required": [
-                    "defaultTimeDimensions",
                     "savedQueryMetricFilters",
                     "allFilterableMetrics",
                     "allFilterableFields",
@@ -15745,6 +15752,10 @@
                 "enum": ["granularity_too_fine"],
                 "type": "string"
             },
+            "PreAggregateMissReason.TIME_FRAME_NOT_DERIVABLE": {
+                "enum": ["time_frame_not_derivable"],
+                "type": "string"
+            },
             "PreAggregateMissReason.CUSTOM_DIMENSION_PRESENT": {
                 "enum": ["custom_dimension_present"],
                 "type": "string"
@@ -15880,6 +15891,33 @@
                             },
                             "reason": {
                                 "$ref": "#/components/schemas/PreAggregateMissReason.GRANULARITY_TOO_FINE"
+                            }
+                        },
+                        "required": [
+                            "preAggregateTimeDimension",
+                            "preAggregateGranularity",
+                            "queryGranularity",
+                            "fieldId",
+                            "reason"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "preAggregateTimeDimension": {
+                                "type": "string"
+                            },
+                            "preAggregateGranularity": {
+                                "$ref": "#/components/schemas/TimeFrames"
+                            },
+                            "queryGranularity": {
+                                "$ref": "#/components/schemas/TimeFrames"
+                            },
+                            "fieldId": {
+                                "$ref": "#/components/schemas/FieldId"
+                            },
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.TIME_FRAME_NOT_DERIVABLE"
                             }
                         },
                         "required": [
@@ -16724,6 +16762,10 @@
                     "cached": {
                         "type": "boolean"
                     },
+                    "note": {
+                        "type": "string",
+                        "description": "Guidance for tool consumers, e.g. when value suggestions are\ndisabled for the field and an empty result is not meaningful."
+                    },
                     "resultsWithLabels": {
                         "items": {
                             "$ref": "#/components/schemas/FilterAutocompleteValue"
@@ -17161,6 +17203,10 @@
                 "type": "string",
                 "enum": ["opus", "sonnet", "haiku"]
             },
+            "DataAppCodexModel": {
+                "type": "string",
+                "enum": ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"]
+            },
             "AppExternalConnectionReference": {
                 "properties": {
                     "alias": {
@@ -17185,6 +17231,9 @@
                     "designUuid": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "codexModel": {
+                        "$ref": "#/components/schemas/DataAppCodexModel"
                     },
                     "claudeModel": {
                         "$ref": "#/components/schemas/DataAppClaudeModel"
@@ -17716,6 +17765,9 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "codexModel": {
+                        "$ref": "#/components/schemas/DataAppCodexModel"
                     },
                     "claudeModel": {
                         "$ref": "#/components/schemas/DataAppClaudeModel"
@@ -19259,11 +19311,26 @@
                 "type": "string",
                 "enum": ["createdAt", "latestActivity"]
             },
+            "DataAppCodingAgent": {
+                "type": "string",
+                "enum": ["claude", "codex"]
+            },
+            "DataAppCodingAgentModel": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/DataAppClaudeModel"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DataAppCodexModel"
+                    }
+                ]
+            },
             "DataAppGenerationUsage": {
                 "properties": {
                     "costUsd": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "nullable": true
                     },
                     "durationApiMs": {
                         "type": "number",
@@ -19300,7 +19367,7 @@
                     "inputTokens"
                 ],
                 "type": "object",
-                "description": "What one generation cost, aggregated across every `claude` CLI invocation in\nthat version's pipeline — including build-fix retries.\n\nThis is spend attributable to a generation, not all data-app AI spend: the\nshort prompt-clarification and app-naming calls happen outside any version.\n\n`costUsd` is the CLI's own figure, computed from public list prices, so treat\nit as an estimate rather than an invoice."
+                "description": "Usage for one generation, aggregated across every coding-agent invocation in\nthat version's pipeline, including build-fix retries.\n\nThis is spend attributable to a generation, not all data-app AI spend: the\nshort prompt-clarification and app-naming calls happen outside any version.\n\n`costUsd` is an estimate rather than an invoice. It is null when the coding\nagent reports tokens without a trustworthy price."
             },
             "DataAppActivityEvent": {
                 "properties": {
@@ -19341,6 +19408,12 @@
                     "claudeModel": {
                         "$ref": "#/components/schemas/DataAppClaudeModel"
                     },
+                    "codingAgentModel": {
+                        "$ref": "#/components/schemas/DataAppCodingAgentModel"
+                    },
+                    "codingAgent": {
+                        "$ref": "#/components/schemas/DataAppCodingAgent"
+                    },
                     "prompt": {
                         "type": "string"
                     },
@@ -19367,7 +19440,8 @@
                     "projectName",
                     "projectUuid",
                     "createdAt",
-                    "claudeModel",
+                    "codingAgentModel",
+                    "codingAgent",
                     "prompt",
                     "status",
                     "version",
@@ -25503,6 +25577,58 @@
                     }
                 ]
             },
+            "MergeQuerySource": {
+                "properties": {
+                    "metricQuery": {
+                        "$ref": "#/components/schemas/MetricQuery"
+                    },
+                    "id": {
+                        "type": "string",
+                        "description": "Stable id. Names the CTE, and the table its merged fields belong to."
+                    }
+                },
+                "required": ["metricQuery", "id"],
+                "type": "object",
+                "description": "One side of a merge: a metric query."
+            },
+            "MergeQuery": {
+                "properties": {
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeTableCalculation"
+                        },
+                        "type": "array",
+                        "description": "Calculations over the merged result. Applied last, after any pivot."
+                    },
+                    "joinType": {
+                        "$ref": "#/components/schemas/MergeJoinType"
+                    },
+                    "joinKey": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeJoinKeyPart"
+                        },
+                        "type": "array"
+                    },
+                    "sources": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeQuerySource"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "limit",
+                    "tableCalculations",
+                    "joinType",
+                    "joinKey",
+                    "sources"
+                ],
+                "type": "object"
+            },
             "AiVizMetadata": {
                 "properties": {
                     "description": {
@@ -25522,6 +25648,15 @@
                     "metadata": {
                         "$ref": "#/components/schemas/AiVizMetadata"
                     },
+                    "mergeQuery": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MergeQuery"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "The executed merge, so clients need not re-derive it from tool args."
+                    },
                     "query": {
                         "$ref": "#/components/schemas/ApiExecuteAsyncMetricQueryResults"
                     },
@@ -25534,7 +25669,13 @@
                         "nullable": false
                     }
                 },
-                "required": ["metadata", "query", "type", "source"],
+                "required": [
+                    "metadata",
+                    "mergeQuery",
+                    "query",
+                    "type",
+                    "source"
+                ],
                 "type": "object"
             },
             "AiResultType.TABLE_RESULT": {
@@ -29861,10 +30002,33 @@
                     }
                 ]
             },
+            "Extract_UserAsCodeRole._type-custom__": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["custom"],
+                        "nullable": false
+                    }
+                },
+                "required": ["name", "type"],
+                "type": "object",
+                "description": "Extract from T those types that are assignable to U"
+            },
             "UserAsCode": {
                 "properties": {
+                    "additionalRoles": {
+                        "items": {
+                            "$ref": "#/components/schemas/Extract_UserAsCodeRole._type-custom__"
+                        },
+                        "type": "array",
+                        "description": "Extra organization custom roles held on top of `role` (role sets).\nOmitted when the user holds a single role; older servers reject the\nfield instead of silently dropping it."
+                    },
                     "role": {
-                        "$ref": "#/components/schemas/UserAsCodeRole"
+                        "$ref": "#/components/schemas/UserAsCodeRole",
+                        "description": "Primary organization role (system or custom)."
                     },
                     "disabled": {
                         "type": "boolean"
@@ -31264,6 +31428,9 @@
                         },
                         "type": "array"
                     },
+                    "dataAppCodingAgent": {
+                        "$ref": "#/components/schemas/DataAppCodingAgent"
+                    },
                     "defaultAiAgentModelOptions": {
                         "items": {
                             "$ref": "#/components/schemas/AiModelOption"
@@ -31299,6 +31466,7 @@
                 },
                 "required": [
                     "visibleDataAppModels",
+                    "dataAppCodingAgent",
                     "defaultAiAgentModelOptions",
                     "defaultAiAgentModelConfig",
                     "aiAgentReviewsAvailable",
@@ -32747,6 +32915,379 @@
             "AiAgentAdminSortField": {
                 "type": "string",
                 "enum": ["createdAt", "title"]
+            },
+            "Pick_AiAgentSummary.uuid-or-name-or-instruction-or-tags-or-integrations-or-modelConfig-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-version_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "integrations": {
+                        "items": {
+                            "properties": {
+                                "channelId": {
+                                    "type": "string"
+                                },
+                                "type": {
+                                    "type": "string",
+                                    "enum": ["slack"],
+                                    "nullable": false
+                                }
+                            },
+                            "required": ["channelId", "type"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "instruction": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "enableDataAccess": {
+                        "type": "boolean"
+                    },
+                    "enableSelfImprovement": {
+                        "type": "boolean"
+                    },
+                    "enableContentTools": {
+                        "type": "boolean"
+                    },
+                    "enableUserContext": {
+                        "type": "boolean"
+                    },
+                    "enableSqlMode": {
+                        "type": "boolean"
+                    },
+                    "adminOnly": {
+                        "type": "boolean"
+                    },
+                    "modelConfig": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiAgentModelConfig"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "name",
+                    "uuid",
+                    "version",
+                    "integrations",
+                    "tags",
+                    "instruction",
+                    "enableDataAccess",
+                    "enableSelfImprovement",
+                    "enableContentTools",
+                    "enableUserContext",
+                    "enableSqlMode",
+                    "adminOnly",
+                    "modelConfig"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "AiAgentThreadDumpAgent": {
+                "$ref": "#/components/schemas/Pick_AiAgentSummary.uuid-or-name-or-instruction-or-tags-or-integrations-or-modelConfig-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-version_"
+            },
+            "AiAgentThreadDumpToolCall": {
+                "properties": {
+                    "isError": {
+                        "type": "boolean"
+                    },
+                    "resultOmitted": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "result": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "args": {},
+                    "source": {
+                        "type": "string",
+                        "enum": ["lightdash", "mcp"]
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "parentToolCallId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "toolCallId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "isError",
+                    "resultOmitted",
+                    "result",
+                    "args",
+                    "source",
+                    "name",
+                    "parentToolCallId",
+                    "toolCallId"
+                ],
+                "type": "object"
+            },
+            "AiAgentThreadDumpArtifact": {
+                "properties": {
+                    "dashboardConfig": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Record_string.unknown_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "chartConfig": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Record_string.unknown_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "artifactType": {
+                        "type": "string",
+                        "enum": ["chart", "dashboard"]
+                    },
+                    "versionNumber": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "versionUuid": {
+                        "type": "string"
+                    },
+                    "artifactUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "dashboardConfig",
+                    "chartConfig",
+                    "description",
+                    "title",
+                    "artifactType",
+                    "versionNumber",
+                    "versionUuid",
+                    "artifactUuid"
+                ],
+                "type": "object"
+            },
+            "AiAgentThreadDumpTurn": {
+                "properties": {
+                    "artifacts": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentThreadDumpArtifact"
+                        },
+                        "type": "array"
+                    },
+                    "toolCalls": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentThreadDumpToolCall"
+                        },
+                        "type": "array"
+                    },
+                    "tokenUsage": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiPromptTokenUsage"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "modelConfig": {
+                        "properties": {
+                            "modelProvider": {
+                                "type": "string"
+                            },
+                            "modelName": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["modelProvider", "modelName"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "steers": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "feedback": {
+                        "properties": {
+                            "comment": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "score": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["comment", "score"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "interrupted": {
+                        "type": "boolean"
+                    },
+                    "error": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "assistant": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "user": {
+                        "type": "string"
+                    },
+                    "hidden": {
+                        "type": "boolean"
+                    },
+                    "respondedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "promptUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "artifacts",
+                    "toolCalls",
+                    "tokenUsage",
+                    "modelConfig",
+                    "steers",
+                    "feedback",
+                    "interrupted",
+                    "error",
+                    "assistant",
+                    "user",
+                    "hidden",
+                    "respondedAt",
+                    "createdAt",
+                    "promptUuid"
+                ],
+                "type": "object"
+            },
+            "AiAgentThreadDump": {
+                "properties": {
+                    "turns": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentThreadDumpTurn"
+                        },
+                        "type": "array"
+                    },
+                    "agent": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiAgentThreadDumpAgent"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdFrom": {
+                        "$ref": "#/components/schemas/AiThreadCreatedFrom"
+                    },
+                    "userUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "agentUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "defaultProvider": {
+                        "type": "string"
+                    },
+                    "lightdashVersion": {
+                        "type": "string"
+                    },
+                    "generatedAt": {
+                        "type": "string"
+                    },
+                    "schemaVersion": {
+                        "type": "number",
+                        "enum": [1],
+                        "nullable": false
+                    }
+                },
+                "required": [
+                    "turns",
+                    "agent",
+                    "title",
+                    "createdFrom",
+                    "userUuid",
+                    "agentUuid",
+                    "threadUuid",
+                    "projectUuid",
+                    "organizationUuid",
+                    "defaultProvider",
+                    "lightdashVersion",
+                    "generatedAt",
+                    "schemaVersion"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_AiAgentThreadDump_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiAgentThreadDump"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentThreadDumpResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiAgentThreadDump_"
             },
             "Pick_AiAgentEvaluationRunSummary.runUuid-or-status-or-createdAt-or-completedAt_": {
                 "properties": {
@@ -35933,6 +36474,9 @@
                             "lastUpdatedBy": {
                                 "type": "string"
                             },
+                            "tableName": {
+                                "type": "string"
+                            },
                             "fieldName": {
                                 "type": "string"
                             },
@@ -36137,9 +36681,12 @@
                 "required": ["status"],
                 "type": "object"
             },
-            "Pick_ValidationErrorChartResponse.error-or-errorType-or-fieldName-or-name-or-projectUuid-or-chartUuid-or-source-or-chartName_": {
+            "Pick_ValidationErrorChartResponse.error-or-errorType-or-fieldName-or-tableName-or-name-or-projectUuid-or-chartUuid-or-source-or-chartName_": {
                 "properties": {
                     "name": {
+                        "type": "string"
+                    },
+                    "tableName": {
                         "type": "string"
                     },
                     "chartName": {
@@ -36169,7 +36716,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "CreateChartValidation": {
-                "$ref": "#/components/schemas/Pick_ValidationErrorChartResponse.error-or-errorType-or-fieldName-or-name-or-projectUuid-or-chartUuid-or-source-or-chartName_"
+                "$ref": "#/components/schemas/Pick_ValidationErrorChartResponse.error-or-errorType-or-fieldName-or-tableName-or-name-or-projectUuid-or-chartUuid-or-source-or-chartName_"
             },
             "ApiSuccess__errors-CreateChartValidation-Array__": {
                 "properties": {
@@ -36197,9 +36744,12 @@
             "ApiChartValidationResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__errors-CreateChartValidation-Array__"
             },
-            "Pick_ValidationErrorDashboardResponse.error-or-errorType-or-fieldName-or-name-or-projectUuid-or-dashboardUuid-or-chartName-or-source_": {
+            "Pick_ValidationErrorDashboardResponse.error-or-errorType-or-fieldName-or-tableName-or-name-or-projectUuid-or-dashboardUuid-or-chartName-or-source_": {
                 "properties": {
                     "name": {
+                        "type": "string"
+                    },
+                    "tableName": {
                         "type": "string"
                     },
                     "chartName": {
@@ -36229,7 +36779,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "CreateDashboardValidation": {
-                "$ref": "#/components/schemas/Pick_ValidationErrorDashboardResponse.error-or-errorType-or-fieldName-or-name-or-projectUuid-or-dashboardUuid-or-chartName-or-source_"
+                "$ref": "#/components/schemas/Pick_ValidationErrorDashboardResponse.error-or-errorType-or-fieldName-or-tableName-or-name-or-projectUuid-or-dashboardUuid-or-chartName-or-source_"
             },
             "ApiSuccess__errors-CreateDashboardValidation-Array__": {
                 "properties": {
@@ -42230,6 +42780,10 @@
                     "email": {
                         "type": "string"
                     },
+                    "hasMultipleRoles": {
+                        "type": "boolean",
+                        "description": "True when the member holds extra custom roles beyond `role`/`roleUuid` (see role sets)."
+                    },
                     "roleUuid": {
                         "type": "string"
                     },
@@ -42667,6 +43221,7 @@
                     "too_few_sources",
                     "too_many_sources",
                     "duplicate_source_id",
+                    "reserved_source_id",
                     "empty_join_key",
                     "join_key_coverage",
                     "unknown_source_in_join_key",
@@ -42794,58 +43349,6 @@
                 ],
                 "type": "object",
                 "description": "What the compile endpoint returns. `sql` is null exactly when `errors` is\nnon-empty: a merge that would produce wrong numbers is reported, not run."
-            },
-            "MergeQuerySource": {
-                "properties": {
-                    "metricQuery": {
-                        "$ref": "#/components/schemas/MetricQuery"
-                    },
-                    "id": {
-                        "type": "string",
-                        "description": "Stable id. Names the CTE, and the table its merged fields belong to."
-                    }
-                },
-                "required": ["metricQuery", "id"],
-                "type": "object",
-                "description": "One side of a merge: a metric query."
-            },
-            "MergeQuery": {
-                "properties": {
-                    "limit": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "tableCalculations": {
-                        "items": {
-                            "$ref": "#/components/schemas/MergeTableCalculation"
-                        },
-                        "type": "array",
-                        "description": "Calculations over the merged result. Applied last, after any pivot."
-                    },
-                    "joinType": {
-                        "$ref": "#/components/schemas/MergeJoinType"
-                    },
-                    "joinKey": {
-                        "items": {
-                            "$ref": "#/components/schemas/MergeJoinKeyPart"
-                        },
-                        "type": "array"
-                    },
-                    "sources": {
-                        "items": {
-                            "$ref": "#/components/schemas/MergeQuerySource"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": [
-                    "limit",
-                    "tableCalculations",
-                    "joinType",
-                    "joinKey",
-                    "sources"
-                ],
-                "type": "object"
             },
             "CompileMergeQueryRequest": {
                 "properties": {
@@ -45760,6 +46263,10 @@
                         "type": "boolean",
                         "description": "Whether the user can login"
                     },
+                    "hasMultipleRoles": {
+                        "type": "boolean",
+                        "description": "True when the member holds extra custom roles beyond `role`/`roleUuid` (see role sets)."
+                    },
                     "roleUuid": {
                         "type": "string"
                     },
@@ -47933,10 +48440,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "ContentType": {
-                "enum": ["chart", "dashboard", "space", "data_app"],
-                "type": "string"
             },
             "ToggleFavoriteResponse": {
                 "properties": {
@@ -50193,6 +50696,10 @@
             },
             "RoleAssignment": {
                 "properties": {
+                    "hasMultipleRoles": {
+                        "type": "boolean",
+                        "description": "True when the assignee holds extra custom roles beyond `roleId` (see role sets)."
+                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
@@ -50283,6 +50790,40 @@
                 "required": ["roleId"],
                 "type": "object"
             },
+            "ProjectRoleSet": {
+                "properties": {
+                    "customRoleUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "systemRole": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ProjectMemberRole"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": ["customRoleUuids", "systemRole"],
+                "type": "object"
+            },
+            "ApiProjectRoleSetResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ProjectRoleSet"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "UpdateRoleAssignmentRequest": {
                 "properties": {
                     "roleId": {
@@ -50352,6 +50893,41 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "OrganizationRoleSet": {
+                "properties": {
+                    "customRoleUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "systemRole": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/OrganizationMemberRole"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": ["customRoleUuids", "systemRole"],
+                "type": "object",
+                "description": "Complete set of roles held at one level: at most one system role plus any\nnumber of custom roles. Permissions are the union of all held roles."
+            },
+            "ApiOrganizationRoleSetResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/OrganizationRoleSet"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "KnexPaginatedData_ValidationResponse-Array_": {
                 "properties": {
                     "pagination": {
@@ -50402,6 +50978,132 @@
             "ApiPaginatedValidateResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_ValidationResponse-Array__"
             },
+            "ValidationAffectedContent": {
+                "properties": {
+                    "errorCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/ValidationSourceType"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["errorCount", "views", "source", "name", "uuid"],
+                "type": "object"
+            },
+            "ValidationErrorGroup": {
+                "properties": {
+                    "hasMoreAffectedContent": {
+                        "type": "boolean"
+                    },
+                    "affectedContent": {
+                        "items": {
+                            "$ref": "#/components/schemas/ValidationAffectedContent"
+                        },
+                        "type": "array"
+                    },
+                    "sampleError": {
+                        "type": "string"
+                    },
+                    "affectedDataApps": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "affectedTables": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "affectedDashboards": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "affectedCharts": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "errorCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "fieldName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "tableName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "errorType": {
+                        "$ref": "#/components/schemas/ValidationErrorType"
+                    },
+                    "groupKey": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "hasMoreAffectedContent",
+                    "affectedContent",
+                    "sampleError",
+                    "affectedDataApps",
+                    "affectedTables",
+                    "affectedDashboards",
+                    "affectedCharts",
+                    "errorCount",
+                    "fieldName",
+                    "tableName",
+                    "errorType",
+                    "groupKey"
+                ],
+                "type": "object"
+            },
+            "ValidationGroupedSummary": {
+                "properties": {
+                    "groups": {
+                        "items": {
+                            "$ref": "#/components/schemas/ValidationErrorGroup"
+                        },
+                        "type": "array"
+                    },
+                    "totalAffectedItems": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "totalErrors": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["groups", "totalAffectedItems", "totalErrors"],
+                "type": "object"
+            },
+            "ApiSuccess_ValidationGroupedSummary_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ValidationGroupedSummary"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiValidationSummaryResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_ValidationGroupedSummary_"
+            },
             "ApiSuccess_ValidationResponse_": {
                 "properties": {
                     "results": {
@@ -50423,6 +51125,464 @@
                 "properties": {
                     "results": {
                         "$ref": "#/components/schemas/KnexPaginatedData_SchedulerAndTargets-Array_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "QuerySourceType": {
+                "description": "Discriminator for every query source a project can execute queries against.\nA query source is anything that can scan a schema and run a query returning\nthe standard table format (ResultColumns + rows behind a queryUuid): the\nproject warehouse, the semantic layer, the DuckDB compose engine, and —\nlater — CSV uploads, HTTP APIs, Google Sheets, etc.\n\nDeliberately NOT WarehouseTypes: sources are not warehouses, they plug in\nabove the warehouse client layer.",
+                "enum": ["semanticLayer", "sql", "duckdb"],
+                "type": "string"
+            },
+            "QuerySourceDefinition": {
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "sourceType": {
+                        "$ref": "#/components/schemas/QuerySourceType"
+                    }
+                },
+                "required": ["description", "label", "sourceType"],
+                "type": "object",
+                "description": "Metadata describing a registered source, for source discovery."
+            },
+            "ApiListQuerySourcesResults": {
+                "properties": {
+                    "sources": {
+                        "items": {
+                            "$ref": "#/components/schemas/QuerySourceDefinition"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["sources"],
+                "type": "object"
+            },
+            "ApiSuccess_ApiListQuerySourcesResults_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiListQuerySourcesResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "QuerySourceSchemaColumn": {
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "label": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DimensionType"
+                    },
+                    "reference": {
+                        "type": "string"
+                    }
+                },
+                "required": ["description", "label", "type", "reference"],
+                "type": "object",
+                "description": "A column in a source schema, aligned with ResultColumns' {reference, type}."
+            },
+            "QuerySourceSchemaTable": {
+                "properties": {
+                    "columns": {
+                        "items": {
+                            "$ref": "#/components/schemas/QuerySourceSchemaColumn"
+                        },
+                        "type": "array"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "label": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "reference": {
+                        "type": "string"
+                    }
+                },
+                "required": ["columns", "description", "label", "reference"],
+                "type": "object",
+                "description": "A queryable table in a source schema: an explore for the semantic layer, a\nwarehouse table for SQL, a referenced result for DuckDB."
+            },
+            "QuerySourceSchema": {
+                "properties": {
+                    "tables": {
+                        "items": {
+                            "$ref": "#/components/schemas/QuerySourceSchemaTable"
+                        },
+                        "type": "array"
+                    },
+                    "sourceType": {
+                        "$ref": "#/components/schemas/QuerySourceType"
+                    }
+                },
+                "required": ["tables", "sourceType"],
+                "type": "object",
+                "description": "The standard shape every source's schema scan returns."
+            },
+            "ApiScanQuerySourceSchemaResults": {
+                "$ref": "#/components/schemas/QuerySourceSchema"
+            },
+            "ApiSuccess_ApiScanQuerySourceSchemaResults_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiScanQuerySourceSchemaResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "QueryNodeId": {
+                "type": "string",
+                "description": "A name identifying one query within a multi-query submission. Other queries\nreference this query's results by this name, and by default the results are\nexposed to referencing DuckDB SQL as a table of the same name — so node ids\nshare the table-name grammar.",
+                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
+            },
+            "SourceQuerySubmission": {
+                "properties": {
+                    "queryUuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    },
+                    "sourceType": {
+                        "$ref": "#/components/schemas/QuerySourceType"
+                    },
+                    "nodeId": {
+                        "$ref": "#/components/schemas/QueryNodeId"
+                    }
+                },
+                "required": ["queryUuid", "sourceType", "nodeId"],
+                "type": "object",
+                "description": "One submitted query: its (possibly generated) node id and the queryUuid to poll."
+            },
+            "ApiExecuteSourceQueriesResults": {
+                "properties": {
+                    "queries": {
+                        "items": {
+                            "$ref": "#/components/schemas/SourceQuerySubmission"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["queries"],
+                "type": "object"
+            },
+            "ApiSuccess_ApiExecuteSourceQueriesResults_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiExecuteSourceQueriesResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "QuerySourceType.SEMANTIC_LAYER": {
+                "enum": ["semanticLayer"],
+                "type": "string"
+            },
+            "SemanticLayerSourceQuery": {
+                "properties": {
+                    "timezone": {
+                        "type": "string",
+                        "description": "IANA timezone for time dimension bucketing, e.g. \"America/New_York\"."
+                    },
+                    "customDimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/CustomDimension"
+                        },
+                        "type": "array",
+                        "description": "Ad-hoc dimensions not defined in the explore."
+                    },
+                    "additionalMetrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/AdditionalMetric"
+                        },
+                        "type": "array",
+                        "description": "Ad-hoc metrics not defined in the explore."
+                    },
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/TableCalculation"
+                        },
+                        "type": "array",
+                        "description": "Table calculations appended to the results. Defaults to none."
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Max rows to return. Defaults to the standard query row limit."
+                    },
+                    "sorts": {
+                        "items": {
+                            "$ref": "#/components/schemas/SortField"
+                        },
+                        "type": "array",
+                        "description": "Sorts to apply, e.g. [{\"fieldId\": \"orders_order_date\", \"descending\": true}]. Defaults to none."
+                    },
+                    "filters": {
+                        "properties": {
+                            "tableCalculations": {
+                                "$ref": "#/components/schemas/AnyType"
+                            },
+                            "metrics": {
+                                "$ref": "#/components/schemas/AnyType"
+                            },
+                            "dimensions": {
+                                "$ref": "#/components/schemas/AnyType"
+                            }
+                        },
+                        "type": "object",
+                        "description": "Filters to apply, in the metric query filters shape: an optional filter\ngroup per field kind, e.g. {\"dimensions\": {\"id\": \"...\", \"and\": [{\"id\":\n\"...\", \"target\": {\"fieldId\": \"orders_status\"}, \"operator\": \"equals\",\n\"values\": [\"completed\"]}]}}. Defaults to no filters."
+                    },
+                    "metrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldId"
+                        },
+                        "type": "array",
+                        "description": "Metric field ids to compute, from the explore's schema."
+                    },
+                    "dimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldId"
+                        },
+                        "type": "array",
+                        "description": "Dimension field ids to group by, from the explore's schema."
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    },
+                    "nodeId": {
+                        "$ref": "#/components/schemas/QueryNodeId",
+                        "description": "Names this query so other queries in the same submission can reference its results."
+                    },
+                    "sourceType": {
+                        "$ref": "#/components/schemas/QuerySourceType.SEMANTIC_LAYER"
+                    }
+                },
+                "required": [
+                    "metrics",
+                    "dimensions",
+                    "exploreName",
+                    "sourceType"
+                ],
+                "type": "object",
+                "description": "A semantic layer (metric) query as a source query. Only exploreName,\ndimensions and metrics are required; everything else defaults to empty\n(no filters, no sorts, no table calculations) and a default row limit.\n\nResult columns are named by field id — exactly the dimensions and metrics\nrequested (e.g. requesting metric \"payments_total_revenue\" yields a column\n\"payments_total_revenue\"), so referencing DuckDB SQL selects those names."
+            },
+            "QuerySourceType.SQL": {
+                "enum": ["sql"],
+                "type": "string"
+            },
+            "SqlSourceQuery": {
+                "properties": {
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "nodeId": {
+                        "$ref": "#/components/schemas/QueryNodeId",
+                        "description": "Names this query so other queries in the same submission can reference its results."
+                    },
+                    "sourceType": {
+                        "$ref": "#/components/schemas/QuerySourceType.SQL"
+                    }
+                },
+                "required": ["sql", "sourceType"],
+                "type": "object",
+                "description": "A raw warehouse SQL query as a source query."
+            },
+            "QuerySourceType.DUCKDB": {
+                "enum": ["duckdb"],
+                "type": "string"
+            },
+            "Record_QuerySourceTableName.QueryResultReference_": {
+                "properties": {},
+                "additionalProperties": {
+                    "type": "string"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "DuckdbSourceQuery": {
+                "properties": {
+                    "references": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/QueryNodeId"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Record_QuerySourceTableName.QueryResultReference_"
+                            }
+                        ],
+                        "description": "Which query results the SQL reads, in one of two forms. Shorthand\narray: node ids of queries in the same submission, each exposed as a\ntable named by its node id — [\"orders\", \"revenue\"] lets the SQL run\nSELECT * FROM orders JOIN revenue. Map form for aliasing or existing\nresults: {tableName: nodeIdOrQueryUuid}, e.g. {\"o\": \"orders\", \"prev\":\n\"<queryUuid>\"}."
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "nodeId": {
+                        "$ref": "#/components/schemas/QueryNodeId",
+                        "description": "Names this query so other queries in the same submission can reference its results."
+                    },
+                    "sourceType": {
+                        "$ref": "#/components/schemas/QuerySourceType.DUCKDB"
+                    }
+                },
+                "required": ["sql", "sourceType"],
+                "type": "object",
+                "description": "A DuckDB compose query as a source query. References expose other queries'\nresults as named tables the SQL can select from; a referenced result's\ncolumn names are those of the upstream query's result (field ids for\nsemanticLayer queries, SELECT output names for sql queries).\n\nReferences that name queries still running are waited on: this query\nexecutes once every referenced result is ready, and fails if any\nreferenced query fails."
+            },
+            "SourceQuery": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerSourceQuery"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SqlSourceQuery"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DuckdbSourceQuery"
+                    }
+                ],
+                "description": "The tagged union every submit endpoint takes: one shape per source,\ndiscriminated by sourceType. New sources add a member here — this union is\nthe extension point, not new WarehouseTypes values."
+            },
+            "QueryExecutionContext": {
+                "enum": [
+                    "dashboardView",
+                    "autorefreshedDashboard",
+                    "exploreView",
+                    "filterAutocomplete",
+                    "chartView",
+                    "chartHistory",
+                    "sqlChartView",
+                    "sqlRunner",
+                    "viewUnderlyingData",
+                    "alert",
+                    "scheduledDelivery",
+                    "csvDownload",
+                    "gsheets",
+                    "scheduledGsheetsChart",
+                    "scheduledGsheetsDashboard",
+                    "scheduledGsheetsSqlChart",
+                    "scheduledChart",
+                    "scheduledDashboard",
+                    "calculateTotal",
+                    "calculateSubtotal",
+                    "embed",
+                    "ai",
+                    "mcp.run_metric_query",
+                    "mcp.run_sql",
+                    "mcp.search_field_values",
+                    "api",
+                    "cli",
+                    "metricsExplorer",
+                    "preAggregateMaterialization",
+                    "composeSqlRunner",
+                    "multiSourceQuery",
+                    "dataAppSample"
+                ],
+                "type": "string"
+            },
+            "ExecuteSourceQueriesRequestParams": {
+                "properties": {
+                    "context": {
+                        "$ref": "#/components/schemas/QueryExecutionContext"
+                    },
+                    "queries": {
+                        "items": {
+                            "$ref": "#/components/schemas/SourceQuery"
+                        },
+                        "type": "array",
+                        "description": "One or more source queries, submitted together. Order does not matter:\nqueries are submitted in dependency order (a duckdb query after the\nqueries its references name) and every query starts executing\nimmediately — dependency waiting happens inside the referencing query."
+                    }
+                },
+                "required": ["queries"],
+                "type": "object"
+            },
+            "QueryHistoryStatus": {
+                "enum": [
+                    "pending",
+                    "queued",
+                    "executing",
+                    "expired",
+                    "ready",
+                    "error",
+                    "cancelled"
+                ],
+                "type": "string"
+            },
+            "SourceQueryStatus": {
+                "properties": {
+                    "error": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/QueryHistoryStatus"
+                    },
+                    "queryUuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    }
+                },
+                "required": ["error", "status", "queryUuid"],
+                "type": "object",
+                "description": "Status of one submitted query, from the standard async query lifecycle."
+            },
+            "ApiGetSourceQueryStatusResults": {
+                "properties": {
+                    "statuses": {
+                        "items": {
+                            "$ref": "#/components/schemas/SourceQueryStatus"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["statuses"],
+                "type": "object"
+            },
+            "ApiSuccess_ApiGetSourceQueryStatusResults_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiGetSourceQueryStatusResults"
                     },
                     "status": {
                         "type": "string",
@@ -50884,41 +52044,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "QueryExecutionContext": {
-                "enum": [
-                    "dashboardView",
-                    "autorefreshedDashboard",
-                    "exploreView",
-                    "filterAutocomplete",
-                    "chartView",
-                    "chartHistory",
-                    "sqlChartView",
-                    "sqlRunner",
-                    "viewUnderlyingData",
-                    "alert",
-                    "scheduledDelivery",
-                    "csvDownload",
-                    "gsheets",
-                    "scheduledGsheetsChart",
-                    "scheduledGsheetsDashboard",
-                    "scheduledGsheetsSqlChart",
-                    "scheduledChart",
-                    "scheduledDashboard",
-                    "calculateTotal",
-                    "calculateSubtotal",
-                    "embed",
-                    "ai",
-                    "mcp.run_metric_query",
-                    "mcp.run_sql",
-                    "mcp.search_field_values",
-                    "api",
-                    "cli",
-                    "metricsExplorer",
-                    "preAggregateMaterialization",
-                    "dataAppSample"
-                ],
-                "type": "string"
             },
             "Pick_ExecuteAsyncMergeQueryRequestParams.Exclude_keyofExecuteAsyncMergeQueryRequestParams.pivotConfiguration-or-usePreAggregateCache__": {
                 "properties": {
@@ -51388,6 +52513,38 @@
                         "properties": {
                             "pivotConfiguration": {
                                 "$ref": "#/components/schemas/PivotConfiguration"
+                            },
+                            "limit": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "sql": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["sql"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "Record_string.UUID_": {
+                "properties": {},
+                "additionalProperties": {
+                    "type": "string"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ExecuteAsyncComposeSqlQueryRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "references": {
+                                "$ref": "#/components/schemas/Record_string.UUID_",
+                                "description": "Results of other async queries exposed to the SQL as tables,\nkeyed by table name: {\"orders\": \"<queryUuid>\"} lets the SQL run\nSELECT * FROM orders. Each referenced query is authorized with the\nsame access checks as fetching its results by uuid; references to\nstill-running queries are waited on before this query executes.\n\nTyped Record<string, UUID> (not Record<string, string>) on purpose:\nTSOA compiles a string-valued record to an empty object literal and\nvalidation then strips every key; a ref-aliased value type keeps\nadditionalProperties intact (and validates the uuid format)."
                             },
                             "limit": {
                                 "type": "number",
@@ -53030,6 +54187,89 @@
                 "required": ["action", "content"],
                 "type": "object"
             },
+            "ContentActionDelete": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": ["delete"],
+                        "nullable": false
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
+            "ApiContentActionBody_ContentActionDelete_": {
+                "properties": {
+                    "action": {
+                        "$ref": "#/components/schemas/ContentActionDelete"
+                    },
+                    "item": {
+                        "$ref": "#/components/schemas/ItemPayload"
+                    }
+                },
+                "required": ["action", "item"],
+                "type": "object"
+            },
+            "ContentBulkDeleteSkippedItem": {
+                "properties": {
+                    "reason": {
+                        "type": "string"
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentType"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["reason", "contentType", "uuid"],
+                "type": "object"
+            },
+            "ContentBulkDeleteResults": {
+                "properties": {
+                    "skipped": {
+                        "items": {
+                            "$ref": "#/components/schemas/ContentBulkDeleteSkippedItem"
+                        },
+                        "type": "array"
+                    },
+                    "deletedCount": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["skipped", "deletedCount"],
+                "type": "object"
+            },
+            "ApiContentBulkDeleteResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ContentBulkDeleteResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiContentBulkActionBody_ContentActionDelete_": {
+                "properties": {
+                    "action": {
+                        "$ref": "#/components/schemas/ContentActionDelete"
+                    },
+                    "content": {
+                        "items": {
+                            "$ref": "#/components/schemas/ItemPayload"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["action", "content"],
+                "type": "object"
+            },
             "DeletedChartBase": {
                 "properties": {
                     "organizationUuid": {
@@ -53612,7 +54852,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.172.0",
+        "version": "1.199.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -53624,6 +54864,57 @@
         }
     },
     "paths": {
+        "/api/v1/projects/{projectUuid}/slugs/rename": {
+            "post": {
+                "operationId": "renameContentSlug",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Rename a project-scoped content slug",
+                "summary": "Rename content slug",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ContentSlugRenameRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/projects/{projectUuid}/code/charts": {
             "get": {
                 "operationId": "getCodeCharts",
@@ -66234,6 +67525,46 @@
                         "schema": {
                             "type": "string",
                             "enum": ["asc", "desc"]
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/aiAgents/admin/threads/{threadUuid}/dump": {
+            "get": {
+                "operationId": "getAdminThreadDump",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentThreadDumpResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Download a sanitized debug dump of an AI agent thread for troubleshooting.\nRequires AI_COPILOT_THREAD_DUMP_ENABLED on the instance.",
+                "summary": "Get AI agent thread dump",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]
@@ -84864,6 +86195,218 @@
                 ]
             }
         },
+        "/api/v2/projects/{projectId}/roles/assignments/user/{userId}/set": {
+            "get": {
+                "operationId": "GetProjectUserRoleSet",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiProjectRoleSetResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the complete role set a user holds directly on the project.\nRequires the `multiple-roles` feature.",
+                "summary": "Get project role set for user",
+                "tags": ["v2", "Project Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "userId",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "ReplaceProjectUserRoleSet",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiProjectRoleSetResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Atomically replace the complete role set a user holds directly on the project.\nAt most one system role plus any number of custom roles; the set must not be empty.\nRequires the `multiple-roles` feature.",
+                "summary": "Replace project role set for user",
+                "tags": ["v2", "Project Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "userId",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ProjectRoleSet"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectId}/roles/assignments/group/{groupId}/set": {
+            "get": {
+                "operationId": "GetProjectGroupRoleSet",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiProjectRoleSetResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the complete role set a group holds on the project.\nRequires the `multiple-roles` feature.",
+                "summary": "Get project role set for group",
+                "tags": ["v2", "Project Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "groupId",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "ReplaceProjectGroupRoleSet",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiProjectRoleSetResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Atomically replace the complete role set a group holds on the project.\nAt most one system role plus any number of custom roles; the set must not be empty.\nRequires the `multiple-roles` feature.",
+                "summary": "Replace project role set for group",
+                "tags": ["v2", "Project Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "groupId",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ProjectRoleSet"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/projects/{projectId}/roles/assignments/group/{groupId}": {
             "post": {
                 "operationId": "UpsertProjectGroupRoleAssignment",
@@ -85133,6 +86676,112 @@
                 }
             }
         },
+        "/api/v2/orgs/{orgUuid}/roles/assignments/user/{userId}/set": {
+            "get": {
+                "operationId": "GetOrganizationUserRoleSet",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationRoleSetResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the complete role set (system role plus custom roles) a user holds in the organization.\nRequires the `multiple-roles` feature.",
+                "summary": "Get organization role set for user",
+                "tags": ["v2", "Organization Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "orgUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "userId",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "ReplaceOrganizationUserRoleSet",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationRoleSetResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Atomically replace the complete role set a user holds in the organization.\nAt most one system role plus any number of custom roles; the set must not be empty.\nRequires the `multiple-roles` feature.",
+                "summary": "Replace organization role set for user",
+                "tags": ["v2", "Organization Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "orgUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "userId",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OrganizationRoleSet"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/orgs/{orgUuid}/roles/{roleId}/duplicate": {
             "post": {
                 "operationId": "DuplicateRole",
@@ -85301,6 +86950,15 @@
                         }
                     },
                     {
+                        "description": "filter to errors caused by this model/table",
+                        "in": "query",
+                        "name": "tableName",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
                         "description": "whether to include chart configuration warnings",
                         "in": "query",
                         "name": "includeChartConfigWarnings",
@@ -85316,6 +86974,48 @@
                         "required": false,
                         "schema": {
                             "type": "boolean"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/validate/summary": {
+            "get": {
+                "operationId": "GetValidationSummary",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiValidationSummaryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get validation errors grouped by root cause (e.g. all errors caused by\none deleted model), with counts and a capped list of affected content.",
+                "summary": "Get validation summary",
+                "tags": ["v2", "Validation"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the projectId for the validation",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 ]
@@ -85572,6 +87272,199 @@
                         "required": false,
                         "schema": {
                             "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query-sources": {
+            "get": {
+                "operationId": "listQuerySources",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_ApiListQuerySourcesResults_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Lists the query sources registered for this deployment. Every source\nsupports the same operations: scan its schema, and submit queries that\nreturn a queryUuid whose results are fetched with the standard async\nquery results endpoint. Requires the multi-source-query feature flag.",
+                "summary": "List query sources",
+                "tags": ["v2", "Query Sources"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query-sources/{sourceType}/schema": {
+            "get": {
+                "operationId": "scanQuerySourceSchema",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_ApiScanQuerySourceSchemaResults_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Scans the schema of one query source into the standard shape: tables\nwith columns of {reference, type}. For the semantic layer, tables are\nexplores and columns are field ids; for warehouse SQL, tables come from\nthe warehouse catalog resolved for your credentials, like the SQL\nrunner; the duckdb source has no schema of its own — its tables are the\nreferences given to each query.",
+                "summary": "Scan query source schema",
+                "tags": ["v2", "Query Sources"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "sourceType",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/QuerySourceType"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query-sources/queries": {
+            "post": {
+                "operationId": "executeSourceQueries",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_ApiExecuteSourceQueriesResults_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Submits one or more source queries through the common interface. Every\nquery body is tagged by sourceType and every query returns a queryUuid,\npolled with the standard async query results endpoint (or Get source\nquery status for many at once).\n\nQueries reference each other's results by nodeId: a duckdb query's\nreferences expose other queries' results as tables, named by node id\n(array shorthand) or by alias (map form, which also accepts queryUuids\nof results from previous submissions). A referenced result keeps the\ncolumn names of the query that produced it — field ids for\nsemanticLayer queries, SELECT output names for sql queries.\n\nAll queries are submitted immediately; a query referencing\nstill-running results waits inside its own execution and fails if a\nreferenced query fails, so no orchestration happens outside the\nqueries themselves. Submit queries one at a time (interactive use) or\nas a whole pipeline in one call — the two are equivalent, so a\nserialized multi-query analysis is just the bodies of the queries that\nwere run interactively, with queryUuid references swapped for node\nids. Note that results expire: re-run upstream queries whose results\nhave expired instead of referencing their old queryUuids.",
+                "summary": "Execute source queries",
+                "tags": ["v2", "Query Sources"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ExecuteSourceQueriesRequestParams"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query-sources/queries/status": {
+            "get": {
+                "operationId": "getSourceQueryStatus",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_ApiGetSourceQueryStatusResults_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Gets the status of many submitted queries at once — the standard async\nquery status lifecycle (pending, running, ready, error, ...) plus the\nerror message for failed queries. Poll this after Execute source\nqueries; fetch each ready query's rows with the standard async query\nresults endpoint. Statuses are visible to the query creator only.",
+                "summary": "Get source query status",
+                "tags": ["v2", "Query Sources"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "queryUuids",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/components/schemas/UUID"
+                            }
                         }
                     }
                 ]
@@ -86108,6 +88001,57 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ExecuteAsyncSqlQueryRequestParams"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/compose-sql": {
+            "post": {
+                "operationId": "executeAsyncComposeSqlQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_ApiExecuteAsyncSqlQueryResults_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Executes a DuckDB SQL query asynchronously on the pre-aggregate DuckDB engine. Requires run-queries access (interactive viewer and up) and the compose-sql-runner feature flag. The references map exposes other async queries' results as named tables the SQL can select from ({\"orders\": \"queryUuid\"} lets the SQL run SELECT * FROM orders); each referenced query is authorized with the same access checks as Get results, so you can reference any query you can already fetch by uuid. References to queries that are still running are waited on — this query executes once every referenced result is ready and fails if a referenced query fails. Direct file access in the SQL is rejected. Returns a queryUuid to poll for results via Get results.",
+                "summary": "Execute compose SQL query",
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ExecuteAsyncComposeSqlQueryRequestParams"
                             }
                         }
                     }
@@ -87779,6 +89723,114 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ApiContentBulkActionBody_ContentActionMove_"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/content/{projectUuid}/delete": {
+            "post": {
+                "operationId": "Delete content",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Delete a single item (Chart, Dashboard, Space). Soft-deletes when the\ninstance has soft delete enabled, otherwise deletes permanently.",
+                "summary": "Delete content",
+                "tags": ["Content", "Delete content", "v2", "Content"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiContentActionBody_ContentActionDelete_"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/content/bulk-action/{projectUuid}/delete": {
+            "post": {
+                "operationId": "Bulk delete content",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentBulkDeleteResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Delete multiple items (Charts, Dashboards, Spaces). Items the caller\ncannot delete are skipped and reported in the response.",
+                "summary": "Bulk delete content",
+                "tags": [
+                    "Content",
+                    "Bulk action",
+                    "Delete content",
+                    "v2",
+                    "Content"
+                ],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiContentBulkActionBody_ContentActionDelete_"
                             }
                         }
                     }
