@@ -70,6 +70,7 @@ import {
     ResolveUrlFn,
     RunAsyncMergeQueryFn,
     RunAsyncQueryFn,
+    RunComposerQueriesFn,
     RunSavedChartQueryFn,
     RunSqlJobFn,
     SearchFieldValuesFn,
@@ -233,6 +234,9 @@ export type AiAgentArgs = AnyAiModel & {
     // Drives whether the prompt tells the agent to use `search`.
     repoFsSupportsCodeSearch: boolean;
     canRunSql: boolean;
+    // Whether the runComposerQueries tool (multi-source pipelines) is
+    // available: the MultiSourceQuery flag + data access, web chat only in v0.
+    enableComposerQueries: boolean;
     // Whether the user can save a generated dashboard anywhere in the project.
     // Gates generateDashboard so the agent does not build one the user is then
     // refused permission to keep.
@@ -307,6 +311,7 @@ export type AiAgentDependencies = {
     runAsyncMergeQuery: RunAsyncMergeQueryFn;
     runSavedChartQuery: RunSavedChartQueryFn;
     runSqlJob: RunSqlJobFn;
+    runComposerQueries: RunComposerQueriesFn;
     listWarehouseTables: ListWarehouseTablesFn;
     describeWarehouseTable: DescribeWarehouseTableFn;
     listKnowledgeDocuments: ListKnowledgeDocumentsFn;

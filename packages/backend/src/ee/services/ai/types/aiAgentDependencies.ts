@@ -29,9 +29,12 @@ import {
     ParametersValuesMap,
     PreviewDeploySetupResult,
     ProjectType,
+    ResultColumns,
     SavedChart,
     SchedulerAndTargets,
     SlackPrompt,
+    SourceQuery,
+    SourceQuerySubmission,
     ToolFindContentArgs,
     ToolFindFieldsArgs,
     ToolListContentArgs,
@@ -512,6 +515,25 @@ export type RunSqlJobFn = (args: { sql: string; limit: number }) => Promise<{
     rows: Record<string, AnyType>[];
     columns: string[];
     rowCount: number;
+}>;
+
+/**
+ * Submits a composer query (multi-source pipeline) and waits for the terminal
+ * node's results. Submissions carry the pinned nodeId → queryUuid mapping for
+ * every node; the terminal snapshot is the first page of the terminal node's
+ * results, capped at that node's limit.
+ */
+export type RunComposerQueriesFn = (args: {
+    queries: SourceQuery[];
+    terminalNodeId: string;
+}) => Promise<{
+    submissions: SourceQuerySubmission[];
+    terminal: {
+        queryUuid: string;
+        columns: ResultColumns;
+        rows: Record<string, AnyType>[];
+        rowCount: number;
+    };
 }>;
 
 export type ListWarehouseTablesFn = () => Promise<WarehouseTablesCatalog>;

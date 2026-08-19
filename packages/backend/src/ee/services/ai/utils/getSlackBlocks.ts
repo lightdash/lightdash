@@ -7,6 +7,7 @@ import {
     getGroupByDimensions,
     getItemMap,
     getWebAiChartConfig,
+    isAiComposerChartArtifactConfig,
     isAiSqlChartArtifactConfig,
     isToolEditDbtProjectResult,
     isToolSetupPreviewDeployResult,
@@ -596,7 +597,10 @@ export async function getModernArtifactCardBlocks(
         if (!artifact.chartConfig) {
             return 'chart';
         }
-        if (isAiSqlChartArtifactConfig(artifact.chartConfig)) {
+        if (
+            isAiSqlChartArtifactConfig(artifact.chartConfig) ||
+            isAiComposerChartArtifactConfig(artifact.chartConfig)
+        ) {
             return 'table';
         }
         const parsed = vizTypeSchema.safeParse(artifact.chartConfig.config);
@@ -621,6 +625,9 @@ export async function getModernArtifactCardBlocks(
             if (title) return `chart:${vizType}:${title}`;
             if (isAiSqlChartArtifactConfig(artifact.chartConfig)) {
                 return `chart:${vizType}:${artifact.chartConfig.sql}`;
+            }
+            if (isAiComposerChartArtifactConfig(artifact.chartConfig)) {
+                return `chart:${vizType}:${artifact.chartConfig.lastQueryUuid}`;
             }
             const viz = parseVizConfig(
                 artifact.chartConfig.config,
@@ -657,14 +664,16 @@ export async function getModernArtifactCardBlocks(
     const chartArtifacts = dedupedArtifacts.filter(
         (artifact) =>
             Boolean(artifact.chartConfig) &&
-            !isAiSqlChartArtifactConfig(artifact.chartConfig),
+            !isAiSqlChartArtifactConfig(artifact.chartConfig) &&
+            !isAiComposerChartArtifactConfig(artifact.chartConfig),
     );
 
     const blocks = await Promise.all(
         dedupedArtifacts.map(async (artifact, index) => {
             if (
                 artifact.chartConfig &&
-                !isAiSqlChartArtifactConfig(artifact.chartConfig)
+                !isAiSqlChartArtifactConfig(artifact.chartConfig) &&
+                !isAiComposerChartArtifactConfig(artifact.chartConfig)
             ) {
                 const vizConfig = parseVizConfig(
                     artifact.chartConfig.config,

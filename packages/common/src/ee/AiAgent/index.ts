@@ -20,6 +20,7 @@ import type {
 import assertUnreachable from '../../utils/assertUnreachable';
 import { type AiAgentReviewItemStatus } from './aiAgentReviewClassifierTypes';
 import { type AiEvalRunResultAssessment } from './aiEvalAssessment';
+import { type AiComposerChartArtifactConfig } from './composerArtifact';
 import { type AiProjectContextTypedObjectRef } from './projectContext';
 import {
     type AiAgentModelConfig,
@@ -38,6 +39,7 @@ export * from './chartConfig/slack';
 export * from './chartConfig/web';
 export * from './constants';
 export * from './coder';
+export * from './composerArtifact';
 export * from './dashboardContext';
 export * from './aiAgentReviewClassifierTypes';
 export * from './documentTypes';
@@ -1024,7 +1026,8 @@ export type AiMergeChartArtifactConfig = {
 export type AiChartArtifactConfig =
     | AiSemanticChartArtifactConfig
     | AiMergeChartArtifactConfig
-    | AiSqlChartArtifactConfig;
+    | AiSqlChartArtifactConfig
+    | AiComposerChartArtifactConfig;
 
 export type AiArtifact = {
     artifactUuid: string;

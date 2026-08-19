@@ -82,6 +82,7 @@ import { getProjectContextSearchEntries } from '../tools/memoryProjectContext';
 import { getReadContent } from '../tools/readContent';
 import { getReadPinnedThread } from '../tools/readPinnedThread';
 import { getResolveUrl } from '../tools/resolveUrl';
+import { getRunComposerQueries } from '../tools/runComposerQueries';
 import { getRunContentQuery } from '../tools/runContentQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
@@ -874,6 +875,22 @@ export const getAgentTools = (
           })
         : null;
 
+    const runComposerQueries = args.enableComposerQueries
+        ? getRunComposerQueries({
+              updateProgress: dependencies.updateProgress,
+              runComposerQueries: dependencies.runComposerQueries,
+              getPrompt: dependencies.getPrompt,
+              waitForSqlApproval: dependencies.waitForSqlApproval,
+              recordSqlApproval: dependencies.recordSqlApproval,
+              createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
+              maxQueryLimit: args.runSqlMaxLimit,
+              enableDataAccess: args.enableDataAccess,
+              canRunSql: args.canRunSql,
+              autoApproveSql: args.autoApproveSql,
+              autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
+          })
+        : null;
+
     const listWarehouseTables = args.canRunSql
         ? getListWarehouseTables({
               listWarehouseTables: dependencies.listWarehouseTables,
@@ -1119,6 +1136,7 @@ export const getAgentTools = (
         ...(getPullRequestDiff ? { getPullRequestDiff } : {}),
         ...(args.enableDataAccess ? { searchFieldValues } : {}),
         ...(runSql ? { runSql } : {}),
+        ...(runComposerQueries ? { runComposerQueries } : {}),
         ...(listWarehouseTables ? { listWarehouseTables } : {}),
         ...(describeWarehouseTable ? { describeWarehouseTable } : {}),
         ...(loadSkill ? { loadSkill } : {}),

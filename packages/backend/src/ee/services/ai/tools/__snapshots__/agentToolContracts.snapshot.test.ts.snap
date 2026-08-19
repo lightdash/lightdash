@@ -7406,6 +7406,273 @@ Notes:
     },
   },
   {
+    "description": "Execute a composer query: a multi-source pipeline of one or more queries submitted together, where DuckDB queries can join and transform the results of the other queries. Results are stored as a chart artifact that renders the terminal node's results table in the thread.
+
+Use this tool when a single source cannot answer the question — e.g. joining a semantic layer metric query with raw warehouse SQL, or post-processing prior results with SQL.
+
+How to build a pipeline:
+- Every query is a node. Name each node with "nodeId" (letters, digits, underscores; starting with a letter or underscore).
+- "semanticLayer" nodes run a metric query against an explore. Result columns are named by field id — exactly the dimensions and metrics requested (e.g. metric "payments_total_revenue" yields column "payments_total_revenue").
+- "sql" nodes run raw SQL against the project's data warehouse, in the warehouse's SQL dialect. Result columns are the SELECT output names. SQL execution may require the user to approve the SQL first.
+- "duckdb" nodes run DuckDB SQL over other queries' results. Declare which results the SQL reads via "references": the shorthand array form lists node ids from this submission, each exposed as a table named by its node id (["orders", "revenue"] lets the SQL run SELECT * FROM orders JOIN revenue ...); the map form aliases tables or references existing results by queryUuid ({"o": "orders", "prev": "<queryUuid>"}). A referenced table's columns are the upstream result's columns.
+- The "terminal" node is the one whose results the artifact shows and whose rows are returned to you. By default it is the unique sink (the one node no other node references); pass "terminalNodeId" explicitly when the pipeline has multiple sinks.
+- Results of a previous runComposerQueries call can be referenced in a later call via the map form of "references" using the terminal queryUuid returned by that call.
+
+Returns the terminal node's result columns and a CSV preview of its rows, plus per-node queryUuids.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "description": "A one-line description of what the pipeline computes.",
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+        "queries": {
+          "description": "The pipeline: one or more source queries submitted together. Order does not matter — dependencies are resolved from duckdb references.",
+          "items": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "dimensions": {
+                    "description": "Dimension field ids to group by, from the explore's schema.",
+                    "items": {
+                      "type": "string",
+                    },
+                    "type": "array",
+                  },
+                  "exploreName": {
+                    "description": "The explore to run the metric query against.",
+                    "type": "string",
+                  },
+                  "filters": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "description": "Filters in the metric query filters shape: an optional filter group per field kind, e.g. {"dimensions": {"id": "<uuid>", "and": [{"id": "<uuid>", "target": {"fieldId": "orders_status"}, "operator": "equals", "values": ["completed"]}]}}.",
+                        "properties": {
+                          "dimensions": {},
+                          "metrics": {},
+                          "tableCalculations": {},
+                        },
+                        "type": "object",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                    "description": "Filters in the metric query filters shape: an optional filter group per field kind, e.g. {"dimensions": {"id": "<uuid>", "and": [{"id": "<uuid>", "target": {"fieldId": "orders_status"}, "operator": "equals", "values": ["completed"]}]}}.",
+                  },
+                  "limit": {
+                    "default": 500,
+                    "description": "Maximum number of rows this node returns. Defaults to 500, max 500.",
+                    "exclusiveMinimum": 0,
+                    "maximum": 500,
+                    "type": "integer",
+                  },
+                  "metrics": {
+                    "description": "Metric field ids to compute, from the explore's schema.",
+                    "items": {
+                      "type": "string",
+                    },
+                    "type": "array",
+                  },
+                  "nodeId": {
+                    "description": "Names this query so other queries in the same submission can reference its results. Also the DuckDB table name its results are exposed as.",
+                    "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
+                    "type": "string",
+                  },
+                  "sorts": {
+                    "anyOf": [
+                      {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "descending": {
+                              "description": "If true sorts in descending order, ascending otherwise.",
+                              "type": "boolean",
+                            },
+                            "fieldId": {
+                              "description": "Field id to sort by.",
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "fieldId",
+                            "descending",
+                          ],
+                          "type": "object",
+                        },
+                        "type": "array",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                    "description": "Sorts to apply, e.g. [{"fieldId": "orders_order_date", "descending": true}].",
+                  },
+                  "sourceType": {
+                    "const": "semanticLayer",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "sourceType",
+                  "nodeId",
+                  "exploreName",
+                  "dimensions",
+                  "metrics",
+                  "filters",
+                  "sorts",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "limit": {
+                    "default": 500,
+                    "description": "Maximum number of rows this node returns. Defaults to 500, max 500.",
+                    "exclusiveMinimum": 0,
+                    "maximum": 500,
+                    "type": "integer",
+                  },
+                  "nodeId": {
+                    "description": "Names this query so other queries in the same submission can reference its results. Also the DuckDB table name its results are exposed as.",
+                    "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
+                    "type": "string",
+                  },
+                  "sourceType": {
+                    "const": "sql",
+                    "type": "string",
+                  },
+                  "sql": {
+                    "description": "The SQL to execute against the project's data warehouse, in the warehouse's SQL dialect. Must be a SELECT (or WITH) statement.",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "sourceType",
+                  "nodeId",
+                  "sql",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "limit": {
+                    "default": 500,
+                    "description": "Maximum number of rows this node returns. Defaults to 500, max 500.",
+                    "exclusiveMinimum": 0,
+                    "maximum": 500,
+                    "type": "integer",
+                  },
+                  "nodeId": {
+                    "description": "Names this query so other queries in the same submission can reference its results. Also the DuckDB table name its results are exposed as.",
+                    "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
+                    "type": "string",
+                  },
+                  "references": {
+                    "anyOf": [
+                      {
+                        "items": {
+                          "type": "string",
+                        },
+                        "type": "array",
+                      },
+                      {
+                        "additionalProperties": {
+                          "type": "string",
+                        },
+                        "type": "object",
+                      },
+                    ],
+                    "description": "Which query results the SQL reads. Shorthand array of node ids from this submission (each exposed as a table named by its node id), or a map of {tableName: nodeIdOrQueryUuid} for aliasing or referencing existing results.",
+                  },
+                  "sourceType": {
+                    "const": "duckdb",
+                    "type": "string",
+                  },
+                  "sql": {
+                    "description": "DuckDB SQL over the referenced results. Each reference is exposed as a table; its columns are the upstream result columns.",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "sourceType",
+                  "nodeId",
+                  "sql",
+                  "references",
+                ],
+                "type": "object",
+              },
+            ],
+          },
+          "minItems": 1,
+          "type": "array",
+        },
+        "terminalNodeId": {
+          "description": "Which node's result the artifact shows and this tool returns. Pass null to default to the unique sink (the one node no other node references); required when the pipeline has multiple sinks.",
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+        "title": {
+          "description": "A short title for the results artifact.",
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+      },
+      "required": [
+        "title",
+        "description",
+        "queries",
+        "terminalNodeId",
+      ],
+      "type": "object",
+    },
+    "name": "runComposerQueries",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "error",
+                "rejected",
+                "timeout",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
+  },
+  {
     "description": "Tool: searchFieldValues
 
 Purpose:
@@ -8281,6 +8548,7 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "generateVisualization",
   "runQuery",
   "runSql",
+  "runComposerQueries",
   "discoverFields",
   "grepFields",
   "getMetadata",

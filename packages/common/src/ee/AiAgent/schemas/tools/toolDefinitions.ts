@@ -49,6 +49,11 @@ import {
     toolClosePullRequestOutputSchema,
 } from './toolClosePullRequestArgs';
 import {
+    TOOL_COMPOSER_QUERIES_DESCRIPTION,
+    toolComposerQueriesArgsSchema,
+    toolComposerQueriesOutputSchema,
+} from './toolComposerQueryArgs';
+import {
     TOOL_CREATE_CONTENT_DESCRIPTION,
     toolCreateContentArgsSchema,
     toolCreateContentOutputSchema,
@@ -581,6 +586,24 @@ export const runSqlToolDefinition: ToolDefinitionWithMcpOutput<
     mcp: {
         annotations: readOnlyAnnotations,
         structuredContentSchema: mcpRunSqlStructuredOutputSchema,
+    },
+});
+
+export const runComposerQueriesToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'runComposerQueries',
+    typeof toolComposerQueriesArgsSchema,
+    typeof toolComposerQueriesArgsSchema,
+    typeof toolComposerQueriesOutputSchema
+> = defineTool({
+    name: 'runComposerQueries',
+    title: 'Run composer queries',
+    description: TOOL_COMPOSER_QUERIES_DESCRIPTION,
+    availability: ['agent', 'mcp'],
+    inputSchema: toolComposerQueriesArgsSchema,
+    agent: { outputSchema: toolComposerQueriesOutputSchema },
+    mcp: {
+        name: 'run_composer_queries',
+        annotations: readOnlyAnnotations,
     },
 });
 
@@ -1616,6 +1639,7 @@ type AgentToolDefinitionsByName = {
     generateVisualization: typeof generateVisualizationToolDefinition;
     runQuery: typeof runQueryToolDefinition;
     runSql: typeof runSqlToolDefinition;
+    runComposerQueries: typeof runComposerQueriesToolDefinition;
     discoverFields: typeof discoverFieldsToolDefinition;
     grepFields: typeof grepFieldsToolDefinition;
     getMetadata: typeof getMetadataToolDefinition;
@@ -1672,6 +1696,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     generateVisualization: generateVisualizationToolDefinition,
     runQuery: runQueryToolDefinition,
     runSql: runSqlToolDefinition,
+    runComposerQueries: runComposerQueriesToolDefinition,
     discoverFields: discoverFieldsToolDefinition,
     grepFields: grepFieldsToolDefinition,
     getMetadata: getMetadataToolDefinition,
@@ -1733,6 +1758,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     generateVisualizationToolDefinition,
     runQueryToolDefinition,
     runSqlToolDefinition,
+    runComposerQueriesToolDefinition,
     getQueryResultToolDefinition,
     renderChartToolDefinition,
     discoverFieldsToolDefinition,

@@ -3,6 +3,7 @@ import {
     getGroupByDimensions,
     getWebAiChartConfig,
     isAiAgentSqlArtifactVizQuery,
+    isAiComposerChartArtifactConfig,
     isAiSqlChartArtifactConfig,
     parseVizConfig,
     type AiAgentChartTypeOption,
@@ -39,6 +40,7 @@ import { AgentVisualizationChartTypeSwitcher } from './AgentVisualizationChartTy
 import styles from './AiArtifactPanel.module.css';
 import { AiChartQuickOptions } from './AiChartQuickOptions';
 import { AiChartVisualization } from './AiChartVisualization';
+import { AiComposerArtifactVisualization } from './AiComposerArtifactVisualization';
 import { AiDashboardVisualization } from './AiDashboardVisualization';
 import {
     AiSqlArtifactActions,
@@ -109,6 +111,14 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
         const isSqlArtifact = isAiSqlChartArtifactConfig(
             artifactData?.chartConfig,
         );
+        // Composer artifacts skip the viz-query round trip in v0: the stored
+        // lastQueryUuid feeds the standard results endpoint directly.
+        const artifactChartConfig = artifactData?.chartConfig;
+        const composerConfig = isAiComposerChartArtifactConfig(
+            artifactChartConfig,
+        )
+            ? artifactChartConfig
+            : undefined;
         const { isMergeArtifact, semanticChartConfig } =
             getAiArtifactChartSource(artifactData?.chartConfig);
 
@@ -137,10 +147,11 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             isAiAgentSqlArtifactVizQuery(queryExecutionHandle.data)
                 ? queryExecutionHandle.data
                 : undefined;
-        const queryUuid =
-            queryExecutionHandle.data && 'query' in queryExecutionHandle.data
-                ? queryExecutionHandle.data.query.queryUuid
-                : undefined;
+        const queryUuid = composerConfig
+            ? composerConfig.lastQueryUuid
+            : queryExecutionHandle.data && 'query' in queryExecutionHandle.data
+              ? queryExecutionHandle.data.query.queryUuid
+              : undefined;
 
         const queryResults = useInfiniteQueryResults(
             artifact.projectUuid,
@@ -247,6 +258,53 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                             dashboardConfig={artifactData.dashboardConfig!}
                             message={message}
                             showCloseButton={showCloseButton}
+                        />
+                    </div>
+                </div>
+            );
+        }
+
+        // Composer artifact (v0): render the stored terminal result as a
+        // table. No viz-query handle — the results endpoint is creator-scoped
+        // and read directly by lastQueryUuid.
+        if (composerConfig) {
+            const composerTitle =
+                artifactData.title ?? 'Composer query results';
+            const composerHead = (
+                <div className={styles.head}>
+                    <Stack gap={0} flex={1} miw={0}>
+                        <TruncatedText fz="sm" fw={600} maxWidth="100%">
+                            {composerTitle}
+                        </TruncatedText>
+                        {artifactData.description && (
+                            <TruncatedText fz="xs" c="dimmed" maxWidth="100%">
+                                {artifactData.description}
+                            </TruncatedText>
+                        )}
+                    </Stack>
+                    {showCloseButton && (
+                        <Group gap={2} className={styles.headRight}>
+                            <ActionIcon
+                                size="sm"
+                                variant="subtle"
+                                color="ldGray.6"
+                                onClick={() => dispatch(clearArtifact())}
+                                aria-label="Close"
+                            >
+                                <MantineIcon icon={IconX} />
+                            </ActionIcon>
+                        </Group>
+                    )}
+                </div>
+            );
+            return (
+                <div className={styles.floatingPanel}>
+                    <div
+                        className={`${styles.floatingContent} ${styles.sqlArtifactContent}`}
+                    >
+                        <AiComposerArtifactVisualization
+                            results={queryResults}
+                            headerContent={composerHead}
                         />
                     </div>
                 </div>

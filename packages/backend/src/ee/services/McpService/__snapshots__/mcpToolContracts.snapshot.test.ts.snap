@@ -8977,6 +8977,7 @@ exports[`MCP tool contracts > matches the shared MCP tool definition names snaps
   "search_field_values",
   "run_metric_query",
   "run_sql",
+  "run_composer_queries",
   "get_query_result",
   "render_chart",
   "grep_fields",

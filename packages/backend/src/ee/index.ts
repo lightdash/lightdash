@@ -446,6 +446,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     jobModel: models.getJobModel(),
                     userAttributesModel: models.getUserAttributesModel(),
                     asyncQueryService: repository.getAsyncQueryService(),
+                    querySourceService: repository.getQuerySourceService(),
                     catalogService: repository.getCatalogService(),
                     contentVerificationModel:
                         models.getContentVerificationModel(),

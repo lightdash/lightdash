@@ -20,6 +20,7 @@ export * from './toolExploreRepoArgs';
 export * from './toolDiscoverReposArgs';
 export * from './toolListWorkstreamsArgs';
 export * from './toolClosePullRequestArgs';
+export * from './toolComposerQueryArgs';
 export * from './toolGetPullRequestDiffArgs';
 export * from './toolSetupPreviewDeployArgs';
 export * from './toolReadContentArgs';
