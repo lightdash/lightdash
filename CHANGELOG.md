@@ -1,3 +1,10 @@
+## [1.199.2](https://github.com/lightdash/lightdash/compare/1.199.1...1.199.2) (2026-08-19)
+
+
+### Bug Fixes
+
+* **backend:** name dashboard zip and workbook exports after the dashboard ([#27587](https://github.com/lightdash/lightdash/issues/27587)) ([103d990](https://github.com/lightdash/lightdash/commit/103d990b506421919afcfadbd76cec1d66ba0a8b)), closes [#27583](https://github.com/lightdash/lightdash/issues/27583)
+
 ## [1.199.1](https://github.com/lightdash/lightdash/compare/1.199.0...1.199.1) (2026-08-19)
 
 
