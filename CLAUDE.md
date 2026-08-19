@@ -84,7 +84,7 @@ aliases.
 
 ## Common Development Commands
 
--   Assume the dev-server is always running. PM2 watches backend source files and restarts the API, and a separate `api-routes-watch` process regenerates TSOA routes when controllers change; backend and generated-route changes reload the API automatically.
+-   Assume the dev-server is always running and watching source files; a separate `api-routes-watch` process regenerates TSOA routes when controllers change, so backend and generated-route changes reload the API automatically.
 -   Always use package-specific commands for faster linting/typechecking/testing.
 
 **Code Quality:**
@@ -125,13 +125,7 @@ local generated routes are stale:
 pnpm generate-api
 ```
 
-The generated files (`packages/backend/src/generated/*`) are regenerated on main per build, so the committed `routes.ts` may be stale after you pull or rebase main — it can still import controllers that main has already deleted. If the backend crash-loops with `MODULE_NOT_FOUND` pointing at `generated/routes.ts`, regenerate and restart:
-
-```bash
-pnpm generate-api
-# processes are named <LD_INSTANCE_ID>-api / -scheduler (LD_INSTANCE_ID defaults to "lightdash")
-pm2 restart "${LD_INSTANCE_ID:-lightdash}-api" "${LD_INSTANCE_ID:-lightdash}-scheduler"
-```
+The generated files (`packages/backend/src/generated/*`) are regenerated on main per build, so the committed `routes.ts` may be stale after you pull or rebase main — it can still import controllers that main has already deleted. If the backend crash-loops with `MODULE_NOT_FOUND` pointing at `generated/routes.ts`, run `pnpm generate-api` and restart the dev-server.
 
 Chart-as-code JSON schema is generated from backend OpenAPI:
 
