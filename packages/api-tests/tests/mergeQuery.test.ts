@@ -1,5 +1,6 @@
 import {
     FilterOperator,
+    MergeQueryErrorKind,
     QueryExecutionContext,
     SEED_PROJECT,
     type ApiCompiledMergeQueryResults,
@@ -205,6 +206,12 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
         );
     };
 
+    // Raw numeric representation is driver-specific — Postgres stringifies
+    // bigints and numerics, DuckDB (the compose engine) returns JSON
+    // numbers — so the parity bar compares values, not spellings. Formatted
+    // values are engine-independent and asserted elsewhere.
+    const numeric = (raw: unknown) => (raw === null ? null : Number(raw));
+
     // Month starts arrive spelled in different conventions depending on
     // which path truncated and serialised them — a DST month start can even
     // arrive as a date-only string of the *previous* day. Every spelling
@@ -264,8 +271,12 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
             const payments = (
                 row[PAYMENTS_FIELD_ID] as { value: { raw: unknown } }
             ).value.raw;
-            expect(orders).toEqual(ordersByKey.get(key) ?? null);
-            expect(payments).toEqual(paymentsByKey.get(key) ?? null);
+            expect(numeric(orders)).toEqual(
+                numeric(ordersByKey.get(key) ?? null),
+            );
+            expect(numeric(payments)).toEqual(
+                numeric(paymentsByKey.get(key) ?? null),
+            );
         });
     }, 60_000);
 
@@ -332,12 +343,17 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
                 (row[KEY_FIELD_ID] as { value: { raw: unknown } }).value.raw,
             );
             expect(
-                (row[ORDERS_FIELD_ID] as { value: { raw: unknown } }).value.raw,
-            ).toEqual(ordersByKey.get(key) ?? null);
+                numeric(
+                    (row[ORDERS_FIELD_ID] as { value: { raw: unknown } }).value
+                        .raw,
+                ),
+            ).toEqual(numeric(ordersByKey.get(key) ?? null));
             expect(
-                (row[PAYMENTS_FIELD_ID] as { value: { raw: unknown } }).value
-                    .raw,
-            ).toEqual(paymentsByKey.get(key) ?? null);
+                numeric(
+                    (row[PAYMENTS_FIELD_ID] as { value: { raw: unknown } })
+                        .value.raw,
+                ),
+            ).toEqual(numeric(paymentsByKey.get(key) ?? null));
         });
     }, 60_000);
 
@@ -374,6 +390,123 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
         expect(await rowCountFor('left')).toBe(ordersKeys.size);
         expect(await rowCountFor('inner')).toBe(intersection.length);
     }, 90_000);
+
+    // Result sources: an existing query result referenced by queryUuid joins
+    // as the rows it already holds — nothing re-runs. Only the compose
+    // engine can join one, so environments without it must refuse with the
+    // compose_required contract instead of falling back to a warehouse
+    // statement that cannot exist. The same parity bar applies either way:
+    // merged values must equal what the referenced queries returned.
+    it('merges existing query results by queryUuid, or refuses without the compose engine', async () => {
+        const startAndFetch = async (query: Record<string, unknown>) => {
+            const started = await admin.post<Body<{ queryUuid: string }>>(
+                `/api/v2/projects/${projectUuid}/query/metric-query`,
+                { context: 'exploreView', query },
+            );
+            expect(started.status).toBe(200);
+            const results = await pollQueryResults(
+                admin,
+                started.body.results.queryUuid,
+            );
+            return {
+                queryUuid: started.body.results.queryUuid,
+                rows: results.rows.map((row) =>
+                    Object.fromEntries(
+                        Object.entries(row).map(([column, cell]) => [
+                            column,
+                            (cell as { value: { raw: unknown } }).value.raw,
+                        ]),
+                    ),
+                ),
+            };
+        };
+        const [ordersRun, paymentsRun] = await Promise.all([
+            startAndFetch(ordersByMonth),
+            startAndFetch(paymentsByMonth),
+        ]);
+
+        const runResp = await admin.post<
+            Body<ApiExecuteAsyncMergeQueryResults>
+        >(`/api/v2/projects/${projectUuid}/query/compose-merge-query`, {
+            mergeQuery: {
+                ...mergeQuery,
+                sources: [
+                    { id: 'orders', queryUuid: ordersRun.queryUuid },
+                    { id: 'payments', queryUuid: paymentsRun.queryUuid },
+                ],
+            },
+            context: QueryExecutionContext.EXPLORE,
+        });
+        expect(runResp.status).toBe(200);
+        if (runResp.body.results.outcome === 'refused') {
+            expect(
+                runResp.body.results.errors.map((error) => error.kind),
+            ).toContain(MergeQueryErrorKind.COMPOSE_REQUIRED);
+            return;
+        }
+
+        const results = await pollQueryResults(
+            admin,
+            runResp.body.results.query.queryUuid,
+        );
+        const ordersByKey = new Map(
+            ordersRun.rows.map((row) => [
+                monthOf(row.orders_order_date_month),
+                row.orders_total_order_amount,
+            ]),
+        );
+        const paymentsByKey = new Map(
+            paymentsRun.rows.map((row) => [
+                monthOf(row.orders_order_date_month),
+                row.payments_unique_payment_count,
+            ]),
+        );
+        expect(results.totalResults).toBe(
+            new Set([...ordersByKey.keys(), ...paymentsByKey.keys()]).size,
+        );
+        results.rows.forEach((row) => {
+            const key = monthOf(
+                (row[KEY_FIELD_ID] as { value: { raw: unknown } }).value.raw,
+            );
+            expect(
+                numeric(
+                    (row[ORDERS_FIELD_ID] as { value: { raw: unknown } }).value
+                        .raw,
+                ),
+            ).toEqual(numeric(ordersByKey.get(key) ?? null));
+            expect(
+                numeric(
+                    (row[PAYMENTS_FIELD_ID] as { value: { raw: unknown } })
+                        .value.raw,
+                ),
+            ).toEqual(numeric(paymentsByKey.get(key) ?? null));
+        });
+    }, 120_000);
+
+    it('refuses a result source that does not exist, naming the remedy', async () => {
+        const runResp = await admin.post<
+            Body<ApiExecuteAsyncMergeQueryResults>
+        >(`/api/v2/projects/${projectUuid}/query/compose-merge-query`, {
+            mergeQuery: {
+                ...mergeQuery,
+                sources: [
+                    { id: 'orders', metricQuery: ordersByMonth },
+                    {
+                        id: 'payments',
+                        queryUuid: '00000000-0000-4000-8000-000000000000',
+                    },
+                ],
+            },
+            context: QueryExecutionContext.EXPLORE,
+        });
+        expect(runResp.status).toBe(200);
+        expect(runResp.body.results.outcome).toBe('refused');
+        if (runResp.body.results.outcome === 'refused') {
+            expect(
+                runResp.body.results.errors.map((error) => error.kind),
+            ).toContain(MergeQueryErrorKind.RESULT_SOURCE_UNAVAILABLE);
+        }
+    }, 30_000);
 
     // The jaffle subscriptions explore's customers join carries a Lightdash
     // parameter, so selecting orders_status through it forces the
