@@ -1,3 +1,10 @@
+## [1.206.2](https://github.com/lightdash/lightdash/compare/1.206.1...1.206.2) (2026-08-19)
+
+
+### Bug Fixes
+
+* scope release declarations to git ranges ([#27692](https://github.com/lightdash/lightdash/issues/27692)) ([72a0ac0](https://github.com/lightdash/lightdash/commit/72a0ac092268fc9382f14a6d50a075f0793106be))
+
 ## [1.206.1](https://github.com/lightdash/lightdash/compare/1.206.0...1.206.1) (2026-08-19)
 
 
