@@ -46,6 +46,14 @@ export class OAuth2Model implements AuthorizationCodeModel {
         };
     }
 
+    async findClientName(clientId: string): Promise<string | undefined> {
+        const client = await this.database('oauth2_clients')
+            .select('client_name')
+            .where('client_id', clientId)
+            .first();
+        return client?.client_name;
+    }
+
     async saveAuthorizationCode(
         code: Pick<
             AuthorizationCode,

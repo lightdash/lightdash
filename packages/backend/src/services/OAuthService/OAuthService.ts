@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ForbiddenError,
+    getClientName,
     NotFoundError,
     ParameterError,
     UserWithOrganizationUuid,
@@ -98,6 +99,11 @@ export class OAuthService extends BaseService {
         const refreshToken = await this.oauthModel.getRefreshToken(token);
         if (refreshToken) return this.oauthModel.revokeToken(refreshToken);
         return false;
+    }
+
+    public async getClientDisplayName(clientId: string): Promise<string> {
+        const clientName = await this.oauthModel.findClientName(clientId);
+        return clientName ?? getClientName(clientId);
     }
 
     public async registerClient({

@@ -5,9 +5,13 @@ import {
     addToolCall,
     aiAgentThreadStreamSlice,
     appendStepProgress,
+    markStreamPolling,
+    markStreamRecovering,
+    setError,
     setMessage,
     setParts,
     startStreaming,
+    stopStreaming,
 } from './aiAgentThreadStreamSlice';
 
 describe('aiAgentThreadStreamSlice', () => {
@@ -49,6 +53,63 @@ describe('aiAgentThreadStreamSlice', () => {
                 toolName: null,
             }).meta,
         ).toEqual(expectedMeta);
+    });
+
+    it('tracks streaming connection recovery', () => {
+        const streaming = aiAgentThreadStreamSlice.reducer(
+            undefined,
+            startStreaming({
+                threadUuid: 'thread-1',
+                messageUuid: 'message-1',
+            }),
+        );
+        expect(streaming['thread-1']?.connection).toEqual({
+            status: 'streaming',
+        });
+
+        const recovering = aiAgentThreadStreamSlice.reducer(
+            streaming,
+            markStreamRecovering({ threadUuid: 'thread-1' }),
+        );
+        expect(recovering['thread-1']?.connection).toEqual({
+            status: 'recovering',
+        });
+
+        const polling = aiAgentThreadStreamSlice.reducer(
+            recovering,
+            markStreamPolling({ threadUuid: 'thread-1' }),
+        );
+        expect(polling['thread-1']?.connection).toEqual({
+            status: 'polling',
+        });
+
+        const complete = aiAgentThreadStreamSlice.reducer(
+            polling,
+            stopStreaming({ threadUuid: 'thread-1' }),
+        );
+        expect(complete['thread-1']?.connection).toEqual({
+            status: 'complete',
+        });
+    });
+
+    it('keeps terminal stream errors in the connection state', () => {
+        const streaming = aiAgentThreadStreamSlice.reducer(
+            undefined,
+            startStreaming({
+                threadUuid: 'thread-1',
+                messageUuid: 'message-1',
+            }),
+        );
+
+        const failed = aiAgentThreadStreamSlice.reducer(
+            streaming,
+            setError({ threadUuid: 'thread-1', error: 'Failed to connect' }),
+        );
+
+        expect(failed['thread-1']?.connection).toEqual({
+            status: 'error',
+            error: 'Failed to connect',
+        });
     });
 
     it('appends each progress message to the timeline in order', () => {

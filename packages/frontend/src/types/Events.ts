@@ -47,6 +47,7 @@ export enum PageName {
     SPACES = 'spaces',
     SHARE = 'share',
     USER_ACTIVITY = 'user_activity',
+    QUERY_HISTORY = 'query_history',
     VERIFY_EMAIL = 'verify_email',
     JOIN_ORGANIZATION = 'join_organization',
     ORGANIZATION_SETUP = 'organization_setup',

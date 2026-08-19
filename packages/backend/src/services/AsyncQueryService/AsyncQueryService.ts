@@ -84,6 +84,7 @@ import {
     PivotConfiguration,
     ProjectType,
     QueryExecutionContext,
+    QueryHistoryListFilters,
     QueryHistoryStatus,
     resolveQueryTimezone,
     ResultRow,
@@ -106,6 +107,7 @@ import {
     type ApiExecuteAsyncMergeQueryResults,
     type ApiExecuteAsyncMetricQueryResults,
     type ApiGetAsyncQueryResults,
+    type ApiQueryHistoryListResponse,
     type CacheMetadata,
     type CalculateTotalKind,
     type CompiledCustomSqlDimension,
@@ -164,7 +166,10 @@ import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
 import { getAppContext, getSchedulerContext } from '../../logging/winston';
 import { DownloadAuditModel } from '../../models/DownloadAuditModel';
-import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
+import {
+    mapQueryHistoryRowToListItem,
+    QueryHistoryModel,
+} from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
 import PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { compileMetricQuery } from '../../queryCompiler';
@@ -977,6 +982,84 @@ export class AsyncQueryService extends ProjectService {
                     passthroughDimensions:
                         pivotConfiguration.passthroughDimensions,
                 }),
+        };
+    }
+
+    /**
+     * Lists the requesting user's own query history for a project, with
+     * per-trigger and per-window counts for the list page's filters.
+     */
+    async getQueryHistoryList({
+        account,
+        projectUuid,
+        filters,
+        paginateArgs,
+    }: {
+        account: Account;
+        projectUuid: string;
+        filters: QueryHistoryListFilters;
+        paginateArgs: KnexPaginateArgs;
+    }): Promise<ApiQueryHistoryListResponse['results']> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        // History is scoped to the requesting user's own runs, so an
+        // anonymous (embed) account has nothing to list.
+        if (!account.isRegisteredUser()) {
+            throw new ForbiddenError(
+                'Query history is only available to registered users',
+            );
+        }
+
+        const { enabled: isEndpointEnabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: account.user.id,
+                organizationUuid,
+            },
+            featureFlagId: FeatureFlags.QueryHistory,
+        });
+        if (!isEndpointEnabled) {
+            throw new ForbiddenError('Query history is not enabled');
+        }
+
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const userUuid = account.user.id;
+        const [{ data: rows, pagination }, counts] = await Promise.all([
+            this.queryHistoryModel.findUserHistory(
+                projectUuid,
+                userUuid,
+                filters,
+                paginateArgs,
+            ),
+            this.queryHistoryModel.getUserHistoryCounts(
+                projectUuid,
+                userUuid,
+                filters,
+            ),
+        ]);
+
+        return {
+            data: rows.map(mapQueryHistoryRowToListItem),
+            pagination,
+            counts: {
+                ...counts,
+                total: Object.values(counts.windows).reduce(
+                    (sum, count) => sum + count,
+                    0,
+                ),
+            },
         };
     }
 

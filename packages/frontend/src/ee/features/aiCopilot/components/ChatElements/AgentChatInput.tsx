@@ -39,6 +39,7 @@ import {
     useCreateAiAgentThreadMessageSteerMutation,
     useInterruptAiAgentThreadMessageMutation,
 } from '../../hooks/useProjectAiAgents';
+import { isAiAgentThreadStreamActive } from '../../store/aiAgentThreadStreamSlice';
 import { useAiAgentThreadStreamQuery } from '../../streaming/useAiAgentThreadStreamQuery';
 import { AgentSelector } from '../AgentSelector';
 import { type Agent } from '../AgentSelector/AgentSelectorUtils';
@@ -338,11 +339,15 @@ export const AgentChatInput = ({
         });
     }, [editor, threadUuid]);
 
+    const isAgentActive = threadStream
+        ? isAiAgentThreadStreamActive(threadStream.connection)
+        : false;
+
     useEffect(() => {
-        if (hasRequestedInterrupt && !threadStream?.isStreaming) {
+        if (hasRequestedInterrupt && !isAgentActive) {
             setHasRequestedInterrupt(false);
         }
-    }, [hasRequestedInterrupt, threadStream?.isStreaming]);
+    }, [hasRequestedInterrupt, isAgentActive]);
 
     const handleChipClick = useCallback(
         (chip: AgentSuggestion, index: number) => {
@@ -453,14 +458,14 @@ export const AgentChatInput = ({
             onStart: onStartDeepResearch,
         });
     const showSqlModeControl = Boolean(onSqlModeChange && !disabled);
-    const activeMessageUuid = threadStream?.isStreaming
-        ? threadStream.messageUuid
+    const activeMessageUuid = isAgentActive
+        ? threadStream?.messageUuid
         : undefined;
     const canInterrupt = Boolean(
         projectUuid &&
         agentUuid &&
         threadUuid &&
-        threadStream?.isStreaming &&
+        isAgentActive &&
         activeMessageUuid,
     );
     const canSteer = canInterrupt && !disabled && !hasRequestedInterrupt;

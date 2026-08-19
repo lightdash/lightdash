@@ -286,6 +286,7 @@ import {
     type PreAggregateFallbackReason,
     type QueryHistoryStatus,
 } from './queryHistory';
+import { type ApiQueryHistoryListResponse } from './queryHistoryList';
 import {
     type ApiExecuteSourceQueriesResults,
     type ApiGetSourceQueryStatusResults,
@@ -1332,6 +1333,7 @@ type ApiResults =
     | ApiScanQuerySourceSchemaResults
     | ApiExecuteAsyncDashboardSqlChartQueryResults
     | ApiExecuteAsyncMetricQueryResults
+    | ApiQueryHistoryListResponse['results']
     | ApiExecuteAsyncDashboardChartQueryResults
     | ApiGetAsyncQueryResults
     | ApiSchedulersResponse['results']

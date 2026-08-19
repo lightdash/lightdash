@@ -1,3 +1,40 @@
+# [1.206.0](https://github.com/lightdash/lightdash/compare/1.205.0...1.206.0) (2026-08-19)
+
+
+### Features
+
+* add query history page ([#27617](https://github.com/lightdash/lightdash/issues/27617)) ([c2f311b](https://github.com/lightdash/lightdash/commit/c2f311bf29184b8c5a0ecae1dcf474454e0333a8))
+
+# [1.205.0](https://github.com/lightdash/lightdash/compare/1.204.0...1.205.0) (2026-08-19)
+
+
+### Features
+
+* **upgrade-automation:** serve more than one instance from one repository ([#27686](https://github.com/lightdash/lightdash/issues/27686)) ([7d61bdb](https://github.com/lightdash/lightdash/commit/7d61bdbfd56cef33b7c74d717d0c01b76464bef0))
+
+# [1.204.0](https://github.com/lightdash/lightdash/compare/1.203.1...1.204.0) (2026-08-19)
+
+
+### Features
+
+* fetch MetricFlow definitions from dbt Cloud Discovery API ([#27618](https://github.com/lightdash/lightdash/issues/27618)) ([0a14236](https://github.com/lightdash/lightdash/commit/0a142364180a3e70c3a7eb9d396904c49982aa12))
+
+## [1.203.1](https://github.com/lightdash/lightdash/compare/1.203.0...1.203.1) (2026-08-19)
+
+
+### Bug Fixes
+
+* **ai:** recover interrupted agent streams ([#27615](https://github.com/lightdash/lightdash/issues/27615)) ([cc1901c](https://github.com/lightdash/lightdash/commit/cc1901cc6c7942f229f3ccdf6eb6dd56c27faf4d))
+* **backend:** retain period-to-date filters in pop queries ([#27685](https://github.com/lightdash/lightdash/issues/27685)) ([e24bc36](https://github.com/lightdash/lightdash/commit/e24bc36c1b9b82554bdcd6ef7b00f94b7ac1ed7b))
+* **dbt:** authenticate private github packages ([#27605](https://github.com/lightdash/lightdash/issues/27605)) ([3e372ca](https://github.com/lightdash/lightdash/commit/3e372ca4cc47f639d8889dad1ec7a294d2f311a6))
+
+# [1.203.0](https://github.com/lightdash/lightdash/compare/1.202.11...1.203.0) (2026-08-19)
+
+
+### Features
+
+* show connected user and organization on the MCP OAuth authorize page ([#27655](https://github.com/lightdash/lightdash/issues/27655)) ([90cb450](https://github.com/lightdash/lightdash/commit/90cb450f0d61247d28c2399108a0731a2ea0e05c))
+
 ## [1.202.11](https://github.com/lightdash/lightdash/compare/1.202.10...1.202.11) (2026-08-19)
 
 

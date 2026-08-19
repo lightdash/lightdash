@@ -159,6 +159,33 @@ describe('DbtCliClient environment', () => {
         });
     });
 
+    it('passes the scoped git config to dbt without exposing a token', async () => {
+        await new DbtCliClient({
+            ...cliArgs,
+            gitConfigGlobalPath: '/tmp/lightdash-gitconfig',
+        }).installDeps();
+        const [, , options] = execaMock.mock.calls[0];
+        const { env } = options as { env: Record<string, string> };
+
+        expect(env.GIT_CONFIG_GLOBAL).toEqual('/tmp/lightdash-gitconfig');
+        expect(env.GIT_TERMINAL_PROMPT).toEqual('0');
+        expect(Object.values(env)).not.toContain('ghs_private-token');
+    });
+
+    it('adds the GitHub App installation hint to dbt deps errors', async () => {
+        execaMock.mockImplementationOnce(cliMockImplementation.error);
+
+        await expect(
+            new DbtCliClient({
+                ...cliArgs,
+                dbtDepsErrorHint:
+                    'Ensure the package is in the same GitHub App installation.',
+            }).installDeps(),
+        ).rejects.toThrow(
+            'Ensure the package is in the same GitHub App installation.',
+        );
+    });
+
     it('cannot be pointed at another target directory by a project', async () => {
         await new DbtCliClient({
             ...cliArgs,

@@ -757,7 +757,7 @@ export class MetricQueryBuilder {
             return this.isFilterOnPopComparisonTimeDimension(
                 item,
                 timeDimensionId,
-            )
+            ) && item.operator !== FilterOperator.IN_PERIOD_TO_DATE
                 ? acc
                 : [...acc, item];
         }, []);

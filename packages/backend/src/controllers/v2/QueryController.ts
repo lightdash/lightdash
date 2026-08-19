@@ -19,6 +19,11 @@ import {
     LightdashSignedDownloadHeader,
     PersistentDownloadFileAccessMode,
     QueryExecutionContext,
+    QueryHistorySortBy,
+    QueryHistoryStatus,
+    QueryHistoryWindow,
+    QueryLanguage,
+    QueryTrigger,
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
     type ApiDownloadAsyncQueryResultsAsXlsx,
@@ -26,6 +31,7 @@ import {
     type ApiExecuteAsyncMergeQueryResults,
     type ApiExecuteAsyncMetricQueryResults,
     type ApiJobScheduledResponse,
+    type ApiQueryHistoryListResponse,
     type ExecuteAsyncCalculateTotalRequestParams,
     type ExecuteAsyncComposeSqlQueryRequestParams,
     type ExecuteAsyncDashboardChartRequestParams,
@@ -72,6 +78,74 @@ export type ApiGetAsyncQueryResultsResponse = {
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('v2', 'Query')
 export class QueryController extends BaseController {
+    /**
+     * Lists the requesting user's own query history for a project, newest
+     * first, with per-trigger and per-window counts.
+     *
+     * Must stay declared before `getAsyncQueryResults` so the generated
+     * `/history` route is matched before `/{queryUuid}`.
+     * @summary List my query history
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/history')
+    @OperationId('getQueryHistory')
+    async getQueryHistory(
+        @Path()
+        projectUuid: string,
+        @Request() req: express.Request,
+        /** Page number for pagination (starts at 1) */
+        @Query()
+        page: number = 1,
+        /** Number of results per page (default: 25, max: 100) */
+        @Query()
+        pageSize: number = 25,
+        /** Filter by what triggered the run */
+        @Query()
+        trigger?: QueryTrigger,
+        /** Filter by query language */
+        @Query()
+        language?: QueryLanguage,
+        /** Filter by one or more statuses */
+        @Query()
+        status?: QueryHistoryStatus[],
+        /** Matches explore name, chart/dashboard name, fields and SQL */
+        @Query()
+        search?: string,
+        /** Restrict rows to one disjoint time window */
+        @Query()
+        window?: QueryHistoryWindow,
+        /** Sort order; runtime flattens the windows into one sorted list */
+        @Query()
+        sortBy?: QueryHistorySortBy,
+    ): Promise<ApiQueryHistoryListResponse> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getAsyncQueryService()
+            .getQueryHistoryList({
+                account: req.account!,
+                projectUuid,
+                filters: {
+                    trigger,
+                    language,
+                    statuses: status,
+                    search,
+                    window,
+                    sortBy,
+                },
+                paginateArgs: {
+                    page,
+                    pageSize: Math.min(pageSize, 100),
+                },
+            });
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
     /**
      * Retrieves paginated results from a previously executed async query using its UUID
      * @summary Get results

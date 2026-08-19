@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     getStreamToolCallPart,
     getStepProgressFromChunk,
+    readStreamResult,
 } from './useAiAgentThreadStreamMutation';
 
 describe('getStreamToolCallPart', () => {
@@ -59,6 +60,22 @@ describe('getStreamToolCallPart', () => {
             toolResult: output,
             isPreliminary: false,
         });
+    });
+});
+
+describe('readStreamResult', () => {
+    it('returns a successful stream read', async () => {
+        await expect(
+            readStreamResult(() => Promise.resolve('chunk')),
+        ).resolves.toEqual({ status: 'success', value: 'chunk' });
+    });
+
+    it('returns a stream read error without inspecting its message', async () => {
+        const error = new Error('browser-specific message');
+
+        await expect(
+            readStreamResult(() => Promise.reject(error)),
+        ).resolves.toEqual({ status: 'error', error });
     });
 });
 
