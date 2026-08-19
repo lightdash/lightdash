@@ -1,14 +1,99 @@
 import { ChartType } from '@lightdash/common';
+import { screen, waitFor } from '@testing-library/react';
+import { createElement, useState, type ComponentProps } from 'react';
+import { Provider } from 'react-redux';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { describe, expect, it } from 'vitest';
+import {
+    buildInitialExplorerState,
+    createExplorerStore,
+} from '../features/explorer/store';
+import { renderWithProviders } from '../testing/testUtils';
 import {
     parseChartFromExplorerSearchParams,
     parseDataAppVizUuidFromSearchParams,
+    useExplorerRoute,
+    useExplorerUrlState,
 } from './useExplorerRoute';
 
 const searchFromPayload = (payload: unknown) =>
     `?create_saved_chart_version=${encodeURIComponent(
         JSON.stringify(payload),
     )}`;
+
+const ExplorerRouteLocation = () => {
+    useExplorerRoute();
+    const location = useLocation();
+
+    return createElement(
+        'div',
+        { 'data-testid': 'location' },
+        `${location.pathname}${location.search}`,
+    );
+};
+
+const ExplorerRouteHarness = () => {
+    const explorerUrlState = useExplorerUrlState();
+    const [store] = useState(() =>
+        createExplorerStore({
+            explorer: buildInitialExplorerState({
+                initialState: explorerUrlState,
+            }),
+        }),
+    );
+
+    return createElement(
+        Provider,
+        { store } as ComponentProps<typeof Provider>,
+        createElement(ExplorerRouteLocation),
+    );
+};
+
+describe('useExplorerRoute', () => {
+    it('applies and consumes a chart type preview hint when it serializes chart state', async () => {
+        const dataAppVizUuid = '1e9a3b2c-0000-4000-8000-000000000001';
+        const initialPath = `/projects/project-1/tables/orders?dataAppVizUuid=${dataAppVizUuid}&fromSpace=space-1`;
+        window.history.replaceState({}, '', initialPath);
+
+        const router = createElement(
+            MemoryRouter,
+            { initialEntries: [initialPath] },
+            createElement(
+                Routes,
+                null,
+                createElement(Route, {
+                    path: '/projects/:projectUuid/tables/:tableId',
+                    element: createElement(ExplorerRouteHarness),
+                }),
+            ),
+        );
+        renderWithProviders(router);
+
+        await waitFor(() => {
+            const destination = new URL(
+                screen.getByTestId('location').textContent ?? '',
+                'http://lightdash.local',
+            );
+            expect(destination.pathname).toBe(
+                '/projects/project-1/tables/orders',
+            );
+            expect(destination.searchParams.get('fromSpace')).toBe('space-1');
+            expect(destination.searchParams.get('dataAppVizUuid')).toBeNull();
+            const serializedChart = parseChartFromExplorerSearchParams(
+                destination.search,
+            );
+            expect(serializedChart?.tableName).toBe('orders');
+            expect(serializedChart?.chartConfig).toEqual({
+                type: ChartType.DATA_APP_VIZ,
+                config: {
+                    dataAppVizUuid,
+                    fieldMapping: {},
+                    optionValues: {},
+                },
+            });
+        });
+    });
+});
 
 describe('parseChartFromExplorerSearchParams', () => {
     it('returns undefined when the param is absent', () => {
