@@ -416,6 +416,50 @@
                 "openWorldHint": false,
                 "readOnlyHint": true
             },
+            "description": "Tool: get_ai_writeback_status\n\nPurpose:\nCheck the status of a writeback run started by run_ai_writeback, and get the pull request URL once it's ready.\n\nImportant:\n- Poll every 10-15 seconds rather than immediately looping — a run typically takes a few minutes.\n- \"status\" is either \"pending\" (not yet picked up), an in-progress pipeline stage (e.g. \"sandbox\", \"agent\", \"pull_request\"), or a terminal value: \"ready\" (finished — check prUrl), \"error\" (finished — check errorMessage; this also covers the \"more than one dbt source\" case described in run_ai_writeback), or \"cancelled\" (stopped before finishing).\n\nParameters:\n- aiWritebackRunUuid: The id returned by run_ai_writeback.\n\nResponse shape (MCP CallToolResult):\n- content: [{ type: \"text\", text: \"<human-readable status summary>\" }]\n- structuredContent: {\n    status:       string,        // \"pending\" | a pipeline stage | \"ready\" | \"error\" | \"cancelled\"\n    prUrl:        string | null, // set once status is \"ready\" and a PR was opened\n    errorMessage: string | null  // set once status is \"error\"\n  }\n",
+            "inputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                    "aiWritebackRunUuid": {
+                        "description": "The id returned by run_ai_writeback.",
+                        "format": "uuid",
+                        "type": "string"
+                    }
+                },
+                "required": ["aiWritebackRunUuid"],
+                "type": "object"
+            },
+            "name": "get_ai_writeback_status",
+            "outputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                    "errorMessage": {
+                        "description": "Set once status is \"error\"; null otherwise.",
+                        "type": ["string", "null"]
+                    },
+                    "prUrl": {
+                        "description": "URL of the pull request opened from the agent changes, set once status is \"ready\"; null if the agent made no file changes or the run has not finished yet.",
+                        "type": ["string", "null"]
+                    },
+                    "status": {
+                        "description": "\"pending\" | a pipeline stage (e.g. \"sandbox\", \"agent\", \"pull_request\") | \"ready\" | \"error\" | \"cancelled\".",
+                        "type": "string"
+                    }
+                },
+                "required": ["status", "prUrl", "errorMessage"],
+                "type": "object"
+            },
+            "title": "Get AI writeback status"
+        },
+        {
+            "annotations": {
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false,
+                "readOnlyHint": true
+            },
             "description": "Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. Pass the selected projectUuid to every project-scoped tool call and an available agentUuid when agent-specific scope is desired. This tool reports context but does not establish implicit execution state.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",

@@ -9005,5 +9005,6 @@ exports[`MCP tool contracts > matches the shared MCP tool definition names snaps
   "get_current_agent",
   "list_verified_content",
   "run_ai_writeback",
+  "get_ai_writeback_status",
 ]
 `;
