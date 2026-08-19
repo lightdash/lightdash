@@ -68,6 +68,7 @@ export * from './compiler/exploreCompiler';
 export * from './compiler/filtersCompiler';
 export * from './compiler/lightdashModelConverter';
 export * from './compiler/parameters';
+export * from './compiler/referenceLookup';
 export * from './compiler/translator';
 export * from './parameters/reservedParameters';
 export * from './constants/screenshot';

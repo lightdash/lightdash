@@ -1,3 +1,4 @@
+import { parseAllReferences } from '../../compiler/exploreCompiler';
 import type { Explore } from '../../types/explore';
 import {
     convertFieldRefToFieldId,
@@ -152,6 +153,20 @@ const extractDimensionFilterFieldIds = (
                 typeof target.fieldId === 'string',
         )
         .map((target) => target.fieldId);
+};
+
+// Field ids referenced by the base model's sql_filter. ${TABLE}.col raw
+// references and ${lightdash.*} attributes are not field references.
+const extractSqlFilterFieldIds = (explore: Explore): FieldId[] => {
+    const uncompiledSqlWhere =
+        explore.tables[explore.baseTable]?.uncompiledSqlWhere;
+    if (!uncompiledSqlWhere) {
+        return [];
+    }
+
+    return parseAllReferences(uncompiledSqlWhere, explore.baseTable)
+        .filter((ref) => ref.refName !== 'TABLE')
+        .map((ref) => getItemId({ table: ref.refTable, name: ref.refName }));
 };
 
 const getPreAggregateFilterTargetReferences = (
@@ -971,6 +986,7 @@ const getMissForDef = ({
     metricsByFieldId,
     unoverriddenRequiredFilterTargetFieldIds,
     requiredFilterTargetFieldIds,
+    sqlFilterFieldIds,
 }: {
     metricQuery: MetricQuery;
     explore: Explore;
@@ -982,6 +998,7 @@ const getMissForDef = ({
     metricsByFieldId: ReturnType<typeof getMetricsMapFromTables>;
     unoverriddenRequiredFilterTargetFieldIds: readonly FieldId[];
     requiredFilterTargetFieldIds: ReadonlySet<FieldId>;
+    sqlFilterFieldIds: readonly FieldId[];
 }): PreAggregateMatchMiss | null => {
     const defDimensions = new Set(preAggregateDef.dimensions);
     if (
@@ -1129,6 +1146,25 @@ const getMissForDef = ({
         };
     }
 
+    // The model's sql_filter is applied at serve time against materialized
+    // columns, so every field it references must be a covered dimension.
+    const uncoveredSqlFilterFieldId = sqlFilterFieldIds.find(
+        (fieldId) =>
+            !filterDimensionFieldIdMatchesDef(
+                fieldId,
+                explore,
+                preAggregateDef,
+                defDimensions,
+                dimensionsByFieldId,
+            ),
+    );
+    if (uncoveredSqlFilterFieldId) {
+        return {
+            reason: PreAggregateMissReason.SQL_FILTER_FIELD_NOT_IN_PRE_AGGREGATE,
+            fieldId: uncoveredSqlFilterFieldId,
+        };
+    }
+
     const overlappingRequiredFilter = preAggregateDef.filters?.find((filter) =>
         [...requiredFilterTargetFieldIds].some((fieldId) => {
             const dimension = dimensionsByFieldId.get(fieldId);
@@ -1239,6 +1275,8 @@ export const findMatch = (
         ),
     );
 
+    const sqlFilterFieldIds = extractSqlFilterFieldIds(explore);
+
     const matchedDefs: PreAggregateDef[] = [];
     let firstMiss: PreAggregateMatchMiss | null = null;
     // A miss from a def that covers the queried metrics is more actionable
@@ -1254,6 +1292,7 @@ export const findMatch = (
             metricsByFieldId,
             unoverriddenRequiredFilterTargetFieldIds,
             requiredFilterTargetFieldIds,
+            sqlFilterFieldIds,
         });
 
         if (!miss) {

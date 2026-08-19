@@ -2633,3 +2633,118 @@ describe('findMatch', () => {
         expect(result.hit).toBe(true);
     });
 });
+
+describe('findMatch sql_filter coverage', () => {
+    const makeExploreWithSqlFilter = ({
+        uncompiledSqlWhere,
+        preAggregateDimensions,
+    }: {
+        uncompiledSqlWhere: string;
+        preAggregateDimensions: string[];
+    }): Explore => {
+        const explore = baseExplore();
+        return {
+            ...explore,
+            tables: {
+                ...explore.tables,
+                orders: {
+                    ...explore.tables.orders,
+                    uncompiledSqlWhere,
+                    sqlWhere: uncompiledSqlWhere,
+                },
+            },
+            preAggregates: [
+                {
+                    name: 'orders_summary',
+                    dimensions: preAggregateDimensions,
+                    metrics: ['order_count'],
+                },
+            ],
+        };
+    };
+
+    it('misses when sql_filter references a joined field that is not a definition dimension', () => {
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_status'],
+                metrics: ['orders_order_count'],
+            }),
+            makeExploreWithSqlFilter({
+                uncompiledSqlWhere:
+                    '${customers.first_name} = ${lightdash.attributes.name}',
+                preAggregateDimensions: ['status'],
+            }),
+        );
+
+        expect(result).toStrictEqual({
+            hit: false,
+            preAggregateName: null,
+            miss: {
+                reason: PreAggregateMissReason.SQL_FILTER_FIELD_NOT_IN_PRE_AGGREGATE,
+                fieldId: 'customers_first_name',
+            },
+        });
+    });
+
+    it('misses when sql_filter references a base-table field that is not a definition dimension', () => {
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_status'],
+                metrics: ['orders_order_count'],
+            }),
+            makeExploreWithSqlFilter({
+                uncompiledSqlWhere: '${amount} > 10',
+                preAggregateDimensions: ['status'],
+            }),
+        );
+
+        expect(result).toStrictEqual({
+            hit: false,
+            preAggregateName: null,
+            miss: {
+                reason: PreAggregateMissReason.SQL_FILTER_FIELD_NOT_IN_PRE_AGGREGATE,
+                fieldId: 'orders_amount',
+            },
+        });
+    });
+
+    it('hits when the sql_filter field is a definition dimension', () => {
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_status'],
+                metrics: ['orders_order_count'],
+            }),
+            makeExploreWithSqlFilter({
+                uncompiledSqlWhere:
+                    '${customers.first_name} = ${lightdash.attributes.name}',
+                preAggregateDimensions: ['status', 'customers.first_name'],
+            }),
+        );
+
+        expect(result).toStrictEqual({
+            hit: true,
+            preAggregateName: 'orders_summary',
+            miss: null,
+        });
+    });
+
+    it('ignores ${TABLE} and ${lightdash.*} references in sql_filter', () => {
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_status'],
+                metrics: ['orders_order_count'],
+            }),
+            makeExploreWithSqlFilter({
+                uncompiledSqlWhere:
+                    "${TABLE}.raw_col = 1 AND ${lightdash.attributes.segment} = 'gold'",
+                preAggregateDimensions: ['status'],
+            }),
+        );
+
+        expect(result).toStrictEqual({
+            hit: true,
+            preAggregateName: 'orders_summary',
+            miss: null,
+        });
+    });
+});

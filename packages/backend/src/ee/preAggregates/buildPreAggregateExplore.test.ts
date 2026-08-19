@@ -939,3 +939,110 @@ describe('buildPreAggregateExplore', () => {
         );
     });
 });
+
+describe('sql_filter (sqlWhere) rewrite', () => {
+    const exploreWithSqlFilter = (uncompiledSqlWhere: string): Explore => {
+        const explore = sourceExplore();
+        return {
+            ...explore,
+            tables: {
+                ...explore.tables,
+                orders: {
+                    ...explore.tables.orders,
+                    uncompiledSqlWhere,
+                    // compiled against source join aliases, unusable on the materialization
+                    sqlWhere: uncompiledSqlWhere.replace(
+                        /\$\{customers\.first_name\}/g,
+                        '("customers".first_name)',
+                    ),
+                },
+            },
+        };
+    };
+
+    const def: PreAggregateDef = {
+        name: 'orders_rollup',
+        dimensions: ['status', 'customers.first_name'],
+        metrics: ['total_order_amount'],
+    };
+
+    it('rewrites joined field references to materialized columns for managed serving', () => {
+        const result = buildExplore(
+            exploreWithSqlFilter(
+                '${customers.first_name} = ${lightdash.attributes.name}',
+            ),
+            def,
+        );
+
+        expect(result.tables.orders.sqlWhere).toBe(
+            'orders.customers_first_name = ${lightdash.attributes.name}',
+        );
+        expect(result.tables.orders.uncompiledSqlWhere).toBe(
+            'orders.customers_first_name = ${lightdash.attributes.name}',
+        );
+    });
+
+    it('rewrites base-table field references to materialized columns', () => {
+        const result = buildExplore(
+            exploreWithSqlFilter("${status} = 'completed'"),
+            def,
+        );
+
+        expect(result.tables.orders.sqlWhere).toBe(
+            "orders.orders_status = 'completed'",
+        );
+    });
+
+    it('applies the same rewrite for external pre-aggregates', () => {
+        const result = buildExplore(
+            exploreWithSqlFilter(
+                '${customers.first_name} = ${lightdash.attributes.name}',
+            ),
+            { ...def, table: '"analytics"."orders_rollup_mv"' },
+        );
+
+        expect(result.tables.orders.sqlWhere).toBe(
+            'orders.customers_first_name = ${lightdash.attributes.name}',
+        );
+        expect(result.tables.orders.uncompiledSqlWhere).toBe(
+            'orders.customers_first_name = ${lightdash.attributes.name}',
+        );
+    });
+
+    it('passes ${TABLE} raw column references through against the base alias', () => {
+        const result = buildExplore(
+            exploreWithSqlFilter('${TABLE}.raw_col = 1'),
+            def,
+        );
+
+        expect(result.tables.orders.sqlWhere).toBe('"orders".raw_col = 1');
+    });
+
+    it('maps a raw time dimension reference to the materialized granularity column', () => {
+        const result = buildExplore(
+            exploreWithSqlFilter("${order_date} >= '2024-01-01'"),
+            {
+                ...def,
+                timeDimension: 'order_date',
+                granularity: TimeFrames.DAY,
+            },
+        );
+
+        expect(result.tables.orders.sqlWhere).toBe(
+            "orders.orders_order_date_day >= '2024-01-01'",
+        );
+    });
+
+    it('rewrites uncovered field references so serving fails closed on a missing column', () => {
+        const result = buildExplore(
+            exploreWithSqlFilter(
+                '${customers.first_name} = ${lightdash.attributes.name}',
+            ),
+            { ...def, dimensions: ['status'] },
+        );
+
+        expect(result.tables.orders.sqlWhere).toBe(
+            'orders.customers_first_name = ${lightdash.attributes.name}',
+        );
+    });
+});
