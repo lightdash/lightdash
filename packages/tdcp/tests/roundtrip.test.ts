@@ -1,13 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { TdcpClient } from '../src/client';
+import { TdcpDatasetStore } from '../src/datasetStore';
 import { JsonRpcErrorCodes, TdcpError } from '../src/jsonrpc';
 import type { JsonRpcRequest } from '../src/jsonrpc';
 import { createTdcpRequestHandler } from '../src/server';
-import type {
-    TdcpCatalog,
-    TdcpDataLink,
-    TdcpDatasetDescriptor,
-} from '../src/types';
+import type { TdcpCatalog } from '../src/types';
 
 /**
  * The whole protocol in one file: a tier 0/1 in-memory server built with
@@ -54,37 +51,7 @@ const CATALOG: TdcpCatalog = {
 };
 
 const buildServer = () => {
-    // Dataset store: handle -> rows, served on the shim's data plane
-    const datasets = new Map<string, Record<string, unknown>[]>();
-    let handleCounter = 0;
-
-    const mintDescriptor = (
-        rows: Record<string, unknown>[],
-        pushedPredicates?: TdcpDatasetDescriptor['pushedPredicates'],
-    ): TdcpDatasetDescriptor => {
-        handleCounter += 1;
-        const datasetId = `ds_${handleCounter}`;
-        datasets.set(datasetId, rows);
-        const link: TdcpDataLink = {
-            encoding: 'jsonl',
-            href: `https://tdcp.test/data/${datasetId}`,
-            token: `tok_${datasetId}`,
-            expiresAt: new Date(Date.now() + 60_000).toISOString(),
-        };
-        return {
-            datasetId,
-            schema: CATALOG.tables[0].columns,
-            rowCount: rows.length,
-            producedAt: new Date().toISOString(),
-            expiresAt: link.expiresAt,
-            freshness: {
-                sourceQueriedAt: new Date().toISOString(),
-                cacheHit: false,
-            },
-            links: [link],
-            ...(pushedPredicates ? { pushedPredicates } : {}),
-        };
-    };
+    const store = new TdcpDatasetStore({ baseUrl: 'https://tdcp.test' });
 
     const handler = createTdcpRequestHandler({
         catalog: async () => CATALOG,
@@ -95,7 +62,10 @@ const buildServer = () => {
                     `Unknown table "${request.table}"`,
                 );
             }
-            return mintDescriptor(ORDERS.slice(0, request.limit));
+            return store.mint({
+                schema: CATALOG.tables[0].columns,
+                rows: ORDERS.slice(0, request.limit),
+            });
         },
         scan: async (_ctx, request) => {
             // This fixture can only push equality on status
@@ -109,16 +79,21 @@ const buildServer = () => {
                     predicate.values.includes(row.status),
                 ),
             );
-            return mintDescriptor(rows, pushable);
+            return store.mint({
+                schema: CATALOG.tables[0].columns,
+                rows,
+                pushedPredicates: pushable,
+            });
         },
     });
 
-    return { handler, datasets };
+    return { handler, store };
 };
 
 /**
  * Routes the client's fetches in memory: POSTs to the endpoint hit the
- * request handler, GETs under /data/ serve JSONL with a streamed body.
+ * request handler, GETs under /data/ serve JSONL from the dataset store
+ * with the same bearer semantics as the node transport.
  */
 const buildFetchShim = (server: ReturnType<typeof buildServer>): typeof fetch =>
     (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -133,9 +108,17 @@ const buildFetchShim = (server: ReturnType<typeof buildServer>): typeof fetch =>
         }
         const dataMatch = url.match(/\/data\/(ds_\d+)$/);
         if (dataMatch) {
-            const rows = server.datasets.get(dataMatch[1]);
-            if (!rows) return new Response('not found', { status: 404 });
-            const jsonl = rows.map((row) => JSON.stringify(row)).join('\n');
+            const headers = new Headers(init?.headers);
+            const bearer =
+                headers.get('Authorization')?.replace('Bearer ', '') ?? null;
+            const read = server.store.read(dataMatch[1], bearer);
+            if (read.kind === 'notFound')
+                return new Response('not found', { status: 404 });
+            if (read.kind === 'unauthorized')
+                return new Response('unauthorized', { status: 401 });
+            const jsonl = read.rows
+                .map((row) => JSON.stringify(row))
+                .join('\n');
             return new Response(jsonl, {
                 status: 200,
                 headers: { 'Content-Type': 'application/jsonl' },
@@ -230,5 +213,17 @@ describe('TDCP round trip: SDK client against SDK server', () => {
         await expect(buildClient().read({ table: 'nope' })).rejects.toThrow(
             `(${JsonRpcErrorCodes.DATASET_NOT_FOUND})`,
         );
+    });
+
+    it('rejects a data-plane fetch with the wrong bearer token', async () => {
+        const client = buildClient();
+        const descriptor = await client.read({ table: 'orders' });
+        const tampered = { ...descriptor.links![0], token: 'tok_stolen' };
+        await expect(async () => {
+            const rows = [];
+            for await (const row of client.fetchJsonlRows(tampered)) {
+                rows.push(row);
+            }
+        }).rejects.toThrow('401');
     });
 });

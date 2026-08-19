@@ -4,14 +4,12 @@
  * memory at a time. Sources without a streaming body (test shims, exotic
  * fetch polyfills) fall back to a buffered read of the same contract.
  */
+import { isRecord } from './validate';
 
 type JsonlSource = {
     body?: ReadableStream<Uint8Array> | null;
     text: () => Promise<string>;
 };
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-    typeof value === 'object' && value !== null && !Array.isArray(value);
 
 const parseLine = (line: string): Record<string, unknown> => {
     let row: unknown;
