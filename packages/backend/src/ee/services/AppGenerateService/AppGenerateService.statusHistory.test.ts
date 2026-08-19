@@ -60,3 +60,14 @@ describe('filterStatusHistoryForApi', () => {
         ]);
     });
 });
+
+describe('toolDescriptionToStatusMessage', () => {
+    it('keeps Codex command executions in the tool activity history', () => {
+        expect(
+            // eslint-disable-next-line @typescript-eslint/dot-notation
+            AppGenerateService['toolDescriptionToStatusMessage'](
+                'Command sed -n 1,120p App.tsx',
+            ),
+        ).toBe('Running command');
+    });
+});

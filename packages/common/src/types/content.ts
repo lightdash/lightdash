@@ -187,6 +187,22 @@ export type ApiContentBulkActionBody<T extends ContentAction = ContentAction> =
         action: T;
     };
 
+export type ContentBulkDeleteSkippedItem = {
+    uuid: string;
+    contentType: ContentType;
+    reason: string;
+};
+
+export type ContentBulkDeleteResults = {
+    deletedCount: number;
+    skipped: ContentBulkDeleteSkippedItem[];
+};
+
+export type ApiContentBulkDeleteResponse = {
+    status: 'ok';
+    results: ContentBulkDeleteResults;
+};
+
 export interface BulkActionable<Tx extends unknown> {
     moveToSpace: (
         user: SessionUser,

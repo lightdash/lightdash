@@ -23,6 +23,7 @@ import { Knex } from 'knex';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
+import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -42,6 +43,7 @@ type SpaceServiceArguments = {
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
     organizationModel: OrganizationModel;
+    organizationMemberProfileModel: OrganizationMemberProfileModel;
     pinnedListModel: PinnedListModel;
     spacePermissionService: SpacePermissionService;
     savedChartService: SavedChartService;
@@ -91,6 +93,8 @@ export class SpaceService
 
     private readonly organizationModel: OrganizationModel;
 
+    private readonly organizationMemberProfileModel: OrganizationMemberProfileModel;
+
     private readonly pinnedListModel: PinnedListModel;
 
     private readonly spacePermissionService: SpacePermissionService;
@@ -108,6 +112,8 @@ export class SpaceService
         this.projectModel = args.projectModel;
         this.spaceModel = args.spaceModel;
         this.organizationModel = args.organizationModel;
+        this.organizationMemberProfileModel =
+            args.organizationMemberProfileModel;
         this.pinnedListModel = args.pinnedListModel;
         this.spacePermissionService = args.spacePermissionService;
         this.savedChartService = args.savedChartService;
@@ -262,6 +268,29 @@ export class SpaceService
         });
     }
 
+    /**
+     * Space access rows for users outside the space's organization never grant
+     * access (no CASL rule matches them) but would linger as dangling state and
+     * show up in access lists — reject them at the boundary instead.
+     */
+    private async validateSpaceShareTargetUsers(
+        organizationUuid: string,
+        userUuids: string[],
+    ): Promise<void> {
+        const uniqueUserUuids = [...new Set(userUuids)];
+        const memberUuids = new Set(
+            await this.organizationMemberProfileModel.findOrganizationMemberUuids(
+                organizationUuid,
+                uniqueUserUuids,
+            ),
+        );
+        if (uniqueUserUuids.some((userUuid) => !memberUuids.has(userUuid))) {
+            throw new NotFoundError(
+                'Cannot share space: user is not a member of this organization',
+            );
+        }
+    }
+
     async createSpace(
         projectUuid: string,
         user: SessionUser,
@@ -292,6 +321,13 @@ export class SpaceService
             if (parentSpace.projectUuid !== projectUuid) {
                 throw new NotFoundError('Parent space not found');
             }
+        }
+
+        if (space.access && space.access.length > 0) {
+            await this.validateSpaceShareTargetUsers(
+                organizationUuid,
+                space.access.map((access) => access.userUuid),
+            );
         }
 
         let inheritParentPermissions: boolean;
@@ -915,6 +951,11 @@ export class SpaceService
         ) {
             throw new ForbiddenError();
         }
+
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
+        await this.validateSpaceShareTargetUsers(space.organizationUuid, [
+            shareWithUserUuid,
+        ]);
 
         await this.spaceModel.addSpaceAccess(
             spaceUuid,

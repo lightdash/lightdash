@@ -23,6 +23,7 @@ const baseConfig: CopilotConfig = aiCopilotConfigSchema.parse({
     enabled: true,
     requiresFeatureFlag: false,
     telemetryEnabled: false,
+    threadDumpEnabled: false,
     debugLoggingEnabled: false,
     askAiButtonEnabled: false,
     embeddingEnabled: false,
@@ -44,6 +45,7 @@ const bothProvidersConfig: CopilotConfig = aiCopilotConfigSchema.parse({
     enabled: true,
     requiresFeatureFlag: false,
     telemetryEnabled: false,
+    threadDumpEnabled: false,
     debugLoggingEnabled: false,
     askAiButtonEnabled: false,
     embeddingEnabled: false,
@@ -59,6 +61,26 @@ const bothProvidersConfig: CopilotConfig = aiCopilotConfigSchema.parse({
             zeroDataRetention: false,
         },
         anthropic: { apiKey: 'instance-anthropic-key' },
+    },
+});
+
+const bedrockConfig: CopilotConfig = aiCopilotConfigSchema.parse({
+    enabled: true,
+    requiresFeatureFlag: false,
+    telemetryEnabled: false,
+    threadDumpEnabled: false,
+    debugLoggingEnabled: false,
+    askAiButtonEnabled: false,
+    embeddingEnabled: false,
+    maxQueryLimit: 100,
+    runSqlMaxLimit: 100,
+    defaultProvider: 'bedrock',
+    defaultEmbeddingModelProvider: 'openai',
+    providers: {
+        bedrock: {
+            apiKey: 'instance-bedrock-key',
+            region: 'us-east-2',
+        },
     },
 });
 
@@ -311,6 +333,46 @@ describe('OrgAiCopilotConfigResolver', () => {
             // turn on the instance key.
             expect(result.providers.anthropic).toBeUndefined();
             expect(result.defaultProvider).toBe('anthropic');
+        });
+    });
+
+    describe('getCodexConfig', () => {
+        it('keeps instance Bedrock as the managed Codex provider', async () => {
+            const result = await makeResolver({
+                flagEnabled: true,
+                orgKeys: null,
+                instanceConfig: bedrockConfig,
+            }).getCodexConfig('org-uuid');
+            expect(result.defaultProvider).toBe('bedrock');
+            expect(result.providers.bedrock?.region).toBe('us-east-2');
+        });
+
+        it('returns the instance config unchanged without an organization uuid', async () => {
+            const result = await makeResolver({
+                flagEnabled: true,
+                instanceConfig: bothProvidersConfig,
+            }).getCodexConfig(null);
+            expect(result.providers.openai?.apiKey).toBe('instance-openai-key');
+        });
+
+        it('runs a BYO org on its own OpenAI key', async () => {
+            const result = await makeResolver({
+                flagEnabled: true,
+                orgKeys: { openai: 'org-openai-key' },
+                instanceConfig: bothProvidersConfig,
+            }).getCodexConfig('org-uuid');
+            expect(result.defaultProvider).toBe('openai');
+            expect(result.providers.openai?.apiKey).toBe('org-openai-key');
+        });
+
+        it('never leaks the instance OpenAI key to a BYO org that only keyed Anthropic', async () => {
+            const result = await makeResolver({
+                flagEnabled: true,
+                orgKeys: { anthropic: 'org-anthropic-key' },
+                instanceConfig: bothProvidersConfig,
+            }).getCodexConfig('org-uuid');
+            expect(result.providers.openai).toBeUndefined();
+            expect(result.defaultProvider).toBe('openai');
         });
     });
 

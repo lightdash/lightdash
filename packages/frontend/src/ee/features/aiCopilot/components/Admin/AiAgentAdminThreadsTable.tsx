@@ -4,6 +4,7 @@ import {
     type AiThreadCreatedFrom,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Anchor,
     Badge,
     Box,
@@ -13,11 +14,13 @@ import {
     Tooltip,
     useMantineTheme,
 } from '@mantine/core';
+import { useLocalStorage } from '@mantine/hooks';
 import {
     IconBox,
     IconCircleDotted,
     IconClick,
     IconClock,
+    IconFileDownload,
     IconMessageCircleStar,
     IconMessages,
     IconRadar,
@@ -39,12 +42,15 @@ import {
     type ContentTableVirtualizer,
 } from '../../../../../components/common/ContentTable';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import MantineModal from '../../../../../components/common/MantineModal';
+import useHealth from '../../../../../hooks/health/useHealth';
 import { useGetSlack } from '../../../../../hooks/slack/useSlack';
 import { useInfiniteScroll } from '../../../../../hooks/useInfiniteScroll';
 import { useIsTruncated } from '../../../../../hooks/useIsTruncated';
 import SlackSvg from '../../../../../svgs/slack.svg?react';
 import {
     useAiAgentAdminReviewItems,
+    useDownloadAiAgentAdminThreadDump,
     useInfiniteAiAgentAdminThreads,
 } from '../../hooks/useAiAgentAdmin';
 import { useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
@@ -80,6 +86,31 @@ const AiAgentAdminThreadsTable = ({
     const theme = useMantineTheme();
     const navigate = useNavigate();
     const slack = useGetSlack();
+    const health = useHealth();
+    const isThreadDumpEnabled = health.data?.ai.threadDumpEnabled ?? false;
+    const {
+        mutate: downloadThreadDump,
+        isLoading: isDownloadingThreadDump,
+        variables: downloadingThreadUuid,
+    } = useDownloadAiAgentAdminThreadDump();
+    const [hasAcceptedThreadDumpNotice, setHasAcceptedThreadDumpNotice] =
+        useLocalStorage<boolean>({
+            key: 'ld.aiThreads.dumpNoticeAccepted',
+            defaultValue: false,
+        });
+    const [pendingDumpThreadUuid, setPendingDumpThreadUuid] = useState<
+        string | null
+    >(null);
+    const handleDownloadThreadDump = useCallback(
+        (threadUuid: string) => {
+            if (hasAcceptedThreadDumpNotice) {
+                downloadThreadDump(threadUuid);
+            } else {
+                setPendingDumpThreadUuid(threadUuid);
+            }
+        },
+        [hasAcceptedThreadDumpNotice, downloadThreadDump],
+    );
 
     const {
         search,
@@ -739,10 +770,69 @@ const AiAgentAdminThreadsTable = ({
         },
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { estimateSize: () => 72, overscan: 40 },
-        enableRowActions: false,
+        enableRowActions: isThreadDumpEnabled,
+        positionActionsColumn: 'last',
+        renderRowActions: ({ row }) => {
+            const thread = row.original;
+            return (
+                <Tooltip
+                    label="Download debug dump"
+                    openDelay={300}
+                    withinPortal
+                >
+                    <ActionIcon
+                        variant="subtle"
+                        color="gray"
+                        aria-label="Download debug dump"
+                        loading={
+                            isDownloadingThreadDump &&
+                            downloadingThreadUuid === thread.uuid
+                        }
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownloadThreadDump(thread.uuid);
+                        }}
+                    >
+                        <MantineIcon icon={IconFileDownload} />
+                    </ActionIcon>
+                </Tooltip>
+            );
+        },
     });
 
-    return <ContentTable table={table} />;
+    return (
+        <>
+            <ContentTable table={table} />
+            <MantineModal
+                opened={pendingDumpThreadUuid !== null}
+                onClose={() => setPendingDumpThreadUuid(null)}
+                role="alertdialog"
+                title="Download thread debug dump"
+                icon={IconFileDownload}
+                size="lg"
+                confirmLabel="Download"
+                onConfirm={() => {
+                    if (pendingDumpThreadUuid) {
+                        downloadThreadDump(pendingDumpThreadUuid);
+                    }
+                    setHasAcceptedThreadDumpNotice(true);
+                    setPendingDumpThreadUuid(null);
+                }}
+            >
+                <Stack gap="xs">
+                    <Text fz="sm">
+                        The dump includes prompts, agent responses and agent
+                        configuration. Query results and sensitive tool outputs
+                        are redacted, but responses may still quote data.
+                    </Text>
+                    <Text fz="sm" fw={500}>
+                        Before sharing: review the file and confirm you are
+                        comfortable with its contents.
+                    </Text>
+                </Stack>
+            </MantineModal>
+        </>
+    );
 };
 
 export default AiAgentAdminThreadsTable;

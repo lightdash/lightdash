@@ -64,6 +64,13 @@ const organizationMemberProfileModel = {
 };
 const rolesModel = {
     getRoleWithScopesByUuid: vi.fn(),
+    getOrganizationUserRoleSet: vi
+        .fn()
+        .mockResolvedValue({ systemRole: 'admin', customRoleUuids: [] }),
+    assertAnotherActiveAdmin: vi.fn(),
+    db: {
+        transaction: vi.fn(async (cb: (trx: unknown) => unknown) => cb({})),
+    },
 };
 
 describe('organization service', () => {

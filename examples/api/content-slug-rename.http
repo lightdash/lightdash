@@ -1,0 +1,26 @@
+@apiHost = http://localhost:8080
+@projectUuid = 3675b69e-8324-4110-bdca-059031aa8da3
+@fromSlug = how-much-revenue-do-we-have-per-payment-method
+@toSlug = my-amazing-chart
+
+### Login
+# Run this first. The HTTP client should retain the session cookie for the
+# requests below.
+POST {{apiHost}}/api/v1/login
+Content-Type: application/json
+
+{
+    "email": "demo@lightdash.com",
+    "password": "demo_password!"
+}
+
+
+### Rename the chart
+POST {{apiHost}}/api/v1/projects/{{projectUuid}}/slugs/rename
+Content-Type: application/json
+
+{
+    "resourceType": "chart",
+    "from": "{{fromSlug}}",
+    "to": "{{toSlug}}"
+}

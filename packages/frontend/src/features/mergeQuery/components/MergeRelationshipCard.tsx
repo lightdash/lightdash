@@ -16,6 +16,7 @@ const MergeRelationshipCardContent: FC = () => {
         additionalExploreLabel,
         additionalSourceId,
         isIncomplete,
+        setupStep,
     } = useMergeSetup();
     const merge = useMergeSafe();
     const [isOpen, setIsOpen] = useState(true);
@@ -40,9 +41,7 @@ const MergeRelationshipCardContent: FC = () => {
             );
         })
         .join(' AND ');
-    const badgeLabel = isIncomplete
-        ? 'Needs a matching field'
-        : `${relationshipSummary} · ${joinTypeLabel}`;
+    const badgeLabel = setupStep ?? `${relationshipSummary} · ${joinTypeLabel}`;
 
     return (
         <CollapsableCard

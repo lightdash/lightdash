@@ -2356,6 +2356,7 @@ describe('AiDeepResearchService', () => {
             expect(result).toEqual({
                 source: 'semantic',
                 type: AiResultType.QUERY_RESULT,
+                mergeQuery: null,
                 query: {
                     queryUuid: 'query-2',
                     cacheMetadata: { cacheHit: true },

@@ -12,12 +12,12 @@ import useEmbed from '../../ee/providers/Embed/useEmbed';
 import AppIframePreview from '../../features/apps/AppIframePreview';
 import { useChartVersionPreview } from '../../features/apps/ChartVersionPreview/useChartVersionPreview';
 import { getVisiblePreviewTokenError } from '../../features/apps/hooks/previewTokenQueryOptions';
+import { usePreviewOrigin } from '../../features/apps/previewOrigin';
 import {
     useDataAppVizPreviewToken,
     useDataAppVizRenderMetadata,
-} from '../../features/apps/hooks/useDataAppVizRender';
-import { usePreviewOrigin } from '../../features/apps/previewOrigin';
-import { reconcileDataAppVizFieldMapping } from '../../features/apps/utils/autoMapDataAppVizFields';
+} from '../../features/chartTypes/hooks/useDataAppVizRender';
+import { reconcileDataAppVizFieldMapping } from '../../features/chartTypes/utils/autoMapDataAppVizFields';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import { useExplore } from '../../hooks/useExplore';
 import MantineIcon from '../common/MantineIcon';

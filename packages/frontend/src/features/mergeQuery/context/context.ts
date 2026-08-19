@@ -47,7 +47,11 @@ export type MergeResults = {
     /** Field ids in the order the merged statement returns them. */
     columnOrder: string[];
     fieldOrigins: MergeFieldOrigins;
+    /** Parameter values embedded in this merged run. */
+    usedParametersValues: ParametersValuesMap;
     results: InfiniteQueryResults;
+    /** Raw rows for the Results tab when the chart run is pivoted. */
+    unpivotedResults: InfiniteQueryResults | null;
 };
 
 export type MergeContextValue = {
@@ -75,6 +79,10 @@ export type MergeContextValue = {
     runErrors: MergeQueryError[];
     /** Transport or server failure of the last run, if any. */
     runError: ApiError | null;
+    /** Why the auxiliary raw-results query was refused. */
+    unpivotedRunErrors: MergeQueryError[];
+    /** Transport or server failure of the auxiliary raw-results query. */
+    unpivotedRunError: ApiError | null;
     /** User parameters referenced by either source query. */
     parameterReferences: string[];
     /** The merged run, or null when none has succeeded yet. */

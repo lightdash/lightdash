@@ -1140,6 +1140,8 @@ export class ServiceRepository
                     projectModel: this.models.getProjectModel(),
                     spaceModel: this.models.getSpaceModel(),
                     organizationModel: this.models.getOrganizationModel(),
+                    organizationMemberProfileModel:
+                        this.models.getOrganizationMemberProfileModel(),
                     pinnedListModel: this.models.getPinnedListModel(),
                     spacePermissionService: this.getSpacePermissionService(),
                     savedChartService: this.getSavedChartService(),
@@ -1400,6 +1402,7 @@ export class ServiceRepository
                     savedChartService: this.getSavedChartService(),
                     savedSqlService: this.getSavedSqlService(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    validationModel: this.models.getValidationModel(),
                     // Only wired when EE license is active. Core builds get
                     // undefined and fail DATA_APP moves with a clear error.
                     appMoveService: this.providers.appGenerateService
@@ -1621,6 +1624,7 @@ export class ServiceRepository
                     inviteLinkModel: this.models.getInviteLinkModel(),
                     organizationMemberProfileModel:
                         this.models.getOrganizationMemberProfileModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }

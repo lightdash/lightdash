@@ -43,6 +43,7 @@ import { timeFrameConfigs } from './utils/timeFrames';
 import type { PivotValuesColumn } from './visualizations/types';
 
 dayjs.extend(utc);
+export { getPermissionsFromAbilityRules } from './authorization/abilityPermissions';
 export * from './authorization/buildAccountHelpers';
 export { collapseAbilityRules } from './authorization/collapseAbilityRules';
 export {
@@ -113,6 +114,7 @@ export * from './types/coder';
 export * from './types/comments';
 export * from './types/conditionalFormatting';
 export * from './types/content';
+export * from './types/contentSlug';
 export * from './types/contentVerification';
 export * from './types/dashboard';
 export * from './types/emailWhitelabel';
@@ -654,6 +656,7 @@ export const isLightdashMode = (x: string): x is LightdashMode =>
 export enum LightdashInstallType {
     DOCKER_IMAGE = 'docker_image',
     BASH_INSTALL = 'bash_install',
+    HELM = 'helm',
     HEROKU = 'heroku',
     UNKNOWN = 'unknown',
 }

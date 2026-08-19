@@ -279,6 +279,9 @@ export class HealthService extends BaseService {
                 isAmbientAiEnabled:
                     !!this.lightdashConfig.ai.copilot.providers.anthropic
                         ?.apiKey,
+                threadDumpEnabled:
+                    this.isEnterpriseEnabled() &&
+                    this.lightdashConfig.ai.copilot.threadDumpEnabled,
             },
             echarts6: {
                 enabled: false,

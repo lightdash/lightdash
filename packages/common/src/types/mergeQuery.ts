@@ -147,6 +147,12 @@ export enum MergeQueryErrorKind {
      */
     TOO_MANY_SOURCES = 'too_many_sources',
     DUPLICATE_SOURCE_ID = 'duplicate_source_id',
+    /**
+     * A source named after the merged result's own pseudo-table. Value
+     * columns are `<sourceId>_<fieldId>` and join keys `merge_<keyName>`,
+     * so a source id of "merge" makes the two namespaces collide silently.
+     */
+    RESERVED_SOURCE_ID = 'reserved_source_id',
     EMPTY_JOIN_KEY = 'empty_join_key',
     JOIN_KEY_COVERAGE = 'join_key_coverage',
     UNKNOWN_SOURCE_IN_JOIN_KEY = 'unknown_source_in_join_key',
@@ -206,6 +212,9 @@ export type MergeQueryError = {
     message: string;
 };
 
+export const formatMergeQueryRefusal = (errors: MergeQueryError[]): string =>
+    `This merge cannot be run: ${errors.map((error) => error.message).join(' ')}`;
+
 const getJoinKeyFieldIdsForSource = (
     joinKey: MergeJoinKeyPart[],
     sourceId: string,
@@ -236,6 +245,13 @@ export const getUnaccountedDimensions = (
  * Every reason this merge would produce a wrong or unbuildable result. Empty
  * means the merge is safe to compile.
  */
+/**
+ * Table merged columns that belong to no single source are attributed to:
+ * join keys, which are shared by every source, and calculations over the
+ * merged result.
+ */
+export const MERGE_TABLE_NAME = 'merge';
+
 export const validateMergeQuery = (
     mergeQuery: MergeQuery,
     /**
@@ -278,6 +294,17 @@ export const validateMergeQuery = (
             fieldIds: [],
             message: `More than one query uses the id "${id}".`,
         });
+    });
+
+    sources.forEach((source) => {
+        if (source.id === MERGE_TABLE_NAME) {
+            errors.push({
+                kind: MergeQueryErrorKind.RESERVED_SOURCE_ID,
+                sourceId: source.id,
+                fieldIds: [],
+                message: `"${MERGE_TABLE_NAME}" is reserved for the merged result's own columns. Use a different query id.`,
+            });
+        }
     });
 
     if (joinKey.length === 0) {
@@ -508,13 +535,6 @@ export const MERGE_TRUNCATED_COLUMN = '__merge_truncated';
 
 /** Internal marker that distinguishes the empty-result guard row from data. */
 export const MERGE_ROW_PRESENT_COLUMN = '__merge_row_present';
-
-/**
- * Table merged columns that belong to no single source are attributed to:
- * join keys, which are shared by every source, and calculations over the
- * merged result.
- */
-export const MERGE_TABLE_NAME = 'merge';
 
 /** Label for the pseudo-table a source's merged fields belong to. */
 export const getMergeSourceTableLabel = (sourceIndex: number): string =>

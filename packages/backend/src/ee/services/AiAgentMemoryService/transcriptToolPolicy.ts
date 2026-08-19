@@ -294,11 +294,17 @@ const shapeResult = async (
     return shapeNonTabularResult(value);
 };
 
-const shapeRowsInResult = async (value: string): Promise<string> => {
+export const shapeRowsInResult = async (
+    value: string,
+    includeSamples = true,
+): Promise<string> => {
     const csv = CSV_BLOCK_PATTERN.exec(value)?.[1];
     if (!csv) return value;
 
-    const shaped = await shapeResult(`\`\`\`csv\n${csv}\n\`\`\``, true);
+    const shaped = await shapeResult(
+        `\`\`\`csv\n${csv}\n\`\`\``,
+        includeSamples,
+    );
     if (!shaped) return value;
     return value.replace(CSV_BLOCK_PATTERN, () =>
         shaped === MALFORMED_CSV_MARKER

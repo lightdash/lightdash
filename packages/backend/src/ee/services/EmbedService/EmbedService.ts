@@ -16,7 +16,6 @@ import {
     CreateEmbedRequestBody,
     DashboardAvailableFilters,
     DashboardDAO,
-    DashboardFieldTarget,
     DashboardFilters,
     DateGranularity,
     DateZoom,
@@ -37,11 +36,9 @@ import {
     formatRows,
     getAvailableFilterFieldIds,
     getColumnTimezone,
-    getDashboardFieldTarget,
     getDashboardFiltersForTileAndTables,
     getDimensionMapFromTables,
     getDimensions,
-    getExploreDefaultTimeDimension,
     getFilterInteractivityValue,
     getItemId,
     InteractivityOptions,
@@ -728,14 +725,19 @@ export class EmbedService extends BaseService {
         const { dashboardUuids, allowAllDashboards } =
             await this.embedModel.get(projectUuid);
 
-        const hasFilterInteractivity = isFilterInteractivityEnabled(
-            account.access.filtering,
-        );
+        if (!isFilterInteractivityEnabled(account.access.filtering)) {
+            // If dashboard filters interactivity is not enabled, we return an empty list
+            return {
+                savedQueryFilters: {},
+                allFilterableFields: [],
+                allFilterableMetrics: [],
+                savedQueryMetricFilters: {},
+            };
+        }
 
         let allFilters: {
             uuid: string;
             filters: CompiledDimension[];
-            defaultTimeDimension?: DashboardFieldTarget;
         }[] = [];
 
         const savedQueryUuids = savedChartUuidsAndTileUuids.map(
@@ -832,22 +834,13 @@ export class EmbedService extends BaseService {
 
         const filterPromises = savedCharts.map(async (savedChart) => {
             const explore = exploreCache[savedChart.tableName];
-            if (isExploreError(explore)) {
+            if (isExploreError(explore))
                 return { uuid: savedChart.uuid, filters: [] };
-            }
             const filters = getDimensions(explore).filter(
                 (field) => isFilterableDimension(field) && !field.hidden,
             );
-            const defaultTimeDimension =
-                getExploreDefaultTimeDimension(explore);
 
-            return {
-                uuid: savedChart.uuid,
-                filters,
-                defaultTimeDimension: defaultTimeDimension
-                    ? getDashboardFieldTarget(defaultTimeDimension)
-                    : undefined,
-            };
+            return { uuid: savedChart.uuid, filters };
         });
 
         allFilters = await Promise.all(filterPromises);
@@ -883,30 +876,11 @@ export class EmbedService extends BaseService {
             };
         }, {});
 
-        const defaultTimeDimensions = savedChartUuidsAndTileUuids.reduce<
-            DashboardAvailableFilters['defaultTimeDimensions']
-        >((acc, savedChartUuidAndTileUuid) => {
-            const filterResult = allFilters.find(
-                (result) =>
-                    result.uuid === savedChartUuidAndTileUuid.savedChartUuid,
-            );
-            return filterResult?.defaultTimeDimension
-                ? {
-                      ...acc,
-                      [savedChartUuidAndTileUuid.tileUuid]:
-                          filterResult.defaultTimeDimension,
-                  }
-                : acc;
-        }, {});
-
         return {
-            savedQueryFilters: hasFilterInteractivity ? savedQueryFilters : {},
-            allFilterableFields: hasFilterInteractivity
-                ? allFilterableFields
-                : [],
+            savedQueryFilters,
+            allFilterableFields,
             allFilterableMetrics: [],
             savedQueryMetricFilters: {},
-            defaultTimeDimensions,
         };
     }
 
@@ -2453,7 +2427,7 @@ export class EmbedService extends BaseService {
             resolvedFieldId = fallbackFieldId;
         }
 
-        const { metricQuery, explore, field } =
+        const { metricQuery, explore, field, staticResults } =
             await this.projectService._getFieldValuesMetricQuery({
                 projectUuid,
                 table: resolvedTableName,
@@ -2463,6 +2437,17 @@ export class EmbedService extends BaseService {
                 filters,
                 organizationUuid: dashboard.organizationUuid,
             });
+
+        // The field's config turns warehouse fetching off: serve curated
+        // values (empty when none) instead of running a distinct-value scan.
+        if (staticResults) {
+            return {
+                search,
+                results: staticResults.map(({ value }) => value),
+                refreshedAt: new Date(),
+                cached: false,
+            };
+        }
 
         const acceptedUserParameters =
             isParameterInteractivityEnabled(account.access.parameters) &&

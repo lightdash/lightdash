@@ -710,6 +710,8 @@ describe('per-dialect compile snapshots', () => {
             joinKeyNames: [keyName],
             joinType,
             warehouseSqlBuilder,
+            stringJoinKeyNames:
+                keyMeta.type === DimensionType.STRING ? [keyName] : [],
             nullPlaceholderByKeyName: {
                 [keyName]: getMergeNullPlaceholder(
                     keyMeta,
@@ -741,12 +743,20 @@ describe('per-dialect compile snapshots', () => {
     });
 
     it.each(adapters)('compiles a string-keyed merge on %s', (adapter) => {
-        expect(
-            compile(adapter, 'status', {
-                type: DimensionType.STRING,
-                timeInterval: null,
-            }),
-        ).toMatchSnapshot();
+        const sql = compile(adapter, 'status', {
+            type: DimensionType.STRING,
+            timeInterval: null,
+        });
+        const stringType = [
+            SupportedDbtAdapter.BIGQUERY,
+            SupportedDbtAdapter.DATABRICKS,
+        ].includes(adapter as SupportedDbtAdapter)
+            ? 'STRING'
+            : 'VARCHAR';
+
+        expect(sql).toMatchSnapshot();
+        expect(sql).toContain('CAST(merge_0_a.');
+        expect(sql).toContain(` AS ${stringType})`);
     });
 
     it('uses a DATETIME placeholder for a naive timestamp key on bigquery', () => {

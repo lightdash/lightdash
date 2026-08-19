@@ -65,17 +65,21 @@ import {
     Explore,
     FeatureFlags,
     ForbiddenError,
+    formatMergeQueryRefusal,
     GenerateArtifactQuestionJobPayload,
     getErrorMessage,
     getGroupByDimensions,
     getItemId,
     getItemMap,
+    getValidAiQueryLimit,
     getWebAiChartConfig,
     GITHUB_MCP_SERVER_NAME,
     GITHUB_MCP_SERVER_URL,
     hasAiAgentAccessToSpace,
     InsufficientGitPermissionsError,
+    isAgentToolName,
     isAiDeepResearchRunTerminal,
+    isAiMergeChartArtifactConfig,
     isAiSqlChartArtifactConfig,
     isAiWritebackRunInProgress,
     isGithubMcpServerUrl,
@@ -85,12 +89,14 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     LightdashUser,
+    MergeQuery,
     NotFoundError,
     NotImplementedError,
     OpenIdIdentity,
     OpenIdIdentityIssuerType,
     ParameterError,
     ParametersValuesMap,
+    parsePersistedRunQueryArgs,
     parseVizConfig,
     PersistentDownloadFileAccessMode,
     ProjectType,
@@ -112,6 +118,7 @@ import {
     UserAttributeValueMap,
     validateAgentSuggestion,
     type AgentSuggestionTool,
+    type AgentToolName,
     type AiAgentEditDbtProjectPipelineJobPayload,
     type AiAgentModelConfig,
     type AiClonedThreadCreatedFrom,
@@ -124,6 +131,7 @@ import {
     type AiWebAppThreadCreatedFrom,
     type SessionUser,
     type SuggestionValidationCatalog,
+    type ToolRunQueryArgsTransformed,
     type VerifiedContentListItem,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -333,6 +341,10 @@ import {
 } from '../ai/types/aiAgentDependencies';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
 import { AiCallAttribution } from '../ai/utils/aiCallTelemetry';
+import {
+    buildAiMergeQuery,
+    buildAiMergeSourceConfigs,
+} from '../ai/utils/buildAiMergeQuery';
 import {
     classifyWritebackError,
     GIT_WRITE_PERMISSION_AGENT_MESSAGE,
@@ -2336,6 +2348,61 @@ export class AiAgentService extends BaseService {
         );
 
         return asyncQuery;
+    }
+
+    /** The AI tool's merge shape as the core MergeQuery the engine executes. */
+    private async buildAiMergeQuery(
+        user: SessionUser,
+        projectUuid: string,
+        toolArgs: ToolRunQueryArgsTransformed,
+    ): Promise<MergeQuery> {
+        const exploreByName = Object.fromEntries(
+            await Promise.all(
+                buildAiMergeSourceConfigs(toolArgs).map(
+                    async ({ queryConfig }) =>
+                        [
+                            queryConfig.exploreName,
+                            await this.getExplore(
+                                user,
+                                projectUuid,
+                                null,
+                                queryConfig.exploreName,
+                            ),
+                        ] as const,
+                ),
+            ),
+        );
+        return buildAiMergeQuery({
+            toolArgs,
+            getExplore: (exploreName) => exploreByName[exploreName],
+            maxQueryLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
+        });
+    }
+
+    private async executeAsyncAiMergeQuery(
+        user: SessionUser,
+        projectUuid: string,
+        toolArgs: ToolRunQueryArgsTransformed,
+    ) {
+        const mergeQuery = await this.buildAiMergeQuery(
+            user,
+            projectUuid,
+            toolArgs,
+        );
+        const outcome = await this.asyncQueryService.executeAsyncMergeQuery({
+            account: fromSession(user),
+            projectUuid,
+            mergeQuery,
+            context: QueryExecutionContext.AI,
+            parameters: toolArgs.queryConfig.parameters ?? undefined,
+            mode: { type: 'interactive' },
+        });
+        if (outcome.outcome === 'refused') {
+            throw new ParameterError(formatMergeQueryRefusal(outcome.errors), {
+                errors: outcome.errors,
+            });
+        }
+        return { query: outcome.query, mergeQuery };
     }
 
     public async getAgent(
@@ -5125,7 +5192,7 @@ export class AiAgentService extends BaseService {
                 modelName: prompt.modelConfig?.modelName,
             });
 
-        if (!supportsCompaction || contextWindowTokens === null) {
+        if (!supportsCompaction) {
             Logger.debug(
                 `${compactionLogContext} skipped reason=unsupported-model provider=${prompt.modelConfig?.modelProvider ?? 'default'} model=${prompt.modelConfig?.modelName ?? 'default'}`,
             );
@@ -6460,6 +6527,52 @@ export class AiAgentService extends BaseService {
             );
         }
 
+        if (isAiMergeChartArtifactConfig(artifact.chartConfig)) {
+            const { enabled: mergeQueriesEnabled } =
+                await this.featureFlagService.get({
+                    user,
+                    featureFlagId: FeatureFlags.MergeQueries,
+                });
+            if (!mergeQueriesEnabled) {
+                throw new ForbiddenError('Merge queries are not enabled');
+            }
+            const parsed = parsePersistedRunQueryArgs(
+                artifact.chartConfig.config,
+            );
+            if (!parsed?.mergeConfig) {
+                throw new ParameterError('Invalid merge visualization config');
+            }
+            const { query, mergeQuery } = await this.executeAsyncAiMergeQuery(
+                user,
+                projectUuid,
+                parsed,
+            );
+            this.analytics.track({
+                event: 'ai_agent.artifact_viz_query',
+                userId: user.userUuid,
+                properties: {
+                    projectId: projectUuid,
+                    organizationId: organizationUuid,
+                    agentId: agent.uuid,
+                    agentName: agent.name,
+                    artifactId: artifactUuid,
+                    artifactVersionId: versionUuid,
+                    vizType: AiResultType.QUERY_RESULT,
+                    source: 'semantic',
+                },
+            });
+            return {
+                source: 'semantic',
+                type: AiResultType.QUERY_RESULT,
+                query,
+                mergeQuery,
+                metadata: {
+                    title: artifact.title,
+                    description: artifact.description,
+                },
+            };
+        }
+
         if (isAiSqlChartArtifactConfig(artifact.chartConfig)) {
             // Embed viewers are scoped by user attributes, which raw SQL bypasses.
             if (runtimeOptions) {
@@ -6548,6 +6661,7 @@ export class AiAgentService extends BaseService {
             source: 'semantic',
             type: parsedVizConfig.type,
             query,
+            mergeQuery: null,
             metadata,
         };
     }
@@ -6689,6 +6803,7 @@ export class AiAgentService extends BaseService {
             source: 'semantic',
             type: parsedVizConfig.type,
             query,
+            mergeQuery: null,
             metadata,
         };
     }
@@ -9397,7 +9512,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getAiAgentMemoryContextEntries,
             incrementAiAgentMemoryPulls,
             resolveThreadMemoryOwnerUuid,
-            getExplore: toolsRuntime.getExplore,
             listContent: toolsRuntime.listContent,
             findContent: toolsRuntime.findContent,
             readContent: toolsRuntime.readContent,
@@ -9408,7 +9522,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updateUserName: toolsRuntime.updateUserName,
             validateContent: toolsRuntime.validateContent,
             getDashboardCharts: toolsRuntime.getDashboardCharts,
-            findFields: toolsRuntime.findFields,
             findExplores: toolsRuntime.findExplores,
             getVerifiedFieldUsage: toolsRuntime.getVerifiedFieldUsage,
             searchSemanticLayer: toolsRuntime.searchSemanticLayer,
@@ -9417,6 +9530,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updateProgress,
             getPrompt,
             runAsyncQuery: toolsRuntime.runAsyncQuery,
+            runAsyncMergeQuery: toolsRuntime.runAsyncMergeQuery,
             runSavedChartQuery: toolsRuntime.runSavedChartQuery,
             runSqlJob: toolsRuntime.runSqlJob,
             listWarehouseTables: toolsRuntime.listWarehouseTables,
@@ -9600,7 +9714,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getAiAgentMemoryContextEntries,
             incrementAiAgentMemoryPulls,
             resolveThreadMemoryOwnerUuid,
-            getExplore,
             listContent,
             findContent,
             readContent,
@@ -9611,7 +9724,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updateUserName,
             validateContent,
             getDashboardCharts,
-            findFields,
             findExplores,
             getVerifiedFieldUsage,
             searchSemanticLayer,
@@ -9620,6 +9732,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updateProgress,
             getPrompt,
             runAsyncQuery,
+            runAsyncMergeQuery,
             runSavedChartQuery,
             runSqlJob,
             listWarehouseTables,
@@ -9806,10 +9919,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     : undefined,
             ),
         });
-        const { enabled: grepFieldsEnabled } =
+        const { enabled: mergeQueriesEnabled } =
             await this.featureFlagService.get({
                 user,
-                featureFlagId: FeatureFlags.AiGrepFields,
+                featureFlagId: FeatureFlags.MergeQueries,
             });
         let aiWritebackEnabled = hasTrustedPromptUserIdentity;
         if (!aiWritebackEnabled) {
@@ -10072,7 +10185,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableCodingAgent: codingAgentEnabled,
             enablePreviewDeploySetup: aiPreviewDeploySetupEnabled,
             enableRepoDiscovery: repoDiscoveryEnabled,
-            enableGrepFields: grepFieldsEnabled,
+            enableMergeQueries: mergeQueriesEnabled,
             repoFsRoot,
             repoFsSupportsCodeSearch,
             canRunSql,
@@ -10091,8 +10204,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             availableSkills,
             modelReasoningEnabled: prompt.modelConfig?.reasoning ?? null,
 
-            findExploresFieldSearchSize: 200,
-            findFieldsPageSize: 30,
             toolDescriptionMaxChars:
                 this.lightdashConfig.ai.copilot.toolDescriptionMaxChars,
             getDashboardChartsPageSize: 20,
@@ -10156,7 +10267,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getProjectContextDocument,
             getAiAgentMemoryContextEntries,
             incrementAiAgentMemoryPulls,
-            getExplore,
             listContent,
             findContent,
             readContent,
@@ -10167,13 +10277,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updateUserName,
             validateContent,
             getDashboardCharts,
-            findFields,
             findExplores,
             getVerifiedFieldUsage,
             searchSemanticLayer,
             analyzeFieldImpact,
             syncDbtProject,
             runAsyncQuery,
+            runAsyncMergeQuery,
             runSavedChartQuery,
             runSqlJob,
             listWarehouseTables,
@@ -11552,38 +11662,85 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 });
         };
 
-        const getSlackReasoningDetails = (toolName?: string): string => {
+        const getBuiltInSlackReasoningDetails = (
+            toolName: AgentToolName,
+        ): string => {
             switch (toolName) {
+                case 'grepFields':
                 case 'discoverFields':
                 case 'findFields':
                 case 'findExplores':
+                case 'getMetadata':
+                case 'analyzeFieldImpact':
+                case 'searchFieldValues':
                     return 'Analyzing the available fields...';
                 case 'searchSemanticLayer':
+                case 'listWarehouseTables':
+                case 'describeWarehouseTable':
                     return 'Reviewing the semantic layer...';
                 case 'generateVisualization':
                 case 'generateDashboard':
+                case 'generateBarVizConfig':
+                case 'generateTableVizConfig':
+                case 'generateTimeSeriesVizConfig':
                     return 'Preparing the answer...';
                 case 'runSql':
                 case 'runContentQuery':
                 case 'runSavedChart':
+                case 'runQuery':
                     return 'Reviewing the results...';
                 case 'editDbtProject':
+                case 'editProjectContext':
+                case 'syncDbtProject':
                     return 'Preparing the semantic-layer changes...';
                 case 'setupPreviewDeploy':
                     return 'Setting up the preview...';
-                case 'repoShell':
+                case 'exploreRepo':
+                case 'discoverRepos':
+                case 'getPullRequestDiff':
+                case 'listWorkstreams':
                     return 'Inspecting the project files...';
+                case 'editRepo':
+                case 'closePullRequest':
                 case 'editContent':
                 case 'createContent':
+                case 'createScheduledDelivery':
                     return 'Saving the changes...';
                 case 'loadProjectContext':
                     return 'Reviewing the project context...';
-                case 'validateContent':
-                    return 'Validating the changes...';
-                default:
+                case 'findContent':
+                case 'findCharts':
+                case 'findDashboards':
+                case 'generateHashes':
+                case 'generateUuids':
+                case 'getDashboardCharts':
+                case 'getKnowledgeDocumentContent':
+                case 'getProjectInfo':
+                case 'listContent':
+                case 'listKnowledgeDocuments':
+                case 'listProjects':
+                case 'loadMcpTools':
+                case 'loadSkill':
+                case 'readContent':
+                case 'readPinnedThread':
+                case 'resolveUrl':
+                case 'submitResearchReport':
+                case 'delegateResearchTask':
+                case 'submitWorkerFindings':
+                case 'updateUserName':
                     return 'Answering your question';
+                default:
+                    return assertUnreachable(
+                        toolName,
+                        `Unhandled agent tool: ${toolName}`,
+                    );
             }
         };
+
+        const getSlackReasoningDetails = (toolName?: string): string =>
+            toolName && isAgentToolName(toolName)
+                ? getBuiltInSlackReasoningDetails(toolName)
+                : 'Answering your question';
 
         const appendTaskUpdate = (
             progress: string,

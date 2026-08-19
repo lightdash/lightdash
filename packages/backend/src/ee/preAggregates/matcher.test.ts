@@ -107,6 +107,18 @@ const baseExplore = (): Explore => ({
                     timeInterval: TimeFrames.QUARTER,
                     timeIntervalBaseDimensionName: 'order_date',
                 }),
+                order_date_week_num: makeDimension({
+                    name: 'order_date_week_num',
+                    type: DimensionType.NUMBER,
+                    timeInterval: TimeFrames.WEEK_NUM,
+                    timeIntervalBaseDimensionName: 'order_date',
+                }),
+                order_date_month_name: makeDimension({
+                    name: 'order_date_month_name',
+                    type: DimensionType.STRING,
+                    timeInterval: TimeFrames.MONTH_NAME,
+                    timeIntervalBaseDimensionName: 'order_date',
+                }),
                 created_at: makeDimension({
                     name: 'created_at',
                     type: DimensionType.TIMESTAMP,
@@ -1869,7 +1881,7 @@ describe('findMatch', () => {
         });
     });
 
-    it('returns granularity_too_fine when query granularity is finer than rollup', () => {
+    it('returns granularity_too_fine when query granularity is finer than the pre-aggregate', () => {
         const explore = {
             ...baseExplore(),
             preAggregates: [
@@ -1900,7 +1912,38 @@ describe('findMatch', () => {
         });
     });
 
-    it('accepts coarser query granularity than rollup', () => {
+    it('does not serve a raw timestamp from a day-grain pre-aggregate', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_daily',
+                    dimensions: [],
+                    metrics: ['order_count'],
+                    timeDimension: 'created_at',
+                    granularity: TimeFrames.DAY,
+                },
+            ],
+        };
+
+        expect(
+            preAggregateUtils.findMatch(
+                makeMetricQuery({
+                    dimensions: ['orders_created_at'],
+                    metrics: ['orders_order_count'],
+                }),
+                explore,
+            ).miss,
+        ).toStrictEqual({
+            reason: PreAggregateMissReason.GRANULARITY_TOO_FINE,
+            fieldId: 'orders_created_at',
+            queryGranularity: TimeFrames.RAW,
+            preAggregateGranularity: TimeFrames.DAY,
+            preAggregateTimeDimension: 'created_at',
+        });
+    });
+
+    it('accepts a nesting query granularity from a day-grain pre-aggregate', () => {
         const explore = {
             ...baseExplore(),
             preAggregates: [
@@ -1923,6 +1966,141 @@ describe('findMatch', () => {
         );
 
         expect(result.hit).toBe(true);
+    });
+
+    it('accepts named intervals derivable from a day-grain pre-aggregate', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_daily',
+                    dimensions: ['order_date'],
+                    metrics: ['order_count'],
+                    timeDimension: 'order_date',
+                    granularity: TimeFrames.DAY,
+                },
+            ],
+        };
+
+        expect(
+            preAggregateUtils.findMatch(
+                makeMetricQuery({
+                    dimensions: ['orders_order_date_month_name'],
+                    metrics: ['orders_order_count'],
+                }),
+                explore,
+            ),
+        ).toStrictEqual({
+            hit: true,
+            preAggregateName: 'orders_daily',
+            miss: null,
+        });
+    });
+
+    it('does not derive calendar months from a week-grain pre-aggregate', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_weekly',
+                    dimensions: ['order_date'],
+                    metrics: ['order_count'],
+                    timeDimension: 'order_date',
+                    granularity: TimeFrames.WEEK,
+                },
+            ],
+        };
+
+        expect(
+            preAggregateUtils.findMatch(
+                makeMetricQuery({
+                    dimensions: ['orders_order_date_month'],
+                    metrics: ['orders_order_count'],
+                }),
+                explore,
+            ).miss,
+        ).toStrictEqual({
+            reason: PreAggregateMissReason.TIME_FRAME_NOT_DERIVABLE,
+            fieldId: 'orders_order_date_month',
+            queryGranularity: TimeFrames.MONTH,
+            preAggregateGranularity: TimeFrames.WEEK,
+            preAggregateTimeDimension: 'order_date',
+        });
+    });
+
+    it('does not derive week numbers from a week-grain pre-aggregate', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_weekly',
+                    dimensions: ['order_date'],
+                    metrics: ['order_count'],
+                    timeDimension: 'order_date',
+                    granularity: TimeFrames.WEEK,
+                },
+            ],
+        };
+
+        expect(
+            preAggregateUtils.findMatch(
+                makeMetricQuery({
+                    dimensions: ['orders_order_date_week_num'],
+                    metrics: ['orders_order_count'],
+                }),
+                explore,
+            ).miss,
+        ).toStrictEqual({
+            reason: PreAggregateMissReason.TIME_FRAME_NOT_DERIVABLE,
+            fieldId: 'orders_order_date_week_num',
+            queryGranularity: TimeFrames.WEEK_NUM,
+            preAggregateGranularity: TimeFrames.WEEK,
+            preAggregateTimeDimension: 'order_date',
+        });
+    });
+
+    it('treats a raw date filter as day grain', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_daily',
+                    dimensions: ['order_date'],
+                    metrics: ['order_count'],
+                    timeDimension: 'order_date',
+                    granularity: TimeFrames.DAY,
+                },
+            ],
+        };
+
+        expect(
+            preAggregateUtils.findMatch(
+                makeMetricQuery({
+                    dimensions: ['orders_order_date_day'],
+                    metrics: ['orders_order_count'],
+                    filters: {
+                        dimensions: {
+                            id: 'date-filter',
+                            and: [
+                                {
+                                    id: 'raw-date-filter',
+                                    target: {
+                                        fieldId: 'orders_order_date',
+                                    },
+                                    operator: FilterOperator.EQUALS,
+                                    values: ['2024-01-01'],
+                                },
+                            ],
+                        },
+                    },
+                }),
+                explore,
+            ),
+        ).toStrictEqual({
+            hit: true,
+            preAggregateName: 'orders_daily',
+            miss: null,
+        });
     });
 
     it.each([

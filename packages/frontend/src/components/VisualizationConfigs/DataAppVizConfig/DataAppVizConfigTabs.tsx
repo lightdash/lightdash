@@ -9,12 +9,12 @@ import { memo, useMemo, type FC } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../../../features/apps/hooks/useCanEditDataApp';
-import { useDataAppVisualization } from '../../../features/apps/hooks/useDataAppVisualization';
+import { useDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
 import {
     autoMapDataAppVizFields,
     reconcileDataAppVizFieldMapping,
-} from '../../../features/apps/utils/autoMapDataAppVizFields';
-import { getDataAppVizFieldItems } from '../../../features/apps/utils/getDataAppVizFieldItems';
+} from '../../../features/chartTypes/utils/autoMapDataAppVizFields';
+import { getDataAppVizFieldItems } from '../../../features/chartTypes/utils/getDataAppVizFieldItems';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { ColorPaletteSection } from '../common/ColorPaletteSection';

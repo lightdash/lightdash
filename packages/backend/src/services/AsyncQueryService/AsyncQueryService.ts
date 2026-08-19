@@ -34,6 +34,7 @@ import {
     FieldType,
     ForbiddenError,
     formatItemValue,
+    formatMergeQueryRefusal,
     formatRawRows,
     formatRawValue,
     formatRow,
@@ -4986,17 +4987,115 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
         );
 
-        const { metricQuery, explore, fieldId, labelFieldId } =
-            await getFieldValuesMetricQuery({
+        const {
+            metricQuery,
+            explore,
+            field,
+            fieldId,
+            labelFieldId,
+            staticResults,
+        } = await getFieldValuesMetricQuery({
+            projectUuid,
+            table,
+            initialFieldId,
+            search,
+            limit,
+            maxLimit,
+            filters,
+            exploreResolver: this.projectModel,
+        });
+
+        // The field's config turns warehouse fetching off: serve curated
+        // values (empty when none) as an immediately-READY query instead of
+        // running a distinct-value scan in the warehouse.
+        if (staticResults) {
+            const combinedParameters = await this.combineParameters(
                 projectUuid,
-                table,
-                initialFieldId,
-                search,
-                limit,
-                maxLimit,
-                filters,
-                exploreResolver: this.projectModel,
+                explore,
+                parameters,
+            );
+            const staticRequestParameters: ExecuteAsyncFieldValueSearchRequestParams =
+                {
+                    context,
+                    table,
+                    fieldId: initialFieldId,
+                    search,
+                    limit,
+                    filters,
+                    forceRefresh,
+                    parameters: combinedParameters,
+                };
+            const { queryUuid } = await this.queryHistoryModel.create(account, {
+                projectUuid,
+                organizationUuid,
+                context,
+                fields: { [fieldId]: field },
+                compiledSql:
+                    '-- served from curated filter_autocomplete values, no warehouse query',
+                requestParameters: staticRequestParameters,
+                metricQuery,
+                cacheKey: `static-autocomplete-${fieldId}`,
+                pivotConfiguration: null,
+                originalColumns: null,
             });
+
+            const fileName = QueryHistoryModel.createUniqueResultsFileName(
+                `static-autocomplete-${fieldId}`,
+            );
+            const resultsStorageClient =
+                this.getResultsStorageClientForContext(context);
+            const stream = resultsStorageClient.createUploadStream(
+                S3ResultsFileStorageClient.sanitizeFileExtension(fileName),
+                { contentType: 'application/jsonl' },
+            );
+            const staticRows = staticResults.map(({ value }) => ({
+                [fieldId]: value,
+            }));
+            await stream.write(staticRows);
+            await stream.close();
+
+            if (this.lightdashConfig.natsWorker.enabled) {
+                await this.queryHistoryModel.updateStatusToExecuting(queryUuid);
+            }
+            const createdAt = new Date();
+            const staticColumns: ResultColumns = {
+                [fieldId]: { reference: fieldId, type: field.type },
+            };
+            await this.queryHistoryModel.update(
+                queryUuid,
+                projectUuid,
+                {
+                    status: QueryHistoryStatus.READY,
+                    error: null,
+                    total_row_count: staticRows.length,
+                    columns: staticColumns,
+                    results_file_name: fileName,
+                    results_created_at: createdAt,
+                    results_updated_at: createdAt,
+                    results_expires_at: this.getCacheExpiresAt(createdAt),
+                },
+                account,
+            );
+
+            this.analytics.track({
+                event: 'field_value.search',
+                userId: account.user.id,
+                properties: {
+                    projectId: projectUuid,
+                    fieldId,
+                    searchCharCount: search.length,
+                    resultsCount: staticRows.length,
+                    searchLimit: limit,
+                },
+            });
+
+            return {
+                queryUuid,
+                cacheMetadata: { cacheHit: false },
+                valueFieldId: fieldId,
+                labelFieldId: null,
+            };
+        }
 
         const baseQueryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
@@ -6330,6 +6429,14 @@ export class AsyncQueryService extends ProjectService {
         const validUuid =
             /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
+        // Each reference costs a DB lookup and authorization check in parallel
+        const MAX_REFERENCES = 20;
+        if (Object.keys(references).length > MAX_REFERENCES) {
+            throw new ParameterError(
+                `Too many references: maximum allowed is ${MAX_REFERENCES}`,
+            );
+        }
+
         await Promise.all(
             Object.entries(references).map(async ([tableName, queryUuid]) => {
                 if (!validTableName.test(tableName)) {
@@ -6445,6 +6552,16 @@ export class AsyncQueryService extends ProjectService {
      * (read_parquet, read_json, ...) in the user SQL is rejected, so
      * referenced results are the only data this endpoint can reach — which
      * is why run-queries access (interactive viewer and up) suffices.
+     *
+     * Threat model: the user authors the whole statement by design, so SQL
+     * injection in the classic sense does not apply — the boundaries are
+     * which data the statement can reach and what statement kinds run. The
+     * textual file-access block on the raw SQL is backed by execution-time
+     * validation inside the DuckDB client, which parses the final statement
+     * with DuckDB itself (extractStatements) and rejects multiple
+     * statements, non-SELECT statement types, and blocked functions;
+     * escaping the CTE wrapper still lands inside that same sandbox on a
+     * hardened instance (no extension autoload, no attach/install).
      */
     async executeAsyncComposeSqlQuery({
         account,
@@ -6801,6 +6918,44 @@ export class AsyncQueryService extends ProjectService {
         });
     }
 
+    /** Execute a merge query and wait for all results. */
+    async executeMergeQueryAndGetResults(
+        args: ExecuteAsyncMergeQueryArgs,
+        pollingOptions?: PollingOptions,
+    ): Promise<{
+        queryUuid: string;
+        rows: Record<string, unknown>[];
+        cacheMetadata: CacheMetadata;
+        fields: ItemsMap;
+        pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        displayTimezone: string | null;
+        metricQuery: MetricQuery;
+    }> {
+        const { account, projectUuid } = args;
+        const outcome = await this.executeAsyncMergeQuery(args);
+        if (outcome.outcome === 'refused') {
+            throw new ParameterError(formatMergeQueryRefusal(outcome.errors), {
+                errors: outcome.errors,
+            });
+        }
+
+        const { queryUuid, cacheMetadata, fields, metricQuery } = outcome.query;
+        await this.pollForQueryCompletion({
+            account,
+            projectUuid,
+            queryUuid,
+            ...pollingOptions,
+        });
+        const results = await this.getReadyQueryResults({
+            account,
+            projectUuid,
+            queryUuid,
+            cacheMetadata,
+            fields,
+        });
+        return { queryUuid, metricQuery, ...results };
+    }
+
     /** Compatibility seam for the v1 endpoint's already-derived pivot. */
     async executeLegacyAsyncMergeQuery({
         pivotConfiguration,
@@ -6825,6 +6980,7 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         mode,
         pivotInput,
+        userAttributeOverrides,
     }: ExecuteMergeQueryInternalArgs): Promise<ApiExecuteAsyncMergeQueryResults> {
         assertIsAccountWithOrg(account);
         const { organizationUuid } =
@@ -6848,6 +7004,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             mergeQuery: effectiveMergeQuery,
             parameters,
+            userAttributeOverrides,
         });
         if (!isRunnableCompiledMergeQuery(compiledMerge)) {
             return {
@@ -6887,6 +7044,7 @@ export class AsyncQueryService extends ProjectService {
             parameters,
             pivotConfiguration,
             compiledMerge,
+            userAttributeOverrides,
         });
 
         return {
@@ -6916,6 +7074,7 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         organizationUuid,
         compiledMerge,
+        userAttributeOverrides,
     }: ExecuteCompiledAsyncMergeQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         // Only for composing SQL — quoting and the pivot stage need the
         // dialect. The async runtime opens its own connection to execute.
@@ -6960,7 +7119,15 @@ export class AsyncQueryService extends ProjectService {
         };
         const queryTags = AsyncQueryService.addUserAttributeQueryTags(
             baseQueryTags,
-            userAccessControls,
+            userAttributeOverrides
+                ? {
+                      ...userAccessControls,
+                      userAttributes: {
+                          ...userAccessControls.userAttributes,
+                          ...userAttributeOverrides,
+                      },
+                  }
+                : userAccessControls,
         );
         const requestParameters: ExecuteAsyncMergeQueryRequestParams = {
             context,

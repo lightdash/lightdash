@@ -4,8 +4,8 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAppVersionHistory } from '../features/apps/hooks/useAppVersionHistory';
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
-import { useDataAppVisualizations } from '../features/apps/hooks/useDataAppVisualizations';
 import { useDeleteApp } from '../features/apps/hooks/useDeleteApp';
+import { useDataAppVisualizations } from '../features/chartTypes/hooks/useDataAppVisualizations';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../testing/testUtils';
 import ChartTypeGallery from './ChartTypeGallery';
@@ -14,7 +14,7 @@ vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: vi.fn(),
 }));
 
-vi.mock('../features/apps/hooks/useDataAppVisualizations', () => ({
+vi.mock('../features/chartTypes/hooks/useDataAppVisualizations', () => ({
     useDataAppVisualizations: vi.fn(),
 }));
 
@@ -30,7 +30,7 @@ vi.mock('../features/apps/hooks/useDeleteApp', () => ({
     useDeleteApp: vi.fn(),
 }));
 
-vi.mock('../features/apps/components/ChartTypeSamplePreview', () => ({
+vi.mock('../features/chartTypes/components/ChartTypeSamplePreview', () => ({
     default: () => <div data-testid="sample-preview" />,
 }));
 

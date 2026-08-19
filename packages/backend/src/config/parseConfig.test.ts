@@ -1868,3 +1868,19 @@ describe('SANDBOX_PROVIDER', () => {
         expect(parseConfig().appRuntime.sandboxProvider).toBe('e2b');
     });
 });
+
+describe('APPS_CODING_AGENT', () => {
+    test('defaults to claude when unset', () => {
+        expect(parseConfig().appRuntime.dataAppCodingAgent).toBe('claude');
+    });
+
+    test('parses codex case-insensitively', () => {
+        process.env.APPS_CODING_AGENT = ' Codex ';
+        expect(parseConfig().appRuntime.dataAppCodingAgent).toBe('codex');
+    });
+
+    test('throws on an unknown coding agent', () => {
+        process.env.APPS_CODING_AGENT = 'cursor';
+        expect(() => parseConfig()).toThrowError(ParseError);
+    });
+});

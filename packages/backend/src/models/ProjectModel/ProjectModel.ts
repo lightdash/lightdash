@@ -110,6 +110,7 @@ import {
     SavedChartCustomSqlDimensionsTableName,
     SavedChartsTableName,
 } from '../../database/entities/savedCharts';
+import { SavedChartSlugMappingsTableName } from '../../database/entities/savedChartSlugMappings';
 import {
     DbSavedSql,
     InsertSql,
@@ -208,6 +209,11 @@ type RawSummaryRow = {
         | null;
     baseTableAnyAttributes: Explore['tables'][string]['anyAttributes'] | null;
     aiHint: Explore['aiHint'] | null;
+};
+
+type PreviewChartUuidMapping = {
+    sourceChartUuid: string;
+    previewChartUuid: string;
 };
 
 export class ProjectModel {
@@ -1904,7 +1910,16 @@ export class ProjectModel {
                 'project_memberships.project_id',
                 'projects.project_id',
             )
-            .select<QueryResult[]>()
+            .select<(QueryResult & { has_extra_roles: boolean })[]>(
+                'project_memberships.*',
+                'users.*',
+                'emails.*',
+                'projects.*',
+                this.database.raw(
+                    `EXISTS (SELECT 1 FROM ?? AS x WHERE x.project_id = project_memberships.project_id AND x.user_id = project_memberships.user_id) AS has_extra_roles`,
+                    [ProjectMembershipCustomRolesTableName],
+                ),
+            )
             .where('project_uuid', projectUuid)
             .andWhere('is_primary', true);
 
@@ -1916,6 +1931,7 @@ export class ProjectModel {
             projectUuid,
             lastName: membership.last_name,
             roleUuid: membership.role_uuid || undefined,
+            hasMultipleRoles: membership.has_extra_roles,
         }));
     }
 
@@ -2887,6 +2903,52 @@ export class ProjectModel {
         return swapped;
     }
 
+    async copyChartSlugMappingsToPreview(
+        trx: Knex,
+        sourceProjectUuid: string,
+        previewProjectUuid: string,
+        chartUuidMapping: PreviewChartUuidMapping[],
+    ): Promise<void> {
+        if (chartUuidMapping.length === 0) return;
+
+        const aliases = await trx(SavedChartSlugMappingsTableName)
+            .where('project_uuid', sourceProjectUuid)
+            .whereIn(
+                'saved_query_uuid',
+                chartUuidMapping.map(({ sourceChartUuid }) => sourceChartUuid),
+            )
+            .select('saved_query_uuid', 'slug');
+        if (aliases.length === 0) return;
+
+        const previewChartUuidBySource = new Map(
+            chartUuidMapping.map(({ sourceChartUuid, previewChartUuid }) => [
+                sourceChartUuid,
+                previewChartUuid,
+            ]),
+        );
+        const previewAliases = aliases.map((alias) => {
+            const previewChartUuid = previewChartUuidBySource.get(
+                alias.saved_query_uuid,
+            );
+            if (!previewChartUuid) {
+                throw new UnexpectedServerError(
+                    `Missing preview chart mapping for ${alias.saved_query_uuid}`,
+                );
+            }
+            return {
+                project_uuid: previewProjectUuid,
+                saved_query_uuid: previewChartUuid,
+                slug: alias.slug,
+            };
+        });
+
+        await trx.batchInsert(
+            SavedChartSlugMappingsTableName,
+            previewAliases,
+            INSERT_BATCH_SIZE,
+        );
+    }
+
     async duplicateContent(
         projectUuid: string,
         previewProjectUuid: string,
@@ -3343,6 +3405,25 @@ export class ProjectModel {
                 id: c.saved_query_id,
                 newId: newChartsInDashboards[i].saved_query_id,
             }));
+
+            const chartUuidMapping = [
+                ...charts.map((chart, index) => ({
+                    sourceChartUuid: chart.saved_query_uuid,
+                    previewChartUuid: newCharts[index].saved_query_uuid,
+                })),
+                ...chartsInDashboards.map((chart, index) => ({
+                    sourceChartUuid: chart.saved_query_uuid,
+                    previewChartUuid:
+                        newChartsInDashboards[index].saved_query_uuid,
+                })),
+            ];
+
+            await this.copyChartSlugMappingsToPreview(
+                trx,
+                projectUuid,
+                previewProjectUuid,
+                chartUuidMapping,
+            );
 
             const chartMapping = [
                 ...chartInSpacesMapping,

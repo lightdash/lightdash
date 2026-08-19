@@ -46,6 +46,8 @@ import {
     type AppVersionDependencyEntry,
     type DataAppClaudeEffort,
     type DataAppClaudeModel,
+    type DataAppCodingAgent,
+    type DataAppCodingAgentModel,
     type DataAppCreationExperience,
     type DataAppTemplate,
     type PersistentDownloadFileAccessMode,
@@ -1621,7 +1623,9 @@ export type DataAppCreatedEvent = BaseTrack & {
         imageCount: number;
         fileCount: number;
         template: DataAppTemplate | null;
-        claudeModel: DataAppClaudeModel;
+        claudeModel?: DataAppClaudeModel;
+        codingAgent: DataAppCodingAgent;
+        codingAgentModel: DataAppCodingAgentModel;
         samplesRequested: number;
         samplesAvailable: number;
         clarificationCount: number;
@@ -1642,7 +1646,9 @@ export type DataAppIteratedEvent = BaseTrack & {
         promptLength: number;
         imageCount: number;
         fileCount: number;
-        claudeModel: DataAppClaudeModel;
+        claudeModel?: DataAppClaudeModel;
+        codingAgent: DataAppCodingAgent;
+        codingAgentModel: DataAppCodingAgentModel;
         themeChanged: boolean;
         designUuid: string | null;
         claudeEffort: DataAppClaudeEffort;
@@ -1696,8 +1702,10 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         version: number;
         isIteration: boolean;
         isUpgrade: boolean;
-        claudeModel: DataAppClaudeModel;
-        claudeProvider: 'anthropic' | 'bedrock';
+        claudeModel?: DataAppClaudeModel;
+        codingAgent: DataAppCodingAgent;
+        codingAgentModel: DataAppCodingAgentModel;
+        claudeProvider: 'anthropic' | 'bedrock' | 'openai';
         schedulerWaitMs: number;
         claudeEffort: DataAppClaudeEffort;
         wasResumed: boolean;
@@ -1714,7 +1722,7 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         buildFixAttempts: number;
         buildFixGenerationMs: number;
         toolCallCount: number;
-        // Token/turn/cost usage summed across every `claude` invocation and
+        // Token/turn/cost usage summed across every coding-agent invocation and
         // retry in the build (main generation + build-fix + metadata). Used
         // to decompose `generateMs` into output volume vs turn count and to
         // confirm prompt caching is landing (`cacheReadInputTokens > 0`).
@@ -1724,7 +1732,7 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         cacheCreationInputTokens: number;
         numTurns: number;
         durationApiMs: number;
-        totalCostUsd: number;
+        totalCostUsd: number | null;
         generationAttemptCount: number;
         // Latency shape of the logical main generation, including retries:
         // time-to-first-token and the slowest single turn. Not combined with
@@ -1751,8 +1759,10 @@ export type DataAppVersionFailedEvent = BaseTrack & {
         version: number;
         isIteration: boolean;
         isUpgrade: boolean;
-        claudeModel: DataAppClaudeModel;
-        claudeProvider?: 'anthropic' | 'bedrock';
+        claudeModel?: DataAppClaudeModel;
+        codingAgent?: DataAppCodingAgent;
+        codingAgentModel?: DataAppCodingAgentModel;
+        claudeProvider?: 'anthropic' | 'bedrock' | 'openai';
         schedulerWaitMs?: number;
         claudeEffort: DataAppClaudeEffort;
         failureStage:
@@ -1785,7 +1795,7 @@ export type DataAppVersionFailedEvent = BaseTrack & {
         cacheCreationInputTokens?: number;
         numTurns?: number;
         durationApiMs?: number;
-        totalCostUsd?: number;
+        totalCostUsd?: number | null;
         generationAttemptCount?: number;
         timeToFirstTokenMs?: number | null;
         slowestTurnMs?: number;
@@ -3038,6 +3048,19 @@ export type AiAgentReviewItemWritebackFailedEvent = BaseTrack & {
     };
 };
 
+// Audit trail for conversation data leaving the instance as a debug dump.
+export type AiAgentThreadDumpDownloadedEvent = BaseTrack & {
+    event: 'ai_agent.thread_dump_downloaded';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        threadId: string;
+        agentId: string | null;
+        turnCount: number;
+    };
+};
+
 export type AiAgentReviewEvent =
     | AiAgentReviewItemsListedEvent
     | AiAgentReviewItemStatusChangedEvent
@@ -3435,6 +3458,7 @@ type TypedEvent =
     | AiAgentSuggestionSubmitEvent
     | AiAgentPullRequestViewedEvent
     | AiAgentReviewEvent
+    | AiAgentThreadDumpDownloadedEvent
     | AiAgentMemoryEvent
     | AiRouterConfigUpdatedEvent
     | AiRouterInstructionsUpdatedEvent
@@ -3502,6 +3526,8 @@ export class LightdashAnalytics extends Analytics {
                 installType:
                     process.env.LIGHTDASH_INSTALL_TYPE ||
                     LightdashInstallType.UNKNOWN,
+                installChartVersion:
+                    process.env.LIGHTDASH_HELM_CHART_VERSION || null,
             },
         };
     }

@@ -13,7 +13,7 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconLayoutGrid, IconPlus, IconPuzzle } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
-import { useDataAppVisualizations } from '../../../features/apps/hooks/useDataAppVisualizations';
+import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/useDataAppVisualizations';
 import MantineIcon from '../../common/MantineIcon';
 import {
     BUILT_IN_GROUP,

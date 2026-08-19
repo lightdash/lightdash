@@ -22,6 +22,7 @@ import {
     ChartScheduledDeliveryAsCode,
     ChartSummary,
     ContentAsCodeType,
+    ContentSlugRenameRequest,
     ContentType,
     CreateSavedChart,
     CreateSchedulerTarget,
@@ -45,6 +46,7 @@ import {
     ExploreType,
     ForbiddenError,
     friendlyName,
+    generateSlug,
     getContentAsCodePathFromLtreePath,
     getLtreePathFromContentAsCodePath,
     getParameterReferences,
@@ -60,6 +62,7 @@ import {
     isSlackTarget,
     NotFoundError,
     NotificationFrequency,
+    NotImplementedError,
     OrganizationMemberRole,
     ParameterError,
     Project,
@@ -1850,6 +1853,11 @@ export class CoderService extends BaseService {
                 projectUuid,
             }),
         ]);
+        const chartAliasMappings =
+            await this.savedChartModel.getSlugAliasMappingsForUuids(
+                projectUuid,
+                charts.map((chart) => chart.uuid),
+            );
 
         // Create a unified map of slug -> { uuid, isSql } for both chart types
         const chartSlugToInfo = new Map<
@@ -1858,6 +1866,12 @@ export class CoderService extends BaseService {
         >();
         charts.forEach((chart) =>
             chartSlugToInfo.set(chart.slug, { uuid: chart.uuid, isSql: false }),
+        );
+        chartAliasMappings.forEach(({ slug, savedChartUuid }) =>
+            chartSlugToInfo.set(slug, {
+                uuid: savedChartUuid,
+                isSql: false,
+            }),
         );
         sqlChartRows.forEach((row) =>
             chartSlugToInfo.set(row.slug, {
@@ -2972,6 +2986,86 @@ export class CoderService extends BaseService {
         );
 
         return promotionChanges;
+    }
+
+    async renameContentSlug(
+        user: SessionUser,
+        projectUuid: string,
+        request: ContentSlugRenameRequest,
+    ): Promise<void> {
+        const { resourceType, from, to } = request;
+        if (!from || from.length > 255) {
+            throw new ParameterError(
+                'The source slug must contain between 1 and 255 characters',
+            );
+        }
+        if (!to || to.length > 255 || generateSlug(to) !== to) {
+            throw new ParameterError(
+                'The target slug must contain between 1 and 255 lowercase letters, numbers, or hyphen-separated words',
+            );
+        }
+
+        const project = await this.projectModel.get(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        const { canUploadAnyContent } =
+            CoderService.checkContentAsCodeWriteAccess({
+                auditedAbility,
+                project,
+                slug: from,
+            });
+
+        switch (resourceType) {
+            case ContentType.CHART: {
+                const chart = await this.savedChartModel.get(from, undefined, {
+                    projectUuid,
+                });
+                if (!canUploadAnyContent) {
+                    const { inheritsFromOrgOrProject, access } =
+                        await this.spacePermissionService.getSpaceAccessContext(
+                            user.userUuid,
+                            chart.spaceUuid,
+                        );
+                    if (
+                        auditedAbility.cannot(
+                            'update',
+                            subject('SavedChart', {
+                                organizationUuid: project.organizationUuid,
+                                projectUuid,
+                                inheritsFromOrgOrProject,
+                                access,
+                                metadata: {
+                                    savedChartUuid: chart.uuid,
+                                    savedChartName: chart.name,
+                                },
+                            }),
+                        )
+                    ) {
+                        throw new ForbiddenError(
+                            `You don't have access to rename chart "${from}"`,
+                        );
+                    }
+                }
+
+                await this.savedChartModel.renameSlug({
+                    projectUuid,
+                    savedChartUuid: chart.uuid,
+                    from,
+                    to,
+                });
+                return;
+            }
+            case ContentType.DASHBOARD:
+            case ContentType.SPACE:
+            case ContentType.DATA_APP:
+                throw new NotImplementedError(
+                    `Slug renaming is not supported for resource type "${resourceType}" yet`,
+                );
+            default:
+                return assertUnreachable(
+                    resourceType,
+                    'Unknown content slug resource type',
+                );
+        }
     }
 
     async upsertSqlChart(

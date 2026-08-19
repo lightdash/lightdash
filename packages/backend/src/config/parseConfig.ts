@@ -1213,6 +1213,7 @@ export const getAiConfig = () => ({
     debugLoggingEnabled:
         process.env.AI_COPILOT_DEBUG_LOGGING_ENABLED === 'true',
     telemetryEnabled: process.env.AI_COPILOT_TELEMETRY_ENABLED === 'true',
+    threadDumpEnabled: process.env.AI_COPILOT_THREAD_DUMP_ENABLED === 'true',
     requiresFeatureFlag:
         process.env.AI_COPILOT_REQUIRES_FEATURE_FLAG === 'true',
     askAiButtonEnabled: process.env.ASK_AI_BUTTON_ENABLED === 'true',
@@ -1266,7 +1267,7 @@ export const getAiConfig = () => ({
                   embeddingModelName:
                       process.env.OPENAI_EMBEDDING_MODEL ||
                       DEFAULT_OPENAI_EMBEDDING_MODEL,
-                  baseUrl: process.env.OPENAI_BASE_URL,
+                  baseUrl: process.env.OPENAI_BASE_URL?.trim() || undefined,
                   availableModels: getArrayFromCommaSeparatedList(
                       'OPENAI_AVAILABLE_MODELS',
                   ),
@@ -1785,6 +1786,8 @@ export type S3Config = {
 };
 export type AppRuntimeConfig = {
     enabled: boolean;
+    /** Coding agent invoked by the data-app generation pipeline. */
+    dataAppCodingAgent: 'claude' | 'codex';
     lightdashOrigin: string;
     cdnOrigin: string | null;
     /**
@@ -2252,6 +2255,14 @@ const parseDataAppOtelConfig = (): DataAppOtelConfig => {
 
 const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
     const enabled = process.env.APPS_RUNTIME_ENABLED === 'true';
+    const dataAppCodingAgent = (() => {
+        const value = process.env.APPS_CODING_AGENT?.trim().toLowerCase();
+        if (!value || value === 'claude') return 'claude' as const;
+        if (value === 'codex') return 'codex' as const;
+        throw new ParseError(
+            `Cannot parse environment variable "APPS_CODING_AGENT". Value must be one of claude, codex but APPS_CODING_AGENT=${process.env.APPS_CODING_AGENT}`,
+        );
+    })();
     const appsBucket = process.env.APPS_S3_BUCKET;
 
     const baseS3Config = parseBaseS3Config();
@@ -2299,6 +2310,7 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
 
     return {
         enabled,
+        dataAppCodingAgent,
         lightdashOrigin: process.env.APP_RUNTIME_LIGHTDASH_ORIGIN || siteUrl,
         cdnOrigin: process.env.APP_RUNTIME_CDN_ORIGIN || null,
         previewOrigin: process.env.APP_RUNTIME_PREVIEW_ORIGIN || null,

@@ -182,6 +182,11 @@ describe('RolesModel', () => {
         });
 
         it('upsertOrganizationUserRoleAssignment clears org extras in the same transaction', async () => {
+            tracker.on
+                .select(OrganizationMembershipsTableName)
+                .response([
+                    { role: OrganizationMemberRole.EDITOR, role_uuid: null },
+                ]);
             tracker.on.update(OrganizationMembershipsTableName).response(1);
             tracker.on
                 .delete(OrganizationMembershipCustomRolesTableName)
@@ -265,6 +270,7 @@ describe('RolesModel', () => {
             tracker.on
                 .select('organizations')
                 .response([{ organization_id: 3 }]);
+            tracker.on.select(OrganizationMembershipsTableName).response([]);
             tracker.on.update(OrganizationMembershipsTableName).response(0);
 
             await expect(
@@ -286,6 +292,15 @@ describe('RolesModel', () => {
             tracker.on
                 .select('organizations')
                 .response([{ organization_id: 3 }]);
+            tracker.on.select(OrganizationMembershipsTableName).response([
+                {
+                    role: OrganizationMemberRole.MEMBER,
+                    role_uuid: ORG_ROLE,
+                },
+            ]);
+            tracker.on
+                .select(OrganizationMembershipCustomRolesTableName)
+                .response([{ role_uuid: SECOND }]);
             tracker.on.update(OrganizationMembershipsTableName).response(1);
             tracker.on
                 .delete(OrganizationMembershipCustomRolesTableName)
@@ -294,7 +309,7 @@ describe('RolesModel', () => {
                 .insert(OrganizationMembershipCustomRolesTableName)
                 .response([]);
 
-            await model.replaceOrganizationUserRoleSet(
+            const result = await model.replaceOrganizationUserRoleSet(
                 'org-uuid',
                 'user-uuid',
                 {
@@ -302,6 +317,10 @@ describe('RolesModel', () => {
                     customRoleUuids: [ORG_ROLE, SECOND, ORG_ROLE],
                 },
             );
+            expect(result).toEqual({
+                systemRole: null,
+                customRoleUuids: [ORG_ROLE, SECOND],
+            });
 
             const [slot] = tracker.history.update;
             // custom-only: first custom role in the slot with the member placeholder
@@ -317,6 +336,55 @@ describe('RolesModel', () => {
                 expect.arrayContaining([3, 7, SECOND]),
             );
             expect(extras.bindings).not.toContain(ORG_ROLE);
+        });
+    });
+
+    describe('assertAnotherActiveAdmin', () => {
+        beforeEach(() => {
+            tracker.on
+                .select(({ sql }) =>
+                    sql.startsWith(
+                        'select "organization_id" from "organizations"',
+                    ),
+                )
+                .response([{ organization_id: 3 }]);
+            tracker.on
+                .select(({ sql }) =>
+                    sql.startsWith('select "user_id" from "users"'),
+                )
+                .response([{ user_id: 7 }]);
+        });
+
+        it('locks admin rows and throws when the excluded user is the only active admin', async () => {
+            tracker.on
+                .select(({ sql }) => sql.includes('for update'))
+                .response([{ user_id: 7 }]);
+
+            await expect(
+                database.transaction((trx) =>
+                    model.assertAnotherActiveAdmin(
+                        'org-uuid',
+                        'only-admin',
+                        trx,
+                    ),
+                ),
+            ).rejects.toThrow('Organization must have at least one admin');
+            const lockQuery = tracker.history.select.find(({ sql }) =>
+                sql.includes('for update'),
+            );
+            expect(lockQuery?.sql).toContain(OrganizationMembershipsTableName);
+        });
+
+        it('passes when another active admin remains', async () => {
+            tracker.on
+                .select(({ sql }) => sql.includes('for update'))
+                .response([{ user_id: 7 }, { user_id: 8 }]);
+
+            await expect(
+                database.transaction((trx) =>
+                    model.assertAnotherActiveAdmin('org-uuid', 'a', trx),
+                ),
+            ).resolves.toBeUndefined();
         });
     });
 });

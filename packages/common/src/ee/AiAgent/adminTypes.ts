@@ -1,6 +1,10 @@
 import type { ApiSuccess, KnexPaginatedData } from '../..';
 import type { AiDeepResearchLimits } from '../aiDeepResearch/types';
-import type { DataAppClaudeModel, DataAppModelVisibility } from '../apps/types';
+import type {
+    DataAppClaudeModel,
+    DataAppCodingAgent,
+    DataAppModelVisibility,
+} from '../apps/types';
 import type {
     AiAgentEvaluationRunSummary,
     AiAgentMemoryScope,
@@ -10,7 +14,11 @@ import type {
     AiAgentUser,
     AiModelOption,
 } from './index';
-import type { AiAgentModelConfig, AiThreadCreatedFrom } from './requestTypes';
+import type {
+    AiAgentModelConfig,
+    AiPromptTokenUsage,
+    AiThreadCreatedFrom,
+} from './requestTypes';
 
 export type AiAgentAdminFilters = {
     projectUuids?: string[];
@@ -66,6 +74,80 @@ export type AiAgentAdminConversationsSummary = {
 export type ApiAiAgentAdminConversationsResponse = ApiSuccess<
     KnexPaginatedData<AiAgentAdminConversationsSummary>
 >;
+
+export type AiAgentThreadDumpToolCall = {
+    toolCallId: string;
+    parentToolCallId: string | null;
+    name: string;
+    source: 'lightdash' | 'mcp';
+    args: unknown;
+    result: string | null;
+    resultOmitted: string | null;
+    isError: boolean;
+};
+
+export type AiAgentThreadDumpArtifact = {
+    artifactUuid: string;
+    versionUuid: string;
+    versionNumber: number;
+    artifactType: 'chart' | 'dashboard';
+    title: string | null;
+    description: string | null;
+    chartConfig: Record<string, unknown> | null;
+    dashboardConfig: Record<string, unknown> | null;
+};
+
+export type AiAgentThreadDumpTurn = {
+    promptUuid: string;
+    createdAt: string;
+    respondedAt: string | null;
+    hidden: boolean;
+    user: string;
+    assistant: string | null;
+    error: string | null;
+    interrupted: boolean;
+    feedback: { score: number; comment: string | null } | null;
+    steers: string[];
+    modelConfig: { modelName: string; modelProvider: string } | null;
+    tokenUsage: AiPromptTokenUsage | null;
+    toolCalls: AiAgentThreadDumpToolCall[];
+    artifacts: AiAgentThreadDumpArtifact[];
+};
+
+export type AiAgentThreadDumpAgent = Pick<
+    AiAgentSummary,
+    | 'uuid'
+    | 'name'
+    | 'instruction'
+    | 'tags'
+    | 'integrations'
+    | 'modelConfig'
+    | 'enableDataAccess'
+    | 'enableSelfImprovement'
+    | 'enableContentTools'
+    | 'enableUserContext'
+    | 'enableSqlMode'
+    | 'adminOnly'
+    | 'version'
+>;
+
+export type AiAgentThreadDump = {
+    schemaVersion: 1;
+    generatedAt: string;
+    lightdashVersion: string;
+    defaultProvider: string;
+    organizationUuid: string;
+    projectUuid: string;
+    threadUuid: string;
+    agentUuid: string | null;
+    userUuid: string | null;
+    createdFrom: AiThreadCreatedFrom;
+    title: string | null;
+    agent: AiAgentThreadDumpAgent | null;
+    turns: AiAgentThreadDumpTurn[];
+};
+
+export type ApiAiAgentThreadDumpResponse = ApiSuccess<AiAgentThreadDump>;
 
 export type AiAgentAdminEvalFilters = {
     projectUuids?: string[];
@@ -375,6 +457,7 @@ export type AiOrganizationRuntimeSettings = {
     aiAgentReviewsAvailable: boolean;
     defaultAiAgentModelConfig: AiAgentModelConfig | null;
     defaultAiAgentModelOptions: AiModelOption[];
+    dataAppCodingAgent: DataAppCodingAgent;
     visibleDataAppModels: DataAppClaudeModel[];
 };
 

@@ -40,6 +40,7 @@ import {
     DbtExposure,
     DbtProjectEnvironmentVariable,
     ForbiddenError,
+    formatMergeQueryRefusal,
     getErrorMessage,
     getRequestMethod,
     GoogleSheetsSyncAsCode,
@@ -608,12 +609,9 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
                     getContextFromHeader(req) ?? QueryExecutionContext.EXPLORE,
             });
         if (result.outcome === 'refused') {
-            throw new ParameterError(
-                `This merge cannot be run: ${result.errors
-                    .map((error) => error.message)
-                    .join(' ')}`,
-                { errors: result.errors },
-            );
+            throw new ParameterError(formatMergeQueryRefusal(result.errors), {
+                errors: result.errors,
+            });
         }
         return { status: 'ok', results: result.query };
     }

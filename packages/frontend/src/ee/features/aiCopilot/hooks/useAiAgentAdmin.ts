@@ -6,6 +6,7 @@ import {
     type AiAgentAdminSort,
     type AiAgentReviewItemSummary,
     type AiAgentReviewItemStatus,
+    type AiAgentThreadDump,
     type ApiAiAgentAdminConversationsResponse,
     type ApiAiAgentAdminEvalPromptsResponse,
     type ApiAiAgentAdminEvalsResponse,
@@ -18,6 +19,7 @@ import {
     type ApiAiAgentReviewItemWritebackPreviewResponse,
     type ApiAiAgentReviewSignalsResponse,
     type ApiAiAgentSummaryResponse,
+    type ApiAiAgentThreadDumpResponse,
     type ApiAiAgentVerifiedArtifactsResponse,
     type ApiError,
     type ApiUpstreamDiffResponse,
@@ -316,6 +318,43 @@ const createAiAgentReviewItem = async (body: CreateAiAgentReviewItem) => {
         url: `/aiAgents/admin/review-items`,
         method: 'POST',
         body: JSON.stringify(body),
+    });
+};
+
+const getAiAgentAdminThreadDump = async (threadUuid: string) =>
+    lightdashApi<ApiAiAgentThreadDumpResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/threads/${threadUuid}/dump`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useDownloadAiAgentAdminThreadDump = () => {
+    const { showToastSuccess, showToastApiError } = useToaster();
+
+    return useMutation<AiAgentThreadDump, ApiError, string>({
+        mutationFn: getAiAgentAdminThreadDump,
+        onSuccess: (dump) => {
+            const blob = new Blob([JSON.stringify(dump, null, 2)], {
+                type: 'application/json',
+            });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `ai-thread-dump-${dump.threadUuid}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+            showToastSuccess({
+                title: 'Thread dump downloaded',
+                subtitle: 'Review the file before sharing it.',
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to download thread dump',
+                apiError: error,
+            });
+        },
     });
 };
 

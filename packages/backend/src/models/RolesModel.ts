@@ -1,5 +1,6 @@
 import {
     AlreadyExistsError,
+    ForbiddenError,
     getSystemRoles,
     GroupProjectAccess,
     isOrganizationMemberRole,
@@ -43,6 +44,8 @@ import {
 import { UserTableName } from '../database/entities/users';
 import { isUniqueConstraintViolation } from '../database/errors';
 import {
+    assertAdminDemotionAllowed,
+    assertAnotherActiveAdminInOrganization,
     clearGroupExtraRoles,
     clearOrganizationExtraRoles,
     clearProjectExtraRoles,
@@ -67,6 +70,7 @@ type DbOrganizationRoleAssignment = {
     organizationId: string;
     createdAt: Date;
     ownerType: string | null;
+    hasExtraRoles: boolean;
 };
 
 export class RolesModel {
@@ -554,7 +558,7 @@ export class RolesModel {
         }, tx);
     }
 
-    private async getUserProjectRoles(
+    async getUserProjectRoles(
         userUuid: string,
         tx?: Knex.Transaction,
     ): Promise<
@@ -733,6 +737,14 @@ export class RolesModel {
                 `${ProjectMembershipsTableName}.role as role`,
                 `${UserTableName}.first_name as firstName`,
                 `${UserTableName}.last_name as lastName`,
+                (tx || this.database).raw(
+                    `EXISTS (SELECT 1 FROM ?? AS x WHERE x.project_id = ??.project_id AND x.user_id = ??.user_id) AS "hasExtraRoles"`,
+                    [
+                        ProjectMembershipCustomRolesTableName,
+                        ProjectMembershipsTableName,
+                        ProjectMembershipsTableName,
+                    ],
+                ),
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid);
 
@@ -743,6 +755,7 @@ export class RolesModel {
             roleName: ac.roleName || ac.role,
             firstName: ac.firstName,
             lastName: ac.lastName,
+            hasMultipleRoles: ac.hasExtraRoles,
         }));
     }
 
@@ -773,6 +786,10 @@ export class RolesModel {
                 `${RolesTableName}.name as roleName`,
                 `project_group_access.role as role`,
                 `${GroupTableName}.name as groupName`,
+                (tx || this.database).raw(
+                    `EXISTS (SELECT 1 FROM ?? AS x WHERE x.project_uuid = project_group_access.project_uuid AND x.group_uuid = project_group_access.group_uuid) AS "hasExtraRoles"`,
+                    [ProjectGroupAccessCustomRolesTableName],
+                ),
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid);
 
@@ -782,6 +799,7 @@ export class RolesModel {
             roleUuid: ac.roleUuid || ac.role,
             roleName: ac.roleName || ac.role,
             groupName: ac.groupName,
+            hasMultipleRoles: ac.hasExtraRoles,
         }));
     }
 
@@ -922,6 +940,7 @@ export class RolesModel {
                 organizationId: assignment.organizationId,
                 createdAt: assignment.createdAt,
                 updatedAt: assignment.createdAt, // Use createdAt since updatedAt doesn't exist
+                hasMultipleRoles: assignment.hasExtraRoles,
             }),
         );
         return formattedUserAssignments;
@@ -962,6 +981,10 @@ export class RolesModel {
                 ),
                 'organizations.organization_uuid as organizationId',
                 'organization_memberships.created_at as createdAt',
+                (tx || this.database).raw(
+                    `EXISTS (SELECT 1 FROM ?? AS x WHERE x.organization_id = organization_memberships.organization_id AND x.user_id = organization_memberships.user_id) AS "hasExtraRoles"`,
+                    [OrganizationMembershipCustomRolesTableName],
+                ),
             )
             .where('organizations.organization_uuid', orgUuid);
 
@@ -980,6 +1003,12 @@ export class RolesModel {
         const isSystemOrganizationRole = isOrganizationMemberRole(roleId);
 
         await this.runInTransaction(async (trx) => {
+            await assertAdminDemotionAllowed(
+                trx,
+                orgId,
+                userId,
+                isSystemOrganizationRole ? roleId : null,
+            );
             await trx(OrganizationMembershipsTableName)
                 .where({
                     organization_id: orgId,
@@ -1197,7 +1226,7 @@ export class RolesModel {
         userUuid: string,
         roleSet: OrganizationRoleSet,
         tx?: Knex.Transaction,
-    ): Promise<void> {
+    ): Promise<OrganizationRoleSet> {
         const set = normalizeRoleSet(roleSet);
         const runner = async (trx: Knex.Transaction) => {
             await this.validateCustomRoles(
@@ -1208,6 +1237,12 @@ export class RolesModel {
             );
             const userId = await this.getUserId(userUuid, trx);
             const orgId = await this.getOrganizationId(orgUuid, trx);
+            await assertAdminDemotionAllowed(
+                trx,
+                orgId,
+                userId,
+                set.systemRole,
+            );
             const { slot, extraRoleUuids } = splitRoleSet(
                 set,
                 ORGANIZATION_PLACEHOLDER_ROLE,
@@ -1226,8 +1261,9 @@ export class RolesModel {
                 { organization_id: orgId, user_id: userId },
                 extraRoleUuids,
             );
+            return this.getOrganizationUserRoleSet(orgUuid, userUuid, trx);
         };
-        await this.runInTransaction(runner, tx);
+        return this.runInTransaction(runner, tx);
     }
 
     /** Atomically replaces the user's direct project role set, creating access if needed. */
@@ -1236,7 +1272,7 @@ export class RolesModel {
         userUuid: string,
         roleSet: ProjectRoleSet,
         tx?: Knex.Transaction,
-    ): Promise<void> {
+    ): Promise<ProjectRoleSet> {
         const set = normalizeRoleSet(roleSet);
         const runner = async (trx: Knex.Transaction) => {
             const orgUuid = await this.getProjectOrganizationUuid(
@@ -1274,8 +1310,9 @@ export class RolesModel {
                 { project_id: projectId, user_id: userId },
                 extraRoleUuids,
             );
+            return this.getProjectUserRoleSet(projectUuid, userUuid, trx);
         };
-        await this.runInTransaction(runner, tx);
+        return this.runInTransaction(runner, tx);
     }
 
     /** Atomically replaces the group's project role set, creating access if needed. */
@@ -1284,7 +1321,7 @@ export class RolesModel {
         groupUuid: string,
         roleSet: ProjectRoleSet,
         tx?: Knex.Transaction,
-    ): Promise<void> {
+    ): Promise<ProjectRoleSet> {
         const set = normalizeRoleSet(roleSet);
         const runner = async (trx: Knex.Transaction) => {
             const orgUuid = await this.getProjectOrganizationUuid(
@@ -1317,19 +1354,34 @@ export class RolesModel {
                 { project_uuid: projectUuid, group_uuid: groupUuid },
                 extraRoleUuids,
             );
+            return this.getProjectGroupRoleSet(projectUuid, groupUuid, trx);
         };
-        await this.runInTransaction(runner, tx);
+        return this.runInTransaction(runner, tx);
     }
 
-    private async runInTransaction(
-        runner: (trx: Knex.Transaction) => Promise<void>,
+    private async runInTransaction<T>(
+        runner: (trx: Knex.Transaction) => Promise<T>,
         tx?: Knex.Transaction,
-    ): Promise<void> {
+    ): Promise<T> {
         if (tx) {
-            await runner(tx);
-        } else {
-            await this.database.transaction(runner);
+            return runner(tx);
         }
+        return this.database.transaction(runner);
+    }
+
+    /**
+     * Locks the organization's current admin rows and throws unless another
+     * active admin (other than `excludingUserUuid`) remains. Call inside the
+     * transaction that demotes/removes the user so concurrent demotions serialize.
+     */
+    async assertAnotherActiveAdmin(
+        orgUuid: string,
+        excludingUserUuid: string,
+        trx: Knex.Transaction,
+    ): Promise<void> {
+        const orgId = await this.getOrganizationId(orgUuid, trx);
+        const userId = await this.getUserId(excludingUserUuid, trx);
+        await assertAnotherActiveAdminInOrganization(trx, orgId, userId);
     }
 
     async getOrganizationAdmins(
@@ -1349,6 +1401,66 @@ export class RolesModel {
             .andWhere('role', 'admin')
             .select(`${UserTableName}.user_uuid as userUuid`);
         return results.map((u) => u.userUuid);
+    }
+
+    /**
+     * Role-set analogue of `setUserOrgAndProjectRoles`: replaces the organization
+     * role set and every listed project role set, and removes direct access to
+     * projects not listed (preview projects excluded when requested).
+     */
+    async setUserOrgAndProjectRoleSets(
+        organizationUuid: string,
+        userUuid: string,
+        orgRoleSet: OrganizationRoleSet,
+        projectRoleSets: Array<{
+            projectUuid: string;
+            roleSet: ProjectRoleSet;
+        }>,
+        excludeProjectPreviews: boolean,
+        tx?: Knex.Transaction,
+    ): Promise<void> {
+        await this.runInTransaction(async (trx) => {
+            await this.replaceOrganizationUserRoleSet(
+                organizationUuid,
+                userUuid,
+                orgRoleSet,
+                trx,
+            );
+            const desired = new Map(
+                projectRoleSets.map(({ projectUuid, roleSet }) => [
+                    projectUuid,
+                    roleSet,
+                ]),
+            );
+            const current = await this.getUserProjectRoles(userUuid, trx);
+            await Promise.all(
+                current
+                    .filter(
+                        (membership) =>
+                            !desired.has(membership.projectUuid) &&
+                            !(
+                                excludeProjectPreviews &&
+                                membership.type === ProjectType.PREVIEW
+                            ),
+                    )
+                    .map((membership) =>
+                        this.removeUserProjectAccess(
+                            userUuid,
+                            membership.projectUuid,
+                            trx,
+                        ),
+                    ),
+            );
+            for (const [projectUuid, roleSet] of desired.entries()) {
+                // eslint-disable-next-line no-await-in-loop
+                await this.replaceProjectUserRoleSet(
+                    projectUuid,
+                    userUuid,
+                    roleSet,
+                    trx,
+                );
+            }
+        }, tx);
     }
 
     /**

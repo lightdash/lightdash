@@ -53,7 +53,6 @@ import {
     CustomSqlQueryForbiddenError,
     DashboardAvailableFilters,
     DashboardBasicDetails,
-    DashboardFieldTarget,
     DashboardFilters,
     DatabricksAuthenticationType,
     DatabricksTokenError,
@@ -89,12 +88,10 @@ import {
     getAvailableParametersFromTables,
     getColumnTimezone,
     getCustomSqlFieldKey,
-    getDashboardFieldTarget,
     getDashboardFilterRulesForTables,
     getDbtEnvironmentVariableKeyError,
     getDimensions,
     getErrorMessage,
-    getExploreDefaultTimeDimension,
     getFieldFormatOverrideProps,
     getFields,
     getIntrinsicUserAttributes,
@@ -5066,6 +5063,7 @@ export class ProjectService extends BaseService {
              * in an outer statement (a merge) that orders and limits once.
              */
             asCteBody?: boolean;
+            userAttributeOverrides?: UserAttributeValueMap;
         } & ({ exploreName: string } | { explore: Explore }),
     ) {
         const {
@@ -5145,8 +5143,11 @@ export class ProjectService extends BaseService {
             warehouseCredentials.startOfWeek,
         );
 
-        const { userAttributes, intrinsicUserAttributes } =
+        const { userAttributes: baseUserAttributes, intrinsicUserAttributes } =
             await this.getUserAttributes({ account });
+        const userAttributes = args.userAttributeOverrides
+            ? { ...baseUserAttributes, ...args.userAttributeOverrides }
+            : baseUserAttributes;
 
         const availableParameterDefinitions = await this.getAvailableParameters(
             projectUuid,
@@ -5289,8 +5290,15 @@ export class ProjectService extends BaseService {
         mergeQuery: MergeQuery;
         /** One map for every source: sides of one question share their values. */
         parameters?: ParametersValuesMap;
+        userAttributeOverrides?: UserAttributeValueMap;
     }): Promise<ApiCompiledMergeQueryResults> {
-        const { account, projectUuid, mergeQuery, parameters } = args;
+        const {
+            account,
+            projectUuid,
+            mergeQuery,
+            parameters,
+            userAttributeOverrides,
+        } = args;
 
         // One metadata load feeds validation, output typing and display labels.
         // Query-defined fields belong in the same item map as explore fields,
@@ -5382,6 +5390,7 @@ export class ProjectService extends BaseService {
                     projectUuid,
                     exploreName: source.metricQuery.exploreName,
                     body: { ...source.metricQuery, parameters },
+                    userAttributeOverrides,
                     // A pre-aggregate compiles to a placeholder table name
                     // that only the pre-aggregate execution path resolves.
                     // A merge embeds this SQL as a CTE and runs it itself,
@@ -5516,6 +5525,15 @@ export class ProjectService extends BaseService {
             ),
             tableCalculations: mergeQuery.tableCalculations,
             nullPlaceholderByKeyName,
+            stringJoinKeyNames: mergeQuery.joinKey.flatMap((part) => {
+                const meta = Object.entries(part.fieldIdBySourceId)
+                    .map(
+                        ([sourceId, fieldId]) =>
+                            fieldTypes[sourceId]?.[fieldId],
+                    )
+                    .find((candidate) => candidate !== undefined);
+                return meta?.type === DimensionType.STRING ? [part.name] : [];
+            }),
             // Each query is bounded, but reaching the bound is reported rather
             // than trimmed: a join over a trimmed side returns numbers that
             // look complete and are not.
@@ -7464,7 +7482,11 @@ export class ProjectService extends BaseService {
             case DownloadFileType.JSONL:
                 return fs.createReadStream(downloadFile.path);
             case DownloadFileType.S3_JSONL:
-                return this.fileStorageClient.getFileStream(downloadFile.path);
+                return (
+                    await this.fileStorageClient.getFileStream(
+                        downloadFile.path,
+                    )
+                ).stream;
             default:
                 throw new ParameterError('File is not a valid JSONL file');
         }
@@ -7534,7 +7556,7 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const { metricQuery, explore, field, labelFieldId } =
+        const { metricQuery, explore, field, labelFieldId, staticResults } =
             await this._getFieldValuesMetricQuery({
                 projectUuid,
                 table,
@@ -7544,6 +7566,32 @@ export class ProjectService extends BaseService {
                 filters,
                 organizationUuid,
             });
+
+        // The field's config turns warehouse fetching off: serve curated
+        // values (empty when none) instead of running a distinct-value scan.
+        if (staticResults) {
+            this.analytics.track({
+                event: 'field_value.search',
+                userId: user.userUuid,
+                properties: {
+                    projectId: projectUuid,
+                    fieldId: getItemId(field),
+                    searchCharCount: search.length,
+                    resultsCount: staticResults.length,
+                    searchLimit: metricQuery.limit,
+                },
+            });
+            return {
+                search,
+                results: staticResults.map(({ value }) => value),
+                resultsWithLabels: staticResults.map(({ value, label }) => ({
+                    value,
+                    label: label ?? value,
+                })),
+                refreshedAt: new Date(),
+                cached: false,
+            };
+        }
 
         const [
             warehouseCredentials,
@@ -9242,7 +9290,6 @@ export class ProjectService extends BaseService {
             uuid: string;
             filters: CompiledDimension[];
             metricFilters: Metric[];
-            defaultTimeDimension?: DashboardFieldTarget;
         };
 
         let allFilters: ChartFilters[] = [];
@@ -9309,7 +9356,6 @@ export class ProjectService extends BaseService {
                             uuid: savedChart.uuid,
                             filters: [],
                             metricFilters: [],
-                            defaultTimeDimension: undefined,
                         };
                     }
 
@@ -9326,18 +9372,11 @@ export class ProjectService extends BaseService {
                             (field) => !field.hidden,
                         );
                     }
-                    const defaultTimeDimension =
-                        explore && !isExploreError(explore)
-                            ? getExploreDefaultTimeDimension(explore)
-                            : undefined;
 
                     return {
                         uuid: savedChart.uuid,
                         filters,
                         metricFilters,
-                        defaultTimeDimension: defaultTimeDimension
-                            ? getDashboardFieldTarget(defaultTimeDimension)
-                            : undefined,
                     };
                 });
             },
@@ -9405,28 +9444,11 @@ export class ProjectService extends BaseService {
             };
         }, {});
 
-        const defaultTimeDimensions = savedChartUuidsAndTileUuids.reduce<
-            DashboardAvailableFilters['defaultTimeDimensions']
-        >((acc, savedChartUuidAndTileUuid) => {
-            const filterResult = allFilters.find(
-                (result) =>
-                    result.uuid === savedChartUuidAndTileUuid.savedChartUuid,
-            );
-            return filterResult?.defaultTimeDimension
-                ? {
-                      ...acc,
-                      [savedChartUuidAndTileUuid.tileUuid]:
-                          filterResult.defaultTimeDimension,
-                  }
-                : acc;
-        }, {});
-
         return {
             savedQueryFilters,
             allFilterableFields,
             allFilterableMetrics,
             savedQueryMetricFilters,
-            defaultTimeDimensions,
         };
     }
 

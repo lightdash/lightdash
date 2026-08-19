@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     type ApiAiOrganizationRuntimeSettingsResponse,
     type ApiAiOrganizationSettingsResponse,
     type ApiError,
@@ -16,7 +15,6 @@ import {
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
-import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 
 export const resolveAiAgentMemoryEnabled = (
     settings:
@@ -25,8 +23,7 @@ export const resolveAiAgentMemoryEnabled = (
               'aiAgentMemoryEnabled'
           >
         | undefined,
-    featureFlag: { enabled: boolean } | undefined,
-): boolean => settings?.aiAgentMemoryEnabled ?? featureFlag?.enabled ?? false;
+): boolean => settings?.aiAgentMemoryEnabled ?? false;
 
 const getAiOrganizationSettings = async () => {
     return lightdashApi<ApiAiOrganizationRuntimeSettingsResponse['results']>({
@@ -88,10 +85,7 @@ export const useAiOrganizationAdminSettings = (
 
 export const useAiAgentMemoryEnabled = (): boolean => {
     const { data: settings } = useAiOrganizationSettings();
-    const { data: featureFlag } = useServerFeatureFlag(
-        FeatureFlags.AiAgentMemory,
-    );
-    return resolveAiAgentMemoryEnabled(settings, featureFlag);
+    return resolveAiAgentMemoryEnabled(settings);
 };
 
 const updateAiOrganizationSettings = async (

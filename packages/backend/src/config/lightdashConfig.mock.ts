@@ -256,6 +256,7 @@ export const lightdashConfigMock: LightdashConfig = {
             maxQueryLimit: 10000,
             runSqlMaxLimit: 5000,
             telemetryEnabled: false,
+            threadDumpEnabled: false,
             requiresFeatureFlag: false,
             askAiButtonEnabled: false,
             embeddingEnabled: true,
@@ -414,6 +415,7 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     appRuntime: {
         enabled: false,
+        dataAppCodingAgent: 'claude',
         lightdashOrigin: 'https://test.lightdash.cloud',
         cdnOrigin: null,
         previewOrigin: null,

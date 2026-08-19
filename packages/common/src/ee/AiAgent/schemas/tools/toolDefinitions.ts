@@ -13,8 +13,10 @@ import {
     mcpRunAiWritebackArgsSchema,
     mcpRunAiWritebackStructuredOutputSchema,
 } from '../../../aiWriteback/types';
+import { createAgentInputSchema } from '../agentInputSchema';
 import {
     defineTool,
+    type AgentToolView,
     type McpToolAnnotations,
     type ToolDefinition,
     type ToolDefinitionInstance,
@@ -122,13 +124,11 @@ import {
     toolFindDashboardsOutputSchema,
 } from './toolFindDashboardsArgs';
 import {
-    findExploresResultSchema,
     TOOL_FIND_EXPLORES_DESCRIPTION,
     toolFindExploresArgsSchemaV3,
     toolFindExploresOutputSchema,
 } from './toolFindExploresArgs';
 import {
-    findFieldsResultSchema,
     TOOL_FIND_FIELDS_DESCRIPTION,
     toolFindFieldsArgsSchema,
     toolFindFieldsOutputSchema,
@@ -257,6 +257,9 @@ import {
     toolRenderChartArgsSchemaTransformed,
     toolRunQueryArgsSchema,
     toolRunQueryArgsSchemaTransformed,
+    toolRunQueryArgsSchemaV2,
+    toolRunQueryArgsSchemaV2RejectingMerge,
+    toolRunQueryArgsSchemaV2Transformed,
     toolRunQueryOutputSchema,
 } from './toolRunQueryArgs';
 import {
@@ -314,6 +317,11 @@ import {
     toolVerticalBarArgsSchemaTransformed,
     toolVerticalBarOutputSchema,
 } from './toolVerticalBarArgs';
+
+export const breaking = {
+    reason: 'MCP clients must replace find_explores and find_fields with grep_fields and get_metadata.',
+    requiredStop: false,
+};
 
 const readOnlyAnnotations: McpToolAnnotations = {
     readOnlyHint: true,
@@ -418,42 +426,32 @@ const routeAgentStructuredOutputSchema = z.object({
     ),
 });
 
-export const findExploresToolDefinition: ToolDefinitionWithMcpOutput<
+export const findExploresToolDefinition: ToolDefinitionWithoutMcpOutput<
     'findExplores',
     typeof toolFindExploresArgsSchemaV3,
     typeof toolFindExploresArgsSchemaV3,
-    typeof toolFindExploresOutputSchema,
-    typeof findExploresResultSchema
+    typeof toolFindExploresOutputSchema
 > = defineTool({
     name: 'findExplores',
     title: 'Find explores',
     description: TOOL_FIND_EXPLORES_DESCRIPTION,
-    availability: ['agent', 'mcp'],
+    availability: ['agent'],
     inputSchema: toolFindExploresArgsSchemaV3,
     agent: { outputSchema: toolFindExploresOutputSchema },
-    mcp: {
-        annotations: readOnlyAnnotations,
-        structuredContentSchema: findExploresResultSchema,
-    },
 });
 
-export const findFieldsToolDefinition: ToolDefinitionWithMcpOutput<
+export const findFieldsToolDefinition: ToolDefinitionWithoutMcpOutput<
     'findFields',
     typeof toolFindFieldsArgsSchema,
     typeof toolFindFieldsArgsSchema,
-    typeof toolFindFieldsOutputSchema,
-    typeof findFieldsResultSchema
+    typeof toolFindFieldsOutputSchema
 > = defineTool({
     name: 'findFields',
     title: 'Find fields',
     description: TOOL_FIND_FIELDS_DESCRIPTION,
-    availability: ['agent', 'mcp'],
+    availability: ['agent'],
     inputSchema: toolFindFieldsArgsSchema,
     agent: { outputSchema: toolFindFieldsOutputSchema },
-    mcp: {
-        annotations: readOnlyAnnotations,
-        structuredContentSchema: findFieldsResultSchema,
-    },
 });
 
 export const searchSemanticLayerToolDefinition: ToolDefinitionWithoutMcpOutput<
@@ -533,8 +531,8 @@ export const generateVisualizationToolDefinition: ToolDefinitionWithoutMcpOutput
 
 export const runQueryToolDefinition: ToolDefinitionWithMcpOutput<
     'runQuery',
-    typeof toolRunQueryArgsSchema,
-    typeof toolRunQueryArgsSchemaTransformed,
+    typeof toolRunQueryArgsSchemaV2,
+    typeof toolRunQueryArgsSchemaV2Transformed,
     typeof toolRunQueryOutputSchema,
     typeof mcpRunMetricQueryStructuredOutputSchema
 > = defineTool({
@@ -542,14 +540,26 @@ export const runQueryToolDefinition: ToolDefinitionWithMcpOutput<
     title: 'Run query',
     description: TOOL_RUN_QUERY_DESCRIPTION,
     availability: ['agent', 'mcp'],
-    inputSchema: toolRunQueryArgsSchema,
-    inputSchemaTransformed: toolRunQueryArgsSchemaTransformed,
+    inputSchema: toolRunQueryArgsSchemaV2,
+    inputSchemaTransformed: toolRunQueryArgsSchemaV2Transformed,
     agent: { outputSchema: toolRunQueryOutputSchema },
     mcp: {
         name: 'run_metric_query',
         annotations: readOnlyAnnotations,
         structuredContentSchema: mcpRunMetricQueryStructuredOutputSchema,
     },
+});
+
+// The agent view of runQuery for runtimes without merge queries: identical
+// contract, but a merge-shaped payload fails validation instead of being
+// stripped to the primary query by Zod. Lazy, like `.for('agent')`.
+export const getRunQueryAgentViewRejectingMerge = (): AgentToolView<
+    'runQuery',
+    typeof toolRunQueryArgsSchemaV2,
+    typeof toolRunQueryOutputSchema
+> => ({
+    ...runQueryToolDefinition.for('agent'),
+    inputSchema: createAgentInputSchema(toolRunQueryArgsSchemaV2RejectingMerge),
 });
 
 export const runSqlToolDefinition: ToolDefinitionWithMcpOutput<
@@ -626,6 +636,10 @@ export const runMetricQueryToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolRunMetricQueryOutputSchema },
 });
 
+/**
+ * @deprecated Historical contract for persisted calls. New agent runs use
+ * grepFields and getMetadata.
+ */
 export const discoverFieldsToolDefinition: ToolDefinitionWithoutMcpOutput<
     'discoverFields',
     typeof discoverFieldsInputSchema,
@@ -1703,6 +1717,11 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     listProjects: listProjectsToolDefinition,
     getProjectInfo: getProjectInfoToolDefinition,
 };
+
+export type AgentToolName = keyof typeof agentToolDefinitionsByName;
+
+export const isAgentToolName = (toolName: string): toolName is AgentToolName =>
+    Object.prototype.hasOwnProperty.call(agentToolDefinitionsByName, toolName);
 
 export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     findExploresToolDefinition,

@@ -364,12 +364,6 @@ mcpRouter.all(
                         userAgent,
                     });
                 }
-                // Dark launch: the grep-based discovery tools are only
-                // registered (and thus only listed/invocable) when the
-                // AiGrepFields flag is enabled for this caller. Resolved here
-                // because tool registration in setupHandlers is synchronous
-                // (createServer only awaits to register skill resources
-                // afterwards).
                 // Content-write tools are only registered when the org-level
                 // setting allows it, so admins can lock down MCP edits.
                 // run_sql is only registered when the caller has
@@ -378,13 +372,11 @@ mcpRouter.all(
                 // These lookups are independent, so resolve them together
                 // rather than paying each round trip serially per request.
                 const [
-                    grepFieldsEnabled,
                     mcpContentWritesEnabled,
                     scheduledDeliveryEnabled,
                     runSqlEnabled,
                     runMetricQueryEnabled,
                 ] = await Promise.all([
-                    mcpService.isAiGrepFieldsEnabled(req.user!),
                     mcpService.isContentToolsEnabled(req.user!),
                     mcpService.isCreateScheduledDeliveryEnabled(req.user!),
                     mcpService.isRunSqlEnabled(req.user!, pinnedProjectUuid),
@@ -398,7 +390,6 @@ mcpRouter.all(
                     // The run_ai_writeback tool is always registered now that
                     // AI writeback has graduated from its dark-launch flag.
                     aiWritebackEnabled: true,
-                    grepFieldsEnabled,
                     mcpContentWritesEnabled,
                     scheduledDeliveryEnabled,
                     runSqlEnabled,

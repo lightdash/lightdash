@@ -11,7 +11,6 @@ export type ModelPreset<P extends ModelPresetProvider> = {
     modelId: string;
     displayName: string;
     description: string;
-    contextWindowTokens: number;
     supportsReasoning: boolean;
     // How the provider exposes extended reasoning. 'budget' uses the original
     // `thinking.type: 'enabled'` + `budgetTokens` API; 'adaptive' uses the newer
@@ -23,7 +22,11 @@ export type ModelPreset<P extends ModelPresetProvider> = {
     deprecated?: boolean;
     callOptions: CallSettings;
     providerOptions: ProviderOptionsMap[P] | undefined;
-};
+} & (
+    | { custom?: false; contextWindowTokens: number }
+    // Pass-through gateway models are the only ones whose window is unknown
+    | { custom: true; contextWindowTokens: null }
+);
 
 export const MODEL_PRESETS: {
     openai: ModelPreset<'openai'>[];
@@ -333,6 +336,24 @@ export const MODEL_PRESETS: {
         },
     ],
 };
+
+// Pass-through preset for model names served by an OpenAI-compatible gateway
+// (e.g. LiteLLM's "bedrock/eu.anthropic.claude-sonnet-4-6") that don't exist
+// in the preset table. The name is sent to the endpoint verbatim.
+export function customGatewayPreset(modelName: string): ModelPreset<'openai'> {
+    return {
+        name: modelName,
+        provider: 'openai',
+        modelId: modelName,
+        displayName: modelName,
+        description: 'Custom model served by the configured OpenAI endpoint',
+        custom: true,
+        contextWindowTokens: null,
+        supportsReasoning: false,
+        callOptions: {},
+        providerOptions: undefined,
+    };
+}
 
 export function matchesPreset(
     preset: ModelPreset<ModelPresetProvider>,

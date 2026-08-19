@@ -2,6 +2,7 @@ import {
     type AppVersionStatus,
     type AiDeepResearchTerminalStatus,
     type CustomFormatType,
+    type DataAppTemplate,
     type HomepageRecommendedActionKey,
     type SearchItemType,
     type TableCalculationType,
@@ -620,6 +621,26 @@ type DataAppRecentSuggestionClickEvent = {
     };
 };
 
+/** `no_questions` doubles as the degraded-clarifier signal: the endpoint
+ *  reports an LLM failure as an empty question list. */
+type DataAppClarifyRoundResolvedEvent = {
+    name: EventName.DATA_APP_CLARIFY_ROUND_RESOLVED;
+    properties: {
+        projectId: string | undefined;
+        /** Which builder the round came from: `data_app_viz` is the chart type
+         *  builder, anything else the app builder. */
+        template: DataAppTemplate | null;
+        outcome:
+            | 'no_questions'
+            | 'unreachable'
+            | 'answered'
+            | 'skipped'
+            | 'abandoned';
+        questionCount: number;
+        answeredCount: number;
+    };
+};
+
 type ThemeToggledEvent = {
     name: EventName.THEME_TOGGLED;
     properties: {
@@ -934,6 +955,7 @@ export type EventData =
     | AiAgentSuggestionImpressionEvent
     | AiAgentSuggestionClickEvent
     | DataAppRecentSuggestionClickEvent
+    | DataAppClarifyRoundResolvedEvent
     | ThemeToggledEvent
     | DashboardUiVersionToggledEvent
     | TableCalculationSaveEvent

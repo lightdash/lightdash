@@ -63,7 +63,7 @@ vi.mock('../../ee/providers/Embed/useEmbed', () => ({
 vi.mock('../../features/apps/AppIframePreview', () => ({
     default: mocks.iframePreview,
 }));
-vi.mock('../../features/apps/hooks/useDataAppVizRender', () => ({
+vi.mock('../../features/chartTypes/hooks/useDataAppVizRender', () => ({
     useDataAppVizRenderMetadata: (...args: unknown[]) => {
         mocks.renderMetadataHook(...args);
         return {

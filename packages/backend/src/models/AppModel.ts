@@ -215,6 +215,7 @@ export class AppModel {
     ): Promise<void> {
         const sum = (field: keyof DataAppGenerationUsage) =>
             `COALESCE((generation_usage->>'${field}')::numeric, 0) + ?`;
+        const costSql = usage.costUsd === null ? 'NULL' : sum('costUsd');
         await this.database(AppVersionsTableName)
             .where({ app_id: appId, version })
             .update({
@@ -228,7 +229,7 @@ export class AppModel {
                         )},
                         'numTurns', ${sum('numTurns')},
                         'durationApiMs', ${sum('durationApiMs')},
-                        'costUsd', ${sum('costUsd')}
+                        'costUsd', ${costSql}
                     )`,
                     [
                         usage.inputTokens,
@@ -237,7 +238,7 @@ export class AppModel {
                         usage.cacheCreationInputTokens,
                         usage.numTurns,
                         usage.durationApiMs,
-                        usage.costUsd,
+                        ...(usage.costUsd === null ? [] : [usage.costUsd]),
                     ],
                 ) as unknown as DataAppGenerationUsage,
             });
@@ -1399,23 +1400,12 @@ export class AppModel {
                 }
                 if (filters?.models?.length) {
                     const { models } = filters;
-                    void queryBuilder.where((modelQueryBuilder) => {
-                        void modelQueryBuilder.whereRaw(
-                            `${AppVersionsTableName}.resources->>'claudeModel' IN (${models
-                                .map(() => '?')
-                                .join(', ')})`,
-                            models,
-                        );
-                        // A version with no stored model ran on the default, and
-                        // that is what the API reports for it — so filtering on
-                        // the default has to match those rows too, or the filter
-                        // contradicts the value shown in the row.
-                        if (models.includes(DEFAULT_DATA_APP_CLAUDE_MODEL)) {
-                            void modelQueryBuilder.orWhereRaw(
-                                `${AppVersionsTableName}.resources->>'claudeModel' IS NULL`,
-                            );
-                        }
-                    });
+                    void queryBuilder.whereRaw(
+                        `COALESCE(${AppVersionsTableName}.resources->>'codexModel', ${AppVersionsTableName}.resources->>'claudeModel', ?) IN (${models
+                            .map(() => '?')
+                            .join(', ')})`,
+                        [DEFAULT_DATA_APP_CLAUDE_MODEL, ...models],
+                    );
                 }
                 if (filters?.dateFrom) {
                     void queryBuilder.where(

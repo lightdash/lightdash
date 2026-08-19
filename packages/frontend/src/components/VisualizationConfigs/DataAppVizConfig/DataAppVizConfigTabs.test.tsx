@@ -42,7 +42,7 @@ vi.mock('../CustomChartType/CustomChartTypePicker', () => ({
         return <div data-testid="viz-picker" />;
     },
 }));
-vi.mock('../../../features/apps/hooks/useDataAppVisualization', () => ({
+vi.mock('../../../features/chartTypes/hooks/useDataAppVisualization', () => ({
     useDataAppVisualization: vi.fn(),
 }));
 // The panel reads the project from the route, which this test does not mount.
@@ -71,7 +71,7 @@ vi.mock('../common/ColorPaletteSection', () => ({
     ColorPaletteSection: () => <div data-testid="color-palette-section" />,
 }));
 
-import { useDataAppVisualization } from '../../../features/apps/hooks/useDataAppVisualization';
+import { useDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 
 const makeDimension = (name: string, hidden: boolean): CompiledDimension => ({

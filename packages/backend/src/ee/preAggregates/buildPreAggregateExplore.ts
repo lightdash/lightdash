@@ -5,7 +5,6 @@ import {
     getPreAggregateExploreName,
     getPreAggregateMetricColumnName,
     getPreAggregateMetricComponentColumnName,
-    getSqlForTruncatedDate,
     lightdashVariablePattern,
     MetricType,
     PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER,
@@ -13,7 +12,7 @@ import {
     PreAggregateMetricRepresentationKind,
     preAggregateUtils,
     SupportedDbtAdapter,
-    timeFrameOrder,
+    timeFrameConfigs,
     type CompiledDimension,
     type CompiledMetric,
     type CompiledTable,
@@ -33,18 +32,6 @@ const {
     getSelectedDimension,
     selectPreAggregateMetrics,
 } = preAggregateMaterialization;
-
-const isFinerGranularity = (
-    candidateGranularity: TimeFrames,
-    targetGranularity: TimeFrames,
-): boolean => {
-    const candidateIndex = timeFrameOrder.indexOf(candidateGranularity);
-    const targetIndex = timeFrameOrder.indexOf(targetGranularity);
-    if (candidateIndex === -1 || targetIndex === -1) {
-        return false;
-    }
-    return candidateIndex < targetIndex;
-};
 
 const getMetricAggregateSql = (
     metricType: MetricType.SUM | MetricType.MIN | MetricType.MAX,
@@ -268,14 +255,10 @@ const buildDimensionSql = ({
         preAggregateDef,
     });
     const materializedBaseColumnReference = `${sourceExplore.baseTable}.${materializedBaseColumnName}`;
-    const timeDimensionReference =
-        preAggregateDef.timeDimension &&
-        dimensionBaseName === preAggregateDef.timeDimension
-            ? `CAST(${materializedBaseColumnReference} AS TIMESTAMP)`
-            : materializedBaseColumnReference;
+    const baseDimensionType = getBaseDimensionType(sourceExplore, dimension);
 
     if (!dimension.timeInterval) {
-        return timeDimensionReference;
+        return materializedBaseColumnReference;
     }
 
     if (
@@ -284,14 +267,14 @@ const buildDimensionSql = ({
         dimensionBaseName === preAggregateDef.timeDimension &&
         dimension.timeInterval === preAggregateDef.granularity
     ) {
-        return timeDimensionReference;
+        return materializedBaseColumnReference;
     }
 
-    return getSqlForTruncatedDate(
+    return timeFrameConfigs[dimension.timeInterval].getSql(
         servingAdapter,
         dimension.timeInterval,
-        timeDimensionReference,
-        getBaseDimensionType(sourceExplore, dimension),
+        materializedBaseColumnReference,
+        baseDimensionType,
         startOfWeek,
     );
 };
@@ -367,15 +350,16 @@ const getIncludedDimensions = (
         if (
             !preAggregateDef.timeDimension ||
             !preAggregateDef.granularity ||
-            dimensionBaseName !== preAggregateDef.timeDimension ||
-            !dimension.timeInterval
+            dimensionBaseName !== preAggregateDef.timeDimension
         ) {
             return true;
         }
 
-        return !isFinerGranularity(
-            dimension.timeInterval,
-            preAggregateDef.granularity,
+        return (
+            preAggregateUtils.getTimeFrameDerivability(
+                preAggregateUtils.getEffectiveDimensionTimeFrame(dimension),
+                preAggregateDef.granularity,
+            ) === preAggregateUtils.TimeFrameDerivability.DERIVABLE
         );
     });
 };

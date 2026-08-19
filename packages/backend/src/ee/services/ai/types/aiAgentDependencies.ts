@@ -23,6 +23,8 @@ import {
     Filters,
     ItemsMap,
     KnexPaginateArgs,
+    MergeQuery,
+    MetricQuery,
     ParameterDefinitions,
     ParametersValuesMap,
     PreviewDeploySetupResult,
@@ -384,6 +386,17 @@ export type RunAsyncQueryFn = (
     fields: ItemsMap;
 }>;
 
+export type RunAsyncMergeQueryFn = (
+    mergeQuery: MergeQuery,
+    parameters?: ParametersValuesMap,
+) => Promise<{
+    queryUuid: string;
+    rows: Record<string, AnyType>[];
+    cacheMetadata: CacheMetadata;
+    fields: ItemsMap;
+    metricQuery: MetricQuery;
+}>;
+
 export type RunSavedChartQueryFn = (args: {
     chartUuid: string;
     dashboardSlug: string | null;
@@ -474,7 +487,10 @@ export type SearchFieldValuesFn = (args: {
     fieldId: string;
     query: string;
     filters?: Filters;
-}) => Promise<Array<string | number | boolean>>;
+}) => Promise<
+    | Array<string | number | boolean>
+    | { results: Array<string | number | boolean>; note: string }
+>;
 
 export type CreateOrUpdateArtifactFn = (data: {
     threadUuid: string;

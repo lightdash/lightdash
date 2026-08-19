@@ -69,6 +69,59 @@ describe('FilterStringAutoComplete', () => {
         vi.mocked(useFieldValues).mockReturnValue(createFieldValuesMock());
     });
 
+    describe('manual entry when there is nothing to autocomplete', () => {
+        // No warehouse fetch and no curated values → nothing to suggest
+        const fieldWithDisabledAutocomplete: FilterableItem = {
+            ...mockField,
+            filterAutocomplete: {
+                fetchFromWarehouse: false,
+            },
+        };
+
+        it('shows no dropdown when autocomplete is disabled', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            renderWithProviders(
+                <FilterStringAutoComplete
+                    filterId="test-filter"
+                    field={fieldWithDisabledAutocomplete}
+                    values={[]}
+                    suggestions={[]}
+                    onChange={vi.fn()}
+                    showNullOption
+                />,
+            );
+
+            const input = screen.getByRole('textbox');
+            await user.click(input);
+            await user.type(input, 'some value');
+
+            expect(screen.queryByRole('option')).not.toBeInTheDocument();
+            expect(screen.queryByText('(null)')).not.toBeInTheDocument();
+        });
+
+        it('adds the typed value on Enter when autocomplete is disabled', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const onChange = vi.fn();
+
+            renderWithProviders(
+                <FilterStringAutoComplete
+                    filterId="test-filter"
+                    field={fieldWithDisabledAutocomplete}
+                    values={[]}
+                    suggestions={[]}
+                    onChange={onChange}
+                />,
+            );
+
+            const input = screen.getByRole('textbox');
+            await user.click(input);
+            await user.type(input, 'credit_card{Enter}');
+
+            expect(onChange).toHaveBeenCalledWith(['credit_card']);
+        });
+    });
+
     describe('truncation behavior', () => {
         it('shows "+N more" pill when values exceed inline limit', async () => {
             const values = createValues(100);

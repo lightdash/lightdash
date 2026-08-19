@@ -14,7 +14,12 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { IconArrowBack, IconFilter, IconSearch } from '@tabler/icons-react';
+import {
+    IconArrowBack,
+    IconFilter,
+    IconSearch,
+    IconTrash,
+} from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import classes from './ValidatorTableTopToolbar.module.css';
@@ -36,6 +41,9 @@ type ValidatorTableTopToolbarProps = {
     totalResults: number;
     lastValidatedAt: Date | null;
     isFetching: boolean;
+    selectedCount: number;
+    onDeleteSelected: () => void;
+    onClearSelection: () => void;
 };
 
 export const ValidatorTableTopToolbar: FC<ValidatorTableTopToolbarProps> = ({
@@ -47,6 +55,9 @@ export const ValidatorTableTopToolbar: FC<ValidatorTableTopToolbarProps> = ({
     setShowConfigWarnings,
     totalResults,
     lastValidatedAt,
+    selectedCount,
+    onDeleteSelected,
+    onClearSelection,
 }) => {
     const hasActiveFilters =
         sourceTypeFilter.length > 0 || showConfigWarnings || searchQuery !== '';
@@ -189,6 +200,29 @@ export const ValidatorTableTopToolbar: FC<ValidatorTableTopToolbarProps> = ({
             </Group>
 
             <Group gap="md" wrap="nowrap">
+                {selectedCount > 0 && (
+                    <Group gap="xs" wrap="nowrap">
+                        <Button
+                            size="compact-xs"
+                            color="red"
+                            variant="light"
+                            leftSection={
+                                <MantineIcon icon={IconTrash} size="sm" />
+                            }
+                            onClick={onDeleteSelected}
+                        >
+                            Delete content ({selectedCount})
+                        </Button>
+                        <Button
+                            size="compact-xs"
+                            variant="subtle"
+                            color="gray"
+                            onClick={onClearSelection}
+                        >
+                            Clear
+                        </Button>
+                    </Group>
+                )}
                 {lastValidatedAt && (
                     <Text fw={500} fz="xs" c="ldGray.6">
                         Last validated: {formatTime(lastValidatedAt)}

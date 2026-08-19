@@ -60,6 +60,57 @@ describe('parseAiArtifactChartConfig', () => {
         });
     });
 
+    it('accepts versioned merge configs', () => {
+        const config = {
+            source: 'merge',
+            schemaVersion: 1,
+            config: {
+                ...semanticConfig,
+                mergeConfig: {
+                    primarySourceId: 'orders',
+                    additionalSources: [
+                        {
+                            id: 'targets',
+                            queryConfig: {
+                                exploreName: 'targets',
+                                dimensions: ['targets_month'],
+                                metrics: ['targets_target'],
+                                sorts: [],
+                                customMetrics: null,
+                                filters: null,
+                            },
+                        },
+                    ],
+                    joinKey: [
+                        {
+                            name: 'month',
+                            fields: [
+                                {
+                                    sourceId: 'orders',
+                                    fieldId: 'orders_created_month',
+                                },
+                                {
+                                    sourceId: 'targets',
+                                    fieldId: 'targets_month',
+                                },
+                            ],
+                        },
+                    ],
+                    joinType: 'full',
+                },
+            },
+        } as const;
+
+        // The V3 schema parse fills defaulted fields the persisted value omits.
+        expect(parseAiArtifactChartConfig(config)).toEqual({
+            ...config,
+            config: {
+                ...config.config,
+                queryConfig: { ...config.config.queryConfig, parameters: null },
+            },
+        });
+    });
+
     it('rejects invalid configs', () => {
         expect(parseAiArtifactChartConfig({ source: 'sql' })).toBeNull();
     });

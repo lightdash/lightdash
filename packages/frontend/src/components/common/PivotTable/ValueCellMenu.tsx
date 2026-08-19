@@ -202,7 +202,7 @@ const ValueCellMenuDropdownContent: FC<{
                 >
                     <>
                         Drill into{' '}
-                        <Text span fz="inherit" lh="inherit" fw={500}>
+                        <Text span fw={500}>
                             {value.formatted}
                         </Text>
                     </>

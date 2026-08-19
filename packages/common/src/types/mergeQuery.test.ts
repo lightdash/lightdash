@@ -178,6 +178,29 @@ describe('validateMergeQuery', () => {
             );
         });
 
+        it('rejects "merge" as a source id', () => {
+            const errors = validateMergeQuery(
+                mergeQuery({
+                    sources: [{ ...queryA(), id: 'merge' }, queryB()],
+                    joinKey: [
+                        {
+                            name: 'date_day',
+                            fieldIdBySourceId: {
+                                merge: 'followers_created_date',
+                                b: 'follower_snapshots_date',
+                            },
+                        },
+                    ],
+                }),
+            );
+
+            expect(errors.map((error) => error.kind)).toEqual(
+                expect.arrayContaining([
+                    MergeQueryErrorKind.RESERVED_SOURCE_ID,
+                ]),
+            );
+        });
+
         it('rejects an empty join key', () => {
             const errors = validateMergeQuery(mergeQuery({ joinKey: [] }));
 

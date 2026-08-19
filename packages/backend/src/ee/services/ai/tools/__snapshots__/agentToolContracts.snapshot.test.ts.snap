@@ -1769,6 +1769,136 @@ Recommended Dashboard Structure:
                 "description": "A descriptive summary or explanation for the chart.",
                 "type": "string",
               },
+              "mergeConfig": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "additionalSources": {
+                        "description": "The additional query to merge with queryConfig. Merge queries currently support exactly two sources.",
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "minLength": 1,
+                              "type": "string",
+                            },
+                            "queryConfig": {
+                              "additionalProperties": false,
+                              "description": "A second semantic-layer query. The primary query limit and parameter values apply to the whole merge.",
+                              "properties": {
+                                "customMetrics": {
+                                  "$ref": "#/properties/visualizations/items/properties/queryConfig/properties/customMetrics",
+                                },
+                                "dimensions": {
+                                  "$ref": "#/properties/visualizations/items/properties/queryConfig/properties/dimensions",
+                                },
+                                "exploreName": {
+                                  "$ref": "#/properties/visualizations/items/properties/queryConfig/properties/exploreName",
+                                },
+                                "filters": {
+                                  "$ref": "#/properties/visualizations/items/properties/queryConfig/properties/filters",
+                                },
+                                "metrics": {
+                                  "$ref": "#/properties/visualizations/items/properties/queryConfig/properties/metrics",
+                                },
+                                "sorts": {
+                                  "$ref": "#/properties/visualizations/items/properties/queryConfig/properties/sorts",
+                                },
+                              },
+                              "required": [
+                                "exploreName",
+                                "dimensions",
+                                "metrics",
+                                "sorts",
+                                "customMetrics",
+                                "filters",
+                              ],
+                              "type": "object",
+                            },
+                          },
+                          "required": [
+                            "id",
+                            "queryConfig",
+                          ],
+                          "type": "object",
+                        },
+                        "maxItems": 1,
+                        "minItems": 1,
+                        "type": "array",
+                      },
+                      "joinKey": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "fields": {
+                              "description": "One selected dimension from each source. Both must represent the same grain and value type.",
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "fieldId": {
+                                    "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                                    "type": "string",
+                                  },
+                                  "sourceId": {
+                                    "minLength": 1,
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "sourceId",
+                                  "fieldId",
+                                ],
+                                "type": "object",
+                              },
+                              "maxItems": 2,
+                              "minItems": 2,
+                              "type": "array",
+                            },
+                            "name": {
+                              "description": "Stable output name for this shared join-key column.",
+                              "minLength": 1,
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "name",
+                            "fields",
+                          ],
+                          "type": "object",
+                        },
+                        "minItems": 1,
+                        "type": "array",
+                      },
+                      "joinType": {
+                        "enum": [
+                          "full",
+                          "left",
+                          "inner",
+                        ],
+                        "type": "string",
+                      },
+                      "primarySourceId": {
+                        "description": "Stable id assigned to the primary queryConfig.",
+                        "minLength": 1,
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "primarySourceId",
+                      "additionalSources",
+                      "joinKey",
+                      "joinType",
+                    ],
+                    "type": "object",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+                "default": null,
+                "description": "null for a normal visualization. Set this to combine queryConfig with one additional semantic-layer query. Every source may contain only join-key dimensions plus metrics; other dimensions cause fan-out and are refused. In chartConfig, join-key field ids are merge_<joinKeyName>. Metric field ids are <sourceId>_<originalFieldId>. Replace dots in either name with two underscores.",
+              },
               "queryConfig": {
                 "additionalProperties": false,
                 "properties": {
@@ -5389,6 +5519,136 @@ Notes:
         "description": {
           "description": "A descriptive summary or explanation for the chart.",
           "type": "string",
+        },
+        "mergeConfig": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "additionalSources": {
+                  "description": "The additional query to merge with queryConfig. Merge queries currently support exactly two sources.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "minLength": 1,
+                        "type": "string",
+                      },
+                      "queryConfig": {
+                        "additionalProperties": false,
+                        "description": "A second semantic-layer query. The primary query limit and parameter values apply to the whole merge.",
+                        "properties": {
+                          "customMetrics": {
+                            "$ref": "#/properties/queryConfig/properties/customMetrics",
+                          },
+                          "dimensions": {
+                            "$ref": "#/properties/queryConfig/properties/dimensions",
+                          },
+                          "exploreName": {
+                            "$ref": "#/properties/queryConfig/properties/exploreName",
+                          },
+                          "filters": {
+                            "$ref": "#/properties/queryConfig/properties/filters",
+                          },
+                          "metrics": {
+                            "$ref": "#/properties/queryConfig/properties/metrics",
+                          },
+                          "sorts": {
+                            "$ref": "#/properties/queryConfig/properties/sorts",
+                          },
+                        },
+                        "required": [
+                          "exploreName",
+                          "dimensions",
+                          "metrics",
+                          "sorts",
+                          "customMetrics",
+                          "filters",
+                        ],
+                        "type": "object",
+                      },
+                    },
+                    "required": [
+                      "id",
+                      "queryConfig",
+                    ],
+                    "type": "object",
+                  },
+                  "maxItems": 1,
+                  "minItems": 1,
+                  "type": "array",
+                },
+                "joinKey": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "fields": {
+                        "description": "One selected dimension from each source. Both must represent the same grain and value type.",
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "fieldId": {
+                              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                              "type": "string",
+                            },
+                            "sourceId": {
+                              "minLength": 1,
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "sourceId",
+                            "fieldId",
+                          ],
+                          "type": "object",
+                        },
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array",
+                      },
+                      "name": {
+                        "description": "Stable output name for this shared join-key column.",
+                        "minLength": 1,
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "name",
+                      "fields",
+                    ],
+                    "type": "object",
+                  },
+                  "minItems": 1,
+                  "type": "array",
+                },
+                "joinType": {
+                  "enum": [
+                    "full",
+                    "left",
+                    "inner",
+                  ],
+                  "type": "string",
+                },
+                "primarySourceId": {
+                  "description": "Stable id assigned to the primary queryConfig.",
+                  "minLength": 1,
+                  "type": "string",
+                },
+              },
+              "required": [
+                "primarySourceId",
+                "additionalSources",
+                "joinKey",
+                "joinType",
+              ],
+              "type": "object",
+            },
+            {
+              "type": "null",
+            },
+          ],
+          "default": null,
+          "description": "null for a normal visualization. Set this to combine queryConfig with one additional semantic-layer query. Every source may contain only join-key dimensions plus metrics; other dimensions cause fan-out and are refused. In chartConfig, join-key field ids are merge_<joinKeyName>. Metric field ids are <sourceId>_<originalFieldId>. Replace dots in either name with two underscores.",
         },
         "queryConfig": {
           "additionalProperties": false,

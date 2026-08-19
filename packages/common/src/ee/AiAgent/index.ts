@@ -8,9 +8,11 @@ import type {
     CacheMetadata,
     ItemsMap,
     KnexPaginatedData,
+    MergeQuery,
     ToolDashboardArgs,
     ToolName,
     ToolRunQueryArgs,
+    ToolRunQueryArgsV3,
     ToolTableVizArgs,
     ToolTimeSeriesArgs,
     ToolVerticalBarArgs,
@@ -867,6 +869,8 @@ export type ApiAiAgentThreadMessageVizQuery = {
     source: 'semantic';
     type: AiResultType;
     query: ApiExecuteAsyncMetricQueryResults;
+    /** The executed merge, so clients need not re-derive it from tool args. */
+    mergeQuery: MergeQuery | null;
     metadata: AiVizMetadata;
 };
 
@@ -1011,8 +1015,15 @@ export type AiSemanticChartArtifactConfig = {
     config: AiLegacySemanticChartArtifactConfig;
 };
 
+export type AiMergeChartArtifactConfig = {
+    source: 'merge';
+    schemaVersion: 1;
+    config: ToolRunQueryArgsV3;
+};
+
 export type AiChartArtifactConfig =
     | AiSemanticChartArtifactConfig
+    | AiMergeChartArtifactConfig
     | AiSqlChartArtifactConfig;
 
 export type AiArtifact = {
@@ -1046,6 +1057,19 @@ export const isAiSqlChartArtifactConfig = (
     typeof config.sql === 'string' &&
     'limit' in config &&
     typeof config.limit === 'number';
+
+export const isAiMergeChartArtifactConfig = (
+    config: unknown,
+): config is AiMergeChartArtifactConfig =>
+    typeof config === 'object' &&
+    config !== null &&
+    'source' in config &&
+    config.source === 'merge' &&
+    'schemaVersion' in config &&
+    config.schemaVersion === 1 &&
+    'config' in config &&
+    typeof config.config === 'object' &&
+    config.config !== null;
 
 export type AiArtifactTSOACompat = Omit<
     AiArtifact,

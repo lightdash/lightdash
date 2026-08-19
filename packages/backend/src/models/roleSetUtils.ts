@@ -1,4 +1,5 @@
 import {
+    ForbiddenError,
     OrganizationMemberRole,
     OrganizationRoleSet,
     ParameterError,
@@ -7,8 +8,10 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { OrganizationMembershipCustomRolesTableName } from '../database/entities/organizationMembershipCustomRoles';
+import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import { ProjectGroupAccessCustomRolesTableName } from '../database/entities/projectGroupAccessCustomRoles';
 import { ProjectMembershipCustomRolesTableName } from '../database/entities/projectMembershipCustomRoles';
+import { UserTableName } from '../database/entities/users';
 
 type RoleSet = OrganizationRoleSet | ProjectRoleSet;
 
@@ -109,6 +112,68 @@ export const replaceExtraRoles = async (
                 ...parentKey,
                 role_uuid: roleUuid,
             })),
+        );
+    }
+};
+
+/**
+ * Locks the organization's current admin rows and throws unless another active
+ * admin (other than `excludingUserId`) remains. Run inside the transaction that
+ * demotes/removes the user so concurrent demotions serialize.
+ */
+export const assertAnotherActiveAdminInOrganization = async (
+    trx: Knex.Transaction,
+    organizationId: number,
+    excludingUserId: number,
+): Promise<void> => {
+    const admins = await trx(OrganizationMembershipsTableName)
+        .join(
+            UserTableName,
+            `${OrganizationMembershipsTableName}.user_id`,
+            `${UserTableName}.user_id`,
+        )
+        .where(
+            `${OrganizationMembershipsTableName}.organization_id`,
+            organizationId,
+        )
+        .where(
+            `${OrganizationMembershipsTableName}.role`,
+            OrganizationMemberRole.ADMIN,
+        )
+        .where(`${UserTableName}.is_active`, true)
+        .forUpdate(OrganizationMembershipsTableName)
+        .select<{ user_id: number }[]>(
+            `${OrganizationMembershipsTableName}.user_id`,
+        );
+    if (admins.every((admin) => admin.user_id === excludingUserId)) {
+        throw new ForbiddenError('Organization must have at least one admin');
+    }
+};
+
+/**
+ * Guards a demotion: when the membership currently holds the system `admin`
+ * slot and the new slot is not `admin`, another active admin must remain.
+ */
+export const assertAdminDemotionAllowed = async (
+    trx: Knex.Transaction,
+    organizationId: number,
+    userId: number,
+    newSystemRole: string | null,
+): Promise<void> => {
+    if (newSystemRole === OrganizationMemberRole.ADMIN) {
+        return;
+    }
+    const current = await trx(OrganizationMembershipsTableName)
+        .where({ organization_id: organizationId, user_id: userId })
+        .first('role', 'role_uuid');
+    if (
+        current?.role === OrganizationMemberRole.ADMIN &&
+        current.role_uuid === null
+    ) {
+        await assertAnotherActiveAdminInOrganization(
+            trx,
+            organizationId,
+            userId,
         );
     }
 };

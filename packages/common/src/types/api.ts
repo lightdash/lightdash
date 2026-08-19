@@ -25,6 +25,7 @@ import type {
     ApiAiAgentReviewItemPrDiffResponse,
     ApiAiAgentReviewItemWritebackPreviewResponse,
     ApiAiAgentThreadCreateResponse,
+    ApiAiAgentThreadDumpResponse,
     ApiAiAgentThreadGenerateTitleResponse,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageInterruptResponse,
@@ -294,6 +295,8 @@ import { type ApiRoadmapResponse } from './roadmap';
 import {
     type ApiCustomRoleAsCodeListResponse,
     type ApiCustomRoleAsCodeUpsertResponse,
+    type ApiOrganizationRoleSetResponse,
+    type ApiProjectRoleSetResponse,
 } from './roles';
 import {
     type ApiCalculateSubtotalsResponse,
@@ -357,6 +360,7 @@ import {
     type ApiDashboardValidationResponse,
     type ApiPaginatedValidateResponse,
     type ApiSingleValidationResponse,
+    type ApiValidationSummaryResponse,
     type ValidationResponse,
 } from './validation';
 import {
@@ -678,6 +682,7 @@ export type HealthState = {
         analyticsProjectUuid?: string;
         analyticsDashboardUuid?: string;
         isAmbientAiEnabled: boolean;
+        threadDumpEnabled: boolean;
     };
     echarts6: {
         enabled: boolean;
@@ -1207,6 +1212,7 @@ type ApiResults =
     | SchedulerWithLogs
     | ValidationResponse[]
     | ApiPaginatedValidateResponse['results']
+    | ApiValidationSummaryResponse['results']
     | ApiRoadmapResponse['results']
     | ChartHistory
     | ChartVersion
@@ -1278,6 +1284,8 @@ type ApiResults =
     | ApiAgentAsCodeUpsertResponse['results']
     | ApiCustomRoleAsCodeListResponse['results']
     | ApiCustomRoleAsCodeUpsertResponse['results']
+    | ApiOrganizationRoleSetResponse['results']
+    | ApiProjectRoleSetResponse['results']
     | ApiUserAsCodeListResponse['results']
     | ApiUserAsCodeUpsertResponse['results']
     | ApiAlertAsCodeListResponse['results']
@@ -1345,6 +1353,7 @@ type ApiResults =
     | ApiAiAgentProjectThreadSummaryListResponse['results']
     | Account
     | ApiAiAgentAdminConversationsResponse['results']
+    | ApiAiAgentThreadDumpResponse['results']
     | ApiAiAgentAdminEvalPromptsResponse['results']
     | ApiAiAgentAdminEvalsResponse['results']
     | ApiAiAgentAdminMemoriesResponse['results']

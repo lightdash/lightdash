@@ -327,10 +327,9 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                                         />
                                     }
                                 >
-                                    <Text fz="inherit" span>
+                                    <Text span>
                                         <Text
                                             span
-                                            fz="inherit"
                                             fw={600}
                                             c={
                                                 isDefaultInert
@@ -343,7 +342,6 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                                         {!isEditMode && dateZoomGranularity ? (
                                             <Text
                                                 span
-                                                fz="inherit"
                                                 fw={500}
                                                 c={
                                                     isDefaultInert

@@ -12,11 +12,14 @@ import {
 } from '../features/apps/hooks/useAppVersionHistory';
 import { useCanCreateDataApp } from '../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
-import { useDataAppVisualization } from '../features/apps/hooks/useDataAppVisualization';
-import { useDataAppVizBuild } from '../features/apps/hooks/useDataAppVizBuild';
+import { useClarificationRound } from '../features/apps/hooks/useClarificationRound';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { appVersion } from '../features/apps/testing/appVersionHistory';
-import { buildStub } from '../features/apps/testing/dataAppVizBuildStub';
+import { useDataAppVisualization } from '../features/chartTypes/hooks/useDataAppVisualization';
+import { useDataAppVizBuild } from '../features/chartTypes/hooks/useDataAppVizBuild';
+import { type VizBuildRequest } from '../features/chartTypes/hooks/useDataAppVizBuild';
+import { clarificationStub } from '../features/chartTypes/testing/clarificationRoundStub';
+import { buildStub } from '../features/chartTypes/testing/dataAppVizBuildStub';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../testing/testUtils';
 import ChartTypeBuilder from './ChartTypeBuilder';
@@ -36,11 +39,14 @@ vi.mock('../features/apps/hooks/useGetApp', () => ({
 vi.mock('../features/apps/hooks/useAppVersionHistory', () => ({
     useAppVersionHistory: vi.fn(),
 }));
-vi.mock('../features/apps/hooks/useDataAppVizBuild', () => ({
+vi.mock('../features/chartTypes/hooks/useDataAppVizBuild', () => ({
     useDataAppVizBuild: vi.fn(),
 }));
-vi.mock('../features/apps/hooks/useDataAppVisualization', () => ({
+vi.mock('../features/chartTypes/hooks/useDataAppVisualization', () => ({
     useDataAppVisualization: vi.fn(),
+}));
+vi.mock('../features/apps/hooks/useClarificationRound', () => ({
+    useClarificationRound: vi.fn(),
 }));
 vi.mock('../features/apps/hooks/useAppBuildPoller', () => ({
     useAppBuildPoller: vi.fn(),
@@ -68,7 +74,7 @@ vi.mock('../components/common/PromptComposer/PromptComposer', () => ({
         disabled?: boolean;
     }) => <input placeholder={placeholder} disabled={disabled} />,
 }));
-vi.mock('../features/apps/hooks/useVizComposerAttachments', () => ({
+vi.mock('../features/chartTypes/hooks/useVizComposerAttachments', () => ({
     useVizComposerAttachments: () => ({
         attachments: [],
         fileIds: [],
@@ -158,6 +164,10 @@ const builderRoutes = (path: string) => (
 const renderBuilder = (path: string) =>
     renderWithProviders(builderRoutes(path));
 
+const mockedClarificationRound = vi.mocked(
+    useClarificationRound<VizBuildRequest>,
+);
+
 describe('ChartTypeBuilder', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -165,6 +175,7 @@ describe('ChartTypeBuilder', () => {
         vi.mocked(useCanCreateDataApp).mockReturnValue(true);
         vi.mocked(useCanEditDataApp).mockReturnValue(true);
         vi.mocked(useDataAppVizBuild).mockReturnValue(buildStub());
+        mockedClarificationRound.mockReturnValue(clarificationStub());
         vi.mocked(useDataAppVisualization).mockReturnValue({
             data: undefined,
         } as ReturnType<typeof useDataAppVisualization>);
@@ -392,6 +403,47 @@ describe('ChartTypeBuilder', () => {
         ).toBeEnabled();
     });
 
+    it('shows the polled trace when reopening an in-progress build', () => {
+        setApp(appMeta({ latestReadyVersion: 1 }));
+        vi.mocked(useAppVersionHistory).mockReturnValue(
+            historyStub(
+                [
+                    appVersion({
+                        version: 2,
+                        status: 'generating',
+                        statusHistory: [
+                            {
+                                kind: 'thinking',
+                                message: 'Choosing a horizontal layout',
+                                timestamp: '2026-05-15T10:00:10Z',
+                            },
+                            {
+                                kind: 'tool',
+                                message: 'Updating Chart.tsx',
+                                timestamp: '2026-05-15T10:00:20Z',
+                            },
+                        ],
+                    }),
+                    appVersion({ version: 1 }),
+                ],
+                1,
+            ),
+        );
+
+        renderBuilder(
+            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+        );
+
+        expect(screen.getByText('Reasoning')).toBeInTheDocument();
+        expect(
+            screen.getAllByText('Choosing a horizontal layout').length,
+        ).toBeGreaterThan(0);
+        expect(screen.getByText('Activity')).toBeInTheDocument();
+        expect(
+            screen.getAllByText('Updating Chart.tsx').length,
+        ).toBeGreaterThan(0);
+    });
+
     it('renders the current version and lists its history on demand', () => {
         setApp(appMeta());
         vi.mocked(useAppVersionHistory).mockReturnValue(
@@ -416,6 +468,11 @@ describe('ChartTypeBuilder', () => {
 
         fireEvent.click(screen.getByText('History'));
         expect(screen.getByLabelText('Version history')).toBeInTheDocument();
+        expect(
+            screen.getByRole('separator', {
+                name: 'Resize version history',
+            }),
+        ).toBeInTheDocument();
         expect(screen.getByLabelText('View v1')).toBeInTheDocument();
     });
 
@@ -581,5 +638,35 @@ describe('ChartTypeBuilder', () => {
         expect(screen.getByText('Sandbox crashed')).toBeInTheDocument();
         // Nothing is running any more, so the retry has to be typeable.
         expect(screen.getByPlaceholderText('Ask for a change…')).toBeEnabled();
+    });
+
+    it('clarifies a first prompt, but never a revision', () => {
+        renderBuilder('/projects/p1/chart-types/new');
+        expect(mockedClarificationRound.mock.lastCall?.[0]).toMatchObject({
+            isFirstBuild: true,
+        });
+
+        setApp(appMeta());
+        vi.mocked(useAppVersionHistory).mockReturnValue(
+            historyStub([appVersion({ version: 1, status: 'ready' })], 1),
+        );
+        renderBuilder('/projects/p1/chart-types/viz-1');
+        expect(mockedClarificationRound.mock.lastCall?.[0]).toMatchObject({
+            isFirstBuild: false,
+        });
+    });
+
+    it('says when a build started without the clarifier', () => {
+        vi.mocked(useDataAppVizBuild).mockReturnValue(
+            buildStub({ isBuilding: true, pendingPrompt: 'show revenue' }),
+        );
+        mockedClarificationRound.mockReturnValue(
+            clarificationStub({ fellThrough: true }),
+        );
+        renderBuilder('/projects/p1/chart-types/new');
+
+        expect(
+            screen.getByText(/Couldn’t reach the clarifier/),
+        ).toBeInTheDocument();
     });
 });

@@ -7,12 +7,9 @@ import {
     isAppVersionInProgress,
     MAX_APP_FILES_PER_VERSION,
     type ApiAppVersionSummary,
-    type AppChartReference,
     type AppClarification,
-    type AppDashboardReference,
     type AppExternalConnectionReference,
     type AppVersionDependencyEntry,
-    type DataAppClaudeModel,
     type DataAppTemplate,
     type DataAppVizContext,
 } from '@lightdash/common';
@@ -28,7 +25,6 @@ import {
     Menu,
     Stack,
     Text,
-    Textarea,
     Tooltip,
 } from '@mantine/core';
 import {
@@ -37,7 +33,6 @@ import {
     IconCheck,
     IconArrowUp,
     IconBrush,
-    IconHammer,
     IconExternalLink,
     IconArrowBackUp,
     IconFileDescription,
@@ -54,6 +49,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
     useCallback,
     useEffect,
+    useLayoutEffect,
     useMemo,
     useRef,
     useState,
@@ -80,7 +76,6 @@ import {
 } from '../components/common/PromptComposer';
 import { getChartIcon } from '../components/common/ResourceIcon/utils';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
-import { ReasoningHistoryRow } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/LiveActivityCard';
 import { type AppIframePreviewHandle } from '../features/apps/AppIframePreview';
 import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import {
@@ -102,8 +97,8 @@ import AppBuilderSidebarToggle from '../features/apps/components/AppBuilderSideb
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
 import AppPreview from '../features/apps/components/AppPreview';
-import DataAppVizResultCard from '../features/apps/components/DataAppVizResultCard';
-import DataAppVizTestPanel from '../features/apps/components/DataAppVizTestPanel';
+import AppVersionNarration from '../features/apps/components/AppVersionNarration';
+import ClarificationQuestionList from '../features/apps/components/ClarificationQuestionList';
 import LoadingDots from '../features/apps/components/LoadingDots';
 import RecentAppSuggestions from '../features/apps/components/RecentAppSuggestions';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
@@ -112,7 +107,7 @@ import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
 import { useAppThumbnailUpload } from '../features/apps/hooks/useAppThumbnail';
 import { useBuildNotification } from '../features/apps/hooks/useBuildNotification';
 import { useCancelAppVersion } from '../features/apps/hooks/useCancelAppVersion';
-import { useClarifyApp } from '../features/apps/hooks/useClarifyApp';
+import { useClarificationRound } from '../features/apps/hooks/useClarificationRound';
 import { useDataAppModelSelection } from '../features/apps/hooks/useDataAppModelSelection';
 import { useGenerateApp } from '../features/apps/hooks/useGenerateApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
@@ -125,6 +120,11 @@ import {
 } from '../features/apps/hooks/useTrackedAppQueries';
 import { useTrackedExternalRequests } from '../features/apps/hooks/useTrackedExternalRequests';
 import { getTemplate } from '../features/apps/templates';
+import {
+    toAppClarifyParams,
+    toAppGeneratePayload,
+    type AppBuildRequest,
+} from '../features/apps/utils/appBuildRequest';
 import {
     getAppFileValidationError,
     isSupportedAppImage,
@@ -144,10 +144,10 @@ import {
     refToWireString,
     type ElementRef,
 } from '../features/apps/utils/elementRefs';
-import {
-    versionNarrationTexts,
-    versionsToChatMessages,
-} from '../features/apps/utils/versionsToChatMessages';
+import { getVersionNarration } from '../features/apps/utils/versionNarration';
+import { versionsToChatMessages } from '../features/apps/utils/versionsToChatMessages';
+import DataAppVizResultCard from '../features/chartTypes/components/DataAppVizResultCard';
+import DataAppVizTestPanel from '../features/chartTypes/components/DataAppVizTestPanel';
 import { useAppExternalConnections } from '../features/externalConnections/hooks/useAppExternalConnections';
 import { ThemePicker } from '../features/organizationDesigns/components/ThemePicker';
 import { useOrganizationDesigns } from '../features/organizationDesigns/hooks/useOrganizationDesigns';
@@ -546,32 +546,6 @@ const AppGenerate: FC = () => {
         setFocusedQueryUuid(null);
     }, []);
     const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
-    // Pre-build clarification round: captured submission args that we need
-    // to fire the actual generate call once the user answers the questions.
-    // Non-null only between "user submitted prompt" and "user clicked Build
-    // on the questions bubble". Always cleared once generate fires.
-    const [pendingClarification, setPendingClarification] = useState<{
-        questions: string[];
-        prompt: string;
-        template: DataAppTemplate | undefined;
-        fileIds: string[] | undefined;
-        appUuid: string;
-        charts: AppChartReference[] | undefined;
-        dashboard: AppDashboardReference | undefined;
-        externalConnections: AppExternalConnectionReference[] | undefined;
-        spaceUuid: string | undefined;
-        // Snapshot of `selectedModel` at submit time so a mid-clarification
-        // model switch doesn't change which model the build kicks off with —
-        // the user's intent was captured when they pressed send.
-        claudeModel: DataAppClaudeModel;
-        // Same intent-snapshot reasoning as claudeModel — capture the picked
-        // theme at submit time so flipping the picker mid-clarification
-        // doesn't change what the build runs against.
-        designUuid: string | null;
-    } | null>(null);
-    const [clarificationAnswers, setClarificationAnswers] = useState<string[]>(
-        [],
-    );
     // Maps prompt text → image preview URL so the thumbnail survives the
     // local→server message transition (localMessages get cleared when server
     // version data arrives, but the ref persists).
@@ -614,6 +588,23 @@ const AppGenerate: FC = () => {
         },
         [projectUuid, queryClient],
     );
+    // Assigned further down, once the generate mutation and its callbacks are
+    // in scope; only ever called from an event, never during render.
+    const runBuildRef = useRef<
+        (request: AppBuildRequest, clarifications: AppClarification[]) => void
+    >(() => {});
+    const onClarifiedBuild = useCallback(
+        (request: AppBuildRequest, clarifications: AppClarification[]) =>
+            runBuildRef.current(request, clarifications),
+        [],
+    );
+    const clarification = useClarificationRound<AppBuildRequest>({
+        projectUuid,
+        isFirstBuild: !activeAppUuid,
+        toClarifyParams: toAppClarifyParams,
+        onBuild: onClarifiedBuild,
+    });
+    const { reset: resetClarification } = clarification;
     // Track the previous app UUID so we can detect intentional navigation
     // vs. the post-submit URL update (undefined → newUuid).
     const prevUrlAppUuid = useRef(urlAppUuid);
@@ -641,8 +632,7 @@ const AppGenerate: FC = () => {
         setFocusedQueryUuid(null);
         setSelectedTemplate(null);
         setThemeChipOverride(null);
-        setPendingClarification(null);
-        setClarificationAnswers([]);
+        resetClarification();
         setTestVizContext(null);
         setIsChatPanelCollapsed(false);
         versionCacheRef.current.clear();
@@ -652,7 +642,7 @@ const AppGenerate: FC = () => {
         );
         sentImagesByPrompt.current.clear();
         sentFilesByPrompt.current.clear();
-    }, [resetQueries, clearExternalRequests]);
+    }, [resetQueries, clearExternalRequests, resetClarification]);
     useEffect(() => {
         const prev = prevUrlAppUuid.current;
         prevUrlAppUuid.current = urlAppUuid;
@@ -678,8 +668,69 @@ const AppGenerate: FC = () => {
         isLoading: isIterating,
         reset: resetIterate,
     } = useIterateApp();
-    const { mutateAsync: clarifyMutateAsync, isLoading: isClarifying } =
-        useClarifyApp();
+
+    const buildSubmitCallbacks = useCallback(
+        () => ({
+            onSuccess: (data: { appUuid: string; version: number }) => {
+                setActiveAppUuid(data.appUuid);
+                invalidateAppData(data.appUuid);
+                if (!urlAppUuid) {
+                    void navigate(
+                        `/projects/${projectUuid}/apps/${data.appUuid}`,
+                        { replace: true },
+                    );
+                }
+            },
+            onError: (err: unknown) => {
+                // The mutation rejects with an ApiError object (not an Error
+                // instance), so read its message before falling back.
+                const errorMessage = isApiError(err)
+                    ? err.error.message
+                    : err instanceof Error
+                      ? err.message
+                      : 'Failed to generate app';
+                setLocalMessages((prev) => [
+                    ...prev,
+                    {
+                        ...emptyChatMessage(),
+                        role: 'assistant' as const,
+                        status: 'error' as const,
+                        content: errorMessage,
+                        timestamp: new Date(),
+                    },
+                ]);
+            },
+        }),
+        [invalidateAppData, navigate, projectUuid, urlAppUuid],
+    );
+
+    // The generate half of a submit, deferred until the clarifying round (if
+    // any) resolves. Answers ride along and are echoed on the user's bubble.
+    // Assigned in a layout effect, and above the page's early returns, so a
+    // guarded render can neither skip the hook nor leave a stale closure.
+    useLayoutEffect(() => {
+        runBuildRef.current = (request, clarifications) => {
+            if (clarifications.length > 0) {
+                setLocalMessages((prev) => {
+                    const lastUserIdx = prev.findLastIndex(
+                        (m) => m.role === 'user',
+                    );
+                    if (lastUserIdx === -1) return prev;
+                    const next = [...prev];
+                    next[lastUserIdx] = {
+                        ...next[lastUserIdx],
+                        clarifications,
+                    };
+                    return next;
+                });
+            }
+            resetGenerate();
+            generateMutate(
+                toAppGeneratePayload(projectUuid!, request, clarifications),
+                buildSubmitCallbacks(),
+            );
+        };
+    }, [buildSubmitCallbacks, generateMutate, projectUuid, resetGenerate]);
     const { mutate: cancelMutate, isLoading: isCancelling } =
         useCancelAppVersion();
     const {
@@ -785,25 +836,16 @@ const AppGenerate: FC = () => {
         return null;
     }, [appData]);
     const isBuilding = latestBuildingVersion !== null;
-    // Accumulated narration for the live build's Reasoning / Activity rows.
-    const reasoningTexts = useMemo<string[]>(
-        () =>
-            versionNarrationTexts(
-                latestBuildingVersion?.statusHistory,
-                'thinking',
-            ),
-        [latestBuildingVersion],
-    );
-    const activityTexts = useMemo<string[]>(
-        () =>
-            versionNarrationTexts(latestBuildingVersion?.statusHistory, 'tool'),
+    const liveNarration = useMemo(
+        () => getVersionNarration(latestBuildingVersion?.statusHistory),
         [latestBuildingVersion],
     );
     // Clarifying counts as loading for the chat input (disable send; typing
     // stays enabled so the next prompt can be drafted), and a pending
     // unanswered clarification keeps send disabled until the user clicks
     // "Build" on the question bubble.
-    const hasPendingClarification = pendingClarification !== null;
+    const hasPendingClarification = clarification.pending !== null;
+    const isClarifying = clarification.clarifyingPrompt !== null;
     // Server-side work that warrants showing a placeholder assistant bubble.
     // Excludes `isSubmitting` (client-side upload — too early to claim
     // generation has started) and `hasPendingClarification` (drives its own
@@ -917,13 +959,18 @@ const AppGenerate: FC = () => {
     }, [allVersions]);
 
     const {
+        codingAgent,
         selectedModel,
+        modelRequest,
         visibleModels,
         isLoading: isModelVisibilityLoading,
         setModel: handleModelChange,
     } = useDataAppModelSelection({
         appUuid: activeAppUuid ?? null,
-        latestVersionModel: latestVersion?.resources?.claudeModel ?? null,
+        latestVersionModel:
+            latestVersion?.resources?.codexModel ??
+            latestVersion?.resources?.claudeModel ??
+            null,
     });
 
     // Theme (org design) picker state. New apps pre-populate with the org's
@@ -994,7 +1041,7 @@ const AppGenerate: FC = () => {
                     appUuid: activeAppUuid,
                     prompt,
                     creationExperience: 'app_builder',
-                    claudeModel: selectedModel,
+                    ...modelRequest,
                     designUuid,
                 },
                 {
@@ -1034,7 +1081,7 @@ const AppGenerate: FC = () => {
             projectUuid,
             invalidateAppData,
             resetIterate,
-            selectedModel,
+            modelRequest,
             user.data?.firstName,
             user.data?.lastName,
         ],
@@ -1467,37 +1514,6 @@ const AppGenerate: FC = () => {
         }
     };
 
-    const buildSubmitCallbacks = () => ({
-        onSuccess: (data: { appUuid: string; version: number }) => {
-            setActiveAppUuid(data.appUuid);
-            invalidateAppData(data.appUuid);
-            if (!urlAppUuid) {
-                void navigate(`/projects/${projectUuid}/apps/${data.appUuid}`, {
-                    replace: true,
-                });
-            }
-        },
-        onError: (err: unknown) => {
-            // The mutation rejects with an ApiError object (not an Error
-            // instance), so read its message before falling back.
-            const errorMessage = isApiError(err)
-                ? err.error.message
-                : err instanceof Error
-                  ? err.message
-                  : 'Failed to generate app';
-            setLocalMessages((prev) => [
-                ...prev,
-                {
-                    ...emptyChatMessage(),
-                    role: 'assistant' as const,
-                    status: 'error' as const,
-                    content: errorMessage,
-                    timestamp: new Date(),
-                },
-            ]);
-        },
-    });
-
     const handleSubmit = async () => {
         const typed = (promptEditorRef.current?.getText() ?? '').trim();
         if (
@@ -1554,11 +1570,11 @@ const AppGenerate: FC = () => {
 
             // For new apps, pre-generate the UUID so the image upload and
             // the generate request both use the same app-scoped S3 path.
-            const newAppUuid = activeAppUuid ? undefined : uuid4();
-            const targetAppUuid = activeAppUuid ?? newAppUuid;
-            if (newAppUuid) {
+            const isFirstBuild = !activeAppUuid;
+            const targetAppUuid = activeAppUuid ?? uuid4();
+            if (isFirstBuild) {
                 setThemeChipOverride({
-                    appUuid: newAppUuid,
+                    appUuid: targetAppUuid,
                     designUuid: selectedThemeUuid,
                 });
             }
@@ -1578,7 +1594,7 @@ const AppGenerate: FC = () => {
                         const result = await uploadFile({
                             projectUuid: projectUuid!,
                             file: att.file,
-                            appUuid: targetAppUuid!,
+                            appUuid: targetAppUuid,
                             kind: att.kind,
                         });
                         ids.push(result.fileId);
@@ -1679,56 +1695,6 @@ const AppGenerate: FC = () => {
             resetGenerate();
             resetIterate();
 
-            // Pre-build clarification: first-build only. The clarifier runs for
-            // every template — the questions adapt to the kind of app being
-            // built (template is passed through). Iteration prompts skip
-            // clarification entirely — by then intent is already grounded in
-            // the existing version.
-            const isFirstBuild = !activeAppUuid;
-            if (isFirstBuild && newAppUuid) {
-                try {
-                    const { questions } = await clarifyMutateAsync({
-                        projectUuid: projectUuid!,
-                        prompt: trimmed,
-                        template: starterTemplate,
-                        charts,
-                        dashboard,
-                        fileIds,
-                    });
-                    if (questions.length > 0) {
-                        setPendingClarification({
-                            questions,
-                            prompt: trimmed,
-                            template: starterTemplate,
-                            fileIds,
-                            appUuid: newAppUuid,
-                            charts,
-                            dashboard,
-                            externalConnections,
-                            spaceUuid: targetSpaceUuid,
-                            claudeModel: selectedModel,
-                            designUuid: selectedThemeUuid,
-                        });
-                        setClarificationAnswers(
-                            new Array(questions.length).fill(''),
-                        );
-                        return;
-                    }
-                    // No questions returned — fall through and build immediately.
-                } catch (err) {
-                    // Clarify failed (model not configured, network, etc.) — fall
-                    // back to the original behavior and just build. We don't want
-                    // a clarifier outage to block the actual feature.
-                    // eslint-disable-next-line no-console
-                    console.warn(
-                        'App clarification failed; proceeding to build',
-                        err,
-                    );
-                }
-            }
-
-            const callbacks = buildSubmitCallbacks();
-
             if (activeAppUuid) {
                 iterateMutate(
                     {
@@ -1739,100 +1705,31 @@ const AppGenerate: FC = () => {
                         fileIds,
                         charts,
                         dashboard,
-                        claudeModel: selectedModel,
+                        ...modelRequest,
                         externalConnections,
                     },
-                    callbacks,
+                    buildSubmitCallbacks(),
                 );
             } else {
-                generateMutate(
-                    {
-                        projectUuid,
-                        prompt: trimmed,
-                        template: starterTemplate,
-                        creationExperience: 'app_builder',
-                        fileIds,
-                        appUuid: newAppUuid,
-                        charts,
-                        dashboard,
-                        spaceUuid: targetSpaceUuid,
-                        claudeModel: selectedModel,
-                        designUuid: selectedThemeUuid,
-                        externalConnections,
-                    },
-                    callbacks,
-                );
+                // A first build clarifies before generating; the round calls
+                // back into runBuildRef once it resolves, answered or not.
+                clarification.send({
+                    prompt: trimmed,
+                    template: starterTemplate,
+                    fileIds,
+                    appUuid: targetAppUuid,
+                    charts,
+                    dashboard,
+                    externalConnections,
+                    spaceUuid: targetSpaceUuid,
+                    modelRequest,
+                    designUuid: selectedThemeUuid,
+                });
             }
         } finally {
             isSubmittingRef.current = false;
             setIsSubmitting(false);
         }
-    };
-
-    /**
-     * Submit the user's answers to the clarification questions and start the
-     * actual build. Called by both the "Build" button (which folds answers
-     * into the generate request as `clarifications`) and the "Skip" link
-     * (which fires generate without any clarifications, as if the questions
-     * had never been asked).
-     */
-    const handleSubmitClarification = (skip: boolean) => {
-        if (!pendingClarification) return;
-
-        const clarifications: AppClarification[] = skip
-            ? []
-            : pendingClarification.questions
-                  .map((question, i) => ({
-                      question,
-                      answer: (clarificationAnswers[i] ?? '').trim(),
-                  }))
-                  // Drop empty answers — they don't help the model and just
-                  // make the prompt noisier. Same effect as "Skip" for that
-                  // particular question.
-                  .filter((c) => c.answer.length > 0);
-
-        // Attach the Q&A to the user bubble that handleSubmit just added.
-        // The backend persists the same array on `resources.clarifications`
-        // so the local→server transition is seamless.
-        if (clarifications.length > 0) {
-            setLocalMessages((prev) => {
-                const lastUserIdx = prev.findLastIndex(
-                    (m) => m.role === 'user',
-                );
-                if (lastUserIdx === -1) return prev;
-                const next = [...prev];
-                next[lastUserIdx] = {
-                    ...next[lastUserIdx],
-                    clarifications,
-                };
-                return next;
-            });
-        }
-
-        const captured = pendingClarification;
-        setPendingClarification(null);
-        setClarificationAnswers([]);
-        resetGenerate();
-
-        generateMutate(
-            {
-                projectUuid: projectUuid!,
-                prompt: captured.prompt,
-                template: captured.template,
-                creationExperience: 'app_builder',
-                fileIds: captured.fileIds,
-                appUuid: captured.appUuid,
-                charts: captured.charts,
-                dashboard: captured.dashboard,
-                externalConnections: captured.externalConnections,
-                clarifications:
-                    clarifications.length > 0 ? clarifications : undefined,
-                spaceUuid: captured.spaceUuid,
-                claudeModel: captured.claudeModel,
-                designUuid: captured.designUuid,
-            },
-            buildSubmitCallbacks(),
-        );
     };
 
     const handleCancel = () => {
@@ -1952,7 +1849,7 @@ const AppGenerate: FC = () => {
                                 <>
                                     <Box
                                         className={`${classes.chatMessageGroup}${
-                                            pendingClarification
+                                            hasPendingClarification
                                                 ? ` ${classes.dimmedHistory}`
                                                 : ''
                                         }`}
@@ -2320,28 +2217,15 @@ const AppGenerate: FC = () => {
                                                             renderVersionDepsChip(
                                                                 msg.version,
                                                             )}
-                                                        {msg.reasoning.length >
-                                                            0 && (
-                                                            <ReasoningHistoryRow
-                                                                texts={
-                                                                    msg.reasoning
-                                                                }
-                                                                isLive={false}
-                                                            />
-                                                        )}
-                                                        {msg.activity.length >
-                                                            0 && (
-                                                            <ReasoningHistoryRow
-                                                                texts={
-                                                                    msg.activity
-                                                                }
-                                                                isLive={false}
-                                                                icon={
-                                                                    IconHammer
-                                                                }
-                                                                label="Activity"
-                                                            />
-                                                        )}
+                                                        <AppVersionNarration
+                                                            narration={{
+                                                                reasoning:
+                                                                    msg.reasoning,
+                                                                activity:
+                                                                    msg.activity,
+                                                            }}
+                                                            isLive={false}
+                                                        />
                                                         {msg.vizSchema ? (
                                                             msg.version !==
                                                                 null &&
@@ -2383,69 +2267,27 @@ const AppGenerate: FC = () => {
                                             ),
                                         )}
                                     </Box>
-                                    {pendingClarification ? (
+                                    {clarification.pending ? (
                                         <Box
                                             className={classes.clarifyContainer}
                                         >
                                             <Text size="sm">
                                                 A few quick questions:
                                             </Text>
-                                            <Stack gap={6}>
-                                                {pendingClarification.questions.map(
-                                                    (question, qi) => (
-                                                        <Box
-                                                            key={qi}
-                                                            className={
-                                                                classes.clarifyCard
-                                                            }
-                                                        >
-                                                            <Text
-                                                                size="sm"
-                                                                c="dimmed"
-                                                            >
-                                                                {question}
-                                                            </Text>
-                                                            <Textarea
-                                                                variant="unstyled"
-                                                                autosize
-                                                                minRows={1}
-                                                                maxRows={4}
-                                                                placeholder="Your answer"
-                                                                value={
-                                                                    clarificationAnswers[
-                                                                        qi
-                                                                    ] ?? ''
-                                                                }
-                                                                onChange={(
-                                                                    e,
-                                                                ) => {
-                                                                    const next =
-                                                                        [
-                                                                            ...clarificationAnswers,
-                                                                        ];
-                                                                    next[qi] =
-                                                                        e.currentTarget.value;
-                                                                    setClarificationAnswers(
-                                                                        next,
-                                                                    );
-                                                                }}
-                                                                autoFocus={
-                                                                    qi === 0
-                                                                }
-                                                                classNames={{
-                                                                    input: classes.clarifyCardInput,
-                                                                }}
-                                                            />
-                                                        </Box>
-                                                    ),
-                                                )}
-                                            </Stack>
+                                            <ClarificationQuestionList
+                                                questions={
+                                                    clarification.pending
+                                                        .questions
+                                                }
+                                                answers={clarification.answers}
+                                                onAnswer={clarification.answer}
+                                            />
                                             <Group gap="xs" justify="flex-end">
                                                 <Button
                                                     variant="subtle"
                                                     size="xs"
                                                     onClick={() =>
-                                                        handleSubmitClarification(
+                                                        clarification.build(
                                                             true,
                                                         )
                                                     }
@@ -2455,7 +2297,7 @@ const AppGenerate: FC = () => {
                                                 <Button
                                                     size="xs"
                                                     onClick={() =>
-                                                        handleSubmitClarification(
+                                                        clarification.build(
                                                             false,
                                                         )
                                                     }
@@ -2490,28 +2332,12 @@ const AppGenerate: FC = () => {
                                                             </Text>
                                                         ) : (
                                                             <>
-                                                                {reasoningTexts.length >
-                                                                    0 && (
-                                                                    <ReasoningHistoryRow
-                                                                        texts={
-                                                                            reasoningTexts
-                                                                        }
-                                                                        isLive
-                                                                    />
-                                                                )}
-                                                                {activityTexts.length >
-                                                                    0 && (
-                                                                    <ReasoningHistoryRow
-                                                                        texts={
-                                                                            activityTexts
-                                                                        }
-                                                                        isLive
-                                                                        icon={
-                                                                            IconHammer
-                                                                        }
-                                                                        label="Activity"
-                                                                    />
-                                                                )}
+                                                                <AppVersionNarration
+                                                                    narration={
+                                                                        liveNarration
+                                                                    }
+                                                                    isLive
+                                                                />
                                                                 {latestBuildingVersion?.status ===
                                                                 'generating' ? (
                                                                     // A status line here would duplicate the live
@@ -3098,6 +2924,7 @@ const AppGenerate: FC = () => {
                                                 <ModelPicker
                                                     value={selectedModel}
                                                     onChange={handleModelChange}
+                                                    codingAgent={codingAgent}
                                                     disabled={
                                                         isSubmitting ||
                                                         isModelVisibilityLoading

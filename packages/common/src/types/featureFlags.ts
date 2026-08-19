@@ -133,9 +133,6 @@ export enum FeatureFlags {
      */
     AiDeepResearch = 'ai-deep-research',
 
-    /** Enable project-scoped AI agent memory runtime. */
-    AiAgentMemory = 'ai-agent-memory',
-
     /**
      * Enable the Hexbin (H3 hexagonal binning) layer type for Map charts.
      * Gates the option in the Map Type segmented control. Existing charts
@@ -227,15 +224,6 @@ export enum FeatureFlags {
      * Show the organization roadmap and enable its read-only API proxy.
      */
     OrganizationRoadmap = 'organization-roadmap',
-
-    /**
-     * Replace the discoverFields sub-agent with a deterministic grep over an
-     * in-memory, annotated view of the project's cached explores (explore =
-     * directory, field = file). Connection-agnostic (reads compiled explores,
-     * never the warehouse or git) — lets the main agent navigate fields itself
-     * instead of paying the discoverFields sub-agent round-trip. Experimental.
-     */
-    AiGrepFields = 'ai-grep-fields',
 
     /**
      * Guard the agent's `searchFieldValues` tool against pathological warehouse

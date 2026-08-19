@@ -70,9 +70,11 @@ const TokensCell: FC<{ usage: DataAppGenerationUsage | null }> = ({
                     <Text fz="xs">{`Output: ${exactTokens.format(usage.outputTokens)}`}</Text>
                     <Text fz="xs">{`Cached: ${exactTokens.format(cached)}`}</Text>
                     <Text fz="xs">{`${usage.numTurns} turns`}</Text>
-                    <Text fz="xs">{`Estimated cost: ${formatCost(
-                        usage.costUsd,
-                    )}`}</Text>
+                    <Text fz="xs">
+                        {usage.costUsd === null
+                            ? 'Estimated cost: Not available'
+                            : `Estimated cost: ${formatCost(usage.costUsd)}`}
+                    </Text>
                 </Stack>
             }
         >
@@ -262,14 +264,14 @@ export const DataAppActivityTable: FC = () => {
                 ),
             },
             {
-                id: 'claudeModel',
-                accessorFn: (row) => row.claudeModel,
+                id: 'codingAgentModel',
+                accessorFn: (row) => row.codingAgentModel,
                 header: 'Model',
-                size: 78,
+                size: 140,
                 enableSorting: false,
                 Cell: ({ row }) => (
                     <Text fz="sm" c="ldGray.9">
-                        {row.original.claudeModel}
+                        {row.original.codingAgentModel}
                     </Text>
                 ),
             },
