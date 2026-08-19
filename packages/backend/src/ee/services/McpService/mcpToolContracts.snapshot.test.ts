@@ -173,6 +173,16 @@ describe('MCP tool contracts', () => {
         expect(prompt).not.toContain('find_fields');
     });
 
+    it('skips semantic discovery for complete raw SQL', () => {
+        const guidance =
+            'follow step 0, then skip steps 1–3 and call `run_sql`';
+
+        expect(getMcpAnalystPrompt()).toContain(guidance);
+        expect(getMcpAnalystPrompt({ runSqlEnabled: false })).not.toContain(
+            guidance,
+        );
+    });
+
     it('matches the current MCP tool and prompt contract snapshot', async () => {
         const mcpService = makeMcpService();
 
