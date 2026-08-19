@@ -29,8 +29,11 @@ export function renderReleaseSafetyNotes(
     if (marker.declaredBreaks.length > 0) {
         lines.push('', 'Declared breaking changes:');
         for (const declaredBreak of marker.declaredBreaks) {
+            const migration = declaredBreak.migration
+                ? ` (${declaredBreak.migration})`
+                : '';
             lines.push(
-                `- \`${declaredBreak.file}:${declaredBreak.line}\`: ${declaredBreak.reason}${declaredBreak.requiredStop ? ' (required stop)' : ''}`,
+                `- \`${declaredBreak.id}\`${migration}: ${declaredBreak.reason}${declaredBreak.requiredStop ? ' (required stop)' : ''}`,
             );
         }
     }

@@ -130,6 +130,7 @@ jobs:
             watched:
               - 'packages/backend/**'
               - 'packages/common/**'
+              - 'release-safety.declarations.json'
               - 'release-safety.overrides.json'
               - 'scripts/gen-release-safety.ts'
               - 'scripts/ai-migration-review.ts'
@@ -137,6 +138,8 @@ jobs:
               - 'scripts/rest-api-diff.ts'
               - 'scripts/mcp-tools-diff.ts'
               - 'scripts/breaking-change-declarations.ts'
+              - 'scripts/release-safety-declarations.ts'
+              - 'scripts/release-safety-declarations.schema.json'
               - 'scripts/release-safety-pr-gate.ts'
               - 'scripts/upgrade-overrides.ts'
               - 'scripts/release-safety-pr-comment.ts'

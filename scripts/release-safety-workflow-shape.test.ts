@@ -38,7 +38,10 @@ assert.deepStrictEqual(
 // present only in the trigger-level list, which made `retract` unreachable for
 // every other watched path.
 for (const required of [
+    'release-safety.declarations.json',
     'scripts/breaking-change-declarations.ts',
+    'scripts/release-safety-declarations.ts',
+    'scripts/release-safety-declarations.schema.json',
     'scripts/release-safety-pr-gate.ts',
     'scripts/gen-release-safety.ts',
     'packages/backend/**',

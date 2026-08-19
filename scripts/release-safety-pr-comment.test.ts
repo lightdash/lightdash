@@ -99,8 +99,7 @@ test('a false declaration-only verdict explains the declared compatibility break
             },
             declaredBreaks: [
                 {
-                    file: 'packages/backend/src/changes.ts',
-                    line: 77,
+                    id: 'old-request-field-names',
                     reason: 'Existing API clients still rely on old request field names.',
                     requiredStop: false,
                 },
@@ -124,14 +123,12 @@ test('the declaration breaks row shows every reason and marks required stops', (
             },
             declaredBreaks: [
                 {
-                    file: 'packages/backend/src/a.ts',
-                    line: 12,
+                    id: 'first-break',
                     reason: 'first reason',
                     requiredStop: false,
                 },
                 {
-                    file: 'packages/backend/src/b.ts',
-                    line: 34,
+                    id: 'second-break',
                     reason: 'second reason',
                     requiredStop: true,
                 },
@@ -157,8 +154,7 @@ test('declaration reasons are escaped for markdown table rendering', () => {
             },
             declaredBreaks: [
                 {
-                    file: 'packages/backend/src/c.ts',
-                    line: 88,
+                    id: 'markdown-break',
                     reason: 'line with pipe | and newline\nin declaration',
                     requiredStop: false,
                 },
