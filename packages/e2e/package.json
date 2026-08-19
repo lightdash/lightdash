@@ -1,6 +1,6 @@
 {
     "name": "e2e",
-    "version": "1.202.8",
+    "version": "1.202.9",
     "private": true,
     "license": "MIT",
     "main": "index.js",

@@ -1,3 +1,10 @@
+## [1.202.9](https://github.com/lightdash/lightdash/compare/1.202.8...1.202.9) (2026-08-19)
+
+
+### Bug Fixes
+
+* **backend:** preserve bulk audit attribution ([#27646](https://github.com/lightdash/lightdash/issues/27646)) ([4cf586f](https://github.com/lightdash/lightdash/commit/4cf586faa94c47e5744a17089a32bc09fb681b58))
+
 ## [1.202.8](https://github.com/lightdash/lightdash/compare/1.202.7...1.202.8) (2026-08-19)
 
 

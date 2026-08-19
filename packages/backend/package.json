@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "1.202.8",
+    "version": "1.202.9",
     "private": true,
     "license": "MIT",
     "main": "dist/index",
