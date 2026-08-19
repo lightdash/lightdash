@@ -276,7 +276,7 @@ const roleRow = ({ userName }: CatalogContext): CatalogRow => ({
     rolcanlogin: true,
     rolreplication: false,
     rolconnlimit: -1,
-    rolpassword: '********',
+    rolpassword: null,
     rolbypassrls: false,
     usename: userName,
     usesysid: SESSION_ROLE_OID,
@@ -284,7 +284,7 @@ const roleRow = ({ userName }: CatalogContext): CatalogRow => ({
     usesuper: false,
     userepl: false,
     usebypassrls: false,
-    passwd: '********',
+    passwd: null,
 });
 
 const databaseRow = ({ databaseName }: CatalogContext): CatalogRow => ({

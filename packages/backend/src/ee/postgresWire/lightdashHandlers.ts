@@ -141,6 +141,10 @@ const tryHandleSessionStatement = (sql: string): PgWireQueryResult | null => {
     }
 };
 
+/** Statement shape for logs without the values clients put in string literals */
+const redactLiterals = (sql: string): string =>
+    sql.replace(/'(?:[^']|'')*'/g, "'?'");
+
 const UUID_PATTERN =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -425,7 +429,7 @@ export const createLightdashPgWireHandlers = (
 
         query: async (session, sql) => {
             Logger.debug(
-                `pgwire: ${session.account.user?.email ?? 'service account'} query: ${sql.slice(0, 500)}`,
+                `pgwire: ${session.account.user?.email ?? 'service account'} query: ${redactLiterals(sql).slice(0, 500)}`,
             );
             const resolved = resolveStatement(session, sql);
             if (resolved.kind === 'result') {
