@@ -90,7 +90,7 @@ preview environments) and live under
 | Endpoint | Purpose |
 | --- | --- |
 | `GET /` | List registered sources |
-| `GET /{sourceType}/schema` | Scan one source's schema into the standard `{tables: [{reference, columns: [{reference, type}]}]}` shape |
+| `GET /{sourceType}/schema` | Scan one source's schema into the standard `{tables: [{reference, columns: [{reference, type}]}]}` shape. Never a full dump — an overview (tables without columns), a search (`patterns` query param, grep_fields grammar via the shared `compileMatcher`), or a detail fetch (`tables` query param); `totalTables` and `note` report what was reduced |
 | `POST /queries` | Submit 1..n source queries → immediate `{nodeId, queryUuid}` per query |
 | `GET /queries/status?queryUuids=...` | Batch status poll (standard async query lifecycle) |
 
@@ -99,6 +99,40 @@ Individual results are fetched with the existing
 creator-scoped, mirroring query history access. Polling only the terminal
 merge query is sufficient — its completion implies upstream completion, and
 its error carries upstream failures.
+
+### MCP tools
+
+The same interface is exposed on the Lightdash MCP server
+(`packages/backend/src/ee/services/McpService/`) so agents can drive it. A
+multi-source submission is a **composer query** (the product name, aligned
+with [composer-queries-agent-plan.md](composer-queries-agent-plan.md)); the
+submission/status tools use that vocabulary while source discovery keeps the
+"query source" vocabulary:
+
+| Tool | Wraps |
+| --- | --- |
+| `list_query_sources` | `GET /` |
+| `get_query_source_schema` | `GET /{sourceType}/schema` (same overview/search/detail modes, same pattern grammar as `grep_fields`) |
+| `run_composer_queries` | `POST /queries` (submits immediately, no waiting) |
+| `get_composer_query_status` | `GET /queries/status` (statuses mapped to the MCP polling vocabulary: running/done/error/cancelled/expired) |
+
+The `runComposerQueries` tool definition (`defineTool`,
+`packages/common/src/ee/AiAgent/schemas/tools/toolQuerySourcesArgs.ts`) is
+the definition the agent-chat plan extends with `availability: ['agent']` —
+one contract for both runtimes, per-runtime execution (the agent tool
+sync-waits on the terminal node and writes a chart artifact; the MCP tool
+returns immediately and the client polls).
+
+Completed rows are fetched with the existing `get_query_result` tool, which
+accepts queries submitted by `run_composer_queries` and serves them in the
+SQL-result shape (rows + columns) whatever their source. Tool registration is
+gated on the `multi-source-query` feature flag (so the tools stay out of
+`tools/list` elsewhere), and `QuerySourceService` re-checks the flag and
+authorization on every call. The tool input schema matches the HTTP request
+union, except that `semanticLayer` filters use the agent-friendly filter shape
+shared with `run_metric_query` (transformed server-side into metric-query
+filters). MCP submissions run under the `mcp.multi_source_query` execution
+context, which is agent-scoped (see below).
 
 Example body — two parallel sources merged by DuckDB:
 
@@ -124,11 +158,16 @@ Example body — two parallel sources merged by DuckDB:
 
 ## Current limitations / next steps
 
-- The `sql` source's schema scan goes through the SQL runner catalog path
+- Schema scans filter post-scan in memory
+  (`QuerySourceService/schemaSearch.ts`, reusing the `grep_fields` matcher):
+  the `sql` source's table list goes through the SQL runner catalog path
   (`ProjectService.getWarehouseTables`, so per-user warehouse credentials are
-  respected) but without column detail; the `duckdb` source scans empty (its
-  tables are the references handed to each query). A richer, source-keyed
-  catalog is a separate plan item.
+  respected) and its column detail is read live per requested table
+  (`getWarehouseFields`); the `semanticLayer` source searches its cached
+  explores; the `duckdb` source scans empty (its tables are the references
+  handed to each query). A persisted, source-keyed catalog with FTS and
+  usage-ranked search (what `catalog_search` gives `grep_fields`) is a
+  separate plan item.
 - There is no server-side record grouping a submission's queries (each is an
   ordinary query history row). If a UI ever needs "pipeline runs", a thin
   grouping table can be added without changing this API.
@@ -136,10 +175,10 @@ Example body — two parallel sources merged by DuckDB:
   auth) is out of scope here: the built-ins ride on the project's existing
   connections. The `QuerySourceClient` contract is the seam where per-source
   auth models will live without changing the query interface.
-- The agent SQL scope (`scopedSqlContexts.ts`) applies to `ai`/`mcp.runSql`
-  contexts only; `multiSourceQuery` and `composeSqlRunner` are not
-  agent-scoped, matching the human SQL runner. If the AI agent or MCP tools
-  ever submit through these endpoints, they must set an agent-scoped context
-  server-side (the scope check lives in
-  `AsyncQueryService.executeAsyncSqlQuery`), or the `sql` source would bypass
-  the project's agent SQL scope.
+- The agent SQL scope (`scopedSqlContexts.ts`) applies to `ai`,
+  `mcp.run_sql` and `mcp.multi_source_query` contexts; the human-facing
+  `multiSourceQuery` and `composeSqlRunner` contexts are not agent-scoped,
+  matching the human SQL runner. The MCP tools submit with the
+  `mcp.multi_source_query` context server-side, so an agent-submitted `sql`
+  source query inherits the project's agent SQL scope (the scope check lives
+  in `AsyncQueryService.executeAsyncSqlQuery`).

@@ -77,6 +77,10 @@ dev:
             - PRE_AGGREGATES_ENABLED=true
             - PRE_AGGREGATE_RESULTS_S3_BUCKET=${S3_BUCKET}
             - PRE_AGGREGATE_RESULTS_S3_REGION=${S3_REGION}
+            # MCP is config-gated (ai-copilot is excluded from preview
+            # forced-on flags), so enable it here too for namespaces claimed
+            # before the compose env change
+            - MCP_ENABLED=true
         sync:
             folders:
                 - .:/usr/app

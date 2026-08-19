@@ -226,6 +226,21 @@ import {
     mcpRunSqlStructuredOutputSchema,
 } from './toolQueryResultSchemas';
 import {
+    mcpGetComposerQueryStatusStructuredOutputSchema,
+    mcpGetQuerySourceSchemaStructuredOutputSchema,
+    mcpListQuerySourcesStructuredOutputSchema,
+    mcpRunComposerQueriesStructuredOutputSchema,
+    TOOL_GET_COMPOSER_QUERY_STATUS_DESCRIPTION,
+    TOOL_GET_QUERY_SOURCE_SCHEMA_DESCRIPTION,
+    TOOL_LIST_QUERY_SOURCES_DESCRIPTION,
+    TOOL_RUN_COMPOSER_QUERIES_DESCRIPTION,
+    toolGetComposerQueryStatusArgsSchema,
+    toolGetQuerySourceSchemaArgsSchema,
+    toolListQuerySourcesArgsSchema,
+    toolRunComposerQueriesArgsSchema,
+    toolRunComposerQueriesArgsSchemaTransformed,
+} from './toolQuerySourcesArgs';
+import {
     TOOL_READ_CONTENT_DESCRIPTION,
     toolReadContentArgsSchema,
     toolReadContentOutputSchema,
@@ -594,6 +609,80 @@ export const getQueryResultToolDefinition: ToolDefinitionWithMcpOutput<
     mcp: {
         annotations: readOnlyAnnotations,
         structuredContentSchema: mcpGetQueryResultStructuredOutputSchema,
+    },
+});
+
+export const listQuerySourcesToolDefinition: ToolDefinitionWithMcpOutput<
+    'listQuerySources',
+    typeof toolListQuerySourcesArgsSchema,
+    typeof toolListQuerySourcesArgsSchema,
+    undefined,
+    typeof mcpListQuerySourcesStructuredOutputSchema
+> = defineTool({
+    name: 'listQuerySources',
+    title: 'List query sources',
+    description: TOOL_LIST_QUERY_SOURCES_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: toolListQuerySourcesArgsSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpListQuerySourcesStructuredOutputSchema,
+    },
+});
+
+export const getQuerySourceSchemaToolDefinition: ToolDefinitionWithMcpOutput<
+    'getQuerySourceSchema',
+    typeof toolGetQuerySourceSchemaArgsSchema,
+    typeof toolGetQuerySourceSchemaArgsSchema,
+    undefined,
+    typeof mcpGetQuerySourceSchemaStructuredOutputSchema
+> = defineTool({
+    name: 'getQuerySourceSchema',
+    title: 'Get query source schema',
+    description: TOOL_GET_QUERY_SOURCE_SCHEMA_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: toolGetQuerySourceSchemaArgsSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpGetQuerySourceSchemaStructuredOutputSchema,
+    },
+});
+
+export const runComposerQueriesToolDefinition: ToolDefinitionWithMcpOutput<
+    'runComposerQueries',
+    typeof toolRunComposerQueriesArgsSchema,
+    typeof toolRunComposerQueriesArgsSchemaTransformed,
+    undefined,
+    typeof mcpRunComposerQueriesStructuredOutputSchema
+> = defineTool({
+    name: 'runComposerQueries',
+    title: 'Run source queries',
+    description: TOOL_RUN_COMPOSER_QUERIES_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: toolRunComposerQueriesArgsSchema,
+    inputSchemaTransformed: toolRunComposerQueriesArgsSchemaTransformed,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpRunComposerQueriesStructuredOutputSchema,
+    },
+});
+
+export const getComposerQueryStatusToolDefinition: ToolDefinitionWithMcpOutput<
+    'getComposerQueryStatus',
+    typeof toolGetComposerQueryStatusArgsSchema,
+    typeof toolGetComposerQueryStatusArgsSchema,
+    undefined,
+    typeof mcpGetComposerQueryStatusStructuredOutputSchema
+> = defineTool({
+    name: 'getComposerQueryStatus',
+    title: 'Get source query status',
+    description: TOOL_GET_COMPOSER_QUERY_STATUS_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: toolGetComposerQueryStatusArgsSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema:
+            mcpGetComposerQueryStatusStructuredOutputSchema,
     },
 });
 
@@ -1729,6 +1818,10 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     runQueryToolDefinition,
     runSqlToolDefinition,
     getQueryResultToolDefinition,
+    listQuerySourcesToolDefinition,
+    getQuerySourceSchemaToolDefinition,
+    runComposerQueriesToolDefinition,
+    getComposerQueryStatusToolDefinition,
     renderChartToolDefinition,
     discoverFieldsToolDefinition,
     grepFieldsToolDefinition,

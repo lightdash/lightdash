@@ -1,6 +1,7 @@
 import {
     assertRegisteredAccount,
     ParameterError,
+    QueryExecutionContext,
     QuerySourceType,
     type QuerySourceDefinition,
     type QuerySourceSchema,
@@ -11,6 +12,7 @@ import {
 import { toSessionUser } from '../../../auth/account';
 import type { AsyncQueryService } from '../../AsyncQueryService/AsyncQueryService';
 import type { ProjectService } from '../../ProjectService/ProjectService';
+import { applySchemaScanFilter } from '../schemaSearch';
 import type {
     QuerySourceClient,
     ScanSchemaArgs,
@@ -57,6 +59,8 @@ export class SqlQuerySource implements QuerySourceClient {
     async scanSchema({
         account,
         projectUuid,
+        patterns,
+        tables: tableRefs,
     }: ScanSchemaArgs): Promise<QuerySourceSchema> {
         assertRegisteredAccount(account);
 
@@ -68,6 +72,9 @@ export class SqlQuerySource implements QuerySourceClient {
             projectUuid,
         );
 
+        // The cached catalog holds table names only, so a plain scan and a
+        // pattern search list tables without columns; column detail is read
+        // live from the warehouse for explicitly requested tables
         const tables: QuerySourceSchemaTable[] = Object.entries(
             catalog,
         ).flatMap(([database, schemas]) =>
@@ -76,14 +83,65 @@ export class SqlQuerySource implements QuerySourceClient {
                     reference: `${database}.${schemaName}.${tableName}`,
                     label: tableName,
                     description: null,
-                    columns: [],
+                    columns: null,
                 })),
             ),
         );
 
+        const failedTables: string[] = [];
+        if (tableRefs !== undefined) {
+            const byReference = new Map(
+                tables.map((table) => [table.reference, table]),
+            );
+            await Promise.all(
+                tableRefs.map(async (reference) => {
+                    const table = byReference.get(reference);
+                    if (table === undefined) return;
+                    const [database, schemaName, tableName] =
+                        reference.split('.');
+                    try {
+                        const warehouseSchema =
+                            await this.projectService.getWarehouseFields(
+                                toSessionUser(account),
+                                projectUuid,
+                                QueryExecutionContext.MULTI_SOURCE_QUERY,
+                                tableName,
+                                schemaName,
+                                database,
+                            );
+                        table.columns = Object.entries(warehouseSchema).map(
+                            ([columnName, type]) => ({
+                                reference: columnName,
+                                type,
+                                label: null,
+                                description: null,
+                            }),
+                        );
+                    } catch (error) {
+                        failedTables.push(reference);
+                    }
+                }),
+            );
+        }
+
+        const filtered = applySchemaScanFilter(tables, {
+            patterns,
+            tables: tableRefs,
+        });
+        const note =
+            failedTables.length > 0
+                ? [
+                      filtered.note,
+                      `Could not read columns from the warehouse for: ${failedTables.join(', ')}.`,
+                  ]
+                      .filter(Boolean)
+                      .join(' ')
+                : filtered.note;
+
         return {
             sourceType: QuerySourceType.SQL,
-            tables,
+            ...filtered,
+            note,
         };
     }
 

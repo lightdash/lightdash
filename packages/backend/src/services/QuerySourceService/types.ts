@@ -9,6 +9,13 @@ import type {
 export type ScanSchemaArgs = {
     account: Account;
     projectUuid: string;
+    /**
+     * Grep-style search patterns (the grep_fields grammar). When set, the
+     * scan returns matching tables/columns only instead of an overview.
+     */
+    patterns?: string[];
+    /** Table references to fetch full column detail for. */
+    tables?: string[];
 };
 
 export type SubmitSourceQueryArgs = {

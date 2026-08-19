@@ -28,8 +28,13 @@ Shipped on `claude/query-dag-agent-ergonomics-p6s957` (see
   tables without columns). Source-keyed cached catalog, search, and refresh not started.
 - **Saved objects** — not started; the submission body is the serialization format for now
   (node-id references make an interactive session replayable verbatim).
-- **Source management, results store upgrades (parquet/range reads), structural caching, MCP
-  tools, usage/cost capture, viz binding to bare queryUuids** — not started.
+- **MCP tools** — done (2026-08-19): `list_query_sources`,
+  `get_query_source_schema`, `run_composer_queries`, `get_composer_query_status`
+  on the Lightdash MCP server, feature-flag gated, with `get_query_result`
+  serving completed rows; see
+  [multi-source-queries.md](multi-source-queries.md#mcp-tools).
+- **Source management, results store upgrades (parquet/range reads), structural caching,
+  usage/cost capture, viz binding to bare queryUuids** — not started.
 
 One deliberate divergence from the v1 plan below: no opaque handle table — references are
 `queryUuid`s (or in-submission node ids) directly. Revisit handle minting when copy-on-save or

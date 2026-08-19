@@ -1052,6 +1052,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     contentVerificationService:
                         repository.getContentVerificationService(),
                     projectService: repository.getProjectService(),
+                    querySourceService: repository.getQuerySourceService(),
                     shareService: repository.getShareService(),
                     userAttributesModel: models.getUserAttributesModel(),
                     searchModel: models.getSearchModel(),

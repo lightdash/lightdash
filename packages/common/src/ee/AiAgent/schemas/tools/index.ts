@@ -48,6 +48,7 @@ export * from './toolListWarehouseTablesArgs';
 export * from './toolRunContentQueryArgs';
 export * from './toolRunMetricQueryArgs';
 export * from './toolRunQueryArgs';
+export * from './toolQuerySourcesArgs';
 export * from './toolRunSavedChartArgs';
 export * from './toolRunSqlArgs';
 export * from './toolSearchFieldValuesArgs';
