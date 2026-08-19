@@ -5,7 +5,7 @@ import {
     type QueryHistoryWindow,
 } from '@lightdash/common';
 import clsx from 'clsx';
-import { useEffect, type FC } from 'react';
+import { useEffect, useMemo, type FC } from 'react';
 import { useInfiniteQueryHistory } from '../hooks/useQueryHistory';
 import styles from '../QueryHistory.module.css';
 import { getWindowLabel, getWindowRangeLabel } from '../utils/format';
@@ -56,7 +56,10 @@ export const QueryHistoryWindowSection: FC<Props> = ({
         );
 
     const lastPage = data?.pages[data.pages.length - 1];
-    const items = data?.pages.flatMap((page) => page.data) ?? [];
+    const items = useMemo(
+        () => data?.pages.flatMap((page) => page.data) ?? [],
+        [data],
+    );
 
     useEffect(() => {
         if (lastPage) onCounts(lastPage.counts);
@@ -64,8 +67,7 @@ export const QueryHistoryWindowSection: FC<Props> = ({
 
     useEffect(() => {
         onItemsChange(window, items);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [window, data]);
+    }, [window, items, onItemsChange]);
 
     const windowCount = counts?.windows[window];
     const totalInWindow = lastPage?.pagination?.totalResults ?? windowCount;

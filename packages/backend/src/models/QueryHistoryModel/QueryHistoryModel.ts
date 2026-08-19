@@ -605,7 +605,9 @@ export class QueryHistoryModel {
         }
 
         if (filters.search) {
-            const searchPattern = `%${filters.search}%`;
+            // Escape LIKE wildcards so user input matches literally
+            const escapedSearch = filters.search.replace(/[%_\\]/g, '\\$&');
+            const searchPattern = `%${escapedSearch}%`;
             void query.andWhere((builder) => {
                 void builder
                     .whereILike(
