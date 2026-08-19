@@ -1,3 +1,10 @@
+## [1.206.5](https://github.com/lightdash/lightdash/compare/1.206.4...1.206.5) (2026-08-19)
+
+
+### Bug Fixes
+
+* **upgrade-automation:** do not fail when the pull request is already mergeable ([#27703](https://github.com/lightdash/lightdash/issues/27703)) ([4a52eb6](https://github.com/lightdash/lightdash/commit/4a52eb66be24a2ee7bc932d1b05c72c8f84ed827))
+
 ## [1.206.4](https://github.com/lightdash/lightdash/compare/1.206.3...1.206.4) (2026-08-19)
 
 
