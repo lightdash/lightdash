@@ -130,6 +130,16 @@ git push -u origin HEAD
 The core team is monitoring for Pull Requests. We will review your Pull Request and either merge it, request changes to
 it, or close it with an explanation.
 
+#### Risk Assessment
+
+High-risk changes are changes where a plausible failure could cause unauthorized access, customer data exposure or loss,
+a widespread production outage, or weaken security or change-control safeguards. They can also include other material
+changes that would be difficult to detect, contain, or reverse. Routine, tested, reversible, or backwards-compatible
+changes are normally low risk.
+
+Pull Request authors must identify high-risk changes using the checkbox in the Pull Request template. High-risk changes
+must be reviewed and approved by someone other than the author before merging.
+
 #### Commit & Pull Request Naming Conventions
 
 We follow the [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/) standard.
