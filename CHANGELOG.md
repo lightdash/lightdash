@@ -1,3 +1,10 @@
+# [1.203.0](https://github.com/lightdash/lightdash/compare/1.202.11...1.203.0) (2026-08-19)
+
+
+### Features
+
+* show connected user and organization on the MCP OAuth authorize page ([#27655](https://github.com/lightdash/lightdash/issues/27655)) ([90cb450](https://github.com/lightdash/lightdash/commit/90cb450f0d61247d28c2399108a0731a2ea0e05c))
+
 ## [1.202.11](https://github.com/lightdash/lightdash/compare/1.202.10...1.202.11) (2026-08-19)
 
 
