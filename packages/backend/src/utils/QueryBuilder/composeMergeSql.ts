@@ -2,6 +2,7 @@ import {
     SupportedDbtAdapter,
     type MergeFieldTypes,
     type MergeQuery,
+    type MergeTerminalWrapper,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import {
@@ -10,8 +11,10 @@ import {
 } from './MergeQueryBuilder';
 
 export type ComposeMergeSql = {
-    /** The DuckDB join statement, terminal wrapper (sort, limit, truncation guard) included. */
-    sql: string;
+    /** The composable DuckDB join core — no ORDER BY, LIMIT or guard column. */
+    coreSql: string;
+    /** Terminal stage (sort, limit, truncation guard) for the run path to attach. */
+    terminalWrapper: MergeTerminalWrapper;
     /** Reference table name per source id, for binding to leg queryUuids. */
     referenceTableBySourceId: Record<string, string>;
 };
@@ -93,7 +96,8 @@ export const buildComposeMergeSql = (args: {
     });
 
     return {
-        sql: builder.toSql(outputAliasByColumn),
+        coreSql: builder.toCoreSql(outputAliasByColumn),
+        terminalWrapper: builder.buildTerminalWrapper(outputAliasByColumn),
         referenceTableBySourceId,
     };
 };
