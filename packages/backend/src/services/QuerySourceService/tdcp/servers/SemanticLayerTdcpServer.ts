@@ -16,7 +16,6 @@ import {
     type TdcpDataRequest,
     type TdcpDatasetDescriptor,
 } from '@lightdash/tdcp';
-import type { ProjectModel } from '../../../../models/ProjectModel/ProjectModel';
 import type { AsyncQueryService } from '../../../AsyncQueryService/AsyncQueryService';
 import type { ProjectService } from '../../../ProjectService/ProjectService';
 import {
@@ -31,7 +30,6 @@ import { dimensionTypeToTdcpType } from '../typeMapping';
 type SemanticLayerTdcpServerArguments = {
     asyncQueryService: AsyncQueryService;
     projectService: ProjectService;
-    projectModel: ProjectModel;
 };
 
 const DEFAULT_SOURCE_QUERY_LIMIT = 500;
@@ -56,12 +54,9 @@ export class SemanticLayerTdcpServer implements TdcpServer {
 
     private readonly projectService: ProjectService;
 
-    private readonly projectModel: ProjectModel;
-
     constructor(args: SemanticLayerTdcpServerArguments) {
         this.asyncQueryService = args.asyncQueryService;
         this.projectService = args.projectService;
-        this.projectModel = args.projectModel;
     }
 
     // eslint-disable-next-line class-methods-use-this
@@ -82,7 +77,8 @@ export class SemanticLayerTdcpServer implements TdcpServer {
         account,
         projectUuid,
     }: TdcpCatalogContext): Promise<TdcpCatalog> {
-        // Applies view-project authorization and user-attribute filtering
+        // Applies view-project authorization and explore-level user-attribute
+        // filtering
         const summaries = await this.projectService.getAllExploresSummary(
             account,
             projectUuid,
@@ -90,11 +86,14 @@ export class SemanticLayerTdcpServer implements TdcpServer {
             false,
         );
 
-        const explores = await this.projectModel.findExploresFromCache(
+        // findExplores applies field-level user attributes: dimensions,
+        // metrics and joined tables with required attributes the user lacks
+        // are removed, matching what the explore endpoint returns
+        const explores = await this.projectService.findExplores({
+            account,
             projectUuid,
-            'name',
-            summaries.map((summary) => summary.name),
-        );
+            exploreNames: summaries.map((summary) => summary.name),
+        });
 
         const tables = summaries.map((summary) => {
             const explore = explores[summary.name];

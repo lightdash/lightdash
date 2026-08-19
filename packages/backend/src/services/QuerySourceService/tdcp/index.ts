@@ -1,6 +1,4 @@
 import { QuerySourceType } from '@lightdash/common';
-import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
-import type { WarehouseAvailableTablesModel } from '../../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import type { AsyncQueryService } from '../../AsyncQueryService/AsyncQueryService';
 import type { ProjectService } from '../../ProjectService/ProjectService';
 import { TdcpQuerySource } from '../sources/TdcpQuerySource';
@@ -11,8 +9,6 @@ import { SqlTdcpServer } from './servers/SqlTdcpServer';
 type BuiltInTdcpSourcesArguments = {
     asyncQueryService: AsyncQueryService;
     projectService: ProjectService;
-    projectModel: ProjectModel;
-    warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
 };
 
 /**
@@ -24,8 +20,6 @@ type BuiltInTdcpSourcesArguments = {
 export const createBuiltInTdcpQuerySources = ({
     asyncQueryService,
     projectService,
-    projectModel,
-    warehouseAvailableTablesModel,
 }: BuiltInTdcpSourcesArguments): TdcpQuerySource[] => [
     new TdcpQuerySource({
         definition: {
@@ -37,7 +31,6 @@ export const createBuiltInTdcpQuerySources = ({
         server: new SemanticLayerTdcpServer({
             asyncQueryService,
             projectService,
-            projectModel,
         }),
     }),
     new TdcpQuerySource({
@@ -49,8 +42,7 @@ export const createBuiltInTdcpQuerySources = ({
         },
         server: new SqlTdcpServer({
             asyncQueryService,
-            projectModel,
-            warehouseAvailableTablesModel,
+            projectService,
         }),
     }),
     new TdcpQuerySource({
