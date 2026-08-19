@@ -3,9 +3,18 @@ import { type ToolDescriptionContext } from '../defineTool';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
-export const TOOL_FIND_CONTENT_DESCRIPTION = ({
+type FindContentDashboardDetailsToolName =
+    | 'getDashboardCharts'
+    | 'readContent'
+    | 'read_content';
+
+export const getFindContentToolDescription = ({
     toolName,
-}: ToolDescriptionContext): string => `Tool: "${toolName}"
+    dashboardDetailsToolName,
+}: {
+    toolName: string;
+    dashboardDetailsToolName: FindContentDashboardDetailsToolName;
+}): string => `Tool: "${toolName}"
 Purpose:
 Finds spaces, charts, or dashboards by name or description within a project, returning detailed information about each.
 
@@ -18,8 +27,18 @@ Usage tips:
 - If results aren't relevant, retry with the full user query or more specific terms.
 - Dashboards with validation errors will be deprioritized.
 - Returns space breadcrumb/path metadata and chart/dashboard URLs when available.
-- Dashboards show a preview of the first 5 charts and the total chart count. Use "getDashboardCharts" to see all charts for a specific dashboard.
+- Dashboards show a preview of the first 5 charts and the total chart count. Use "${dashboardDetailsToolName}" to see all charts for a specific dashboard.
 - It doesn't provide summaries for dashboards yet, so don't suggest this capability.`;
+
+export const TOOL_FIND_CONTENT_DESCRIPTION = ({
+    runtime,
+    toolName,
+}: ToolDescriptionContext): string =>
+    getFindContentToolDescription({
+        toolName,
+        dashboardDetailsToolName:
+            runtime === 'mcp' ? 'read_content' : 'readContent',
+    });
 
 export const toolFindContentArgsSchema = createToolSchema()
     .extend({

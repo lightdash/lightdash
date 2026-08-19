@@ -136,6 +136,7 @@ describe('getFindContent', () => {
                 siteUrl: '',
                 toolDescriptionMaxChars: 600,
                 trackCoverage,
+                dashboardDetailsToolName: 'readContent',
             }),
             mockFindContent,
             trackCoverage,
