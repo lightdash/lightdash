@@ -1,3 +1,10 @@
+# [1.208.0](https://github.com/lightdash/lightdash/compare/1.207.0...1.208.0) (2026-08-19)
+
+
+### Features
+
+* **merge-queries:** run merges as composition behind a feature flag ([#27698](https://github.com/lightdash/lightdash/issues/27698)) ([1ac842f](https://github.com/lightdash/lightdash/commit/1ac842ffeb77129264aa8ca87d9f46e378ec0ae2))
+
 # [1.207.0](https://github.com/lightdash/lightdash/compare/1.206.5...1.207.0) (2026-08-19)
 
 
