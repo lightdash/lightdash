@@ -1,3 +1,10 @@
+# [1.202.0](https://github.com/lightdash/lightdash/compare/1.201.0...1.202.0) (2026-08-19)
+
+
+### Features
+
+* **pgwire:** emulate pg_catalog so schema browsers see explores ([#27650](https://github.com/lightdash/lightdash/issues/27650)) ([c2398bd](https://github.com/lightdash/lightdash/commit/c2398bdcc8ec23ca85f0130bcfa655b26effc257)), closes [#27624](https://github.com/lightdash/lightdash/issues/27624) [#27405](https://github.com/lightdash/lightdash/issues/27405)
+
 # [1.201.0](https://github.com/lightdash/lightdash/compare/1.200.1...1.201.0) (2026-08-19)
 
 
