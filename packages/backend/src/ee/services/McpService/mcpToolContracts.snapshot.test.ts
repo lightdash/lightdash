@@ -225,6 +225,17 @@ describe('MCP tool contracts', () => {
         expect({ prompts, tools }).toMatchSnapshot();
     });
 
+    it('registers generate_hashes without project scope', async () => {
+        const mcpService = makeMcpService();
+
+        await mcpService.createServer();
+
+        expect(mockRegisteredMcpTools.map(({ name }) => name)).toContain(
+            McpToolName.GENERATE_HASHES,
+        );
+        expect(isProjectScopedMcpTool(McpToolName.GENERATE_HASHES)).toBe(false);
+    });
+
     it('requires projectUuid on every project-scoped tool', async () => {
         const mcpService = makeMcpService();
 
