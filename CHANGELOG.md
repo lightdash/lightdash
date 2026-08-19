@@ -1,3 +1,10 @@
+## [1.199.3](https://github.com/lightdash/lightdash/compare/1.199.2...1.199.3) (2026-08-19)
+
+
+### Bug Fixes
+
+* surface pre-aggregate execution fallback instead of silently reporting a hit ([#27585](https://github.com/lightdash/lightdash/issues/27585)) ([a37634b](https://github.com/lightdash/lightdash/commit/a37634bb4978d82647e72a977d86bf8aa8ac5a00)), closes [#27590](https://github.com/lightdash/lightdash/issues/27590)
+
 ## [1.199.2](https://github.com/lightdash/lightdash/compare/1.199.1...1.199.2) (2026-08-19)
 
 

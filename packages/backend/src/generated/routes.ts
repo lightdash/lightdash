@@ -51496,11 +51496,65 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PreAggregateExecutionEngine: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['duckdb'] },
+                { dataType: 'enum', enums: ['project_warehouse'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PreAggregateFallbackReason: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['duckdb_execution_error'] },
+                { dataType: 'enum', enums: ['external_execution_error'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    QueryResultsPreAggregate: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                fallbackReason: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'PreAggregateFallbackReason' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                execution: {
+                    ref: 'PreAggregateExecutionEngine',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     QueryResultsMetadata: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                preAggregate: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'QueryResultsPreAggregate' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 performance: { ref: 'QueryResultsPerformance', required: true },
             },
             validators: {},
