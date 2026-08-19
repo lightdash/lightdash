@@ -2,7 +2,6 @@
 import {
     generateOAuthAuthorizePage,
     generateOAuthRedirectPage,
-    getClientName,
     getErrorMessage,
     OAuthIntrospectResponse,
     parseScopeString,
@@ -31,10 +30,10 @@ function getOAuthService(req: express.Request): OAuthService {
 
 // Get authorization - use OAuth2Server
 oauthRouter.get('/authorize', async (req, res, next) => {
+    const loginUrl = `/login?redirect=${encodeURIComponent(
+        req.originalUrl || req.url,
+    )}`;
     if (!req.user) {
-        const loginUrl = `/login?redirect=${encodeURIComponent(
-            req.originalUrl || req.url,
-        )}`;
         return res.redirect(loginUrl);
     }
     const {
@@ -51,19 +50,24 @@ oauthRouter.get('/authorize', async (req, res, next) => {
 
     // Render authorize page using Handlebars template
     const scopeString = (scope as string) || '';
+    const clientName = await getOAuthService(req).getClientDisplayName(
+        client_id as string,
+    );
     res.set('Content-Type', 'text/html');
     return res.send(
         generateOAuthAuthorizePage({
             action: '/api/v1/oauth/authorize',
             client_id: client_id as string,
-            client_name: getClientName(client_id as string),
+            client_name: clientName,
             scope: scopeString,
             scopes: parseScopeString(scopeString),
             user: {
                 firstName: req.user.firstName,
                 lastName: req.user.lastName,
-                organizationName: req.user.organizationName!,
+                email: req.user.email ?? null,
+                organizationName: req.user.organizationName ?? '',
             },
+            loginUrl,
             hiddenInputs: [
                 {
                     name: 'response_type',
