@@ -861,6 +861,7 @@ export class AiAgentModel {
                 | 'enableContentTools'
                 | 'enableUserContext'
                 | 'enableSqlMode'
+                | 'threadRetentionHours'
                 | 'modelConfig'
                 | 'updatedAt'
             > & { uuid: string }
@@ -892,6 +893,7 @@ export class AiAgentModel {
                 enableContentTools: `${AiAgentTableName}.enable_content_tools`,
                 enableUserContext: `${AiAgentTableName}.enable_user_context`,
                 enableSqlMode: `${AiAgentTableName}.enable_sql_mode`,
+                threadRetentionHours: `${AiAgentTableName}.thread_retention_hours`,
                 modelConfig: `${AiAgentTableName}.model_config`,
                 updatedAt: `${AiAgentTableName}.updated_at`,
                 instruction: this.database.raw(`

@@ -2,8 +2,11 @@ import { subject } from '@casl/ability';
 import {
     CONTENT_AS_CODE_VERSIONS,
     ContentAsCodeType,
+    exceedsRetentionCeiling,
     ForbiddenError,
+    isValidRetentionWindowHours,
     ParameterError,
+    RETENTION_WINDOW_HOURS_ERROR,
     type AgentAsCode,
     type AgentAsCodeEvaluation,
     type AgentAsCodeUpsertChanges,
@@ -16,6 +19,7 @@ import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../../services/BaseService';
 import { paginateAsCode } from '../../../services/CoderService/pagination';
 import { type AiAgentModel } from '../../models/AiAgentModel';
+import { type AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 
 const AGENT_AS_CODE_VERSION = CONTENT_AS_CODE_VERSIONS.ai_agent;
 const AGENT_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -70,6 +74,9 @@ const toAgentAsCode = (
     enableContentTools: agent.enableContentTools,
     enableUserContext: agent.enableUserContext,
     enableSqlMode: agent.enableSqlMode,
+    // Omit rather than export null: a dumped `threadRetentionHours: null` in
+    // every YAML would trip the flag-off warning on each re-upload.
+    threadRetentionHours: agent.threadRetentionHours ?? undefined,
     modelConfig: agent.modelConfig,
     evaluations: [...evaluations]
         .sort((left, right) => left.title.localeCompare(right.title))
@@ -77,7 +84,13 @@ const toAgentAsCode = (
     updatedAt: agent.updatedAt,
 });
 
-const getComparableAgent = (agent: AgentAsCode) => ({
+// Retention joins the comparison only when the org flag is on AND the
+// document declares it — an omitted field means "not managed", so a stored
+// value must not look like a diff.
+const getComparableAgent = (
+    agent: AgentAsCode,
+    includeThreadRetention: boolean,
+) => ({
     agentVersion: agent.agentVersion,
     slug: agent.slug,
     name: agent.name,
@@ -90,6 +103,9 @@ const getComparableAgent = (agent: AgentAsCode) => ({
     enableContentTools: agent.enableContentTools,
     enableUserContext: agent.enableUserContext,
     enableSqlMode: agent.enableSqlMode ?? true,
+    ...(includeThreadRetention
+        ? { threadRetentionHours: agent.threadRetentionHours ?? null }
+        : {}),
     modelConfig: agent.modelConfig,
 });
 
@@ -97,6 +113,7 @@ type Dependencies = {
     aiAgentModel: AiAgentModel;
     projectModel: ProjectModel;
     lightdashConfig: LightdashConfig;
+    aiOrganizationSettingsService: AiOrganizationSettingsService;
 };
 
 export class AiAgentCoderService extends BaseService {
@@ -106,11 +123,19 @@ export class AiAgentCoderService extends BaseService {
 
     private readonly lightdashConfig: LightdashConfig;
 
-    constructor({ aiAgentModel, projectModel, lightdashConfig }: Dependencies) {
+    private readonly aiOrganizationSettingsService: AiOrganizationSettingsService;
+
+    constructor({
+        aiAgentModel,
+        projectModel,
+        lightdashConfig,
+        aiOrganizationSettingsService,
+    }: Dependencies) {
         super({ serviceName: 'AiAgentCoderService' });
         this.aiAgentModel = aiAgentModel;
         this.projectModel = projectModel;
         this.lightdashConfig = lightdashConfig;
+        this.aiOrganizationSettingsService = aiOrganizationSettingsService;
     }
 
     private async getProjectOrganizationUuid(
@@ -296,6 +321,45 @@ export class AiAgentCoderService extends BaseService {
             });
         });
 
+        const retentionEnabled =
+            await this.aiOrganizationSettingsService.isThreadRetentionEnabled(
+                user,
+            );
+        const retentionCeiling = retentionEnabled
+            ? await this.aiOrganizationSettingsService.getThreadRetentionCeiling(
+                  organizationUuid,
+              )
+            : null;
+        const warnings: string[] = [];
+        agents.forEach((agent) => {
+            if (agent.threadRetentionHours === undefined) return;
+            if (!retentionEnabled) {
+                // A declared null is a no-op either way — only warn when a
+                // real window is being dropped.
+                if (agent.threadRetentionHours !== null) {
+                    warnings.push(
+                        `AI agent '${agent.slug}': threadRetentionHours was ignored — AI thread retention is not enabled for this organization`,
+                    );
+                }
+                return;
+            }
+            if (!isValidRetentionWindowHours(agent.threadRetentionHours)) {
+                throw new ParameterError(
+                    `AI agent '${agent.slug}': ${RETENTION_WINDOW_HOURS_ERROR}`,
+                );
+            }
+            if (
+                exceedsRetentionCeiling(
+                    agent.threadRetentionHours,
+                    retentionCeiling,
+                )
+            ) {
+                throw new ParameterError(
+                    `AI agent '${agent.slug}': thread retention cannot exceed the organization limit of ${retentionCeiling} hours`,
+                );
+            }
+        });
+
         const existingAgents = await this.aiAgentModel.findAgentsForCode({
             organizationUuid,
             projectUuid,
@@ -348,6 +412,7 @@ export class AiAgentCoderService extends BaseService {
             updated: [],
             unchanged: [],
             deleted: [],
+            ...(warnings.length > 0 ? { warnings } : {}),
         };
 
         for (const agent of agents) {
@@ -357,11 +422,17 @@ export class AiAgentCoderService extends BaseService {
             if (existing) {
                 agentUuid = existing.uuid;
                 const imageUrlChanged = existing.imageUrl !== agent.imageUrl;
+                const retentionDeclared =
+                    retentionEnabled &&
+                    agent.threadRetentionHours !== undefined;
                 const isUnchanged =
                     !force &&
                     isEqual(
-                        getComparableAgent(toAgentAsCode(existing, [])),
-                        getComparableAgent(agent),
+                        getComparableAgent(
+                            toAgentAsCode(existing, []),
+                            retentionDeclared,
+                        ),
+                        getComparableAgent(agent, retentionDeclared),
                     );
 
                 if (!isUnchanged) {
@@ -386,6 +457,13 @@ export class AiAgentCoderService extends BaseService {
                         enableContentTools: agent.enableContentTools,
                         enableUserContext: agent.enableUserContext,
                         enableSqlMode: agent.enableSqlMode ?? true,
+                        ...(retentionEnabled &&
+                        agent.threadRetentionHours !== undefined
+                            ? {
+                                  threadRetentionHours:
+                                      agent.threadRetentionHours,
+                              }
+                            : {}),
                         modelConfig: agent.modelConfig,
                     });
                     agentChanged = true;
@@ -406,6 +484,11 @@ export class AiAgentCoderService extends BaseService {
                     enableContentTools: agent.enableContentTools,
                     enableUserContext: agent.enableUserContext,
                     enableSqlMode: agent.enableSqlMode ?? true,
+                    threadRetentionHours:
+                        retentionEnabled &&
+                        agent.threadRetentionHours !== undefined
+                            ? agent.threadRetentionHours
+                            : null,
                     modelConfig: agent.modelConfig,
                     integrations: [],
                     groupAccess: [],

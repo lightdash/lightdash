@@ -433,11 +433,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         aiModelCatalog,
                     }),
                 }),
-            aiAgentCoderService: ({ models, context }) =>
+            aiAgentCoderService: ({ models, repository, context }) =>
                 new AiAgentCoderService({
                     lightdashConfig: context.lightdashConfig,
                     aiAgentModel: models.getAiAgentModel(),
                     projectModel: models.getProjectModel(),
+                    aiOrganizationSettingsService:
+                        repository.getAiOrganizationSettingsService(),
                 }),
             aiAgentToolsService: ({ models, repository, context }) =>
                 new AiAgentToolsService({
