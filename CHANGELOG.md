@@ -1,3 +1,10 @@
+# [1.200.0](https://github.com/lightdash/lightdash/compare/1.199.3...1.200.0) (2026-08-19)
+
+
+### Features
+
+* count pre-aggregate execution fallbacks in analytics ([#27590](https://github.com/lightdash/lightdash/issues/27590)) ([ffb92db](https://github.com/lightdash/lightdash/commit/ffb92db7b28bb233c8274c45ae7875ce264dbad9)), closes [#27585](https://github.com/lightdash/lightdash/issues/27585)
+
 ## [1.199.3](https://github.com/lightdash/lightdash/compare/1.199.2...1.199.3) (2026-08-19)
 
 

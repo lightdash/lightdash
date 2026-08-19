@@ -25988,6 +25988,7 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                fallbackCount: { dataType: 'double', required: true },
                 missCount: { dataType: 'double', required: true },
                 hitCount: { dataType: 'double', required: true },
                 queryContext: { dataType: 'string', required: true },
