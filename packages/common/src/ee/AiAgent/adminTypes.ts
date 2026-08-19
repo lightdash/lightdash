@@ -468,3 +468,16 @@ export type ApiAiOrganizationRuntimeSettingsResponse =
 
 export type ApiUpdateAiOrganizationSettingsResponse =
     ApiSuccess<AiOrganizationSettings>;
+
+/**
+ * What an org-level retention window of `retentionHours` would delete on the
+ * next cleanup run. Backs the confirmation dialog shown before lowering the
+ * org ceiling.
+ */
+export type AiThreadRetentionPreview = {
+    threadCount: number;
+    agentCount: number;
+};
+
+export type ApiAiThreadRetentionPreviewResponse =
+    ApiSuccess<AiThreadRetentionPreview>;

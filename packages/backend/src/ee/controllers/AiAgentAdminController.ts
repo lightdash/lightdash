@@ -21,6 +21,7 @@ import {
     ApiAiAgentThreadDumpResponse,
     ApiAiOrganizationSettingsResponse,
     ApiAiReviewNotificationSettingsResponse,
+    ApiAiThreadRetentionPreviewResponse,
     ApiErrorPayload,
     ApiMcpActivityResponse,
     ApiMcpActivityStatsResponse,
@@ -971,6 +972,33 @@ export class AiAgentAdminController extends BaseController {
         return {
             status: 'ok',
             results: settings,
+        };
+    }
+
+    /**
+     * Preview what an org-level thread retention window would delete on the
+     * next cleanup run
+     * @summary Preview thread retention impact
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Retrieved thread retention preview')
+    @Get('/settings/thread-retention-preview')
+    @OperationId('getAiThreadRetentionPreview')
+    async getThreadRetentionPreview(
+        @Request() req: express.Request,
+        @Query() retentionHours: number,
+    ): Promise<ApiAiThreadRetentionPreviewResponse> {
+        assertRegisteredAccount(req.account);
+        const results =
+            await this.getAiAgentAdminService().getThreadRetentionPreview(
+                toSessionUser(req.account),
+                retentionHours,
+            );
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results,
         };
     }
 

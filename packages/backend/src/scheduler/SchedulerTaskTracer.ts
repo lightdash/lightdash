@@ -285,6 +285,7 @@ const getTagsForTask: {
     }),
     [SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_AI_DEEP_RESEARCH_REPORTS]: () => ({}),
+    [SCHEDULER_TASKS.CLEAN_AI_AGENT_THREADS]: () => ({}),
     [SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,

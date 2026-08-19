@@ -176,6 +176,7 @@ export const EE_SCHEDULER_TASKS = {
     CONSOLIDATE_AI_AGENT_MEMORY_PARTITION: 'consolidateAiAgentMemoryPartition',
     CLEAN_MCP_TOOL_CALLS: 'cleanMcpToolCalls',
     CLEAN_AI_DEEP_RESEARCH_REPORTS: 'cleanAiDeepResearchReports',
+    CLEAN_AI_AGENT_THREADS: 'cleanAiAgentThreads',
     PUBLISH_ANNOUNCEMENT: 'publishAnnouncement',
     SWEEP_DUE_ANNOUNCEMENTS: 'sweepDueAnnouncements',
 } as const;
@@ -288,6 +289,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.CONSOLIDATE_AI_AGENT_MEMORY_PARTITION]: AiAgentMemoryConsolidatePartitionJobPayload;
     [SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_AI_DEEP_RESEARCH_REPORTS]: TraceTaskBase;
+    [SCHEDULER_TASKS.CLEAN_AI_AGENT_THREADS]: TraceTaskBase;
     [SCHEDULER_TASKS.PUBLISH_ANNOUNCEMENT]: PublishAnnouncementPayload;
     [SCHEDULER_TASKS.SWEEP_DUE_ANNOUNCEMENTS]: TraceTaskBase;
     [SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: AiWritebackPipelineJobPayload;
@@ -318,6 +320,7 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.CONSOLIDATE_AI_AGENT_MEMORY_PARTITION]: AiAgentMemoryConsolidatePartitionJobPayload;
     [EE_SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.CLEAN_AI_DEEP_RESEARCH_REPORTS]: TraceTaskBase;
+    [EE_SCHEDULER_TASKS.CLEAN_AI_AGENT_THREADS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.PUBLISH_ANNOUNCEMENT]: PublishAnnouncementPayload;
     [EE_SCHEDULER_TASKS.SWEEP_DUE_ANNOUNCEMENTS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: AiWritebackPipelineJobPayload;

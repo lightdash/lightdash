@@ -25,6 +25,7 @@ import {
     AiAgentSummary,
     AiAgentThreadDump,
     AiReviewNotificationSettings,
+    AiThreadRetentionPreview,
     AlreadyExistsError,
     assertUnreachable,
     CreateAiAgentReviewItem,
@@ -36,6 +37,7 @@ import {
     getErrorMessage,
     getReviewItemProjectContextEntry,
     isHiddenAiAgentReviewRootCause,
+    isValidRetentionWindowHours,
     JobStatusType,
     KnexPaginateArgs,
     KnexPaginatedData,
@@ -50,6 +52,7 @@ import {
     PullRequestProvider,
     PullRequestSource,
     RequestMethod,
+    RETENTION_WINDOW_HOURS_ERROR,
     UpdateAiAgentReviewItemPriority,
     UpdateAiAgentReviewItemStatus,
     UpdateAiReviewNotificationSettings,
@@ -3319,5 +3322,47 @@ export class AiAgentAdminService extends BaseService {
             token,
             url: url.href,
         };
+    }
+
+    /**
+     * Powers the org settings confirmation dialog ("threads older than X
+     * across N agents will be deleted") before a retention ceiling is
+     * lowered. Uses the same predicate as the cleanup job, with the given
+     * hours standing in for the org value.
+     */
+    async getThreadRetentionPreview(
+        user: SessionUser,
+        retentionHours: number,
+    ): Promise<AiThreadRetentionPreview> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('OrganizationAiAgent', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Insufficient permissions to manage AI agent settings',
+            );
+        }
+        const flag = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AiThreadRetention,
+        });
+        if (!flag.enabled) {
+            throw new ForbiddenError(
+                'AI thread retention is not enabled for this organization',
+            );
+        }
+        if (!isValidRetentionWindowHours(retentionHours)) {
+            throw new ParameterError(RETENTION_WINDOW_HOURS_ERROR);
+        }
+        return this.aiAgentModel.countThreadsExpiredByOrgRetention(
+            organizationUuid,
+            retentionHours,
+        );
     }
 }
