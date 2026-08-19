@@ -566,21 +566,29 @@ export class DashboardService
                 spaceUuids,
             );
 
-        const auditedAbility = this.createAuditedAbility(user);
-        return dashboards.filter((dashboard) => {
+        const dashboardsWithContext = dashboards.flatMap((dashboard) => {
             const spaceContext = spaceContexts[dashboard.spaceUuid];
-            if (!spaceContext) return false;
-            const hasAbility = auditedAbility.can(
-                'view',
+            return spaceContext ? [{ dashboard, spaceContext }] : [];
+        });
+        const auditedAbility = this.createAuditedAbility(user);
+        const accessResults = auditedAbility.canBulk(
+            'view',
+            dashboardsWithContext.map(({ dashboard, spaceContext }) =>
                 subject('Dashboard', {
                     ...spaceContext,
                     metadata: { dashboardUuid: dashboard.uuid },
                 }),
-            );
-            return includePrivate
-                ? hasAbility
-                : hasAbility && hasDirectAccessToSpace(user, spaceContext);
-        });
+            ),
+        );
+
+        return dashboardsWithContext
+            .filter(({ spaceContext }, index) =>
+                includePrivate
+                    ? accessResults[index]
+                    : accessResults[index] &&
+                      hasDirectAccessToSpace(user, spaceContext),
+            )
+            .map(({ dashboard }) => dashboard);
     }
 
     async getByIdOrSlug(

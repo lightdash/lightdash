@@ -140,35 +140,35 @@ export class SearchService extends BaseService {
                 spaceUuids,
             );
 
+        const contentWithContext = allContent.flatMap((content) => {
+            const spaceContext = spaceContexts[content.spaceUuid];
+            return spaceContext ? [{ content, spaceContext }] : [];
+        });
+        const accessResults = auditedAbility.canBulk(
+            'view',
+            contentWithContext.map(({ content, spaceContext }) =>
+                'charts' in content
+                    ? subject('Dashboard', {
+                          ...spaceContext,
+                          metadata: {
+                              dashboardUuid: content.uuid,
+                              dashboardName: content.name,
+                          },
+                      })
+                    : subject('SavedChart', {
+                          ...spaceContext,
+                          metadata: {
+                              savedChartUuid: content.uuid,
+                              savedChartName: content.name,
+                          },
+                      }),
+            ),
+        );
+
         return {
-            content: allContent.filter((content) => {
-                const spaceContext = spaceContexts[content.spaceUuid];
-                if (!spaceContext) return false;
-
-                if ('charts' in content) {
-                    return auditedAbility.can(
-                        'view',
-                        subject('Dashboard', {
-                            ...spaceContext,
-                            metadata: {
-                                dashboardUuid: content.uuid,
-                                dashboardName: content.name,
-                            },
-                        }),
-                    );
-                }
-
-                return auditedAbility.can(
-                    'view',
-                    subject('SavedChart', {
-                        ...spaceContext,
-                        metadata: {
-                            savedChartUuid: content.uuid,
-                            savedChartName: content.name,
-                        },
-                    }),
-                );
-            }),
+            content: contentWithContext
+                .filter((_, index) => accessResults[index])
+                .map(({ content }) => content),
         };
     }
 

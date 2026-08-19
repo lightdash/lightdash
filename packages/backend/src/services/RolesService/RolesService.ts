@@ -175,19 +175,21 @@ export class RolesService extends BaseService {
                 this.projectModel.getAllByOrganizationUuid(organizationUuid),
         );
 
-        const canManageSomeProjects = projects.some((project) =>
-            auditedAbility.can(
+        const canManageSomeProjects = auditedAbility
+            .canBulk(
                 'manage',
-                subject('Project', {
-                    organizationUuid,
-                    projectUuid: project.projectUuid,
-                    metadata: {
+                projects.map((project) =>
+                    subject('Project', {
+                        organizationUuid,
                         projectUuid: project.projectUuid,
-                        projectName: project.name,
-                    },
-                }),
-            ),
-        );
+                        metadata: {
+                            projectUuid: project.projectUuid,
+                            projectName: project.name,
+                        },
+                    }),
+                ),
+            )
+            .some(Boolean);
 
         if (!canManageSomeProjects) {
             throw new ForbiddenError();

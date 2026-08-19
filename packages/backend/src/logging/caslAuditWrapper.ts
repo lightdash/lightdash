@@ -46,6 +46,10 @@ type AuditableCaslSubjectObject = ForcedSubject<CaslSubjectNames> & {
 
 type AuditableCaslSubject = AuditableCaslSubjectObject | CaslSubjectNames;
 
+type AuditableBulkCaslSubject = AuditableCaslSubjectObject & {
+    metadata: Record<string, unknown>;
+};
+
 type AuditHelperArgs = {
     actor: AuditActor;
     action: string;
@@ -55,6 +59,12 @@ type AuditHelperArgs = {
     requestId?: string;
     ruleConditions?: string;
     callStack?: CallStackEntry[];
+};
+
+type BulkAuditGroup = {
+    allowed: boolean;
+    reason?: string;
+    resources: AuditResource[];
 };
 
 /**
@@ -230,6 +240,8 @@ export class CaslAuditWrapper<T extends Ability> {
 
     private auditLogger: AuditLogger;
 
+    private auditEnabled: boolean;
+
     constructor(
         ability: T,
         actorSource: Account | AuditableUser,
@@ -239,6 +251,7 @@ export class CaslAuditWrapper<T extends Ability> {
             requestId?: string;
             callStack?: CallStackEntry[];
             auditLogger?: AuditLogger;
+            auditEnabled?: boolean;
         },
     ) {
         this.wrappedAbility = ability;
@@ -254,6 +267,7 @@ export class CaslAuditWrapper<T extends Ability> {
         this.requestId = options?.requestId;
         this.callStack = options?.callStack;
         this.auditLogger = options?.auditLogger || ((_event) => {});
+        this.auditEnabled = options?.auditEnabled ?? true;
     }
 
     private logAbilityCheck(
@@ -261,6 +275,8 @@ export class CaslAuditWrapper<T extends Ability> {
         status: AuditStatusType,
         reason?: string,
     ): void {
+        if (!this.auditEnabled) return;
+
         try {
             const resource = createResourceFromSubject(args.subject);
             const context = createContextFromArgs(args);
@@ -289,14 +305,14 @@ export class CaslAuditWrapper<T extends Ability> {
         }
     }
 
-    can(action: string, subject: AuditableCaslSubject): boolean {
-        const result = this.wrappedAbility.can(action, subject);
-
-        // Extract the relevant rule that allowed this permission
+    private evaluate(action: string, subject: AuditableCaslSubject) {
         const rule = this.wrappedAbility.relevantRuleFor(action, subject);
-        const ruleConditions = extractRuleConditions(rule);
+        return { allowed: Boolean(rule && !rule.inverted), rule };
+    }
 
-        const reason = rule?.reason;
+    can(action: string, subject: AuditableCaslSubject): boolean {
+        const { allowed, rule } = this.evaluate(action, subject);
+        if (!this.auditEnabled) return allowed;
 
         this.logAbilityCheck(
             {
@@ -306,37 +322,87 @@ export class CaslAuditWrapper<T extends Ability> {
                 ip: this.ip,
                 userAgent: this.userAgent,
                 requestId: this.requestId,
-                ruleConditions,
+                ruleConditions: extractRuleConditions(rule),
                 callStack: this.callStack,
             },
-            result ? 'allowed' : 'denied',
-            reason,
+            allowed ? 'allowed' : 'denied',
+            rule?.reason,
         );
-        return result;
+        return allowed;
     }
 
     cannot(action: string, subject: AuditableCaslSubject): boolean {
-        const result = this.wrappedAbility.cannot(action, subject);
+        return !this.can(action, subject);
+    }
 
-        const rule = this.wrappedAbility.relevantRuleFor(action, subject);
-        const ruleConditions = extractRuleConditions(rule);
-        const reason = rule?.reason;
+    canBulk(action: string, subjects: AuditableBulkCaslSubject[]): boolean[] {
+        const groups = new Map<
+            CaslRule<Abilities, unknown> | null,
+            Map<string, BulkAuditGroup>
+        >();
+        const results = subjects.map((subject) => {
+            const { allowed, rule } = this.evaluate(action, subject);
 
-        this.logAbilityCheck(
-            {
-                actor: this.actor,
-                action,
-                subject,
-                ip: this.ip,
-                userAgent: this.userAgent,
-                requestId: this.requestId,
-                ruleConditions,
-                callStack: this.callStack,
-            },
-            result ? 'denied' : 'allowed',
-            reason,
+            if (this.auditEnabled) {
+                const resource = createResourceFromSubject(subject);
+                const scopeKey = `${resource.type}\0${resource.organizationUuid}`;
+                const ruleGroups = groups.get(rule);
+                const group = ruleGroups?.get(scopeKey);
+                if (group) {
+                    group.resources.push(resource);
+                } else {
+                    const newGroup = {
+                        allowed,
+                        reason: rule?.reason,
+                        resources: [resource],
+                    };
+                    if (ruleGroups) {
+                        ruleGroups.set(scopeKey, newGroup);
+                    } else {
+                        groups.set(rule, new Map([[scopeKey, newGroup]]));
+                    }
+                }
+            }
+
+            return allowed;
+        });
+
+        groups.forEach((ruleGroups) =>
+            ruleGroups.forEach(({ allowed, reason, resources }) => {
+                const [firstResource] = resources;
+                const projectUuid = resources.every(
+                    (resource) =>
+                        resource.projectUuid === firstResource.projectUuid,
+                )
+                    ? firstResource.projectUuid
+                    : undefined;
+                this.logAbilityCheck(
+                    {
+                        actor: this.actor,
+                        action,
+                        subject: {
+                            __caslSubjectType__:
+                                firstResource.type as CaslSubjectNames,
+                            organizationUuid: firstResource.organizationUuid,
+                            projectUuid,
+                            metadata: {
+                                resources: resources.map(
+                                    ({ metadata }) => metadata ?? {},
+                                ),
+                            },
+                        },
+                        ip: this.ip,
+                        userAgent: this.userAgent,
+                        requestId: this.requestId,
+                        callStack: this.callStack,
+                    },
+                    allowed ? 'allowed' : 'denied',
+                    reason,
+                );
+            }),
         );
-        return result;
+
+        return results;
     }
 
     // Forward any property access to the wrapped ability

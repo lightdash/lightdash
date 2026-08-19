@@ -84,7 +84,7 @@ const user = {
     ability: {
         can: vi.fn(() => true),
         cannot: vi.fn(() => false),
-        relevantRuleFor: vi.fn(() => undefined),
+        relevantRuleFor: vi.fn(() => ({ inverted: false })),
         rules: [],
     },
 };
@@ -696,7 +696,7 @@ describe('MCP async query polling', () => {
             ...user,
             ability: {
                 ...user.ability,
-                cannot: vi.fn(() => true),
+                relevantRuleFor: vi.fn(() => ({ inverted: true })),
             },
         };
         const headerProjectUuid = '22222222-2222-4222-8222-222222222222';

@@ -112,10 +112,19 @@ export class SpacePermissionService extends BaseService {
         });
 
         const auditedAbility = this.createAuditedAbility(user);
-        return Object.entries(accessContext)
-            .filter(([_, access]) =>
-                auditedAbility.can(action, subject('Space', access)),
-            )
+        const entries = Object.entries(accessContext);
+        const accessResults = auditedAbility.canBulk(
+            action,
+            entries.map(([spaceUuid, access]) =>
+                subject('Space', {
+                    ...access,
+                    metadata: { spaceUuid },
+                }),
+            ),
+        );
+
+        return entries
+            .filter((_, index) => accessResults[index])
             .map(([spaceUuid]) => spaceUuid);
     }
 

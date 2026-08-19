@@ -3367,15 +3367,20 @@ export class CoderService extends BaseService {
                 userUuid,
                 uniqueSpaceUuids,
             ));
-        const lacksAccess = uniqueSpaceUuids.some((spaceUuid) =>
-            auditedAbility.cannot(
+        const lacksAccess = auditedAbility
+            .canBulk(
                 action,
-                subject(subjectType, {
-                    ...spaceAccessContexts[spaceUuid],
-                    ...(metadata !== undefined ? { metadata } : {}),
-                }),
-            ),
-        );
+                uniqueSpaceUuids.map((spaceUuid) =>
+                    subject(subjectType, {
+                        ...spaceAccessContexts[spaceUuid],
+                        metadata: {
+                            spaceUuid,
+                            ...(metadata ?? {}),
+                        },
+                    }),
+                ),
+            )
+            .some((allowed) => !allowed);
         if (lacksAccess) {
             throw new ForbiddenError(errorMessage);
         }
@@ -3477,16 +3482,17 @@ export class CoderService extends BaseService {
             await this.spacePermissionService.getSpacesAccessContext(userUuid, [
                 ...new Set(referencedCharts.map((chart) => chart.spaceUuid)),
             ]);
+        const accessResults = auditedAbility.canBulk(
+            'view',
+            referencedCharts.map((chart) =>
+                subject('SavedChart', {
+                    ...spaceAccessContexts[chart.spaceUuid],
+                    metadata: chart.metadata,
+                }),
+            ),
+        );
         const inaccessibleChartSlugs = referencedCharts
-            .filter((chart) =>
-                auditedAbility.cannot(
-                    'view',
-                    subject('SavedChart', {
-                        ...spaceAccessContexts[chart.spaceUuid],
-                        metadata: chart.metadata,
-                    }),
-                ),
-            )
+            .filter((_, index) => !accessResults[index])
             .map((chart) => chart.slug);
         if (inaccessibleChartSlugs.length > 0) {
             throw new ForbiddenError(

@@ -2056,20 +2056,22 @@ export class SchedulerService extends BaseService {
 
         // Check user can manage scheduled deliveries in all projects
         const auditedAbility = this.createAuditedAbility(user);
-        const projectsWithoutPermission = summary.byProject
-            .filter((project) =>
-                auditedAbility.cannot(
-                    'manage',
-                    subject('ScheduledDeliveries', {
-                        organizationUuid,
+        const accessResults = auditedAbility.canBulk(
+            'manage',
+            summary.byProject.map((project) =>
+                subject('ScheduledDeliveries', {
+                    organizationUuid,
+                    projectUuid: project.projectUuid,
+                    metadata: {
+                        targetUserUuid,
                         projectUuid: project.projectUuid,
-                        metadata: {
-                            targetUserUuid,
-                            projectName: project.projectName,
-                        },
-                    }),
-                ),
-            )
+                        projectName: project.projectName,
+                    },
+                }),
+            ),
+        );
+        const projectsWithoutPermission = summary.byProject
+            .filter((_, index) => !accessResults[index])
             .map((project) => project.projectName);
 
         if (projectsWithoutPermission.length > 0) {
