@@ -3,6 +3,7 @@ import {
     ContentVerificationInfo,
     DashboardSearchResult,
     findContentToolDefinition,
+    getFindContentToolDescription,
     isSavedChartSearchResult,
     isSqlChartSearchResult,
 } from '@lightdash/common';
@@ -35,6 +36,7 @@ type Dependencies = {
     siteUrl: string;
     toolDescriptionMaxChars: number;
     trackCoverage: (coverage: AiAgentFindContentCoverage) => void;
+    dashboardDetailsToolName: 'getDashboardCharts' | 'readContent';
 };
 
 const toolDefinition = findContentToolDefinition.for('agent');
@@ -238,9 +240,14 @@ export const getFindContent = ({
     siteUrl,
     toolDescriptionMaxChars,
     trackCoverage,
+    dashboardDetailsToolName,
 }: Dependencies) =>
     tool({
         ...toolDefinition,
+        description: getFindContentToolDescription({
+            toolName: toolDefinition.name,
+            dashboardDetailsToolName,
+        }),
         execute: async (args) => {
             try {
                 const verifiedOnly = args.verifiedOnly ?? false;

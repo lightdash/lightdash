@@ -88,6 +88,7 @@ const makeAgentTools = () => {
             findContent: noop,
             siteUrl: 'https://lightdash.example',
             toolDescriptionMaxChars: 600,
+            dashboardDetailsToolName: 'readContent',
             trackCoverage: noop,
         }),
         findExplores: getFindExplores({

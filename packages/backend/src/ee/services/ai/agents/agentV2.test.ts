@@ -999,12 +999,16 @@ describe('getAgentTools workstream tool gate', () => {
         closeMcpClients: () => Promise.resolve(),
     };
 
-    const buildArgs = (flags: {
+    type ToolFlags = {
         enableCodingAgent: boolean;
         enableAiWriteback: boolean;
         aiAgentMemoryEnabled?: boolean;
         canCreateDashboards?: boolean;
-    }): AiAgentArgs =>
+        enableContentTools?: boolean;
+        enableDataAccess?: boolean;
+    };
+
+    const buildArgs = (flags: ToolFlags): AiAgentArgs =>
         ({
             canCreateDashboards: true,
             agentSettings: { name: 'test-agent' },
@@ -1042,22 +1046,10 @@ describe('getAgentTools workstream tool gate', () => {
             ...flags,
         }) as unknown as AiAgentArgs;
 
-    const toolNames = (flags: {
-        enableCodingAgent: boolean;
-        enableAiWriteback: boolean;
-        aiAgentMemoryEnabled?: boolean;
-        canCreateDashboards?: boolean;
-    }) =>
-        Object.keys(
-            getAgentTools(
-                buildArgs(flags),
-                depsStub(),
-                [],
-                mcpStub,
-                new Map(),
-                {},
-            ),
-        );
+    const buildTools = (flags: ToolFlags) =>
+        getAgentTools(buildArgs(flags), depsStub(), [], mcpStub, new Map(), {});
+
+    const toolNames = (flags: ToolFlags) => Object.keys(buildTools(flags));
 
     it('exposes listWorkstreams + closePullRequest when AI writeback is enabled (coding agent off)', () => {
         const names = toolNames({
@@ -1090,6 +1082,36 @@ describe('getAgentTools workstream tool gate', () => {
         expect(names).toContain('grepFields');
         expect(names).toContain('getMetadata');
         expect(names).not.toContain('discoverFields');
+    });
+
+    it('matches dashboard detail guidance to the available content tool', () => {
+        const contentTools = buildTools({
+            enableCodingAgent: false,
+            enableAiWriteback: false,
+            enableContentTools: true,
+            enableDataAccess: true,
+        });
+        expect(Object.keys(contentTools)).toContain('readContent');
+        expect(Object.keys(contentTools)).not.toContain('getDashboardCharts');
+        expect(contentTools.findContent.description).toContain('"readContent"');
+        expect(contentTools.findContent.description).not.toContain(
+            '"getDashboardCharts"',
+        );
+
+        const legacyTools = buildTools({
+            enableCodingAgent: false,
+            enableAiWriteback: false,
+            enableContentTools: false,
+            enableDataAccess: true,
+        });
+        expect(Object.keys(legacyTools)).toContain('getDashboardCharts');
+        expect(Object.keys(legacyTools)).not.toContain('readContent');
+        expect(legacyTools.findContent.description).toContain(
+            '"getDashboardCharts"',
+        );
+        expect(legacyTools.findContent.description).not.toContain(
+            '"readContent"',
+        );
     });
 
     it('withholds generateDashboard from users who cannot save one', () => {

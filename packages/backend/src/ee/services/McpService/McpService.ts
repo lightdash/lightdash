@@ -2122,6 +2122,7 @@ export class McpService extends BaseService {
                     siteUrl: this.lightdashConfig.siteUrl,
                     toolDescriptionMaxChars:
                         this.lightdashConfig.ai.copilot.toolDescriptionMaxChars,
+                    dashboardDetailsToolName: 'readContent',
                     trackCoverage: () => {},
                 });
                 const result = await findContentTool.execute!(argsWithProject, {

@@ -204,7 +204,7 @@ Add section headers:
 
 ## Dashboard Tabs
 
-**IMPORTANT:** Tab `uuid` values must be valid UUIDs (e.g., `"a1b2c3d4-e5f6-7890-abcd-ef1234567890"`), not friendly names. The linter will reject non-UUID values. Generate UUIDs with `generateUuids` tool.
+**IMPORTANT:** Tab `uuid` values must be valid UUIDs (e.g., `"a1b2c3d4-e5f6-7890-abcd-ef1234567890"`), not friendly names. The linter will reject non-UUID values. Native Lightdash agents can use `generateUuids`; MCP clients must generate standard UUID v4 values locally.
 
 Organize tiles into multiple views:
 
