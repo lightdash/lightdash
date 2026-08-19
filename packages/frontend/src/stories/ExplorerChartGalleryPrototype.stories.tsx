@@ -23,7 +23,7 @@ import {
     IconAdjustmentsHorizontal,
     IconAlertCircle,
     IconArrowLeft,
-    IconArrowRight,
+    IconArrowUp,
     IconChartArea,
     IconChartBar,
     IconChartDonut,
@@ -40,8 +40,10 @@ import {
     IconFilter,
     IconGauge,
     IconGitMerge,
+    IconHistory,
     IconMap,
-    IconMessageCircle,
+    IconPaperclip,
+    IconPencil,
     IconPlayerPlay,
     IconPlus,
     IconRefresh,
@@ -1359,48 +1361,92 @@ type EmbeddedBuilderProps = {
     onRunQuery: () => void;
 };
 
-const BUILD_STAGE_LABELS: Record<BuildStage, string> = {
-    brief: 'Describe',
-    clarify: 'Clarify',
-    building: 'Build',
-    ready: 'Ready',
-};
+const BUILDER_EXAMPLES: Pick<ChartTypeOption, 'kind' | 'label'>[] = [
+    { kind: 'area', label: 'A stream graph of share over time' },
+    { kind: 'funnel', label: 'A funnel of signup steps' },
+    { kind: 'treemap', label: 'A calendar heatmap of daily orders' },
+    { kind: 'bar', label: 'A waterfall of revenue changes' },
+];
 
-const BuilderPreview = ({
+const BuilderStartCanvas = ({
     buildStage,
+    onPickExample,
+}: {
+    buildStage: BuildStage;
+    onPickExample: (prompt: string) => void;
+}) => (
+    <Stack
+        className={classes.builderStart}
+        gap="xl"
+        align="center"
+        data-quiet={buildStage === 'clarify' || undefined}
+    >
+        {buildStage === 'building' ? (
+            <>
+                <Group className={classes.builderSkeleton} gap="xs" align="end">
+                    {[34, 54, 43, 68, 47, 61].map((height, index) => (
+                        <Box
+                            key={height}
+                            className={classes.builderSkeletonBar}
+                            h={height}
+                            style={{ animationDelay: `${index * 0.12}s` }}
+                        />
+                    ))}
+                </Group>
+                <Stack gap={4} align="center">
+                    <Text size="md" fw={600}>
+                        Building your chart type…
+                    </Text>
+                    <Text fz="xs" c="dimmed">
+                        Using the latest executed Explorer results
+                    </Text>
+                </Stack>
+            </>
+        ) : (
+            <>
+                <Stack gap="xs" align="center">
+                    <Text size="md" fw={600}>
+                        Start with a prompt
+                    </Text>
+                    <Text fz="xs" c="dimmed" ta="center">
+                        Describe the chart type you need. Iterate from there.
+                    </Text>
+                </Stack>
+                <Group gap="sm" align="stretch" justify="center">
+                    {BUILDER_EXAMPLES.map((example) => (
+                        <UnstyledButton
+                            key={example.label}
+                            className={classes.builderExample}
+                            onClick={() => onPickExample(example.label)}
+                        >
+                            <Box className={classes.builderExamplePreview}>
+                                <ChartPreview
+                                    kind={example.kind}
+                                    palette="blue"
+                                    compact
+                                    showLabels={false}
+                                />
+                            </Box>
+                            <Text fz={13} fw={500} lh={1.35}>
+                                {example.label}
+                            </Text>
+                        </UnstyledButton>
+                    ))}
+                </Group>
+            </>
+        )}
+    </Stack>
+);
+
+const BuilderResultCanvas = ({
     queryDirty,
     dataRevision,
     onRunQuery,
 }: Pick<
     EmbeddedBuilderProps,
-    'buildStage' | 'queryDirty' | 'dataRevision' | 'onRunQuery'
+    'queryDirty' | 'dataRevision' | 'onRunQuery'
 >) => (
-    <Stack className={classes.builderPreviewPanel} gap="md">
-        <Group justify="space-between">
-            <Stack gap={1}>
-                <Text fw={650}>Event change waterfall</Text>
-                <Text size="xs" c="dimmed">
-                    Previewing executed query · Run {dataRevision} · 10 rows
-                </Text>
-            </Stack>
-            <Badge
-                variant="light"
-                color={buildStage === 'ready' ? 'green' : 'violet'}
-                leftSection={
-                    <MantineIcon
-                        icon={
-                            buildStage === 'ready'
-                                ? IconCircleCheck
-                                : IconSparkles
-                        }
-                        size={12}
-                    />
-                }
-            >
-                {buildStage === 'ready' ? 'Ready to use' : 'Draft preview'}
-            </Badge>
-        </Group>
-
+    <Stack className={classes.builderResult} gap="sm">
         {queryDirty && (
             <Paper
                 withBorder
@@ -1411,232 +1457,199 @@ const BuilderPreview = ({
                 <Group justify="space-between" wrap="nowrap">
                     <Group gap="xs" wrap="nowrap">
                         <MantineIcon icon={IconAlertCircle} color="yellow" />
-                        <Stack gap={1}>
-                            <Text size="sm" fw={600}>
-                                Query fields changed
-                            </Text>
-                            <Text size="xs" c="dimmed">
-                                This preview still uses Run {dataRevision}.
-                            </Text>
-                        </Stack>
+                        <Text size="xs">
+                            The Explorer query changed. This preview still uses
+                            Run {dataRevision}.
+                        </Text>
                     </Group>
-                    <Button size="xs" onClick={onRunQuery}>
+                    <Button size="compact-xs" onClick={onRunQuery}>
                         Run updated query
                     </Button>
                 </Group>
             </Paper>
         )}
-
-        <Paper withBorder radius="lg" className={classes.builderChartCanvas}>
-            <ChartPreview kind="bar" palette="grape" showLabels />
-            {buildStage === 'building' && (
-                <Box className={classes.buildingOverlay}>
-                    <Stack align="center" gap="xs">
-                        <MantineIcon
-                            icon={IconSparkles}
-                            size={34}
-                            color="violet"
-                        />
-                        <Text fw={650}>Building your chart type…</Text>
-                        <Text size="xs" c="dimmed">
-                            Generating components and checking field mappings
-                        </Text>
-                    </Stack>
+        <Box className={classes.builderResultCard}>
+            <Stack className={classes.builderOptionsPanel} gap="sm">
+                <Text className={classes.generatedChip}>Generated options</Text>
+                <Group gap="xs" className={classes.builderOptionTabs}>
+                    <Text size="xs" fw={600} c="blue">
+                        Style
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                        Labels
+                    </Text>
+                </Group>
+                <Select
+                    size="xs"
+                    label="Layout"
+                    value="Waterfall"
+                    data={['Waterfall', 'Stacked', 'Grouped']}
+                    readOnly
+                />
+                <Select
+                    size="xs"
+                    label="Direction"
+                    value="Vertical"
+                    data={['Vertical', 'Horizontal']}
+                    readOnly
+                />
+                <Switch size="xs" label="Show final total" defaultChecked />
+                <Switch size="xs" label="Show value labels" defaultChecked />
+                <Stack gap={5}>
+                    <Text size="xs" fw={500}>
+                        Color palette
+                    </Text>
+                    <Group gap={5}>
+                        {['#228be6', '#12b886', '#fa5252', '#fab005'].map(
+                            (color) => (
+                                <Box
+                                    key={color}
+                                    className={classes.paletteSwatch}
+                                    bg={color}
+                                />
+                            ),
+                        )}
+                    </Group>
+                </Stack>
+            </Stack>
+            <Box className={classes.builderResultPreview}>
+                <Stack gap={2} className={classes.builderResultTitle}>
+                    <Text fw={600}>Event change waterfall</Text>
+                    <Text size="xs" c="dimmed">
+                        Run {dataRevision} · 10 rows
+                    </Text>
+                </Stack>
+                <Box className={classes.builderResultChart}>
+                    <ChartPreview kind="bar" palette="blue" showLabels />
                 </Box>
-            )}
-        </Paper>
-
-        <Group grow>
-            <Paper withBorder radius="md" p="sm">
-                <Text size="xs" c="dimmed">
-                    CATEGORY
-                </Text>
-                <Text size="sm" fw={600}>
-                    Event tier
-                </Text>
-            </Paper>
-            <Paper withBorder radius="md" p="sm">
-                <Text size="xs" c="dimmed">
-                    CHANGE
-                </Text>
-                <Text size="sm" fw={600}>
-                    Count
-                </Text>
-            </Paper>
-            <Paper withBorder radius="md" p="sm">
-                <Text size="xs" c="dimmed">
-                    BREAKDOWN
-                </Text>
-                <Text size="sm" fw={600}>
-                    Event
-                </Text>
-            </Paper>
-        </Group>
+            </Box>
+        </Box>
     </Stack>
 );
 
-const BuilderConversation = ({
+const BuilderPromptBar = ({
     buildStage,
     prompt,
-    queryDirty,
-    dataRevision,
-    extraFieldSelected,
-    executedExtraFieldSelected,
-    editingChart,
     onPromptChange,
     onAdvance,
-}: Omit<EmbeddedBuilderProps, 'onCancel' | 'onApply' | 'onRunQuery'>) => {
-    const actionLabel: Record<BuildStage, string> = {
-        brief: 'Continue',
-        clarify: 'Build chart type',
-        building: 'Finish simulated build',
-        ready: 'Add another instruction',
-    };
+}: Pick<
+    EmbeddedBuilderProps,
+    'buildStage' | 'prompt' | 'onPromptChange' | 'onAdvance'
+>) => {
+    const isLocked = buildStage === 'clarify' || buildStage === 'building';
+    const placeholder =
+        buildStage === 'clarify'
+            ? 'Answer the questions, or skip, to build…'
+            : buildStage === 'building'
+              ? 'Building your chart type…'
+              : buildStage === 'ready'
+                ? 'Ask for a change…'
+                : 'Describe a new chart type…';
 
     return (
-        <Stack className={classes.builderConversation} gap="md">
-            <Group gap="xs">
-                <MantineIcon icon={IconMessageCircle} color="violet" />
-                <Stack gap={0}>
-                    <Text fw={650}>Chart type builder</Text>
-                    <Text size="xs" c="dimmed">
-                        Using the latest executed Explorer results
-                    </Text>
-                </Stack>
-            </Group>
-
-            <Paper withBorder radius="md" p="sm">
-                <Text size="xs" c="dimmed" mb={4}>
-                    EXPLORER CONTEXT
-                </Text>
-                <Group gap="xs">
-                    <Badge size="xs" variant="light">
-                        Run {dataRevision}
-                    </Badge>
-                    <Badge size="xs" variant="light">
-                        {executedExtraFieldSelected ? 4 : 3} executed fields
-                    </Badge>
-                    <Badge size="xs" variant="light">
-                        10 rows
-                    </Badge>
-                    {queryDirty && (
-                        <Badge size="xs" color="yellow" variant="light">
-                            Draft has {extraFieldSelected ? 4 : 3}
-                        </Badge>
-                    )}
-                </Group>
-            </Paper>
-
-            <Box className={classes.conversationScroll}>
-                <Stack gap="sm">
-                    <Paper radius="md" p="sm" className={classes.agentMessage}>
-                        <Text size="sm">
-                            {editingChart
-                                ? 'Tell me what you want to change about Event tier pulse.'
-                                : 'Describe the reusable chart type you want to build from these results.'}
+        <Box className={classes.builderPromptWrap}>
+            {buildStage === 'clarify' && (
+                <Paper
+                    withBorder
+                    radius="lg"
+                    className={classes.clarificationSheet}
+                >
+                    <Group gap="xs" wrap="nowrap">
+                        <MantineIcon icon={IconSparkles} size={14} />
+                        <Text size="xs" fw={500} truncate flex={1}>
+                            {prompt}
                         </Text>
-                    </Paper>
-
-                    <Paper radius="md" p="sm" className={classes.userMessage}>
-                        <Text size="sm">{prompt}</Text>
-                    </Paper>
-
-                    {buildStage !== 'brief' && (
-                        <Paper
-                            radius="md"
-                            p="sm"
-                            className={classes.agentMessage}
+                        <ActionIcon variant="subtle" size="xs">
+                            <MantineIcon icon={IconPencil} size={13} />
+                        </ActionIcon>
+                    </Group>
+                    <TextInput
+                        size="xs"
+                        label="How should increases and decreases be colored?"
+                        placeholder="Use green for increases and red for decreases"
+                    />
+                    <TextInput
+                        size="xs"
+                        label="Should the final total be shown?"
+                        placeholder="Yes, include a total bar at the end"
+                    />
+                    <Group justify="space-between">
+                        <Button variant="subtle" color="gray" size="xs">
+                            Skip and build anyway
+                        </Button>
+                        <Button size="xs" onClick={onAdvance}>
+                            Build
+                        </Button>
+                    </Group>
+                </Paper>
+            )}
+            {buildStage === 'building' && (
+                <Paper
+                    withBorder
+                    radius="lg"
+                    className={classes.builderStatusRow}
+                >
+                    <Group justify="space-between" wrap="nowrap">
+                        <Group gap="xs" wrap="nowrap">
+                            <Box className={classes.builderStatusDot} />
+                            <Text size="xs" fw={600}>
+                                Building… 0:12
+                            </Text>
+                            <Text size="xs" c="dimmed" truncate>
+                                “{prompt}”
+                            </Text>
+                        </Group>
+                        <Button
+                            variant="subtle"
+                            color="gray"
+                            size="compact-xs"
+                            onClick={onAdvance}
                         >
-                            <Stack gap="xs">
-                                <Text size="sm">
-                                    Should increases and decreases use different
-                                    colors, and should the total appear at the
-                                    end?
-                                </Text>
-                                <Group grow>
-                                    <Button size="xs" variant="default">
-                                        Different colors
-                                    </Button>
-                                    <Button size="xs" variant="default">
-                                        Show final total
-                                    </Button>
-                                </Group>
-                            </Stack>
-                        </Paper>
-                    )}
-
-                    {(buildStage === 'building' || buildStage === 'ready') && (
-                        <Paper
-                            radius="md"
-                            p="sm"
-                            className={classes.agentMessage}
-                        >
-                            <Stack gap={6}>
-                                {[
-                                    'Read the executed query fields',
-                                    'Mapped category, change, and breakdown',
-                                    'Generated responsive waterfall layout',
-                                ].map((item) => (
-                                    <Group key={item} gap="xs" wrap="nowrap">
-                                        <MantineIcon
-                                            icon={IconCircleCheck}
-                                            color="green"
-                                            size={14}
-                                        />
-                                        <Text size="xs">{item}</Text>
-                                    </Group>
-                                ))}
-                            </Stack>
-                        </Paper>
-                    )}
-
-                    {buildStage === 'ready' && (
-                        <Paper
-                            withBorder
-                            radius="md"
-                            p="sm"
-                            className={classes.readyMessage}
-                        >
-                            <Group gap="xs" wrap="nowrap">
-                                <MantineIcon
-                                    icon={IconCircleCheck}
-                                    color="green"
-                                />
-                                <Stack gap={1}>
-                                    <Text size="sm" fw={650}>
-                                        Event change waterfall is ready
-                                    </Text>
-                                    <Text size="xs" c="dimmed">
-                                        Use it to return to this exact Explorer
-                                        query with the new chart selected.
-                                    </Text>
-                                </Stack>
-                            </Group>
-                        </Paper>
-                    )}
-                </Stack>
-            </Box>
-
-            {buildStage === 'brief' && (
+                            Finish simulated build
+                        </Button>
+                    </Group>
+                </Paper>
+            )}
+            <Paper withBorder radius="lg" className={classes.builderPromptPill}>
                 <Textarea
-                    label="Your brief"
-                    minRows={4}
-                    value={prompt}
+                    variant="unstyled"
+                    autosize
+                    minRows={1}
+                    maxRows={4}
+                    value={isLocked ? '' : prompt}
+                    placeholder={placeholder}
+                    disabled={isLocked}
                     onChange={(event) =>
                         onPromptChange(event.currentTarget.value)
                     }
                 />
-            )}
-
-            <Button
-                fullWidth
-                rightSection={<MantineIcon icon={IconArrowRight} size={14} />}
-                onClick={onAdvance}
-                variant={buildStage === 'ready' ? 'default' : 'filled'}
-            >
-                {actionLabel[buildStage]}
-            </Button>
-        </Stack>
+                <Group justify="space-between" wrap="nowrap">
+                    <Button variant="subtle" color="gray" size="compact-xs">
+                        Auto
+                    </Button>
+                    <Group gap={4} wrap="nowrap">
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            size="sm"
+                            aria-label="Attach"
+                        >
+                            <MantineIcon icon={IconPaperclip} />
+                        </ActionIcon>
+                        <ActionIcon
+                            color="blue"
+                            radius="xl"
+                            size="sm"
+                            aria-label="Send"
+                            disabled={isLocked || prompt.trim().length === 0}
+                            onClick={onAdvance}
+                        >
+                            <MantineIcon icon={IconArrowUp} />
+                        </ActionIcon>
+                    </Group>
+                </Group>
+            </Paper>
+        </Box>
     );
 };
 
@@ -1652,61 +1665,67 @@ const BuilderHeader = ({
     <Group className={classes.builderHeader} justify="space-between">
         <Group gap="sm">
             <Button
-                variant="subtle"
-                color="gray"
+                variant="default"
                 size="xs"
                 leftSection={<MantineIcon icon={IconArrowLeft} size={14} />}
                 onClick={onCancel}
             >
-                Back to Explorer
+                Explorer
             </Button>
             <Divider orientation="vertical" />
-            <Stack gap={0}>
-                <Text size="sm" fw={650}>
-                    {editingChart ? 'Edit chart type' : 'New chart type'}
-                </Text>
+            <Text size="sm" fw={650}>
+                {editingChart
+                    ? 'Event tier pulse'
+                    : buildStage === 'ready'
+                      ? 'Event change waterfall'
+                      : 'Untitled chart type'}
+            </Text>
+            {buildStage === 'ready' && (
                 <Text size="xs" c="dimmed">
-                    Explorer remains active
+                    Created by you · just now
                 </Text>
-            </Stack>
+            )}
         </Group>
         <Group gap="xs">
-            {(Object.keys(BUILD_STAGE_LABELS) as BuildStage[]).map((stage) => (
-                <Badge
-                    key={stage}
-                    size="sm"
-                    variant={stage === buildStage ? 'filled' : 'light'}
-                    color={stage === buildStage ? 'violet' : 'gray'}
+            {(editingChart || buildStage === 'ready') && (
+                <Button
+                    size="xs"
+                    variant="default"
+                    leftSection={<MantineIcon icon={IconHistory} size={14} />}
                 >
-                    {BUILD_STAGE_LABELS[stage]}
-                </Badge>
-            ))}
-            <Button
-                size="xs"
-                color="green"
-                disabled={buildStage !== 'ready'}
-                leftSection={<MantineIcon icon={IconCircleCheck} size={14} />}
-                onClick={onApply}
-            >
-                Use this chart
-            </Button>
+                    History
+                </Button>
+            )}
+            {buildStage === 'ready' && (
+                <Button
+                    size="xs"
+                    leftSection={
+                        <MantineIcon icon={IconCircleCheck} size={14} />
+                    }
+                    onClick={onApply}
+                >
+                    Preview in Explorer
+                </Button>
+            )}
         </Group>
     </Group>
 );
 
 const EmbeddedBuilderWorkspace = (props: EmbeddedBuilderProps) => {
-    const conversation = <BuilderConversation {...props} />;
-    const preview = <BuilderPreview {...props} />;
-
     return (
         <Box className={classes.embeddedBuilder}>
             <BuilderHeader {...props} />
-            <Stack className={classes.builderCanvasB} gap="md">
-                {preview}
-                <Paper withBorder radius="lg" className={classes.builderDockB}>
-                    {conversation}
-                </Paper>
-            </Stack>
+            <Box className={classes.builderBody}>
+                {props.buildStage === 'ready' ? (
+                    <BuilderResultCanvas {...props} />
+                ) : (
+                    <BuilderStartCanvas
+                        buildStage={props.buildStage}
+                        onPickExample={props.onPromptChange}
+                    />
+                )}
+                <BuilderPromptBar {...props} />
+            </Box>
             <Code block className={classes.authoringState}>
                 {JSON.stringify(
                     {
@@ -1941,7 +1960,7 @@ const ExplorerChartGalleryPrototype = ({
     const beginAuthoring = (editing: boolean) => {
         setPreviousSelectedId(selectedId);
         setEditingChart(editing);
-        setBuildStage('brief');
+        setBuildStage(editing ? 'ready' : 'brief');
         setMode('authoring');
     };
 
@@ -1960,8 +1979,9 @@ const ExplorerChartGalleryPrototype = ({
             brief: 'clarify',
             clarify: 'building',
             building: 'ready',
-            ready: 'brief',
+            ready: 'building',
         };
+        if (buildStage === 'building') setPrompt('');
         setBuildStage(nextStage[buildStage]);
     };
 
