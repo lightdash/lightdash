@@ -1,3 +1,10 @@
+# [1.204.0](https://github.com/lightdash/lightdash/compare/1.203.1...1.204.0) (2026-08-19)
+
+
+### Features
+
+* fetch MetricFlow definitions from dbt Cloud Discovery API ([#27618](https://github.com/lightdash/lightdash/issues/27618)) ([0a14236](https://github.com/lightdash/lightdash/commit/0a142364180a3e70c3a7eb9d396904c49982aa12))
+
 ## [1.203.1](https://github.com/lightdash/lightdash/compare/1.203.0...1.203.1) (2026-08-19)
 
 
