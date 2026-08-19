@@ -8,23 +8,21 @@ import {
     type SemanticLayerSourceQuery,
 } from '@lightdash/common';
 import {
-    TDCP_PROTOCOL_REVISION,
+    createTdcpServer,
     TdcpDialects,
-    type TdcpCapabilities,
     type TdcpCatalog,
     type TdcpColumnSchema,
-    type TdcpDataRequest,
     type TdcpDatasetDescriptor,
+    type TdcpQueryRequest,
+    type TdcpServer,
 } from '@lightdash/tdcp';
 import type { AsyncQueryService } from '../../../AsyncQueryService/AsyncQueryService';
 import type { ProjectService } from '../../../ProjectService/ProjectService';
 import {
-    assertDialectQuery,
     localDatasetDescriptor,
     type TdcpCatalogContext,
     type TdcpRequestContext,
-    type TdcpServer,
-} from '../TdcpServer';
+} from '../host';
 import { dimensionTypeToTdcpType } from '../typeMapping';
 
 type SemanticLayerTdcpServerArguments = {
@@ -49,7 +47,7 @@ type MetricQueryDialectPayload = Omit<
  * is also, verbatim, what the outbound TDCP server exposes to external
  * consumers — the "semantic layer as a source" surface.
  */
-export class SemanticLayerTdcpServer implements TdcpServer {
+class SemanticLayerTdcpHandlers {
     private readonly asyncQueryService: AsyncQueryService;
 
     private readonly projectService: ProjectService;
@@ -57,20 +55,6 @@ export class SemanticLayerTdcpServer implements TdcpServer {
     constructor(args: SemanticLayerTdcpServerArguments) {
         this.asyncQueryService = args.asyncQueryService;
         this.projectService = args.projectService;
-    }
-
-    // eslint-disable-next-line class-methods-use-this
-    async capabilities(): Promise<TdcpCapabilities> {
-        return {
-            revision: TDCP_PROTOCOL_REVISION,
-            // @oliver: tier 0 read could mean "all fields of the explore at
-            // its natural grain" — attractive for agents, but grain traps.
-            // Left off until we decide.
-            read: false,
-            scan: false,
-            queryDialects: [TdcpDialects.LIGHTDASH_METRIC_QUERY],
-            compose: false,
-        };
     }
 
     async catalog({
@@ -133,14 +117,8 @@ export class SemanticLayerTdcpServer implements TdcpServer {
 
     async query(
         ctx: TdcpRequestContext,
-        request: TdcpDataRequest,
+        queryRequest: TdcpQueryRequest,
     ): Promise<TdcpDatasetDescriptor> {
-        const queryRequest = assertDialectQuery(
-            request,
-            TdcpDialects.LIGHTDASH_METRIC_QUERY,
-            'semantic layer',
-        );
-
         let payload: MetricQueryDialectPayload;
         try {
             payload = JSON.parse(queryRequest.query);
@@ -181,3 +159,14 @@ export class SemanticLayerTdcpServer implements TdcpServer {
         });
     }
 }
+
+export const createSemanticLayerTdcpServer = (
+    args: SemanticLayerTdcpServerArguments,
+): TdcpServer<TdcpCatalogContext, TdcpRequestContext> => {
+    const handlers = new SemanticLayerTdcpHandlers(args);
+    return createTdcpServer({
+        catalog: handlers.catalog.bind(handlers),
+        queryDialects: [TdcpDialects.LIGHTDASH_METRIC_QUERY],
+        query: handlers.query.bind(handlers),
+    });
+};

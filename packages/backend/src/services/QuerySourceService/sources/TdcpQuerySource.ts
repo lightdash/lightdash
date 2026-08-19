@@ -13,9 +13,10 @@ import {
     TdcpMethods,
     type TdcpCatalog,
     type TdcpDataRequest,
+    type TdcpServer,
 } from '@lightdash/tdcp';
 import { tdcpSourceQueryToDataRequest } from '../tdcp/dataRequest';
-import type { TdcpServer } from '../tdcp/TdcpServer';
+import type { TdcpCatalogContext, TdcpRequestContext } from '../tdcp/host';
 import { tdcpTypeToDimensionType } from '../tdcp/typeMapping';
 import type {
     QuerySourceClient,
@@ -25,7 +26,7 @@ import type {
 
 type TdcpQuerySourceArguments = {
     definition: QuerySourceDefinition;
-    server: TdcpServer;
+    server: TdcpServer<TdcpCatalogContext, TdcpRequestContext>;
 };
 
 /** The array shorthand exposes each referenced node as a table of the same name. */
@@ -73,7 +74,7 @@ export const catalogToQuerySourceSchema = (
 export class TdcpQuerySource implements QuerySourceClient {
     readonly definition: QuerySourceDefinition;
 
-    private readonly server: TdcpServer;
+    private readonly server: TdcpServer<TdcpCatalogContext, TdcpRequestContext>;
 
     constructor(args: TdcpQuerySourceArguments) {
         this.definition = args.definition;
@@ -170,7 +171,7 @@ export class TdcpQuerySource implements QuerySourceClient {
             resolvedReferences,
         );
 
-        const descriptor = await this.server.query(
+        const descriptor = await this.server.execute(
             { account, projectUuid, queryContext: context },
             request,
         );

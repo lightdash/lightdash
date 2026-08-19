@@ -71,7 +71,7 @@ TDCP reserves JSON-RPC error codes: `-32010` capability not supported, `-32011` 
 
 ## 8. Conformance
 
-A conforming tier 0 server: implements capabilities/catalog/read; every descriptor validates against the schema file; links honor their expiry; `exact`-mode guarantees hold vacuously. The conformance CLI (planned deliverable) scores exactly what this section requires. Until it exists, the schema file plus the `createTdcpRequestHandler` guardrails in this package are the reference behavior.
+A conforming tier 0 server: implements capabilities/catalog/read; every descriptor validates against the schema file; links honor their expiry; `exact`-mode guarantees hold vacuously. The conformance CLI (planned deliverable) scores exactly what this section requires. Until it exists, the schema file plus the `createTdcpServer` guardrails in this package are the reference behavior.
 
 ## 9. Revision policy
 

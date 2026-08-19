@@ -3,12 +3,13 @@
  * tier 1 (`scan` with equality/IN pushdown), and the smallest possible
  * tier 2 dialect (`table:name`). The dataset lifecycle (handles, tokens,
  * expiry) is TdcpDatasetStore's job; the transport is startTdcpNodeServer;
- * every protocol guarantee comes from createTdcpRequestHandler.
+ * every protocol guarantee comes from createTdcpServer.
  *
  * Run: npx tsx packages/tdcp/examples/orders-server.ts [port]
  */
 import {
     createTdcpRequestHandler,
+    createTdcpServer,
     JsonRpcErrorCodes,
     TdcpDatasetStore,
     TdcpError,
@@ -93,7 +94,7 @@ const requireTable = (reference: string) => {
     return { rows, schema };
 };
 
-const handler = createTdcpRequestHandler({
+const tdcpServer = createTdcpServer({
     catalog: async () => CATALOG,
     // Tier 2 with the simplest possible dialect: the query text is a table
     // name. A source's "own language" can be this small.
@@ -130,6 +131,7 @@ const handler = createTdcpRequestHandler({
         });
     },
 });
+const handler = createTdcpRequestHandler(tdcpServer);
 
 startTdcpNodeServer({
     handler,
