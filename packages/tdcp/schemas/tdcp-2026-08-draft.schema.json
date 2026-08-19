@@ -1,8 +1,8 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$id": "https://tdcp.dev/schemas/tdcp-2026-08-draft.schema.json",
-    "title": "Tabular Data Context Protocol (2026-08-draft.1)",
-    "description": "Wire shapes for the TDCP draft: catalog, capabilities, data requests, and the dataset descriptor. The descriptor is the object the protocol exists to produce and consume.",
+    "title": "Tabular Data Context Protocol (2026-08-draft.2)",
+    "description": "Wire shapes for the TDCP draft: catalog, capabilities, data requests, and the data result (a ready dataset descriptor, or a pending dataset resolved via tabular/poll). The descriptor is the object the protocol exists to produce and consume.",
     "$defs": {
         "LogicalType": {
             "type": "string",
@@ -10,11 +10,12 @@
         },
         "ColumnSchema": {
             "type": "object",
-            "required": ["name", "type", "label", "description"],
+            "required": ["name", "type", "sourceType", "label", "description"],
             "additionalProperties": false,
             "properties": {
                 "name": { "type": "string", "minLength": 1 },
                 "type": { "$ref": "#/$defs/LogicalType" },
+                "sourceType": { "type": ["string", "null"] },
                 "label": { "type": ["string", "null"] },
                 "description": { "type": ["string", "null"] }
             }
@@ -28,25 +29,77 @@
                 "label": { "type": ["string", "null"] },
                 "description": { "type": ["string", "null"] },
                 "columns": {
+                    "type": ["array", "null"],
+                    "items": { "$ref": "#/$defs/ColumnSchema" }
+                }
+            }
+        },
+        "DescribedTable": {
+            "type": "object",
+            "required": ["reference", "label", "description", "columns"],
+            "additionalProperties": false,
+            "properties": {
+                "reference": { "type": "string", "minLength": 1 },
+                "label": { "type": ["string", "null"] },
+                "description": { "type": ["string", "null"] },
+                "columns": {
                     "type": "array",
                     "items": { "$ref": "#/$defs/ColumnSchema" }
                 }
             }
         },
+        "CatalogRequest": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "cursor": { "type": "string", "minLength": 1 }
+            }
+        },
         "Catalog": {
             "type": "object",
-            "required": ["tables"],
+            "required": ["tables", "nextCursor"],
             "additionalProperties": false,
             "properties": {
                 "tables": {
                     "type": "array",
                     "items": { "$ref": "#/$defs/CatalogTable" }
-                }
+                },
+                "nextCursor": { "type": ["string", "null"] }
+            }
+        },
+        "DescribeRequest": {
+            "type": "object",
+            "required": ["method", "table"],
+            "additionalProperties": false,
+            "properties": {
+                "method": { "const": "tabular/describe" },
+                "table": { "type": "string", "minLength": 1 }
+            }
+        },
+        "DialectDeclaration": {
+            "type": "object",
+            "required": ["dialect", "form", "payloadSchema", "docsUrl"],
+            "additionalProperties": false,
+            "properties": {
+                "dialect": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9]+:[a-z0-9-]+$"
+                },
+                "form": { "type": "string", "enum": ["text", "structured"] },
+                "payloadSchema": { "type": ["object", "null"] },
+                "docsUrl": { "type": ["string", "null"], "format": "uri" }
             }
         },
         "Capabilities": {
             "type": "object",
-            "required": ["revision", "read", "scan", "queryDialects", "compose"],
+            "required": [
+                "revision",
+                "read",
+                "scan",
+                "queryDialects",
+                "compose",
+                "describe"
+            ],
             "additionalProperties": false,
             "properties": {
                 "revision": { "type": "string" },
@@ -54,9 +107,10 @@
                 "scan": { "type": "boolean" },
                 "queryDialects": {
                     "type": "array",
-                    "items": { "type": "string", "pattern": "^[a-z0-9]+:[a-z0-9-]+$" }
+                    "items": { "$ref": "#/$defs/DialectDeclaration" }
                 },
-                "compose": { "type": "boolean" }
+                "compose": { "type": "boolean" },
+                "describe": { "type": "boolean" }
             }
         },
         "ScanPredicate": {
@@ -109,12 +163,17 @@
         },
         "QueryRequest": {
             "type": "object",
-            "required": ["method", "dialect", "query"],
+            "required": ["method", "dialect"],
             "additionalProperties": false,
+            "oneOf": [{ "required": ["query"] }, { "required": ["params"] }],
             "properties": {
                 "method": { "const": "tabular/query" },
-                "dialect": { "type": "string", "pattern": "^[a-z0-9]+:[a-z0-9-]+$" },
+                "dialect": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9]+:[a-z0-9-]+$"
+                },
                 "query": { "type": "string", "minLength": 1 },
+                "params": { "type": "object" },
                 "references": {
                     "type": "object",
                     "additionalProperties": { "type": "string", "minLength": 1 }
@@ -122,12 +181,12 @@
                 "limit": { "type": "integer", "minimum": 1 }
             }
         },
-        "RefreshRequest": {
+        "PollRequest": {
             "type": "object",
             "required": ["method", "datasetId"],
             "additionalProperties": false,
             "properties": {
-                "method": { "const": "tabular/refresh" },
+                "method": { "const": "tabular/poll" },
                 "datasetId": { "type": "string", "minLength": 1 }
             }
         },
@@ -161,6 +220,7 @@
         "DatasetDescriptor": {
             "type": "object",
             "required": [
+                "status",
                 "datasetId",
                 "schema",
                 "rowCount",
@@ -171,6 +231,7 @@
             ],
             "additionalProperties": false,
             "properties": {
+                "status": { "const": "ready" },
                 "datasetId": { "type": "string", "minLength": 1 },
                 "schema": {
                     "type": "array",
@@ -190,6 +251,22 @@
                     "items": { "$ref": "#/$defs/ScanPredicate" }
                 }
             }
+        },
+        "PendingDataset": {
+            "type": "object",
+            "required": ["status", "datasetId", "pollAfterMs"],
+            "additionalProperties": false,
+            "properties": {
+                "status": { "const": "pending" },
+                "datasetId": { "type": "string", "minLength": 1 },
+                "pollAfterMs": { "type": ["integer", "null"], "minimum": 0 }
+            }
+        },
+        "DataResult": {
+            "oneOf": [
+                { "$ref": "#/$defs/PendingDataset" },
+                { "$ref": "#/$defs/DatasetDescriptor" }
+            ]
         }
     }
 }

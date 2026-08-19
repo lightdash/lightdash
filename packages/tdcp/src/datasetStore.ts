@@ -1,15 +1,16 @@
-import type {
-    TdcpColumnSchema,
-    TdcpDatasetDescriptor,
-    TdcpScanPredicate,
-} from './types';
+import type { TdcpColumnSchema, TdcpDatasetDescriptor } from './types';
 
 const DEFAULT_TTL_MS = 15 * 60_000;
+const DEFAULT_MAX_ROWS = 100_000;
 
 export type MintDatasetArgs = {
     schema: TdcpColumnSchema[];
     rows: Record<string, unknown>[];
-    pushedPredicates?: TdcpScanPredicate[];
+    /**
+     * The principal the dataset is bound to; reads under a different
+     * principal are refused. null = the server serves a single principal.
+     */
+    principal: string | null;
     cacheHit?: boolean;
 };
 
@@ -22,28 +23,45 @@ export type DataPlaneRead =
     | { kind: 'unauthorized' }
     | { kind: 'notFound' };
 
+/** Length-guarded constant-time comparison, no node builtins. */
+const tokensEqual = (left: string, right: string): boolean => {
+    if (left.length !== right.length) return false;
+    let diff = 0;
+    for (let i = 0; i < left.length; i += 1) {
+        // eslint-disable-next-line no-bitwise
+        diff |= left.charCodeAt(i) ^ right.charCodeAt(i);
+    }
+    return diff === 0;
+};
+
 /**
- * The server-side dataset runtime every TDCP server needs: mint a
- * descriptor (opaque id, per-dataset bearer token, expiry, data-plane
- * link) and answer data-plane reads. Handlers produce rows; this owns the
- * handle lifecycle, so no integrator reinvents token minting or forgets
- * expiry.
+ * In-memory dataset runtime for examples and tests: mint a descriptor
+ * (opaque id, per-dataset bearer token, principal binding, expiry, data-
+ * plane link) and answer data-plane reads. Handlers produce rows; this owns
+ * the handle lifecycle. It buffers rows in memory and caps their count —
+ * production servers stream from real storage instead.
  */
 export class TdcpDatasetStore {
     private readonly datasets = new Map<
         string,
-        { rows: Record<string, unknown>[]; token: string; expiresAtMs: number }
+        {
+            rows: Record<string, unknown>[];
+            token: string;
+            principal: string | null;
+            expiresAtMs: number;
+        }
     >();
 
     private readonly baseUrl: string;
 
     private readonly ttlMs: number;
 
-    private counter = 0;
+    private readonly maxRows: number;
 
-    constructor(args: { baseUrl: string; ttlMs?: number }) {
+    constructor(args: { baseUrl: string; ttlMs?: number; maxRows?: number }) {
         this.baseUrl = args.baseUrl.replace(/\/$/, '');
         this.ttlMs = args.ttlMs ?? DEFAULT_TTL_MS;
+        this.maxRows = args.maxRows ?? DEFAULT_MAX_ROWS;
     }
 
     private prune(): void {
@@ -55,17 +73,23 @@ export class TdcpDatasetStore {
 
     mint(args: MintDatasetArgs): TdcpDatasetDescriptor {
         this.prune();
-        this.counter += 1;
-        const datasetId = `ds_${this.counter}`;
+        if (args.rows.length > this.maxRows) {
+            throw new Error(
+                `TdcpDatasetStore holds datasets in memory and caps them at ${this.maxRows} rows — stream from real storage for more`,
+            );
+        }
+        const datasetId = `ds_${globalThis.crypto.randomUUID()}`;
         const token = `tok_${globalThis.crypto.randomUUID()}`;
         const expiresAtMs = Date.now() + this.ttlMs;
         this.datasets.set(datasetId, {
             rows: args.rows,
             token,
+            principal: args.principal,
             expiresAtMs,
         });
         const expiresAt = new Date(expiresAtMs).toISOString();
         return {
+            status: 'ready',
             datasetId,
             schema: args.schema,
             rowCount: args.rows.length,
@@ -83,18 +107,23 @@ export class TdcpDatasetStore {
                     expiresAt,
                 },
             ],
-            ...(args.pushedPredicates
-                ? { pushedPredicates: args.pushedPredicates }
-                : {}),
         };
     }
 
-    read(datasetId: string, bearerToken: string | null): DataPlaneRead {
+    read(
+        datasetId: string,
+        bearerToken: string | null,
+        principal: string | null,
+    ): DataPlaneRead {
+        this.prune();
         const dataset = this.datasets.get(datasetId);
         if (!dataset || dataset.expiresAtMs <= Date.now()) {
             return { kind: 'notFound' };
         }
-        if (bearerToken !== dataset.token) {
+        if (bearerToken === null || !tokensEqual(bearerToken, dataset.token)) {
+            return { kind: 'unauthorized' };
+        }
+        if (dataset.principal !== principal) {
             return { kind: 'unauthorized' };
         }
         return { kind: 'ok', rows: dataset.rows };

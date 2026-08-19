@@ -1,3 +1,4 @@
+import { once } from 'events';
 import { createServer, type IncomingMessage, type Server } from 'http';
 import type { TdcpDatasetStore } from './datasetStore';
 import {
@@ -24,6 +25,14 @@ export type TdcpNodeServerArgs<TContext> = {
     host?: string;
     /** Resolves the per-request context (the principal, on real transports). */
     resolveContext: (req: IncomingMessage) => TContext | Promise<TContext>;
+    /**
+     * Resolves the data-plane caller's principal, matched against the
+     * principal each dataset was minted under. Defaults to null (single-
+     * principal server).
+     */
+    resolvePrincipal?: (
+        req: IncomingMessage,
+    ) => string | null | Promise<string | null>;
 };
 
 export const startTdcpNodeServer = async <TContext>(
@@ -66,7 +75,8 @@ export const startTdcpNodeServer = async <TContext>(
             if (req.method === 'GET' && dataMatch) {
                 const bearer =
                     req.headers.authorization?.replace('Bearer ', '') ?? null;
-                const read = args.store.read(dataMatch[1], bearer);
+                const principal = await (args.resolvePrincipal?.(req) ?? null);
+                const read = args.store.read(dataMatch[1], bearer, principal);
                 if (read.kind === 'notFound') {
                     res.writeHead(404).end();
                     return;
@@ -77,7 +87,10 @@ export const startTdcpNodeServer = async <TContext>(
                 }
                 res.writeHead(200, { 'Content-Type': 'application/jsonl' });
                 for (const row of read.rows) {
-                    res.write(`${JSON.stringify(row)}\n`);
+                    if (!res.write(`${JSON.stringify(row)}\n`)) {
+                        // eslint-disable-next-line no-await-in-loop -- backpressure: wait for the socket to drain
+                        await once(res, 'drain');
+                    }
                 }
                 res.end();
                 return;

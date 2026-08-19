@@ -3,34 +3,47 @@
  *
  * This file is the protocol's canonical type vocabulary and must stay
  * dependency-free: the package is designed to be lifted into a standalone
- * repo unchanged. packages/common/src/types/tdcp.ts is the host-side copy;
- * when this package is published, common re-exports from here.
+ * repo unchanged.
  *
- * @oliver: logical types are the five the host's DimensionType already
- * speaks, so backend interop is a cast-free mapping. The spec reserves the
- * move to Arrow logical types + an annotations map for a later revision —
- * that change is additive (new names, old ones aliased).
+ * @oliver: the five logical types are a floor chosen for interop with the
+ * first host; `sourceType` is the escape hatch for everything the floor
+ * cannot name (nested data, native types). The spec reserves the move to
+ * Arrow logical types plus an annotations map for a later revision — that
+ * change is additive (new names, old ones aliased).
  */
 
-export const TDCP_PROTOCOL_REVISION = '2026-08-draft.1';
+export const TDCP_PROTOCOL_REVISION = '2026-08-draft.2';
 
 export const TdcpMethods = {
     CAPABILITIES: 'tabular/capabilities',
     CATALOG: 'tabular/catalog',
+    DESCRIBE: 'tabular/describe',
     READ: 'tabular/read',
     SCAN: 'tabular/scan',
     QUERY: 'tabular/query',
-    REFRESH: 'tabular/refresh',
+    POLL: 'tabular/poll',
 } as const;
 
 export type TdcpMethod = (typeof TdcpMethods)[keyof typeof TdcpMethods];
 
+/** Dialect tags with registered implementations. Shaped like media types: family:variant. */
 export const TdcpDialects = {
     DUCKDB_SQL: 'sql:duckdb',
-    POSTGRES_SQL: 'sql:postgres',
     LIGHTDASH_METRIC_QUERY: 'metricquery:lightdash',
-    WAREHOUSE_SQL: 'sql:warehouse',
 } as const;
+
+/**
+ * A tier 2 dialect as a server declares it: which field the request carries
+ * ('text' dialects use `query`, 'structured' dialects use `params`), and how
+ * a consumer learns to write one.
+ */
+export type TdcpDialectDeclaration = {
+    dialect: string;
+    form: 'text' | 'structured';
+    /** JSON Schema for `params`; null for text dialects or when undocumented. */
+    payloadSchema: Record<string, unknown> | null;
+    docsUrl: string | null;
+};
 
 export type TdcpLogicalType =
     | 'string'
@@ -42,6 +55,12 @@ export type TdcpLogicalType =
 export type TdcpColumnSchema = {
     name: string;
     type: TdcpLogicalType;
+    /**
+     * The source's native type name, informational (e.g. "jsonb",
+     * "array<string>"). Non-primitive values travel JSON-encoded as
+     * type "string" with sourceType naming what they really are.
+     */
+    sourceType: string | null;
     label: string | null;
     description: string | null;
 };
@@ -50,23 +69,46 @@ export type TdcpCatalogTable = {
     reference: string;
     label: string | null;
     description: string | null;
+    /** Inline columns, or null when the table is described on demand via tabular/describe. */
+    columns: TdcpColumnSchema[] | null;
+};
+
+/** A catalog table with its columns resolved — the tabular/describe result. */
+export type TdcpDescribedTable = {
+    reference: string;
+    label: string | null;
+    description: string | null;
     columns: TdcpColumnSchema[];
+};
+
+export type TdcpCatalogRequest = {
+    /** Continue a paginated catalog listing from a previous nextCursor. */
+    cursor?: string;
 };
 
 export type TdcpCatalog = {
     tables: TdcpCatalogTable[];
+    /** Opaque cursor for the next page; null when the listing is complete. */
+    nextCursor: string | null;
+};
+
+export type TdcpDescribeRequest = {
+    method: typeof TdcpMethods.DESCRIBE;
+    table: string;
 };
 
 export type TdcpCapabilities = {
     revision: string;
-    /** Tier 0: list tables, read a table with limit/pagination. */
+    /** Tier 0: list tables, read a table with limit. */
     read: boolean;
     /** Tier 1: declarative projection/predicate/limit pushdown. */
     scan: boolean;
-    /** Tier 2: native queries, by dialect tag. Empty = no tier 2. */
-    queryDialects: string[];
+    /** Tier 2: dialect declarations. Empty = no tier 2. */
+    queryDialects: TdcpDialectDeclaration[];
     /** Tier 2 queries may reference other datasets as named tables. */
     compose: boolean;
+    /** tabular/describe available (required when any catalog table omits columns). */
+    describe: boolean;
 };
 
 export type TdcpScanPredicate = {
@@ -95,8 +137,12 @@ export type TdcpScanRequest = {
 export type TdcpQueryRequest = {
     method: typeof TdcpMethods.QUERY;
     dialect: string;
-    query: string;
+    /** Query text — text-form dialects. Exactly one of query/params. */
+    query?: string;
+    /** Structured payload — structured-form dialects. Exactly one of query/params. */
+    params?: Record<string, unknown>;
     references?: Record<string, string>;
+    /** Result-row cap; composes min-wins with any dialect-internal limit. */
     limit?: number;
 };
 
@@ -105,8 +151,8 @@ export type TdcpDataRequest =
     | TdcpScanRequest
     | TdcpQueryRequest;
 
-export type TdcpRefreshRequest = {
-    method: typeof TdcpMethods.REFRESH;
+export type TdcpPollRequest = {
+    method: typeof TdcpMethods.POLL;
     datasetId: string;
 };
 
@@ -123,22 +169,25 @@ export type TdcpFreshness = {
 };
 
 export type TdcpDatasetDescriptor = {
+    status: 'ready';
     datasetId: string;
     schema: TdcpColumnSchema[];
     rowCount: number | null;
     producedAt: string;
     expiresAt: string;
     freshness: TdcpFreshness;
-    /**
-     * null only for in-process servers embedded in a host; a wire-serving
-     * TDCP server MUST provide at least a jsonl link.
-     */
-    links: TdcpDataLink[] | null;
+    /** The data plane. A wire descriptor MUST carry at least a jsonl link. */
+    links: TdcpDataLink[];
+    /** Scan only: the predicates the server applied. */
     pushedPredicates?: TdcpScanPredicate[];
 };
 
-/** A preview a server MAY attach for hosts that render tool text. */
-export type TdcpPreview = {
-    rows: Record<string, unknown>[];
-    truncatedAt: number;
+/** A data request still executing: poll tabular/poll with the datasetId. */
+export type TdcpPendingDataset = {
+    status: 'pending';
+    datasetId: string;
+    /** Clients SHOULD wait at least this long before polling; null = client's choice. */
+    pollAfterMs: number | null;
 };
+
+export type TdcpDataResult = TdcpPendingDataset | TdcpDatasetDescriptor;

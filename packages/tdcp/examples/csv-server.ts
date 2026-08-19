@@ -2,7 +2,7 @@
  * A directory of CSV files as a TDCP server, handlers only: catalog from
  * headers, column types inferred from the data, rows served typed. The
  * dataset lifecycle and transport come from the SDK; this file is just
- * parsing plus three handlers. Honestly tier 0/1 — a CSV is not a query
+ * parsing plus the handlers. Honestly tier 0/1 — a CSV is not a query
  * engine, so there is no tier 2 dialect.
  *
  * Run: npx tsx packages/tdcp/examples/csv-server.ts [dir] [port]
@@ -15,9 +15,10 @@ import {
     JsonRpcErrorCodes,
     TdcpDatasetStore,
     TdcpError,
-    type TdcpCatalog,
     type TdcpColumnSchema,
     type TdcpLogicalType,
+    type TdcpScanPredicate,
+    type TdcpScanRequest,
 } from '../src';
 import { startTdcpNodeServer } from '../src/nodeHttp';
 
@@ -91,12 +92,15 @@ const loadTable = (filePath: string): CsvTable => {
         .filter((line) => line.length > 0);
     const header = parseCsvLine(lines[0]);
     const raw = lines.slice(1).map(parseCsvLine);
-    const schema = header.map((name, index) => ({
-        name,
-        type: inferType(raw.map((cells) => cells[index] ?? '')),
-        label: null,
-        description: null,
-    }));
+    const schema = header.map(
+        (name, index): TdcpColumnSchema => ({
+            name,
+            type: inferType(raw.map((cells) => cells[index] ?? '')),
+            sourceType: null,
+            label: null,
+            description: null,
+        }),
+    );
     const rows = raw.map((cells) =>
         Object.fromEntries(
             schema.map((column, index) => [
@@ -117,15 +121,6 @@ const tables = new Map(
         }),
 );
 
-const CATALOG: TdcpCatalog = {
-    tables: Array.from(tables.values()).map((table) => ({
-        reference: table.reference,
-        label: table.reference,
-        description: `CSV file ${table.reference}.csv`,
-        columns: table.schema,
-    })),
-};
-
 const store = new TdcpDatasetStore({ baseUrl: `http://127.0.0.1:${PORT}` });
 
 const requireTable = (reference: string): CsvTable => {
@@ -139,36 +134,61 @@ const requireTable = (reference: string): CsvTable => {
     return table;
 };
 
+// Equality and IN push down; anything else is left to the consumer
+const planPushable = (request: TdcpScanRequest): TdcpScanPredicate[] =>
+    (request.predicates ?? []).filter(
+        (predicate) =>
+            predicate.operator === 'eq' || predicate.operator === 'in',
+    );
+
 const tdcpServer = createTdcpServer({
-    catalog: async () => CATALOG,
-    read: async (_ctx, request) => {
+    catalog: async () => ({
+        tables: Array.from(tables.values()).map((table) => ({
+            reference: table.reference,
+            label: table.reference,
+            description: `CSV file ${table.reference}.csv`,
+            columns: table.schema,
+        })),
+        nextCursor: null,
+    }),
+    read: async (_ctx: undefined, request) => {
         const table = requireTable(request.table);
         return store.mint({
             schema: table.schema,
             rows: table.rows.slice(0, request.limit),
+            principal: null,
         });
     },
-    scan: async (_ctx, request) => {
-        const table = requireTable(request.table);
-        const pushable = (request.predicates ?? []).filter(
-            (p) => p.operator === 'eq' || p.operator === 'in',
-        );
-        let rows = table.rows.filter((row) =>
-            pushable.every((p) => p.values.includes(row[p.column] as string)),
-        );
-        if (request.columns) {
-            const keep = new Set(request.columns);
-            rows = rows.map((row) =>
-                Object.fromEntries(
-                    Object.entries(row).filter(([key]) => keep.has(key)),
+    scan: {
+        plan: async (_ctx, request) => {
+            requireTable(request.table);
+            return { pushable: planPushable(request) };
+        },
+        execute: async (_ctx, request, plan) => {
+            const table = requireTable(request.table);
+            let rows = table.rows.filter((row) =>
+                plan.pushable.every((predicate) =>
+                    predicate.values.includes(
+                        row[predicate.column] as string | number | boolean,
+                    ),
                 ),
             );
-        }
-        return store.mint({
-            schema: table.schema,
-            rows: rows.slice(0, request.limit),
-            pushedPredicates: pushable,
-        });
+            let schema = table.schema;
+            if (request.columns) {
+                const keep = new Set(request.columns);
+                schema = schema.filter((column) => keep.has(column.name));
+                rows = rows.map((row) =>
+                    Object.fromEntries(
+                        Object.entries(row).filter(([key]) => keep.has(key)),
+                    ),
+                );
+            }
+            return store.mint({
+                schema,
+                rows: rows.slice(0, request.limit),
+                principal: null,
+            });
+        },
     },
 });
 const handler = createTdcpRequestHandler(tdcpServer);
