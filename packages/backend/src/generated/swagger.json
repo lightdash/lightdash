@@ -15744,6 +15744,10 @@
                 "enum": ["filter_dimension_not_in_pre_aggregate"],
                 "type": "string"
             },
+            "PreAggregateMissReason.SQL_FILTER_FIELD_NOT_IN_PRE_AGGREGATE": {
+                "enum": ["sql_filter_field_not_in_pre_aggregate"],
+                "type": "string"
+            },
             "PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED": {
                 "enum": ["pre_aggregate_filter_not_satisfied"],
                 "type": "string"
@@ -15858,6 +15862,18 @@
                             },
                             "reason": {
                                 "$ref": "#/components/schemas/PreAggregateMissReason.FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE"
+                            }
+                        },
+                        "required": ["fieldId", "reason"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fieldId": {
+                                "$ref": "#/components/schemas/FieldId"
+                            },
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.SQL_FILTER_FIELD_NOT_IN_PRE_AGGREGATE"
                             }
                         },
                         "required": ["fieldId", "reason"],
@@ -54852,7 +54868,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.199.0",
+        "version": "1.199.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

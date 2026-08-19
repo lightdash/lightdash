@@ -1,3 +1,10 @@
+## [1.199.1](https://github.com/lightdash/lightdash/compare/1.199.0...1.199.1) (2026-08-19)
+
+
+### Bug Fixes
+
+* serve pre-aggregates when sql_filter references joined fields ([#27594](https://github.com/lightdash/lightdash/issues/27594)) ([f7d122c](https://github.com/lightdash/lightdash/commit/f7d122c27614b3fa38f5320471cbd6edad19c815)), closes [#27579](https://github.com/lightdash/lightdash/issues/27579)
+
 # [1.199.0](https://github.com/lightdash/lightdash/compare/1.198.1...1.199.0) (2026-08-19)
 
 

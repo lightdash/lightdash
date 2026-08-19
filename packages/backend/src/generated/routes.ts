@@ -14569,6 +14569,11 @@ const models: TsoaRoute.Models = {
         enums: ['filter_dimension_not_in_pre_aggregate'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'PreAggregateMissReason.SQL_FILTER_FIELD_NOT_IN_PRE_AGGREGATE': {
+        dataType: 'refEnum',
+        enums: ['sql_filter_field_not_in_pre_aggregate'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED': {
         dataType: 'refEnum',
         enums: ['pre_aggregate_filter_not_satisfied'],
@@ -14684,6 +14689,16 @@ const models: TsoaRoute.Models = {
                         fieldId: { ref: 'FieldId', required: true },
                         reason: {
                             ref: 'PreAggregateMissReason.FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE',
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        fieldId: { ref: 'FieldId', required: true },
+                        reason: {
+                            ref: 'PreAggregateMissReason.SQL_FILTER_FIELD_NOT_IN_PRE_AGGREGATE',
                             required: true,
                         },
                     },
