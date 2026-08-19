@@ -51,6 +51,7 @@ test('safe v2 marker renders the sticky upgrade summary', () => {
     assert.ok(body.startsWith(COMMENT_MARKER));
     assert.match(body, /Safe to upgrade normally/);
     assert.match(body, /Database changes \| none/);
+    assert.match(body, /Declared breaking changes \| none/);
 });
 
 test('unknown verdict is rendered as unsafe for a ready PR', () => {
@@ -87,6 +88,88 @@ test('a failed gate never leaves a green headline above a red check', () => {
         assert.match(body, /The upgrade itself looks safe/);
         assert.match(body, /How to unblock this pull request/);
     }
+});
+
+test('a false declaration-only verdict explains the declared compatibility break and does not claim a DB change', () => {
+    const body = renderPrComment(
+        baseMarker({
+            compatibility: {
+                rollingUpdateSafe: false,
+                recommendedStrategy: 'Recreate',
+            },
+            declaredBreaks: [
+                {
+                    file: 'packages/backend/src/changes.ts',
+                    line: 77,
+                    reason: 'Existing API clients still rely on old request field names.',
+                    requiredStop: false,
+                },
+            ],
+        }),
+    );
+    assert.match(body, /Needs care on upgrade/);
+    assert.match(
+        body,
+        /declared as a breaking change: 1\) Existing API clients still rely on old request field names\./,
+    );
+    assert.doesNotMatch(body, /changes the database in a way/);
+});
+
+test('the declaration breaks row shows every reason and marks required stops', () => {
+    const body = renderPrComment(
+        baseMarker({
+            compatibility: {
+                rollingUpdateSafe: false,
+                recommendedStrategy: 'Recreate',
+            },
+            declaredBreaks: [
+                {
+                    file: 'packages/backend/src/a.ts',
+                    line: 12,
+                    reason: 'first reason',
+                    requiredStop: false,
+                },
+                {
+                    file: 'packages/backend/src/b.ts',
+                    line: 34,
+                    reason: 'second reason',
+                    requiredStop: true,
+                },
+            ],
+        }),
+    );
+    const declaredRow = body
+        .split('\n')
+        .find((line) => line.startsWith('| Declared breaking changes |'));
+    assert.ok(declaredRow);
+    assert.match(declaredRow, /2 declared breaking changes/);
+    assert.match(declaredRow, /first reason/);
+    assert.match(declaredRow, /second reason/);
+    assert.match(declaredRow, /\(required stop\)/);
+});
+
+test('declaration reasons are escaped for markdown table rendering', () => {
+    const body = renderPrComment(
+        baseMarker({
+            compatibility: {
+                rollingUpdateSafe: false,
+                recommendedStrategy: 'Recreate',
+            },
+            declaredBreaks: [
+                {
+                    file: 'packages/backend/src/c.ts',
+                    line: 88,
+                    reason: 'line with pipe | and newline\nin declaration',
+                    requiredStop: false,
+                },
+            ],
+        }),
+    );
+    const declaredRow = body
+        .split('\n')
+        .find((line) => line.startsWith('| Declared breaking changes |'));
+    assert.ok(declaredRow);
+    assert.match(declaredRow, /line with pipe \\| and newline<br\/>in declaration/);
 });
 
 test('a green marker with no failed gate keeps its safe headline', () => {
