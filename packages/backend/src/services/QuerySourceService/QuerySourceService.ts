@@ -4,12 +4,12 @@ import {
     FeatureFlags,
     ForbiddenError,
     ParameterError,
+    QueryExecutionContext,
     type Account,
     type ApiExecuteSourceQueriesResults,
     type ApiGetSourceQueryStatusResults,
     type ApiListQuerySourcesResults,
     type ApiScanQuerySourceSchemaResults,
-    type QueryExecutionContext,
     type QuerySourceType,
     type SourceQuery,
     type SourceQuerySubmission,
@@ -137,7 +137,11 @@ export class QuerySourceService extends BaseService {
     ): Promise<ApiScanQuerySourceSchemaResults> {
         await this.throwIfMultiSourceQueryDisabled(account);
         const source = this.registry.get(sourceType);
-        return source.scanSchema({ account, projectUuid });
+        return source.scanSchema({
+            account,
+            projectUuid,
+            context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+        });
     }
 
     /**

@@ -1,20 +1,25 @@
-import { QueryExecutionContext, type Account } from '@lightdash/common';
+import {
+    QueryExecutionContext,
+    QuerySourceType,
+    type Account,
+    type DuckdbSourceQuery,
+} from '@lightdash/common';
 import { JsonRpcErrorCodes, TdcpDialects, TdcpMethods } from '@lightdash/tdcp';
 import type { AsyncQueryService } from '../../../AsyncQueryService/AsyncQueryService';
-import { createDuckdbComposeTdcpServer } from './DuckdbComposeTdcpServer';
+import {
+    createDuckdbComposeTdcpServer,
+    duckdbSourceQueryToDataRequest,
+} from './DuckdbComposeTdcpServer';
 
 const account = {} as Account;
-const expiresAt = new Date('2026-08-19T00:00:00.000Z');
 const queryUuid = '1efef180-3b4d-4f1d-a72f-fd99c0f2d884';
 
 const createServer = () => {
     const executeAsyncComposeSqlQuery = vi
         .fn()
         .mockResolvedValue({ queryUuid });
-    const getCacheExpiresAt = vi.fn().mockReturnValue(expiresAt);
     const asyncQueryService = {
         executeAsyncComposeSqlQuery,
-        getCacheExpiresAt,
     } as unknown as AsyncQueryService;
 
     return {
@@ -34,7 +39,12 @@ describe('DuckDB compose TDCP server', () => {
         const { server } = createServer();
 
         await expect(server.capabilities(context)).resolves.toMatchObject({
-            queryDialects: [TdcpDialects.DUCKDB_SQL],
+            queryDialects: [
+                expect.objectContaining({
+                    dialect: TdcpDialects.DUCKDB_SQL,
+                    form: 'text',
+                }),
+            ],
             compose: true,
         });
     });
@@ -50,7 +60,7 @@ describe('DuckDB compose TDCP server', () => {
                 references: { orders: 'upstream-query-uuid' },
                 limit: 100,
             }),
-        ).resolves.toMatchObject({ datasetId: queryUuid, links: null });
+        ).resolves.toMatchObject({ dataset: { queryUuid } });
         expect(executeAsyncComposeSqlQuery).toHaveBeenCalledWith({
             account,
             projectUuid: context.projectUuid,
@@ -67,12 +77,28 @@ describe('DuckDB compose TDCP server', () => {
         await expect(
             server.execute(context, {
                 method: TdcpMethods.QUERY,
-                dialect: TdcpDialects.POSTGRES_SQL,
+                dialect: 'sql:postgres',
                 query: 'SELECT 1',
             }),
         ).rejects.toMatchObject({
             code: JsonRpcErrorCodes.CAPABILITY_NOT_SUPPORTED,
         });
         expect(executeAsyncComposeSqlQuery).not.toHaveBeenCalled();
+    });
+
+    it('rewrites node-id references to queryUuids in its mapping', () => {
+        const query: DuckdbSourceQuery = {
+            sourceType: QuerySourceType.DUCKDB,
+            sql: 'SELECT * FROM orders',
+            references: { orders: 'orders_node' },
+        };
+        const request = duckdbSourceQueryToDataRequest(query, {
+            orders_node: queryUuid,
+        });
+        expect(request).toMatchObject({
+            method: TdcpMethods.QUERY,
+            dialect: TdcpDialects.DUCKDB_SQL,
+            references: { orders: queryUuid },
+        });
     });
 });

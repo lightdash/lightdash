@@ -9,6 +9,7 @@ import type {
 export type ScanSchemaArgs = {
     account: Account;
     projectUuid: string;
+    context: QueryExecutionContext;
 };
 
 export type SubmitSourceQueryArgs = {

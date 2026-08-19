@@ -300,6 +300,13 @@ type ExecuteMergeQueryInternalArgs = Omit<
 // (`[null].join('_') === ''`). Wrapped in `<>` so it strips cleanly via
 // friendlyName if it ever surfaces in a label fallback.
 const NULL_PIVOT_KEY = '<null>';
+
+// External dataset imports run against servers we do not control: budgets
+// bound what an import may cost, the idle timeout bounds how long a silent
+// stream may hold the import open.
+const EXTERNAL_IMPORT_MAX_ROWS = 500_000;
+const EXTERNAL_IMPORT_MAX_BYTES = 512 * 1024 * 1024;
+const EXTERNAL_IMPORT_IDLE_TIMEOUT_MS = 60_000;
 export const QUEUED_QUERY_EXPIRED_MESSAGE =
     'Your query expired while waiting in the queue. Please try again.';
 
@@ -6948,30 +6955,35 @@ export class AsyncQueryService extends ProjectService {
      * query_history row + S3 JSONL file, so downstream (compose references,
      * pagination, viz) treats it exactly like any local query result.
      *
-     * Deliberately protocol-agnostic: callers hand over plain columns and a
-     * row stream, so any source of external tabular data (a TDCP server
-     * today, a CSV upload tomorrow) imports through the same primitive.
+     * Deliberately protocol-agnostic: callers hand over a thunk producing
+     * plain columns and a row stream, so any source of external tabular
+     * data (a TDCP server today, a CSV upload tomorrow) imports through the
+     * same primitive.
      *
      * @oliver: a sibling of the compose path rather than a WarehouseClient
      * impersonating the remote system — there is no SQL and no warehouse;
-     * the "query" already ran elsewhere and this is a materializing fetch.
-     * The row is created first so the queryUuid returns immediately and
-     * failures surface through the standard status lifecycle.
+     * the "query" runs elsewhere and this is a materializing fetch. The row
+     * is created first and the ENTIRE exchange with the source — including
+     * the initial request — runs in the background phase, so submission
+     * never blocks on a slow source and failures surface through the
+     * standard status lifecycle.
      */
     async executeAsyncExternalDatasetImport({
         account,
         projectUuid,
         context,
         source,
-        columns,
-        fetchRows,
+        fetchDataset,
     }: {
         account: Account;
         projectUuid: string;
         context: QueryExecutionContext;
-        source: { url: string; datasetId: string };
-        columns: ResultColumns;
-        fetchRows: () => AsyncGenerator<Record<string, unknown>>;
+        source: { url: string; requestFingerprint: string };
+        fetchDataset: () => Promise<{
+            datasetId: string;
+            columns: ResultColumns;
+            fetchRows: () => AsyncGenerator<Record<string, unknown>>;
+        }>;
     }): Promise<{ queryUuid: string }> {
         assertIsAccountWithOrg(account);
 
@@ -6995,7 +7007,7 @@ export class AsyncQueryService extends ProjectService {
         const cacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
             sql: JSON.stringify({
                 externalSourceUrl: source.url,
-                datasetId: source.datasetId,
+                request: source.requestFingerprint,
             }),
             userUuid: account.user.id,
         });
@@ -7003,15 +7015,15 @@ export class AsyncQueryService extends ProjectService {
         const requestParameters: ExecuteAsyncExternalDatasetImportRequestParams =
             {
                 sourceUrl: source.url,
-                datasetId: source.datasetId,
+                requestFingerprint: source.requestFingerprint,
                 context,
             };
 
         // Mock metadata carrier, same trick as the SQL paths: downstream
-        // reads columns, not this
+        // reads columns (written when the import completes), not this
         const metricQuery: MetricQuery = {
             exploreName: 'external_dataset_import',
-            dimensions: Object.keys(columns),
+            dimensions: [],
             metrics: [],
             filters: {},
             sorts: [],
@@ -7024,12 +7036,12 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
             context,
             fields: {},
-            compiledSql: `-- external dataset import: ${source.url} dataset ${source.datasetId}`,
+            compiledSql: `-- external dataset import: ${source.url}`,
             requestParameters,
             metricQuery,
             cacheKey,
             pivotConfiguration: null,
-            originalColumns: columns,
+            originalColumns: {},
         });
 
         void this.runExternalDatasetImport({
@@ -7037,9 +7049,8 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             queryUuid,
             cacheKey,
-            columns,
             context,
-            fetchRows,
+            fetchDataset,
         }).catch((e) => {
             this.logger.error(
                 `Async external dataset import ${queryUuid} failed: ${getErrorMessage(
@@ -7052,28 +7063,36 @@ export class AsyncQueryService extends ProjectService {
     }
 
     /**
-     * Background phase of an external dataset import: stream the rows into
-     * an S3 results file, then mark the row READY so the standard polling
-     * and pagination take over.
+     * Background phase of an external dataset import: run the source
+     * exchange, stream the rows into an S3 results file under explicit
+     * budgets, then mark the row READY so the standard polling and
+     * pagination take over. The row stream is guarded by an idle timeout —
+     * a source that stops sending mid-stream fails the import instead of
+     * holding it open — and by row/byte budgets, so a hostile or broken
+     * source cannot pump unbounded volume into storage.
      */
     private async runExternalDatasetImport({
         account,
         projectUuid,
         queryUuid,
         cacheKey,
-        columns,
         context,
-        fetchRows,
+        fetchDataset,
     }: {
         account: Account;
         projectUuid: string;
         queryUuid: string;
         cacheKey: string;
-        columns: ResultColumns;
         context: QueryExecutionContext;
-        fetchRows: () => AsyncGenerator<Record<string, unknown>>;
+        fetchDataset: () => Promise<{
+            datasetId: string;
+            columns: ResultColumns;
+            fetchRows: () => AsyncGenerator<Record<string, unknown>>;
+        }>;
     }): Promise<void> {
         try {
+            const { columns, fetchRows } = await fetchDataset();
+
             const resultsStorageClient =
                 this.getResultsStorageClientForContext(context);
             const fileName = S3ResultsFileStorageClient.sanitizeFileExtension(
@@ -7085,10 +7104,41 @@ export class AsyncQueryService extends ProjectService {
 
             const createdAt = new Date();
             let totalRows = 0;
+            let totalBytes = 0;
             try {
-                for await (const row of fetchRows()) {
-                    await stream.write([row]);
+                const rows = fetchRows();
+                for (;;) {
+                    // eslint-disable-next-line no-await-in-loop -- streaming: rows arrive one at a time
+                    const next = await Promise.race([
+                        rows.next(),
+                        new Promise<never>((_resolve, reject) => {
+                            setTimeout(
+                                () =>
+                                    reject(
+                                        new Error(
+                                            `External source sent no data for ${EXTERNAL_IMPORT_IDLE_TIMEOUT_MS}ms`,
+                                        ),
+                                    ),
+                                EXTERNAL_IMPORT_IDLE_TIMEOUT_MS,
+                            ).unref?.();
+                        }),
+                    ]);
+                    if (next.done) break;
+                    const row = next.value;
                     totalRows += 1;
+                    totalBytes += JSON.stringify(row).length;
+                    if (totalRows > EXTERNAL_IMPORT_MAX_ROWS) {
+                        throw new Error(
+                            `External dataset exceeds the import budget of ${EXTERNAL_IMPORT_MAX_ROWS} rows`,
+                        );
+                    }
+                    if (totalBytes > EXTERNAL_IMPORT_MAX_BYTES) {
+                        throw new Error(
+                            `External dataset exceeds the import budget of ${EXTERNAL_IMPORT_MAX_BYTES} bytes`,
+                        );
+                    }
+                    // eslint-disable-next-line no-await-in-loop -- streaming: backpressure into the upload
+                    await stream.write([row]);
                 }
             } finally {
                 await stream.close();

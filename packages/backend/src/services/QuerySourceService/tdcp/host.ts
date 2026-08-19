@@ -1,28 +1,25 @@
 import { type Account, type QueryExecutionContext } from '@lightdash/common';
-import type { TdcpDatasetDescriptor } from '@lightdash/tdcp';
+import type { TdcpServer } from '@lightdash/tdcp';
 
-export type TdcpCatalogContext = {
+/**
+ * The host-side context every in-process TDCP server receives. queryContext
+ * is an analytics tag, not an auth distinction — catalog and data requests
+ * carry the same principal.
+ */
+export type TdcpHostContext = {
     account: Account;
     projectUuid: string;
-};
-
-export type TdcpRequestContext = TdcpCatalogContext & {
     queryContext: QueryExecutionContext;
 };
 
-/** Local query results use queryUuid as their in-process dataset handle. */
-export const localDatasetDescriptor = (args: {
+/**
+ * What an in-process data request resolves to: a handle into the local
+ * results pipeline. Descriptors exist only on the wire — the outbound
+ * endpoint mints them from query_history, where schema, row count, expiry
+ * and cache-hit are real rather than fabricated.
+ */
+export type TdcpLocalDataset = {
     queryUuid: string;
-    expiresAt: Date;
-}): TdcpDatasetDescriptor => ({
-    datasetId: args.queryUuid,
-    schema: [],
-    rowCount: null,
-    producedAt: new Date().toISOString(),
-    expiresAt: args.expiresAt.toISOString(),
-    freshness: {
-        sourceQueriedAt: new Date().toISOString(),
-        cacheHit: false,
-    },
-    links: null,
-});
+};
+
+export type LightdashTdcpServer = TdcpServer<TdcpHostContext, TdcpLocalDataset>;

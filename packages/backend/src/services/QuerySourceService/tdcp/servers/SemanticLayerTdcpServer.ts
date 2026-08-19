@@ -4,24 +4,26 @@ import {
     getMetrics,
     isExploreError,
     ParameterError,
+    QuerySourceType,
     type MetricQuery,
     type SemanticLayerSourceQuery,
+    type SourceQuery,
 } from '@lightdash/common';
 import {
     createTdcpServer,
     TdcpDialects,
+    TdcpMethods,
     type TdcpCatalog,
     type TdcpColumnSchema,
-    type TdcpDatasetDescriptor,
+    type TdcpDataRequest,
     type TdcpQueryRequest,
-    type TdcpServer,
 } from '@lightdash/tdcp';
 import type { AsyncQueryService } from '../../../AsyncQueryService/AsyncQueryService';
 import type { ProjectService } from '../../../ProjectService/ProjectService';
-import {
-    localDatasetDescriptor,
-    type TdcpCatalogContext,
-    type TdcpRequestContext,
+import type {
+    LightdashTdcpServer,
+    TdcpHostContext,
+    TdcpLocalDataset,
 } from '../host';
 import { dimensionTypeToTdcpType } from '../typeMapping';
 
@@ -42,10 +44,87 @@ type MetricQueryDialectPayload = Omit<
 >;
 
 /**
+ * What tabular/capabilities advertises for params: enough for an agent to
+ * compose a query from capabilities alone. Deep shapes (filters, table
+ * calculations) are summarized, not exhaustively schematized — the explore
+ * schema comes from tabular/catalog.
+ */
+const METRIC_QUERY_PAYLOAD_SCHEMA: Record<string, unknown> = {
+    type: 'object',
+    required: ['exploreName', 'dimensions', 'metrics'],
+    additionalProperties: false,
+    properties: {
+        exploreName: {
+            type: 'string',
+            description: 'A table reference from tabular/catalog',
+        },
+        dimensions: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Dimension field ids (columns of the catalog table)',
+        },
+        metrics: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Metric field ids (columns of the catalog table)',
+        },
+        filters: {
+            type: 'object',
+            description: 'Lightdash metric query filters shape',
+        },
+        sorts: {
+            type: 'array',
+            items: {
+                type: 'object',
+                required: ['fieldId', 'descending'],
+                properties: {
+                    fieldId: { type: 'string' },
+                    descending: { type: 'boolean' },
+                },
+            },
+        },
+        limit: { type: 'integer', minimum: 1 },
+        tableCalculations: { type: 'array' },
+        additionalMetrics: { type: 'array' },
+        customDimensions: { type: 'array' },
+        timezone: { type: 'string' },
+    },
+};
+
+const isStringArray = (value: unknown): value is string[] =>
+    Array.isArray(value) && value.every((item) => typeof item === 'string');
+
+/**
+ * Structural floor for the params payload. In-process callers arrive
+ * TSOA-validated; this is the guard that matters once the outbound endpoint
+ * makes this a wire input, and the payloadSchema above is its contract.
+ */
+const parseMetricQueryPayload = (
+    params: Record<string, unknown>,
+): MetricQueryDialectPayload => {
+    if (
+        typeof params.exploreName !== 'string' ||
+        !isStringArray(params.dimensions) ||
+        !isStringArray(params.metrics)
+    ) {
+        throw new ParameterError(
+            `Invalid ${TdcpDialects.LIGHTDASH_METRIC_QUERY} params: exploreName (string), dimensions and metrics (string arrays) are required`,
+        );
+    }
+    if (params.limit !== undefined && typeof params.limit !== 'number') {
+        throw new ParameterError(
+            `Invalid ${TdcpDialects.LIGHTDASH_METRIC_QUERY} params: limit must be a number`,
+        );
+    }
+    return params as MetricQueryDialectPayload;
+};
+
+/**
  * The project's semantic layer as an in-process TDCP server: explores are
- * the catalog tables, and tier 2 queries speak metricquery:lightdash. This
- * is also, verbatim, what the outbound TDCP server exposes to external
- * consumers — the "semantic layer as a source" surface.
+ * the catalog tables, and tier 2 queries speak metricquery:lightdash
+ * (structured form). This implementation is what the outbound TDCP server
+ * will re-expose to external consumers — the "semantic layer as a source"
+ * surface.
  */
 class SemanticLayerTdcpHandlers {
     private readonly asyncQueryService: AsyncQueryService;
@@ -60,7 +139,7 @@ class SemanticLayerTdcpHandlers {
     async catalog({
         account,
         projectUuid,
-    }: TdcpCatalogContext): Promise<TdcpCatalog> {
+    }: TdcpHostContext): Promise<TdcpCatalog> {
         // Applies view-project authorization and explore-level user-attribute
         // filtering
         const summaries = await this.projectService.getAllExploresSummary(
@@ -90,6 +169,7 @@ class SemanticLayerTdcpHandlers {
                               .map((dimension) => ({
                                   name: getItemId(dimension),
                                   type: dimensionTypeToTdcpType(dimension.type),
+                                  sourceType: null,
                                   label: dimension.label ?? null,
                                   description: dimension.description ?? null,
                               })),
@@ -99,6 +179,7 @@ class SemanticLayerTdcpHandlers {
                               .map((metric) => ({
                                   name: getItemId(metric),
                                   type: 'number' as const,
+                                  sourceType: null,
                                   label: metric.label ?? null,
                                   description: metric.description ?? null,
                               })),
@@ -112,24 +193,18 @@ class SemanticLayerTdcpHandlers {
             };
         });
 
-        return { tables };
+        return { tables, nextCursor: null };
     }
 
     async query(
-        ctx: TdcpRequestContext,
+        ctx: TdcpHostContext,
         queryRequest: TdcpQueryRequest,
-    ): Promise<TdcpDatasetDescriptor> {
-        let payload: MetricQueryDialectPayload;
-        try {
-            payload = JSON.parse(queryRequest.query);
-        } catch (e) {
-            throw new ParameterError(
-                `Invalid ${TdcpDialects.LIGHTDASH_METRIC_QUERY} payload: expected JSON`,
-            );
-        }
+    ): Promise<TdcpLocalDataset> {
+        const payload = parseMetricQueryPayload(queryRequest.params ?? {});
 
-        // Only exploreName/dimensions/metrics are required on the wire; the
-        // rest defaults to the empty metric query here
+        // The envelope limit is a result-row cap: the smaller of it and the
+        // payload's own limit wins
+        const payloadLimit = payload.limit ?? DEFAULT_SOURCE_QUERY_LIMIT;
         const metricQuery: MetricQuery = {
             exploreName: payload.exploreName,
             dimensions: payload.dimensions,
@@ -137,9 +212,9 @@ class SemanticLayerTdcpHandlers {
             filters: payload.filters ?? {},
             sorts: payload.sorts ?? [],
             limit:
-                payload.limit ??
-                queryRequest.limit ??
-                DEFAULT_SOURCE_QUERY_LIMIT,
+                queryRequest.limit !== undefined
+                    ? Math.min(payloadLimit, queryRequest.limit)
+                    : payloadLimit,
             tableCalculations: payload.tableCalculations ?? [],
             additionalMetrics: payload.additionalMetrics,
             customDimensions: payload.customDimensions,
@@ -153,20 +228,42 @@ class SemanticLayerTdcpHandlers {
             context: ctx.queryContext,
         });
 
-        return localDatasetDescriptor({
-            queryUuid: results.queryUuid,
-            expiresAt: this.asyncQueryService.getCacheExpiresAt(new Date()),
-        });
+        return { queryUuid: results.queryUuid };
     }
 }
 
+/** SemanticLayerSourceQuery -> protocol request, owned by this server module. */
+export const semanticLayerSourceQueryToDataRequest = (
+    query: SourceQuery,
+): TdcpDataRequest => {
+    if (query.sourceType !== QuerySourceType.SEMANTIC_LAYER) {
+        throw new ParameterError(
+            `Expected a ${QuerySourceType.SEMANTIC_LAYER} query`,
+        );
+    }
+    const { sourceType, nodeId, ...payload } = query;
+    return {
+        method: TdcpMethods.QUERY,
+        dialect: TdcpDialects.LIGHTDASH_METRIC_QUERY,
+        params: payload,
+        limit: query.limit,
+    };
+};
+
 export const createSemanticLayerTdcpServer = (
     args: SemanticLayerTdcpServerArguments,
-): TdcpServer<TdcpCatalogContext, TdcpRequestContext> => {
+): LightdashTdcpServer => {
     const handlers = new SemanticLayerTdcpHandlers(args);
     return createTdcpServer({
         catalog: handlers.catalog.bind(handlers),
-        queryDialects: [TdcpDialects.LIGHTDASH_METRIC_QUERY],
+        queryDialects: [
+            {
+                dialect: TdcpDialects.LIGHTDASH_METRIC_QUERY,
+                form: 'structured',
+                payloadSchema: METRIC_QUERY_PAYLOAD_SCHEMA,
+                docsUrl: null,
+            },
+        ],
         query: handlers.query.bind(handlers),
     });
 };
