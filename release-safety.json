@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "1.202.1",
-  "previousVersion": "1.202.0",
-  "releaseDate": "2026-08-19T12:01:03.778Z",
+  "version": "1.202.2",
+  "previousVersion": "1.202.1",
+  "releaseDate": "2026-08-19T12:33:00.356Z",
   "migrations": {
     "present": false,
     "count": 0,

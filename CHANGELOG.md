@@ -1,3 +1,10 @@
+## [1.202.2](https://github.com/lightdash/lightdash/compare/1.202.1...1.202.2) (2026-08-19)
+
+
+### Bug Fixes
+
+* support pivoted reusable custom charts ([#27641](https://github.com/lightdash/lightdash/issues/27641)) ([8e7508e](https://github.com/lightdash/lightdash/commit/8e7508e0aaba54e328bb5603556d3c175886bffb))
+
 ## [1.202.1](https://github.com/lightdash/lightdash/compare/1.202.0...1.202.1) (2026-08-19)
 
 
