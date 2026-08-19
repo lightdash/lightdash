@@ -115,23 +115,115 @@ const OAUTH_AUTHORIZE_TEMPLATE = `
             }
             .oauth-message {
                 text-align: center;
-                margin-bottom: 24px;
+                margin-bottom: 16px;
                 font-size: 14px;
                 color: #111418;
             }
             .oauth-message strong {
                 font-weight: 600;
             }
-            .oauth-scopes {
+            .oauth-account {
+                border: 1px solid #e9ecef;
+                border-radius: 8px;
+                overflow: hidden;
+                margin-bottom: 20px;
+            }
+            .oauth-account-user {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 12px 14px;
+            }
+            .oauth-avatar {
+                flex-shrink: 0;
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                background: #111418;
+                color: #f8fafc;
+                font-size: 13px;
+                font-weight: 600;
+                letter-spacing: 0.02em;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                text-transform: uppercase;
+            }
+            .oauth-account-id {
+                flex: 1;
+                min-width: 0;
+            }
+            .oauth-account-name {
+                font-weight: 600;
+                color: #111418;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .oauth-account-email {
+                font-size: 12px;
+                color: #6c757d;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .oauth-switch-link {
+                flex-shrink: 0;
+                font-size: 12px;
+                font-weight: 500;
+                color: #6c757d;
+                text-decoration: none;
+            }
+            .oauth-switch-link:hover {
+                color: #111418;
+                text-decoration: underline;
+            }
+            .oauth-account-org {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 8px 14px;
                 border-top: 1px solid #e9ecef;
-                padding-top: 16px;
+                background: #f8fafc;
+            }
+            .oauth-org-icon {
+                flex-shrink: 0;
+                width: 15px;
+                height: 15px;
+                color: #6c757d;
+            }
+            .oauth-account-org-name {
+                flex: 1;
+                min-width: 0;
+                font-size: 13px;
+                font-weight: 500;
+                color: #111418;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .oauth-account-org-label {
+                flex-shrink: 0;
+                font-size: 11px;
+                color: #6c757d;
+            }
+            .oauth-scopes {
                 margin-bottom: 16px;
+            }
+            .oauth-scopes-title {
+                font-size: 13px;
+                font-weight: 600;
+                color: #111418;
+                margin: 0 0 4px 0;
             }
             .oauth-scope-item {
                 display: flex;
                 gap: 12px;
                 padding: 12px 0;
                 border-bottom: 1px solid #f8fafc;
+            }
+            .oauth-scope-item:last-child {
+                border-bottom: none;
             }
             .oauth-scope-icon {
                 flex-shrink: 0;
@@ -153,7 +245,9 @@ const OAUTH_AUTHORIZE_TEMPLATE = `
                 line-height: 1.4;
             }
             .oauth-btn-row {
+                /* row-reverse keeps Authorize as the first submit button (Enter approves) while showing Cancel on the left */
                 display: flex;
+                flex-direction: row-reverse;
                 justify-content: center;
                 gap: 12px;
                 margin-top: 24px;
@@ -198,10 +292,35 @@ const OAUTH_AUTHORIZE_TEMPLATE = `
                 </div>
 
                 <p class="oauth-message">
-                    <strong>{{client_name}}</strong> wants to access your Lightdash account <strong>{{user.firstName}} {{user.lastName}}</strong>
+                    <strong>{{client_name}}</strong> wants to access your Lightdash account
                 </p>
 
+                <div class="oauth-account">
+                    <div class="oauth-account-user">
+                        <div class="oauth-avatar" aria-hidden="true">{{user.initials}}</div>
+                        <div class="oauth-account-id">
+                            <div class="oauth-account-name">{{user.firstName}} {{user.lastName}}</div>
+                            {{#if user.email}}
+                            <div class="oauth-account-email">{{user.email}}</div>
+                            {{/if}}
+                        </div>
+                        <a class="oauth-switch-link" id="oauth-switch-account" href="{{loginUrl}}">Switch account</a>
+                    </div>
+                    {{#if user.organizationName}}
+                    <div class="oauth-account-org">
+                        <svg class="oauth-org-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M3 21h18" />
+                            <path d="M9 8h1M9 12h1M9 16h1M14 8h1M14 12h1M14 16h1" />
+                            <path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16" />
+                        </svg>
+                        <span class="oauth-account-org-name">{{user.organizationName}}</span>
+                        <span class="oauth-account-org-label">Organization</span>
+                    </div>
+                    {{/if}}
+                </div>
+
                 <div class="oauth-scopes">
+                    <p class="oauth-scopes-title">{{client_name}} will be able to:</p>
                     {{#each scopes}}
                     <div class="oauth-scope-item">
                         <svg class="oauth-scope-icon" viewBox="0 0 16 16" fill="currentColor">
@@ -226,6 +345,23 @@ const OAUTH_AUTHORIZE_TEMPLATE = `
                 </div>
             </form>
         </div>
+        <script>
+            (function () {
+                var switchLink = document.getElementById('oauth-switch-account');
+                switchLink.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    var loginUrl = switchLink.href;
+                    // Log out first so the login page doesn't bounce straight back with the same session
+                    fetch('/api/v1/logout', { credentials: 'same-origin' })
+                        .catch(function () {
+                            // Navigate anyway; the login page still lets the user switch accounts
+                        })
+                        .then(function () {
+                            window.location.href = loginUrl;
+                        });
+                });
+            })();
+        </script>
     </body>
 </html>
 `;
@@ -305,6 +441,7 @@ export interface OAuthHiddenInput {
 export interface OAuthUser {
     firstName: string;
     lastName: string;
+    email: string | null;
     organizationName: string;
 }
 
@@ -320,6 +457,8 @@ export interface OAuthAuthorizeParams {
     scope: string;
     scopes: OAuthScopeDescription[];
     user: OAuthUser;
+    /** Where "Switch account" sends the user after logging out */
+    loginUrl: string;
     hiddenInputs: OAuthHiddenInput[];
 }
 
@@ -421,6 +560,12 @@ export const generateOAuthErrorResponse = (
         iconType,
     );
 
+const getUserInitials = (user: OAuthUser): string => {
+    const initials =
+        `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.trim();
+    return initials || user.email?.charAt(0) || '?';
+};
+
 /**
  * Generates an OAuth authorization page HTML using Handlebars templating
  * This prevents XSS issues by auto-escaping all user content
@@ -432,6 +577,10 @@ export const generateOAuthAuthorizePage = (
         styles: oauthPageStyles,
         logo: LIGHTDASH_LOGO_SVG,
         ...params,
+        user: {
+            ...params.user,
+            initials: getUserInitials(params.user),
+        },
     });
 
 /**

@@ -31,10 +31,10 @@ function getOAuthService(req: express.Request): OAuthService {
 
 // Get authorization - use OAuth2Server
 oauthRouter.get('/authorize', async (req, res, next) => {
+    const loginUrl = `/login?redirect=${encodeURIComponent(
+        req.originalUrl || req.url,
+    )}`;
     if (!req.user) {
-        const loginUrl = `/login?redirect=${encodeURIComponent(
-            req.originalUrl || req.url,
-        )}`;
         return res.redirect(loginUrl);
     }
     const {
@@ -62,8 +62,10 @@ oauthRouter.get('/authorize', async (req, res, next) => {
             user: {
                 firstName: req.user.firstName,
                 lastName: req.user.lastName,
-                organizationName: req.user.organizationName!,
+                email: req.user.email ?? null,
+                organizationName: req.user.organizationName ?? '',
             },
+            loginUrl,
             hiddenInputs: [
                 {
                     name: 'response_type',
