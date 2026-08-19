@@ -13,8 +13,16 @@ require_value deploy_conclusion "${DEPLOY_CONCLUSION:-}"
 require_value deployed_sha "${DEPLOYED_SHA:-}"
 require_value github_token "${GH_TOKEN:-}"
 
+branch_prefix=${BRANCH_PREFIX:-lightdash-upgrade}
+if [[ ! "$branch_prefix" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
+    echo "branch_prefix must match ^[A-Za-z0-9][A-Za-z0-9._-]*$" >&2
+    exit 1
+fi
+
 pinned_mapped=$(read_bump_value)
 pinned_public=$(public_version "$pinned_mapped" "${TAG_SUFFIX:-}")
+UPGRADE_BRANCH="${branch_prefix}-$(safe_branch_version "$pinned_mapped")"
+export UPGRADE_BRANCH
 if ! default_branch=$(gh api "repos/$GITHUB_REPOSITORY" --jq '.default_branch'); then
     echo "Unable to determine the default branch for upgrade verification." >&2
     exit 1
@@ -26,7 +34,7 @@ export VERIFY_COMMENT_AUTHOR
 if ! merged_upgrade_prs=$(gh api \
     --paginate \
     "repos/$GITHUB_REPOSITORY/pulls?state=closed&base=$default_branch&per_page=100" \
-    --jq '.[] | select(.merged_at != null and ((.head.ref // "") | startswith("lightdash-upgrade-"))) | [.number, (.merge_commit_sha // "")] | @tsv'); then
+    --jq '.[] | select(.merged_at != null and (.head.ref // "") == $ENV.UPGRADE_BRANCH) | [.number, (.merge_commit_sha // "")] | @tsv'); then
     echo "Unable to list merged upgrade pull requests; refusing to skip verification." >&2
     exit 1
 fi

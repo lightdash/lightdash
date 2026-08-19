@@ -4,6 +4,10 @@ inputs:
   bump_target:
     description: Relative YAML or JSON file and value path in file#path.to.version format
     required: true
+  branch_prefix:
+    description: Prefix used for upgrade branch names
+    required: false
+    default: lightdash-upgrade
   tag_suffix:
     description: Suffix appended to the public release version for the deployed image tag
     required: false
@@ -12,6 +16,10 @@ inputs:
     description: Optional OCI image repository whose mapped tag must exist before a pull request opens
     required: false
     default: ''
+  safety_gate:
+    description: Use the release-safety gate to select an upgrade target
+    required: false
+    default: 'true'
   auto_merge:
     description: Enable pull request auto-merge when the upgrade gate is green
     required: false
@@ -45,8 +53,10 @@ runs:
       shell: bash
       env:
         BUMP_TARGET: ${{ inputs.bump_target }}
+        BRANCH_PREFIX: ${{ inputs.branch_prefix }}
         TAG_SUFFIX: ${{ inputs.tag_suffix }}
         REGISTRY_CHECK: ${{ inputs.registry_check }}
+        SAFETY_GATE: ${{ inputs.safety_gate }}
         AUTO_MERGE: ${{ inputs.auto_merge }}
         ESCALATION: ${{ inputs.escalation }}
         FREEZE_LABEL: ${{ inputs.freeze_label }}

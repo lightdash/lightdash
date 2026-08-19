@@ -467,3 +467,110 @@ EOF
 
 run_freeze_cleanup_test marked 17 'marked freeze cleanup'
 run_freeze_cleanup_test unmarked '' 'unmarked freeze preservation'
+
+run_branch_match_test() {
+    local branch_prefix=$1
+    local exact_branch=$2
+    local other_branch=$3
+    local test_name=$4
+    local scenario_dir
+    scenario_dir=$(mktemp -d)
+    mkdir -p "$scenario_dir/bin"
+    printf 'image:\n  tag: 1.2.3\n' >"$scenario_dir/values.yml"
+    : >"$scenario_dir/gh.log"
+
+    jq -n \
+        --arg exact_branch "$exact_branch" \
+        --arg other_branch "$other_branch" \
+        '[
+            {
+                number: 123,
+                merged_at: "2026-08-19T12:00:00Z",
+                head: {ref: $other_branch},
+                merge_commit_sha: "3333333333333333333333333333333333333333"
+            },
+            {
+                number: 124,
+                merged_at: "2026-08-19T12:01:00Z",
+                head: {ref: $exact_branch},
+                merge_commit_sha: "4444444444444444444444444444444444444444"
+            }
+        ]' >"$scenario_dir/pulls.json"
+
+    cat >"$scenario_dir/bin/gh" <<'EOF'
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+printf '%s\n' "$*" >>"$TEST_SCENARIO_DIR/gh.log"
+
+case "$*" in
+    *'repos/example/upgrade-test --jq .default_branch'*) printf 'main\n' ;;
+    *'api user --jq .login'*) printf 'test-user\n' ;;
+    *'repos/example/upgrade-test/pulls?'*)
+        while [[ $# -gt 0 ]]; do
+            if [[ "$1" == '--jq' ]]; then
+                jq -r "$2" "$TEST_SCENARIO_DIR/pulls.json"
+                exit 0
+            fi
+            shift
+        done
+        exit 1
+        ;;
+    *'pr view 123'*'--json body --jq .body'*) printf '```json\n{"coveredVersions":[],"direction":"forward","fromVersion":"1.2.2","minPreviousVersion":null,"missingRanges":[],"requiredStops":[],"safe":true,"toVersion":"1.2.3","verdict":true}\n```\n' ;;
+    *'pr view 124'*'--json body --jq .body'*) printf '```json\n{"coveredVersions":[],"direction":"forward","fromVersion":"1.2.2","minPreviousVersion":null,"missingRanges":[],"requiredStops":[],"safe":true,"toVersion":"1.2.3","verdict":true}\n```\n' ;;
+    *'pr view 123'*'--json comments'*) printf 'true\n' ;;
+    *'pr view 124'*'--json comments'*) printf 'true\n' ;;
+    *) ;;
+esac
+EOF
+    cat >"$scenario_dir/bin/git" <<'EOF'
+#!/usr/bin/env bash
+
+if [[ "$1" == 'merge-base' ]]; then
+    exit 0
+fi
+
+exit 1
+EOF
+    chmod +x "$scenario_dir/bin"/*
+
+    set +e
+    output=$(cd "$scenario_dir" && PATH="$scenario_dir/bin:$PATH" \
+        TEST_SCENARIO_DIR="$scenario_dir" \
+        GITHUB_REPOSITORY=example/upgrade-test \
+        INSTANCE_URL=https://example.test \
+        BUMP_TARGET=values.yml#image.tag \
+        BRANCH_PREFIX="$branch_prefix" \
+        VERIFY_WINDOW=1s \
+        FREEZE_LABEL=upgrade-freeze \
+        DEPLOY_RUN_URL=https://example.test/run/1 \
+        DEPLOY_CONCLUSION=success \
+        DEPLOYED_SHA=5555555555555555555555555555555555555555 \
+        GH_TOKEN=test-token \
+        "$root/examples/upgrade-automation/scripts/verify.sh" 2>&1)
+    status=$?
+    set -e
+
+    if [[ $status -ne 0 ]]; then
+        printf 'expected %s to verify successfully, got status %s:\n%s\n' "$test_name" "$status" "$output" >&2
+        rm -rf "$scenario_dir"
+        exit 1
+    fi
+    if ! grep -Fq 'pr view 124' "$scenario_dir/gh.log"; then
+        printf 'expected %s to match the exact branch, gh calls were:\n%s\n' "$test_name" "$(cat "$scenario_dir/gh.log")" >&2
+        rm -rf "$scenario_dir"
+        exit 1
+    fi
+    if grep -Fq 'pr view 123' "$scenario_dir/gh.log"; then
+        printf 'expected %s not to match the other branch, gh calls were:\n%s\n' "$test_name" "$(cat "$scenario_dir/gh.log")" >&2
+        rm -rf "$scenario_dir"
+        exit 1
+    fi
+
+    printf 'verify %s test passed\n' "$test_name"
+    rm -rf "$scenario_dir"
+}
+
+run_branch_match_test staging-upgrade staging-upgrade-1.2.3 production-upgrade-1.2.3 'custom branch prefix match'
+run_branch_match_test lightdash-upgrade lightdash-upgrade-1.2.3 lightdash-upgrade-staging-1.2.3 'overlapping branch prefix isolation'
