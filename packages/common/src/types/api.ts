@@ -102,6 +102,7 @@ import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
 import type { PivotValuesColumn } from '../visualizations/types';
 import {
     type ApiUserActivityDownloadCsv,
+    type QueryExecutionContext,
     type UserActivity,
     type ViewStatistics,
 } from './analytics';
@@ -112,7 +113,7 @@ import {
     type ApiGetComments,
 } from './api/comments';
 import { type Email } from './api/email';
-import type { ExecuteAsyncComposeMergeQueryRequestParams } from './api/paginatedQuery';
+import type { ExecuteAsyncMergeQueryRequestParams } from './api/paginatedQuery';
 import {
     type ApiGetProjectParametersListResults,
     type ApiGetProjectParametersResults,
@@ -205,6 +206,7 @@ import { type ApiImpersonationOrganizationSettingsResponse } from './impersonati
 import {
     type ApiCompiledMergeQueryResults,
     type MergeFieldOrigins,
+    type MergeQuery,
     type MergeQueryError,
 } from './mergeQuery';
 import { type MetricQuery, type QueryWarning } from './metricQuery';
@@ -924,12 +926,24 @@ export type MergeQueryChart = {
 
 /** One-call merge execution request. Derived pivot SQL remains server-owned. */
 export type ApiExecuteAsyncMergeQueryRequest = Omit<
-    // The compose variant: requests accept the full MergeQuerySource union
-    // (including result sources); only the stored request-parameters echo
-    // distinguishes strict from compose merges.
-    ExecuteAsyncComposeMergeQueryRequestParams,
+    ExecuteAsyncMergeQueryRequestParams,
     'pivotConfiguration' | 'usePreAggregateCache'
 > & {
+    mode?: MergeQueryExecutionMode;
+    chart?: MergeQueryChart;
+};
+
+/**
+ * Merge execution request for the compose endpoint, which accepts the full
+ * MergeQuerySource union (including references to existing query results).
+ * A separate endpoint keeps the original merge-query contract untouched for
+ * existing clients while compose-only capabilities evolve on their own path.
+ */
+export type ApiExecuteAsyncComposeMergeQueryRequest = {
+    context?: QueryExecutionContext;
+    invalidateCache?: boolean;
+    parameters?: ParametersValuesMap;
+    mergeQuery: MergeQuery;
     mode?: MergeQueryExecutionMode;
     chart?: MergeQueryChart;
 };

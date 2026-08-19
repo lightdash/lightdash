@@ -1,8 +1,9 @@
 import {
     type ApiCompiledMergeQueryResults,
-    type ApiExecuteAsyncMergeQueryRequest,
+    type ApiExecuteAsyncComposeMergeQueryRequest,
     type ApiExecuteAsyncMergeQueryResults,
     type CompileMergeQueryRequest,
+    isMetricSourcedMergeQuery,
     type MergeQuery,
     type ParametersValuesMap,
     QueryExecutionContext,
@@ -36,7 +37,10 @@ const runMergeQuery = (
     csvLimit?: number | null,
 ) =>
     lightdashApi<ApiExecuteAsyncMergeQueryResults>({
-        url: `/projects/${projectUuid}/query/merge-query`,
+        // Merges referencing existing query results need the compose endpoint
+        url: isMetricSourcedMergeQuery(mergeQuery)
+            ? `/projects/${projectUuid}/query/merge-query`
+            : `/projects/${projectUuid}/query/compose-merge-query`,
         version: 'v2',
         method: 'POST',
         body: JSON.stringify({
@@ -48,7 +52,7 @@ const runMergeQuery = (
                     ? { type: 'interactive' }
                     : { type: 'export', limit: csvLimit },
             chart: savedChart,
-        } satisfies ApiExecuteAsyncMergeQueryRequest),
+        } satisfies ApiExecuteAsyncComposeMergeQueryRequest),
     });
 
 /**
