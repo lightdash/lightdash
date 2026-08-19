@@ -1,3 +1,10 @@
+## [1.202.1](https://github.com/lightdash/lightdash/compare/1.202.0...1.202.1) (2026-08-19)
+
+
+### Bug Fixes
+
+* **frontend:** consume chart type preview hints ([#27638](https://github.com/lightdash/lightdash/issues/27638)) ([9673dce](https://github.com/lightdash/lightdash/commit/9673dce939fa5b6afa13cc25fe964b2ae55d6551))
+
 # [1.202.0](https://github.com/lightdash/lightdash/compare/1.201.0...1.202.0) (2026-08-19)
 
 
