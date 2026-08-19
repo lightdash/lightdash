@@ -1,3 +1,10 @@
+## [1.206.1](https://github.com/lightdash/lightdash/compare/1.206.0...1.206.1) (2026-08-19)
+
+
+### Bug Fixes
+
+* show declared release breaks in PR comments ([#27691](https://github.com/lightdash/lightdash/issues/27691)) ([0640e1d](https://github.com/lightdash/lightdash/commit/0640e1dbf4ed94309a6d9e833485c40e1602b551))
+
 # [1.206.0](https://github.com/lightdash/lightdash/compare/1.205.0...1.206.0) (2026-08-19)
 
 
