@@ -1,3 +1,10 @@
+## [1.202.5](https://github.com/lightdash/lightdash/compare/1.202.4...1.202.5) (2026-08-19)
+
+
+### Bug Fixes
+
+* **frontend:** preserve explorer queries in chart builder ([#27639](https://github.com/lightdash/lightdash/issues/27639)) ([765a8a1](https://github.com/lightdash/lightdash/commit/765a8a162500f0284fd83e98c0bd79823333cd9f))
+
 ## [1.202.4](https://github.com/lightdash/lightdash/compare/1.202.3...1.202.4) (2026-08-19)
 
 
