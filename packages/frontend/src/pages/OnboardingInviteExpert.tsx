@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     FeatureFlags,
     getEmailSchema,
+    getUserNameSchema,
     InviteLinkPurpose,
     OrganizationMemberRole,
 } from '@lightdash/common';
@@ -177,12 +178,8 @@ const OnboardingInviteExpert: FC = () => {
         },
         validate: zodResolver(
             z.object({
-                firstName: needsName
-                    ? z.string().trim().min(1, 'Required')
-                    : z.string(),
-                lastName: needsName
-                    ? z.string().trim().min(1, 'Required')
-                    : z.string(),
+                firstName: needsName ? getUserNameSchema() : z.string(),
+                lastName: needsName ? getUserNameSchema() : z.string(),
                 email: getEmailSchema(),
             }),
         ),

@@ -5,8 +5,10 @@ import {
     NotFoundError,
     type CreateExternalConnection,
     type ExternalConnection,
+    type ExternalConnectionListItem,
     type ExternalConnectionSample,
     type ExternalConnectionSampleRequest,
+    type ProjectType,
     type UpdateExternalConnection,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
@@ -335,12 +337,38 @@ export class ExternalConnectionModel {
     async list(
         projectUuid: string,
         organizationUuid: string,
-    ): Promise<ExternalConnection[]> {
+    ): Promise<ExternalConnectionListItem[]> {
+        const linkedDataAppCounts = this.database(
+            AppExternalConnectionsTableName,
+        )
+            .select(
+                `${AppExternalConnectionsTableName}.external_connection_uuid`,
+                this.database.raw('COUNT(DISTINCT ??) AS ??', [
+                    `${AppsTableName}.app_id`,
+                    'linked_data_app_count',
+                ]),
+            )
+            .innerJoin(
+                AppsTableName,
+                `${AppsTableName}.app_id`,
+                `${AppExternalConnectionsTableName}.app_id`,
+            )
+            .whereNull(`${AppsTableName}.deleted_at`)
+            .groupBy(
+                `${AppExternalConnectionsTableName}.external_connection_uuid`,
+            )
+            .as('linked_data_app_counts');
+
         const rows = await this.database(ExternalConnectionsTableName)
             .leftJoin(
                 ExternalConnectionSecretsTableName,
                 `${ExternalConnectionSecretsTableName}.external_connection_uuid`,
                 `${ExternalConnectionsTableName}.external_connection_uuid`,
+            )
+            .leftJoin(
+                linkedDataAppCounts,
+                `${ExternalConnectionsTableName}.external_connection_uuid`,
+                'linked_data_app_counts.external_connection_uuid',
             )
             .where(`${ExternalConnectionsTableName}.project_uuid`, projectUuid)
             .where(
@@ -351,19 +379,27 @@ export class ExternalConnectionModel {
             .orderBy(`${ExternalConnectionsTableName}.created_at`, 'desc')
             .select<
                 Array<
-                    DbExternalConnection & { encrypted_payload: Buffer | null }
+                    DbExternalConnection & {
+                        encrypted_payload: Buffer | null;
+                        linked_data_app_count: string;
+                    }
                 >
             >(
                 `${ExternalConnectionsTableName}.*`,
                 `${ExternalConnectionSecretsTableName}.encrypted_payload`,
+                this.database.raw('COALESCE(??, 0) AS ??', [
+                    'linked_data_app_counts.linked_data_app_count',
+                    'linked_data_app_count',
+                ]),
             );
 
-        return rows.map((row) =>
-            ExternalConnectionModel.mapToExternalConnection(
+        return rows.map((row) => ({
+            ...ExternalConnectionModel.mapToExternalConnection(
                 row,
                 row.encrypted_payload !== null,
             ),
-        );
+            linkedDataAppCount: Number(row.linked_data_app_count),
+        }));
     }
 
     /**
@@ -385,6 +421,42 @@ export class ExternalConnectionModel {
                 'organizations.organization_uuid',
             );
         return row?.organization_uuid ?? null;
+    }
+
+    async findProjectAbilityContext(projectUuid: string): Promise<{
+        organizationUuid: string;
+        projectType: ProjectType;
+        projectCreatedByUserUuid: string | null;
+        upstreamProjectUuid: string | null;
+    } | null> {
+        const row = await this.database('projects')
+            .innerJoin(
+                'organizations',
+                'organizations.organization_id',
+                'projects.organization_id',
+            )
+            .where('projects.project_uuid', projectUuid)
+            .first<
+                | {
+                      organization_uuid: string;
+                      project_type: ProjectType;
+                      created_by_user_uuid: string | null;
+                      copied_from_project_uuid: string | null;
+                  }
+                | undefined
+            >(
+                'organizations.organization_uuid',
+                'projects.project_type',
+                'projects.created_by_user_uuid',
+                'projects.copied_from_project_uuid',
+            );
+        if (!row) return null;
+        return {
+            organizationUuid: row.organization_uuid,
+            projectType: row.project_type,
+            projectCreatedByUserUuid: row.created_by_user_uuid,
+            upstreamProjectUuid: row.copied_from_project_uuid,
+        };
     }
 
     /** Strips the secret — returns the READ shape only. */

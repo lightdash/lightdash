@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { Stack, Tabs } from '@mantine/core';
 import { useMemo, type FC, type ReactNode } from 'react';
+import OverflowTabsList from '../../common/OverflowTabsList/OverflowTabsList';
 import { Config } from '../common/Config';
 import DataAppVizOptionControl from './DataAppVizOptionControl';
 import { groupDataAppVizOptions } from './dataAppVizOptionGroups';
@@ -32,7 +33,8 @@ type Props = {
  * caller's content, then one tab per declared option `group` (ungrouped options
  * collapsing into `Display`), with the palette picker in the tab its
  * declaration names. A viz that declares neither options nor a palette gets no
- * tab strip at all — the general content is the whole form.
+ * tab strip at all — the general content is the whole form. Declarations with
+ * more groups than the sidebar can show scroll the strip sideways.
  */
 const DataAppVizOptionTabs: FC<Props> = ({
     generalContent,
@@ -51,7 +53,7 @@ const DataAppVizOptionTabs: FC<Props> = ({
 
     return (
         <Tabs defaultValue="general" keepMounted={false}>
-            <Tabs.List mb="sm">
+            <OverflowTabsList mb="sm">
                 <Tabs.Tab px="sm" value="general">
                     General
                 </Tabs.Tab>
@@ -60,7 +62,7 @@ const DataAppVizOptionTabs: FC<Props> = ({
                         {group.label}
                     </Tabs.Tab>
                 ))}
-            </Tabs.List>
+            </OverflowTabsList>
 
             <Tabs.Panel value="general">{generalContent}</Tabs.Panel>
 

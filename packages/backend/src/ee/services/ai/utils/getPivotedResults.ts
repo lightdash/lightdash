@@ -1,5 +1,5 @@
-import { SortField } from '@lightdash/common';
-import { Database } from 'duckdb-async';
+import { DuckDBInstance } from '@duckdb/node-api';
+import { PivotedResults, SortField } from '@lightdash/common';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
@@ -15,21 +15,8 @@ export const getPivotedResults = async (
     pivotFields: string[],
     metrics: string[],
     sorts: SortField[],
-) => {
+): Promise<PivotedResults> => {
     const fields = Object.keys(fieldsMap);
-    const tmpFile = path.join(
-        os.tmpdir(),
-        `lightdash_pivot_${Date.now()}_${Math.random().toString(36).slice(2)}.json`,
-    );
-    const db = await Database.create(':memory:');
-    try {
-        await fs.writeFile(tmpFile, JSON.stringify(rows));
-        await db.exec(
-            `CREATE TABLE results_data AS SELECT * FROM read_json_auto('${tmpFile}')`,
-        );
-    } finally {
-        await fs.unlink(tmpFile).catch(() => {});
-    }
     const usingFields = metrics.map((metric) => `FIRST(${metric})`);
 
     // Get the grouping columns (all non-pivot, non-metric fields)
@@ -83,11 +70,48 @@ export const getPivotedResults = async (
     ${orderByPart}`;
     }
 
-    const pivoted = await db.all(query);
-    const fieldNames = Object.keys(pivoted[0]);
+    const instance = await DuckDBInstance.create(':memory:');
+    try {
+        const connection = await instance.connect();
+        try {
+            const tmpFile = path.join(
+                os.tmpdir(),
+                `lightdash_pivot_${Date.now()}_${Math.random()
+                    .toString(36)
+                    .slice(2)}.json`,
+            );
+            try {
+                await fs.writeFile(tmpFile, JSON.stringify(rows));
+                await connection.run(
+                    `CREATE TABLE results_data AS SELECT * FROM read_json_auto('${tmpFile}')`,
+                );
+            } finally {
+                await fs.unlink(tmpFile).catch(() => {});
+            }
 
-    return {
-        results: pivoted,
-        metrics: fieldNames.filter((field) => !fields.includes(field)),
-    };
+            const result = await connection.run(query);
+            // getRowObjectsJS keeps the JS value mapping the legacy duckdb client
+            // produced: Date for DATE/TIMESTAMP, bigint for BIGINT, number for DOUBLE.
+            const pivoted = await result.getRowObjectsJS();
+            const fieldNames = Object.keys(pivoted[0]);
+
+            return {
+                results: pivoted,
+                metrics: fieldNames.filter((field) => !fields.includes(field)),
+            };
+        } finally {
+            // Never let a close failure replace the in-flight error
+            try {
+                connection.closeSync();
+            } catch {
+                // best-effort cleanup
+            }
+        }
+    } finally {
+        try {
+            instance.closeSync();
+        } catch {
+            // best-effort cleanup
+        }
+    }
 };

@@ -2,11 +2,13 @@ import { subject } from '@casl/ability';
 import {
     Account,
     addDashboardFiltersToMetricQuery,
+    AdditionalMetric,
     AlreadyExistsError,
     AndFilterGroup,
     AnonymousAccount,
     AnyType,
     ApiChartAndResults,
+    ApiCompiledMergeQueryResults,
     ApiCreatePreviewResults,
     ApiDataTimezonePreviewResults,
     ApiDeployExploresResults,
@@ -21,6 +23,7 @@ import {
     BigqueryAuthenticationType,
     buildDataTimezonePreviewResponse,
     buildDataTimezonePreviewSql,
+    buildMergeItems,
     CacheMetadata,
     calculateCompilationReport,
     calculateExploreWarningReport,
@@ -29,9 +32,11 @@ import {
     combineManifestSources,
     CompilationSource,
     CompiledDimension,
+    ConflictError,
     ContentType,
     convertCustomMetricToDbt,
     convertExplores,
+    convertItemTypeToDimensionType,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
     CreateJob,
@@ -43,11 +48,11 @@ import {
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
     currentUtcWallClock,
+    CustomDimension,
     CustomFormatType,
     CustomSqlQueryForbiddenError,
     DashboardAvailableFilters,
     DashboardBasicDetails,
-    DashboardFieldTarget,
     DashboardFilters,
     DatabricksAuthenticationType,
     DatabricksTokenError,
@@ -63,6 +68,7 @@ import {
     deepEqual,
     DEFAULT_SPOTLIGHT_CONFIG,
     DefaultSupportedDbtVersion,
+    DimensionType,
     DownloadFileType,
     DuckdbConnectionType,
     EnsurePlaygroundProjectResults,
@@ -70,6 +76,8 @@ import {
     ExploreError,
     ExploreType,
     FeatureFlags,
+    Field,
+    FieldType,
     FilterableDimension,
     FilterAutocompleteValue,
     findReplaceableCustomMetrics,
@@ -79,18 +87,20 @@ import {
     getAvailableFilterFieldIds,
     getAvailableParametersFromTables,
     getColumnTimezone,
-    getDashboardFieldTarget,
+    getCustomSqlFieldKey,
     getDashboardFilterRulesForTables,
     getDbtEnvironmentVariableKeyError,
     getDimensions,
     getErrorMessage,
-    getExploreDefaultTimeDimension,
     getFieldFormatOverrideProps,
     getFields,
     getIntrinsicUserAttributes,
     getItemId,
+    getItemMap,
+    getMergeSourceTableLabel,
     getMetricOverridesWithPopInheritance,
     getMetrics,
+    getModelsFromManifest,
     getParameterReferences,
     getPreAggregateExploreName,
     getTimezoneLabel,
@@ -98,12 +108,17 @@ import {
     hasConnectionChanges,
     hasIntersection,
     hasWarehouseCredentials,
+    isAdditionalMetric,
     isCartesianChartConfig,
+    isCustomDimension,
     isCustomSqlDimension,
     isDateItem,
+    isDimension,
     isExploreError,
+    isField,
     isFilterableDimension,
     isJwtUser,
+    isMetric,
     isNotNull,
     isReservedParameterName,
     isSqlTableCalculation,
@@ -123,20 +138,32 @@ import {
     maybeOverrideDbtConnection,
     maybeOverrideWarehouseConnection,
     maybeReplaceFieldsInChartVersion,
+    MERGE_TABLE_NAME,
+    mergeCalculationReferencePattern,
+    MergeFieldTypes,
+    MergeQuery,
+    MergeQueryColumns,
+    MergeQueryError,
+    MergeQueryErrorKind,
+    MergeQueryField,
+    MergeQuerySource,
     mergeWarehouseCredentials,
     MetricQuery,
+    MetricType,
     MissingWarehouseCredentialsError,
     MostPopularAndRecentlyUpdated,
     normalizeIndexColumns,
     NotFoundError,
     OpenIdIdentityIssuerType,
     ParameterError,
+    parseTableCalculationFunctions,
     PivotChartData,
     PivotConfiguration,
     PivotValuesColumn,
     PlaygroundProjectTrigger,
     PreAggregateCheckResult,
     PreAggregateMatchMiss,
+    preAggregateMaterialization,
     PreAggregateMissReason,
     preAggregateUtils,
     PreviewExpiresAt,
@@ -176,6 +203,7 @@ import {
     TablesConfiguration,
     TableSelectionType,
     UnexpectedServerError,
+    UpdateAgentSqlScope,
     UpdateDefaultUserSpaces,
     UpdateMetadata,
     UpdateProject,
@@ -187,6 +215,8 @@ import {
     UserAccessControls,
     UserAttributeValueMap,
     UserWarehouseCredentials,
+    validateMergeQuery,
+    VizAggregationOptions,
     VizColumn,
     WarehouseClient,
     WarehouseConnectionError,
@@ -194,15 +224,19 @@ import {
     WarehouseTablesCatalog,
     WarehouseTableSchema,
     WarehouseTypes,
+    type AgentSqlScope,
     type ApiCreateProjectResults,
     type CreateDatabricksCredentials,
     type DataTimezonePreviewRequest,
+    type MergeItemEntry,
+    type MergeTypedColumn,
     type Metric,
     type OrganizationProject,
     type ParameterDefinitions,
     type ParametersValuesMap,
     type RunQueryTags,
     type Tag,
+    type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import {
     BigqueryWarehouseClient,
@@ -242,7 +276,6 @@ import { enhanceExploresForPreAggregates } from '../../ee/preAggregates/enhanceE
 import { preAggregatePostProcessor } from '../../ee/preAggregates/postProcessor';
 import type { AiAgentService } from '../../ee/services/AiAgentService/AiAgentService';
 import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
-import { buildMaterializationMetricQuery } from '../../ee/services/PreAggregateMaterializationService/buildMaterializationMetricQuery';
 import { errorHandler } from '../../errors';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
@@ -285,6 +318,11 @@ import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { omitDbtEnvironment } from '../../utils/dbtProjectConfig';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import {
+    applyMergeTerminalWrapper,
+    getMergeNullPlaceholder,
+    MergeQueryBuilder,
+} from '../../utils/QueryBuilder/MergeQueryBuilder';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
@@ -367,6 +405,17 @@ export type ProjectServiceArguments = {
     // AppGenerateService depends on ProjectService, so eager injection would
     // create a construction cycle. Resolves undefined in core (non-EE) builds.
     getAppGenerateService?: () => AppGenerateService | undefined;
+    getDataAppCustomSqlProvenance: (args: {
+        account: Account;
+        projectUuid: string;
+        organizationUuid: string;
+        exploreName: string;
+        previewToken: string;
+    }) => Promise<{
+        tableCalculations: Set<string>;
+        customDimensions: Set<string>;
+        additionalMetrics: Set<string>;
+    }>;
     getAiAgentService?: () => AiAgentService | undefined;
     onProjectCreated?: (args: {
         user: SessionUser;
@@ -396,7 +445,16 @@ const isValidDbtCloudWebhookSignature = (
     return timingSafeEqual(expectedBuffer, signatureBuffer);
 };
 
+const WINDOW_CLAUSE_PATTERN = /\bover\s*\(/i;
+
+type CrossSourceModelNameCollision = {
+    modelName: string;
+    sourceNames: string[];
+};
+
 export class ProjectService extends BaseService {
+    static CREATE_PROJECT_JOB_ENQUEUE_GRACE_MS = 15 * 60 * 1000;
+
     lightdashConfig: LightdashConfig;
 
     analytics: LightdashAnalytics;
@@ -490,6 +548,8 @@ export class ProjectService extends BaseService {
 
     getAppGenerateService: (() => AppGenerateService | undefined) | undefined;
 
+    getDataAppCustomSqlProvenance: ProjectServiceArguments['getDataAppCustomSqlProvenance'];
+
     getAiAgentService: (() => AiAgentService | undefined) | undefined;
 
     onProjectCreated: ProjectServiceArguments['onProjectCreated'];
@@ -538,6 +598,7 @@ export class ProjectService extends BaseService {
         projectContextModel,
         isProjectContextEnabled,
         getAppGenerateService,
+        getDataAppCustomSqlProvenance,
         getAiAgentService,
         onProjectCreated,
         provisionPlaygroundProject,
@@ -586,6 +647,7 @@ export class ProjectService extends BaseService {
         this.projectContextModel = projectContextModel;
         this.isProjectContextEnabled = isProjectContextEnabled;
         this.getAppGenerateService = getAppGenerateService;
+        this.getDataAppCustomSqlProvenance = getDataAppCustomSqlProvenance;
         this.getAiAgentService = getAiAgentService;
         this.onProjectCreated = onProjectCreated;
         this.provisionPlaygroundProject = provisionPlaygroundProject;
@@ -2097,22 +2159,34 @@ export class ProjectService extends BaseService {
                             return;
                         }
 
+                        // External pre-aggregates are never materialized: null
+                        // metric query + null cron keep every enqueue/cron path away.
+                        const isExternal =
+                            preAggregateDefinition.table !== undefined;
+
                         let materializationMetricQuery = null;
                         let materializationQueryError = null;
 
-                        try {
-                            materializationMetricQuery =
-                                buildMaterializationMetricQuery({
-                                    sourceExplore,
-                                    preAggregateDef: preAggregateDefinition,
-                                    materializationConfig: {
-                                        maxRows:
-                                            this.lightdashConfig.preAggregates
-                                                .materializationMaxRows,
-                                    },
-                                });
-                        } catch (error) {
-                            materializationQueryError = getErrorMessage(error);
+                        if (!isExternal) {
+                            try {
+                                materializationMetricQuery =
+                                    preAggregateMaterialization.buildMaterializationMetricQuery(
+                                        {
+                                            sourceExplore,
+                                            preAggregateDef:
+                                                preAggregateDefinition,
+                                            materializationConfig: {
+                                                maxRows:
+                                                    this.lightdashConfig
+                                                        .preAggregates
+                                                        .materializationMaxRows,
+                                            },
+                                        },
+                                    );
+                            } catch (error) {
+                                materializationQueryError =
+                                    getErrorMessage(error);
+                            }
                         }
 
                         definitionRows.push({
@@ -2125,8 +2199,10 @@ export class ProjectService extends BaseService {
                                 materializationMetricQuery,
                             materialization_query_error:
                                 materializationQueryError,
-                            refresh_cron:
-                                preAggregateDefinition.refresh?.cron ?? null,
+                            refresh_cron: isExternal
+                                ? null
+                                : (preAggregateDefinition.refresh?.cron ??
+                                  null),
                         });
                     },
                 );
@@ -2138,7 +2214,7 @@ export class ProjectService extends BaseService {
         );
 
         const invalidDefinitionsCount = definitionRows.filter(
-            (row) => row.materialization_metric_query === null,
+            (row) => row.materialization_query_error !== null,
         ).length;
         this.logger.info(
             `Upserted ${definitionRows.length} pre-aggregate definition registry row(s) for project ${projectUuid}`,
@@ -2224,6 +2300,7 @@ export class ProjectService extends BaseService {
         requestMethod?: string | null;
         projectConfigDefaults?: ProjectDefaults;
         cliVersion?: string | null;
+        complete?: boolean;
     }) {
         const {
             userUuid,
@@ -2234,9 +2311,8 @@ export class ProjectService extends BaseService {
             requestMethod,
             projectConfigDefaults,
             cliVersion,
+            complete,
         } = args;
-        // We delete the explores when saving to cache which cascades to the catalog
-        // So we need to get the current tagged catalog items before deleting the explores (to do a best effort re-tag) and icons
         const prevCatalogItemsWithTags =
             await this.catalogModel.getCatalogItemsWithTags(projectUuid, {
                 onlyTagged: true, // We only need the tagged catalog items
@@ -2268,7 +2344,11 @@ export class ProjectService extends BaseService {
         }
 
         const { cachedExploreUuids } =
-            await this.projectModel.saveExploresToCache(projectUuid, explores);
+            await this.projectModel.saveExploresToCache(
+                projectUuid,
+                explores,
+                complete,
+            );
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
@@ -2284,10 +2364,15 @@ export class ProjectService extends BaseService {
             const newNames = explores.map((explore) => explore.name);
             const previousNameSet = new Set(previousExploreNames ?? []);
             const newNameSet = new Set(newNames);
-            const removed = (previousExploreNames ?? []).filter(
-                (name) => !newNameSet.has(name),
-            );
+            const removed = complete
+                ? (previousExploreNames ?? []).filter(
+                      (name) => !newNameSet.has(name),
+                  )
+                : [];
             const added = newNames.filter((name) => !previousNameSet.has(name));
+            const resultingExploreCount = complete
+                ? newNameSet.size
+                : new Set([...(previousExploreNames ?? []), ...newNames]).size;
 
             this.logger.info('compile.completed', {
                 projectUuid,
@@ -2298,7 +2383,7 @@ export class ProjectService extends BaseService {
                 cliVersion: cliVersion ?? null,
                 // null distinguishes "fetch failed" from "no previous explores"
                 previousExploreCount: previousExploreNames?.length ?? null,
-                newExploreCount: newNames.length,
+                newExploreCount: resultingExploreCount,
                 addedExploreCount:
                     previousExploreNames === null ? null : added.length,
                 removedExploreCount:
@@ -2801,19 +2886,77 @@ export class ProjectService extends BaseService {
         };
 
         // create legacy job steps that UI expects
-        await this.jobModel.create(job);
-        // schedule job
-        await this.schedulerClient.createProjectWithCompile({
-            createdByUserUuid: user.userUuid,
-            isPreview: data.type === ProjectType.PREVIEW,
-            organizationUuid: user.organizationUuid,
-            requestMethod: method,
-            jobUuid: job.jobUuid,
-            data: encryptedData,
-            userUuid: user.userUuid,
-            projectUuid: undefined,
-        });
+        if (data.type === ProjectType.PREVIEW) {
+            await this.jobModel.create(job, true);
+        } else {
+            await this.reapStaleCreateProjectJobs(user.organizationUuid);
+            const result = await this.jobModel.createProjectJobIfNoActive({
+                job,
+                organizationUuid: user.organizationUuid,
+            });
+            if (!result.isCreated) {
+                if (result.activeJob.userUuid !== user.userUuid) {
+                    throw new ConflictError(
+                        'A project creation is already in progress for the organization',
+                    );
+                }
+                throw new ConflictError(
+                    'A project creation is already in progress',
+                    { jobUuid: result.activeJob.jobUuid },
+                );
+            }
+        }
+        try {
+            await this.schedulerClient.createProjectWithCompile({
+                createdByUserUuid: user.userUuid,
+                isPreview: data.type === ProjectType.PREVIEW,
+                organizationUuid: user.organizationUuid,
+                requestMethod: method,
+                jobUuid: job.jobUuid,
+                data: encryptedData,
+                userUuid: user.userUuid,
+                projectUuid: undefined,
+            });
+        } catch (error) {
+            await this.jobModel.update(job.jobUuid, {
+                jobStatus: JobStatusType.ERROR,
+            });
+            throw error;
+        }
         return { jobUuid: job.jobUuid };
+    }
+
+    private async reapStaleCreateProjectJobs(
+        organizationUuid: string,
+    ): Promise<void> {
+        const staleJobUuids =
+            await this.jobModel.findStaleCreateProjectJobUuids({
+                organizationUuid,
+                updatedBefore: new Date(
+                    Date.now() -
+                        ProjectService.CREATE_PROJECT_JOB_ENQUEUE_GRACE_MS,
+                ),
+            });
+        const schedulerJobExists = await Promise.all(
+            staleJobUuids.map((jobUuid) =>
+                this.schedulerClient.hasCreateProjectWithCompileJob(jobUuid),
+            ),
+        );
+        await this.jobModel.markCreateProjectJobsAsError(
+            staleJobUuids.filter((_, index) => !schedulerJobExists[index]),
+        );
+    }
+
+    async getActiveCreateProjectJob(user: SessionUser): Promise<Job | null> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        await this.reapStaleCreateProjectJobs(user.organizationUuid);
+        return this.jobModel.findActiveCreateProjectJob({
+            organizationUuid: user.organizationUuid,
+            userUuid: user.userUuid,
+        });
     }
 
     static PREVIEW_PROJECT_FALLBACK_TTL_HOURS = 720;
@@ -3036,6 +3179,7 @@ export class ProjectService extends BaseService {
                             requestMethod: method,
                             projectConfigDefaults:
                                 lightdashProjectConfig.defaults,
+                            complete: true,
                         });
                     }
                     return newProjectUuid;
@@ -3090,6 +3234,7 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         explores: (Explore | ExploreError)[],
         cliVersion?: string | null,
+        complete?: boolean,
     ): Promise<ApiDeployExploresResults> {
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
@@ -3122,6 +3267,7 @@ export class ProjectService extends BaseService {
         const exploresWithPreAggregates = enhanceExploresForPreAggregates({
             explores,
             enabled: this.lightdashConfig.preAggregates.enabled,
+            startOfWeek: project.warehouseConnection?.startOfWeek ?? null,
         });
 
         await this.saveExploresToCacheAndIndexCatalog({
@@ -3133,6 +3279,7 @@ export class ProjectService extends BaseService {
             jobUuid: null,
             requestMethod: 'cli',
             cliVersion,
+            complete,
         });
 
         await this.schedulerClient.generateValidation({
@@ -3387,7 +3534,10 @@ export class ProjectService extends BaseService {
                 });
         }
 
-        await this.jobModel.create(job);
+        await this.jobModel.create(
+            job,
+            savedProject.type === ProjectType.PREVIEW,
+        );
 
         if (updatedProject.dbtConnection.type !== DbtProjectType.NONE) {
             await this.schedulerClient.testAndCompileProject({
@@ -3724,6 +3874,7 @@ export class ProjectService extends BaseService {
                                 requestMethod: method,
                                 projectConfigDefaults:
                                     lightdashProjectConfig.defaults,
+                                complete: true,
                             });
                             timings.cacheExplores.end = performance.now();
                         } finally {
@@ -3873,6 +4024,7 @@ export class ProjectService extends BaseService {
                 warehouseCredentials,
                 cachedWarehouse,
                 dbtVersionOption,
+                this.lightdashConfig.dbt.environmentVariableAllowlist,
                 this.analytics,
             );
             await adapter.test();
@@ -4309,6 +4461,7 @@ export class ProjectService extends BaseService {
             sshTunnel.overrideCredentials,
             cachedWarehouse,
             dbtVersionOption,
+            this.lightdashConfig.dbt.environmentVariableAllowlist,
             this.analytics,
         );
         return {
@@ -4344,6 +4497,7 @@ export class ProjectService extends BaseService {
             shared.warehouseCredentials,
             shared.cachedWarehouse,
             shared.dbtVersionOption,
+            this.lightdashConfig.dbt.environmentVariableAllowlist,
             this.analytics,
         );
     }
@@ -4368,6 +4522,28 @@ export class ProjectService extends BaseService {
             .join('; ');
         return (
             `Merging dbt sources found ${collisions.length} naming collision${
+                collisions.length === 1 ? '' : 's'
+            }: ${details}${remainder > 0 ? `; and ${remainder} more` : ''}. ` +
+            `Rename or remove the duplicate(s) before deploying.`
+        );
+    }
+
+    private static formatCrossSourceModelNameCollisionsError(
+        collisions: CrossSourceModelNameCollision[],
+    ): string {
+        const MAX_COLLISIONS_IN_ERROR = 10;
+        const shown = collisions.slice(0, MAX_COLLISIONS_IN_ERROR);
+        const remainder = collisions.length - shown.length;
+        const details = shown
+            .map(
+                ({ modelName, sourceNames }) =>
+                    `model "${modelName}" is defined in sources ${sourceNames
+                        .map((sourceName) => `"${sourceName}"`)
+                        .join(' and ')}`,
+            )
+            .join('; ');
+        return (
+            `Merging dbt sources found ${collisions.length} model name collision${
                 collisions.length === 1 ? '' : 's'
             }: ${details}${remainder > 0 ? `; and ${remainder} more` : ''}. ` +
             `Rename or remove the duplicate(s) before deploying.`
@@ -4508,6 +4684,32 @@ export class ProjectService extends BaseService {
             );
         }
 
+        const sourceNamesByModelName = new Map<string, string[]>();
+        manifestSources.forEach(({ name: sourceName, manifest }) => {
+            const modelNames = new Set(
+                getModelsFromManifest(manifest).map((model) => model.name),
+            );
+            modelNames.forEach((modelName) => {
+                const sourceNames = sourceNamesByModelName.get(modelName) ?? [];
+                sourceNames.push(sourceName);
+                sourceNamesByModelName.set(modelName, sourceNames);
+            });
+        });
+        const modelNameCollisions = Array.from(sourceNamesByModelName)
+            .filter(([, sourceNames]) => sourceNames.length > 1)
+            .map(([modelName, sourceNames]) => ({ modelName, sourceNames }));
+        if (modelNameCollisions.length > 0) {
+            this.logger.warn(
+                `Merged ${manifestSources.length} dbt sources for project ${projectUuid} with ${modelNameCollisions.length} model name collision(s)`,
+                { projectUuid, modelNameCollisions },
+            );
+            throw new ParameterError(
+                ProjectService.formatCrossSourceModelNameCollisionsError(
+                    modelNameCollisions,
+                ),
+            );
+        }
+
         return projectAdapterFromConfig(
             {
                 type: DbtProjectType.MANIFEST,
@@ -4517,6 +4719,7 @@ export class ProjectService extends BaseService {
             shared.warehouseCredentials,
             shared.cachedWarehouse,
             shared.dbtVersionOption,
+            this.lightdashConfig.dbt.environmentVariableAllowlist,
             this.analytics,
             // Keep the primary source's lightdash.config.yml / project_context.yml
             // (spotlight categories, table_groups, parameters, AI context). The
@@ -4603,7 +4806,7 @@ export class ProjectService extends BaseService {
      * explore. A custom metric whose SQL equals one of these is the ordinary
      * (viewer-available) custom-metric feature, not injected SQL.
      */
-    private async getExploreFieldSqlSet(
+    private async getExploreFieldSqlKeys(
         account: Account,
         projectUuid: string,
         exploreName: string,
@@ -4613,16 +4816,30 @@ export class ProjectService extends BaseService {
             projectUuid,
             exploreName,
         );
-        const fieldSqls = new Set<string>();
+        const fieldSqlKeys = new Set<string>();
         for (const table of Object.values(explore.tables)) {
             for (const dimension of Object.values(table.dimensions)) {
-                if (dimension.sql) fieldSqls.add(dimension.sql);
+                if (dimension.sql) {
+                    fieldSqlKeys.add(
+                        getCustomSqlFieldKey({
+                            table: table.name,
+                            sql: dimension.sql,
+                        }),
+                    );
+                }
             }
             for (const metric of Object.values(table.metrics)) {
-                if (metric.sql) fieldSqls.add(metric.sql);
+                if (metric.sql) {
+                    fieldSqlKeys.add(
+                        getCustomSqlFieldKey({
+                            table: table.name,
+                            sql: metric.sql,
+                        }),
+                    );
+                }
             }
         }
-        return fieldSqls;
+        return fieldSqlKeys;
     }
 
     /**
@@ -4652,6 +4869,7 @@ export class ProjectService extends BaseService {
         organizationUuid,
         exploreName,
         metricQuery,
+        dataAppPreviewToken,
     }: {
         account: Account;
         projectUuid: string;
@@ -4661,6 +4879,7 @@ export class ProjectService extends BaseService {
             MetricQuery,
             'tableCalculations' | 'customDimensions' | 'additionalMetrics'
         >;
+        dataAppPreviewToken?: string;
     }): Promise<void> {
         const sqlTableCalculations = (
             metricQuery.tableCalculations ?? []
@@ -4700,13 +4919,14 @@ export class ProjectService extends BaseService {
         // allowed; only hand-authored SQL needs the scope or a provenance match.
         let additionalMetricsToAuthorize: typeof additionalMetrics = [];
         if (additionalMetrics.length > 0 && !canAuthorCustomFields) {
-            const knownFieldSqls = await this.getExploreFieldSqlSet(
+            const knownFieldSqlKeys = await this.getExploreFieldSqlKeys(
                 account,
                 projectUuid,
                 exploreName,
             );
             additionalMetricsToAuthorize = additionalMetrics.filter(
-                (metric) => !knownFieldSqls.has(metric.sql),
+                (metric) =>
+                    !knownFieldSqlKeys.has(getCustomSqlFieldKey(metric)),
             );
         }
         if (
@@ -4716,9 +4936,6 @@ export class ProjectService extends BaseService {
         ) {
             return;
         }
-
-        const sqlTableKey = (item: { table: string; sql: string }) =>
-            `${item.table}\0${item.sql}`;
 
         let viewableTableCalculationSqls = new Set<string>();
         let viewableCustomDimensionKeys = new Set<string>();
@@ -4748,24 +4965,27 @@ export class ProjectService extends BaseService {
                     ...provenance.additionalMetrics.map((r) => r.spaceUuid),
                 ]),
             ];
-            const viewableSpaceUuids =
-                candidateSpaceUuids.length === 0
-                    ? new Set<string>()
-                    : new Set(
-                          Object.entries(
-                              await this.spacePermissionService.getSpacesAccessContext(
-                                  account.user.id,
-                                  candidateSpaceUuids,
-                              ),
-                          )
-                              .filter(([, ctx]) =>
-                                  auditedAbility.can(
-                                      'view',
-                                      subject('Space', ctx),
-                                  ),
-                              )
-                              .map(([spaceUuid]) => spaceUuid),
-                      );
+            const viewableSpaceUuids = new Set<string>();
+            if (candidateSpaceUuids.length > 0) {
+                const spaceContexts = Object.entries(
+                    await this.spacePermissionService.getSpacesAccessContext(
+                        account.user.id,
+                        candidateSpaceUuids,
+                    ),
+                );
+                const accessResults = auditedAbility.canBulk(
+                    'view',
+                    spaceContexts.map(([spaceUuid, context]) =>
+                        subject('Space', {
+                            ...context,
+                            metadata: { spaceUuid },
+                        }),
+                    ),
+                );
+                spaceContexts.forEach(([spaceUuid], index) => {
+                    if (accessResults[index]) viewableSpaceUuids.add(spaceUuid);
+                });
+            }
 
             viewableTableCalculationSqls = new Set(
                 provenance.tableCalculations
@@ -4775,13 +4995,32 @@ export class ProjectService extends BaseService {
             viewableCustomDimensionKeys = new Set(
                 provenance.customSqlDimensions
                     .filter((r) => viewableSpaceUuids.has(r.spaceUuid))
-                    .map(sqlTableKey),
+                    .map(getCustomSqlFieldKey),
             );
             viewableAdditionalMetricKeys = new Set(
                 provenance.additionalMetrics
                     .filter((r) => viewableSpaceUuids.has(r.spaceUuid))
-                    .map(sqlTableKey),
+                    .map(getCustomSqlFieldKey),
             );
+
+            const appProvenance = dataAppPreviewToken
+                ? await this.getDataAppCustomSqlProvenance({
+                      account,
+                      projectUuid,
+                      organizationUuid,
+                      exploreName,
+                      previewToken: dataAppPreviewToken,
+                  })
+                : undefined;
+            for (const sql of appProvenance?.tableCalculations ?? []) {
+                viewableTableCalculationSqls.add(sql);
+            }
+            for (const key of appProvenance?.customDimensions ?? []) {
+                viewableCustomDimensionKeys.add(key);
+            }
+            for (const key of appProvenance?.additionalMetrics ?? []) {
+                viewableAdditionalMetricKeys.add(key);
+            }
         }
 
         if (
@@ -4795,11 +5034,14 @@ export class ProjectService extends BaseService {
         }
         if (
             customDimensionsToAuthorize.some(
-                (cd) => !viewableCustomDimensionKeys.has(sqlTableKey(cd)),
+                (cd) =>
+                    !viewableCustomDimensionKeys.has(getCustomSqlFieldKey(cd)),
             ) ||
             additionalMetricsToAuthorize.some(
                 (metric) =>
-                    !viewableAdditionalMetricKeys.has(sqlTableKey(metric)),
+                    !viewableAdditionalMetricKeys.has(
+                        getCustomSqlFieldKey(metric),
+                    ),
             )
         ) {
             throw new CustomSqlQueryForbiddenError(
@@ -4819,6 +5061,12 @@ export class ProjectService extends BaseService {
             };
             projectUuid: string;
             usePreAggregateCache?: boolean;
+            /**
+             * Compile without ORDER BY / LIMIT, for embedding as a CTE body
+             * in an outer statement (a merge) that orders and limits once.
+             */
+            asCteBody?: boolean;
+            userAttributeOverrides?: UserAttributeValueMap;
         } & ({ exploreName: string } | { explore: Explore }),
     ) {
         const {
@@ -4898,8 +5146,11 @@ export class ProjectService extends BaseService {
             warehouseCredentials.startOfWeek,
         );
 
-        const { userAttributes, intrinsicUserAttributes } =
+        const { userAttributes: baseUserAttributes, intrinsicUserAttributes } =
             await this.getUserAttributes({ account });
+        const userAttributes = args.userAttributeOverrides
+            ? { ...baseUserAttributes, ...args.userAttributeOverrides }
+            : baseUserAttributes;
 
         const availableParameterDefinitions = await this.getAvailableParameters(
             projectUuid,
@@ -4927,7 +5178,7 @@ export class ProjectService extends BaseService {
         });
 
         const queryComposer = new QueryComposer(
-            { metricQuery, pivotConfiguration },
+            { metricQuery, pivotConfiguration, asCteBody: args.asCteBody },
             {
                 explore,
                 warehouseSqlBuilder,
@@ -4966,6 +5217,749 @@ export class ProjectService extends BaseService {
             }),
             // Include pivot query if pivot configuration was provided
             ...(pivotQuery && { pivotQuery }),
+        };
+    }
+
+    /**
+     * Field metadata for every field a join key names, so the validator can
+     * tell whether the two sides are actually comparable.
+     */
+    protected getMergeJoinFieldTypes(
+        mergeQuery: MergeQuery,
+        itemMapBySourceId: Record<string, ItemsMap>,
+    ): MergeFieldTypes {
+        const fieldTypes: MergeFieldTypes = {};
+        mergeQuery.joinKey.forEach((part) => {
+            Object.entries(part.fieldIdBySourceId).forEach(
+                ([sourceId, fieldId]) => {
+                    const dimension = itemMapBySourceId[sourceId]?.[fieldId];
+                    if (
+                        !dimension ||
+                        (!isDimension(dimension) &&
+                            !isCustomDimension(dimension))
+                    )
+                        return;
+                    fieldTypes[sourceId] ??= {};
+                    fieldTypes[sourceId][fieldId] = {
+                        type: convertItemTypeToDimensionType(dimension),
+                        timeInterval: isDimension(dimension)
+                            ? (dimension.timeInterval ?? null)
+                            : null,
+                        timestampDomain: isDimension(dimension)
+                            ? dimension.timestampDomain
+                            : undefined,
+                    };
+                },
+            );
+        });
+        return fieldTypes;
+    }
+
+    /**
+     * Table calculations whose value depends on the query's whole row set.
+     * Merging changes that row set, so they cannot be carried across it: a
+     * running total would be frozen at its pre-merge value and a pivot-function
+     * calc compiles to a literal null column.
+     */
+    private static getUnsupportedTableCalculations(
+        source: MergeQuerySource,
+    ): string[] {
+        return source.metricQuery.tableCalculations
+            .filter((calculation) => {
+                const sql = isSqlTableCalculation(calculation)
+                    ? calculation.sql
+                    : undefined;
+                if (sql === undefined) {
+                    // Template and formula calcs are not row-set safe to carry.
+                    return true;
+                }
+                const functions = parseTableCalculationFunctions(sql);
+                return functions.length > 0 || WINDOW_CLAUSE_PATTERN.test(sql);
+            })
+            .map((calculation) => calculation.name);
+    }
+
+    /**
+     * Compiles a merge of several metric queries into one warehouse statement.
+     *
+     * Compilation only — the caller runs the returned SQL through the normal
+     * SQL execution path, so the merge does not duplicate limits, caching or
+     * result handling. Validation errors are returned rather than thrown: the
+     * explorer shows them against the offending query row.
+     */
+    async compileMergeQuery(args: {
+        account: Account;
+        projectUuid: string;
+        mergeQuery: MergeQuery;
+        /** One map for every source: sides of one question share their values. */
+        parameters?: ParametersValuesMap;
+        userAttributeOverrides?: UserAttributeValueMap;
+    }): Promise<ApiCompiledMergeQueryResults> {
+        const {
+            account,
+            projectUuid,
+            mergeQuery,
+            parameters,
+            userAttributeOverrides,
+        } = args;
+
+        // One metadata load feeds validation, output typing and display labels.
+        // Query-defined fields belong in the same item map as explore fields,
+        // so custom dimensions and metrics follow the canonical lookup path.
+        const exploreBySourceId = Object.fromEntries(
+            await Promise.all(
+                mergeQuery.sources.map(
+                    async (source) =>
+                        [
+                            source.id,
+                            await this.getExplore(
+                                account,
+                                projectUuid,
+                                source.metricQuery.exploreName,
+                            ),
+                        ] as const,
+                ),
+            ),
+        );
+        const itemMapBySourceId = Object.fromEntries(
+            mergeQuery.sources.map((source) => [
+                source.id,
+                getItemMap(
+                    exploreBySourceId[source.id],
+                    source.metricQuery.additionalMetrics,
+                    source.metricQuery.tableCalculations,
+                    source.metricQuery.customDimensions,
+                ),
+            ]),
+        );
+        const fieldTypes = this.getMergeJoinFieldTypes(
+            mergeQuery,
+            itemMapBySourceId,
+        );
+
+        const errors = [
+            ...validateMergeQuery(mergeQuery, fieldTypes),
+            ...mergeQuery.sources.flatMap((source) => {
+                const unsupported =
+                    ProjectService.getUnsupportedTableCalculations(source);
+                return unsupported.length === 0
+                    ? []
+                    : [
+                          {
+                              kind: MergeQueryErrorKind.UNSUPPORTED_TABLE_CALCULATION,
+                              sourceId: source.id,
+                              fieldIds: unsupported,
+                              message: `Query "${source.id}" uses ${unsupported.join(
+                                  ', ',
+                              )}, which depend on the rows of that query alone. Merging changes those rows, so the value cannot be carried across the join.`,
+                          },
+                      ];
+            }),
+        ];
+        if (errors.length > 0) {
+            return {
+                sql: null,
+                coreSql: null,
+                typedColumns: null,
+                terminalWrapper: null,
+                columns: null,
+                fields: [],
+                itemsMap: {},
+                fieldOrigins: {},
+                parameterReferences: [],
+                usedParametersValues: {},
+                fieldIdByColumn: {},
+                errors,
+            };
+        }
+
+        const warehouseCredentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
+            warehouseCredentials.type,
+            warehouseCredentials.startOfWeek,
+        );
+
+        const sources = await Promise.all(
+            mergeQuery.sources.map(async (source) => {
+                // Each source compiles exactly as it would on its own, so a
+                // merged query inherits the same access rules, required
+                // filters and parameter handling as the query it was built
+                // from.
+                const compiled = await this.compileQuery({
+                    account,
+                    projectUuid,
+                    exploreName: source.metricQuery.exploreName,
+                    body: { ...source.metricQuery, parameters },
+                    userAttributeOverrides,
+                    // A pre-aggregate compiles to a placeholder table name
+                    // that only the pre-aggregate execution path resolves.
+                    // A merge embeds this SQL as a CTE and runs it itself,
+                    // so routing here would emit a statement the warehouse
+                    // cannot parse.
+                    usePreAggregateCache: false,
+                    // No per-side ORDER BY or LIMIT: a limited side would
+                    // join only its top-N rows — a silent truncation that
+                    // looks like real data. The merged statement sorts and
+                    // limits once for the whole result.
+                    asCteBody: true,
+                });
+                const sourceSql = compiled.query;
+                // The single-query path refuses to run with an unvalued
+                // parameter; the compile-for-embedding path only warns.
+                // Carry the gap so the merge refuses the same way instead
+                // of shipping a literal placeholder to the warehouse.
+                const missingParameters = Array.from(
+                    compiled.missingParameterReferences,
+                );
+                const parameterReferences = Array.from(
+                    compiled.parameterReferences,
+                );
+
+                const joinKeyColumnByName = Object.fromEntries(
+                    mergeQuery.joinKey.map((part) => [
+                        part.name,
+                        part.fieldIdBySourceId[source.id],
+                    ]),
+                );
+
+                // A compiled metric query aliases every output column by field
+                // id, so the field ids are the column names. Custom dimensions
+                // and custom metrics need no special case: their ids appear in
+                // dimensions/metrics like any other field.
+                const valueColumns = [
+                    ...source.metricQuery.metrics,
+                    ...source.metricQuery.tableCalculations.map(
+                        (calculation) => calculation.name,
+                    ),
+                ];
+
+                return {
+                    id: source.id,
+                    sql: sourceSql,
+                    joinKeyColumnByName,
+                    valueColumns,
+                    missingParameters,
+                    parameterReferences,
+                    usedParametersValues: compiled.usedParameters,
+                    originBySourceColumn: Object.fromEntries(
+                        valueColumns.map((column) => [
+                            column,
+                            { fieldId: column },
+                        ]),
+                    ),
+                };
+            }),
+        );
+
+        const parameterErrors: MergeQueryError[] = sources.flatMap((source) =>
+            source.missingParameters.length === 0
+                ? []
+                : [
+                      {
+                          kind: MergeQueryErrorKind.MISSING_PARAMETERS,
+                          sourceId: source.id,
+                          fieldIds: source.missingParameters,
+                          message: `Query "${source.id}" is missing values for: ${source.missingParameters.join(
+                              ', ',
+                          )}. Supply them with the merge, or set parameter defaults.`,
+                      },
+                  ],
+        );
+        const parameterReferences = Array.from(
+            new Set(sources.flatMap((source) => source.parameterReferences)),
+        );
+        const usedParametersValues = Object.assign(
+            {},
+            ...sources.map((source) => source.usedParametersValues),
+        );
+        if (parameterErrors.length > 0) {
+            return {
+                sql: null,
+                coreSql: null,
+                typedColumns: null,
+                terminalWrapper: null,
+                columns: null,
+                fields: [],
+                itemsMap: {},
+                fieldOrigins: {},
+                parameterReferences,
+                usedParametersValues,
+                fieldIdByColumn: {},
+                errors: parameterErrors,
+            };
+        }
+
+        // A placeholder per key so null keys match each other rather than
+        // landing as two unmatched rows. Safe because the join also compares
+        // null-ness: a real value equal to the placeholder can never pair with
+        // a null.
+        const nullPlaceholderByKeyName = Object.fromEntries(
+            mergeQuery.joinKey.flatMap((part) => {
+                const meta = Object.entries(part.fieldIdBySourceId)
+                    .map(
+                        ([sourceId, fieldId]) =>
+                            fieldTypes[sourceId]?.[fieldId],
+                    )
+                    .find((candidate) => candidate !== undefined);
+                if (meta === undefined) return [];
+                return [
+                    [
+                        part.name,
+                        getMergeNullPlaceholder(meta, warehouseSqlBuilder),
+                    ],
+                ];
+            }),
+        );
+
+        const mergeQueryBuilder = new MergeQueryBuilder({
+            sources,
+            joinKeyNames: mergeQuery.joinKey.map((part) => part.name),
+            joinType: mergeQuery.joinType,
+            warehouseSqlBuilder,
+            // Clamped like any other query: the merged statement is the one
+            // that actually returns rows, so the instance row cap applies to
+            // it rather than to the queries it was assembled from.
+            limit: Math.min(
+                mergeQuery.limit,
+                this.lightdashConfig.query.maxLimit,
+            ),
+            tableCalculations: mergeQuery.tableCalculations,
+            nullPlaceholderByKeyName,
+            stringJoinKeyNames: mergeQuery.joinKey.flatMap((part) => {
+                const meta = Object.entries(part.fieldIdBySourceId)
+                    .map(
+                        ([sourceId, fieldId]) =>
+                            fieldTypes[sourceId]?.[fieldId],
+                    )
+                    .find((candidate) => candidate !== undefined);
+                return meta?.type === DimensionType.STRING ? [part.name] : [];
+            }),
+            // Each query is bounded, but reaching the bound is reported rather
+            // than trimmed: a join over a trimmed side returns numbers that
+            // look complete and are not.
+            sourceRowCap: this.lightdashConfig.query.maxLimit,
+        });
+
+        // Resolve calculation references against the columns the merge
+        // actually produces. A pre-pivoted source replaces one metric column
+        // with one per value, so this is the only place the real names exist.
+        const columns = mergeQueryBuilder.getColumns();
+        const availableReferences = [
+            ...columns.joinKeyColumns,
+            ...Object.entries(columns.valueColumnBySourceColumn).flatMap(
+                ([sourceId, bySourceColumn]) =>
+                    Object.keys(bySourceColumn).map(
+                        (sourceColumn) => `${sourceId}.${sourceColumn}`,
+                    ),
+            ),
+        ];
+        const referenceErrors = mergeQuery.tableCalculations.flatMap(
+            (calculation) => {
+                const unresolved = [
+                    ...calculation.sql.matchAll(
+                        mergeCalculationReferencePattern,
+                    ),
+                ]
+                    .map((match) => match[1])
+                    .filter(
+                        (reference) => !availableReferences.includes(reference),
+                    );
+                return unresolved.length === 0
+                    ? []
+                    : [
+                          {
+                              kind: MergeQueryErrorKind.UNRESOLVED_CALCULATION_REFERENCE,
+                              sourceId: null,
+                              fieldIds: unresolved,
+                              message: `Calculation "${calculation.name}" references ${unresolved.join(
+                                  ', ',
+                              )}. The merged result has: ${availableReferences.join(
+                                  ', ',
+                              )}.`,
+                          },
+                      ];
+            },
+        );
+        if (referenceErrors.length > 0) {
+            return {
+                sql: null,
+                coreSql: null,
+                typedColumns: null,
+                terminalWrapper: null,
+                columns: null,
+                fields: [],
+                itemsMap: {},
+                fieldOrigins: {},
+                parameterReferences,
+                usedParametersValues,
+                fieldIdByColumn: {},
+                errors: referenceErrors,
+            };
+        }
+
+        // Describe every merged column well enough to be selected, sorted and
+        // formatted. Labels come from the field each column originated in;
+        // a widened column also carries the value it holds, since one metric
+        // becomes several columns and the name alone cannot say which is which.
+        const metricQueryBySourceId = Object.fromEntries(
+            mergeQuery.sources.map((source) => [source.id, source.metricQuery]),
+        );
+
+        // Custom dimensions and additional metrics are defined on the query
+        // rather than the explore, so a lookup that only walks the explore
+        // mis-types every one of them as a string dimension.
+        const mergedLabel = (
+            origin: Field | AdditionalMetric | CustomDimension | undefined,
+        ): string | undefined => {
+            if (!origin) return undefined;
+            return isCustomDimension(origin) ? origin.name : origin.label;
+        };
+
+        const findField = (
+            sourceId: string,
+            fieldId: string,
+        ): Field | AdditionalMetric | CustomDimension | undefined => {
+            const item = itemMapBySourceId[sourceId]?.[fieldId];
+            return item && (isField(item) || isCustomDimension(item))
+                ? item
+                : undefined;
+        };
+
+        const joinKeyFields: MergeQueryField[] = mergeQuery.joinKey.map(
+            (part) => {
+                const [sourceId, fieldId] =
+                    Object.entries(part.fieldIdBySourceId)[0] ?? [];
+                const field =
+                    sourceId && fieldId
+                        ? findField(sourceId, fieldId)
+                        : undefined;
+                return {
+                    column: part.name,
+                    label: mergedLabel(field) ?? part.name,
+                    kind: 'dimension' as const,
+                    type: field
+                        ? convertItemTypeToDimensionType(field)
+                        : DimensionType.STRING,
+                    sourceId: null,
+                    sourceFieldId: null,
+                };
+            },
+        );
+
+        const originBySourceId = Object.fromEntries(
+            sources.map((source) => [source.id, source.originBySourceColumn]),
+        );
+
+        const valueFields: MergeQueryField[] = Object.entries(
+            columns.valueColumnBySourceColumn,
+        ).flatMap(([sourceId, bySourceColumn]) =>
+            Object.entries(bySourceColumn).map(
+                ([sourceColumn, mergedColumn]) => {
+                    const origin = originBySourceId[sourceId]?.[sourceColumn];
+                    const field = origin
+                        ? findField(sourceId, origin.fieldId)
+                        : undefined;
+                    return {
+                        column: mergedColumn,
+                        label:
+                            mergedLabel(field) ??
+                            origin?.fieldId ??
+                            sourceColumn,
+                        kind: (field && isMetric(field)
+                            ? 'metric'
+                            : 'dimension') as 'dimension' | 'metric',
+                        type: field
+                            ? convertItemTypeToDimensionType(field)
+                            : DimensionType.STRING,
+                        sourceId,
+                        sourceFieldId: origin?.fieldId ?? null,
+                    };
+                },
+            ),
+        );
+
+        const calculationFields: MergeQueryField[] =
+            mergeQuery.tableCalculations.map((calculation) => ({
+                column: calculation.name,
+                label: calculation.displayName,
+                kind: 'metric' as const,
+                type: 'number',
+                sourceId: null,
+                sourceFieldId: null,
+            }));
+
+        // Present every merged column as an ordinary field. Downstream code
+        // looks fields up by `getItemId`, so the items map is keyed by it and
+        // the warehouse alias is kept only as the way back to the column.
+        const sourceIndexById = Object.fromEntries(
+            mergeQuery.sources.map((source, index) => [source.id, index]),
+        );
+
+        const mergedItem = (itemArgs: {
+            table: string;
+            tableLabel: string;
+            name: string;
+            label: string;
+            origin: Field | AdditionalMetric | CustomDimension | undefined;
+            /** Used when there is no origin field to read a type from. */
+            fallback:
+                | { fieldType: FieldType.METRIC; type: MetricType }
+                | { fieldType: FieldType.DIMENSION; type: DimensionType };
+        }): ItemsMap[string] => {
+            const { table, tableLabel, name, label, origin, fallback } =
+                itemArgs;
+            const field =
+                origin && !isCustomDimension(origin) ? origin : undefined;
+            const shared = {
+                name,
+                label,
+                table,
+                tableLabel,
+                // The column already exists in a compiled statement, so
+                // nothing has to compile it again. This is a display
+                // identity, not a query fragment.
+                sql: '',
+                hidden: false,
+                description: field?.description,
+                format: field?.format,
+                compact: field?.compact,
+                round: field?.round,
+                urls: field && isField(field) ? field.urls : undefined,
+            };
+            if (origin && (isMetric(origin) || isAdditionalMetric(origin))) {
+                return {
+                    ...shared,
+                    fieldType: FieldType.METRIC,
+                    type: origin.type,
+                    formatOptions: origin.formatOptions,
+                };
+            }
+            if (origin && isDimension(origin)) {
+                return {
+                    ...shared,
+                    fieldType: FieldType.DIMENSION,
+                    type: origin.type,
+                };
+            }
+            return { ...shared, ...fallback };
+        };
+
+        const joinKeyEntries: MergeItemEntry[] = mergeQuery.joinKey.map(
+            (part) => {
+                const [sourceId, fieldId] =
+                    Object.entries(part.fieldIdBySourceId)[0] ?? [];
+                const origin =
+                    sourceId && fieldId
+                        ? findField(sourceId, fieldId)
+                        : undefined;
+                return {
+                    column: part.name,
+                    // The key's own name is stable for the life of the key, so
+                    // renaming it for display never rewrites the field id a
+                    // saved chart config refers to.
+                    item: mergedItem({
+                        table: MERGE_TABLE_NAME,
+                        tableLabel: 'Merged',
+                        name: part.name,
+                        label: mergedLabel(origin) ?? part.name,
+                        origin,
+                        fallback: {
+                            fieldType: FieldType.DIMENSION,
+                            type: DimensionType.STRING,
+                        },
+                    }),
+                    origin: {
+                        kind: 'joinKey',
+                        fieldIdBySourceId: part.fieldIdBySourceId,
+                    },
+                };
+            },
+        );
+
+        // Headers say where a column came from, not which slot it rode in:
+        // the explore's label, unless both sides use the same explore and the
+        // slot is the only thing telling them apart.
+        const exploreLabels = mergeQuery.sources.map(
+            (source) =>
+                exploreBySourceId[source.id]?.label ??
+                source.metricQuery.exploreName,
+        );
+        const labelsCollide =
+            new Set(exploreLabels).size < exploreLabels.length;
+        const sourceTableLabel = (sourceId: string) => {
+            const sourceIndex = sourceIndexById[sourceId] ?? 0;
+            const exploreLabel = exploreLabels[sourceIndex];
+            return labelsCollide
+                ? `${exploreLabel} (${getMergeSourceTableLabel(sourceIndex)})`
+                : exploreLabel;
+        };
+
+        const valueEntries: MergeItemEntry[] = valueFields.flatMap((field) => {
+            const { sourceId, sourceFieldId } = field;
+            if (!sourceId || !sourceFieldId) return [];
+            const origin = findField(sourceId, sourceFieldId);
+            return [
+                {
+                    column: field.column,
+                    item: mergedItem({
+                        // Attributed to the query it came from, so two sources
+                        // of the same explore cannot collide.
+                        table: sourceId,
+                        tableLabel: sourceTableLabel(sourceId),
+                        // The origin field id, not its bare name: within one
+                        // query two joined tables can both expose a `status`.
+                        name: sourceFieldId,
+                        label: field.label,
+                        origin,
+                        fallback: {
+                            fieldType: FieldType.DIMENSION,
+                            type: DimensionType.STRING,
+                        },
+                    }),
+                    origin: {
+                        kind: 'source',
+                        sourceId,
+                        sourceFieldId,
+                    },
+                },
+            ];
+        });
+
+        const calculationEntries: MergeItemEntry[] =
+            mergeQuery.tableCalculations.map((calculation) => ({
+                column: calculation.name,
+                item: mergedItem({
+                    table: MERGE_TABLE_NAME,
+                    tableLabel: 'Merged',
+                    name: calculation.name,
+                    label: calculation.displayName,
+                    origin: undefined,
+                    fallback: {
+                        fieldType: FieldType.METRIC,
+                        type: MetricType.NUMBER,
+                    },
+                }),
+                origin: { kind: 'tableCalculation' },
+            }));
+
+        const mergeEntries = [
+            ...joinKeyEntries,
+            ...valueEntries,
+            ...calculationEntries,
+        ];
+        const { itemsMap, fieldOrigins, fieldIdByColumn } =
+            buildMergeItems(mergeEntries);
+
+        // The output contract's typed field list: every core column with an
+        // accurate value type, in the order the statement returns them. A
+        // column whose type cannot be resolved is refused — a guessed
+        // "string" poisons filters, formatting and re-aggregation over
+        // everything built on the merged result.
+        const findSourceTableCalculation = (sourceId: string, name: string) =>
+            metricQueryBySourceId[sourceId]?.tableCalculations.find(
+                (calculation) => calculation.name === name,
+            );
+        const typeErrors: MergeQueryError[] = [];
+        const typedColumns: MergeTypedColumn[] = mergeEntries.map((entry) => {
+            const reference = fieldIdByColumn[entry.column];
+            const resolvedType = (): DimensionType | null => {
+                switch (entry.origin.kind) {
+                    case 'joinKey': {
+                        const part = mergeQuery.joinKey.find(
+                            (candidate) => candidate.name === entry.column,
+                        );
+                        const meta = Object.entries(
+                            part?.fieldIdBySourceId ?? {},
+                        )
+                            .map(
+                                ([sourceId, fieldId]) =>
+                                    fieldTypes[sourceId]?.[fieldId],
+                            )
+                            .find((candidate) => candidate !== undefined);
+                        return meta?.type ?? null;
+                    }
+                    case 'source': {
+                        const { sourceId, sourceFieldId } = entry.origin;
+                        const origin =
+                            findField(sourceId, sourceFieldId) ??
+                            findSourceTableCalculation(sourceId, sourceFieldId);
+                        return origin
+                            ? convertItemTypeToDimensionType(origin)
+                            : null;
+                    }
+                    case 'tableCalculation':
+                        // Declared, not guessed: a merge calculation is
+                        // arithmetic over the merged row.
+                        return DimensionType.NUMBER;
+                    default:
+                        return assertUnreachable(
+                            entry.origin,
+                            'Unknown merge field origin',
+                        );
+                }
+            };
+            const type = resolvedType();
+            if (type === null) {
+                typeErrors.push({
+                    kind: MergeQueryErrorKind.UNRESOLVED_COLUMN_TYPE,
+                    sourceId:
+                        entry.origin.kind === 'source'
+                            ? entry.origin.sourceId
+                            : null,
+                    fieldIds:
+                        entry.origin.kind === 'source'
+                            ? [entry.origin.sourceFieldId]
+                            : [reference],
+                    message: `The type of "${reference}" cannot be resolved from the field it came from, so the merged column cannot be described.`,
+                });
+            }
+            return {
+                reference,
+                type: type ?? DimensionType.STRING,
+                origin: entry.origin,
+            };
+        });
+        if (typeErrors.length > 0) {
+            return {
+                sql: null,
+                coreSql: null,
+                typedColumns: null,
+                terminalWrapper: null,
+                columns: null,
+                fields: [],
+                itemsMap: {},
+                fieldOrigins: {},
+                parameterReferences,
+                usedParametersValues,
+                fieldIdByColumn: {},
+                errors: typeErrors,
+            };
+        }
+
+        // Named by field id, so results are keyed by the same ids the
+        // items map is keyed by and every lookup downstream resolves.
+        const coreSql = mergeQueryBuilder.toCoreSql(fieldIdByColumn);
+        const terminalWrapper =
+            mergeQueryBuilder.buildTerminalWrapper(fieldIdByColumn);
+
+        return {
+            sql: applyMergeTerminalWrapper(coreSql, terminalWrapper),
+            coreSql,
+            typedColumns,
+            terminalWrapper,
+            columns,
+            // The guard column is not data and is deliberately absent from
+            // fields: callers act on it, they do not display it.
+            fields: [...joinKeyFields, ...valueFields, ...calculationFields],
+            itemsMap,
+            fieldOrigins,
+            parameterReferences,
+            usedParametersValues,
+            fieldIdByColumn,
+            errors: [],
         };
     }
 
@@ -5118,19 +6112,25 @@ export class ProjectService extends BaseService {
         try {
             await this.getExplore(account, projectUuid, preAggExploreName);
 
-            const activeMaterialization =
-                await this.preAggregateModel.getActiveMaterialization(
-                    projectUuid,
-                    preAggExploreName,
-                );
+            // External pre-aggregates serve from their external table; no materialization required
+            const matchedDefinition = sourceExplore.preAggregates?.find(
+                (def) => def.name === matchResult.preAggregateName,
+            );
+            if (matchedDefinition?.table === undefined) {
+                const activeMaterialization =
+                    await this.preAggregateModel.getActiveMaterialization(
+                        projectUuid,
+                        preAggExploreName,
+                    );
 
-            if (!activeMaterialization) {
-                return {
-                    hit: false,
-                    reason: {
-                        reason: PreAggregateMissReason.NO_ACTIVE_MATERIALIZATION,
-                    },
-                };
+                if (!activeMaterialization) {
+                    return {
+                        hit: false,
+                        reason: {
+                            reason: PreAggregateMissReason.NO_ACTIVE_MATERIALIZATION,
+                        },
+                    };
+                }
             }
 
             return {
@@ -6485,7 +7485,11 @@ export class ProjectService extends BaseService {
             case DownloadFileType.JSONL:
                 return fs.createReadStream(downloadFile.path);
             case DownloadFileType.S3_JSONL:
-                return this.fileStorageClient.getFileStream(downloadFile.path);
+                return (
+                    await this.fileStorageClient.getFileStream(
+                        downloadFile.path,
+                    )
+                ).stream;
             default:
                 throw new ParameterError('File is not a valid JSONL file');
         }
@@ -6555,7 +7559,7 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const { metricQuery, explore, field, labelFieldId } =
+        const { metricQuery, explore, field, labelFieldId, staticResults } =
             await this._getFieldValuesMetricQuery({
                 projectUuid,
                 table,
@@ -6565,6 +7569,32 @@ export class ProjectService extends BaseService {
                 filters,
                 organizationUuid,
             });
+
+        // The field's config turns warehouse fetching off: serve curated
+        // values (empty when none) instead of running a distinct-value scan.
+        if (staticResults) {
+            this.analytics.track({
+                event: 'field_value.search',
+                userId: user.userUuid,
+                properties: {
+                    projectId: projectUuid,
+                    fieldId: getItemId(field),
+                    searchCharCount: search.length,
+                    resultsCount: staticResults.length,
+                    searchLimit: metricQuery.limit,
+                },
+            });
+            return {
+                search,
+                results: staticResults.map(({ value }) => value),
+                resultsWithLabels: staticResults.map(({ value, label }) => ({
+                    value,
+                    label: label ?? value,
+                })),
+                refreshedAt: new Date(),
+                cached: false,
+            };
+        }
 
         const [
             warehouseCredentials,
@@ -7120,7 +8150,9 @@ export class ProjectService extends BaseService {
 
         preAggregateDefinitions
             .filter(
-                (definition) => definition.materializationMetricQuery === null,
+                (definition) =>
+                    definition.materializationMetricQuery === null &&
+                    definition.preAggregateDefinition.table === undefined,
             )
             .forEach((definition) => {
                 this.logger.warn(
@@ -7176,6 +8208,12 @@ export class ProjectService extends BaseService {
         if (!preAggregateDefinition) {
             throw new NotFoundError(
                 `Pre-aggregate definition "${preAggregateDefinitionName}" not found`,
+            );
+        }
+
+        if (preAggregateDefinition.preAggregateDefinition.table) {
+            throw new ParameterError(
+                `Pre-aggregate "${preAggregateDefinitionName}" is external and is never materialized by Lightdash`,
             );
         }
 
@@ -7242,7 +8280,7 @@ export class ProjectService extends BaseService {
             steps: [{ stepType: JobStepType.COMPILING }],
         };
 
-        await this.jobModel.create(job);
+        await this.jobModel.create(job, type === ProjectType.PREVIEW);
 
         await this.schedulerClient.compileProject({
             createdByUserUuid: user.userUuid,
@@ -7384,6 +8422,7 @@ export class ProjectService extends BaseService {
                             requestMethod,
                             projectConfigDefaults:
                                 lightdashProjectConfig.defaults,
+                            complete: true,
                         });
                         timings.cacheExplores.end = performance.now();
 
@@ -8254,7 +9293,6 @@ export class ProjectService extends BaseService {
             uuid: string;
             filters: CompiledDimension[];
             metricFilters: Metric[];
-            defaultTimeDimension?: DashboardFieldTarget;
         };
 
         let allFilters: ChartFilters[] = [];
@@ -8296,32 +9334,42 @@ export class ProjectService extends BaseService {
                     }),
                 ]);
 
+                const chartsWithSpaceContext = savedCharts.flatMap(
+                    (savedChart) => {
+                        const spaceCtx = spacesCtx[savedChart.spaceUuid];
+                        return spaceCtx ? [{ savedChart, spaceCtx }] : [];
+                    },
+                );
                 const auditedAbility = this.createAuditedAbility(account);
-                return savedCharts.map((savedChart) => {
-                    const spaceCtx = spacesCtx[savedChart.spaceUuid];
+                const accessResults = auditedAbility.canBulk(
+                    'view',
+                    chartsWithSpaceContext.map(({ savedChart, spaceCtx }) =>
+                        subject('SavedChart', {
+                            organizationUuid: spaceCtx.organizationUuid,
+                            projectUuid: spaceCtx.projectUuid,
+                            inheritsFromOrgOrProject:
+                                spaceCtx.inheritsFromOrgOrProject,
+                            access: spaceCtx.access,
+                            metadata: {
+                                savedChartUuid: savedChart.uuid,
+                                savedChartName: savedChart.name,
+                            },
+                        }),
+                    ),
+                );
+                const chartAccess = new Map(
+                    chartsWithSpaceContext.map(({ savedChart }, index) => [
+                        savedChart.uuid,
+                        accessResults[index],
+                    ]),
+                );
 
-                    if (
-                        !spaceCtx ||
-                        auditedAbility.cannot(
-                            'view',
-                            subject('SavedChart', {
-                                organizationUuid: spaceCtx.organizationUuid,
-                                projectUuid: spaceCtx.projectUuid,
-                                inheritsFromOrgOrProject:
-                                    spaceCtx.inheritsFromOrgOrProject,
-                                access: spaceCtx.access,
-                                metadata: {
-                                    savedChartUuid: savedChart.uuid,
-                                    savedChartName: savedChart.name,
-                                },
-                            }),
-                        )
-                    ) {
+                return savedCharts.map((savedChart) => {
+                    if (!chartAccess.get(savedChart.uuid)) {
                         return {
                             uuid: savedChart.uuid,
                             filters: [],
                             metricFilters: [],
-                            defaultTimeDimension: undefined,
                         };
                     }
 
@@ -8338,18 +9386,11 @@ export class ProjectService extends BaseService {
                             (field) => !field.hidden,
                         );
                     }
-                    const defaultTimeDimension =
-                        explore && !isExploreError(explore)
-                            ? getExploreDefaultTimeDimension(explore)
-                            : undefined;
 
                     return {
                         uuid: savedChart.uuid,
                         filters,
                         metricFilters,
-                        defaultTimeDimension: defaultTimeDimension
-                            ? getDashboardFieldTarget(defaultTimeDimension)
-                            : undefined,
                     };
                 });
             },
@@ -8417,28 +9458,11 @@ export class ProjectService extends BaseService {
             };
         }, {});
 
-        const defaultTimeDimensions = savedChartUuidsAndTileUuids.reduce<
-            DashboardAvailableFilters['defaultTimeDimensions']
-        >((acc, savedChartUuidAndTileUuid) => {
-            const filterResult = allFilters.find(
-                (result) =>
-                    result.uuid === savedChartUuidAndTileUuid.savedChartUuid,
-            );
-            return filterResult?.defaultTimeDimension
-                ? {
-                      ...acc,
-                      [savedChartUuidAndTileUuid.tileUuid]:
-                          filterResult.defaultTimeDimension,
-                  }
-                : acc;
-        }, {});
-
         return {
             savedQueryFilters,
             allFilterableFields,
             allFilterableMetrics,
             savedQueryMetricFilters,
-            defaultTimeDimensions,
         };
     }
 
@@ -9068,29 +10092,29 @@ export class ProjectService extends BaseService {
             this.spacePermissionService.getDirectAccessUserUuids(spaceUuids),
         ]);
 
-        return spaces
-            .filter((space) => {
-                const ctx = userSpacesCtx[space.uuid];
-                return (
-                    ctx &&
-                    auditedAbility.can(
-                        'view',
-                        subject('Space', {
-                            organizationUuid: ctx.organizationUuid,
-                            projectUuid: ctx.projectUuid,
-                            inheritsFromOrgOrProject:
-                                ctx.inheritsFromOrgOrProject,
-                            access: ctx.access,
-                            metadata: {
-                                spaceUuid: space.uuid,
-                                spaceName: space.name,
-                            },
-                        }),
-                    )
-                );
-            })
-            .map((spaceSummary) => {
-                const ctx = userSpacesCtx[spaceSummary.uuid];
+        const spacesWithContext = spaces.flatMap((space) => {
+            const ctx = userSpacesCtx[space.uuid];
+            return ctx ? [{ space, ctx }] : [];
+        });
+        const accessResults = auditedAbility.canBulk(
+            'view',
+            spacesWithContext.map(({ space, ctx }) =>
+                subject('Space', {
+                    organizationUuid: ctx.organizationUuid,
+                    projectUuid: ctx.projectUuid,
+                    inheritsFromOrgOrProject: ctx.inheritsFromOrgOrProject,
+                    access: ctx.access,
+                    metadata: {
+                        spaceUuid: space.uuid,
+                        spaceName: space.name,
+                    },
+                }),
+            ),
+        );
+
+        return spacesWithContext
+            .filter((_, index) => accessResults[index])
+            .map(({ space: spaceSummary, ctx }) => {
                 const directAccessUuids =
                     directAccessMap[spaceSummary.uuid] ?? [];
                 return {
@@ -9801,6 +10825,62 @@ export class ProjectService extends BaseService {
         return updatedProject;
     }
 
+    async getAgentSqlScope(
+        account: RegisteredAccount,
+        projectUuid: string,
+    ): Promise<AgentSqlScope | null> {
+        const project = await this.projectModel.getSummary(projectUuid);
+
+        const auditedAbility = this.createAuditedAbility(account);
+        if (auditedAbility.cannot('update', subject('Project', project))) {
+            throw new ForbiddenError();
+        }
+
+        return this.projectModel.getAgentSqlScope(projectUuid);
+    }
+
+    async updateAgentSqlScope(
+        account: RegisteredAccount,
+        projectUuid: string,
+        { agentSqlScope }: UpdateAgentSqlScope,
+    ): Promise<void> {
+        const project = await this.projectModel.getSummary(projectUuid);
+
+        const auditedAbility = this.createAuditedAbility(account);
+        if (auditedAbility.cannot('update', subject('Project', project))) {
+            throw new ForbiddenError();
+        }
+
+        if (agentSqlScope) {
+            const blank = [
+                ...agentSqlScope.schemas,
+                ...(agentSqlScope.catalogs ?? []),
+                ...(agentSqlScope.deniedSchemas ?? []),
+                ...(agentSqlScope.deniedCatalogs ?? []),
+            ].some((name) => name.trim() === '');
+            if (blank) {
+                throw new ParameterError(
+                    'Schema and catalog names cannot be blank',
+                );
+            }
+        }
+
+        await this.projectModel.updateAgentSqlScope(projectUuid, agentSqlScope);
+
+        this.analytics.track({
+            event: 'agent_sql_scope.updated',
+            userId: account.user.id,
+            properties: {
+                projectId: projectUuid,
+                organizationUuid: project.organizationUuid,
+                schemaCount: agentSqlScope?.schemas.length ?? 0,
+                catalogCount: agentSqlScope?.catalogs?.length ?? 0,
+                deniedSchemaCount: agentSqlScope?.deniedSchemas?.length ?? 0,
+                deniedCatalogCount: agentSqlScope?.deniedCatalogs?.length ?? 0,
+            },
+        });
+    }
+
     async updateQueryTimezone(
         user: SessionUser,
         projectUuid: string,
@@ -10445,6 +11525,7 @@ export class ProjectService extends BaseService {
             jobUuid: null,
             requestMethod: 'api',
             projectConfigDefaults: project.projectDefaults,
+            complete: true,
         });
 
         Logger.info(`Schedule validation:`, {

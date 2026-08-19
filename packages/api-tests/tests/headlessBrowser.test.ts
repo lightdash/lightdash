@@ -1,4 +1,3 @@
-import { SEED_ORG_1_ADMIN } from '@lightdash/common';
 import { ApiClient } from '../helpers/api-client';
 
 const apiUrl = '/api/v1';
@@ -34,7 +33,7 @@ describe('Lightdash headless browser', () => {
     it('Should return forbidden error with invalid token', async () => {
         const client = new ApiClient();
         const resp = await client.post(
-            `${apiUrl}/headless-browser/login/${SEED_ORG_1_ADMIN.user_uuid}`,
+            `${apiUrl}/headless-browser/login`,
             { token: 'invalid-token' },
             { failOnStatusCode: false },
         );

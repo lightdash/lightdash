@@ -316,6 +316,16 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
                 },
             },
             {
+                path: 'deep-research/:runUuid',
+                lazy: async () => {
+                    const DeepResearchReportPage = await loadLazyRouteDefault(
+                        './pages/AiAgents/DeepResearchReportPage',
+                        () => import('./pages/AiAgents/DeepResearchReportPage'),
+                    );
+                    return { Component: DeepResearchReportPage };
+                },
+            },
+            {
                 path: ':agentUuid/memories/:slug',
                 lazy: async () => {
                     const AiAgentMemoryPage = await loadLazyRouteDefault(

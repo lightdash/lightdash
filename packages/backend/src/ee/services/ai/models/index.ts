@@ -17,6 +17,7 @@ import { getBedrockModel } from './bedrock';
 import { getOpenaiGptmodel } from './openai-gpt';
 import { getOpenRouterModel } from './openrouter';
 import {
+    customGatewayPreset,
     keyGrantsModel,
     matchesPreset,
     MODEL_PRESETS,
@@ -152,17 +153,38 @@ export const getAvailableModels = (
 
         const providerPresets = MODEL_PRESETS[provider];
 
-        // Filter by availableModels if specified, otherwise include all
-        const filteredPresets =
-            availableModels && availableModels.length > 0
-                ? providerPresets.filter((preset) =>
-                      availableModels.some((model) =>
-                          matchesPreset(preset, model),
-                      ),
-                  )
-                : providerPresets;
+        const allowCustomModels =
+            provider === 'openai' && !!providers.openai?.baseUrl;
 
-        return filteredPresets;
+        // Filter by availableModels if specified, otherwise include all
+        if (availableModels && availableModels.length > 0) {
+            const matchedPresets = providerPresets.filter((preset) =>
+                availableModels.some((model) => matchesPreset(preset, model)),
+            );
+            const customPresets = allowCustomModels
+                ? availableModels
+                      .filter(
+                          (model) =>
+                              !providerPresets.some((preset) =>
+                                  matchesPreset(preset, model),
+                              ),
+                      )
+                      .map(customGatewayPreset)
+                : [];
+            return [...matchedPresets, ...customPresets];
+        }
+
+        // Surface the configured default model first so preset fallbacks
+        // resolve to it rather than to an arbitrary preset the gateway may
+        // not serve
+        if (
+            allowCustomModels &&
+            !providerPresets.some((preset) => matchesPreset(preset, modelName))
+        ) {
+            return [customGatewayPreset(modelName), ...providerPresets];
+        }
+
+        return providerPresets;
     });
 };
 
@@ -309,6 +331,8 @@ export const getModel = (
         enableReasoning?: boolean;
         modelName?: string;
         provider?: typeof config.defaultProvider;
+        /** Only server-generated immutable snapshots may pin non-preset names. */
+        trustPinnedModelName?: boolean;
         /**
          * Use a fast, cost-effective model for lightweight tasks
          * (text generation, summaries, simple structured output)
@@ -351,7 +375,12 @@ export const getModel = (
             // Azure doesn't use presets - uses deployment name directly
             return withKeyManagement(
                 applyStreamingCapability(
-                    getAzureGpt41Model(azureConfig),
+                    getAzureGpt41Model({
+                        ...azureConfig,
+                        deploymentName: options?.trustPinnedModelName
+                            ? (options.modelName ?? azureConfig.deploymentName)
+                            : azureConfig.deploymentName,
+                    }),
                     azureConfig.supportsStreaming,
                 ),
                 keyManagement,
@@ -383,17 +412,31 @@ export const getModel = (
             // OpenRouter doesn't use presets - uses model name directly
             return withKeyManagement(
                 applyStreamingCapability(
-                    getOpenRouterModel(openrouterConfig),
+                    getOpenRouterModel({
+                        ...openrouterConfig,
+                        modelName: options?.trustPinnedModelName
+                            ? (options.modelName ?? openrouterConfig.modelName)
+                            : openrouterConfig.modelName,
+                    }),
                     openrouterConfig.supportsStreaming,
                 ),
                 keyManagement,
             );
         }
         case 'bedrock': {
+            const requestedBedrockModel = resolveModelName('bedrock');
+            const bedrockModelName = requestedBedrockModel
+                ? (MODEL_PRESETS.bedrock.find(
+                      (preset) =>
+                          requestedBedrockModel === preset.name ||
+                          requestedBedrockModel === preset.modelId ||
+                          requestedBedrockModel.endsWith(`.${preset.modelId}`),
+                  )?.modelId ?? requestedBedrockModel)
+                : undefined;
             const { config: bedrockConfig, preset } = getModelPreset(
                 'bedrock',
                 config,
-                resolveModelName('bedrock'),
+                bedrockModelName,
             );
             return withKeyManagement(
                 applyStreamingCapability(
@@ -447,10 +490,9 @@ export const getCompactionModelMetadata = (
         modelName?: string;
         provider?: typeof config.defaultProvider;
     },
-): {
-    supportsCompaction: boolean;
-    contextWindowTokens: number | null;
-} => {
+):
+    | { supportsCompaction: true; contextWindowTokens: number }
+    | { supportsCompaction: false; contextWindowTokens: null } => {
     const provider = options?.provider ?? config.defaultProvider;
 
     if (provider === 'azure' || provider === 'openrouter') {
@@ -462,8 +504,13 @@ export const getCompactionModelMetadata = (
 
     const { preset } = getModelPreset(provider, config, options?.modelName);
 
-    return {
-        supportsCompaction: true,
-        contextWindowTokens: preset.contextWindowTokens,
-    };
+    return preset.contextWindowTokens !== null
+        ? {
+              supportsCompaction: true,
+              contextWindowTokens: preset.contextWindowTokens,
+          }
+        : {
+              supportsCompaction: false,
+              contextWindowTokens: null,
+          };
 };

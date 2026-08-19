@@ -31,6 +31,7 @@ export {
 export type {
     AdditionalMetric,
     Column,
+    ColumnType,
     CustomDimension,
     DownloadResultsFileType,
     DownloadResultsLimit,
@@ -103,7 +104,9 @@ export type {
     VizContext,
     VizContextCell,
     VizContextOptionValue,
+    VizContextPivotDetails,
     VizContextRow,
+    VizUnderlyingData,
     DataAppVizContextMessage,
     VizContextRequestMessage,
 } from './vizContext';

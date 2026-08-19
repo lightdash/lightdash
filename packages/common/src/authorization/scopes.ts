@@ -56,14 +56,30 @@ const isSelfPreview = (context: ScopeContext) =>
         context.projectCreatedByUserUuid === context.userUuid,
     );
 
-const ownPreviewProjectConditions = (context: ScopeContext) => {
+const PROJECT_PREVIEW_FIELDS = {
+    type: 'type',
+    createdByUserUuid: 'createdByUserUuid',
+} as const;
+
+const DATA_APP_PREVIEW_FIELDS = {
+    type: 'projectType',
+    createdByUserUuid: 'projectCreatedByUserUuid',
+} as const;
+
+const ownPreviewProjectConditions = (
+    context: ScopeContext,
+    fields: {
+        type: string;
+        createdByUserUuid: string;
+    } = PROJECT_PREVIEW_FIELDS,
+) => {
     if (context.organizationUuid) {
         return [
             {
                 // Org assignments can reach any preview created by this principal.
                 organizationUuid: context.organizationUuid,
-                createdByUserUuid: context.userUuid || false,
-                type: ProjectType.PREVIEW,
+                [fields.createdByUserUuid]: context.userUuid || false,
+                [fields.type]: ProjectType.PREVIEW,
             },
         ];
     }
@@ -74,17 +90,20 @@ const ownPreviewProjectConditions = (context: ScopeContext) => {
         {
             // Direct preview assignment: the grant is on the preview itself.
             projectUuid: context.projectUuid,
-            createdByUserUuid: context.userUuid,
-            type: ProjectType.PREVIEW,
+            [fields.createdByUserUuid]: context.userUuid,
+            [fields.type]: ProjectType.PREVIEW,
         },
         {
             // Upstream assignment: the grant is on the source project.
             upstreamProjectUuid: context.projectUuid,
-            createdByUserUuid: context.userUuid,
-            type: ProjectType.PREVIEW,
+            [fields.createdByUserUuid]: context.userUuid,
+            [fields.type]: ProjectType.PREVIEW,
         },
     ];
 };
+
+const ownPreviewDataAppConditions = (context: ScopeContext) =>
+    ownPreviewProjectConditions(context, DATA_APP_PREVIEW_FIELDS);
 
 /**
  * Project-wide grant inside the user's own preview. For subjects with no space
@@ -1415,6 +1434,41 @@ const scopes: Scope[] = [
             },
         ],
         getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'create:DataApp@preview',
+        description: 'Create data apps in preview projects created by the user',
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        dependencies: [
+            { name: 'view:Project' },
+            { name: 'create:Project@preview' },
+            {
+                name: 'view:ExternalConnection',
+                description: 'Link external connections while building',
+            },
+            {
+                name: 'manage:DataApp@preview',
+                description: 'Open and iterate on the apps you upload',
+            },
+        ],
+        getConditions: ownPreviewDataAppConditions,
+    },
+    {
+        name: 'manage:DataApp@preview',
+        description:
+            'Edit and delete data apps in preview projects created by the user',
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        dependencies: [
+            { name: 'view:Project' },
+            { name: 'create:Project@preview' },
+            {
+                name: 'create:DataApp@preview',
+                description: 'Create the apps you iterate on',
+            },
+        ],
+        getConditions: ownPreviewDataAppConditions,
     },
     {
         name: 'view:DataApp@self',

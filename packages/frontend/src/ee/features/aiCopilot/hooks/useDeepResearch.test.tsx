@@ -10,6 +10,7 @@ import { type DeepResearchRunRegistration } from '../deepResearch/types';
 import {
     useHasActiveDeepResearchRun,
     useDeepResearchChartLiveQuery,
+    useDeepResearchReport,
     useDeepResearchRun,
     useStartDeepResearchMutation,
     useTrackDeepResearchFollowUp,
@@ -445,6 +446,165 @@ describe('useDeepResearchRun', () => {
         expect(lightdashApiMock).toHaveBeenCalledTimes(callsAtCompletion);
     });
 
+    it.each([403, 404])(
+        'stops run and event polling after a %s run response',
+        async (statusCode) => {
+            lightdashApiMock.mockImplementation(({ url }: { url: string }) => {
+                if (url.includes('/events')) {
+                    return Promise.resolve({
+                        events: [],
+                        nextCursor: null,
+                    });
+                }
+                return Promise.reject({
+                    error: {
+                        message: 'Run is unavailable',
+                        statusCode,
+                    },
+                });
+            });
+
+            const { result } = renderHook(
+                () => useDeepResearchRun(registration),
+                { wrapper: getWrapper() },
+            );
+
+            await waitFor(() => expect(result.current.isError).toBe(true));
+            const callsAfterFailure = lightdashApiMock.mock.calls.length;
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(10_000);
+            });
+
+            expect(lightdashApiMock).toHaveBeenCalledTimes(callsAfterFailure);
+            expect(
+                lightdashApiMock.mock.calls.filter(([args]) =>
+                    (args as { url: string }).url.includes('/events'),
+                ),
+            ).toHaveLength(1);
+        },
+    );
+
+    it.each([403, 404])(
+        'stops event polling after a %s event response',
+        async (statusCode) => {
+            lightdashApiMock.mockImplementation(({ url }: { url: string }) =>
+                url.includes('/events')
+                    ? Promise.reject({
+                          error: {
+                              message: 'Events are unavailable',
+                              statusCode,
+                          },
+                      })
+                    : Promise.resolve(getRun('running')),
+            );
+
+            const { result } = renderHook(
+                () => useDeepResearchRun(registration),
+                { wrapper: getWrapper() },
+            );
+
+            await waitFor(() =>
+                expect(result.current.eventsQuery.isError).toBe(true),
+            );
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(10_000);
+            });
+
+            expect(
+                lightdashApiMock.mock.calls.filter(([args]) =>
+                    (args as { url: string }).url.includes('/events'),
+                ),
+            ).toHaveLength(1);
+            expect(
+                lightdashApiMock.mock.calls.filter(
+                    ([args]) =>
+                        !(args as { url: string }).url.includes('/events'),
+                ).length,
+            ).toBeGreaterThan(1);
+        },
+    );
+
+    it('backs off consecutive event failures and resets after success', async () => {
+        let eventReads = 0;
+        const eventReadTimes: number[] = [];
+        lightdashApiMock.mockImplementation(({ url }: { url: string }) => {
+            if (!url.includes('/events')) {
+                return Promise.resolve(getRun('running'));
+            }
+            eventReads += 1;
+            eventReadTimes.push(Date.now());
+            return eventReads <= 2
+                ? Promise.reject({
+                      error: {
+                          message: 'Events are temporarily unavailable',
+                          statusCode: 500,
+                      },
+                  })
+                : Promise.resolve({ events: [], nextCursor: null });
+        });
+
+        renderHook(() => useDeepResearchRun(registration), {
+            wrapper: getWrapper(),
+        });
+
+        await waitFor(() => expect(eventReads).toBe(1));
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(30_000);
+        });
+
+        expect(eventReadTimes.length).toBeGreaterThanOrEqual(4);
+        expect(eventReadTimes[1] - eventReadTimes[0]).toBeGreaterThanOrEqual(
+            4_000,
+        );
+        expect(eventReadTimes[2] - eventReadTimes[1]).toBeGreaterThanOrEqual(
+            8_000,
+        );
+        expect(
+            (eventReadTimes.at(-1) ?? 0) - (eventReadTimes.at(-2) ?? 0),
+        ).toBeLessThanOrEqual(2_100);
+    });
+
+    it('resumes polling when a mounted hook switches away from an unavailable run', async () => {
+        lightdashApiMock.mockImplementation(({ url }: { url: string }) => {
+            if (url.includes('/events')) {
+                return Promise.resolve({ events: [], nextCursor: null });
+            }
+            if (url.includes('/run-1')) {
+                return Promise.reject({
+                    error: {
+                        message: 'Run is unavailable',
+                        statusCode: 404,
+                    },
+                });
+            }
+            return Promise.resolve({
+                ...getRun('running'),
+                aiDeepResearchRunUuid: 'run-2',
+            });
+        });
+        let currentRegistration = registration;
+        const { result, rerender } = renderHook(
+            () => useDeepResearchRun(currentRegistration),
+            { wrapper: getWrapper() },
+        );
+
+        await waitFor(() => expect(result.current.isError).toBe(true));
+
+        currentRegistration = { ...registration, runUuid: 'run-2' };
+        rerender();
+        await waitFor(() => expect(result.current.data?.uuid).toBe('run-2'));
+        const callsAfterSwitch = lightdashApiMock.mock.calls.length;
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(2_100);
+        });
+
+        expect(lightdashApiMock.mock.calls.length).toBeGreaterThan(
+            callsAfterSwitch,
+        );
+    });
+
     it('loads every event page before calculating activity counts', async () => {
         lightdashApiMock.mockImplementation(({ url }: { url: string }) => {
             if (url.includes('/events') && !url.includes('cursor=')) {
@@ -533,5 +693,45 @@ describe('useDeepResearchRun', () => {
                 (args as { url: string }).url.includes('/events'),
             ),
         ).toHaveLength(2);
+    });
+});
+
+describe('useDeepResearchReport', () => {
+    afterEach(() => {
+        lightdashApiMock.mockReset();
+    });
+
+    it('loads a durable report directly by project and run UUID', async () => {
+        lightdashApiMock.mockResolvedValue({
+            ...getRun('completed'),
+            terminalReason: null,
+            resultMarkdown: '# Durable report',
+            reportExpiresAt: '2026-08-14T09:05:00.000Z',
+            reportExpiredAt: null,
+            isReportExpired: false,
+        });
+
+        const { result } = renderHook(
+            () => useDeepResearchReport('project-1', 'run-1'),
+            { wrapper: getWrapper() },
+        );
+
+        await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+        expect(lightdashApiMock).toHaveBeenCalledWith({
+            version: 'v1',
+            url: '/ee/projects/project-1/ai-deep-research/run-1',
+            method: 'GET',
+            body: undefined,
+        });
+        expect(result.current.data).toEqual(
+            expect.objectContaining({
+                uuid: 'run-1',
+                projectUuid: 'project-1',
+                agentUuid: 'agent-1',
+                threadUuid: 'thread-1',
+                resultMarkdown: '# Durable report',
+            }),
+        );
     });
 });

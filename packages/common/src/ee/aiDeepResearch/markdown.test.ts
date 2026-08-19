@@ -1,6 +1,7 @@
 import {
     aiDeepResearchChartDefinitionSchema,
     applyDeepResearchChartRefs,
+    applyDeepResearchChartRefsWithAdjustments,
     countDeepResearchFindings,
     findDeepResearchChartRefs,
     lintDeepResearchReport,
@@ -158,6 +159,35 @@ describe('findDeepResearchChartRefs', () => {
 });
 
 describe('applyDeepResearchChartRefs', () => {
+    it('reports repaired and dropped chart references', () => {
+        const result = applyDeepResearchChartRefsWithAdjustments(
+            `${chartTag(UUID_A, 'Model title')} ${chartTag('unknown')}`,
+            published([[UUID_A, { title: 'Server title', description: '' }]]),
+        );
+
+        expect(result.adjustments).toEqual({
+            repaired: [UUID_A],
+            dropped: [{ key: 'unknown', reason: 'unknown_chart' }],
+        });
+    });
+
+    it('classifies malformed, duplicate, and unverifiable references', () => {
+        const result = applyDeepResearchChartRefsWithAdjustments(
+            `${chartTag(UUID_A)} ${chartTag(UUID_A)} <chart title="missing">`,
+            published([]),
+            {
+                knownKeys: new Set([UUID_A]),
+                unverifiableKeys: new Set([UUID_A]),
+            },
+        );
+
+        expect(result.adjustments.dropped).toEqual([
+            { key: UUID_A, reason: 'unverifiable' },
+            { key: UUID_A, reason: 'duplicate' },
+            { key: '', reason: 'malformed' },
+        ]);
+    });
+
     it('rewrites a published reference with the title and description the server derived', () => {
         const result = applyDeepResearchChartRefs(
             `<chart id="${UUID_A}" title="Model guess" description="Model guess.">`,
@@ -504,6 +534,35 @@ describe('report parsing', () => {
                 '[Revenue grew steadily](https://example.com) until spring.\n\nThe dip aligns with contract renewals.',
         });
     });
+
+    it('parses adjusted reports with a warning before the title', () => {
+        const markdown = `<warning title="Report adjusted">Some chart evidence was omitted.</warning>\n\n${validReport}`;
+
+        expect(parseDeepResearchReport(markdown)).toMatchObject({
+            title: 'Revenue Reversal Explained',
+            introductionMarkdown: expect.stringContaining(
+                'The seasonal dip is driven by B2B churn rather than a broad demand decline.',
+            ),
+        });
+    });
+
+    it('returns null when arbitrary content precedes the title', () => {
+        expect(
+            parseDeepResearchReport(`Unexpected preamble\n\n${validReport}`),
+        ).toBeNull();
+    });
+
+    it('preserves fenced blocks in the introduction', () => {
+        const markdown = validReport.replace(
+            'The seasonal dip is driven by B2B churn rather than a broad demand decline.',
+            '```text\nThe seasonal dip is driven by B2B churn rather than a broad demand decline.\n```',
+        );
+
+        expect(parseDeepResearchReport(markdown)?.introductionMarkdown).toBe(
+            '```text\nThe seasonal dip is driven by B2B churn rather than a broad demand decline.\n```',
+        );
+    });
+
     it('returns null for malformed model output', () => {
         const invalid = validReport.replace(
             /## Renewals drove[\s\S]*?(?=## Conclusion)/,

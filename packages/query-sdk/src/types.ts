@@ -236,6 +236,31 @@ export type UnderlyingDataResult = {
     queryUuid: string;
 };
 
+// --- Viz underlying data ---
+
+/**
+ * Bridge-only virtual route for viz underlying-data click intents. Duplicated
+ * from `@lightdash/common` (`APP_SDK_VIZ_UNDERLYING_DATA_PATH`) — this package
+ * must not depend on common. The path only resolves behind the host's
+ * postMessage bridge, which rewrites it into the real underlying-data request;
+ * on a direct-API transport it fails with a plain HTTP error.
+ */
+export const VIZ_UNDERLYING_DATA_PATH = '/__sdk/viz/underlying-data';
+
+/**
+ * Semantic click intent a viz sends to the host: the untransformed source row
+ * (as received from `useVizContext().rows`) and the declared field NAME bound
+ * to the clicked metric slot. The host resolves everything else.
+ */
+export type VizUnderlyingDataIntent = {
+    row: Record<
+        string,
+        { value?: { raw?: unknown; formatted?: string } } | undefined
+    >;
+    metric: string;
+    limit?: number | null;
+};
+
 // --- Client config ---
 
 export type LightdashClientConfig = {
@@ -313,4 +338,17 @@ export type Transport = {
         alias: string,
         opts: ExternalFetchOptions,
     ) => Promise<ExternalFetchResult>;
+    /**
+     * Fetch the raw rows behind a viz data point via the host bridge.
+     * Optional so custom transports predating the capability stay valid —
+     * `useVizContext().underlyingData.enabled` is false when absent.
+     */
+    getVizUnderlyingData?: (
+        intent: VizUnderlyingDataIntent,
+    ) => Promise<UnderlyingDataResult>;
+    /** Schedule a CSV/XLSX export of the rows behind a viz data point. */
+    downloadVizUnderlyingData?: (
+        intent: Omit<VizUnderlyingDataIntent, 'limit'>,
+        options?: DownloadResultsOptions,
+    ) => Promise<DownloadResultsResult>;
 };

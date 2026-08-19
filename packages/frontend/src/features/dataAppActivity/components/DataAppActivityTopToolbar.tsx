@@ -1,4 +1,7 @@
-import { DATA_APP_CLAUDE_MODELS } from '@lightdash/common';
+import {
+    DATA_APP_CLAUDE_MODELS,
+    DATA_APP_CODEX_MODELS,
+} from '@lightdash/common';
 import {
     Box,
     Button,
@@ -99,10 +102,12 @@ export const DataAppActivityTopToolbar: FC<DataAppActivityTopToolbarProps> = ({
 
     const modelOptions = useMemo<FilterFacetOption[]>(
         () =>
-            DATA_APP_CLAUDE_MODELS.map((model) => ({
-                value: model,
-                label: model,
-            })),
+            [...DATA_APP_CLAUDE_MODELS, ...DATA_APP_CODEX_MODELS].map(
+                (model) => ({
+                    value: model,
+                    label: model,
+                }),
+            ),
         [],
     );
 

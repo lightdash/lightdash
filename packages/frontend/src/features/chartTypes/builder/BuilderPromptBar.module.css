@@ -1,0 +1,179 @@
+.wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    padding: 8px 0 22px;
+    flex-shrink: 0;
+    z-index: 10;
+}
+
+.failedPill {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-sm);
+    background: var(--mantine-color-background-0);
+    border: 1px solid var(--mantine-color-red-2);
+    border-radius: 18px;
+    padding: 6px 10px 6px 16px;
+    box-shadow: var(--mantine-shadow-subtle);
+    max-width: 80%;
+}
+
+/* Width lives on the host, same as every other composer call site. */
+.pillHost {
+    --queue-row-height: var(--mantine-spacing-3xl);
+    --queue-row-gap: calc(var(--mantine-spacing-sm) / 2);
+
+    position: relative;
+    width: 620px;
+    max-width: 80%;
+}
+
+.queue {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + var(--queue-row-gap));
+    z-index: 2;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: var(--queue-row-gap);
+    width: 100%;
+}
+
+.queueList {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: var(--queue-row-gap);
+}
+
+.stackRow {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    width: 100%;
+    height: var(--queue-row-height);
+    padding: 0 var(--mantine-spacing-xs) 0 var(--mantine-spacing-sm);
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: var(--mantine-radius-lg);
+    color: var(--mantine-color-ldGray-8);
+    background: var(--mantine-color-ldGray-0);
+    box-shadow: var(--mantine-shadow-subtle);
+    transform-origin: bottom right;
+    transition:
+        transform var(--mantine-other-transitionDuration)
+            var(--mantine-other-transitionTimingFunction),
+        opacity var(--mantine-other-transitionDuration)
+            var(--mantine-other-transitionTimingFunction);
+}
+
+.buildingStatus,
+.queue:not([data-building]) .queuedPrompt:first-child {
+    z-index: 3;
+}
+
+.queue:not([data-building]) .queuedPrompt:nth-child(2),
+.queue[data-building] .queuedPrompt:first-child {
+    z-index: 2;
+    transform: translateY(var(--queue-row-height)) scale(0.982);
+}
+
+.queue:not([data-building]) .queuedPrompt:nth-child(3),
+.queue[data-building] .queuedPrompt:nth-child(2) {
+    z-index: 1;
+    transform: translateY(calc(var(--queue-row-height) * 2)) scale(0.964);
+}
+
+.queue:not([data-building]) .queuedPrompt:nth-child(n + 4),
+.queue[data-building] .queuedPrompt:nth-child(n + 3) {
+    opacity: 0;
+}
+
+/* Narration makes the active build taller than one queue row. Keep the first
+   queued prompt above that card, then fan the remaining prompts behind it. */
+.queue[data-narration] .queuedPrompt:first-child {
+    z-index: 2;
+    transform: none;
+}
+
+.queue[data-narration] .queuedPrompt:nth-child(2) {
+    z-index: 1;
+    opacity: 1;
+    transform: translateY(var(--queue-row-height)) scale(0.982);
+}
+
+.queue[data-narration] .queuedPrompt:nth-child(n + 3) {
+    opacity: 0;
+}
+
+.queue:hover .queueList .stackRow,
+.queue:focus-within .queueList .stackRow {
+    opacity: 1;
+    transform: none;
+}
+
+.queuedPrompt[data-state='sending'] {
+    border-color: var(--mantine-color-ldGray-3);
+    background: var(--mantine-color-ldGray-0);
+}
+
+.queuedPromptText {
+    flex: 1;
+    min-width: 0;
+    color: inherit;
+    text-align: left;
+}
+
+.queueState {
+    flex-shrink: 0;
+    color: var(--mantine-color-ldGray-5);
+}
+
+.queuedPrompt[data-state='sending'] .queueState {
+    color: var(--mantine-color-ldGray-7);
+    font-weight: 500;
+}
+
+.buildingStatus {
+    min-width: 0;
+}
+
+.buildingStatus[data-has-narration='true'] {
+    border-radius: 0 0 var(--mantine-radius-lg) var(--mantine-radius-lg);
+}
+
+.liveNarration {
+    position: relative;
+    z-index: 3;
+    padding: 5px 6px;
+    margin-bottom: calc(-1 * var(--queue-row-gap));
+    background: var(--mantine-color-ldGray-0);
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-bottom: 0;
+    border-radius: var(--mantine-radius-lg) var(--mantine-radius-lg) 0 0;
+    box-shadow: var(--mantine-shadow-subtle);
+}
+
+.buildingPrompt {
+    min-width: 0;
+}
+
+.queuedCount {
+    flex-shrink: 0;
+}
+
+.cancelBuild {
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.queueHint {
+    white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .stackRow {
+        transition: none;
+    }
+}

@@ -6,8 +6,10 @@ import {
     getDateGroupLabelWithGranularity,
     getFilterRuleFromFieldWithDefaultValue,
     getPasswordSchema,
+    getUserNameSchema,
     isValidEmailAddress,
     TimeFrames,
+    validateUserName,
     type Dimension,
 } from '.';
 import {
@@ -150,6 +152,35 @@ describe('Password Validation', () => {
                 );
             }
         });
+    });
+});
+
+describe('User name validation', () => {
+    test.each(['José da Silva', "O'Connor", '李 小龍', 'Anne-Marie'])(
+        'accepts plain-text name %s',
+        (name) => {
+            expect(validateUserName(name)).toBe(true);
+        },
+    );
+
+    test.each([
+        '<script>alert(1)</script>',
+        '<img src=x onerror=alert(1)>',
+        'Jane <b>Doe</b>',
+    ])('rejects name containing HTML delimiters %s', (name) => {
+        expect(validateUserName(name)).toBe(false);
+    });
+
+    test('provides a trimmed frontend validation schema', () => {
+        expect(getUserNameSchema().parse('  José  ')).toBe('José');
+
+        const result = getUserNameSchema().safeParse('<b>José</b>');
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.errors[0].message).toBe(
+                'Name cannot contain < or >',
+            );
+        }
     });
 });
 

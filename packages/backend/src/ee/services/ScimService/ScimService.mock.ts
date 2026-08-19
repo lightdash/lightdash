@@ -200,9 +200,20 @@ export const ScimServiceArgumentsMock: ConstructorParameters<
         removeUserFromAllGroups: vi.fn().mockResolvedValue(2),
     } as unknown as GroupsModel,
     serviceAccountModel: {} as ServiceAccountModel,
-    commercialFeatureFlagModel: {} as CommercialFeatureFlagModel,
+    commercialFeatureFlagModel: {
+        get: vi
+            .fn()
+            .mockResolvedValue({ id: 'multiple-roles', enabled: false }),
+    } as unknown as CommercialFeatureFlagModel,
     rolesModel: {
         removeUserProjectAccess: vi.fn().mockResolvedValue(undefined),
+        getOrganizationUserRoleSet: vi
+            .fn()
+            .mockResolvedValue({ systemRole: 'member', customRoleUuids: [] }),
+        replaceOrganizationUserRoleSet: vi.fn().mockResolvedValue(undefined),
+        replaceProjectUserRoleSet: vi.fn().mockResolvedValue(undefined),
+        getUserProjectRoles: vi.fn().mockResolvedValue([]),
+        setUserOrgAndProjectRoleSets: vi.fn().mockResolvedValue(undefined),
         removeUserAccessFromAllProjects: vi.fn().mockResolvedValue(3),
         getRolesByOrganizationUuid: vi.fn().mockResolvedValue(mockCustomRoles),
         upsertSystemRoleProjectAccess: vi.fn().mockResolvedValue(undefined),

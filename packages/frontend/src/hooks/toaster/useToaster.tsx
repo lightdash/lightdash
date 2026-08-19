@@ -1,32 +1,61 @@
 import type { ApiErrorDetail } from '@lightdash/common';
-import { Box, Button, Stack } from '@mantine/core';
+import { Box, Button, Stack, type MantineColor } from '@mantine/core';
 import {
     notifications,
     type NotificationData as MantineNotificationData,
 } from '@mantine/notifications';
 import {
-    IconAlertCircleFilled,
-    IconAlertTriangleFilled,
-    IconCircleCheckFilled,
-    IconInfoCircleFilled,
+    IconAlertCircle,
+    IconAlertTriangle,
+    IconCircleCheck,
+    IconInfoCircle,
+    type Icon,
 } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
-import { clsx } from 'clsx';
 import React, { useCallback, useRef, type ReactNode } from 'react';
 import rehypeExternalLinks from 'rehype-external-links';
 import { v4 as uuid } from 'uuid';
-import MantineIcon from '../../components/common/MantineIcon';
+import MantineIcon, {
+    type MantineIconSize,
+} from '../../components/common/MantineIcon';
 import ApiErrorDisplay from './ApiErrorDisplay';
 import MultipleToastBody from './MultipleToastBody';
-import { type NotificationData } from './types';
+import { type NotificationData, type ToastVariant } from './types';
 import styles from './useToaster.module.css';
 
-const colorClasses: Record<string, string> = {
-    blue: styles.colorBlue,
-    green: styles.colorGreen,
-    red: styles.colorRed,
-    indigo: styles.colorIndigo,
-    yellow: styles.colorYellow,
+const TOAST_VARIANTS: Record<
+    ToastVariant,
+    {
+        icon: Icon;
+        iconSize: MantineIconSize;
+        color: MantineColor;
+        autoClose: number;
+    }
+> = {
+    success: {
+        icon: IconCircleCheck,
+        iconSize: 18,
+        color: 'green',
+        autoClose: 5000,
+    },
+    error: {
+        icon: IconAlertCircle,
+        iconSize: 18,
+        color: 'red',
+        autoClose: 60000,
+    },
+    info: {
+        icon: IconInfoCircle,
+        iconSize: 18,
+        color: 'ldGray',
+        autoClose: 5000,
+    },
+    warning: {
+        icon: IconAlertTriangle,
+        iconSize: 18,
+        color: 'orange',
+        autoClose: 5000,
+    },
 };
 
 const useToaster = () => {
@@ -34,26 +63,38 @@ const useToaster = () => {
     const currentErrors = useRef<Record<string, NotificationData[]>>({});
 
     const showToast = useCallback(
-        ({
-            key = uuid(),
-            subtitle,
-            action,
-            color = 'blue',
-            autoClose = 5000,
-            ...rest
-        }: NotificationData) => {
-            const commonProps = {
+        (
+            variant: ToastVariant,
+            {
+                key = uuid(),
+                subtitle,
+                action,
                 autoClose,
-                color,
+                ...rest
+            }: NotificationData,
+        ) => {
+            const variantConfig = TOAST_VARIANTS[variant];
+
+            const commonProps = {
+                'data-variant': variant,
+                color: variantConfig.color,
+                autoClose: autoClose ?? variantConfig.autoClose,
+                // notifications.update merges with the existing toast, so
+                // reset props a previous show (e.g. a loading toast under
+                // the same key) may have set; callers override via rest.
+                loading: false,
+                withCloseButton: true,
+                loaderProps: { size: 12, color: 'ldGray.6' },
+                closeButtonProps: { 'aria-label': 'Dismiss notification' },
+                icon: (
+                    <MantineIcon
+                        icon={variantConfig.icon}
+                        size={variantConfig.iconSize}
+                    />
+                ),
                 classNames: {
-                    root: clsx(
-                        styles.root,
-                        colorClasses[color] ?? styles.colorBlue,
-                    ),
-                    title: clsx(
-                        styles.title,
-                        !subtitle && !action && styles.titleNoMargin,
-                    ),
+                    root: styles.root,
+                    title: styles.title,
                     description: styles.description,
                     closeButton: styles.closeButton,
                     icon: styles.icon,
@@ -61,9 +102,10 @@ const useToaster = () => {
                 },
                 message:
                     subtitle || action ? (
-                        <Stack gap="xs" align="flex-start">
+                        <Stack gap={0} align="flex-start">
                             {typeof subtitle == 'string' ? (
                                 <MarkdownPreview
+                                    className={styles.markdown}
                                     source={subtitle}
                                     rehypePlugins={[
                                         [
@@ -71,11 +113,6 @@ const useToaster = () => {
                                             { target: '_blank' },
                                         ],
                                     ]}
-                                    style={{
-                                        backgroundColor: 'transparent',
-                                        color: 'var(--toast-text)',
-                                        fontSize: '12px',
-                                    }}
                                 />
                             ) : (
                                 <Box className={styles.subtitle}>
@@ -86,10 +123,8 @@ const useToaster = () => {
                             {action && (
                                 <Button
                                     {...action}
+                                    className={styles.actionButton}
                                     size="xs"
-                                    radius="md"
-                                    variant="light"
-                                    color={color}
                                     leftSection={
                                         action.icon ? (
                                             <MantineIcon icon={action.icon} />
@@ -130,26 +165,12 @@ const useToaster = () => {
     );
 
     const showToastSuccess = useCallback(
-        (props: NotificationData) => {
-            showToast({
-                color: 'green',
-                icon: <MantineIcon icon={IconCircleCheckFilled} size="xl" />,
-                ...props,
-            });
-        },
+        (props: NotificationData) => showToast('success', props),
         [showToast],
     );
 
     const showToastError = useCallback(
-        (props: NotificationData) => {
-            showToast({
-                color: 'red',
-                icon: <MantineIcon icon={IconAlertCircleFilled} size="xl" />,
-                autoClose: 60000,
-                isError: true,
-                ...props,
-            });
-        },
+        (props: NotificationData) => showToast('error', props),
         [showToast],
     );
 
@@ -167,10 +188,7 @@ const useToaster = () => {
                 ''
             );
 
-            showToast({
-                color: 'red',
-                icon: <MantineIcon icon={IconAlertTriangleFilled} size="xl" />,
-                autoClose: 60000,
+            showToast('error', {
                 title,
                 subtitle,
                 ...props,
@@ -180,54 +198,65 @@ const useToaster = () => {
     );
 
     const showToastInfo = useCallback(
-        (props: NotificationData) => {
-            showToast({
-                color: 'indigo',
-                icon: <MantineIcon icon={IconInfoCircleFilled} size="xl" />,
-                ...props,
-            });
-        },
-        [showToast],
-    );
-
-    const showToastPrimary = useCallback(
-        (props: NotificationData) => {
-            showToast({
-                color: 'blue',
-                icon: <MantineIcon icon={IconInfoCircleFilled} size="xl" />,
-                ...props,
-            });
-        },
+        (props: NotificationData) => showToast('info', props),
         [showToast],
     );
 
     const showToastWarning = useCallback(
-        (props: NotificationData) => {
-            showToast({
-                color: 'yellow',
-                icon: <MantineIcon icon={IconAlertCircleFilled} size="xl" />,
-                ...props,
-            });
-        },
+        (props: NotificationData) => showToast('warning', props),
         [showToast],
     );
 
-    // This is used to update a multiple toast by key. It is called by
-    // addToastError and removeToastError, which pass different specific functions to
-    // update the error list
-    const updateToastError = useCallback(
-        ({
-            errorData,
-            updateErrorsFunction,
-            onCloseError,
-        }: {
-            errorData: NotificationData;
-            updateErrorsFunction: (
-                key: string,
-                errorData: NotificationData,
-            ) => void;
-            onCloseError: (data: NotificationData) => void;
-        }) => {
+    const renderGroupedErrors = useCallback(
+        function render(key: string) {
+            const errors = currentErrors.current[key];
+            if (!errors || errors.length === 0) {
+                notifications.hide(key);
+                return;
+            }
+
+            const hasMultipleErrors = errors.length > 1;
+            const {
+                key: _unusedKey,
+                title,
+                subtitle,
+                apiError,
+                messageKey: _unusedMessageKey,
+                receivedAt: _unusedReceivedAt,
+                ...restProps
+            } = errors[errors.length - 1];
+
+            const toastBody = hasMultipleErrors ? (
+                <MultipleToastBody
+                    toastsData={errors}
+                    onDismissError={(messageKey) => {
+                        currentErrors.current[key] = (
+                            currentErrors.current[key] ?? []
+                        ).filter((e) => e.messageKey !== messageKey);
+                        render(key);
+                    }}
+                />
+            ) : apiError ? (
+                <ApiErrorDisplay
+                    apiError={apiError}
+                    onClose={() => notifications.hide(key)}
+                />
+            ) : (
+                subtitle || title
+            );
+
+            showToastError({
+                key,
+                subtitle: toastBody,
+                title: hasMultipleErrors ? `${errors.length} errors` : title,
+                ...restProps,
+            });
+        },
+        [showToastError],
+    );
+
+    const addToastError = useCallback(
+        (notificationData: NotificationData) => {
             const {
                 // By default errors will be grouped under 'error-list'.
                 // Consumers can override this by passing a custom key.
@@ -235,107 +264,60 @@ const useToaster = () => {
                 title,
                 subtitle,
                 apiError,
-                messageKey,
-                ...restProps
-            } = errorData;
+            } = notificationData;
 
             if (!subtitle && !title && !apiError) return;
 
-            // Execute the specific error update function (add or remove)
-            updateErrorsFunction(key, errorData);
+            // Dedupe by content: when several parallel queries fail
+            // with the same error (e.g. main metric-query +
+            // useCompiledSql preview both hitting a table-calc
+            // compile error), we'd otherwise stack identical entries
+            // in the toast. Primitive fields only; ReactNode
+            // subtitles fall back to reference identity.
+            const fingerprintOf = (e: NotificationData) => [
+                e.title ?? null,
+                typeof e.subtitle === 'string' ? e.subtitle : null,
+                e.apiError?.message ?? null,
+                e.apiError?.name ?? null,
+                e.apiError?.statusCode ?? null,
+            ];
+            const fpA = fingerprintOf(notificationData);
+            const existing = currentErrors.current[key];
+            if (existing) {
+                const alreadyPresent = existing.some((e) => {
+                    const fpB = fingerprintOf(e);
+                    return (
+                        fpA.every((v, i) => v === fpB[i]) &&
+                        (typeof notificationData.subtitle === 'string' ||
+                            e.subtitle === notificationData.subtitle)
+                    );
+                });
+                if (!alreadyPresent) {
+                    existing.push({
+                        ...notificationData,
+                        messageKey: uuid(),
+                        receivedAt: new Date().toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                        }),
+                    });
+                }
+            } else {
+                currentErrors.current[key] = [
+                    {
+                        ...notificationData,
+                        messageKey: uuid(),
+                        receivedAt: new Date().toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                        }),
+                    },
+                ];
+            }
 
-            const hasMultipleErrors = currentErrors.current[key]?.length > 1;
-
-            const toastBody = hasMultipleErrors ? (
-                <MultipleToastBody
-                    title={title}
-                    toastsData={currentErrors.current[key]}
-                    onCloseError={(error) => onCloseError(error)}
-                />
-            ) : currentErrors.current[key][0].apiError ? (
-                <ApiErrorDisplay
-                    apiError={currentErrors.current[key][0].apiError}
-                    onClose={() => notifications.hide(key)}
-                />
-            ) : (
-                currentErrors.current[key][0].subtitle ||
-                currentErrors.current[key][0].title
-            );
-
-            showToastError({
-                key,
-                subtitle: toastBody,
-                title: hasMultipleErrors ? undefined : title,
-                ...restProps,
-            });
+            renderGroupedErrors(key);
         },
-        [showToastError],
-    );
-
-    const removeToastError = useCallback(
-        (notificationData: NotificationData) => {
-            updateToastError({
-                errorData: notificationData,
-                updateErrorsFunction: (key, errorData) => {
-                    currentErrors.current[key] = currentErrors.current[
-                        key
-                    ].filter((d) => d.messageKey !== errorData.messageKey);
-
-                    if (currentErrors.current[key].length === 0) {
-                        notifications.hide(key);
-                    }
-                },
-                onCloseError: removeToastError,
-            });
-        },
-        [updateToastError],
-    );
-
-    const addToastError = useCallback(
-        (notificationData: NotificationData) => {
-            updateToastError({
-                errorData: notificationData,
-                updateErrorsFunction: (key, errorData) => {
-                    if (!errorData) return;
-                    // Dedupe by content: when several parallel queries fail
-                    // with the same error (e.g. main metric-query +
-                    // useCompiledSql preview both hitting a table-calc
-                    // compile error), we'd otherwise stack identical entries
-                    // in the toast. Primitive fields only; ReactNode
-                    // subtitles fall back to reference identity.
-                    const fingerprintOf = (e: NotificationData) => [
-                        e.title ?? null,
-                        typeof e.subtitle === 'string' ? e.subtitle : null,
-                        e.apiError?.message ?? null,
-                        e.apiError?.name ?? null,
-                        e.apiError?.statusCode ?? null,
-                    ];
-                    const fpA = fingerprintOf(errorData);
-                    const existing = currentErrors.current[key];
-                    if (existing) {
-                        const alreadyPresent = existing.some((e) => {
-                            const fpB = fingerprintOf(e);
-                            return (
-                                fpA.every((v, i) => v === fpB[i]) &&
-                                (typeof errorData.subtitle === 'string' ||
-                                    e.subtitle === errorData.subtitle)
-                            );
-                        });
-                        if (alreadyPresent) return;
-                        existing.push({
-                            ...notificationData,
-                            messageKey: uuid(),
-                        });
-                    } else {
-                        currentErrors.current[key] = [
-                            { ...notificationData, messageKey: uuid() },
-                        ];
-                    }
-                },
-                onCloseError: removeToastError,
-            });
-        },
-        [removeToastError, updateToastError],
+        [renderGroupedErrors],
     );
 
     return {
@@ -344,7 +326,6 @@ const useToaster = () => {
         showToastApiError,
         showToastError,
         showToastInfo,
-        showToastPrimary,
         showToastWarning,
     };
 };

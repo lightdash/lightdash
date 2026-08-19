@@ -31,7 +31,8 @@ export const QueryBackedChart: FC<{
     projectUuid: string;
     runUuid: string;
     queryUuid: string;
-}> = ({ projectUuid, runUuid, queryUuid }) => {
+    withExploreLink?: boolean;
+}> = ({ projectUuid, runUuid, queryUuid, withExploreLink = true }) => {
     const chartQuery = useDeepResearchChartQuery({
         projectUuid,
         runUuid,
@@ -53,6 +54,7 @@ export const QueryBackedChart: FC<{
             chart={chartQuery.data}
             projectUuid={projectUuid}
             runUuid={runUuid}
+            withExploreLink={withExploreLink}
         />
     );
 };
@@ -102,7 +104,9 @@ const ReportLink: FC<AnchorHTMLAttributes<HTMLAnchorElement>> = ({
 const SANITIZE_SCHEMA = {
     ...defaultSchema,
     tagNames: [
-        ...(defaultSchema.tagNames ?? []),
+        ...(defaultSchema.tagNames ?? []).filter(
+            (tagName) => tagName !== 'img',
+        ),
         ...Object.keys(AI_DEEP_RESEARCH_MARKDOWN_TAGS),
     ],
     attributes: {

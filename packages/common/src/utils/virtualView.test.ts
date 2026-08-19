@@ -11,6 +11,7 @@ import { createVirtualView } from './virtualView';
 import { defaultNullSafeEqualSql } from './warehouse';
 
 const fakeWarehouseClient: WarehouseClient = {
+    getSessionTimezone: async () => null,
     credentials: {
         type: WarehouseTypes.POSTGRES,
         host: '',
@@ -51,6 +52,10 @@ const fakeWarehouseClient: WarehouseClient = {
     parseError: (error: Error) => error,
     escapeString: (value: string) => value,
     castToTimestamp: (date: Date) =>
+        `CAST('${date.toISOString()}' AS TIMESTAMP)`,
+    castToDate: (date: Date) =>
+        `CAST('${date.toISOString().slice(0, 10)}' AS DATE)`,
+    castToNaiveTimestamp: (date: Date) =>
         `CAST('${date.toISOString()}' AS TIMESTAMP)`,
     getIntervalSql: (value: number, unit: string) =>
         `INTERVAL '${value} ${unit}'`,

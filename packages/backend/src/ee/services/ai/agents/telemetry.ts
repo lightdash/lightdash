@@ -13,7 +13,7 @@ export const getAiAgentModelName = (model: AiAgentArgs['model']) =>
  * generateText/streamText call.
  *
  * Passing distinct `functionId`s — e.g. `generateAgentResponse`,
- * `streamAgentResponse`, `discoverFieldsSubagent` — lets observability
+ * `streamAgentResponse`, `generateAgentResponse` — lets observability
  * stacks separate parent vs. subagent latency, token usage, and step
  * counts. The metadata pins each call to the org/project/agent/thread/prompt
  * for cost attribution and cross-referencing with persisted tool calls.

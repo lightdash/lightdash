@@ -167,8 +167,9 @@ export class AiAgentMemoryController extends BaseController {
     }
 
     /**
-     * Queues distillation for one thread immediately, skipping the 6h idle wait
-     * and the every-3h sweep. Re-distills a thread that is already up to date.
+     * Queues distillation for one thread immediately, skipping the event
+     * debounce and the backfill sweep. Re-distills a thread that is already up
+     * to date.
      * Requires permission to manage AI agents in the project.
      * @summary Distill thread
      */

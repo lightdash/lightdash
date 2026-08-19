@@ -33,30 +33,15 @@ export const SpaceAccessSelect: FC<SpaceAccessSelectProps> = ({
 
     if (isLoadingSpaces) {
         return (
-            <Stack gap={4}>
-                <Text fz="sm" fw={500}>
-                    Space access
-                </Text>
-                <Text fz="xs" c="dimmed">
-                    Loading spaces...
-                </Text>
-            </Stack>
+            <Text fz="xs" c="dimmed">
+                Loading spaces...
+            </Text>
         );
     }
 
     return (
         <Stack gap="xs">
             <Box>
-                <Group gap="xs" mb={4}>
-                    <Text fz="sm" fw={500}>
-                        Space access
-                    </Text>
-                </Group>
-                <Text fz="xs" c="dimmed" mb="xs">
-                    Select specific spaces to restrict access. Empty selection =
-                    access to all spaces.
-                </Text>
-
                 <Paper
                     withBorder
                     p="xs"

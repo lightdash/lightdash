@@ -411,12 +411,13 @@ export class GoogleDriveClient {
         customLabels: Record<string, string> = {},
         hiddenFields: string[] = [],
         timezone?: string,
+        headerRows: string[][] = [],
     ) {
         if (!this.isEnabled) {
             throw new MissingConfigError('Google Drive is not enabled');
         }
 
-        if (csvContent.length === 0) {
+        if (csvContent.length === 0 && headerRows.length === 0) {
             Logger.info('No data to write to the sheet');
             return;
         }
@@ -443,7 +444,7 @@ export class GoogleDriveClient {
         await this.appendCsvToSheet(
             refreshToken,
             fileId,
-            [csvHeader, ...values],
+            [...headerRows, csvHeader, ...values],
             tabName,
         );
     }

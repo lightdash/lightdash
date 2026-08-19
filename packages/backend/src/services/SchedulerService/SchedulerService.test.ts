@@ -92,6 +92,7 @@ const chartSchedulerInPrivateSpace: ChartScheduler = {
     options: { formatted: true, limit: 'table' },
     enabled: true,
     includeLinks: true,
+    plainTextEmail: false,
 };
 
 const dashboardScheduler = {
@@ -234,6 +235,7 @@ describe('SchedulerService', () => {
             createdBy: 'userUuid',
             enabled: true,
             includeLinks: true,
+            plainTextEmail: false,
             targets: [{ recipient: 'recipient@example.com' }],
         } as unknown as CreateSchedulerAndTargets;
 
@@ -294,6 +296,25 @@ describe('SchedulerService', () => {
                 undefined,
             );
         });
+
+        test.each([
+            { webhook: 'https://169.254.169.254/latest/meta-data' },
+            { googleChatWebhook: 'https://127.0.0.1/hook' },
+        ])(
+            'rejects an unsafe webhook before enqueueing a send-now job',
+            async (target) => {
+                await expect(
+                    service.sendScheduler(userWhoCanSend, {
+                        ...sendNowPayload,
+                        targets: [target],
+                    }),
+                ).rejects.toThrowError(ParameterError);
+
+                expect(
+                    schedulerClient.addScheduledDeliveryJob,
+                ).not.toHaveBeenCalled();
+            },
+        );
 
         describe('app payloads', () => {
             const sendAppUuid = 'appUuid';
@@ -368,6 +389,7 @@ describe('SchedulerService', () => {
                     createdBy: 'userUuid',
                     enabled: true,
                     includeLinks: true,
+                    plainTextEmail: false,
                     targets: [{ recipient: 'recipient@example.com' }],
                 }) as unknown as CreateSchedulerAndTargets;
 
@@ -864,6 +886,7 @@ describe('SchedulerService', () => {
                 options,
                 enabled: true,
                 includeLinks: true,
+                plainTextEmail: false,
                 targets: [],
             }) as unknown as Parameters<
                 SchedulerService['createAppScheduler']

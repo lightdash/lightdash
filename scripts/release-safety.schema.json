@@ -1,8 +1,8 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "$id": "https://lightdash.com/schemas/release-safety/v1.json",
-    "title": "Lightdash release-safety marker",
-    "description": "Machine-readable upgrade-safety signal attached to each Lightdash GitHub release. See docs/superpowers/specs/2026-06-29-prod-8359-release-safety-marker-design.md",
+    "$id": "https://lightdash.com/schemas/release-safety/v2.json",
+    "title": "Lightdash release-safety artifact",
+    "description": "Machine-readable upgrade-safety signal attached to each Lightdash release. Every unknown value MUST be consumed as unsafe. The artifact shrinks as the runtime grows: once the runtime self-recovers a risk, that warning leaves this contract instead of becoming permanent signal baggage.",
     "type": "object",
     "additionalProperties": false,
     "required": [
@@ -10,14 +10,16 @@
         "version",
         "previousVersion",
         "releaseDate",
-        "capabilities",
         "migrations",
         "compatibility",
         "api",
-        "upgrade"
+        "config",
+        "upgrade",
+        "declaredBreaks"
     ],
     "definitions": {
         "triState": {
+            "description": "unknown means the check could not prove safety and MUST be treated as unsafe.",
             "oneOf": [
                 { "type": "boolean" },
                 { "type": "string", "const": "unknown" }
@@ -26,52 +28,124 @@
         "apiSurface": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["checked", "breaking", "changes"],
+            "required": [
+                "checked",
+                "breaking",
+                "changes",
+                "breakingCount",
+                "advisories",
+                "advisoryCount"
+            ],
             "properties": {
-                "checked": {
-                    "type": "boolean",
-                    "description": "Whether this surface was diffed for this release. false means UNKNOWN, not 'no break'."
-                },
+                "checked": { "type": "boolean" },
                 "breaking": { "$ref": "#/definitions/triState" },
-                "changes": { "type": "array", "items": { "type": "string" } }
+                "changes": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Endpoint-specific REST or tool-specific MCP breaking-change details."
+                },
+                "breakingCount": { "type": "integer", "minimum": 0 },
+                "advisories": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                },
+                "advisoryCount": { "type": "integer", "minimum": 0 }
             }
+        },
+        "configChange": {
+            "oneOf": [
+                {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["type", "name", "previousDefault"],
+                    "properties": {
+                        "type": { "const": "removed" },
+                        "name": { "type": "string" },
+                        "previousDefault": { "type": ["string", "null"] }
+                    }
+                },
+                {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["type", "name", "previousName", "defaultValue"],
+                    "properties": {
+                        "type": { "const": "renamed" },
+                        "name": { "type": "string" },
+                        "previousName": { "type": "string" },
+                        "defaultValue": { "type": ["string", "null"] }
+                    }
+                },
+                {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["type", "name", "previousDefault", "defaultValue"],
+                    "properties": {
+                        "type": { "const": "defaultChanged" },
+                        "name": { "type": "string" },
+                        "previousDefault": { "type": ["string", "null"] },
+                        "defaultValue": { "type": ["string", "null"] }
+                    }
+                }
+            ]
         }
     },
     "properties": {
-        "schemaVersion": { "type": "string", "const": "1" },
-        "version": { "type": "string" },
+        "schemaVersion": { "type": "string", "const": "2" },
+        "version": {
+            "type": "string",
+            "description": "Release version. Development builds commit a sentinel (version: development, releaseDate: epoch 0); the release pipeline overwrites with real values — all-unknown fields make the sentinel fail-safe under the unknown-is-unsafe contract."
+        },
         "previousVersion": { "type": ["string", "null"] },
-        "releaseDate": { "type": "string", "format": "date-time" },
-        "capabilities": {
-            "type": "array",
-            "items": {
-                "type": "string",
-                "enum": ["migrations", "rest", "mcp", "upgrade", "ai-review", "sql-lint"]
-            },
-            "description": "Which checks actually ran for this release."
+        "releaseDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Release timestamp. Epoch 0 is the committed development sentinel, not a bug — see the version field's sentinel note; the release pipeline overwrites it."
         },
         "migrations": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["present", "count", "files", "ee"],
+            "required": ["present", "count", "coreCount", "eeCount", "files"],
             "properties": {
                 "present": { "$ref": "#/definitions/triState" },
                 "count": { "type": "integer", "minimum": 0 },
-                "files": { "type": "array", "items": { "type": "string" } },
-                "ee": { "type": "boolean" }
+                "coreCount": { "type": "integer", "minimum": 0 },
+                "eeCount": { "type": "integer", "minimum": 0 },
+                "files": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["name", "edition", "tables", "heaviness"],
+                        "properties": {
+                            "name": { "type": "string" },
+                            "edition": { "type": "string", "enum": ["core", "ee"] },
+                            "tables": { "type": "array", "items": { "type": "string" } },
+                            "heaviness": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": ["locksTable", "rewritesTable", "scansTable"],
+                                "properties": {
+                                    "locksTable": { "$ref": "#/definitions/triState" },
+                                    "rewritesTable": { "$ref": "#/definitions/triState" },
+                                    "scansTable": { "$ref": "#/definitions/triState" }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         },
         "compatibility": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["rollingUpdateSafe", "recommendedStrategy", "notes"],
+            "required": ["rollingUpdateSafe", "recommendedStrategy"],
             "properties": {
                 "rollingUpdateSafe": { "$ref": "#/definitions/triState" },
                 "recommendedStrategy": {
                     "type": "string",
-                    "enum": ["Recreate", "RollingUpdate", "unknown"]
-                },
-                "notes": { "type": "string" }
+                    "enum": ["Recreate", "RollingUpdate"],
+                    "description": "Derived from rollingUpdateSafe. Consumers MUST gate on rollingUpdateSafe, not this convenience rendering."
+                }
             }
         },
         "api": {
@@ -83,29 +157,36 @@
                 "mcp": { "$ref": "#/definitions/apiSurface" }
             }
         },
+        "config": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["checked", "breaking", "changes"],
+            "properties": {
+                "checked": { "type": "boolean" },
+                "breaking": { "$ref": "#/definitions/triState" },
+                "changes": { "type": "array", "items": { "$ref": "#/definitions/configChange" } }
+            }
+        },
         "upgrade": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-                "minPreviousVersion",
-                "requiredStop",
-                "note",
-                "sourceVersion",
-                "kind",
-                "requiredStops"
-            ],
+            "required": ["minPreviousVersion", "requiredStops"],
             "properties": {
                 "minPreviousVersion": { "type": ["string", "null"] },
-                "requiredStop": { "type": "boolean" },
-                "note": { "type": ["string", "null"] },
-                "sourceVersion": { "type": ["string", "null"] },
-                "kind": {
-                    "type": ["string", "null"],
-                    "enum": ["minPrevious", "requiredStop", "default", null]
-                },
-                "requiredStops": {
-                    "type": "array",
-                    "items": { "type": "string" }
+                "requiredStops": { "type": "array", "items": { "type": "string" } }
+            }
+        },
+        "declaredBreaks": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["file", "line", "reason", "requiredStop"],
+                "properties": {
+                    "file": { "type": "string" },
+                    "line": { "type": "integer", "minimum": 1 },
+                    "reason": { "type": "string", "minLength": 1 },
+                    "requiredStop": { "type": "boolean" }
                 }
             }
         }

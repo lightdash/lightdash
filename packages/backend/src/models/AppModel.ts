@@ -215,6 +215,7 @@ export class AppModel {
     ): Promise<void> {
         const sum = (field: keyof DataAppGenerationUsage) =>
             `COALESCE((generation_usage->>'${field}')::numeric, 0) + ?`;
+        const costSql = usage.costUsd === null ? 'NULL' : sum('costUsd');
         await this.database(AppVersionsTableName)
             .where({ app_id: appId, version })
             .update({
@@ -228,7 +229,7 @@ export class AppModel {
                         )},
                         'numTurns', ${sum('numTurns')},
                         'durationApiMs', ${sum('durationApiMs')},
-                        'costUsd', ${sum('costUsd')}
+                        'costUsd', ${costSql}
                     )`,
                     [
                         usage.inputTokens,
@@ -237,7 +238,7 @@ export class AppModel {
                         usage.cacheCreationInputTokens,
                         usage.numTurns,
                         usage.durationApiMs,
-                        usage.costUsd,
+                        ...(usage.costUsd === null ? [] : [usage.costUsd]),
                     ],
                 ) as unknown as DataAppGenerationUsage,
             });
@@ -1250,6 +1251,15 @@ export class AppModel {
             })
             .where(`${AppsTableName}.created_by_user_uuid`, userUuid)
             .whereNull(`${AppsTableName}.deleted_at`)
+            // Vizs (custom chart types) are not offered on app surfaces.
+            .where((templateFilter) => {
+                void templateFilter
+                    .whereNot(
+                        `${AppsTableName}.template`,
+                        DATA_APP_VIZ_TEMPLATE,
+                    )
+                    .orWhereNull(`${AppsTableName}.template`);
+            })
             .modify((queryBuilder) => {
                 if (options.excludePreviewProjects ?? true) {
                     void queryBuilder.whereNot(
@@ -1390,23 +1400,12 @@ export class AppModel {
                 }
                 if (filters?.models?.length) {
                     const { models } = filters;
-                    void queryBuilder.where((modelQueryBuilder) => {
-                        void modelQueryBuilder.whereRaw(
-                            `${AppVersionsTableName}.resources->>'claudeModel' IN (${models
-                                .map(() => '?')
-                                .join(', ')})`,
-                            models,
-                        );
-                        // A version with no stored model ran on the default, and
-                        // that is what the API reports for it — so filtering on
-                        // the default has to match those rows too, or the filter
-                        // contradicts the value shown in the row.
-                        if (models.includes(DEFAULT_DATA_APP_CLAUDE_MODEL)) {
-                            void modelQueryBuilder.orWhereRaw(
-                                `${AppVersionsTableName}.resources->>'claudeModel' IS NULL`,
-                            );
-                        }
-                    });
+                    void queryBuilder.whereRaw(
+                        `COALESCE(${AppVersionsTableName}.resources->>'codexModel', ${AppVersionsTableName}.resources->>'claudeModel', ?) IN (${models
+                            .map(() => '?')
+                            .join(', ')})`,
+                        [DEFAULT_DATA_APP_CLAUDE_MODEL, ...models],
+                    );
                 }
                 if (filters?.dateFrom) {
                     void queryBuilder.where(
@@ -1533,15 +1532,16 @@ export class AppModel {
     }
 
     /**
-     * Returns the UUIDs of dashboards in `projectUuid` whose latest version
-     * contains a tile referencing `appUuid`. Old versions are intentionally
-     * ignored: if a dashboard once contained the app but no longer does,
-     * embedding that dashboard must not implicitly authorize the app.
+     * Returns candidate dashboard UUIDs whose latest version contains a tile
+     * referencing `appUuid`. Old versions are intentionally ignored.
      */
     async findDashboardsContainingApp(
         appUuid: string,
         projectUuid: string,
+        dashboardUuids: string[],
     ): Promise<string[]> {
+        if (dashboardUuids.length === 0) return [];
+
         const latestVersionsCte = 'latest_dashboard_versions';
         const rows = await this.database
             .with(latestVersionsCte, (qb) => {
@@ -1571,6 +1571,10 @@ export class AppModel {
                         `${DashboardVersionsTableName}.dashboard_id`,
                     )
                     .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                    .whereIn(
+                        `${DashboardsTableName}.dashboard_uuid`,
+                        dashboardUuids,
+                    )
                     .whereNull(`${DashboardsTableName}.deleted_at`)
                     .groupBy(`${DashboardsTableName}.dashboard_uuid`);
             })

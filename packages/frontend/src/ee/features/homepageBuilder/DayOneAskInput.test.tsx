@@ -15,7 +15,7 @@ const {
     agentChatInputProps,
     agents,
     createAgentThread,
-    deepResearchEnabled,
+    deepResearchAccess,
     deepResearchHookArgs,
     navigate,
     sqlModeAvailable,
@@ -34,7 +34,7 @@ const {
         ],
     },
     createAgentThread: vi.fn(),
-    deepResearchEnabled: { current: true },
+    deepResearchAccess: { current: true },
     deepResearchHookArgs: {
         current: undefined as
             | [projectUuid: string, entryPoint: string]
@@ -54,10 +54,8 @@ vi.mock('../../../hooks/useProject', () => ({
     useProject: () => ({ data: undefined }),
 }));
 
-vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({
-        data: { enabled: deepResearchEnabled.current },
-    }),
+vi.mock('../aiCopilot/hooks/useDeepResearchAccess', () => ({
+    useDeepResearchAccess: () => deepResearchAccess.current,
 }));
 
 vi.mock('../../../providers/App/useApp', () => ({
@@ -231,7 +229,7 @@ describe('DayOneAskInput', () => {
             uuid: 'thread-1',
             firstMessage: { uuid: 'prompt-1' },
         });
-        deepResearchEnabled.current = true;
+        deepResearchAccess.current = true;
         deepResearchHookArgs.current = undefined;
         startDeepResearch.mockReset();
         startDeepResearch.mockResolvedValue(undefined);
@@ -279,8 +277,8 @@ describe('DayOneAskInput', () => {
         ).toBeUndefined();
     });
 
-    it('hides Deep Research when the feature flag is disabled', () => {
-        deepResearchEnabled.current = false;
+    it('hides Deep Research when the user cannot start a run', () => {
+        deepResearchAccess.current = false;
 
         renderInput();
 

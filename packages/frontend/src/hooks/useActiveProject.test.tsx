@@ -119,7 +119,8 @@ describe('useActiveProjectUuid', () => {
     });
 
     it('persists the active project once when several instances mount together', async () => {
-        routeProjectUuid = 'project-herd';
+        const routeUuid = '6f9d77c3-06b1-4d93-a5ae-3eb68145fc93';
+        routeProjectUuid = routeUuid;
         const setItem = vi.spyOn(Storage.prototype, 'setItem');
         const { wrapper } = createWrapper();
 
@@ -133,7 +134,7 @@ describe('useActiveProjectUuid', () => {
         );
 
         await waitFor(() =>
-            expect(localStorage.getItem(LAST_PROJECT_KEY)).toBe('project-herd'),
+            expect(localStorage.getItem(LAST_PROJECT_KEY)).toBe(routeUuid),
         );
 
         const persistCalls = setItem.mock.calls.filter(
@@ -141,5 +142,19 @@ describe('useActiveProjectUuid', () => {
         );
         expect(persistCalls).toHaveLength(1);
         setItem.mockRestore();
+    });
+
+    it('ignores a malformed project UUID from the route', async () => {
+        const storedProjectUuid = '3675b69e-8324-4110-bdca-059031aa8da3';
+        localStorage.setItem(LAST_PROJECT_KEY, storedProjectUuid);
+        routeProjectUuid = '3675b69e-8324-4110-bdca';
+        const { wrapper } = createWrapper();
+
+        const { result } = renderHook(() => useActiveProjectUuid(), {
+            wrapper,
+        });
+
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+        expect(result.current.activeProjectUuid).toBe(storedProjectUuid);
     });
 });

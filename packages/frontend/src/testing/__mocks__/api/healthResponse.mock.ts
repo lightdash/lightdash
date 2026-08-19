@@ -5,6 +5,7 @@ export default function mockHealthResponse(
 ): HealthState {
     return {
         healthy: true,
+        requiresMigration: false,
         license: {
             hasLicenseKey: false,
             valid: false,
@@ -124,6 +125,7 @@ export default function mockHealthResponse(
             analyticsProjectUuid: undefined,
             analyticsDashboardUuid: undefined,
             isAmbientAiEnabled: false,
+            threadDumpEnabled: false,
         },
         echarts6: {
             enabled: false,

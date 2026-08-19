@@ -39,13 +39,13 @@
  */
 import { execFileSync } from 'child_process';
 import * as fs from 'fs';
+import { isMigrationPath } from './release-safety-migrations';
 
 const MODEL = 'claude-opus-4-8';
 const MIGRATION_DIRS = [
     'packages/backend/src/database/migrations',
     'packages/backend/src/ee/database/migrations',
 ];
-const MIGRATION_FILENAME_RE = /^\d{14}_.+\.(ts|js)$/;
 const MAX_FILE_CHARS = 8000;
 const MAX_TOOL_CALLS = 40;
 const MAX_GREP_LINES = 80;
@@ -88,15 +88,24 @@ function git(args: string[]): { ok: boolean; out: string } {
     }
 }
 
-export function addedMigrationPaths(lastTag: string): string[] {
-    const { out } = git(['diff', '--name-status', `${lastTag}..HEAD`, '--', ...MIGRATION_DIRS]);
+export function addedMigrationPaths(
+    lastTag: string,
+    newRef = 'HEAD',
+): string[] {
+    const { out } = git([
+        'diff',
+        '--name-status',
+        `${lastTag}..${newRef}`,
+        '--',
+        ...MIGRATION_DIRS,
+    ]);
     const paths: string[] = [];
     for (const line of out.split('\n')) {
         if (!line.trim()) continue;
         const parts = line.split('\t');
         if (parts[0].charAt(0) !== 'A') continue;
         const p = parts[parts.length - 1];
-        if (MIGRATION_FILENAME_RE.test(p.split('/').pop() as string)) paths.push(p);
+        if (isMigrationPath(p)) paths.push(p);
     }
     return paths.sort();
 }
@@ -356,11 +365,16 @@ export async function aiRollingUpdateReview(opts: AiReviewOpts): Promise<AiRevie
     const restBreaking = opts.restBreaking ?? [];
     const mcpBreaking = opts.mcpBreaking ?? [];
     const sqlLintFindings = opts.sqlLintFindings ?? [];
-    const paths = addedMigrationPaths(opts.lastTag);
+    const paths = addedMigrationPaths(opts.lastTag, newRef);
     if (paths.length === 0 && restBreaking.length === 0 && mcpBreaking.length === 0) return null;
 
     const fileBlocks = paths.map((p) => {
-        let body = fs.readFileSync(p, 'utf-8');
+        let body =
+            newRef === 'HEAD'
+                ? fs.readFileSync(p, 'utf-8')
+                : execFileSync('git', ['show', `${newRef}:${p}`], {
+                      encoding: 'utf-8',
+                  });
         if (body.length > MAX_FILE_CHARS) body = `${body.slice(0, MAX_FILE_CHARS)}\n/* ...truncated... */`;
         return `### ${p}\n\`\`\`typescript\n${body}\n\`\`\``;
     });
@@ -472,14 +486,15 @@ async function main(): Promise<void> {
     const version = arg('version') ?? '(next)';
     const lastTag = arg('last-tag') ?? arg('previous-version');
     if (!lastTag) throw new Error('--last-tag (or --previous-version) is required');
+    const newRef = arg('new-ref') ?? 'HEAD';
 
-    const paths = addedMigrationPaths(lastTag);
+    const paths = addedMigrationPaths(lastTag, newRef);
     if (paths.length === 0) {
-        console.log(`No migrations added in ${lastTag}..HEAD. (Pass REST/MCP breaking inputs via the generator to review those surfaces.)`);
+        console.log(`No migrations added in ${lastTag}..${newRef}. (Pass REST/MCP breaking inputs via the generator to review those surfaces.)`);
     } else {
         console.log(`\n=== AI rolling-update review: ${lastTag} → ${version} (${paths.length} migrations) ===`);
     }
-    const r = await aiRollingUpdateReview({ apiKey, lastTag, version, newRef: arg('new-ref'), log: (m) => console.log(m) });
+    const r = await aiRollingUpdateReview({ apiKey, lastTag, version, newRef, log: (m) => console.log(m) });
     if (!r) {
         console.log(`→ rollingUpdateSafe: "unknown"  recommendedStrategy: Recreate  (nothing to review or fail-safe degrade)`);
         return;

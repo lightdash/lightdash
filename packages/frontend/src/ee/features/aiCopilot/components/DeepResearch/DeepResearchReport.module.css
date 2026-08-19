@@ -137,16 +137,16 @@
     color: var(--mantine-color-indigo-light-color);
     font-size: 0.6875rem;
     font-weight: 700;
-    letter-spacing: 0.055em;
+    letter-spacing: 0.1em;
     line-height: 1.35;
     text-transform: uppercase;
 }
 
 .reportTitle {
-    font-size: clamp(1.45rem, 3vw, 1.85rem);
-    font-weight: 650;
-    letter-spacing: -0.025em;
-    line-height: 1.2;
+    font-size: clamp(1.6rem, 3vw, 2rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
 }
 
 .executiveAnswer {
@@ -215,37 +215,51 @@
 }
 
 .structuredReport {
-    gap: clamp(3rem, 6vw, 5rem);
+    gap: 0;
 }
 
 .reportIntroduction {
-    max-width: 52rem;
+    padding-bottom: 2.5rem;
 }
 
 .reportIntroductionProse {
+    --ai-markdown-font-size: 1rem;
+    --ai-markdown-padding-left: 0;
+
     color: var(--mantine-color-text);
-    font-size: 1rem;
-    line-height: 1.75;
+    line-height: 1.7;
 }
 
 .reportFinding {
     display: grid;
-    gap: clamp(1.5rem, 3vw, 2.5rem);
-    padding-top: var(--mantine-spacing-xl);
+    gap: 1.25rem;
+    padding-block: 2.5rem;
     border-top: 1px solid var(--mantine-color-ldGray-2);
 }
 
 .reportFindingTitle {
-    max-width: 52rem;
-    font-size: clamp(1.15rem, 2vw, 1.35rem);
-    font-weight: 650;
-    letter-spacing: -0.02em;
+    font-size: clamp(1.05rem, 2vw, 1.1875rem);
+    font-weight: 700;
+    letter-spacing: -0.01em;
     line-height: 1.3;
     scroll-margin-top: var(--mantine-spacing-xl);
 }
 
+.exploreLink {
+    flex-shrink: 0;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.3;
+    white-space: nowrap;
+}
+
 .reportEvidence {
     min-width: 0;
+    padding: 1.5rem 1.75rem 1rem;
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: 0.75rem;
+    background: var(--mantine-color-body);
+    box-shadow: var(--mantine-shadow-subtle);
 
     .chartTile {
         height: 30rem;
@@ -255,15 +269,15 @@
 
 .reportNarrative {
     min-width: 0;
-    max-width: 52rem;
 }
 
-.reportProse,
-.reportConclusionProse {
+.reportProse {
+    --ai-markdown-font-size: 0.875rem;
+    --ai-markdown-padding-left: 0;
+
     overflow-wrap: anywhere;
     color: var(--mantine-color-dimmed);
-    font-size: 0.875rem;
-    line-height: 1.75;
+    line-height: 1.7;
 
     > :first-child {
         margin-top: 0;
@@ -276,20 +290,27 @@
 
 .reportConclusion {
     display: grid;
-    gap: var(--mantine-spacing-md);
-    max-width: 52rem;
-    padding: var(--mantine-spacing-xl);
-    border: 1px solid var(--mantine-color-ldGray-2);
-    border-radius: var(--mantine-radius-lg);
-    background: var(--mantine-color-ldGray-0);
+    gap: 1.25rem;
+    padding-top: 2.5rem;
+    border-top: 1px solid var(--mantine-color-ldGray-2);
     scroll-margin-top: var(--mantine-spacing-xl);
 }
 
-.reportConclusionTitle {
-    font-size: 1rem;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-    scroll-margin-top: var(--mantine-spacing-xl);
+.reportConclusionProse {
+    --ai-markdown-font-size: 1rem;
+    --ai-markdown-padding-left: 0;
+
+    overflow-wrap: anywhere;
+    color: var(--mantine-color-text);
+    line-height: 1.7;
+
+    > :first-child {
+        margin-top: 0;
+    }
+
+    > :last-child {
+        margin-bottom: 0;
+    }
 }
 
 .chartTile {
@@ -411,12 +432,12 @@
         grid-template-columns: 1.25rem minmax(0, 1fr);
     }
 
-    .reportEvidence .chartTile {
-        height: 24rem;
+    .reportEvidence {
+        padding: 1rem 1rem 0.5rem;
     }
 
-    .reportConclusion {
-        padding: var(--mantine-spacing-lg);
+    .reportEvidence .chartTile {
+        height: 24rem;
     }
 }
 

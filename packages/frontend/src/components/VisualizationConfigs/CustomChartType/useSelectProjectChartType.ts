@@ -1,6 +1,11 @@
-import { ChartType, type DataAppViz, type ItemsMap } from '@lightdash/common';
+import {
+    ChartType,
+    deriveDataAppVizPivotConfig,
+    type DataAppViz,
+    type ItemsMap,
+} from '@lightdash/common';
 import { useCallback } from 'react';
-import { autoMapDataAppVizFields } from '../../../features/apps/utils/autoMapDataAppVizFields';
+import { autoMapDataAppVizFields } from '../../../features/chartTypes/utils/autoMapDataAppVizFields';
 import {
     explorerActions,
     useExplorerDispatch,
@@ -20,6 +25,8 @@ export const useSelectProjectChartType = () => {
 
     return useCallback(
         (dataAppViz: DataAppViz, itemsMap: ItemsMap) => {
+            const fields = dataAppViz.schema?.fields ?? [];
+            const fieldMapping = autoMapDataAppVizFields(fields, itemsMap);
             dispatch(
                 explorerActions.setChartType({
                     chartType: ChartType.DATA_APP_VIZ,
@@ -31,14 +38,16 @@ export const useSelectProjectChartType = () => {
                         type: ChartType.DATA_APP_VIZ,
                         config: {
                             dataAppVizUuid: dataAppViz.dataAppVizUuid,
-                            fieldMapping: autoMapDataAppVizFields(
-                                dataAppViz.schema?.fields ?? [],
-                                itemsMap,
-                            ),
+                            fieldMapping,
                             optionValues: {},
                         },
                     },
                 }),
+            );
+            dispatch(
+                explorerActions.setPivotConfig(
+                    deriveDataAppVizPivotConfig(fields, fieldMapping),
+                ),
             );
         },
         [dispatch],
@@ -70,5 +79,6 @@ export const useCreateProjectChartType = () => {
                 },
             }),
         );
+        dispatch(explorerActions.setPivotConfig(undefined));
     }, [dispatch]);
 };

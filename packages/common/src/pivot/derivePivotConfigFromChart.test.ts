@@ -12,6 +12,7 @@ import type { MetricQuery } from '../types/metricQuery';
 import {
     ChartType,
     type CartesianChartConfig,
+    type DataAppVizChart,
     type SavedChartDAO,
 } from '../types/savedCharts';
 import {
@@ -20,7 +21,10 @@ import {
     VizIndexType,
 } from '../visualizations/types';
 // Jest provides describe/it/expect globals
-import { derivePivotConfigurationFromChart } from './derivePivotConfigFromChart';
+import {
+    deriveDataAppVizPivotConfiguration,
+    derivePivotConfigurationFromChart,
+} from './derivePivotConfigFromChart';
 import {
     mockCartesianChartConfig,
     mockItems,
@@ -29,6 +33,130 @@ import {
 } from './derivePivotConfigFromChart.mock';
 
 describe('derivePivotConfigurationFromChart', () => {
+    describe('data app visualizations', () => {
+        const dataAppVizConfig: DataAppVizChart = {
+            dataAppVizUuid: 'viz-uuid',
+            fieldMapping: {
+                category: 'payments_payment_method',
+                value: 'payments_total_revenue',
+                series: 'orders_status',
+            },
+        };
+        const savedChart: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'> = {
+            chartConfig: {
+                type: ChartType.DATA_APP_VIZ,
+                config: dataAppVizConfig,
+            },
+            pivotConfig: { columns: ['orders_status'] },
+        };
+
+        it('delegates to the standalone data app pivot derivation', () => {
+            const expected = deriveDataAppVizPivotConfiguration(
+                dataAppVizConfig.fieldMapping,
+                savedChart.pivotConfig,
+                mockMetricQuery,
+                mockItems,
+            );
+
+            expect(
+                derivePivotConfigurationFromChart(
+                    savedChart,
+                    mockMetricQuery,
+                    mockItems,
+                ),
+            ).toEqual(expected);
+        });
+
+        it('derives mapped series, value, and index columns', () => {
+            expect(
+                deriveDataAppVizPivotConfiguration(
+                    dataAppVizConfig.fieldMapping,
+                    savedChart.pivotConfig,
+                    mockMetricQuery,
+                    mockItems,
+                ),
+            ).toEqual({
+                indexColumn: [
+                    {
+                        reference: 'payments_payment_method',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'payments_total_revenue',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'orders_status' }],
+                sortBy: [
+                    {
+                        reference: 'payments_payment_method',
+                        direction: SortByDirection.ASC,
+                    },
+                ],
+            });
+        });
+
+        it('stays unpivoted without persisted series columns', () => {
+            expect(
+                deriveDataAppVizPivotConfiguration(
+                    dataAppVizConfig.fieldMapping,
+                    undefined,
+                    mockMetricQuery,
+                    mockItems,
+                ),
+            ).toBeUndefined();
+        });
+
+        it('ignores a stale pivot column that is no longer mapped', () => {
+            expect(
+                deriveDataAppVizPivotConfiguration(
+                    {
+                        category: 'payments_payment_method',
+                        value: 'payments_total_revenue',
+                    },
+                    savedChart.pivotConfig,
+                    mockMetricQuery,
+                    mockItems,
+                ),
+            ).toBeUndefined();
+        });
+
+        it('uses a mapped table calculation as a value column', () => {
+            const tableCalculation: TableCalculation = {
+                name: 'revenue_per_order',
+                displayName: 'Revenue per order',
+                sql: '${payments_total_revenue} / ${orders_count}',
+            };
+            const chartConfig = {
+                dataAppVizUuid: 'viz-uuid',
+                fieldMapping: {
+                    category: 'payments_payment_method',
+                    value: tableCalculation.name,
+                    series: 'orders_status',
+                },
+            };
+
+            expect(
+                deriveDataAppVizPivotConfiguration(
+                    chartConfig.fieldMapping,
+                    savedChart.pivotConfig,
+                    {
+                        ...mockMetricQuery,
+                        tableCalculations: [tableCalculation],
+                    },
+                    mockItems,
+                )?.valuesColumns,
+            ).toEqual([
+                {
+                    reference: tableCalculation.name,
+                    aggregation: VizAggregationOptions.ANY,
+                },
+            ]);
+        });
+    });
+
     it('derives pivot configuration for Cartesian charts with pivot config', () => {
         const savedChart: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'> = {
             chartConfig: mockCartesianChartConfig,

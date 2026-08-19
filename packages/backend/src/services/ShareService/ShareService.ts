@@ -5,6 +5,7 @@ import {
     ForbiddenError,
     isUserWithOrg,
     NotFoundError,
+    ParameterError,
     SessionUser,
     ShareUrl,
 } from '@lightdash/common';
@@ -27,6 +28,30 @@ export class ShareService extends BaseService {
 
     private readonly shareModel: ShareModel;
 
+    private validateShareUrl(path: string, params: string) {
+        const error = new ParameterError(
+            'Share URL path must be a relative in-app path starting with /',
+        );
+        const url = `${path}${params}`;
+
+        if (!url.startsWith('/') || url.startsWith('//')) {
+            throw error;
+        }
+
+        let isSameOrigin: boolean;
+        try {
+            isSameOrigin =
+                new URL(url, this.lightdashConfig.siteUrl).origin ===
+                new URL(this.lightdashConfig.siteUrl).origin;
+        } catch {
+            throw error;
+        }
+
+        if (!isSameOrigin) {
+            throw error;
+        }
+    }
+
     constructor(args: ShareServiceArguments) {
         super();
         this.lightdashConfig = args.lightdashConfig;
@@ -35,6 +60,7 @@ export class ShareService extends BaseService {
     }
 
     private shareUrlWithHost(shareUrl: ShareUrl) {
+        this.validateShareUrl(shareUrl.path, shareUrl.params);
         const host = this.lightdashConfig.siteUrl;
         return {
             ...shareUrl,
@@ -82,6 +108,7 @@ export class ShareService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
+        this.validateShareUrl(path, params);
         const shareUrl = await this.shareModel.createSharedUrl({
             path,
             params,

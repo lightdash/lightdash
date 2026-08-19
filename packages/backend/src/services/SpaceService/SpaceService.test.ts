@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -40,6 +41,8 @@ describe('SpaceService', () => {
             projectModel: {} as ProjectModel,
             spaceModel: {} as SpaceModel,
             organizationModel: {} as OrganizationModel,
+            organizationMemberProfileModel:
+                {} as OrganizationMemberProfileModel,
             pinnedListModel: {} as PinnedListModel,
             spacePermissionService: {
                 getSpaceAccessContext: mockGetSpaceAccessContext,
@@ -74,6 +77,8 @@ describe('SpaceService', () => {
                 projectModel: {} as ProjectModel,
                 spaceModel: spaceModel as unknown as SpaceModel,
                 organizationModel: {} as OrganizationModel,
+                organizationMemberProfileModel:
+                    {} as OrganizationMemberProfileModel,
                 pinnedListModel: {} as PinnedListModel,
                 spacePermissionService:
                     spacePermissionService as unknown as SpacePermissionService,
@@ -968,6 +973,8 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
             projectModel: {} as ProjectModel,
             spaceModel: mockSpaceModel as unknown as SpaceModel,
             organizationModel: {} as OrganizationModel,
+            organizationMemberProfileModel:
+                {} as OrganizationMemberProfileModel,
             pinnedListModel: {} as PinnedListModel,
             spacePermissionService:
                 mockSpacePermissionService as unknown as SpacePermissionService,
@@ -1628,5 +1635,126 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
                 role: SpaceMemberRole.ADMIN,
             }),
         );
+    });
+});
+
+describe('SpaceService - space share target validation', () => {
+    const mockUser = createTestUser({
+        organizationRole: OrganizationMemberRole.ADMIN,
+    });
+
+    const mockSpaceModel = {
+        getSpaceSummary: vi.fn(),
+        addSpaceAccess: vi.fn(),
+        createSpace: vi.fn(),
+    };
+    const mockOrganizationMemberProfileModel = {
+        findOrganizationMemberUuids: vi.fn(),
+    };
+    const mockSpacePermissionService = {
+        can: vi.fn(),
+    };
+    const mockProjectModel = {
+        getSummary: vi.fn(),
+    };
+
+    let service: SpaceService;
+
+    beforeEach(() => {
+        vi.resetAllMocks();
+
+        service = new SpaceService({
+            analytics: analyticsMock,
+            lightdashConfig: lightdashConfigMock,
+            projectModel: mockProjectModel as unknown as ProjectModel,
+            spaceModel: mockSpaceModel as unknown as SpaceModel,
+            organizationModel: {} as OrganizationModel,
+            organizationMemberProfileModel:
+                mockOrganizationMemberProfileModel as unknown as OrganizationMemberProfileModel,
+            pinnedListModel: {} as PinnedListModel,
+            spacePermissionService:
+                mockSpacePermissionService as unknown as SpacePermissionService,
+            savedChartService: {} as SavedChartService,
+            dashboardService: {} as DashboardService,
+            appGenerateService: undefined,
+        });
+
+        mockSpacePermissionService.can.mockResolvedValue(true);
+        mockSpaceModel.getSpaceSummary.mockResolvedValue({
+            uuid: 'test-space-uuid',
+            organizationUuid: 'test-org-uuid',
+            projectUuid: 'test-project-uuid',
+        });
+    });
+
+    describe('addSpaceUserAccess', () => {
+        it('adds access when the target user is a member of the organization', async () => {
+            mockOrganizationMemberProfileModel.findOrganizationMemberUuids.mockResolvedValue(
+                ['target-user-uuid'],
+            );
+
+            await service.addSpaceUserAccess(
+                mockUser as unknown as SessionUser,
+                'test-space-uuid',
+                'target-user-uuid',
+                SpaceMemberRole.VIEWER,
+            );
+
+            expect(mockSpaceModel.addSpaceAccess).toHaveBeenCalledWith(
+                'test-space-uuid',
+                'target-user-uuid',
+                SpaceMemberRole.VIEWER,
+            );
+        });
+
+        it('rejects a target user outside the organization without writing access', async () => {
+            mockOrganizationMemberProfileModel.findOrganizationMemberUuids.mockResolvedValue(
+                [],
+            );
+
+            await expect(
+                service.addSpaceUserAccess(
+                    mockUser as unknown as SessionUser,
+                    'test-space-uuid',
+                    'other-org-user-uuid',
+                    SpaceMemberRole.VIEWER,
+                ),
+            ).rejects.toThrowError(NotFoundError);
+
+            expect(mockSpaceModel.addSpaceAccess).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('createSpace', () => {
+        it('rejects initial access entries for users outside the organization without creating the space', async () => {
+            mockProjectModel.getSummary.mockResolvedValue({
+                organizationUuid: 'test-org-uuid',
+            });
+            mockOrganizationMemberProfileModel.findOrganizationMemberUuids.mockResolvedValue(
+                ['member-user-uuid'],
+            );
+
+            await expect(
+                service.createSpace(
+                    'test-project-uuid',
+                    mockUser as unknown as SessionUser,
+                    {
+                        name: 'New space',
+                        access: [
+                            {
+                                userUuid: 'member-user-uuid',
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                            {
+                                userUuid: 'other-org-user-uuid',
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    },
+                ),
+            ).rejects.toThrowError(NotFoundError);
+
+            expect(mockSpaceModel.createSpace).not.toHaveBeenCalled();
+        });
     });
 });

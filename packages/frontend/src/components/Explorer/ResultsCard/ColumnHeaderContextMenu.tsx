@@ -191,7 +191,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                             }}
                         >
                             Filter by{' '}
-                            <Text span fz="inherit" lh="inherit">
+                            <Text span>
                                 "{getItemLabelWithoutTableName(item)}"
                             </Text>
                         </Menu.Item>
@@ -325,7 +325,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                             }}
                         >
                             Filter by{' '}
-                            <Text span fz="inherit" lh="inherit" fw={500}>
+                            <Text span fw={500}>
                                 {getItemLabelWithoutTableName(item)}
                             </Text>
                         </Menu.Item>
@@ -404,7 +404,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     }}
                 >
                     Filter by{' '}
-                    <Text span fz="inherit" lh="inherit" fw="semibold">
+                    <Text span fw="semibold">
                         {getItemLabelWithoutTableName(item)}
                     </Text>
                 </Menu.Item>

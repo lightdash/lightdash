@@ -16,6 +16,7 @@ import {
     lightdashConfigWithSecurePortSMTP,
     passwordResetLinkMock,
 } from './EmailClient.mock';
+import { buildPlainTextEmailBody } from './plainTextEmailBody';
 
 vi.mock('nodemailer', () => ({
     createTransport: vi.fn(() => ({
@@ -499,6 +500,249 @@ describe('EmailClient', () => {
             // Should have recreated transporter on the second attempt (maxRetries - 1)
             expect(mockClose).toHaveBeenCalledTimes(1);
             expect(mockCreateTransport).toHaveBeenCalledTimes(2); // Initial + recreation
+        });
+    });
+
+    describe('Plain text delivery emails', () => {
+        // The retry tests above swap in a failing transport, and clearAllMocks
+        // leaves that implementation in place.
+        beforeEach(() => {
+            (
+                nodemailer.createTransport as import('vitest').Mock
+            ).mockReturnValue({
+                verify: vi.fn(),
+                sendMail: vi.fn(() => ({ messageId: 'messageId' })),
+                use: vi.fn(),
+            });
+        });
+
+        const csvAttachment = {
+            path: 'https://example.com/file.csv',
+            filename: 'file.csv',
+            localPath: '/tmp/file.csv',
+            truncated: false,
+        };
+
+        const sentMailOptions = (client: EmailClient) =>
+            vi.mocked(client.transporter!.sendMail).mock
+                .calls[0][0] as unknown as {
+                text?: string;
+                html?: string;
+                template?: string;
+                context?: Record<string, unknown>;
+                attachments?: Array<{ filename: string }>;
+            };
+
+        describe('buildPlainTextEmailBody', () => {
+            test('should generate a sentence naming the cadence', () => {
+                expect(
+                    buildPlainTextEmailBody({
+                        title: 'Partner Performance',
+                        message: undefined,
+                        cadence: 'weekly',
+                        downloads: [],
+                        noResults: false,
+                    }),
+                ).toEqual(
+                    'Hello, here is your weekly report for Partner Performance.\n',
+                );
+            });
+
+            test('should drop the cadence when the cron has no word for it', () => {
+                expect(
+                    buildPlainTextEmailBody({
+                        title: 'Partner Performance',
+                        message: undefined,
+                        cadence: undefined,
+                        downloads: [],
+                        noResults: false,
+                    }),
+                ).toEqual(
+                    'Hello, here is your report for Partner Performance.\n',
+                );
+            });
+
+            test("should use the delivery's own message instead of the generated sentence", () => {
+                expect(
+                    buildPlainTextEmailBody({
+                        title: 'Partner Performance',
+                        message: 'Please find your monthly report attached.',
+                        cadence: 'weekly',
+                        downloads: [],
+                        noResults: false,
+                    }),
+                ).toEqual('Please find your monthly report attached.\n');
+            });
+
+            test('should fall back to the generated sentence for a blank message', () => {
+                expect(
+                    buildPlainTextEmailBody({
+                        title: 'Partner Performance',
+                        message: '   ',
+                        cadence: 'daily',
+                        downloads: [],
+                        noResults: false,
+                    }),
+                ).toEqual(
+                    'Hello, here is your daily report for Partner Performance.\n',
+                );
+            });
+
+            test('should list files that could not be attached', () => {
+                expect(
+                    buildPlainTextEmailBody({
+                        title: 'Partner Performance',
+                        message: undefined,
+                        cadence: 'weekly',
+                        downloads: [
+                            {
+                                filename: 'orders',
+                                url: 'https://example.com/orders.csv',
+                            },
+                        ],
+                        noResults: false,
+                    }),
+                ).toEqual(
+                    'Hello, here is your weekly report for Partner Performance.\n\norders: https://example.com/orders.csv\n',
+                );
+            });
+
+            test('should say so when there are no results', () => {
+                expect(
+                    buildPlainTextEmailBody({
+                        title: 'Partner Performance',
+                        message: undefined,
+                        cadence: 'weekly',
+                        downloads: [],
+                        noResults: true,
+                    }),
+                ).toEqual(
+                    'Hello, here is your weekly report for Partner Performance.\n\nThis report returned no results.\n',
+                );
+            });
+        });
+
+        test('should send a chart csv delivery with no html and no template', async () => {
+            const client = new EmailClient({
+                lightdashConfig: lightdashConfigWithBasicSMTP,
+            });
+            await client.sendChartCsvNotificationEmail(
+                'recipient@example.com',
+                'subject',
+                'Partner Performance',
+                'description',
+                'Please find your report attached.',
+                'date',
+                'frequency',
+                csvAttachment,
+                'https://example.com/chart',
+                'https://example.com/scheduler',
+                true,
+                3,
+                true,
+                SchedulerFormat.CSV,
+                null,
+                { cadence: 'weekly' },
+            );
+
+            const sent = sentMailOptions(client);
+            expect(sent.template).toBeUndefined();
+            expect(sent.context).toBeUndefined();
+            expect(sent.html).toBeUndefined();
+            expect(sent.text).toEqual('Please find your report attached.\n');
+            expect(sent.attachments).toHaveLength(1);
+        });
+
+        test('should link a csv it could not attach rather than delivering nothing', async () => {
+            const client = new EmailClient({
+                lightdashConfig: lightdashConfigWithBasicSMTP,
+            });
+            await client.sendChartCsvNotificationEmail(
+                'recipient@example.com',
+                'subject',
+                'Partner Performance',
+                'description',
+                undefined,
+                'date',
+                'frequency',
+                csvAttachment,
+                'https://example.com/chart',
+                'https://example.com/scheduler',
+                true,
+                3,
+                false, // not attached
+                SchedulerFormat.CSV,
+                null,
+                { cadence: 'weekly' },
+            );
+
+            const sent = sentMailOptions(client);
+            expect(sent.attachments).toBeUndefined();
+            expect(sent.text).toEqual(
+                'Hello, here is your weekly report for Partner Performance.\n\nfile.csv: https://example.com/file.csv\n',
+            );
+        });
+
+        test('should keep the pdf attachment on an image/pdf delivery', async () => {
+            const client = new EmailClient({
+                lightdashConfig: lightdashConfigWithBasicSMTP,
+            });
+            await client.sendImageNotificationEmail(
+                'recipient@example.com',
+                'subject',
+                'Partner Performance',
+                'description',
+                undefined,
+                'date',
+                'frequency',
+                undefined,
+                'https://example.com/dashboard',
+                'https://example.com/scheduler',
+                true,
+                '/tmp/report.pdf',
+                3,
+                undefined,
+                undefined,
+                null,
+                { cadence: 'monthly' },
+            );
+
+            const sent = sentMailOptions(client);
+            expect(sent.template).toBeUndefined();
+            expect(sent.text).toEqual(
+                'Hello, here is your monthly report for Partner Performance.\n',
+            );
+            expect(sent.attachments).toEqual([
+                {
+                    filename: 'Partner Performance.pdf',
+                    path: '/tmp/report.pdf',
+                    contentType: 'application/pdf',
+                },
+            ]);
+        });
+
+        test('should still render the branded template when plain text is off', async () => {
+            const client = new EmailClient({
+                lightdashConfig: lightdashConfigWithBasicSMTP,
+            });
+            await client.sendChartCsvNotificationEmail(
+                'recipient@example.com',
+                'subject',
+                'Partner Performance',
+                'description',
+                'Please find your report attached.',
+                'date',
+                'frequency',
+                csvAttachment,
+                'https://example.com/chart',
+                'https://example.com/scheduler',
+                true,
+            );
+
+            const sent = sentMailOptions(client);
+            expect(sent.template).toEqual('chartCsvNotification');
+            expect(sent.context).toBeDefined();
+            expect(sent.text).toEqual('Partner Performance');
         });
     });
 });

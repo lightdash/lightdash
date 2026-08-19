@@ -13,6 +13,7 @@ import {
     filterStaticFilterAutocompleteValues,
     findFieldByIdInExplore,
     ForbiddenError,
+    getConnectionDefaults,
     getContentAsCodePathFromLtreePath,
     getErrorMessage,
     getItemMap,
@@ -21,6 +22,7 @@ import {
     isDashboardChartTileType,
     isDimension,
     isExploreError,
+    isFilterAutocompleteManualOnly,
     isGitProjectType,
     JobStatusType,
     NotFoundError,
@@ -33,10 +35,12 @@ import {
     TimeoutError,
     UserAttributeValueMap,
     WarehouseQueryError,
+    type AgentSqlScope,
     type AiAgentDocumentSummary,
     type ChartAsCode,
     type DashboardAsCode,
     type FieldValueSearchResult,
+    type ParameterDefinitions,
     type SchedulerAiAugmentation,
 } from '@lightdash/common';
 import * as JsonPatch from 'fast-json-patch';
@@ -46,6 +50,7 @@ import { ContentVerificationModel } from '../../../models/ContentVerificationMod
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { JobModel } from '../../../models/JobModel/JobModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { ProjectParametersModel } from '../../../models/ProjectParametersModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
 import { SearchModel } from '../../../models/SearchModel';
 import { SpaceModel } from '../../../models/SpaceModel';
@@ -100,6 +105,7 @@ import {
     LoadAgentSkillFn,
     ReadContentFn,
     ResolveUrlFn,
+    RunAsyncMergeQueryFn,
     RunAsyncQueryFn,
     RunSavedChartQueryFn,
     RunSqlJobFn,
@@ -116,6 +122,13 @@ import {
     populateCustomMetricsSQL,
 } from '../ai/utils/populateCustomMetricsSQL';
 import { getExploreRequiredFilters } from '../ai/utils/requiredFilters';
+import {
+    filterWarehouseCatalogToScope,
+    findSqlScopeViolations,
+    findWarehouseTableScopeViolation,
+    formatSqlScopeError,
+    formatWarehouseTableScopeError,
+} from '../ai/utils/sqlScope';
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
 import type { SchedulerAiAugmentationService } from '../SchedulerAiAugmentationService/SchedulerAiAugmentationService';
 
@@ -141,6 +154,7 @@ export type AiAgentToolsRuntimeContext = {
     defaultQueryExecutionContext: QueryExecutionContext;
     tags: string[] | null;
     spaceAccess: string[] | null;
+    sqlScope?: AgentSqlScope | null;
     userAttributeOverrides?: UserAttributeValueMap;
     agentUuid?: string;
     threadUuid?: string;
@@ -179,6 +193,7 @@ type GetExploreRuntimeResult = Awaited<ReturnType<GetExploreFn>>;
 
 export type AiAgentToolsRuntime = {
     listExplores: ListExploresFn;
+    getProjectParameterDefinitions: () => Promise<ParameterDefinitions>;
     getExplore: GetExploreFn;
     findExplores: FindExploresFn;
     getVerifiedFieldUsage: GetVerifiedFieldUsageFn;
@@ -189,6 +204,7 @@ export type AiAgentToolsRuntime = {
     analyzeFieldImpact: AnalyzeFieldImpactFn;
     syncDbtProject: SyncDbtProjectFn;
     runAsyncQuery: RunAsyncQueryFn;
+    runAsyncMergeQuery: RunAsyncMergeQueryFn;
     runSavedChartQuery: RunSavedChartQueryFn;
     runSqlJob: RunSqlJobFn;
     listWarehouseTables: ListWarehouseTablesFn;
@@ -244,6 +260,7 @@ type BuiltInSkillsClient = Pick<
 type AiAgentToolsServiceDependencies = {
     builtInSkills: BuiltInSkillsClient;
     projectModel: ProjectModel;
+    projectParametersModel: ProjectParametersModel;
     projectService: ProjectService;
     jobModel: JobModel;
     userAttributesModel: UserAttributesModel;
@@ -279,6 +296,8 @@ type AiAgentToolsServiceDependencies = {
 
 export class AiAgentToolsService extends BaseService {
     private readonly projectModel: ProjectModel;
+
+    private readonly projectParametersModel: ProjectParametersModel;
 
     private readonly projectService: ProjectService;
 
@@ -366,6 +385,7 @@ export class AiAgentToolsService extends BaseService {
     constructor({
         builtInSkills,
         projectModel,
+        projectParametersModel,
         projectService,
         jobModel,
         userAttributesModel,
@@ -395,6 +415,7 @@ export class AiAgentToolsService extends BaseService {
         super();
         this.builtInSkills = builtInSkills;
         this.projectModel = projectModel;
+        this.projectParametersModel = projectParametersModel;
         this.projectService = projectService;
         this.jobModel = jobModel;
         this.userAttributesModel = userAttributesModel;
@@ -529,6 +550,8 @@ export class AiAgentToolsService extends BaseService {
     ): AiAgentToolsRuntime | McpAiAgentToolsRuntime {
         const runtime: Omit<AiAgentToolsRuntime, 'updateUserName'> = {
             listExplores: () => this.listExplores(context),
+            getProjectParameterDefinitions: () =>
+                this.getProjectParameterDefinitions(context),
             getExplore: (args) => this.getExploreForRuntime(context, args),
             findExplores: (args) => this.findExplores(context, args),
             getVerifiedFieldUsage: () => this.getVerifiedFieldUsage(context),
@@ -547,6 +570,8 @@ export class AiAgentToolsService extends BaseService {
                     additionalMetrics,
                     parameters,
                 ),
+            runAsyncMergeQuery: (mergeQuery, parameters) =>
+                this.runAsyncMergeQuery(context, mergeQuery, parameters),
             runSavedChartQuery: (args) =>
                 this.runSavedChartQuery(context, args),
             runSqlJob: (args) => this.runSqlJob(context, args),
@@ -635,6 +660,23 @@ export class AiAgentToolsService extends BaseService {
             availableTags: context.tags,
             userAttributeOverrides: context.userAttributeOverrides,
         });
+    }
+
+    private async getProjectParameterDefinitions(
+        context: AiAgentToolsRuntimeContext,
+    ): Promise<ParameterDefinitions> {
+        const projectParameters = await this.projectParametersModel.find(
+            context.projectUuid,
+        );
+        return Object.fromEntries(
+            projectParameters.map((parameter) => [
+                parameter.name,
+                {
+                    ...parameter.config,
+                    type: parameter.config.type ?? 'string',
+                },
+            ]),
+        );
     }
 
     private getExploreForRuntime(
@@ -1073,10 +1115,12 @@ export class AiAgentToolsService extends BaseService {
                     spaces.map((space) => [space.path, space]),
                 );
                 const searchQuery = args.searchQuery.label.toLowerCase();
+                const { verifiedOnly } = args;
                 const { content } = await this.searchService.findContent(
                     context.user,
                     context.projectUuid,
                     args.searchQuery.label,
+                    verifiedOnly,
                 );
 
                 const contentResults = content.flatMap(
@@ -1122,7 +1166,9 @@ export class AiAgentToolsService extends BaseService {
                     },
                 );
 
-                const spaceResults = spaces
+                // Spaces cannot be verified, so they are omitted from
+                // verified-only searches.
+                const spaceResults = (verifiedOnly ? [] : spaces)
                     .filter(
                         (space) =>
                             scopedSpaceUuids === null ||
@@ -1856,6 +1902,18 @@ export class AiAgentToolsService extends BaseService {
                     >[1],
                 );
 
+                const isUnboundedDimensionScan =
+                    context.source === 'ai_agent' &&
+                    metricQuery.dimensions.length > 0 &&
+                    metricQuery.metrics.length === 0 &&
+                    Object.keys(metricQuery.filters ?? {}).length === 0;
+                if (isUnboundedDimensionScan) {
+                    throw new Error(
+                        'This query would scan distinct values across an entire field. ' +
+                            'Add a metric, a filter, or a narrower dimension before querying.',
+                    );
+                }
+
                 await context.onWarehouseQuery?.();
                 const result =
                     await this.asyncQueryService.executeMetricQueryAndGetResults(
@@ -1887,6 +1945,45 @@ export class AiAgentToolsService extends BaseService {
                     });
                 }
 
+                return result;
+            },
+        );
+    }
+
+    private runAsyncMergeQuery(
+        context: AiAgentToolsRuntimeContext,
+        mergeQuery: Parameters<RunAsyncMergeQueryFn>[0],
+        parameters: Parameters<RunAsyncMergeQueryFn>[1],
+    ): ReturnType<RunAsyncMergeQueryFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.runAsyncMergeQuery`,
+            mergeQuery,
+            async () => {
+                await context.onWarehouseQuery?.();
+                const result =
+                    await this.asyncQueryService.executeMergeQueryAndGetResults(
+                        {
+                            account: context.account,
+                            projectUuid: context.projectUuid,
+                            mergeQuery,
+                            context: context.defaultQueryExecutionContext,
+                            parameters,
+                            mode: { type: 'interactive' },
+                            userAttributeOverrides:
+                                context.userAttributeOverrides,
+                        },
+                    );
+
+                if (context.queryResultsExpirationMs) {
+                    await this.asyncQueryService.extendQueryResultsExpiration({
+                        account: context.account,
+                        projectUuid: context.projectUuid,
+                        queryUuid: result.queryUuid,
+                        expiresAt: new Date(
+                            Date.now() + context.queryResultsExpirationMs,
+                        ),
+                    });
+                }
                 return result;
             },
         );
@@ -1978,6 +2075,27 @@ export class AiAgentToolsService extends BaseService {
             `${AiAgentToolsService.transactionPrefix(context)}.runSqlJob`,
             { sql: sql.slice(0, 500), limit },
             async () => {
+                // Authoritative scope check. The runSql tool also checks, so
+                // the model gets a well-worded error it can act on; this one
+                // is what actually guarantees the query never reaches the
+                // warehouse, whatever the tool layer does.
+                const violations = findSqlScopeViolations(
+                    sql,
+                    context.sqlScope,
+                );
+                if (violations.length > 0 && context.sqlScope) {
+                    this.logger.warn(
+                        `Blocked out-of-scope agent SQL for project ${
+                            context.projectUuid
+                        } (agent ${context.agentUuid ?? 'unknown'}): ${violations
+                            .map((v) => v.reference)
+                            .join(', ')}`,
+                    );
+                    throw new ForbiddenError(
+                        formatSqlScopeError(violations, context.sqlScope),
+                    );
+                }
+
                 await context.onWarehouseQuery?.();
                 const { queryUuid } =
                     await this.asyncQueryService.executeAsyncSqlQuery({
@@ -2060,17 +2178,19 @@ export class AiAgentToolsService extends BaseService {
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.listWarehouseTables`,
             { projectUuid: context.projectUuid },
-            () =>
-                this.projectService.getWarehouseTables(
+            async () => {
+                const catalog = await this.projectService.getWarehouseTables(
                     context.user,
                     context.projectUuid,
-                ),
+                );
+                return filterWarehouseCatalogToScope(catalog, context.sqlScope);
+            },
         );
     }
 
     private describeWarehouseTable(
         context: AiAgentToolsRuntimeContext,
-        { table, schema }: Parameters<DescribeWarehouseTableFn>[0],
+        { table, schema, database }: Parameters<DescribeWarehouseTableFn>[0],
     ): ReturnType<DescribeWarehouseTableFn> {
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.describeWarehouseTable`,
@@ -2078,26 +2198,46 @@ export class AiAgentToolsService extends BaseService {
                 projectUuid: context.projectUuid,
                 table,
                 schema: schema ?? null,
+                database: database ?? null,
             },
             async () => {
-                let resolvedSchema = schema ?? null;
-                if (!resolvedSchema) {
+                let resolvedSchema = schema?.trim() || null;
+                let resolvedDatabase = database?.trim() || null;
+                if (!resolvedSchema || resolvedDatabase === null) {
                     const creds =
                         await this.projectModel.getWarehouseCredentialsForProject(
                             context.projectUuid,
                         );
-                    resolvedSchema = creds
-                        ? ('schema' in creds && creds.schema) ||
-                          ('dataset' in creds && creds.dataset) ||
-                          null
-                        : null;
+                    const defaults = getConnectionDefaults(creds);
+                    resolvedSchema = resolvedSchema ?? defaults.schema ?? null;
+                    resolvedDatabase =
+                        resolvedDatabase ?? defaults.database ?? null;
                 }
+
+                const violation = findWarehouseTableScopeViolation(
+                    context.sqlScope,
+                    {
+                        table,
+                        schema: resolvedSchema,
+                        database: resolvedDatabase,
+                    },
+                );
+                if (violation && context.sqlScope) {
+                    throw new ForbiddenError(
+                        formatWarehouseTableScopeError(
+                            violation,
+                            context.sqlScope,
+                        ),
+                    );
+                }
+
                 const fields = await this.projectService.getWarehouseFields(
                     context.user,
                     context.projectUuid,
                     context.defaultQueryExecutionContext,
                     table,
                     resolvedSchema ?? undefined,
+                    resolvedDatabase ?? undefined,
                 );
                 return {
                     columns: Object.entries(fields).map(([name, type]) => ({
@@ -2105,6 +2245,7 @@ export class AiAgentToolsService extends BaseService {
                         type: String(type),
                     })),
                     resolvedSchema,
+                    resolvedDatabase,
                 };
             },
         );
@@ -2168,17 +2309,28 @@ export class AiAgentToolsService extends BaseService {
                             `static values source=${context.source} ` +
                             `table=${args.table} fieldId=${args.fieldId}`,
                     );
-                    return context.source === 'mcp'
-                        ? curatedResult
+                    if (context.source === 'mcp') return curatedResult;
+                    return curatedResult.note
+                        ? {
+                              results: curatedResult.results,
+                              note: curatedResult.note,
+                          }
                         : curatedResult.results;
                 }
 
-                // Live PostHog toggle; default off => byte-identical to today.
+                // Keep the rollout flag for MCP and existing operational
+                // control, but always protect agent runs. An empty search is
+                // compiled as `LIKE '%%'`, which is an unbounded distinct
+                // scan and a predictable warehouse-limit failure on large
+                // tables. Agent runs can safely ask for a narrower value and
+                // retry without spending a warehouse slot first.
                 const { enabled: guardEnabled } =
                     await this.featureFlagService.get({
                         user: context.user,
                         featureFlagId: FeatureFlags.AiFieldValueSearchGuard,
                     });
+                const effectiveGuardEnabled =
+                    context.source === 'ai_agent' || guardEnabled;
 
                 // Observability. Deliberately does NOT log the query text or any
                 // returned values (they can contain user data) — only the field
@@ -2187,14 +2339,14 @@ export class AiAgentToolsService extends BaseService {
                     `[ai-field-values] search source=${context.source} ` +
                         `table=${args.table} fieldId=${args.fieldId} ` +
                         `isEmptyQuery=${isEmptyQuery} queryLen=${query.length} ` +
-                        `guard=${guardEnabled}`,
+                        `guard=${effectiveGuardEnabled}`,
                 );
 
                 // An empty query compiles to `LIKE '%%'` — "distinct the whole
                 // column" — the worst case on a high-cardinality field. With the
                 // guard on, refuse it up front (0s) with a message the agent can
                 // act on, instead of paying for a full-column scan first.
-                if (guardEnabled && isEmptyQuery) {
+                if (effectiveGuardEnabled && isEmptyQuery) {
                     Logger.warn(
                         `[ai-field-values] guard blocked empty-query scan ` +
                             `source=${context.source} table=${args.table} ` +
@@ -2277,6 +2429,11 @@ export class AiAgentToolsService extends BaseService {
                 results,
                 cached: false,
                 refreshedAt: new Date(),
+                ...(isFilterAutocompleteManualOnly(field.filterAutocomplete)
+                    ? {
+                          note: 'Value suggestions are disabled for this field, so an empty result does NOT mean the value is missing. Filter using the exact value from the user request instead of relying on this search.',
+                      }
+                    : {}),
             };
         }
         if (field.type === DimensionType.BOOLEAN) {

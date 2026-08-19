@@ -35,7 +35,13 @@ import {
     type AiAgentRootCause,
 } from '@lightdash/common';
 import { Badge, Box, Button, Group, Stack, Text } from '@mantine/core';
-import { IconBox, IconRobotFace, IconTag, IconUser } from '@tabler/icons-react';
+import {
+    IconBox,
+    IconListCheck,
+    IconRobotFace,
+    IconTag,
+    IconUser,
+} from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { type FC, useDeferredValue, useMemo, useState } from 'react';
 import FilterFacet, {
@@ -195,6 +201,7 @@ export const ReviewKanbanBoard: FC<Props> = ({
         AiAgentRootCause[]
     >(DEFAULT_VISIBLE_ROOT_CAUSES);
     const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
+    const [selectedStatuses, setSelectedStatuses] = useState<ReviewLane[]>([]);
     const { data, isLoading } = useAiAgentAdminReviewItems({
         statuses: BOARD_STATUSES,
     });
@@ -279,6 +286,10 @@ export const ReviewKanbanBoard: FC<Props> = ({
 
     const items = useMemo<AiAgentReviewItemSummary[]>(() => {
         let next = scopedItems;
+        if (selectedStatuses.length > 0) {
+            const statusSet = new Set(selectedStatuses);
+            next = next.filter((item) => statusSet.has(getReviewLane(item)));
+        }
         if (selectedRootCauses.length > 0) {
             const rootCauseSet = new Set(selectedRootCauses);
             next = next.filter((item) =>
@@ -291,7 +302,7 @@ export const ReviewKanbanBoard: FC<Props> = ({
             );
         }
         return next;
-    }, [scopedItems, selectedRootCauses, selectedAssignees]);
+    }, [scopedItems, selectedStatuses, selectedRootCauses, selectedAssignees]);
 
     const projectFacetOptions = useMemo((): FilterFacetOption[] => {
         const counts = new Map<string, number>();
@@ -371,6 +382,19 @@ export const ReviewKanbanBoard: FC<Props> = ({
             }),
         [scopedItems, orgUsersByUuid, currentUserUuid],
     );
+
+    const statusFacetOptions = useMemo((): FilterFacetOption[] => {
+        const counts = new Map<ReviewLane, number>();
+        for (const item of scopedItems) {
+            const lane = getReviewLane(item);
+            counts.set(lane, (counts.get(lane) ?? 0) + 1);
+        }
+        return REVIEW_LANES.map((lane) => ({
+            value: lane.id,
+            label: lane.label,
+            count: counts.get(lane.id) ?? 0,
+        }));
+    }, [scopedItems]);
 
     const lanes = useMemo(() => {
         const byLane: Record<ReviewLane, AiAgentReviewItemSummary[]> = {
@@ -562,6 +586,17 @@ export const ReviewKanbanBoard: FC<Props> = ({
                     }
                     emptyLabel="No root causes in current view"
                     tooltipLabel="Filter by root cause"
+                />
+                <FilterFacet
+                    label="Status"
+                    icon={IconListCheck}
+                    options={statusFacetOptions}
+                    selected={selectedStatuses}
+                    onChange={(values) =>
+                        setSelectedStatuses(values as ReviewLane[])
+                    }
+                    emptyLabel="No statuses in current view"
+                    tooltipLabel="Filter by status"
                 />
                 <FilterFacet
                     label="Assignee"

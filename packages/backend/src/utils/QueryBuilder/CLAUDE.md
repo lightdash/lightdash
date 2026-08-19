@@ -244,6 +244,8 @@ graph TD
 
 **Anchor value aliasing**: The folded anchor value columns keep the `${ref}_ca_value` / `${ref}_ra_value` aliases (resolved against the nested derived table `g`). The `_ca`/`_ra` suffixes are kept short to stay within Postgres' 63-char identifier limit when field references are long. Hardcoded CTE names (`row_ranking`, `pivot_query`, etc.) don't need quoting.
 
+**Scripting statements (`sqlScript.ts`)**: user SQL can be a script whose final statement is the query (e.g. BigQuery `DECLARE`/`SET` variables). Wrapping that in `original_query AS (...)` is invalid SQL, so PivotQueryBuilder's constructor splits the leading `DECLARE`/`SET` statements off via `parseSqlScript` and `toSql()` emits them above the `WITH` clause, where the declared variables are still in scope. When dashboard filters apply, SqlQueryBuilder performs the same split before wrapping the final query in `FROM (...)`, then reattaches the prelude for the pivot stage. SQL that doesn't start with `DECLARE`/`SET` is passed through untouched; a script that starts with one but has other statements before its final one throws a `ParameterError` explaining the limitation.
+
 **Two-phase pivot**: PivotQueryBuilder outputs rows tagged with `row_index` + `column_index`. The actual pivot (spreading values into `{field}_{aggregation}_{groupByValue}` columns) happens in `AsyncQueryService.runQueryAndTransformRows` which streams results and pivots on `row_index` changes.
 
 </importantToKnow>

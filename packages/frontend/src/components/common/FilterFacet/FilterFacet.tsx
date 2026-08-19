@@ -57,6 +57,8 @@ export type FilterFacetProps = {
     searchPlaceholder?: string;
     onScrollEnd?: () => void;
     scrollEndOffset?: number;
+    /** Shows a row that selects/deselects every listed option at once */
+    enableSelectAll?: boolean;
 };
 
 const isOptionVisible = (
@@ -86,6 +88,7 @@ const FilterFacet = ({
     searchPlaceholder = 'Search…',
     onScrollEnd,
     scrollEndOffset = 50,
+    enableSelectAll = false,
 }: FilterFacetProps) => {
     const selectedSet = new Set(selected);
     const viewportRef = useRef<HTMLDivElement>(null);
@@ -131,6 +134,34 @@ const FilterFacet = ({
     };
 
     const hasSelection = selected.length > 0;
+
+    const selectableValues = [
+        ...visibleFlatOptions,
+        ...visibleGroups.flatMap((group) => group.options),
+    ]
+        .filter((option) => option.disabled !== true)
+        .map((option) => option.value);
+
+    const showSelectAll =
+        enableSelectAll && mode === 'multi' && selectableValues.length > 0;
+    const allSelected = selectableValues.every((value) =>
+        selectedSet.has(value),
+    );
+    const someSelected =
+        !allSelected &&
+        selectableValues.some((value) => selectedSet.has(value));
+
+    const toggleAll = () => {
+        const selectableSet = new Set(selectableValues);
+        if (allSelected) {
+            onChange(selected.filter((value) => !selectableSet.has(value)));
+        } else {
+            onChange([
+                ...selected,
+                ...selectableValues.filter((value) => !selectedSet.has(value)),
+            ]);
+        }
+    };
 
     const renderOption = (option: FilterFacetOption) => {
         const isChecked = selectedSet.has(option.value);
@@ -267,6 +298,27 @@ const FilterFacet = ({
                             }
                         />
                     </Box>
+                )}
+                {showSelectAll && (
+                    <UnstyledButton
+                        onClick={toggleAll}
+                        px="xs"
+                        py={6}
+                        className={classes.option}
+                    >
+                        <Group gap="xs" wrap="nowrap">
+                            <Checkbox
+                                size="xs"
+                                checked={allSelected}
+                                indeterminate={someSelected}
+                                readOnly
+                                tabIndex={-1}
+                            />
+                            <Text fz="xs" fw={500} c="ldGray.9">
+                                {allSelected ? 'Deselect all' : 'Select all'}
+                            </Text>
+                        </Group>
+                    </UnstyledButton>
                 )}
                 {!hasAnyOption ? (
                     <Text fz="xs" c="ldGray.6" p="xs">

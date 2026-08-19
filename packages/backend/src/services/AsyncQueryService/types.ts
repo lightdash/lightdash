@@ -1,11 +1,15 @@
 import {
     Account,
     DownloadFileType,
+    MergeQuery,
+    MergeQueryChart,
+    MergeQueryExecutionMode,
     MetricQuery,
     PersistentDownloadFileAccessMode,
     PivotConfig,
     PivotConfiguration,
     type AndFilterGroup,
+    type ApiExecuteAsyncMetricQueryResults,
     type CacheMetadata,
     type ConditionalFormattingConfig,
     type DashboardFilters,
@@ -14,6 +18,7 @@ import {
     type Filters,
     type ItemsMap,
     type ParametersValuesMap,
+    type PreAggregateExecutionEngine,
     type QueryExecutionContext,
     type ResultColumns,
     type ResultsPaginationArgs,
@@ -22,6 +27,7 @@ import {
     type SortField,
     type UserAccessControls,
     type UserAttributeValueMap,
+    type UUID,
 } from '@lightdash/common';
 import type { OnboardingFlow } from '../../analytics/LightdashAnalytics';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
@@ -85,6 +91,7 @@ export type ExecuteAsyncFieldValueSearchArgs = CommonAsyncQueryArgs & {
 
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     metricQuery: MetricQuery;
+    dataAppPreviewToken?: string;
     dateZoom?: DateZoom;
     pivotConfiguration?: PivotConfiguration;
     materializationRole?: UserAccessControls;
@@ -151,16 +158,33 @@ export type UnboundedRerunFromQueryHistoryResult =
 
 export type PreAggregationRouteMode = 'required' | 'opportunistic';
 
+export type { PreAggregateExecutionEngine };
+
 export type PreAggregationRoute = {
     sourceExploreName: string;
     preAggregateName: string;
     mode: PreAggregationRouteMode;
+    // Present ⇒ external pre-aggregate served from this table on the project warehouse
+    externalTable?: string;
 };
 
 export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
     sql: string;
     limit?: number;
     pivotConfiguration?: PivotConfiguration;
+};
+
+export type ExecuteAsyncComposeSqlQueryArgs = CommonAsyncQueryArgs & {
+    sql: string;
+    limit?: number;
+    /** Table name -> queryUuid of a previous async query to expose as that table. */
+    references?: Record<string, UUID>;
+};
+
+export type ExecuteAsyncMergeQueryArgs = CommonAsyncQueryArgs & {
+    mergeQuery: MergeQuery;
+    mode: MergeQueryExecutionMode;
+    chart?: MergeQueryChart;
 };
 
 export type ExecuteAsyncDashboardSqlChartCommonArgs = CommonAsyncQueryArgs & {
@@ -252,4 +276,5 @@ export type RunAsyncPreAggregateQueryArgs = Omit<
 > & {
     preAggregateQuery: string;
     warehouseQuery: string;
+    preAggregateExecution: PreAggregateExecutionEngine;
 };

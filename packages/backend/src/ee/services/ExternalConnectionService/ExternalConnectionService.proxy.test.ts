@@ -1,9 +1,11 @@
 import {
     ForbiddenError,
     ParameterError,
+    ProjectType,
     type ExternalConnection,
-    type SessionUser,
 } from '@lightdash/common';
+import { fromJwt } from '../../../auth/account';
+import { buildAccount } from '../../../auth/account/account.mock';
 import { SecureFetchError } from '../../../utils/secureFetch/secureFetch';
 import * as secureFetchModule from '../../../utils/secureFetch/secureFetch';
 import { ExternalConnectionService } from './ExternalConnectionService';
@@ -59,11 +61,52 @@ const baseApp = () => ({
     organization_uuid: 'org-1',
 });
 
-const user = {
-    userUuid: 'user-1',
-    organizationUuid: 'org-1',
-    ability: { can: () => true },
-} as unknown as SessionUser;
+const user = buildAccount();
+
+const buildEmbeddedDashboardUser = (allowAllDashboards = false) => {
+    const base = buildAccount({ accountType: 'jwt' });
+    return fromJwt({
+        decodedToken: {
+            user: { externalId: 'dashboard-viewer' },
+            content: {
+                type: 'dashboard',
+                dashboardUuid: 'test-dashboard-uuid',
+                canViewDataApps: true,
+            },
+        },
+        embed: { ...base.embed, allowAllDashboards },
+        source: 'dashboard-embed-token',
+        content: {
+            type: 'dashboard',
+            dashboardUuid: 'test-dashboard-uuid',
+            chartUuids: [],
+            explores: [],
+        },
+        userAttributes: base.access.controls!,
+    });
+};
+
+const buildEmbeddedDataAppUser = (appUuid = 'app-1') => {
+    const base = buildAccount({ accountType: 'jwt' });
+    return fromJwt({
+        decodedToken: {
+            user: { externalId: 'data-app-viewer' },
+            content: { type: 'dataApp', appUuid },
+        },
+        embed: { ...base.embed, allowAllApps: true, appUuids: [appUuid] },
+        source: 'data-app-embed-token',
+        content: {
+            type: 'dataApp',
+            appUuid,
+            chartUuids: [],
+            explores: [],
+        },
+        userAttributes: base.access.controls!,
+    });
+};
+
+const embeddedDashboardUser = buildEmbeddedDashboardUser();
+const embeddedDataAppUser = buildEmbeddedDataAppUser();
 
 function buildService(opts: {
     connection?: ExternalConnection | undefined;
@@ -71,11 +114,19 @@ function buildService(opts: {
     canView?: boolean;
     rateCount?: number;
     googleToken?: string;
+    dashboardsContainingApp?: string[];
+    appExists?: boolean;
 }) {
     const externalConnectionModel = {
         resolveAppAlias: vi.fn().mockResolvedValue(opts.connection),
         getDecryptedSecret: vi.fn().mockResolvedValue(opts.secret ?? null),
         incrementRateCounter: vi.fn().mockResolvedValue(opts.rateCount ?? 1),
+        findProjectAbilityContext: vi.fn().mockResolvedValue({
+            organizationUuid: 'org-1',
+            projectType: ProjectType.DEFAULT,
+            projectCreatedByUserUuid: null,
+            upstreamProjectUuid: null,
+        }),
     };
     const googleTokenProvider = {
         getAccessToken: vi
@@ -84,6 +135,14 @@ function buildService(opts: {
     };
     const appModel = {
         getApp: vi.fn().mockResolvedValue(baseApp()),
+        findApp: vi
+            .fn()
+            .mockResolvedValue(
+                opts.appExists === false ? undefined : baseApp(),
+            ),
+        findDashboardsContainingApp: vi
+            .fn()
+            .mockResolvedValue(opts.dashboardsContainingApp ?? []),
     };
     const projectModel = {
         getSummary: vi.fn().mockResolvedValue({ organizationUuid: 'org-1' }),
@@ -91,7 +150,7 @@ function buildService(opts: {
     const spacePermissionService = {
         getSpaceAccessContext: vi.fn().mockResolvedValue({}),
     };
-    const analytics = { track: vi.fn() };
+    const analytics = { track: vi.fn(), trackAccount: vi.fn() };
 
     const service = new ExternalConnectionService({
         externalConnectionModel,
@@ -131,6 +190,129 @@ beforeEach(() => {
 });
 
 describe('ExternalConnectionService.proxyFetch', () => {
+    it('allows a standalone embed JWT to use a connection linked to its app', async () => {
+        const { service, appModel, analytics } = buildService({
+            connection: baseConnection(),
+        });
+
+        await service.proxyFetch(embeddedDataAppUser, 'proj-1', 'app-1', {
+            connectionAlias: 'weather',
+            path: '/v1/today',
+        });
+
+        expect(mockSecureFetch).toHaveBeenCalledTimes(1);
+        expect(appModel.findDashboardsContainingApp).not.toHaveBeenCalled();
+        expect(analytics.trackAccount).toHaveBeenCalledWith(
+            embeddedDataAppUser,
+            expect.not.objectContaining({ userId: expect.anything() }),
+        );
+    });
+
+    it('rejects a standalone embed JWT for a different app', async () => {
+        const { service } = buildService({ connection: baseConnection() });
+
+        await expect(
+            service.proxyFetch(
+                buildEmbeddedDataAppUser('another-app'),
+                'proj-1',
+                'app-1',
+                {
+                    connectionAlias: 'weather',
+                    path: '/v1/today',
+                },
+            ),
+        ).rejects.toThrow('This embed is not authorized for this data app');
+        expect(mockSecureFetch).not.toHaveBeenCalled();
+    });
+
+    it('allows a dashboard embed JWT only when the app is on an allowed dashboard', async () => {
+        const allowedDashboardUuid =
+            embeddedDashboardUser.access.content.dashboardUuid!;
+        const { service, appModel } = buildService({
+            connection: baseConnection(),
+            dashboardsContainingApp: [allowedDashboardUuid],
+        });
+
+        await service.proxyFetch(embeddedDashboardUser, 'proj-1', 'app-1', {
+            connectionAlias: 'weather',
+            path: '/v1/today',
+        });
+
+        expect(appModel.findDashboardsContainingApp).toHaveBeenCalledWith(
+            'app-1',
+            'proj-1',
+            [allowedDashboardUuid],
+        );
+        expect(mockSecureFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects a dashboard embed JWT when the app is not on an allowed dashboard', async () => {
+        const { service } = buildService({
+            connection: baseConnection(),
+            dashboardsContainingApp: ['another-dashboard'],
+        });
+
+        await expect(
+            service.proxyFetch(embeddedDashboardUser, 'proj-1', 'app-1', {
+                connectionAlias: 'weather',
+                path: '/v1/today',
+            }),
+        ).rejects.toThrow('Data app is not authorized by this embed');
+        expect(mockSecureFetch).not.toHaveBeenCalled();
+    });
+
+    it('does not authorize an app outside the JWT dashboard when all dashboards are embeddable', async () => {
+        const allowAllDashboardUser = buildEmbeddedDashboardUser(true);
+        const { service, appModel } = buildService({
+            connection: baseConnection(),
+            dashboardsContainingApp: ['another-dashboard'],
+        });
+
+        await expect(
+            service.proxyFetch(allowAllDashboardUser, 'proj-1', 'app-1', {
+                connectionAlias: 'weather',
+                path: '/v1/today',
+            }),
+        ).rejects.toThrow('Data app is not authorized by this embed');
+        expect(appModel.findDashboardsContainingApp).toHaveBeenCalledWith(
+            'app-1',
+            'proj-1',
+            ['test-dashboard-uuid'],
+        );
+        expect(mockSecureFetch).not.toHaveBeenCalled();
+    });
+
+    it('rejects an embed JWT denied by the DataApp ability', async () => {
+        const { service, appModel } = buildService({
+            connection: baseConnection(),
+            canView: false,
+        });
+
+        await expect(
+            service.proxyFetch(embeddedDashboardUser, 'proj-1', 'app-1', {
+                connectionAlias: 'weather',
+                path: '/v1/today',
+            }),
+        ).rejects.toThrow('Insufficient permissions to access this data app');
+        expect(appModel.findDashboardsContainingApp).not.toHaveBeenCalled();
+        expect(mockSecureFetch).not.toHaveBeenCalled();
+    });
+
+    it('does not reveal whether an app exists to an embed JWT', async () => {
+        const { service, externalConnectionModel } = buildService({
+            connection: baseConnection(),
+            appExists: false,
+        });
+
+        await expect(
+            service.proxyFetch(embeddedDashboardUser, 'proj-1', 'app-1', {
+                connectionAlias: 'weather',
+                path: '/v1/today',
+            }),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(externalConnectionModel.resolveAppAlias).not.toHaveBeenCalled();
+    });
+
     it('rejects when the alias is not linked to the app', async () => {
         const { service } = buildService({ connection: undefined });
         await expect(
@@ -549,7 +731,8 @@ describe('ExternalConnectionService.proxyFetch', () => {
         expect(res.body).toEqual({
             error: 'anthropic-version header is required',
         });
-        expect(analytics.track).toHaveBeenCalledWith(
+        expect(analytics.trackAccount).toHaveBeenCalledWith(
+            user,
             expect.objectContaining({
                 properties: expect.objectContaining({
                     status: 400,
@@ -683,7 +866,8 @@ describe('ExternalConnectionService.proxyFetch', () => {
             path: '/v1/x',
             body: { secret_payload: 'do-not-log' },
         });
-        expect(analytics.track).toHaveBeenCalledWith(
+        expect(analytics.trackAccount).toHaveBeenCalledWith(
+            user,
             expect.objectContaining({
                 event: 'external_connection.fetch',
                 properties: expect.objectContaining({
@@ -694,7 +878,7 @@ describe('ExternalConnectionService.proxyFetch', () => {
                 }),
             }),
         );
-        const tracked = JSON.stringify(analytics.track.mock.calls);
+        const tracked = JSON.stringify(analytics.trackAccount.mock.calls);
         expect(tracked).not.toContain('tok_secret');
         expect(tracked).not.toContain('do-not-log');
     });

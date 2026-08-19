@@ -4,8 +4,10 @@ import {
     MissingConfigError,
     NotFoundError,
     ParameterError,
+    ProjectType,
     type ExternalConnection,
     type ExternalConnectionConfigProposal,
+    type ExternalConnectionListItem,
     type ExternalConnectionSample,
     type ExternalFetchResponse,
     type PossibleAbilities,
@@ -66,6 +68,11 @@ const connection: ExternalConnection = {
     updatedAt: new Date('2026-01-01T00:00:00Z'),
 };
 
+const listedConnection: ExternalConnectionListItem = {
+    ...connection,
+    linkedDataAppCount: 2,
+};
+
 const sampleRequest = {
     method: 'GET' as const,
     path: '/v1/weather',
@@ -111,7 +118,7 @@ function buildService(opts: {
     linkToAppFn?: import('vitest').Mock;
     findAppFn?: import('vitest').Mock;
     getCopilotConfigFn?: import('vitest').Mock;
-    connections?: ExternalConnection[];
+    connections?: ExternalConnectionListItem[];
 }) {
     const model = {
         findByUuid: vi
@@ -120,7 +127,13 @@ function buildService(opts: {
                 opts.connection !== undefined ? opts.connection : connection,
             ),
         getProjectOrganizationUuid: vi.fn().mockResolvedValue(orgUuid),
-        list: vi.fn().mockResolvedValue(opts.connections ?? [connection]),
+        findProjectAbilityContext: vi.fn().mockResolvedValue({
+            organizationUuid: orgUuid,
+            projectType: ProjectType.DEFAULT,
+            projectCreatedByUserUuid: null,
+            upstreamProjectUuid: null,
+        }),
+        list: vi.fn().mockResolvedValue(opts.connections ?? [listedConnection]),
         getDecryptedSecret: vi.fn().mockResolvedValue(opts.secret ?? 's3cr3t'),
         update:
             opts.updateFn ??
@@ -260,7 +273,7 @@ describe('ExternalConnectionService reads (view, not manage)', () => {
 
         const result = await service.list(viewerAccount, projectUuid);
 
-        expect(result).toEqual([connection]);
+        expect(result).toEqual([listedConnection]);
         expect(model.list).toHaveBeenCalledWith(projectUuid, orgUuid);
     });
 
@@ -269,14 +282,15 @@ describe('ExternalConnectionService reads (view, not manage)', () => {
             ...connection,
             externalConnectionUuid: 'private-connection',
             allowDataAppBuilderLinking: false,
+            linkedDataAppCount: 1,
         };
         const { service } = buildService({
-            connections: [connection, privateConnection],
+            connections: [listedConnection, privateConnection],
         });
         mockBuilderAbility(service);
 
         await expect(service.list(viewerAccount, projectUuid)).resolves.toEqual(
-            [connection],
+            [listedConnection],
         );
     });
 
@@ -285,14 +299,15 @@ describe('ExternalConnectionService reads (view, not manage)', () => {
             ...connection,
             externalConnectionUuid: 'private-connection',
             allowDataAppBuilderLinking: false,
+            linkedDataAppCount: 1,
         };
         const { service } = buildService({
-            connections: [connection, privateConnection],
+            connections: [listedConnection, privateConnection],
         });
         mockAdminAbility(service);
 
         await expect(service.list(adminAccount, projectUuid)).resolves.toEqual([
-            connection,
+            listedConnection,
             privateConnection,
         ]);
     });

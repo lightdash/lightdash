@@ -1,8 +1,4 @@
-import {
-    type ApiAppVersionSummary,
-    type AppVersionStatusHistoryEntry,
-    type AppVersionStatusHistoryEntryKind,
-} from '@lightdash/common';
+import { type ApiAppVersionSummary } from '@lightdash/common';
 import { getAppVersionFailureMessage } from '../getAppVersionFailureMessage';
 import {
     emptyChatMessage,
@@ -11,19 +7,7 @@ import {
     type ChatConnection,
     type ChatMessage,
 } from './chatMessage';
-
-// The null guard exists because the poll worker feeds raw fetch JSON into
-// the query cache; the consecutive dedupe because a retry can restart the
-// generation stream and re-emit the same entry.
-export function versionNarrationTexts(
-    history: AppVersionStatusHistoryEntry[] | undefined,
-    kind: AppVersionStatusHistoryEntryKind,
-): string[] {
-    return (history ?? [])
-        .filter((entry) => entry.kind === kind)
-        .map((entry) => entry.message)
-        .filter((message, index, all) => message !== all[index - 1]);
-}
+import { getVersionNarration } from './versionNarration';
 
 /**
  * Session-only attachment fallbacks, keyed by prompt text. Versions persisted
@@ -130,8 +114,7 @@ export function versionsToChatMessages(
             ? new Date(v.statusUpdatedAt).getTime() -
               new Date(v.createdAt).getTime()
             : null;
-        const reasoning = versionNarrationTexts(v.statusHistory, 'thinking');
-        const activity = versionNarrationTexts(v.statusHistory, 'tool');
+        const { reasoning, activity } = getVersionNarration(v.statusHistory);
 
         const msgs: ChatMessage[] = [
             {

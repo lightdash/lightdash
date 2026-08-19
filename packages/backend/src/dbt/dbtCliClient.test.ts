@@ -145,6 +145,20 @@ describe('DbtCliClient environment', () => {
         expect(env.PATH).toEqual('/usr/local/bin');
     });
 
+    it('hands allowlisted machine variables to dbt', async () => {
+        vi.stubEnv('UTILS_PII_SALT', 'machine-owned-salt');
+
+        await new DbtCliClient({
+            ...cliArgs,
+            environmentVariableAllowlist: ['UTILS_PII_SALT'],
+        }).installDeps();
+        const [, , options] = execaMock.mock.calls[0];
+
+        expect((options as { env: Record<string, string> }).env).toMatchObject({
+            UTILS_PII_SALT: 'machine-owned-salt',
+        });
+    });
+
     it('cannot be pointed at another target directory by a project', async () => {
         await new DbtCliClient({
             ...cliArgs,

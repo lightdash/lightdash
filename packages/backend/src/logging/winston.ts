@@ -1,8 +1,11 @@
 import {
     LightdashAppUuidHeader,
+    LightdashBuildHashHeader,
+    LightdashCliVersionHeader,
     LightdashMode,
     LightdashRequestMethodHeader,
     LightdashSdkVersionHeader,
+    LightdashSignedDownloadHeader,
     LightdashVersionHeader,
     SessionUser,
 } from '@lightdash/common';
@@ -237,12 +240,22 @@ export const formatAuditActor = (actor: AuditActor): string => {
     return actor.uuid;
 };
 
+const formatAuditMetadataValue = (value: unknown): string => {
+    if (typeof value !== 'object' || value === null) return String(value);
+
+    try {
+        return JSON.stringify(value);
+    } catch {
+        return String(value);
+    }
+};
+
 export const formatAuditResource = (resource: AuditResource): string => {
     const typePart = resource.type;
 
     if (resource.metadata) {
         const parts = Object.entries(resource.metadata)
-            .map(([key, value]) => `${key}: ${value}`)
+            .map(([key, value]) => `${key}: ${formatAuditMetadataValue(value)}`)
             .join(', ');
         return `${typePart} -> ${parts}`;
     }
@@ -267,6 +280,8 @@ export const formatAuditMessage = (event: AuditLogEvent): string => {
 };
 
 export const logAuditEvent = (event: AuditLogEvent): void => {
+    if (!winstonLogger.isLevelEnabled('audit')) return;
+
     winstonLogger.log({
         level: 'audit',
         message: formatAuditMessage(event),
@@ -286,6 +301,31 @@ declare global {
 
 export const sanitizeRequestUrl = (url: string): string =>
     url.replace(/([?&]downloadToken=)[^&#\s]*/gi, '$1[REDACTED]');
+
+const safeRequestHeaderNames = new Set([
+    'content-length',
+    'content-type',
+    'host',
+    'user-agent',
+    'x-amzn-trace-id',
+    'x-request-id',
+    LightdashAppUuidHeader.toLowerCase(),
+    LightdashBuildHashHeader.toLowerCase(),
+    LightdashCliVersionHeader.toLowerCase(),
+    LightdashRequestMethodHeader.toLowerCase(),
+    LightdashSdkVersionHeader.toLowerCase(),
+    LightdashSignedDownloadHeader.toLowerCase(),
+    LightdashVersionHeader.toLowerCase(),
+]);
+
+const filterRequestHeaders = (
+    headers: express.Request['headers'],
+): express.Request['headers'] =>
+    Object.fromEntries(
+        Object.entries(headers).filter(([name]) =>
+            safeRequestHeaderNames.has(name.toLowerCase()),
+        ),
+    );
 
 export const expressWinstonMiddleware: express.RequestHandler =
     expressWinston.logger({
@@ -309,15 +349,12 @@ export const expressWinstonMiddleware: express.RequestHandler =
         requestWhitelist: ['url', 'headers', 'method'],
         requestFilter: (req, propertyName) => {
             if (propertyName === 'url') return sanitizeRequestUrl(req.url);
+            if (propertyName === 'headers') {
+                return filterRequestHeaders(req.headers);
+            }
             return (req as unknown as Record<string, unknown>)[propertyName];
         },
         responseWhitelist: ['statusCode'],
-        headerBlacklist: [
-            'cookie',
-            'authorization',
-            'connection',
-            'accept-encoding',
-        ],
     });
 
 // Logs the request before the response is sent
@@ -333,7 +370,6 @@ export const expressWinstonPreResponseMiddleware: express.RequestHandler = (
             req: {
                 method: req.method,
                 url: sanitizeRequestUrl(req.url),
-                headers: req.headers,
             },
             includesResponse: false,
             userUuid: req.user?.userUuid,

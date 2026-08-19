@@ -17,6 +17,9 @@ clean-targets:
   - target
   - dbt_modules
   - logs
+# Enable when testing external pre-aggregates locally.
+# on-run-end:
+#   - '{{ create_external_pre_aggregate_tables() }}'
 models:
   jaffle_shop:
     materialized: table

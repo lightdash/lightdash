@@ -40,12 +40,14 @@ import {
     DbtExposure,
     DbtProjectEnvironmentVariable,
     ForbiddenError,
+    formatMergeQueryRefusal,
     getErrorMessage,
     getRequestMethod,
     GoogleSheetsSyncAsCode,
     isDuplicateDashboardParams,
     LightdashRequestMethodHeader,
     ParameterError,
+    QueryExecutionContext,
     RequestMethod,
     ScheduledDeliveryAsCode,
     SqlChartAsCode,
@@ -55,10 +57,13 @@ import {
     UpdateProjectMember,
     UserWarehouseCredentials,
     VirtualViewAsCode,
+    type AgentSqlScope,
     type ApiCalculateSubtotalsResponse,
+    type ApiCompiledMergeQueryResults,
     type ApiCreateDashboardResponse,
     type ApiCreateDashboardWithChartsResponse,
     type ApiCreatePreviewResults,
+    type ApiExecuteAsyncMetricQueryResults,
     type ApiGetDashboardsResponse,
     type ApiGetTagsResponse,
     type ApiRefreshResults,
@@ -68,17 +73,26 @@ import {
     type ApiUpstreamDiffResponse,
     type ApiVerifiedContentListResponse,
     type CalculateSubtotalsFromQuery,
+    type CompileMergeQueryRequest,
     type CreateDashboard,
     type CreateDashboardWithCharts,
     type DataTimezonePreviewRequest,
     type DuplicateDashboardParams,
+    type MergeQuery,
+    type MergeQueryColumns,
+    type MergeQueryError,
+    type MetricQuery,
+    type ParametersValuesMap,
     type ProjectSummary,
+    type RunMergeQueryRequest,
     type Tag,
+    type UpdateAgentSqlScope,
     type UpdateMultipleDashboards,
     type UpdatePreviewExpirationProjectSettings,
     type UpdatePreviewExpiresAt,
     type UpdateQueryTimezoneSettings,
     type UpdateSchedulerSettings,
+    type UUID,
 } from '@lightdash/common';
 import {
     Body,
@@ -101,6 +115,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { getContextFromHeader } from '../analytics/LightdashAnalytics';
 import { toSessionUser } from '../auth/account';
 import type { DbTagUpdate } from '../database/entities/tags';
 import Logger from '../logging/logger';
@@ -514,6 +529,91 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
                 .getProjectService()
                 .runSqlQuery(toSessionUser(req.account), projectUuid, body.sql),
         };
+    }
+
+    /**
+     * Compile several queries into a single merged warehouse statement.
+     *
+     * Returns the statement and the fields it produces, without running it.
+     * Use it to validate a merge while it is being built: a merge that would
+     * produce wrong numbers comes back with `errors` and a null `sql` — most
+     * importantly the fan-out case, where a query still carries a dimension
+     * that is neither joined on nor pivoted. Run a valid merge with
+     * POST {projectUuid}/mergeQuery/run.
+     * @summary Compile merge query
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/mergeQuery/compile')
+    @OperationId('CompileMergeQuery')
+    @Tags('Exploring')
+    async CompileMergeQuery(
+        @Path() projectUuid: string,
+        @Body() body: CompileMergeQueryRequest,
+        @Request() req: express.Request,
+    ): Promise<{
+        status: 'ok';
+        results: ApiCompiledMergeQueryResults;
+    }> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services.getProjectService().compileMergeQuery({
+                account: req.account!,
+                projectUuid,
+                mergeQuery: body.mergeQuery,
+                parameters: body.parameters,
+            }),
+        };
+    }
+
+    /**
+     * Run a merge, returning a query uuid to page results from.
+     *
+     * The merged statement is registered as an ordinary async query, so its
+     * results are fetched, formatted, cancelled and downloaded through the
+     * same endpoints as any other query — page them with
+     * GET /api/v2/projects/{projectUuid}/query/{queryUuid}.
+     *
+     * A merge that cannot be run is rejected here rather than returned:
+     * compile it first to show the problem against the query that caused it.
+     * @summary Run merge query
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/mergeQuery/run')
+    @OperationId('RunMergeQuery')
+    @Tags('Exploring')
+    async RunMergeQuery(
+        @Path() projectUuid: string,
+        @Body() body: RunMergeQueryRequest,
+        @Request() req: express.Request,
+    ): Promise<{
+        status: 'ok';
+        results: ApiExecuteAsyncMetricQueryResults;
+    }> {
+        this.setStatus(200);
+        const result = await this.services
+            .getAsyncQueryService()
+            .executeLegacyAsyncMergeQuery({
+                account: req.account!,
+                projectUuid,
+                mergeQuery: body.mergeQuery,
+                parameters: body.parameters,
+                mode:
+                    body.csvLimit === undefined
+                        ? { type: 'interactive' }
+                        : { type: 'export', limit: body.csvLimit },
+                pivotConfiguration: body.pivotConfiguration,
+                context:
+                    getContextFromHeader(req) ?? QueryExecutionContext.EXPLORE,
+            });
+        if (result.outcome === 'refused') {
+            throw new ParameterError(formatMergeQueryRefusal(result.errors), {
+                errors: result.errors,
+            });
+        }
+        return { status: 'ok', results: result.query };
     }
 
     /**
@@ -1297,6 +1397,59 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
                 throw e;
             }
         }
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
+     * Get the agent SQL scope for a project
+     * @summary Get agent SQL scope
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/agentSqlScope')
+    @OperationId('getAgentSqlScope')
+    async getAgentSqlScope(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: AgentSqlScope | null }> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .getAgentSqlScope(req.account, projectUuid),
+        };
+    }
+
+    /**
+     * Update the agent SQL scope for a project
+     * @summary Update agent SQL scope
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Updated')
+    @Patch('{projectUuid}/agentSqlScope')
+    @OperationId('updateAgentSqlScope')
+    async updateAgentSqlScope(
+        @Path() projectUuid: UUID,
+        @Body() body: UpdateAgentSqlScope,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+
+        await this.services
+            .getProjectService()
+            .updateAgentSqlScope(req.account, projectUuid, body);
 
         return {
             status: 'ok',

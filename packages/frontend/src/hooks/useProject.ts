@@ -1,4 +1,5 @@
 import {
+    type AgentSqlScope,
     type ApiDataTimezonePreviewResults,
     type ApiCreateProjectResults,
     type ApiError,
@@ -8,6 +9,7 @@ import {
     type DataTimezonePreviewRequest,
     type MostPopularAndRecentlyUpdated,
     type Project,
+    type UpdateAgentSqlScope,
     type UpdateDefaultUserSpaces,
     type UpdateProject,
     type UpdateQueryTimezoneSettings,
@@ -25,6 +27,7 @@ import useActiveJob from '../providers/ActiveJob/useActiveJob';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
 import useToaster from './toaster/useToaster';
+import { getInFlightJobUuidFromError } from './useActiveCreateProjectJob';
 import useQueryError from './useQueryError';
 
 const createProject = async (data: CreateProject) =>
@@ -133,7 +136,7 @@ export const useCreateMutation = (options?: {
     warehouseOnly?: boolean;
 }) => {
     const { setActiveJobId, setQuietActiveJobId } = useActiveJob();
-    const { showToastApiError } = useToaster();
+    const { showToastApiError, showToastInfo } = useToaster();
     const { track } = useTracking();
     const { pathname } = useLocation();
     const onboardingFlow = pathname.startsWith('/onboarding/')
@@ -143,7 +146,8 @@ export const useCreateMutation = (options?: {
         (data) => createProject(data),
         {
             mutationKey: ['project_create'],
-            retry: 3,
+            retry: (failureCount, { error }) =>
+                error.statusCode !== 409 && failureCount < 3,
             onSuccess: (data) => {
                 if (options?.quietJobToast) {
                     setQuietActiveJobId(data.jobUuid);
@@ -152,6 +156,19 @@ export const useCreateMutation = (options?: {
                 }
             },
             onError: ({ error }, data) => {
+                const inFlightJobUuid = getInFlightJobUuidFromError(error);
+                if (inFlightJobUuid) {
+                    if (options?.quietJobToast) {
+                        setQuietActiveJobId(inFlightJobUuid);
+                    } else {
+                        setActiveJobId(inFlightJobUuid);
+                    }
+                    return;
+                }
+                if (error.statusCode === 409) {
+                    showToastInfo({ title: error.message });
+                    return;
+                }
                 track({
                     name: EventName.CREATE_PROJECT_FAILED,
                     properties: {
@@ -275,6 +292,43 @@ export const useProjectUpdateQueryTimezoneSettings = (uuid: string) => {
         {
             mutationKey: ['project_query_timezone_settings_update', uuid],
             onSuccess: async () => {
+                await queryClient.invalidateQueries(['project', uuid]);
+            },
+        },
+    );
+};
+
+const getAgentSqlScope = async (uuid: string) =>
+    lightdashApi<AgentSqlScope | null>({
+        url: `/projects/${uuid}/agentSqlScope`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useAgentSqlScope = (uuid: string) =>
+    useQuery<AgentSqlScope | null, ApiError>({
+        queryKey: ['project_agent_sql_scope', uuid],
+        queryFn: () => getAgentSqlScope(uuid),
+    });
+
+const updateAgentSqlScope = async (uuid: string, data: UpdateAgentSqlScope) =>
+    lightdashApi<undefined>({
+        url: `/projects/${uuid}/agentSqlScope`,
+        method: 'PATCH',
+        body: JSON.stringify(data),
+    });
+
+export const useProjectUpdateAgentSqlScope = (uuid: string) => {
+    const queryClient = useQueryClient();
+    return useMutation<undefined, ApiError, UpdateAgentSqlScope>(
+        (data) => updateAgentSqlScope(uuid, data),
+        {
+            mutationKey: ['project_agent_sql_scope_update', uuid],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries([
+                    'project_agent_sql_scope',
+                    uuid,
+                ]);
                 await queryClient.invalidateQueries(['project', uuid]);
             },
         },

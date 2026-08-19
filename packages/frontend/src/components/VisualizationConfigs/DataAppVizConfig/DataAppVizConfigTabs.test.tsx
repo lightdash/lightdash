@@ -28,11 +28,26 @@ import { ConfigTabs } from './DataAppVizConfigTabs';
 
 type PickerProps = {
     disabled: boolean;
+    onCreateNew: (() => void) | null;
     onSelectProjectType: (dataAppViz: DataAppViz) => void;
 };
 
-const { fieldSelectItems, pickerProps } = vi.hoisted(() => ({
+type FieldSelectProps = {
+    items: Item[];
+    onChange: (item: Item | null) => void;
+};
+
+const {
+    fieldSelectItems,
+    fieldSelectProps,
+    locationSearch,
+    navigate,
+    pickerProps,
+} = vi.hoisted(() => ({
     fieldSelectItems: [] as Item[][],
+    fieldSelectProps: [] as FieldSelectProps[],
+    locationSearch: { current: '' },
+    navigate: vi.fn(),
     pickerProps: [] as PickerProps[],
 }));
 
@@ -42,23 +57,33 @@ vi.mock('../CustomChartType/CustomChartTypePicker', () => ({
         return <div data-testid="viz-picker" />;
     },
 }));
-vi.mock('../../../features/apps/hooks/useDataAppVisualization', () => ({
+vi.mock('../../../features/chartTypes/hooks/useDataAppVisualization', () => ({
     useDataAppVisualization: vi.fn(),
-}));
-vi.mock('../../../features/apps/hooks/useDataAppVizBuild', () => ({
-    useDataAppVizBuild: vi.fn(),
-}));
-vi.mock('../../../features/apps/components/DataAppVizDock', () => ({
-    default: () => <div data-testid="viz-dock" />,
 }));
 // The panel reads the project from the route, which this test does not mount.
 vi.mock('react-router', async (importOriginal) => ({
     ...(await importOriginal<typeof ReactRouter>()),
     useParams: () => ({ projectUuid: 'project-1' }),
+    useLocation: () => ({ search: locationSearch.current }),
+    // The panel navigates to the builder; this test does not mount a router.
+    useNavigate: () => navigate,
+    Link: ({ to, children, ...rest }: ReactRouter.LinkProps) => (
+        <a
+            href={
+                typeof to === 'string'
+                    ? to
+                    : `${to.pathname ?? ''}${to.search ?? ''}`
+            }
+            {...rest}
+        >
+            {children}
+        </a>
+    ),
 }));
 vi.mock('../../common/FieldSelect', () => ({
-    default: ({ items }: { items: Item[] }) => {
-        fieldSelectItems.push(items);
+    default: (props: FieldSelectProps) => {
+        fieldSelectItems.push(props.items);
+        fieldSelectProps.push(props);
         return <div data-testid="field-select" />;
     },
 }));
@@ -70,9 +95,7 @@ vi.mock('../common/ColorPaletteSection', () => ({
     ColorPaletteSection: () => <div data-testid="color-palette-section" />,
 }));
 
-import { useDataAppVisualization } from '../../../features/apps/hooks/useDataAppVisualization';
-import { useDataAppVizBuild } from '../../../features/apps/hooks/useDataAppVizBuild';
-import { buildStub } from '../../../features/apps/testing/dataAppVizBuildStub';
+import { useDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 
 const makeDimension = (name: string, hidden: boolean): CompiledDimension => ({
@@ -146,6 +169,11 @@ const mockSchema = (
 ) => {
     vi.mocked(useDataAppVisualization).mockReturnValue({
         data: {
+            dataAppVizUuid: 'data-app-viz-uuid',
+            name: 'Radial gauge',
+            description: '',
+            spaceUuid: null,
+            createdByUserUuid: MOCK_USER_UUID,
             schema: { fields: declaredFields, configOptions, colorPalette },
             ...viz,
         },
@@ -182,22 +210,26 @@ const queryColumns: ItemsMap = {
 describe('DataAppVizConfigTabs', () => {
     const setOption = vi.fn();
     const setDataAppVizUuid = vi.fn();
+    const setField = vi.fn();
+    const setPivotDimensions = vi.fn();
 
     const mockContext = (
         itemsMap: ItemsMap,
         dataAppVizUuid: string = 'data-app-viz-uuid',
         optionValues: Record<string, boolean | number | string> = {},
+        fieldMapping: Record<string, string> = {},
     ) =>
         vi.mocked(useVisualizationContext).mockReturnValue({
             itemsMap,
+            setPivotDimensions,
             visualizationConfig: {
                 chartType: ChartType.DATA_APP_VIZ,
                 chartConfig: {
                     dataAppVizUuid,
-                    fieldMapping: {},
+                    fieldMapping,
                     optionValues,
                     setDataAppVizUuid,
-                    setField: vi.fn(),
+                    setField,
                     setOption,
                 },
             },
@@ -205,55 +237,17 @@ describe('DataAppVizConfigTabs', () => {
 
     beforeEach(() => {
         fieldSelectItems.length = 0;
+        fieldSelectProps.length = 0;
         pickerProps.length = 0;
+        locationSearch.current = '';
+        navigate.mockClear();
         setOption.mockClear();
         setDataAppVizUuid.mockClear();
+        setField.mockClear();
+        setPivotDimensions.mockClear();
         defaultAbility.update([]);
-        vi.mocked(useDataAppVizBuild).mockReturnValue(buildStub());
         mockSchema([]);
         mockContext(queryColumns);
-    });
-
-    it('offers the dock over their own visualization', async () => {
-        signInAs(OrganizationMemberRole.EDITOR);
-        mockSchema([], null, {
-            spaceUuid: null,
-            createdByUserUuid: MOCK_USER_UUID,
-        });
-
-        renderWithProviders(<ConfigTabs />);
-
-        expect(await screen.findByTestId('viz-dock')).toBeInTheDocument();
-    });
-
-    // Ownership grants manage, so the role floor for revising a visualization
-    // is lower than the one for building a new one.
-    it('offers it to an interactive viewer over their own visualization', async () => {
-        signInAs(OrganizationMemberRole.INTERACTIVE_VIEWER);
-        mockSchema([], null, {
-            spaceUuid: null,
-            createdByUserUuid: MOCK_USER_UUID,
-        });
-
-        renderWithProviders(<ConfigTabs />);
-
-        expect(await screen.findByTestId('viz-dock')).toBeInTheDocument();
-    });
-
-    it("withholds it over someone else's visualization, which they cannot revise", async () => {
-        signInAs(OrganizationMemberRole.EDITOR);
-        mockSchema([], null, {
-            spaceUuid: null,
-            createdByUserUuid: 'someone-else',
-        });
-
-        renderWithProviders(<ConfigTabs />);
-
-        // The picker is theirs — choosing a renderer is configuring a chart.
-        expect(await screen.findByTestId('viz-picker')).toBeInTheDocument();
-        // `findBy` rather than `queryBy`: the gate reads false until the user
-        // query settles, so an immediate assertion passes on timing alone.
-        await expect(screen.findByTestId('viz-dock')).rejects.toThrow();
     });
 
     it('matches Explorer field visibility', () => {
@@ -352,6 +346,41 @@ describe('DataAppVizConfigTabs', () => {
             value: 'orders_visible_metric',
             breakdown: 'custom-dimension',
         });
+        expect(setPivotDimensions).toHaveBeenCalledWith(['custom-dimension']);
+    });
+
+    it('updates pivot dimensions when a series mapping changes', () => {
+        const fields: DataAppVizField[] = [
+            ...declaredFields,
+            {
+                name: 'breakdown',
+                label: 'Breakdown',
+                type: 'series',
+                required: false,
+            },
+        ];
+        mockSchema([], null, {
+            schema: { fields, configOptions: [], colorPalette: null },
+        });
+        mockContext(
+            queryColumns,
+            'data-app-viz-uuid',
+            {},
+            {
+                source: 'orders_visible',
+                value: 'orders_visible_metric',
+            },
+        );
+        renderWithProviders(<ConfigTabs />);
+
+        act(() =>
+            fieldSelectProps[fieldSelectProps.length - 1].onChange(
+                customDimension,
+            ),
+        );
+
+        expect(setField).toHaveBeenCalledWith('breakdown', 'custom-dimension');
+        expect(setPivotDimensions).toHaveBeenCalledWith(['custom-dimension']);
     });
 
     it('will not offer the picker before the query has columns', () => {
@@ -364,60 +393,86 @@ describe('DataAppVizConfigTabs', () => {
         ).toBeInTheDocument();
     });
 
-    it('offers the dock to whoever can author a new visualization', async () => {
+    it('points builders at the dedicated builder when nothing is selected', async () => {
         signInAs(OrganizationMemberRole.EDITOR);
         mockContext(queryColumns, '');
-
-        renderWithProviders(<ConfigTabs />);
-
-        expect(await screen.findByTestId('viz-dock')).toBeInTheDocument();
-    });
-
-    it('withholds it from an interactive viewer with nothing selected', async () => {
-        signInAs(OrganizationMemberRole.INTERACTIVE_VIEWER);
-        mockContext(queryColumns, '');
-
-        renderWithProviders(<ConfigTabs />);
-
-        expect(await screen.findByTestId('viz-picker')).toBeInTheDocument();
-        await expect(screen.findByTestId('viz-dock')).rejects.toThrow();
-    });
-
-    it('keeps the dock open while a new visualization loads', async () => {
-        signInAs(OrganizationMemberRole.EDITOR);
-        mockContext(queryColumns, '');
-        const { rerender } = renderWithProviders(<ConfigTabs />);
-        const onCreated =
-            vi.mocked(useDataAppVizBuild).mock.lastCall?.[0].onCreated;
-
-        act(() => onCreated?.('new-viz', {}));
-        mockContext(queryColumns, 'new-viz');
         vi.mocked(useDataAppVisualization).mockReturnValue({
             data: undefined,
-            isLoading: true,
         } as unknown as ReturnType<typeof useDataAppVisualization>);
-        rerender(<ConfigTabs />);
 
-        expect(await screen.findByTestId('viz-dock')).toBeInTheDocument();
+        renderWithProviders(<ConfigTabs />);
+
+        // `findBy`: the gate reads false until the user query settles.
+        expect(
+            (await screen.findByText('builder')).closest('a'),
+        ).toHaveAttribute('href', '/projects/project-1/chart-types/new');
     });
 
-    it('defers to loaded permissions after a new visualization loads', async () => {
+    it('keeps the Explorer query in builder links', async () => {
         signInAs(OrganizationMemberRole.EDITOR);
         mockContext(queryColumns, '');
-        const { rerender } = renderWithProviders(<ConfigTabs />);
-        const onCreated =
-            vi.mocked(useDataAppVizBuild).mock.lastCall?.[0].onCreated;
+        locationSearch.current =
+            '?create_saved_chart_version=serialized-query&fromSpace=space-1';
+        vi.mocked(useDataAppVisualization).mockReturnValue({
+            data: undefined,
+        } as unknown as ReturnType<typeof useDataAppVisualization>);
 
-        act(() => onCreated?.('new-viz', {}));
-        signInAs(OrganizationMemberRole.INTERACTIVE_VIEWER);
-        mockContext(queryColumns, 'new-viz');
-        mockSchema([], null, {
-            spaceUuid: null,
-            createdByUserUuid: 'someone-else',
+        renderWithProviders(<ConfigTabs />);
+
+        expect(
+            (await screen.findByText('builder')).closest('a'),
+        ).toHaveAttribute(
+            'href',
+            '/projects/project-1/chart-types/new?create_saved_chart_version=serialized-query&fromSpace=space-1',
+        );
+        act(() => pickerProps[pickerProps.length - 1].onCreateNew?.());
+        expect(navigate).toHaveBeenCalledWith({
+            pathname: '/projects/project-1/chart-types/new',
+            search: locationSearch.current,
         });
-        rerender(<ConfigTabs />);
+    });
 
-        await expect(screen.findByTestId('viz-dock')).rejects.toThrow();
+    it('offers no builder link to who cannot create chart types', async () => {
+        signInAs(OrganizationMemberRole.INTERACTIVE_VIEWER);
+        mockContext(queryColumns, '');
+        vi.mocked(useDataAppVisualization).mockReturnValue({
+            data: undefined,
+        } as unknown as ReturnType<typeof useDataAppVisualization>);
+
+        renderWithProviders(<ConfigTabs />);
+
+        expect(
+            await screen.findByText(/Pick a chart type above/),
+        ).toBeInTheDocument();
+        await expect(screen.findByText('builder')).rejects.toThrow();
+    });
+
+    it('describes the selected type with a jump into its builder', async () => {
+        signInAs(OrganizationMemberRole.EDITOR);
+        locationSearch.current = '?fromDashboard=dashboard-1';
+        mockSchema([], null, { description: 'A gauge for KPI progress' });
+        renderWithProviders(<ConfigTabs />);
+
+        expect(screen.getByText('Radial gauge')).toBeInTheDocument();
+        expect(
+            screen.getByText('A gauge for KPI progress'),
+        ).toBeInTheDocument();
+        // `findBy`: the gate reads false until the user query settles.
+        expect(
+            (await screen.findByText('Edit ↗')).closest('a'),
+        ).toHaveAttribute(
+            'href',
+            '/projects/project-1/chart-types/data-app-viz-uuid?fromDashboard=dashboard-1',
+        );
+    });
+
+    it('offers no builder jump to who cannot edit the selected type', async () => {
+        signInAs(OrganizationMemberRole.INTERACTIVE_VIEWER);
+        mockSchema([], null, { createdByUserUuid: 'someone-else' });
+        renderWithProviders(<ConfigTabs />);
+
+        expect(screen.getByText('Radial gauge')).toBeInTheDocument();
+        await expect(screen.findByText('Edit ↗')).rejects.toThrow();
     });
 
     it('fires setOption when a control changes', async () => {

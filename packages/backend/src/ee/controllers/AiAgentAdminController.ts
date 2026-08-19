@@ -18,6 +18,7 @@ import {
     ApiAiAgentReviewReplayCaptureResponse,
     ApiAiAgentReviewSignalsResponse,
     ApiAiAgentSummaryResponse,
+    ApiAiAgentThreadDumpResponse,
     ApiAiOrganizationSettingsResponse,
     ApiAiReviewNotificationSettingsResponse,
     ApiErrorPayload,
@@ -142,6 +143,31 @@ export class AiAgentAdminController extends BaseController {
         return {
             status: 'ok',
             results: threads,
+        };
+    }
+
+    /**
+     * Download a sanitized debug dump of an AI agent thread for troubleshooting.
+     * Requires AI_COPILOT_THREAD_DUMP_ENABLED on the instance.
+     * @summary Get AI agent thread dump
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/threads/{threadUuid}/dump')
+    @OperationId('getAdminThreadDump')
+    async getThreadDump(
+        @Request() req: express.Request,
+        @Path() threadUuid: UUID,
+    ): Promise<ApiAiAgentThreadDumpResponse> {
+        assertRegisteredAccount(req.account);
+        const dump = await this.getAiAgentAdminService().getThreadDump(
+            toSessionUser(req.account),
+            threadUuid,
+        );
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: dump,
         };
     }
 

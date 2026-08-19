@@ -1,3 +1,4 @@
+import type { MetricQuery } from '../../types/metricQuery';
 import {
     type AiDeepResearchChartConfig,
     type AiDeepResearchWorkerFindings,
@@ -20,6 +21,8 @@ type AiDeepResearchEvidenceQueryBase = {
     /** Up to AI_DEEP_RESEARCH_EVIDENCE_MAX_ROWS rows, as CSV. */
     rowsCsv: string;
     truncated: boolean;
+    /** Server-generated cautions the finalizer must account for. */
+    warnings: string[];
 };
 
 /** One verified execution, with enough of its result to write findings from. */
@@ -28,6 +31,10 @@ export type AiDeepResearchEvidenceQuery =
           type: 'metric_query';
           dimensions: string[];
           metrics: string[];
+          filters: MetricQuery['filters'];
+          sorts: MetricQuery['sorts'];
+          limit: number;
+          timezone: string | null;
           /** Whether the server can derive a chart for this execution. */
           chartable: boolean;
           /** The stored visualization the report will render when chartable. */
@@ -47,6 +54,8 @@ export type AiDeepResearchEvidenceQuery =
  */
 export type AiDeepResearchEvidencePack = {
     question: string;
+    generatedAt: string;
+    timezone: string;
     queries: AiDeepResearchEvidenceQuery[];
     workerFindings: AiDeepResearchWorkerFindings[];
 };

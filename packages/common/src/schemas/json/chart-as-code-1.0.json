@@ -210,6 +210,42 @@
             "required": ["operator", "id"],
             "type": "object"
         },
+        "BaseFilterRule_FilterOperator.number-or-string-or-boolean_": {
+            "properties": {
+                "id": {
+                    "description": "Unique identifier for the filter rule",
+                    "type": "string"
+                },
+                "includeNull": {
+                    "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule.",
+                    "type": "boolean"
+                },
+                "operator": {
+                    "$ref": "#/$defs/FilterOperator",
+                    "description": "Filter operator"
+                },
+                "values": {
+                    "description": "Values to filter by",
+                    "items": {
+                        "anyOf": [
+                            {
+                                "format": "double",
+                                "type": "number"
+                            },
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "boolean"
+                            }
+                        ]
+                    },
+                    "type": "array"
+                }
+            },
+            "required": ["operator", "id"],
+            "type": "object"
+        },
         "BigNumber": {
             "properties": {
                 "comparisonField": {
@@ -637,9 +673,22 @@
                     "type": "string"
                 },
                 "rules": {
-                    "description": "Rules for single-color conditional formatting",
+                    "description": "Rules for single-color conditional formatting.\nThe number|string members are redundant for TypeScript (absorbed by the\nboolean-capable defaults) but keep the pre-boolean schema components in\nthe generated OpenAPI anyOf, so the API change stays expand-only.",
                     "items": {
-                        "$ref": "#/$defs/ConditionalFormattingWithFilterOperator"
+                        "anyOf": [
+                            {
+                                "$ref": "#/$defs/ConditionalFormattingWithValues_number-or-string_"
+                            },
+                            {
+                                "$ref": "#/$defs/ConditionalFormattingWithCompareTarget_number-or-string_"
+                            },
+                            {
+                                "$ref": "#/$defs/ConditionalFormattingWithValues"
+                            },
+                            {
+                                "$ref": "#/$defs/ConditionalFormattingWithCompareTarget"
+                            }
+                        ]
                     },
                     "type": "array"
                 },
@@ -715,6 +764,52 @@
             },
             "type": "object"
         },
+        "ConditionalFormattingWithCompareTarget": {
+            "allOf": [
+                {
+                    "$ref": "#/$defs/BaseFilterRule_FilterOperator.number-or-string-or-boolean_"
+                },
+                {
+                    "properties": {
+                        "compareTarget": {
+                            "anyOf": [
+                                {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/$defs/FieldTarget"
+                                        }
+                                    ],
+                                    "description": "Target field to compare against"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
+                        },
+                        "values": {
+                            "description": "Values to compare against",
+                            "items": {
+                                "anyOf": [
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "boolean"
+                                    }
+                                ]
+                            },
+                            "type": "array"
+                        }
+                    },
+                    "required": ["compareTarget"],
+                    "type": "object"
+                }
+            ]
+        },
         "ConditionalFormattingWithCompareTarget_number-or-string_": {
             "allOf": [
                 {
@@ -758,13 +853,34 @@
                 }
             ]
         },
-        "ConditionalFormattingWithFilterOperator": {
-            "anyOf": [
+        "ConditionalFormattingWithValues": {
+            "allOf": [
                 {
-                    "$ref": "#/$defs/ConditionalFormattingWithValues_number-or-string_"
+                    "$ref": "#/$defs/BaseFilterRule_FilterOperator.number-or-string-or-boolean_"
                 },
                 {
-                    "$ref": "#/$defs/ConditionalFormattingWithCompareTarget_number-or-string_"
+                    "properties": {
+                        "values": {
+                            "description": "Values to compare against",
+                            "items": {
+                                "anyOf": [
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "boolean"
+                                    }
+                                ]
+                            },
+                            "type": "array"
+                        }
+                    },
+                    "required": ["values"],
+                    "type": "object"
                 }
             ]
         },

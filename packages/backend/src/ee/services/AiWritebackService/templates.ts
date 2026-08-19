@@ -12,6 +12,7 @@ import {
     TMP_PROFILES_DIR,
     WAREHOUSE_SKILL_PATH,
 } from './constants';
+import type { RepoContext } from './types';
 
 // Warehouse-aware guidance injected mid-prompt. Points the agent at the skill
 // files before any edit that changes a column's emitted type — the class of
@@ -86,7 +87,7 @@ export const buildSystemPrompt = (
     context: {
         projectName: string;
         repository: string;
-        repoContext: string | null;
+        repoContext: RepoContext | null;
         warehouseType: WarehouseTypes | null;
         hasWarehouseSkill: boolean;
         profilesStaged: boolean;
@@ -112,7 +113,7 @@ ${buildWarehouseSkillGuidance(context.warehouseType, context.hasWarehouseSkill)}
 
 ${buildDbtSqlSkillGuidance()}
 ${
-    context.repoContext
+    context.repoContext?.kind === 'full'
         ? `
 ## Repo context (pre-computed)
 
@@ -132,11 +133,36 @@ not cover the rest of the repository.
   find its real file and edit THAT file — not any copy under \`dbt_packages/\`.
 
 <repo_context>
-${context.repoContext}
+${context.repoContext.listing}
 </repo_context>
 `
         : ''
-}
+}${
+        context.repoContext?.kind === 'summarised'
+            ? `
+## Repo context (directory summary)
+
+This dbt project has ${context.repoContext.fileCount} \`.sql\`/\`.yml\`/\`.yaml\`
+files under \`${dbtProjectDir}\` — too many to list in full here. The block below
+is a directory-level summary instead: one line per directory, with the number of
+files it contains.
+
+- Use it to orient yourself — it shows where models live and how the project is
+  organised — then use \`Glob\` (e.g. \`**/dim_orders*\`) or \`Grep\` to find the
+  specific files you need. This is expected here; the full listing is NOT
+  available, so exploring is the correct approach.
+- The summary covers \`${dbtProjectDir}\` ONLY. In a monorepo the project can
+  import models from \`local:\` packages (declared in \`packages.yml\`) whose real
+  source files live ELSEWHERE in the repository. If a model the request refers
+  to is not under the directories below, \`Glob\`/\`Grep\` from the repo root and
+  edit the real file — not any copy under \`dbt_packages/\`.
+
+<repo_context_summary>
+${context.repoContext.listing}
+</repo_context_summary>
+`
+            : ''
+    }
 If you made any file changes, perform these follow-up steps before you finish:
 ${
     context.profilesStaged
@@ -205,7 +231,7 @@ blocks.
 export const buildGeneralSystemPrompt = (context: {
     repository: string;
     /** Pre-computed file listing of the repo, or null if unavailable. */
-    repoContext: string | null;
+    repoContext: RepoContext | null;
 }): string =>
     `
 You are an autonomous coding agent working inside a checkout of a git repository.
@@ -223,7 +249,7 @@ You are an autonomous coding agent working inside a checkout of a git repository
   credential files). The host rejects any commit touching these.
 - Do NOT commit or push — the host handles git after you finish.
 ${
-    context.repoContext
+    context.repoContext?.kind === 'full'
         ? `
 ## Repo context (pre-computed)
 
@@ -231,11 +257,29 @@ The block below lists files in the repository. Consult it FIRST to locate
 files; \`Read\` them directly rather than re-discovering paths with Glob.
 
 <repo_context>
-${context.repoContext}
+${context.repoContext.listing}
 </repo_context>
 `
         : ''
-}
+}${
+        context.repoContext?.kind === 'summarised'
+            ? `
+## Repo context (directory summary)
+
+This repository has ${context.repoContext.fileCount} files — too many to list in
+full here. The block below is a directory-level summary instead: one line per
+directory, with the number of files it contains.
+
+Use it to orient yourself, then use \`Glob\` or \`Grep\` to find the specific
+files you need. The full listing is NOT available, so exploring is the correct
+approach here.
+
+<repo_context_summary>
+${context.repoContext.listing}
+</repo_context_summary>
+`
+            : ''
+    }
 When you have finished making changes, end your final reply with the three
 structured-output blocks below. The host parses the PR metadata from them and
 strips the blocks before showing your reply to the user, so emit them verbatim,

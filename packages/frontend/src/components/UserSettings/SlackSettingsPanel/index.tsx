@@ -34,7 +34,7 @@ import { Link } from 'react-router';
 import { z } from 'zod';
 import { useAiAgentAdminAgents } from '../../../ee/features/aiCopilot/hooks/useAiAgentAdmin';
 import {
-    useAiOrganizationSettings,
+    useAiOrganizationAdminSettings,
     useUpdateAiOrganizationSettings,
 } from '../../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import {
@@ -86,7 +86,7 @@ const formSchema = z.object({
 });
 
 const SlackSettingsPanel: FC = () => {
-    const aiOrganizationSettingsQuery = useAiOrganizationSettings();
+    const aiOrganizationSettingsQuery = useAiOrganizationAdminSettings();
     const { data: aiCopilotFlag } = useServerFeatureFlag(
         CommercialFeatureFlags.AiCopilot,
     );
@@ -221,7 +221,7 @@ const SlackSettingsPanel: FC = () => {
                                 color="green"
                                 w="fit-content"
                             >
-                                <Text span fw={500} fz="inherit">
+                                <Text span fw={500}>
                                     {slackInstallation.slackTeamName}
                                 </Text>
                             </Badge>
@@ -232,10 +232,7 @@ const SlackSettingsPanel: FC = () => {
                         Sharing in Slack allows you to unfurl Lightdash URLs and
                         schedule deliveries to specific people or channels
                         within your Slack workspace.{' '}
-                        <Anchor
-                            fz="inherit"
-                            href="https://docs.lightdash.com/references/slack-integration"
-                        >
+                        <Anchor href="https://docs.lightdash.com/references/slack-integration">
                             View docs
                         </Anchor>
                     </Text>
@@ -247,7 +244,7 @@ const SlackSettingsPanel: FC = () => {
                             <SlackChannelSelect
                                 label={
                                     <Group gap="two" mb={2}>
-                                        <Text fz="inherit">
+                                        <Text>
                                             Select a notification channel
                                         </Text>
                                         <Tooltip

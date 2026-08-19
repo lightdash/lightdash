@@ -95,6 +95,13 @@ export const SDK_FEATURES: SdkFeature[] = [
         wiring: 'Declare configOptions (and colorPalette, if the viz colours series) in the viz schema, then read options[name] and colorPalette from useVizContext().',
     },
     {
+        key: 'viz-pivoted-results',
+        label: 'Pivoted results',
+        description:
+            'Render reusable charts and tables from backend-pivoted rows and their complete layout metadata.',
+        wiring: 'When useVizContext().pivotDetails is non-null, use valuesColumns to resolve generated row keys and use indexColumn, groupByColumns, originalColumns, sortBy, totalColumnCount, and passthroughDimensions when the visualization needs their layout semantics. Keep the existing fieldMapping path when pivotDetails is null.',
+    },
+    {
         key: 'follow-host-theme',
         label: 'Follow the host light/dark mode',
         description:
@@ -107,6 +114,13 @@ export const SDK_FEATURES: SdkFeature[] = [
         description:
             "Scheduled deliveries and their preview render every tab or slide's data, not just the one currently visible.",
         wiring: "Gate tab/slide content so DATA components for all tabs mount when useDeliveryRender() is true — tabs switch what's shown, not what's fetched. Never mount all tabs unconditionally.",
+    },
+    {
+        key: 'viz-underlying-data',
+        label: 'View underlying data',
+        description:
+            'Open the raw result rows behind a clicked data point in a reusable visualization, with CSV/XLSX download.',
+        wiring: 'In the viz, keep the untransformed source row on each interactive datum, show a data-point action menu only when useVizContext().underlyingData.enabled and the mark maps to exactly one source row, render underlyingData.get({ row, metric }) in a themed dialog, and wire its Download button to underlyingData.download.',
     },
 ];
 

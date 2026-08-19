@@ -422,6 +422,8 @@ describe('interpretAgentEvent', () => {
                 duration_ms: 90000,
                 duration_api_ms: 30000,
                 num_turns: 7,
+                subtype: 'success',
+                is_error: false,
                 usage: {
                     input_tokens: 12,
                     output_tokens: 345,
@@ -432,6 +434,8 @@ describe('interpretAgentEvent', () => {
         ).toEqual({
             type: 'result',
             costUsd: 0.42,
+            isError: false,
+            subtype: 'success',
             durationMs: 90000,
             durationApiMs: 30000,
             numTurns: 7,
@@ -448,9 +452,34 @@ describe('interpretAgentEvent', () => {
         ).toEqual({
             type: 'result',
             costUsd: 0.42,
+            isError: null,
+            subtype: null,
             durationMs: null,
             durationApiMs: null,
             numTurns: null,
+            inputTokens: null,
+            outputTokens: null,
+            cacheReadInputTokens: null,
+            cacheCreationInputTokens: null,
+        });
+    });
+
+    it('reads the failure classification from an errored result event', () => {
+        expect(
+            interpretAgentEvent({
+                type: 'result',
+                subtype: 'error_during_execution',
+                is_error: true,
+                num_turns: 2,
+            }),
+        ).toEqual({
+            type: 'result',
+            costUsd: null,
+            isError: true,
+            subtype: 'error_during_execution',
+            durationMs: null,
+            durationApiMs: null,
+            numTurns: 2,
             inputTokens: null,
             outputTokens: null,
             cacheReadInputTokens: null,

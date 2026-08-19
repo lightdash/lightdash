@@ -5,6 +5,8 @@ import type {
     MetricQuery,
     PivotConfiguration,
     PivotValuesColumn,
+    PreAggregateExecutionEngine,
+    PreAggregateFallbackReason,
     QueryExecutionContext,
     QueryHistoryStatus,
     ResultColumns,
@@ -44,6 +46,8 @@ export type DbQueryHistory = {
     columns: ResultColumns | null; // result columns with or without pivoting
     original_columns: ResultColumns | null; // columns from original SQL, before pivoting
     pre_aggregate_compiled_sql: string | null; // DuckDB SQL for pre-aggregate execution path
+    pre_aggregate_execution: PreAggregateExecutionEngine | null; // engine for pre_aggregate_compiled_sql
+    pre_aggregate_fallback_reason: PreAggregateFallbackReason | null; // non-null ⇒ matched but served from source warehouse
     processing_started_at: Date | null; // when the NATS worker picked up the job
 };
 
@@ -60,6 +64,8 @@ export type DbQueryHistoryUpdate = Partial<
         | 'status'
         | 'error'
         | 'errored_at'
+        | 'compiled_sql'
+        | 'fields'
         | 'warehouse_execution_time_ms'
         | 'total_row_count'
         | 'warehouse_query_id'
@@ -75,6 +81,8 @@ export type DbQueryHistoryUpdate = Partial<
         | 'columns'
         | 'original_columns'
         | 'pre_aggregate_compiled_sql'
+        | 'pre_aggregate_execution'
+        | 'pre_aggregate_fallback_reason'
         | 'processing_started_at'
     >
 >;

@@ -28,7 +28,9 @@ import type {
     Transport,
     UnderlyingDataOptions,
     UnderlyingDataResult,
+    VizUnderlyingDataIntent,
 } from './types';
+import { VIZ_UNDERLYING_DATA_PATH } from './types';
 
 // Mirrors the explorer's `useInfiniteQueryResults` polling rhythm so the
 // SDK behaves like a normal Lightdash chart: 500-row pages, exponential
@@ -1159,6 +1161,68 @@ export function createApiTransport(
             throw new Error(
                 'externalFetch is only available inside a data app preview',
             );
+        },
+
+        async getVizUnderlyingData(
+            intent: VizUnderlyingDataIntent,
+        ): Promise<UnderlyingDataResult> {
+            const execResult = await fetchFn<AsyncQueryResponse>(
+                'POST',
+                VIZ_UNDERLYING_DATA_PATH,
+                intent,
+            );
+
+            const { firstReadyPage, apiRows } = await pollQueryRows(
+                fetchFn,
+                config.projectUuid,
+                execResult.queryUuid,
+            );
+
+            const fieldIds = [
+                ...Object.keys(execResult.fields),
+                ...Object.keys(firstReadyPage.columns).filter(
+                    (fieldId) => !(fieldId in execResult.fields),
+                ),
+            ];
+
+            return {
+                ...mapApiRowsToQueryResult({
+                    apiRows,
+                    columns: firstReadyPage.columns,
+                    fields: execResult.fields,
+                    fieldIds,
+                    fieldNameForId: (fieldId) => fieldId,
+                }),
+                queryUuid: execResult.queryUuid,
+            };
+        },
+
+        async downloadVizUnderlyingData(
+            intent: Omit<VizUnderlyingDataIntent, 'limit'>,
+            options: DownloadResultsOptions = {},
+        ): Promise<DownloadResultsResult> {
+            const execResult = await fetchFn<AsyncQueryResponse>(
+                'POST',
+                VIZ_UNDERLYING_DATA_PATH,
+                {
+                    ...intent,
+                    limit: getUnderlyingDownloadLimit(options.limit),
+                },
+            );
+
+            await pollQueryReady(
+                fetchFn,
+                config.projectUuid,
+                execResult.queryUuid,
+                1,
+            );
+
+            return scheduleDownloadForQuery({
+                fetchFn,
+                projectUuid: config.projectUuid,
+                queryUuid: execResult.queryUuid,
+                options,
+            });
         },
     };
 }

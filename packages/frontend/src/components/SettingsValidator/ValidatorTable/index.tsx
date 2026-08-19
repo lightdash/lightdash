@@ -24,7 +24,7 @@ import {
     IconTable,
     IconX,
 } from '@tabler/icons-react';
-import { useMemo, useRef, type FC } from 'react';
+import { useCallback, useMemo, useRef, type FC } from 'react';
 import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import { useDeleteValidation } from '../../../hooks/validation/useValidation';
 import {
@@ -35,6 +35,11 @@ import {
 } from '../../common/ContentTable';
 import MantineIcon from '../../common/MantineIcon';
 import { ChartIcon, IconBox } from '../../common/ResourceIcon';
+import {
+    dedupeContentItems,
+    getDeletableContentItem,
+    type ValidationContentItem,
+} from '../utils/deletableContent';
 import { getLinkToResource } from '../utils/utils';
 import { ErrorMessage } from './ErrorMessage';
 import classes from './ValidatorTable.module.css';
@@ -116,6 +121,9 @@ export type ValidatorTableProps = {
     setShowConfigWarnings: (show: boolean) => void;
     lastValidatedAt: Date | null;
     flush?: boolean;
+    rowSelection: Record<string, boolean>;
+    setRowSelection: (selection: Record<string, boolean>) => void;
+    onBulkDelete: (items: ValidationContentItem[]) => void;
 };
 
 export const ValidatorTable: FC<ValidatorTableProps> = ({
@@ -137,6 +145,9 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
     setShowConfigWarnings,
     lastValidatedAt,
     flush = false,
+    rowSelection,
+    setRowSelection,
+    onBulkDelete,
 }) => {
     const rowVirtualizerInstanceRef =
         useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
@@ -154,6 +165,27 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
     }, [data, pinnedValidation]);
 
     const totalFetched = data.length;
+
+    const selectedCount = useMemo(
+        () => Object.values(rowSelection).filter(Boolean).length,
+        [rowSelection],
+    );
+
+    const handleDeleteSelected = useCallback(() => {
+        const items = dedupeContentItems(
+            tableData.flatMap((validationError) => {
+                if (!rowSelection[validationError.validationUuid]) return [];
+                const item = getDeletableContentItem(validationError);
+                return item ? [item] : [];
+            }),
+        );
+        if (items.length > 0) onBulkDelete(items);
+    }, [tableData, rowSelection, onBulkDelete]);
+
+    const handleClearSelection = useCallback(
+        () => setRowSelection({}),
+        [setRowSelection],
+    );
 
     const { containerRef: tableContainerRef, onScroll } = useInfiniteScroll({
         fetchNextPage,
@@ -320,7 +352,20 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
         enableTopToolbar: true,
         enableBottomToolbar: false,
         enableRowActions: false,
+        enableRowSelection: (row) =>
+            getDeletableContentItem(row.original) !== null,
         getRowId: (row) => row.validationUuid,
+        state: {
+            isLoading,
+            showAlertBanner: isError,
+            showProgressBars: isFetching,
+            density: 'md',
+            rowSelection,
+        },
+        onRowSelectionChange: (updater) =>
+            setRowSelection(
+                typeof updater === 'function' ? updater(rowSelection) : updater,
+            ),
         renderTopToolbar: () => (
             <ValidatorTableTopToolbar
                 searchQuery={searchQuery}
@@ -332,6 +377,9 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
                 totalResults={totalDBRowCount}
                 lastValidatedAt={lastValidatedAt}
                 isFetching={isFetching || isLoading}
+                selectedCount={selectedCount}
+                onDeleteSelected={handleDeleteSelected}
+                onClearSelection={handleClearSelection}
             />
         ),
         mantinePaperProps: {
@@ -368,12 +416,6 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
         },
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { estimateSize: () => 44, overscan: 10 },
-        state: {
-            isLoading,
-            showAlertBanner: isError,
-            showProgressBars: isFetching,
-            density: 'md',
-        },
     });
 
     return <ContentTable table={table} />;

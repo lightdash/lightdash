@@ -220,6 +220,30 @@ describe('OnboardingInviteExpert', () => {
         expect(mocks.createInvite).toHaveBeenCalled();
     });
 
+    it('rejects HTML in a missing user name before submitting', async () => {
+        mocks.userName = { firstName: '', lastName: '' };
+        renderPage();
+
+        await userEvent.type(
+            screen.getByLabelText(/Your first name/),
+            '<script>alert(1)</script>',
+        );
+        await userEvent.type(screen.getByLabelText(/Your last name/), 'User');
+        await userEvent.type(
+            screen.getByLabelText(/Their email address/),
+            'expert@example.com',
+        );
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Send invite' }),
+        );
+
+        expect(
+            await screen.findByText('Name cannot contain < or >'),
+        ).toBeInTheDocument();
+        expect(mocks.updateUser).not.toHaveBeenCalled();
+        expect(mocks.createInvite).not.toHaveBeenCalled();
+    });
+
     it('fails closed with the permission state when the user query has no data', () => {
         mocks.hasUser = false;
         renderPage();

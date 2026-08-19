@@ -462,11 +462,54 @@ export class ManagedAgentModel {
                 [filters.date],
             );
         }
-        if (filters.actionType) {
-            query = query.where(
-                `${ManagedAgentActionsTableName}.action_type`,
-                filters.actionType,
+        if (filters.dateFrom) {
+            query = query.whereRaw(
+                `${ManagedAgentActionsTableName}.created_at::date >= ?`,
+                [filters.dateFrom],
             );
+        }
+        if (filters.dateTo) {
+            query = query.whereRaw(
+                `${ManagedAgentActionsTableName}.created_at::date <= ?`,
+                [filters.dateTo],
+            );
+        }
+        // Legacy single actionType is still part of the filters contract
+        const actionTypes = [
+            ...(filters.actionTypes ?? []),
+            ...(filters.actionType ? [filters.actionType] : []),
+        ];
+        if (actionTypes.length > 0) {
+            query = query.whereIn(
+                `${ManagedAgentActionsTableName}.action_type`,
+                actionTypes,
+            );
+        }
+        if (filters.targetTypes && filters.targetTypes.length > 0) {
+            query = query.whereIn(
+                `${ManagedAgentActionsTableName}.target_type`,
+                filters.targetTypes,
+            );
+        }
+        if (filters.search) {
+            const pattern = `%${filters.search.replace(
+                /[\\%_]/g,
+                (match) => `\\${match}`,
+            )}%`;
+            query = query.andWhere((builder) => {
+                void builder
+                    .whereILike(
+                        `${ManagedAgentActionsTableName}.description`,
+                        pattern,
+                    )
+                    .orWhereILike(
+                        `${ManagedAgentActionsTableName}.target_name`,
+                        pattern,
+                    );
+            });
+        }
+        if (filters.limit) {
+            query = query.limit(filters.limit);
         }
         if (filters.sessionId) {
             query = query.where(
@@ -679,6 +722,7 @@ export class ManagedAgentModel {
             memberUuidList,
             projectUuid,
             memberUuidList,
+            inactiveDays,
             inactiveDays,
             limit,
         ]);
@@ -1131,6 +1175,19 @@ export class ManagedAgentModel {
             .count<{ count: string }[]>('* as count')
             .first();
         return result ? Number(result.count) : 0;
+    }
+
+    // Bulk deletions (metadata.bulk = true) have their own per-call cap, so
+    // they are excluded from the individual soft-delete run cap
+    async countNonBulkSoftDeletesForRun(runUuid: string): Promise<number> {
+        const [row] = await this.database(ManagedAgentActionsTableName)
+            .where({
+                managed_agent_run_uuid: runUuid,
+                action_type: ManagedAgentActionType.SOFT_DELETED,
+            })
+            .whereRaw(`COALESCE(metadata->>'bulk', '') <> 'true'`)
+            .count<{ count: string }[]>('* as count');
+        return Number(row?.count ?? 0);
     }
 
     async getActionCountsByTypeForRun(

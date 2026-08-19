@@ -25,6 +25,8 @@ Users describe features by what they see in the Lightdash editor. Translate:
 | "delivery has all tabs", full data in scheduled deliveries | `delivery-render` | app code opt-in |
 | external API data | `external-fetch` | app code opt-in |
 | runs inside a dashboard tile | `viz-context` | required — see below |
+| reusable chart/table with pivoted results | `viz-pivoted-results` | required — see below |
+| "view underlying data", raw rows behind a point (viz only) | `viz-underlying-data` | app code opt-in |
 | light/dark mode, "matches my Lightdash theme" | `follow-host-theme` | CSS tokens — see below |
 
 ## Automatic (zero wiring — active on any current-SDK bundle)
@@ -82,6 +84,20 @@ For colours CSS can't reach (a chart library's theme object, a logo swap), read
 the mode: `const colorScheme = useColorScheme();` — `'light' | 'dark'`,
 re-rendering on every host toggle.
 
+### `viz-pivoted-results` — reusable visualization pivots
+
+Read `pivotDetails` from `useVizContext()`. When it is non-null, match
+`pivotDetails.valuesColumns` to the mapped metric by `referenceField`, derive series
+labels from `pivotValues`, and read each generated `pivotColumnName` with
+`getRaw(row, pivotColumnName)` or `getFormatted(row, pivotColumnName)`. Generated and
+ordinary row keys both contain `VizContextCell` objects; never coerce `row[fieldId]`
+directly. Use the remaining metadata for the visualization's actual shape: `indexColumn` and
+`originalColumns` provide row-grain/type semantics, `groupByColumns` provides header
+order, `sortBy` describes result ordering, `totalColumnCount` exposes truncation, and
+`passthroughDimensions` identifies hidden fields retained on rows. Preserve the ordinary
+`fieldMapping` path when `pivotDetails` is null. The full contract is in the
+`reusable-visualization` skill.
+
 ### App-code opt-ins (call the API where it fits the app)
 
 - `drill-down`: `drillDown(...)` derives a more detailed query from a clicked
@@ -98,6 +114,12 @@ re-rendering on every host toggle.
   every tab's queries execute during capture while only the active tab stays
   visible — never mount all tabs unconditionally (interactive loads must stay
   lazy).
+- `viz-underlying-data` (vizs only): keep the untransformed `sourceRow` on each
+  interactive datum, gate a data-point action menu on
+  `useVizContext().underlyingData.enabled`, render
+  `underlyingData.get({ row, metric })` in a themed dialog, and wire its
+  Download button to `underlyingData.download`. Full contract in the
+  `reusable-visualization` skill.
 
 ## After a template upgrade
 

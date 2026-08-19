@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     ContentType,
-    FeatureFlags,
     ResourceViewItemType,
     type Dashboard,
 } from '@lightdash/common';
@@ -50,7 +49,6 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useToggle } from 'react-use';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
-import AIDashboardSummary from '../../../ee/features/ambientAi/components/aiDashboardSummary';
 import DashboardAsCodeModal from '../../../features/contentAsCode/components/DashboardAsCodeModal';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
@@ -68,7 +66,6 @@ import {
     useVerifyDashboardMutation,
 } from '../../../hooks/useContentVerification';
 import { useProject } from '../../../hooks/useProject';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import { type TilePreAggregateStatus } from '../../../providers/Dashboard/types';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -78,7 +75,7 @@ import MantineIcon from '../MantineIcon';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import PageHeader from '../Page/PageHeader';
 import DashboardInfoOverlay from '../PageHeader/DashboardInfoOverlay';
-import { ShareLinkButton } from '../ShareLinkButton';
+import ShareShortLinkButton from '../ShareShortLinkButton';
 import SpaceActionModal from '../SpaceActionModal';
 import { ActionType } from '../SpaceActionModal/types';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
@@ -157,12 +154,6 @@ const DashboardHeader = memo(
             dashboardTiles,
             dashboardTabs,
         );
-        const { data: aiDashboardSummaryFlag } = useServerFeatureFlag(
-            FeatureFlags.AiDashboardSummary,
-        );
-        const isDashboardSummariesEnabled =
-            aiDashboardSummaryFlag?.enabled ?? false;
-
         const { search, pathname } = useLocation();
         const navigate = useNavigate();
         const { projectUuid, dashboardUuid } = useParams<{
@@ -576,18 +567,6 @@ const DashboardHeader = memo(
                     </Group>
                 ) : (
                     <Group gap="sm">
-                        {isDashboardSummariesEnabled &&
-                            projectUuid &&
-                            dashboardUuid && (
-                                <AIDashboardSummary
-                                    projectUuid={projectUuid}
-                                    dashboardUuid={dashboardUuid}
-                                    dashboardVersionId={
-                                        dashboard.dashboardVersionId
-                                    }
-                                />
-                            )}
-
                         {!!userCanManageDashboard && !isFullscreen && (
                             <Tooltip
                                 label="Edit dashboard"
@@ -699,10 +678,7 @@ const DashboardHeader = memo(
                             )}
 
                         {userCanExportData && !isFullscreen && (
-                            <ShareLinkButton
-                                url={`${window.location.href}`}
-                                label="Copy link to the dashboard"
-                            />
+                            <ShareShortLinkButton />
                         )}
 
                         {!isFullscreen && (

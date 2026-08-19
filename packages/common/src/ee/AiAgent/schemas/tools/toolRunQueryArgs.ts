@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MergeJoinType } from '../../../../types/mergeQuery';
 import {
     customMetricsSchema,
     customMetricsSchemaTransformed,
@@ -45,6 +46,21 @@ const queryConfigBaseSchema = z.object({
         .describe(
             'The total number of data points / rows allowed on the chart. null means this tool\'s maximum, not "no data" — use it unless the user asked for a specific number of rows. Row limits documented for other tools do not apply here.',
         ),
+    parameters: z
+        .record(
+            z.string(),
+            z.union([
+                z.string(),
+                z.number(),
+                z.array(z.string()),
+                z.array(z.number()),
+            ]),
+        )
+        .nullable()
+        .default(null)
+        .describe(
+            'Lightdash parameter values for this query, keyed by parameter name exactly as shown in the explore metadata (e.g. {"orders.metric": "active_users"}). REQUIRED whenever a selected field is marked "requires parameters" and the default value does not match what the user asked for — an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.',
+        ),
 });
 
 // V1 took filters/customMetrics/tableCalculations at the top level, but LLMs
@@ -59,6 +75,65 @@ const queryConfigSchemaV2 = queryConfigBaseSchema.extend({
     tableCalculations: tableCalcsSchema,
     filters: filtersSchemaV2.nullable(),
 });
+
+const mergeSourceQueryConfigSchema = queryConfigSchemaV2
+    .omit({
+        limit: true,
+        parameters: true,
+        tableCalculations: true,
+    })
+    .describe(
+        'A second semantic-layer query. The primary query limit and parameter values apply to the whole merge.',
+    );
+
+const mergeConfigSchema = z
+    .object({
+        primarySourceId: z
+            .string()
+            .min(1)
+            .describe('Stable id assigned to the primary queryConfig.'),
+        additionalSources: z
+            .array(
+                z.object({
+                    id: z.string().min(1),
+                    queryConfig: mergeSourceQueryConfigSchema,
+                }),
+            )
+            .length(1)
+            .describe(
+                'The additional query to merge with queryConfig. Merge queries currently support exactly two sources.',
+            ),
+        joinKey: z
+            .array(
+                z.object({
+                    name: z
+                        .string()
+                        .min(1)
+                        .describe(
+                            'Stable output name for this shared join-key column.',
+                        ),
+                    fields: z
+                        .array(
+                            z.object({
+                                sourceId: z.string().min(1),
+                                fieldId: getFieldIdSchema({
+                                    additionalDescription: null,
+                                }),
+                            }),
+                        )
+                        .length(2)
+                        .describe(
+                            'One selected dimension from each source. Both must represent the same grain and value type.',
+                        ),
+                }),
+            )
+            .min(1),
+        joinType: z.nativeEnum(MergeJoinType),
+    })
+    .nullable()
+    .describe(
+        'null for a normal visualization. Set this to combine queryConfig with one additional semantic-layer query. Every source may contain only join-key dimensions plus metrics; other dimensions cause fan-out and are refused. In chartConfig, join-key field ids are merge_<joinKeyName>. Metric field ids are <sourceId>_<originalFieldId>. Replace dots in either name with two underscores.',
+    );
 
 // Chart-specific configuration for rendering hints
 const chartConfigSchema = z
@@ -141,6 +216,8 @@ const chartConfigSchema = z
 
 export const TOOL_RUN_QUERY_DESCRIPTION = `Execute a metric query.
 
+If any selected field is marked "requires parameters" in field discovery or metadata, set the right values in queryConfig.parameters — an unset parameter silently resolves to its default, which can make the query return data that does not match the question.
+
 This tool returns metric query data only. ${buildMcpVisualizationFollowUpInstruction(
     'run_metric_query',
 )}
@@ -181,32 +258,92 @@ export const toolRunQueryArgsSchemaV2 = createToolSchema()
     })
     .build();
 
-// V2 is the only schema the tools accept; this is the LLM contract and the
-// canonical source of truth. V1 (below) is kept solely to parse already
-// persisted tool args from old chats.
-export const toolRunQueryArgsSchema = toolRunQueryArgsSchemaV2;
+export const toolRunQueryArgsSchemaV3 = createToolSchema()
+    .extend({
+        ...visualizationMetadataSchema.shape,
+        queryConfig: queryConfigSchemaV2,
+        chartConfig: chartConfigSchema,
+        mergeConfig: mergeConfigSchema.default(null),
+    })
+    .build();
+
+// V3 is the current agent contract. MCP runQuery continues to advertise V2.
+// Historical schemas remain available solely for persisted chats/artifacts.
+export const toolRunQueryArgsSchema = toolRunQueryArgsSchemaV3;
+
+// V2 for runtimes where merge queries are disabled: a merge-shaped payload
+// must fail validation, not have Zod strip mergeConfig and run only the
+// primary query. The preprocess leaves the emitted JSON schema unchanged.
+export const toolRunQueryArgsSchemaV2RejectingMerge = z.preprocess(
+    (raw, ctx) => {
+        if (
+            raw !== null &&
+            typeof raw === 'object' &&
+            'mergeConfig' in raw &&
+            raw.mergeConfig !== null &&
+            raw.mergeConfig !== undefined
+        ) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['mergeConfig'],
+                message: 'Merge queries are not enabled for this organization.',
+            });
+            return z.NEVER;
+        }
+        return raw;
+    },
+    toolRunQueryArgsSchemaV2,
+);
 
 export type ToolRunQueryArgsV1 = z.infer<typeof toolRunQueryArgsSchemaV1>;
 export type ToolRunQueryArgsV2 = z.infer<typeof toolRunQueryArgsSchemaV2>;
-export type ToolRunQueryArgs = ToolRunQueryArgsV2;
+export type ToolRunQueryArgsV3 = z.infer<typeof toolRunQueryArgsSchemaV3>;
+export type ToolRunQueryArgs = ToolRunQueryArgsV2 | ToolRunQueryArgsV3;
 
 // Converts the raw V2 args into the internal domain shape: customMetrics and
 // filters become Lightdash domain types. Piped (not transformed inline) so a
 // malformed persisted value surfaces as a ZodError instead of a thrown
 // exception out of safeParse.
-const runQueryInternalSchema = z.object({
+const queryConfigInternalSchema = queryConfigBaseSchema.extend({
+    customMetrics: customMetricsSchemaTransformed,
+    tableCalculations: tableCalcsSchema,
+    filters: filtersSchemaTransformed,
+});
+
+const runQueryInternalSchemaV2 = z.object({
     ...visualizationMetadataSchema.shape,
-    queryConfig: queryConfigBaseSchema.extend({
-        customMetrics: customMetricsSchemaTransformed,
-        tableCalculations: tableCalcsSchema,
-        filters: filtersSchemaTransformed,
-    }),
+    queryConfig: queryConfigInternalSchema,
     chartConfig: chartConfigSchema.default(null),
 });
 
-export const toolRunQueryArgsSchemaTransformed = toolRunQueryArgsSchemaV2.pipe(
-    runQueryInternalSchema,
-);
+const mergeSourceQueryConfigInternalSchema = queryConfigInternalSchema.omit({
+    limit: true,
+    parameters: true,
+    tableCalculations: true,
+});
+
+const mergeConfigInternalSchema = mergeConfigSchema.unwrap().extend({
+    additionalSources: z
+        .array(
+            z.object({
+                id: z.string().min(1),
+                queryConfig: mergeSourceQueryConfigInternalSchema,
+            }),
+        )
+        .length(1),
+});
+
+const runQueryInternalSchemaV3 = runQueryInternalSchemaV2.extend({
+    mergeConfig: mergeConfigInternalSchema.nullable().default(null),
+});
+
+export const toolRunQueryArgsSchemaV2Transformed =
+    toolRunQueryArgsSchemaV2.pipe(runQueryInternalSchemaV2);
+
+export const toolRunQueryArgsSchemaTransformed: z.ZodPipeline<
+    typeof toolRunQueryArgsSchemaV3,
+    typeof runQueryInternalSchemaV3
+> = toolRunQueryArgsSchemaV3.pipe(runQueryInternalSchemaV3);
 
 export type ToolRunQueryArgsTransformed = z.infer<
     typeof toolRunQueryArgsSchemaTransformed
@@ -218,7 +355,7 @@ export type ToolRunQueryArgsTransformed = z.infer<
 // nests them inside queryConfig.
 
 export const isRunQueryArgsV1 = (
-    args: ToolRunQueryArgsV1 | ToolRunQueryArgsV2,
+    args: ToolRunQueryArgsV1 | ToolRunQueryArgsV2 | ToolRunQueryArgsV3,
 ): args is ToolRunQueryArgsV1 =>
     'customMetrics' in args || 'tableCalculations' in args || 'filters' in args;
 
@@ -234,6 +371,7 @@ export const migrateRunQueryArgsV1ToV2 = (
         metrics: v1.queryConfig.metrics,
         sorts: v1.queryConfig.sorts,
         limit: v1.queryConfig.limit,
+        parameters: v1.queryConfig.parameters,
         customMetrics: v1.customMetrics,
         tableCalculations: v1.tableCalculations,
         // V1 accepted filters at the top level and (loosely) nested in
@@ -246,14 +384,22 @@ export const migrateRunQueryArgsV1ToV2 = (
 export const parsePersistedRunQueryArgs = (
     raw: unknown,
 ): ToolRunQueryArgsTransformed | null => {
-    const v2 = toolRunQueryArgsSchemaTransformed.safeParse(raw);
-    if (v2.success) return v2.data;
+    // A merge payload must never fall back to V2: Zod strips unknown keys,
+    // which would otherwise replay only the primary query and show wrong data.
+    if (raw !== null && typeof raw === 'object' && 'mergeConfig' in raw) {
+        const v3 = toolRunQueryArgsSchemaTransformed.safeParse(raw);
+        return v3.success ? v3.data : null;
+    }
+
+    const v2 = toolRunQueryArgsSchemaV2Transformed.safeParse(raw);
+    if (v2.success) return { ...v2.data, mergeConfig: null };
 
     const v1 = toolRunQueryArgsSchemaV1.safeParse(raw);
     return v1.success
-        ? toolRunQueryArgsSchemaTransformed.parse(
-              migrateRunQueryArgsV1ToV2(v1.data),
-          )
+        ? toolRunQueryArgsSchemaTransformed.parse({
+              ...migrateRunQueryArgsV1ToV2(v1.data),
+              mergeConfig: null,
+          })
         : null;
 };
 

@@ -3,6 +3,7 @@ import {
     FilterOperator,
     FilterType,
     getItemId,
+    isBooleanItem,
     isConditionalFormattingWithCompareTarget,
     isConditionalFormattingWithValues,
     isNumericItem,
@@ -88,23 +89,27 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
         }
     }, [fields, rule]);
 
-    // conditional formatting only supports number filters or string filters
-    const filterType: FilterType.NUMBER | FilterType.STRING | undefined =
-        useMemo(() => {
-            let fieldToFilter = field;
+    // conditional formatting only supports number, string or boolean filters
+    const filterType:
+        | FilterType.NUMBER
+        | FilterType.STRING
+        | FilterType.BOOLEAN
+        | undefined = useMemo(() => {
+        let fieldToFilter = field;
 
-            if (
-                isConditionalFormattingWithCompareTarget(rule) &&
-                isConditionalFormattingWithValues(rule) &&
-                compareField
-            ) {
-                fieldToFilter = compareField;
-            }
+        if (
+            isConditionalFormattingWithCompareTarget(rule) &&
+            isConditionalFormattingWithValues(rule) &&
+            compareField
+        ) {
+            fieldToFilter = compareField;
+        }
 
-            if (isNumericItem(fieldToFilter)) return FilterType.NUMBER;
-            if (isStringDimension(fieldToFilter)) return FilterType.STRING;
-            return undefined;
-        }, [field, compareField, rule]);
+        if (isNumericItem(fieldToFilter)) return FilterType.NUMBER;
+        if (isStringDimension(fieldToFilter)) return FilterType.STRING;
+        if (isBooleanItem(fieldToFilter)) return FilterType.BOOLEAN;
+        return undefined;
+    }, [field, compareField, rule]);
 
     const filterOperatorOptions = useMemo(() => {
         if (!filterType) return [];
@@ -131,6 +136,20 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                 FilterOperator.INCLUDE,
             ]);
         }
+        if (filterType === FilterType.BOOLEAN) {
+            const options = getFilterOperatorOptions(filterType);
+
+            if (isConditionalFormattingWithCompareTarget(rule)) {
+                const ignoredOperators = getFilterOptions([
+                    FilterOperator.NULL,
+                    FilterOperator.NOT_NULL,
+                ]);
+
+                return differenceBy(options, ignoredOperators, 'value');
+            }
+
+            return options;
+        }
         return [];
     }, [filterType, rule]);
 
@@ -151,7 +170,8 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
             ) {
                 return (
                     ((isNumericItem(f) && isNumericItem(field)) ||
-                        (isStringDimension(f) && isStringDimension(field))) &&
+                        (isStringDimension(f) && isStringDimension(field)) ||
+                        (isBooleanItem(f) && isBooleanItem(field))) &&
                     field &&
                     getItemId(f) !== getItemId(field)
                 );
@@ -180,17 +200,23 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
     const handleChangeRule = useCallback(
         (newRule: ConditionalFormattingWithFilterOperator) => {
             if (isConditionalFormattingWithValues(newRule)) {
+                const valuesField = isConditionalFormattingWithCompareTarget(
+                    newRule,
+                )
+                    ? compareField
+                    : field;
+
                 onChangeRule({
                     ...newRule,
                     values: newRule.values.map((v) => {
-                        // FIXME: check if we can fix this problem in number input
-                        if (
-                            isConditionalFormattingWithCompareTarget(newRule)
-                                ? isStringDimension(compareField)
-                                : isStringDimension(field)
-                        ) {
+                        if (isStringDimension(valuesField)) {
                             return String(v);
                         }
+                        // Boolean inputs already emit real booleans; keep them
+                        if (isBooleanItem(valuesField)) {
+                            return v;
+                        }
+                        // FIXME: check if we can fix this problem in number input
                         return Number(v);
                     }),
                 });

@@ -16,6 +16,7 @@ import { GroupMembershipTableName } from '../database/entities/groupMemberships'
 import { GroupTableName } from '../database/entities/groups';
 import { InviteLinkTableName } from '../database/entities/inviteLinks';
 import { OpenIdIdentitiesTableName } from '../database/entities/openIdIdentities';
+import { OrganizationMembershipCustomRolesTableName } from '../database/entities/organizationMembershipCustomRoles';
 import {
     DbOrganizationMembership,
     DbOrganizationMembershipIn,
@@ -29,6 +30,10 @@ import { UserAvatarsTableName } from '../database/entities/userAvatars';
 import { UserOAuthGrantsTableName } from '../database/entities/userOAuthGrants';
 import { DbUser, UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
+import {
+    assertAdminDemotionAllowed,
+    clearOrganizationExtraRoles,
+} from './roleSetUtils';
 import { getColumnMatchRegexQuery } from './SearchModel/utils/search';
 import { UserModel } from './UserModel';
 
@@ -43,12 +48,23 @@ type DbOrganizationMemberProfile = {
     organization_uuid: string;
     role: OrganizationMemberRole;
     role_uuid: string | null;
+    has_extra_roles: boolean;
     expires_at?: Date;
     avatar_gradient: string | null;
     avatar_content_hash: string | null;
 };
 
-const SelectColumns = [
+const hasExtraRolesColumn = (db: Knex) =>
+    db.raw(
+        `EXISTS (SELECT 1 FROM ?? AS x WHERE x.organization_id = ??.organization_id AND x.user_id = ??.user_id) AS has_extra_roles`,
+        [
+            OrganizationMembershipCustomRolesTableName,
+            OrganizationMembershipsTableName,
+            OrganizationMembershipsTableName,
+        ],
+    );
+
+const selectColumns = (db: Knex) => [
     `${UserTableName}.user_uuid`,
     `${UserTableName}.user_id`,
     `${UserTableName}.first_name`,
@@ -63,6 +79,7 @@ const SelectColumns = [
     `${UserTableName}.updated_at as user_updated_at`,
     `${UserTableName}.avatar_gradient`,
     `${UserAvatarsTableName}.content_hash as avatar_content_hash`,
+    hasExtraRolesColumn(db),
 ];
 
 export class OrganizationMemberProfileModel {
@@ -123,6 +140,7 @@ export class OrganizationMemberProfileModel {
             organizationUuid: member.organization_uuid,
             role: member.role,
             roleUuid: member.role_uuid || undefined,
+            hasMultipleRoles: member.has_extra_roles,
             isActive: member.is_active,
             isInviteExpired,
             isPending,
@@ -159,7 +177,9 @@ export class OrganizationMemberProfileModel {
                 `${OrganizationTableName}.organization_uuid`,
                 organizationUuid,
             )
-            .select<DbOrganizationMemberProfile[]>(SelectColumns);
+            .select<DbOrganizationMemberProfile[]>(
+                selectColumns(this.database),
+            );
 
         // Apply exact match filter if provided
         if (exactMatchFilter) {
@@ -255,7 +275,7 @@ export class OrganizationMemberProfileModel {
                 `${OrganizationTableName}.organization_uuid`,
                 organizationUuid,
             )
-            .select<DbOrganizationMemberProfile[]>(SelectColumns)
+            .select<DbOrganizationMemberProfile[]>(selectColumns(this.database))
             .orderBy(`${EmailTableName}.email`, 'asc');
 
         const usersHaveAuthenticationRows =
@@ -277,6 +297,26 @@ export class OrganizationMemberProfileModel {
         );
     }
 
+    /** Returns the subset of the given user uuids that are members of the organization. */
+    async findOrganizationMemberUuids(
+        organizationUuid: string,
+        userUuids: string[],
+    ): Promise<string[]> {
+        if (userUuids.length === 0) return [];
+
+        const members = await this.queryBuilder()
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .whereIn(`${UserTableName}.user_uuid`, userUuids)
+            .select<Pick<DbOrganizationMemberProfile, 'user_uuid'>[]>(
+                `${UserTableName}.user_uuid`,
+            );
+
+        return members.map((member) => member.user_uuid);
+    }
+
     async findOrganizationMembersByEmails(
         organizationUuid: string,
         emails: string[],
@@ -295,7 +335,7 @@ export class OrganizationMemberProfileModel {
                 `${EmailTableName}.email`,
                 normalizedEmails,
             ])
-            .select<DbOrganizationMemberProfile[]>(SelectColumns)
+            .select<DbOrganizationMemberProfile[]>(selectColumns(this.database))
             .orderBy(`${EmailTableName}.email`, 'asc')
             .orderBy(`${UserTableName}.user_uuid`, 'asc');
 
@@ -374,6 +414,8 @@ export class OrganizationMemberProfileModel {
                 `${UserTableName}.is_active`,
                 `${EmailTableName}.email`,
                 `${OrganizationTableName}.organization_uuid`,
+                `${OrganizationMembershipsTableName}.organization_id`,
+                `${OrganizationMembershipsTableName}.user_id`,
                 `${OrganizationMembershipsTableName}.role`,
                 `${OrganizationMembershipsTableName}.role_uuid`,
                 `${InviteLinkTableName}.expires_at`,
@@ -395,6 +437,7 @@ export class OrganizationMemberProfileModel {
                 `${UserTableName}.updated_at as user_updated_at`,
                 `${UserTableName}.avatar_gradient`,
                 `${UserAvatarsTableName}.content_hash as avatar_content_hash`,
+                hasExtraRolesColumn(this.database),
             )
             .select<DbOrganizationMemberProfile[]>(
                 this.database.raw(
@@ -508,7 +551,9 @@ export class OrganizationMemberProfileModel {
                 organizationUuid,
             )
             .andWhere('role', 'admin')
-            .select<DbOrganizationMemberProfile[]>(SelectColumns);
+            .select<DbOrganizationMemberProfile[]>(
+                selectColumns(this.database),
+            );
         const usersHaveAuthenticationRows =
             await UserModel.findIfUsersHaveAuthentication(this.database, {
                 userUuids: members.map((m) => m.user_uuid),
@@ -587,7 +632,9 @@ export class OrganizationMemberProfileModel {
                 `${OrganizationTableName}.organization_uuid`,
                 organizationUuid,
             )
-            .select<DbOrganizationMemberProfile[]>(SelectColumns);
+            .select<DbOrganizationMemberProfile[]>(
+                selectColumns(this.database),
+            );
 
         if (!dbMember) {
             throw new NotFoundError('No matching member found in organization');
@@ -618,7 +665,9 @@ export class OrganizationMemberProfileModel {
                 `${OrganizationTableName}.organization_uuid`,
                 organizationUuid,
             )
-            .select<DbOrganizationMemberProfile[]>(SelectColumns);
+            .select<DbOrganizationMemberProfile[]>(
+                selectColumns(this.database),
+            );
 
         if (!dbMember) {
             throw new NotFoundError('No matching member found in organization');
@@ -645,25 +694,56 @@ export class OrganizationMemberProfileModel {
         data: OrganizationMemberProfileUpdate,
     ): Promise<OrganizationMemberProfile> {
         if (data.role) {
-            const sqlParams = {
-                organizationUuid,
-                userUuid,
-                role: data.role,
-            };
-            await this.database.raw<
-                (DbOrganizationMemberProfile & DbOrganization & DbUser)[]
-            >(
-                `
-                    UPDATE organization_memberships AS m
-                    SET role = :role FROM organizations AS o, users AS u
-                    WHERE o.organization_id = m.organization_id
-                      AND u.user_id = m.user_id
-                      AND user_uuid = :userUuid
-                      AND organization_uuid = :organizationUuid
-                        RETURNING *
-                `,
-                sqlParams,
-            );
+            const { role } = data;
+            // A singular write replaces the whole role set (extras cleared) and
+            // may not demote the organization's last active admin.
+            await this.database.transaction(async (trx) => {
+                const membership = await trx(OrganizationMembershipsTableName)
+                    .join(
+                        OrganizationTableName,
+                        `${OrganizationTableName}.organization_id`,
+                        `${OrganizationMembershipsTableName}.organization_id`,
+                    )
+                    .join(
+                        UserTableName,
+                        `${UserTableName}.user_id`,
+                        `${OrganizationMembershipsTableName}.user_id`,
+                    )
+                    .where(
+                        `${OrganizationTableName}.organization_uuid`,
+                        organizationUuid,
+                    )
+                    .where(`${UserTableName}.user_uuid`, userUuid)
+                    .first<
+                        Pick<
+                            DbOrganizationMembership,
+                            'organization_id' | 'user_id'
+                        >
+                    >(
+                        `${OrganizationMembershipsTableName}.organization_id`,
+                        `${OrganizationMembershipsTableName}.user_id`,
+                    );
+                if (!membership) {
+                    return;
+                }
+                await assertAdminDemotionAllowed(
+                    trx,
+                    membership.organization_id,
+                    membership.user_id,
+                    role,
+                );
+                await trx(OrganizationMembershipsTableName)
+                    .where({
+                        organization_id: membership.organization_id,
+                        user_id: membership.user_id,
+                    })
+                    .update({ role });
+                await clearOrganizationExtraRoles(
+                    trx,
+                    membership.organization_id,
+                    membership.user_id,
+                );
+            });
         }
         return this.getOrganizationMemberByUuid(organizationUuid, userUuid);
     }

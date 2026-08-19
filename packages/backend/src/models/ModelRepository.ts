@@ -20,6 +20,7 @@ import { GithubAppInstallationsModel } from './GithubAppInstallations/GithubAppI
 import { GitlabAppInstallationsModel } from './GitlabAppInstallations/GitlabAppInstallationsModel';
 import { GitUserCredentialsModel } from './GitUserCredentials/GitUserCredentialsModel';
 import { GroupsModel } from './GroupsModel';
+import { HeadlessBrowserLoginGrantModel } from './HeadlessBrowserLoginGrantModel';
 import { InviteLinkModel } from './InviteLinkModel';
 import { JobModel } from './JobModel/JobModel';
 import { McpContextModel } from './McpContextModel';
@@ -91,6 +92,7 @@ export type ModelManifest = {
     gitUserCredentialsModel: GitUserCredentialsModel;
     gitlabAppInstallationsModel: GitlabAppInstallationsModel;
     groupsModel: GroupsModel;
+    headlessBrowserLoginGrantModel: HeadlessBrowserLoginGrantModel;
     inviteLinkModel: InviteLinkModel;
     jobModel: JobModel;
     mcpContextModel: McpContextModel;
@@ -169,7 +171,6 @@ export type ModelManifest = {
     managedAgentModel: unknown;
     aiOrganizationSettingsModel: unknown;
     embedModel: unknown;
-    dashboardSummaryModel: unknown;
     serviceAccountModel: unknown;
     externalConnectionModel: unknown;
     schedulerAiAugmentationModel: unknown;
@@ -377,6 +378,16 @@ export class ModelRepository
         return this.getModel(
             'groupsModel',
             () => new GroupsModel({ database: this.database }),
+        );
+    }
+
+    public getHeadlessBrowserLoginGrantModel(): HeadlessBrowserLoginGrantModel {
+        return this.getModel(
+            'headlessBrowserLoginGrantModel',
+            () =>
+                new HeadlessBrowserLoginGrantModel({
+                    database: this.database,
+                }),
         );
     }
 
@@ -893,10 +904,6 @@ export class ModelRepository
 
     public getEmbedModel<ModelImplT>(): ModelImplT {
         return this.getModel('embedModel');
-    }
-
-    public getDashboardSummaryModel<ModelImplT>(): ModelImplT {
-        return this.getModel('dashboardSummaryModel');
     }
 
     public getTagsModel(): TagsModel {

@@ -20,6 +20,7 @@ export * from './apps/sdkBridgeRoutes';
 export * from './ambientAi';
 export * from './commercialFeatureFlags';
 export * from './designs/types';
+export * from './designs/validation';
 export * from './embed';
 export * from './homepage/onboardingHomepage';
 export * from './homepage/orgSettings';

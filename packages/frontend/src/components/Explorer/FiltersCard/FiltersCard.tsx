@@ -1,18 +1,21 @@
 import {
     countTotalFilterRules,
+    FilterGroupOperator,
     FilterOperator,
+    getFilterExpression,
     getItemId,
-    getTotalFilterRules,
     getVisibleFields,
+    isFilterExpression,
     isFilterableField,
     isTimeZone,
     overrideFilterGroupWithFilterRules,
     reduceRequiredDimensionFiltersToFilterRules,
     resetRequiredFilterRules,
     type FilterRule,
+    type FilterExpression,
     type Filters,
 } from '@lightdash/common';
-import { Badge, Text, Tooltip } from '@mantine/core';
+import { Badge, Box, Text, Tooltip } from '@mantine/core';
 import {
     memo,
     useCallback,
@@ -20,6 +23,7 @@ import {
     useMemo,
     useState,
     type FC,
+    type ReactNode,
 } from 'react';
 import {
     explorerActions,
@@ -35,6 +39,8 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { MergeFiltersCard } from '../../../features/mergeQuery/components/MergeFiltersCard';
+import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProject } from '../../../hooks/useProject';
@@ -46,7 +52,7 @@ import { getConditionalRuleLabelFromItem } from '../../common/Filters/FilterInpu
 import FiltersProvider from '../../common/Filters/FiltersProvider';
 import { useFieldsWithSuggestions } from './useFieldsWithSuggestions';
 
-const FiltersCard: FC = memo(() => {
+const QueryAFiltersCard: FC = memo(() => {
     const projectUuid = useProjectUuid();
     const project = useProject(projectUuid);
 
@@ -229,9 +235,11 @@ const FiltersCard: FC = memo(() => {
         includeHiddenFields: false,
     });
 
-    // Pre-compute filter rule labels for tooltip
     const filterRuleLabels = useMemo(() => {
-        return getTotalFilterRules(processedFilters).map((filterRule) => {
+        const filterExpression = getFilterExpression(processedFilters);
+        if (!filterExpression) return [];
+
+        const renderRuleLabel = (filterRule: FilterRule): ReactNode => {
             const field = visibleFields.find(
                 (f) => getItemId(f) === filterRule.target.fieldId,
             );
@@ -241,21 +249,133 @@ const FiltersCard: FC = memo(() => {
                     field,
                 );
                 return (
-                    <div key={field.name}>
-                        {labels.field}: {labels.operator}{' '}
+                    <>
+                        {labels.field} {labels.operator}
                         {filterRule.operator !== FilterOperator.NULL &&
                         filterRule.operator !== FilterOperator.NOT_NULL ? (
-                            <Text span fw={700} fz="inherit" lh="inherit">
-                                {labels.value}
-                            </Text>
+                            <>
+                                {' '}
+                                <Text span fw={700}>
+                                    {labels.value}
+                                </Text>
+                            </>
                         ) : (
                             ''
                         )}
-                    </div>
+                    </>
                 );
             }
-            return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
-        });
+            return (
+                <>
+                    Tried to reference field with unknown id:{' '}
+                    {filterRule.target.fieldId}
+                </>
+            );
+        };
+
+        const renderRule = (
+            filterRule: FilterRule,
+            depth: number,
+            key: string,
+        ): ReactNode => (
+            <Box key={key} style={{ paddingLeft: depth * 12 }}>
+                {renderRuleLabel(filterRule)}
+            </Box>
+        );
+
+        const renderExpression = (
+            expression: FilterExpression,
+            depth = 0,
+            path = 'root',
+            nested = false,
+        ): ReactNode[] => {
+            const lines: ReactNode[] = [];
+            const showParentheses = nested && expression.items.length > 1;
+            const showOperators =
+                nested || expression.operator === FilterGroupOperator.or;
+            const isLeafGroup = expression.items.every(
+                (item) => !isFilterExpression(item),
+            );
+
+            if (showParentheses && isLeafGroup) {
+                return [
+                    <Box key={path} style={{ paddingLeft: depth * 12 }}>
+                        {expression.items.map((item, index) => {
+                            if (isFilterExpression(item)) return null;
+                            return (
+                                <span key={`${path}-${item.id}`}>
+                                    {index > 0 ? (
+                                        <>
+                                            <Text span c="dimmed" fw={700}>
+                                                {expression.operator.toUpperCase()}
+                                            </Text>{' '}
+                                        </>
+                                    ) : null}
+                                    {renderRuleLabel(item)}{' '}
+                                </span>
+                            );
+                        })}
+                    </Box>,
+                ];
+            }
+
+            if (showParentheses) {
+                lines.push(
+                    <Box
+                        key={`${path}-start`}
+                        style={{ paddingLeft: depth * 12 }}
+                    >
+                        (
+                    </Box>,
+                );
+            }
+
+            expression.items.forEach((item, index) => {
+                const itemDepth = showParentheses ? depth + 1 : depth;
+                if (index > 0 && showOperators) {
+                    lines.push(
+                        <Text
+                            key={`${path}-${index}-operator`}
+                            c="dimmed"
+                            fw={700}
+                            style={{ paddingLeft: itemDepth * 12 }}
+                        >
+                            {expression.operator.toUpperCase()}
+                        </Text>,
+                    );
+                }
+
+                if (isFilterExpression(item)) {
+                    lines.push(
+                        ...renderExpression(
+                            item,
+                            itemDepth,
+                            `${path}-${index}`,
+                            true,
+                        ),
+                    );
+                } else {
+                    lines.push(
+                        renderRule(item, itemDepth, `${path}-${item.id}`),
+                    );
+                }
+            });
+
+            if (showParentheses) {
+                lines.push(
+                    <Box
+                        key={`${path}-end`}
+                        style={{ paddingLeft: depth * 12 }}
+                    >
+                        )
+                    </Box>,
+                );
+            }
+
+            return lines;
+        };
+
+        return renderExpression(filterExpression);
     }, [processedFilters, visibleFields]);
 
     return (
@@ -279,7 +399,7 @@ const FiltersCard: FC = memo(() => {
                                     style={{
                                         display: 'flex',
                                         flexDirection: 'column',
-                                        gap: '4px',
+                                        gap: '2px',
                                         fontSize: 'var(--mantine-font-size-xs)',
                                         lineHeight:
                                             'var(--mantine-line-height-xs)',
@@ -338,6 +458,19 @@ const FiltersCard: FC = memo(() => {
             )}
         </CollapsableCard>
     );
+});
+
+/**
+ * A merge shows both source filters together. The relationship is one query;
+ * hiding half its filters behind the active sidebar tab makes it impossible
+ * to read as a whole.
+ */
+const FiltersCard: FC = memo(() => {
+    const merge = useMergeSafe();
+    if (merge?.isMerging && merge.additionalSources[0]?.exploreName) {
+        return <MergeFiltersCard />;
+    }
+    return <QueryAFiltersCard />;
 });
 
 export default FiltersCard;

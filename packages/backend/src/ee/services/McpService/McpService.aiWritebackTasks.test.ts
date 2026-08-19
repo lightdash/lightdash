@@ -75,7 +75,7 @@ const user = {
     ability: {
         can: vi.fn(() => true),
         cannot: vi.fn(() => false),
-        relevantRuleFor: vi.fn(() => undefined),
+        relevantRuleFor: vi.fn(() => ({ inverted: false })),
         rules: [],
     },
 };
@@ -145,7 +145,9 @@ const makeMcpService = ({
             findClientInfo: vi.fn(),
         },
         projectModel: {},
-        projectService: {},
+        projectService: {
+            getProject: vi.fn().mockResolvedValue({ organizationUuid }),
+        },
         searchModel: {},
         shareService: {},
         spaceService: {},
@@ -212,7 +214,7 @@ describe('McpService AI writeback MCP tasks', () => {
                 McpToolName.RUN_AI_WRITEBACK,
             )!;
             const result = await callback(
-                { prompt: 'add a metric' },
+                { prompt: 'add a metric', projectUuid },
                 makeExtra(),
             );
 
@@ -234,7 +236,7 @@ describe('McpService AI writeback MCP tasks', () => {
                 McpToolName.RUN_AI_WRITEBACK,
             )!;
             const result = await callback(
-                { prompt: 'add a metric' },
+                { prompt: 'add a metric', projectUuid },
                 makeExtra(tasksOptInMeta),
             );
 

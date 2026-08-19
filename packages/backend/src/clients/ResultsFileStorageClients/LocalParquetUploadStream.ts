@@ -11,10 +11,10 @@ import * as Sentry from '@sentry/node';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { getJsonlSqlTable } from '../../ee/services/PreAggregateMaterializationService/getDuckdbPreAggregateSqlTable';
 import type Logger from '../../logging/logger';
 import PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { traceSpan } from '../../tracing/tracing';
+import { getJsonlSqlTable } from '../../utils/duckdb/duckdbSqlTables';
 import { writeWithBackpressure } from '../../utils/streamUtils';
 
 type LocalParquetUploadStreamArgs = {

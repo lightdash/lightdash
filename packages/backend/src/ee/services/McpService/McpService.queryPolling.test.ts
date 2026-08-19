@@ -84,7 +84,7 @@ const user = {
     ability: {
         can: vi.fn(() => true),
         cannot: vi.fn(() => false),
-        relevantRuleFor: vi.fn(() => undefined),
+        relevantRuleFor: vi.fn(() => ({ inverted: false })),
         rules: [],
     },
 };
@@ -221,7 +221,6 @@ const makeMcpService = ({
     verifiedContent = [],
     artifactVerifiedContent = [],
     runtimeErrors = {},
-    grepFieldsEnabled = false,
 }: {
     context?: {
         projectUuid: string;
@@ -248,7 +247,6 @@ const makeMcpService = ({
         findFields?: string;
         findFieldsByQuery?: Record<string, string>;
     };
-    grepFieldsEnabled?: boolean;
 } = {}) => {
     const asyncQueryService = {
         executeAsyncSqlQuery: vi.fn(),
@@ -387,6 +385,7 @@ const makeMcpService = ({
 
         const runtime = {
             listExplores: vi.fn(listScopedExplores),
+            getProjectParameterDefinitions: vi.fn(async () => ({})),
             getVerifiedFieldUsage: vi.fn(async () => new Map<string, number>()),
             getExplore: vi.fn(async ({ table }: { table: string }) => {
                 const scopedExplores = await listScopedExplores();
@@ -536,7 +535,7 @@ const makeMcpService = ({
         aiAgentService,
         aiAgentToolsService,
         aiOrganizationSettingsService: {
-            getSettings: vi.fn().mockResolvedValue({ aiAgentsVisible: true }),
+            isAiAgentsVisible: vi.fn().mockResolvedValue(true),
         },
         aiRouterService: {},
         aiWritebackService: {},
@@ -573,7 +572,6 @@ const makeMcpService = ({
     service.setupHandlers({
         projectPinned: false,
         aiWritebackEnabled: false,
-        grepFieldsEnabled,
         mcpContentWritesEnabled: true,
         scheduledDeliveryEnabled: true,
         runSqlEnabled: true,
@@ -600,7 +598,10 @@ const getToolCallback = (toolName: McpToolName) => {
     if (!callback) {
         throw new Error(`Tool ${toolName} was not registered`);
     }
-    return callback;
+    return (
+        args: Record<string, unknown>,
+        callbackExtra: Record<string, unknown>,
+    ) => callback({ projectUuid, ...args }, callbackExtra);
 };
 
 const getTextResult = (result: unknown) => {
@@ -695,14 +696,14 @@ describe('MCP async query polling', () => {
             ...user,
             ability: {
                 ...user.ability,
-                cannot: vi.fn(() => true),
+                relevantRuleFor: vi.fn(() => ({ inverted: true })),
             },
         };
         const headerProjectUuid = '22222222-2222-4222-8222-222222222222';
 
         await expect(
             getToolCallback(McpToolName.RUN_SQL)(
-                { sql: 'select 1', limit: 10 },
+                { sql: 'select 1', limit: 10, projectUuid: headerProjectUuid },
                 {
                     ...extra,
                     authInfo: {
@@ -750,169 +751,8 @@ describe('MCP async query polling', () => {
         });
     });
 
-    it('returns relevant verified answers in find_explores for the active agent', async () => {
-        const relevantVerifiedAnswer = {
-            artifactVersionUuid: 'artifact-version-uuid',
-            artifactType: 'chart',
-            verifiedQuestion: 'What is revenue by month?',
-            title: 'Revenue by month',
-            description: 'Verified monthly revenue trend',
-            similarity: 0.98,
-            chartConfig: {
-                tableName: 'orders',
-                metricQuery: {
-                    metrics: ['orders_revenue'],
-                },
-            },
-        };
-
-        const { aiAgentService } = makeMcpService({
-            context: {
-                projectUuid,
-                projectName: 'Project',
-                agentUuid: 'agent-uuid',
-                agentName: 'Agent',
-                tags: null,
-            },
-            agent: {
-                uuid: 'agent-uuid',
-                name: 'Agent',
-                tags: ['ai'],
-                spaceAccess: [],
-            },
-        });
-        aiAgentService.getRelevantVerifiedAnswerContextForAgent.mockResolvedValue(
-            {
-                relevantVerifiedAnswers: [relevantVerifiedAnswer],
-            },
-        );
-
-        const result = await getToolCallback(McpToolName.FIND_EXPLORES)(
-            { searchQuery: 'Show me revenue by month' },
-            extra,
-        );
-
-        expect(
-            aiAgentService.getRelevantVerifiedAnswerContextForAgent,
-        ).toHaveBeenCalledWith(user, {
-            projectUuid,
-            agentUuid: 'agent-uuid',
-            searchQuery: 'Show me revenue by month',
-        });
-        expect(getTextResult(result)).toContain('<verifiedAnswers count="1">');
-        expect(getTextResult(result)).toContain('Revenue by month');
-        expect(result).toMatchObject({
-            structuredContent: {
-                searchQuery: 'Show me revenue by month',
-                searchResults: expect.objectContaining({
-                    results: expect.any(Array),
-                }),
-                topMatchingFields: {
-                    count: 1,
-                    fields: [
-                        expect.objectContaining({
-                            name: 'orders_count',
-                            exploreName: 'orders',
-                        }),
-                    ],
-                },
-                relevantVerifiedAnswers: [relevantVerifiedAnswer],
-            },
-        });
-    });
-
-    it('returns structured field search content in find_fields', async () => {
+    it('registers grep_fields', async () => {
         makeMcpService();
-
-        const result = await getToolCallback(McpToolName.FIND_FIELDS)(
-            {
-                table: 'orders',
-                fieldSearchQueries: [{ label: 'orders count' }],
-            },
-            extra,
-        );
-
-        expect(result).toMatchObject({
-            content: [
-                expect.objectContaining({
-                    text: expect.stringContaining('"searchResults"'),
-                }),
-            ],
-            structuredContent: {
-                searchResults: [
-                    expect.objectContaining({
-                        status: 'success',
-                        searchQuery: 'orders count',
-                        fields: [],
-                    }),
-                ],
-            },
-        });
-    });
-
-    it('returns MCP error content when find_explores runtime returns error', async () => {
-        makeMcpService({ runtimeErrors: { findExplores: 'Runtime failed' } });
-
-        const result = await getToolCallback(McpToolName.FIND_EXPLORES)(
-            { searchQuery: 'orders' },
-            extra,
-        );
-
-        expect(result).toMatchObject({
-            isError: true,
-            content: [
-                expect.objectContaining({
-                    text: 'Error finding explores: Runtime failed',
-                }),
-            ],
-        });
-    });
-
-    it('returns mixed per-query results when find_fields runtime returns errors', async () => {
-        makeMcpService({
-            runtimeErrors: {
-                findFieldsByQuery: { 'bad field': 'Runtime failed' },
-            },
-        });
-
-        const result = await getToolCallback(McpToolName.FIND_FIELDS)(
-            {
-                table: 'orders',
-                fieldSearchQueries: [
-                    { label: 'orders count' },
-                    { label: 'bad field' },
-                ],
-            },
-            extra,
-        );
-
-        expect(result).toMatchObject({
-            structuredContent: {
-                searchResults: [
-                    expect.objectContaining({
-                        status: 'success',
-                        searchQuery: 'orders count',
-                        fields: [],
-                    }),
-                    {
-                        status: 'error',
-                        searchQuery: 'bad field',
-                        error: 'Runtime failed',
-                    },
-                ],
-            },
-        });
-    });
-
-    it('registers grep_fields instead of legacy discovery tools when ai-grep-fields is enabled', async () => {
-        makeMcpService({ grepFieldsEnabled: true });
-
-        expect(() => getToolCallback(McpToolName.FIND_EXPLORES)).toThrow(
-            'Tool find_explores was not registered',
-        );
-        expect(() => getToolCallback(McpToolName.FIND_FIELDS)).toThrow(
-            'Tool find_fields was not registered',
-        );
 
         const result = await getToolCallback(McpToolName.GREP_FIELDS)(
             {
@@ -945,8 +785,8 @@ describe('MCP async query polling', () => {
         });
     });
 
-    it('returns structured metadata content when ai-grep-fields is enabled', async () => {
-        makeMcpService({ grepFieldsEnabled: true });
+    it('returns structured metadata content', async () => {
+        makeMcpService();
 
         const result = await getToolCallback(McpToolName.GET_METADATA)(
             {
@@ -992,9 +832,8 @@ describe('MCP async query polling', () => {
         });
     });
 
-    it('lists only explores available to the active agent in grep_fields', async () => {
+    it('lists only explores available to the explicit agent in grep_fields', async () => {
         makeMcpService({
-            grepFieldsEnabled: true,
             context: {
                 projectUuid,
                 projectName: 'Project',
@@ -1015,7 +854,11 @@ describe('MCP async query polling', () => {
         });
 
         const result = await getToolCallback(McpToolName.GREP_FIELDS)(
-            { patterns: ['orders count'], exploreName: null },
+            {
+                patterns: ['orders count'],
+                exploreName: null,
+                agentUuid: 'agent-uuid',
+            },
             extra,
         );
 
@@ -1023,7 +866,7 @@ describe('MCP async query polling', () => {
         expect(JSON.stringify(result)).not.toContain('payments');
     });
 
-    it('filters content by active agent space access', async () => {
+    it('filters content by explicit agent space access', async () => {
         const allowedChart = makeChartSearchResult({
             name: 'Allowed Chart',
             spaceUuid: allowedSpaceUuid,
@@ -1064,7 +907,10 @@ describe('MCP async query polling', () => {
         });
 
         const contentResult = await getToolCallback(McpToolName.FIND_CONTENT)(
-            { searchQueries: [{ label: 'chart' }] },
+            {
+                searchQueries: [{ label: 'chart' }],
+                agentUuid: 'agent-uuid',
+            },
             extra,
         );
         const contentText = getTextResult(contentResult);
@@ -1074,7 +920,7 @@ describe('MCP async query polling', () => {
 
         const verifiedResult = await getToolCallback(
             McpToolName.LIST_VERIFIED_CONTENT,
-        )({}, extra);
+        )({ agentUuid: 'agent-uuid' }, extra);
         const verifiedContentResult = JSON.parse(getTextResult(verifiedResult));
 
         expect(verifiedContentResult).toEqual([allowedVerifiedContent]);
@@ -1125,7 +971,7 @@ describe('MCP async query polling', () => {
         ]);
     });
 
-    it('uses active agent tags for run_metric_query', async () => {
+    it('uses explicit agent tags for run_metric_query', async () => {
         const { asyncQueryService } = makeMcpService({
             context: {
                 projectUuid,
@@ -1156,6 +1002,7 @@ describe('MCP async query polling', () => {
             {
                 title: 'Orders',
                 description: 'Orders count',
+                agentUuid: 'agent-uuid',
                 queryConfig: {
                     exploreName: 'orders',
                     dimensions: [],
@@ -1174,46 +1021,7 @@ describe('MCP async query polling', () => {
         expect(asyncQueryService.executeAsyncMetricQuery).toHaveBeenCalled();
     });
 
-    it('lists only explores available to the active agent in find_explores', async () => {
-        makeMcpService({
-            context: {
-                projectUuid,
-                projectName: 'Project',
-                agentUuid: 'agent-uuid',
-                agentName: 'Agent',
-                tags: null,
-            },
-            agent: {
-                uuid: 'agent-uuid',
-                name: 'Agent',
-                tags: ['ai'],
-                spaceAccess: [],
-            },
-            explores: {
-                orders: makeExplore({ tags: ['ai'] }),
-                payments: makeExplore({ name: 'payments', tags: ['finance'] }),
-            },
-        });
-
-        const result = await getToolCallback(McpToolName.FIND_EXPLORES)(
-            { searchQuery: 'orders' },
-            extra,
-        );
-
-        expect(result).toMatchObject({
-            content: [
-                expect.objectContaining({
-                    text: expect.stringContaining('"name": "orders"'),
-                }),
-                expect.objectContaining({
-                    text: expect.stringContaining('Active agent: Agent'),
-                }),
-            ],
-        });
-        expect(JSON.stringify(result)).not.toContain('payments');
-    });
-
-    it('does not fall back to manual tags with an active agent', async () => {
+    it('does not fall back to manual tags with an explicit agent', async () => {
         const { asyncQueryService } = makeMcpService({
             context: {
                 projectUuid,
@@ -1235,6 +1043,7 @@ describe('MCP async query polling', () => {
             {
                 title: 'Orders',
                 description: 'Orders count',
+                agentUuid: 'agent-uuid',
                 queryConfig: {
                     exploreName: 'orders',
                     dimensions: [],
@@ -1307,6 +1116,7 @@ describe('MCP async query polling', () => {
                     filters: null,
                 },
                 chartConfig: null,
+                projectUuid: headerProjectUuid,
             },
             {
                 ...extra,
@@ -1535,7 +1345,7 @@ describe('MCP async query polling', () => {
         );
     });
 
-    it('does not return metric results outside the active agent scope', async () => {
+    it('does not return metric results outside the explicit agent scope', async () => {
         const { asyncQueryService } = makeMcpService({
             context: {
                 projectUuid,
@@ -1560,7 +1370,7 @@ describe('MCP async query polling', () => {
         );
 
         const result = await getToolCallback(McpToolName.GET_QUERY_RESULT)(
-            { queryUuid },
+            { queryUuid, agentUuid: 'agent-uuid' },
             extra,
         );
 
@@ -1578,7 +1388,7 @@ describe('MCP async query polling', () => {
         ).not.toHaveBeenCalled();
     });
 
-    it('does not render metric results outside the active agent scope', async () => {
+    it('does not render metric results outside the explicit agent scope', async () => {
         const { asyncQueryService } = makeMcpService({
             context: {
                 projectUuid,
@@ -1608,6 +1418,7 @@ describe('MCP async query polling', () => {
                 title: 'Orders',
                 description: 'Orders count',
                 chartConfig: null,
+                agentUuid: 'agent-uuid',
             },
             extra,
         );
@@ -1653,7 +1464,7 @@ describe('MCP async query polling', () => {
         );
 
         const result = await getToolCallback(McpToolName.GET_QUERY_RESULT)(
-            { queryUuid },
+            { queryUuid, agentUuid: 'agent-uuid' },
             extra,
         );
 
@@ -1713,7 +1524,7 @@ describe('MCP async query polling', () => {
         );
 
         const result = await getToolCallback(McpToolName.GET_QUERY_RESULT)(
-            { queryUuid },
+            { queryUuid, agentUuid: 'agent-uuid' },
             extra,
         );
 
@@ -1787,7 +1598,7 @@ describe('MCP async query polling', () => {
         });
 
         const result = await getToolCallback(McpToolName.GET_QUERY_RESULT)(
-            { queryUuid },
+            { queryUuid, agentUuid: 'agent-uuid' },
             extra,
         );
 
@@ -1803,7 +1614,7 @@ describe('MCP async query polling', () => {
         expect(asyncQueryService.getRawAsyncQueryResults).toHaveBeenCalled();
     });
 
-    it('does not search field values outside the active agent scope', async () => {
+    it('does not search field values outside the explicit agent scope', async () => {
         const { projectService } = makeMcpService({
             context: {
                 projectUuid,
@@ -1827,6 +1638,7 @@ describe('MCP async query polling', () => {
                 fieldId: 'orders_hidden',
                 query: null,
                 filters: null,
+                agentUuid: 'agent-uuid',
             },
             extra,
         );

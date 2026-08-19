@@ -2,12 +2,30 @@ import * as fs from 'fs';
 import * as net from 'net';
 import * as tls from 'tls';
 import Logger from '../../logging/logger';
+import { decodeBinaryParameter, encodeBinaryValue } from './binaryFormat';
+import {
+    countParameters,
+    expandFormats,
+    inlineParameters,
+    isTextFormat,
+    placeholderValues,
+    readBindMessage,
+    readCloseMessage,
+    readDescribeMessage,
+    readExecuteMessage,
+    readParseMessage,
+} from './extendedQuery';
+import { PG_OID, TEXT_FORMAT } from './pgTypes';
+import { PgWireServerError } from './PgWireServerError';
+import { cstring, int16, int32, uint16 } from './wireEncoding';
+
+export { PgWireServerError };
 
 /**
  * A minimal implementation of the Postgres wire protocol (v3) frontend/backend
- * message flow, supporting cleartext password authentication and the simple
- * query protocol. Enough for psql, node-postgres and most drivers that don't
- * force the extended protocol for parameterless queries.
+ * message flow, supporting cleartext password authentication, the simple query
+ * protocol and the extended query protocol (Parse/Bind/Describe/Execute/Sync),
+ * with binary parameters and result columns for the types this server emits.
  *
  * TLS: the pg handshake is StartTLS-style — a plaintext `SSLRequest` precedes
  * the TLS upgrade — so generic TLS-terminating load balancers cannot front
@@ -23,17 +41,10 @@ const SSL_REQUEST_CODE = 80877103;
 const GSSENC_REQUEST_CODE = 80877104;
 const CANCEL_REQUEST_CODE = 80877102;
 const MAX_MESSAGE_LENGTH = 1024 * 1024; // 1MB
-
-export class PgWireServerError extends Error {
-    constructor(
-        message: string,
-        public readonly code: string = 'XX000',
-        public readonly hint?: string,
-    ) {
-        super(message);
-        this.name = 'PgWireServerError';
-    }
-}
+/** Named prepared statements / portals a single connection may hold open */
+const MAX_NAMED_OBJECTS = 1000;
+/** Statement and portal text a single connection may keep, in UTF-16 code units */
+const MAX_RETAINED_SQL_LENGTH = 16 * 1024 * 1024;
 
 export type PgWireResultField = {
     name: string;
@@ -58,8 +69,21 @@ export type PgWireHandlers<TSession> = {
         database: string;
         password: string;
     }) => Promise<TSession>;
-    /** Throw PgWireServerError to return an error to the client */
+    /**
+     * Throw PgWireServerError to return an error to the client. The command
+     * tags `BEGIN`, `COMMIT`, `ROLLBACK` and `DISCARD ALL` are read back by
+     * the server to track the transaction status it reports and the lifetime
+     * of portals and prepared statements.
+     */
     query: (session: TSession, sql: string) => Promise<PgWireQueryResult>;
+    /**
+     * Result columns of `sql` without running it; null when the statement
+     * produces no rows. Answers Describe, so it must agree with `query`.
+     */
+    describe: (
+        session: TSession,
+        sql: string,
+    ) => Promise<PgWireResultField[] | null>;
 };
 
 export type PgWireTlsOptions = {
@@ -140,21 +164,6 @@ class SecureContextProvider {
 
 // --- message encoding helpers ---
 
-const cstring = (s: string): Buffer =>
-    Buffer.concat([Buffer.from(s, 'utf8'), Buffer.from([0])]);
-
-const int16 = (n: number): Buffer => {
-    const b = Buffer.alloc(2);
-    b.writeInt16BE(n);
-    return b;
-};
-
-const int32 = (n: number): Buffer => {
-    const b = Buffer.alloc(4);
-    b.writeInt32BE(n);
-    return b;
-};
-
 const message = (type: string, ...parts: Buffer[]): Buffer => {
     const body = Buffer.concat(parts);
     return Buffer.concat([Buffer.from(type), int32(body.length + 4), body]);
@@ -166,9 +175,18 @@ const parameterStatus = (name: string, value: string) =>
     message('S', cstring(name), cstring(value));
 const backendKeyData = (pid: number, secret: number) =>
     message('K', int32(pid), int32(secret));
-const readyForQuery = () => message('Z', Buffer.from('I'));
+type TransactionStatus = 'I' | 'T';
+const readyForQuery = (status: TransactionStatus) =>
+    message('Z', Buffer.from(status));
 const commandComplete = (tag: string) => message('C', cstring(tag));
 const emptyQueryResponse = () => message('I');
+const parseComplete = () => message('1');
+const bindComplete = () => message('2');
+const closeComplete = () => message('3');
+const noData = () => message('n');
+const portalSuspended = () => message('s');
+const parameterDescription = (oids: number[]) =>
+    message('t', uint16(oids.length), ...oids.map(int32));
 
 const errorResponse = (error: PgWireServerError): Buffer => {
     const parts: Buffer[] = [
@@ -188,9 +206,13 @@ const errorResponse = (error: PgWireServerError): Buffer => {
     return message('E', ...parts);
 };
 
-const rowDescription = (fields: PgWireResultField[]): Buffer => {
-    const parts: Buffer[] = [int16(fields.length)];
-    for (const field of fields) {
+/** `formats` has one code per field, or is empty for all-text */
+const rowDescription = (
+    fields: PgWireResultField[],
+    formats: number[] = [],
+): Buffer => {
+    const parts: Buffer[] = [uint16(fields.length)];
+    fields.forEach((field, index) => {
         parts.push(
             cstring(field.name),
             int32(0), // table oid
@@ -198,22 +220,28 @@ const rowDescription = (fields: PgWireResultField[]): Buffer => {
             int32(field.oid),
             int16(-1), // type length (variable)
             int32(-1), // type modifier
-            int16(0), // text format
+            int16(formats[index] ?? TEXT_FORMAT),
         );
-    }
+    });
     return message('T', ...parts);
 };
 
-const dataRow = (values: (string | null)[]): Buffer => {
-    const parts: Buffer[] = [int16(values.length)];
-    for (const value of values) {
+const dataRow = (
+    values: (string | null)[],
+    fields: PgWireResultField[],
+    formats: number[] = [],
+): Buffer => {
+    const parts: Buffer[] = [uint16(values.length)];
+    values.forEach((value, index) => {
         if (value === null) {
             parts.push(int32(-1));
-        } else {
-            const bytes = Buffer.from(value, 'utf8');
-            parts.push(int32(bytes.length), bytes);
+            return;
         }
-    }
+        const bytes = isTextFormat(formats[index] ?? TEXT_FORMAT)
+            ? Buffer.from(value, 'utf8')
+            : encodeBinaryValue(value, fields[index].oid);
+        parts.push(int32(bytes.length), bytes);
+    });
     return message('D', ...parts);
 };
 
@@ -224,6 +252,39 @@ const toServerError = (e: unknown): PgWireServerError => {
 };
 
 type ConnectionPhase = 'startup' | 'password' | 'ready';
+
+type PreparedStatement = {
+    sql: string;
+    /** highest `$n` in the SQL or the number of declared types, whichever is larger */
+    parameterCount: number;
+    /** only what the client declared (0 = unspecified); undeclared ones are text */
+    declaredParameterOids: number[];
+};
+
+const parameterOidsOf = (statement: PreparedStatement): number[] =>
+    Array.from(
+        { length: statement.parameterCount },
+        (_, index) => statement.declaredParameterOids[index] || PG_OID.text,
+    );
+
+/** Heap a statement or portal keeps alive, in the units of the budget */
+const retainedSize = (object: {
+    sql: string;
+    declaredParameterOids?: number[];
+}): number =>
+    object.sql.length + (object.declaredParameterOids?.length ?? 0) * 4;
+
+type Portal = {
+    /** statement SQL with parameters inlined */
+    sql: string;
+    /** requested column formats as sent in Bind: none, one for all, or one per column */
+    resultFormats: number[];
+    /** set by the first Execute; later Executes resume from `cursor` */
+    result: PgWireQueryResult | null;
+    cursor: number;
+};
+
+const UNNAMED = '';
 
 /** State machine for a single client connection */
 class PgWireConnection<TSession> {
@@ -242,6 +303,19 @@ class PgWireConnection<TSession> {
 
     /** true once the socket has been upgraded to TLS */
     private isSecure = false;
+
+    private statements = new Map<string, PreparedStatement>();
+
+    private portals = new Map<string, Portal>();
+
+    /** after an extended-protocol error, everything up to the next Sync is ignored */
+    private skipUntilSync = false;
+
+    /**
+     * BEGIN/COMMIT are accepted as no-ops by the handlers, but drivers still
+     * expect portals (fetchSize cursors) to survive Sync inside a transaction
+     */
+    private isInTransaction = false;
 
     private readonly onData = (chunk: Buffer): void => {
         try {
@@ -403,7 +477,14 @@ class PgWireConnection<TSession> {
     }
 
     private async handleMessage(type: string, payload: Buffer): Promise<void> {
-        if (this.socket.destroyed) return;
+        if (this.socket.destroyed) {
+            return;
+        }
+        // Like Postgres: after an extended-protocol error only Sync (and
+        // Terminate) are acted upon until the client resynchronises
+        if (this.skipUntilSync && type !== 'S' && type !== 'X') {
+            return;
+        }
         switch (type) {
             case 'p': {
                 if (this.phase !== 'password') return;
@@ -441,26 +522,15 @@ class PgWireConnection<TSession> {
             case 'X': // Terminate
                 this.socket.end();
                 return;
-            case 'P': // extended query protocol not supported
+            case 'P':
             case 'B':
             case 'D':
             case 'E':
             case 'C':
             case 'H':
-            case 'S': {
-                this.socket.write(
-                    errorResponse(
-                        new PgWireServerError(
-                            'the extended query protocol is not supported',
-                            '0A000',
-                            'Use simple queries without bind parameters',
-                        ),
-                    ),
-                );
-                // Sync: let the client recover
-                if (type === 'S') this.socket.write(readyForQuery());
+            case 'S':
+                await this.handleExtendedMessage(type, payload);
                 return;
-            }
             default:
                 this.socket.write(
                     errorResponse(
@@ -509,15 +579,325 @@ class PgWireConnection<TSession> {
                     process.pid,
                     Math.floor(Math.random() * 2 ** 31),
                 ),
-                readyForQuery(),
+                readyForQuery('I'),
             ]),
         );
+    }
+
+    private async handleExtendedMessage(
+        type: string,
+        payload: Buffer,
+    ): Promise<void> {
+        if (this.phase !== 'ready') {
+            this.socket.write(
+                errorResponse(
+                    new PgWireServerError(
+                        'connection not authenticated',
+                        '08P01',
+                    ),
+                ),
+            );
+            this.socket.end();
+            return;
+        }
+        if (type === 'S') {
+            this.sync();
+            return;
+        }
+        try {
+            switch (type) {
+                case 'P':
+                    this.parseStatement(payload);
+                    return;
+                case 'B':
+                    this.bindPortal(payload);
+                    return;
+                case 'D':
+                    await this.describe(payload);
+                    return;
+                case 'E':
+                    await this.execute(payload);
+                    return;
+                case 'C':
+                    this.closeTarget(payload);
+                    return;
+                case 'H': // Flush: every reply is written immediately
+                    return;
+                default:
+                    return;
+            }
+        } catch (e) {
+            this.socket.write(errorResponse(toServerError(e)));
+            this.skipUntilSync = true;
+        }
+    }
+
+    private sync(): void {
+        this.endImplicitTransaction();
+        this.skipUntilSync = false;
+        this.socket.write(readyForQuery(this.transactionStatus()));
+    }
+
+    private transactionStatus(): TransactionStatus {
+        return this.isInTransaction ? 'T' : 'I';
+    }
+
+    /** Outside an explicit transaction every statement is its own; portals end with it */
+    private endImplicitTransaction(): void {
+        if (!this.isInTransaction) {
+            this.portals.clear();
+        }
+    }
+
+    private trackTransaction(commandTag: string): void {
+        if (commandTag === 'BEGIN') {
+            this.isInTransaction = true;
+        } else if (commandTag === 'COMMIT' || commandTag === 'ROLLBACK') {
+            this.isInTransaction = false;
+            this.portals.clear();
+        } else if (commandTag === 'DISCARD ALL') {
+            this.isInTransaction = false;
+            this.portals.clear();
+            this.statements.clear();
+        }
+    }
+
+    private parseStatement(payload: Buffer): void {
+        const { statementName, sql, parameterOids } = readParseMessage(payload);
+        if (statementName !== UNNAMED && this.statements.has(statementName)) {
+            throw new PgWireServerError(
+                `prepared statement "${statementName}" already exists`,
+                '42P05',
+            );
+        }
+        // types the client left undeclared (0) or omitted entirely are text
+        const parameterCount = Math.max(
+            parameterOids.length,
+            countParameters(sql),
+        );
+        this.assertCapacity(
+            this.statements,
+            statementName,
+            'prepared statements',
+        );
+        const statement: PreparedStatement = {
+            sql,
+            parameterCount,
+            declaredParameterOids: parameterOids,
+        };
+        this.assertRetainedSqlBudget(statement, {
+            replacing: this.statements.get(statementName),
+        });
+        this.statements.set(statementName, statement);
+        this.socket.write(parseComplete());
+    }
+
+    private bindPortal(payload: Buffer): void {
+        const bind = readBindMessage(payload);
+        const statement = this.statements.get(bind.statementName);
+        if (!statement) {
+            throw new PgWireServerError(
+                `prepared statement "${bind.statementName}" does not exist`,
+                '26000',
+            );
+        }
+        if (bind.portalName !== UNNAMED && this.portals.has(bind.portalName)) {
+            throw new PgWireServerError(
+                `cursor "${bind.portalName}" already exists`,
+                '42P03',
+            );
+        }
+        if (bind.parameters.length !== statement.parameterCount) {
+            throw new PgWireServerError(
+                `bind message supplies ${bind.parameters.length} parameters, but prepared statement "${bind.statementName}" requires ${statement.parameterCount}`,
+                '08P01',
+            );
+        }
+        const parameterOids = parameterOidsOf(statement);
+        const values = bind.parameters.map((value, index) => {
+            if (value === null) {
+                return null;
+            }
+            return isTextFormat(bind.parameterFormats[index])
+                ? value.toString('utf8')
+                : decodeBinaryParameter(value, parameterOids[index]);
+        });
+        this.assertCapacity(this.portals, bind.portalName, 'portals');
+        const portal: Portal = {
+            sql: inlineParameters(statement.sql, values, parameterOids),
+            resultFormats: bind.resultFormats,
+            result: null,
+            cursor: 0,
+        };
+        this.assertRetainedSqlBudget(portal, {
+            replacing: this.portals.get(bind.portalName),
+        });
+        this.portals.set(bind.portalName, portal);
+        this.socket.write(bindComplete());
+    }
+
+    private async describe(payload: Buffer): Promise<void> {
+        const { kind, name } = readDescribeMessage(payload);
+        if (kind === 'S') {
+            const statement = this.statements.get(name);
+            if (!statement) {
+                throw new PgWireServerError(
+                    `prepared statement "${name}" does not exist`,
+                    '26000',
+                );
+            }
+            const parameterOids = parameterOidsOf(statement);
+            const sql = inlineParameters(
+                statement.sql,
+                placeholderValues(parameterOids),
+                parameterOids,
+            );
+            const fields = await this.describeSql(sql);
+            this.socket.write(
+                Buffer.concat([
+                    parameterDescription(parameterOids),
+                    fields ? rowDescription(fields) : noData(),
+                ]),
+            );
+            return;
+        }
+        const portal = this.getPortal(name);
+        const fields = await this.describeSql(portal.sql);
+        this.socket.write(
+            fields
+                ? rowDescription(
+                      fields,
+                      expandFormats(
+                          portal.resultFormats,
+                          fields.length,
+                          'result column',
+                      ),
+                  )
+                : noData(),
+        );
+    }
+
+    private async describeSql(
+        sql: string,
+    ): Promise<PgWireResultField[] | null> {
+        if (sql.trim().length === 0) {
+            return null;
+        }
+        return this.handlers.describe(this.session as TSession, sql);
+    }
+
+    private async execute(payload: Buffer): Promise<void> {
+        const { portalName, maxRows } = readExecuteMessage(payload);
+        const portal = this.getPortal(portalName);
+        if (portal.sql.trim().length === 0) {
+            this.socket.write(emptyQueryResponse());
+            return;
+        }
+        const result =
+            portal.result ??
+            (await this.handlers.query(this.session as TSession, portal.sql));
+        if (result.type === 'command') {
+            this.portals.set(portalName, { ...portal, result });
+            this.trackTransaction(result.commandTag);
+            this.socket.write(commandComplete(result.commandTag));
+            return;
+        }
+        const formats = expandFormats(
+            portal.resultFormats,
+            result.fields.length,
+            'result column',
+        );
+        const end =
+            maxRows > 0
+                ? Math.min(portal.cursor + maxRows, result.rows.length)
+                : result.rows.length;
+        const isComplete = end >= result.rows.length;
+        // a finished portal keeps its shape (re-Execute is legal) but not its rows
+        this.portals.set(portalName, {
+            ...portal,
+            result: isComplete ? { ...result, rows: [] } : result,
+            cursor: isComplete ? 0 : end,
+        });
+        this.socket.write(
+            Buffer.concat([
+                ...result.rows
+                    .slice(portal.cursor, end)
+                    .map((row) => dataRow(row, result.fields, formats)),
+                isComplete
+                    ? commandComplete(result.commandTag)
+                    : portalSuspended(),
+            ]),
+        );
+    }
+
+    private closeTarget(payload: Buffer): void {
+        const { kind, name } = readCloseMessage(payload);
+        if (kind === 'S') {
+            this.statements.delete(name);
+        } else {
+            this.portals.delete(name);
+        }
+        this.socket.write(closeComplete());
+    }
+
+    /** Statements and portals together may not pin more than the budget */
+    private assertRetainedSqlBudget(
+        incoming: PreparedStatement | Portal,
+        { replacing }: { replacing: PreparedStatement | Portal | undefined },
+    ): void {
+        const kept = [
+            ...this.statements.values(),
+            ...this.portals.values(),
+        ].reduce(
+            (total, object) =>
+                object === replacing ? total : total + retainedSize(object),
+            0,
+        );
+        if (kept + retainedSize(incoming) > MAX_RETAINED_SQL_LENGTH) {
+            throw new PgWireServerError(
+                'too much statement text held open on this connection',
+                '54000',
+                'Close prepared statements and portals you no longer need',
+            );
+        }
+    }
+
+    /** The unnamed object is exempt (there is only ever one); named growth is capped */
+    private assertCapacity(
+        objects: Map<string, unknown>,
+        name: string,
+        subject: 'prepared statements' | 'portals',
+    ): void {
+        if (name === UNNAMED) {
+            return;
+        }
+        if (objects.size >= MAX_NAMED_OBJECTS) {
+            throw new PgWireServerError(
+                `too many ${subject} open on this connection (max ${MAX_NAMED_OBJECTS})`,
+                '54000',
+                `Close ${subject} you no longer need`,
+            );
+        }
+    }
+
+    private getPortal(name: string): Portal {
+        const portal = this.portals.get(name);
+        if (!portal) {
+            throw new PgWireServerError(
+                `portal "${name}" does not exist`,
+                '34000',
+            );
+        }
+        return portal;
     }
 
     private async runQuery(sql: string): Promise<void> {
         if (sql.trim().length === 0) {
             this.socket.write(
-                Buffer.concat([emptyQueryResponse(), readyForQuery()]),
+                Buffer.concat([
+                    emptyQueryResponse(),
+                    readyForQuery(this.transactionStatus()),
+                ]),
             );
             return;
         }
@@ -530,16 +910,21 @@ class PgWireConnection<TSession> {
             if (result.type === 'rows') {
                 buffers.push(rowDescription(result.fields));
                 for (const row of result.rows) {
-                    buffers.push(dataRow(row));
+                    buffers.push(dataRow(row, result.fields));
                 }
             }
-            buffers.push(commandComplete(result.commandTag), readyForQuery());
+            this.trackTransaction(result.commandTag);
+            this.endImplicitTransaction();
+            buffers.push(
+                commandComplete(result.commandTag),
+                readyForQuery(this.transactionStatus()),
+            );
             this.socket.write(Buffer.concat(buffers));
         } catch (e) {
             this.socket.write(
                 Buffer.concat([
                     errorResponse(toServerError(e)),
-                    readyForQuery(),
+                    readyForQuery(this.transactionStatus()),
                 ]),
             );
         }

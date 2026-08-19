@@ -1,4 +1,4 @@
-import { S3, type S3ClientConfig } from '@aws-sdk/client-s3';
+import { S3, S3Client, type S3ClientConfig } from '@aws-sdk/client-s3';
 import {
     createCredentialChain,
     fromContainerMetadata,
@@ -28,16 +28,27 @@ export type S3BaseConfiguration =
       }
     | undefined;
 
+/** Connection settings every S3 client in the backend is built from. */
+export type S3ConnectionConfig = {
+    region?: string;
+    endpoint?: string;
+    forcePathStyle?: boolean;
+    accessKey?: string;
+    secretKey?: string;
+    useCredentialsFrom?: string[];
+};
+
 /**
  * Resolves S3 credentials from explicit keys, a credential chain, or SDK defaults.
  * Returns the credentials property to assign to an S3ClientConfig, or undefined
  * to let the SDK use its default resolution.
  */
-export function resolveS3Credentials(config: {
-    accessKey?: string;
-    secretKey?: string;
-    useCredentialsFrom?: string[];
-}): S3ClientConfig['credentials'] | undefined {
+export function resolveS3Credentials(
+    config: Pick<
+        S3ConnectionConfig,
+        'accessKey' | 'secretKey' | 'useCredentialsFrom'
+    >,
+): S3ClientConfig['credentials'] | undefined {
     if (config.accessKey && config.secretKey) {
         Logger.debug('Using S3 storage with access key credentials');
         return {
@@ -113,6 +124,29 @@ export function resolveS3Credentials(config: {
     return undefined;
 }
 
+function buildS3ClientConfig(config: S3ConnectionConfig): S3ClientConfig {
+    const clientConfig: S3ClientConfig = {
+        region: config.region,
+        endpoint: config.endpoint || undefined,
+        forcePathStyle: config.forcePathStyle ?? false,
+    };
+
+    const credentials = resolveS3Credentials(config);
+    if (credentials) {
+        clientConfig.credentials = credentials;
+    }
+
+    return clientConfig;
+}
+
+/**
+ * Builds an S3 client for a bucket configuration. Callers that read and write
+ * the same bucket must share this, or one can authenticate where another can't.
+ */
+export function createS3ClientFromConfig(config: S3ConnectionConfig): S3Client {
+    return new S3Client(buildS3ClientConfig(config));
+}
+
 /**
  * Base class that sets up the AWS S3 client and handles credentials logic.
  * - If explicit accessKey/secretKey are provided, uses them.
@@ -133,20 +167,9 @@ export class S3BaseClient {
             return;
         }
 
-        const { endpoint, region, forcePathStyle } = configuration;
-
-        const s3Config: S3ClientConfig = {
-            region,
+        this.s3 = new S3({
+            ...buildS3ClientConfig(configuration),
             apiVersion: '2006-03-01',
-            endpoint,
-            forcePathStyle,
-        };
-
-        const credentials = resolveS3Credentials(configuration);
-        if (credentials) {
-            s3Config.credentials = credentials;
-        }
-
-        this.s3 = new S3(s3Config);
+        });
     }
 }

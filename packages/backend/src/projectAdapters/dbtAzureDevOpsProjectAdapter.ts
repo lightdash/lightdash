@@ -19,6 +19,7 @@ type Args = {
     warehouseCredentials: CreateWarehouseCredentials;
     targetName: string | undefined;
     environment: DbtProjectEnvironmentVariable[] | undefined;
+    environmentVariableAllowlist: string[];
     cachedWarehouse: CachedWarehouse;
     dbtVersion: SupportedDbtVersions;
     selector?: string;
@@ -38,6 +39,7 @@ export class DbtAzureDevOpsProjectAdapter extends DbtGitProjectAdapter {
         warehouseCredentials,
         targetName,
         environment,
+        environmentVariableAllowlist,
         cachedWarehouse,
         dbtVersion,
         selector,
@@ -53,6 +55,7 @@ export class DbtAzureDevOpsProjectAdapter extends DbtGitProjectAdapter {
             warehouseCredentials,
             targetName,
             environment,
+            environmentVariableAllowlist,
             cachedWarehouse,
             dbtVersion,
             selector,

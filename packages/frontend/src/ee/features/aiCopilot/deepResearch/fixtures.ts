@@ -66,6 +66,7 @@ export const deepResearchRunFixture: DeepResearchRunView = {
     question:
         'Why did enterprise retention fall in Q2 despite higher product adoption?',
     status: 'completed',
+    terminalReason: null,
     phase: 'Writing the report',
     startedAt: '2026-07-15T09:00:00.000Z',
     completedAt: '2026-07-15T09:18:00.000Z',

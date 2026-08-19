@@ -1,4 +1,5 @@
 import {
+    AlreadyExistsError,
     ApiOrganizationDesign,
     ApiOrganizationDesignFile,
     generateSlug,
@@ -19,6 +20,14 @@ import {
 
 type OrganizationDesignModelArguments = {
     database: Knex;
+};
+
+export type OrganizationDesignFileWrite = {
+    fileUuid: string;
+    kind: OrganizationDesignFileKind;
+    filename: string;
+    contentType: string;
+    sizeBytes: number;
 };
 
 const ORGANIZATION_DESIGN_SLUG_LOCK_NAMESPACE = 4;
@@ -57,9 +66,9 @@ const generateUniqueSlug = async (
             0,
             MAX_ORGANIZATION_DESIGN_SLUG_LENGTH - suffix.length,
         )}${suffix}`;
-        // An explicitly reserved slug can match any generated suffix. Lock
-        // each candidate before checking so allocations cannot race within an
-        // organization.
+        // A forced package slug can match any generated suffix. Lock each
+        // candidate before checking so generated and forced creates cannot
+        // race into the same organization-scoped slug.
         // eslint-disable-next-line no-await-in-loop
         await acquireOrganizationDesignSlugLock(
             trx,
@@ -111,6 +120,20 @@ export class OrganizationDesignModel {
         this.database = database;
     }
 
+    private static async lockDesignForFileMutation(
+        trx: Knex.Transaction,
+        designUuid: string,
+    ): Promise<void> {
+        const design = await trx(OrganizationDesignsTableName)
+            .select('design_uuid')
+            .where('design_uuid', designUuid)
+            .forUpdate()
+            .first();
+        if (!design) {
+            throw new NotFoundError(`Design not found: ${designUuid}`);
+        }
+    }
+
     async create(
         organizationUuid: string,
         createdByUserUuid: string,
@@ -137,6 +160,67 @@ export class OrganizationDesignModel {
         });
     }
 
+    async createWithFiles(
+        organizationUuid: string,
+        createdByUserUuid: string,
+        data: {
+            designUuid: string;
+            slug: string;
+            name: string;
+            description: string | null;
+            extraInstructions: string | null;
+            files: OrganizationDesignFileWrite[];
+        },
+    ): Promise<ApiOrganizationDesign> {
+        return this.database.transaction(async (trx) => {
+            await acquireOrganizationDesignSlugLock(
+                trx,
+                organizationUuid,
+                data.slug,
+            );
+            const existing = await trx(OrganizationDesignsTableName)
+                .where({
+                    organization_uuid: organizationUuid,
+                    slug: data.slug,
+                })
+                .first();
+            if (existing) {
+                throw new AlreadyExistsError(
+                    `A theme with slug "${data.slug}" already exists in this organization`,
+                );
+            }
+
+            const [row] = await trx(OrganizationDesignsTableName)
+                .insert({
+                    design_uuid: data.designUuid,
+                    organization_uuid: organizationUuid,
+                    slug: data.slug,
+                    name: data.name,
+                    description: data.description,
+                    extra_instructions: data.extraInstructions,
+                    created_by_user_uuid: createdByUserUuid,
+                })
+                .returning('*');
+
+            const fileRows = data.files.map((file) => ({
+                file_uuid: file.fileUuid,
+                design_uuid: data.designUuid,
+                kind: file.kind,
+                filename: file.filename,
+                content_type: file.contentType,
+                size_bytes: file.sizeBytes,
+                created_by_user_uuid: createdByUserUuid,
+            }));
+            const insertedFiles =
+                fileRows.length === 0
+                    ? []
+                    : await trx(OrganizationDesignFilesTableName)
+                          .insert(fileRows)
+                          .returning('*');
+            return mapDbDesign(row, insertedFiles);
+        });
+    }
+
     async findInOrganization(
         organizationUuid: string,
         designUuid: string,
@@ -148,7 +232,8 @@ export class OrganizationDesignModel {
         if (!row) return undefined;
         const files = await this.database(OrganizationDesignFilesTableName)
             .where('design_uuid', designUuid)
-            .orderBy('created_at', 'asc');
+            .orderBy('created_at', 'asc')
+            .orderBy('file_uuid', 'asc');
         return mapDbDesign(row, files);
     }
 
@@ -169,7 +254,8 @@ export class OrganizationDesignModel {
         if (!row) return undefined;
         const files = await this.database(OrganizationDesignFilesTableName)
             .where('design_uuid', row.design_uuid)
-            .orderBy('created_at', 'asc');
+            .orderBy('created_at', 'asc')
+            .orderBy('file_uuid', 'asc');
         return mapDbDesign(row, files);
     }
 
@@ -183,7 +269,8 @@ export class OrganizationDesignModel {
         const designUuids = designs.map((d) => d.design_uuid);
         const files = await this.database(OrganizationDesignFilesTableName)
             .whereIn('design_uuid', designUuids)
-            .orderBy('created_at', 'asc');
+            .orderBy('created_at', 'asc')
+            .orderBy('file_uuid', 'asc');
         const filesByDesign = new Map<string, DbOrganizationDesignFile[]>();
         for (const f of files) {
             const arr = filesByDesign.get(f.design_uuid) ?? [];
@@ -205,7 +292,8 @@ export class OrganizationDesignModel {
         if (!row) return null;
         const files = await this.database(OrganizationDesignFilesTableName)
             .where('design_uuid', row.design_uuid)
-            .orderBy('created_at', 'asc');
+            .orderBy('created_at', 'asc')
+            .orderBy('file_uuid', 'asc');
         return mapDbDesign(row, files);
     }
 
@@ -237,7 +325,8 @@ export class OrganizationDesignModel {
         }
         const files = await this.database(OrganizationDesignFilesTableName)
             .where('design_uuid', designUuid)
-            .orderBy('created_at', 'asc');
+            .orderBy('created_at', 'asc')
+            .orderBy('file_uuid', 'asc');
         return mapDbDesign(row, files);
     }
 
@@ -298,7 +387,8 @@ export class OrganizationDesignModel {
                 .returning('*');
             const files = await trx(OrganizationDesignFilesTableName)
                 .where('design_uuid', designUuid)
-                .orderBy('created_at', 'asc');
+                .orderBy('created_at', 'asc')
+                .orderBy('file_uuid', 'asc');
             return mapDbDesign(row, files);
         });
     }
@@ -315,6 +405,10 @@ export class OrganizationDesignModel {
         },
     ): Promise<ApiOrganizationDesignFile> {
         return this.database.transaction(async (trx) => {
+            await OrganizationDesignModel.lockDesignForFileMutation(
+                trx,
+                designUuid,
+            );
             const [row] = await trx(OrganizationDesignFilesTableName)
                 .insert({
                     file_uuid: file.fileUuid,
@@ -349,6 +443,10 @@ export class OrganizationDesignModel {
         fileUuid: string,
     ): Promise<ApiOrganizationDesignFile> {
         return this.database.transaction(async (trx) => {
+            await OrganizationDesignModel.lockDesignForFileMutation(
+                trx,
+                designUuid,
+            );
             const [row] = await trx(OrganizationDesignFilesTableName)
                 .where('file_uuid', fileUuid)
                 .andWhere('design_uuid', designUuid)
@@ -373,6 +471,10 @@ export class OrganizationDesignModel {
         designUuid: string,
     ): Promise<ApiOrganizationDesignFile[]> {
         return this.database.transaction(async (trx) => {
+            await OrganizationDesignModel.lockDesignForFileMutation(
+                trx,
+                designUuid,
+            );
             const rows = await trx(OrganizationDesignFilesTableName)
                 .where('design_uuid', designUuid)
                 .delete()
@@ -383,6 +485,108 @@ export class OrganizationDesignModel {
                     .update({ updated_at: trx.fn.now() as unknown as Date });
             }
             return rows.map(mapDbFile);
+        });
+    }
+
+    // Re-check package-managed state under a row lock before callers return
+    // NO_CHANGES for a previously loaded snapshot.
+    async confirmPackageSnapshot(
+        organizationUuid: string,
+        snapshot: ApiOrganizationDesign,
+    ): Promise<ApiOrganizationDesign | undefined> {
+        return this.database.transaction(async (trx) => {
+            const current = await trx(OrganizationDesignsTableName)
+                .where({
+                    organization_uuid: organizationUuid,
+                    design_uuid: snapshot.designUuid,
+                })
+                .forUpdate()
+                .first();
+            if (!current) return undefined;
+
+            const files = await trx(OrganizationDesignFilesTableName)
+                .where('design_uuid', snapshot.designUuid)
+                .orderBy('created_at', 'asc')
+                .orderBy('file_uuid', 'asc');
+            const packageMetadataMatches =
+                current.slug === snapshot.slug &&
+                current.name === snapshot.name &&
+                current.description === snapshot.description &&
+                current.extra_instructions === snapshot.extraInstructions;
+            const fileSnapshotMatches =
+                files.length === snapshot.files.length &&
+                files.every(
+                    (file, index) =>
+                        file.file_uuid === snapshot.files[index].fileUuid,
+                );
+            if (!packageMetadataMatches || !fileSnapshotMatches) {
+                return undefined;
+            }
+            return mapDbDesign(current, files);
+        });
+    }
+
+    async replaceFiles(
+        organizationUuid: string,
+        designUuid: string,
+        createdByUserUuid: string,
+        data: {
+            name: string;
+            description: string | null;
+            extraInstructions: string | null;
+            files: OrganizationDesignFileWrite[];
+        },
+    ): Promise<{
+        design: ApiOrganizationDesign;
+        removedFiles: ApiOrganizationDesignFile[];
+    }> {
+        return this.database.transaction(async (trx) => {
+            const current = await trx(OrganizationDesignsTableName)
+                .where({
+                    organization_uuid: organizationUuid,
+                    design_uuid: designUuid,
+                })
+                .forUpdate()
+                .first();
+            if (!current) {
+                throw new NotFoundError(`Design not found: ${designUuid}`);
+            }
+
+            const removedRows = await trx(OrganizationDesignFilesTableName)
+                .where('design_uuid', designUuid)
+                .delete()
+                .returning('*');
+
+            const fileRows = data.files.map((file) => ({
+                file_uuid: file.fileUuid,
+                design_uuid: designUuid,
+                kind: file.kind,
+                filename: file.filename,
+                content_type: file.contentType,
+                size_bytes: file.sizeBytes,
+                created_by_user_uuid: createdByUserUuid,
+            }));
+            const insertedFiles =
+                fileRows.length === 0
+                    ? []
+                    : await trx(OrganizationDesignFilesTableName)
+                          .insert(fileRows)
+                          .returning('*');
+
+            const [updated] = await trx(OrganizationDesignsTableName)
+                .where('design_uuid', designUuid)
+                .update({
+                    name: data.name,
+                    description: data.description,
+                    extra_instructions: data.extraInstructions,
+                    updated_at: trx.fn.now() as unknown as Date,
+                })
+                .returning('*');
+
+            return {
+                design: mapDbDesign(updated, insertedFiles),
+                removedFiles: removedRows.map(mapDbFile),
+            };
         });
     }
 }

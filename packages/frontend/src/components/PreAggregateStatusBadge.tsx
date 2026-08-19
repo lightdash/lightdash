@@ -7,6 +7,7 @@ import {
     selectPreAggregateCheck,
     useExplorerSelector,
 } from '../features/explorer/store';
+import { useExplorerQuery } from '../hooks/useExplorerQuery';
 import { usePreAggregateCacheEnabled } from '../hooks/usePreAggregateCacheEnabled';
 import { formatTileMissReason } from './common/Dashboard/PreAggregateAuditIndicator.utils';
 
@@ -14,6 +15,10 @@ const PreAggregateStatusBadge: FC = memo(() => {
     const preAggregateCheck = useExplorerSelector(selectPreAggregateCheck);
     const preAggVisible = useExplorerSelector(selectPreAggVisible);
     const [preAggCacheEnabled] = usePreAggregateCacheEnabled();
+    const { queryResults } = useExplorerQuery();
+    // Post-execution truth from the latest results: non-null fallbackReason
+    // means the pre-aggregate matched but results came from the warehouse
+    const resultsPreAggregate = queryResults.metadata?.preAggregate;
 
     const status = useMemo<{
         color: string;
@@ -37,6 +42,13 @@ const PreAggregateStatusBadge: FC = memo(() => {
         const { result } = preAggregateCheck;
 
         if (result.hit) {
+            if (resultsPreAggregate?.fallbackReason != null) {
+                return {
+                    color: 'orange',
+                    tooltip: `Pre-aggregate matched (${result.preAggregateName}) but failed to serve. Results came from the warehouse`,
+                    icon: 'bolt-off',
+                };
+            }
             return {
                 color: 'green',
                 tooltip: `Pre-aggregate cache active: ${result.preAggregateName}`,
@@ -64,7 +76,12 @@ const PreAggregateStatusBadge: FC = memo(() => {
             tooltip: `Cache miss: ${formatTileMissReason(result.reason)}`,
             icon: 'bolt',
         };
-    }, [preAggVisible, preAggregateCheck, preAggCacheEnabled]);
+    }, [
+        preAggVisible,
+        preAggregateCheck,
+        preAggCacheEnabled,
+        resultsPreAggregate,
+    ]);
 
     if (!status) return null;
 

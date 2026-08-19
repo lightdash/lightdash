@@ -4,8 +4,6 @@ import {
     type SessionUser,
     type VerifiedContentListItem,
 } from '@lightdash/common';
-import { CaslAuditWrapper } from '../logging/caslAuditWrapper';
-import { logAuditEvent } from '../logging/winston';
 import { ContentVerificationModel } from '../models/ContentVerificationModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { BaseService } from './BaseService';
@@ -41,9 +39,7 @@ export class ContentVerificationService extends BaseService {
     ): Promise<VerifiedContentListItem[]> {
         const project = await this.projectModel.getSummary(projectUuid);
 
-        const auditedAbility = new CaslAuditWrapper(user.ability, user, {
-            auditLogger: logAuditEvent,
-        });
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
             auditedAbility.cannot(

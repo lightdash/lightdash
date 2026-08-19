@@ -16,30 +16,31 @@ name: Release-safety preview
 # of every PR diff, and diffing it against itself reports "no breaking changes"
 # for an API break it never looked at.
 
+# SPK-857 / SPK-1015: no `paths:` filter here, deliberately. This has now been
+# removed twice — #26995 took it out for SPK-857 and #27139 put it back, leaving
+# this comment describing code that no longer matched it. If you are about to add
+# one, read the next paragraph first; `release-safety-workflow-shape.test.ts`
+# fails the build if a trigger-level filter reappears.
+#
+# With a trigger-level filter,
+# a PR revision whose diff leaves the watched paths stops launching the workflow
+# entirely — and the sticky comment (write-forward-only) freezes at the last
+# matching revision, describing a diff that no longer exists. Graphite restacks
+# make that a live failure mode, not a corner case. Instead the workflow always
+# runs on the watched event types; the cheap `changes` job decides in-job whether
+# the diff touches the watched surface, and when it doesn't, the `retract` job
+# corrects the frozen comment instead of leaving it standing.
 on:
   pull_request:
     # Include ready_for_review so flipping a draft to ready re-runs the preview —
     # that's the event that newly enables the AI migration review (see below).
-    types: [opened, synchronize, reopened, ready_for_review]
-    # The OpenAPI surface is not a file list: TSOA derives the spec from the
-    # controllers and every type they reach, so any backend or common change can
-    # move it (this is also why `.github/file-filters.yml`'s api_schema filter is
-    # deliberately broad). Migrations and the MCP snapshot live under those two
-    # globs too; the generated swagger.json used to be listed here on its own,
-    # which is what left the REST check unreachable.
-    paths:
-      - 'packages/backend/**'
-      - 'packages/common/**'
-      - 'release-safety.overrides.json'
-      - 'scripts/gen-release-safety.ts'
-      - 'scripts/ai-migration-review.ts'
-      - 'scripts/sql-migration-lint.ts'
-      - 'scripts/rest-api-diff.ts'
-      - 'scripts/mcp-tools-diff.ts'
-      - 'scripts/upgrade-overrides.ts'
-      - 'scripts/release-safety-pr-comment.ts'
-      - '.github/file-filters.yml'
-      - '.github/workflows/release-safety-pr.yml'
+    # Include edited (SPK-858) because changing a PR's BASE branch fires
+    # `edited`, not `synchronize` — re-parenting a Graphite PR onto main changes
+    # the effective merge-base diff with no push at all, and without this event
+    # the comment keeps showing a pre-reparent verdict. Title/body edits fire
+    # `edited` too; the `changes` job short-circuits those via the comment's
+    # describes-stamp instead of re-running the heavy jobs.
+    types: [opened, synchronize, reopened, ready_for_review, edited]
 
 # Spec generation makes a run long enough that an older run could otherwise
 # finish last and overwrite the sticky comment with a stale verdict.
@@ -57,15 +58,128 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
+      # SPK-1012: 'true' only while the PR is still open and unmerged. Read live
+      # from the API, not from the event payload — the payload describes the PR
+      # as it was when the event fired, which for a post-merge run is precisely
+      # the stale fact we must not trust.
+      open: ${{ steps.openness.outputs.open }}
+      watched: ${{ steps.watched.outputs.watched }}
       base_sha: ${{ steps.base.outputs.sha }}
       base_short: ${{ steps.base.outputs.short }}
       openapi: ${{ steps.filter.outputs.release_safety_api }}
+      # 'true' only on an `edited` event whose head+base the sticky comment
+      # already describes — empty when the fresh step is skipped, so downstream
+      # `!= 'true'` gates default to running.
+      fresh: ${{ steps.fresh.outputs.fresh }}
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
+      # SPK-1012: a merged or closed PR must never receive a verdict. Pushing to
+      # the branch after a merge still fires `synchronize`, and GitHub does not
+      # suppress `pull_request` events on merged PRs — so a run can be created,
+      # and finish, entirely post-merge. Two things then go wrong at once: the
+      # write step's only staleness guard compares head SHAs, and merging does
+      # not move the head, so it passes; and the comparison base is re-resolved
+      # at run time against a `main` that now contains this PR, so the API diff
+      # comes out empty. The result is a comment certifying "no breaking changes"
+      # for a PR that carried them. Observed on #27393, which was stamped safe
+      # 21 minutes after it merged while its release carried 42 breaking REST
+      # changes.
+      #
+      # Checked before the path filter so a post-merge run costs one API call.
+      - name: Check the pull request is still open
+        id: openness
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            const open = pr.state === 'open' && !pr.merged;
+            if (!open) {
+              core.info(
+                `PR is ${pr.merged ? 'merged' : pr.state}; no verdict will be written or retracted.`,
+              );
+            }
+            core.setOutput('open', String(open));
+
+      # The watched surface — the paths that were previously the trigger-level
+      # `paths:` filter (see the `on:` comment). Checked FIRST, without a
+      # checkout: on pull_request events dorny reads the PR file list from the
+      # API, so unwatched PRs (most of the repo's traffic) pay only this one
+      # step. The filter list is inline rather than in file-filters.yml because
+      # reading that file would itself require the checkout this fast path
+      # avoids.
+      #
+      # The OpenAPI surface is not a file list: TSOA derives the spec from the
+      # controllers and every type they reach, so any backend or common change
+      # can move it (this is also why `.github/file-filters.yml`'s api_schema
+      # filter is deliberately broad). Migrations and the MCP snapshot live
+      # under those two globs too.
+      - name: Check whether the diff touches the watched surface
+        if: steps.openness.outputs.open == 'true'
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4
+        id: watched
+        with:
+          token: ${{ github.token }}
+          filters: |
+            watched:
+              - 'packages/backend/**'
+              - 'packages/common/**'
+              - 'release-safety.overrides.json'
+              - 'scripts/gen-release-safety.ts'
+              - 'scripts/ai-migration-review.ts'
+              - 'scripts/sql-migration-lint.ts'
+              - 'scripts/rest-api-diff.ts'
+              - 'scripts/mcp-tools-diff.ts'
+              - 'scripts/breaking-change-declarations.ts'
+              - 'scripts/release-safety-pr-gate.ts'
+              - 'scripts/upgrade-overrides.ts'
+              - 'scripts/release-safety-pr-comment.ts'
+              - '.github/file-filters.yml'
+              - '.github/workflows/release-safety-pr.yml'
+
+      # SPK-858: an `edited` event that changed neither the base nor the diff
+      # (title/body edits are the overwhelming majority) should not re-run the
+      # heavy jobs. Freshness is judged against WHAT THE COMMENT DESCRIBES (its
+      # stamp) rather than against the event payload: with cancel-in-progress
+      # concurrency, a title edit can cancel an in-flight synchronize run — the
+      # stamp comparison makes the replacement run recompute exactly when the
+      # comment is stale, and skip only when it is current. Only `edited` may
+      # short-circuit: ready_for_review must recompute even on an unchanged diff
+      # (it newly enables the AI review), and pushes always recompute.
+      - name: Read the sticky comment's describes-stamp
+        id: sticky
+        if: github.event.action == 'edited' && steps.watched.outputs.watched == 'true'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const marker = '<!-- release-safety-marker -->';
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100,
+            });
+            const existing = comments.find((c) => c.body.includes(marker));
+            // SPK-1017: `gate` is part of the stamp because this check is
+            // required. A job skipped by an `if:` reports SKIPPED, and SKIPPED
+            // satisfies a required check — so reusing a FAILED verdict would
+            // turn a red gate green by editing the PR title. Only a verdict
+            // that passed may be short-circuited.
+            const m = existing?.body.match(
+              /<!-- release-safety-describes head:([0-9a-f]{7,40}) base:([0-9a-f]{7,40}) gate:(pass|fail) -->/,
+            );
+            core.setOutput('head', m ? m[1] : '');
+            core.setOutput('base', m ? m[2] : '');
+            core.setOutput('gate', m ? m[3] : '');
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        if: steps.watched.outputs.watched == 'true'
         with:
           fetch-depth: 0
 
@@ -73,6 +187,7 @@ jobs:
       # diff and the comment's base label all have to describe the same comparison.
       - name: Resolve comparison base
         id: base
+        if: steps.watched.outputs.watched == 'true'
         run: |
           set -euo pipefail
           git fetch --no-tags origin "${{ github.event.pull_request.base.ref }}"
@@ -83,14 +198,114 @@ jobs:
       - name: Check for files changes
         uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4
         id: filter
+        if: steps.watched.outputs.watched == 'true'
         with:
           token: ${{ github.token }}
           filters: .github/file-filters.yml
 
+      - name: Decide whether this edited event can short-circuit
+        id: fresh
+        if: github.event.action == 'edited' && steps.watched.outputs.watched == 'true'
+        run: |
+          set -euo pipefail
+          if [ -n "${{ steps.sticky.outputs.head }}" ] \
+            && [ "${{ steps.sticky.outputs.head }}" = "${{ github.event.pull_request.head.sha }}" ] \
+            && [ "${{ steps.sticky.outputs.base }}" = "${{ steps.base.outputs.sha }}" ] \
+            && [ "${{ steps.sticky.outputs.gate }}" = "pass" ]; then
+            echo "The sticky comment already describes this head+base and its gates passed; skipping recompute."
+            echo "fresh=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "fresh=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # SPK-1013: claim the sticky comment for this run BEFORE the expensive
+      # jobs, so an unfinished gate is visible rather than silent.
+      #
+      # `cancel-in-progress` is right for a status check reporting on the latest
+      # revision and wrong for a gate: on an actively-pushed PR every run can be
+      # cancelled before it reaches a verdict, and a cancelled gate is
+      # indistinguishable from a clean one — nothing on the page separates
+      # "checked, no breaking changes" from "never finished checking". #27393
+      # merged carrying 42 breaking REST changes after eight runs that failed or
+      # were cancelled; at the moment of merge no run had ever completed.
+      #
+      # Whatever happens to this run, the comment now reads as either a verdict
+      # for a named commit or a check in progress for a named commit. A merged
+      # PR still showing this notice never got a verdict.
+      #
+      # Deliberately omits the `release-safety-describes` stamp: that stamp is
+      # what would let an `edited` event short-circuit the recompute, and a
+      # pending notice must never be mistaken for a current verdict. Its absence
+      # fails safe — the next event recomputes. (Today nothing writes that stamp
+      # at all, so the short-circuit never fires — SPK-1017. This omission is
+      # written to stay correct once it does.)
+      - name: Mark the verdict as pending for this commit
+        if: >-
+          steps.openness.outputs.open == 'true' &&
+          steps.watched.outputs.watched == 'true' &&
+          steps.fresh.outputs.fresh != 'true' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const marker = '<!-- release-safety-marker -->';
+            const pending = '<!-- release-safety-pending -->';
+            const headSha = context.payload.pull_request.head.sha;
+            const short = headSha.slice(0, 7);
+
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            if (pr.head.sha !== headSha) {
+              core.info(`PR head moved on (${short} -> ${pr.head.sha.slice(0, 7)}); leaving the comment to the newer run.`);
+              return;
+            }
+
+            const body = [
+              marker,
+              pending,
+              '## 🛡️ Upgrade safety for self-hosted customers',
+              '',
+              `- ⏳ **Checking commit \`${short}\`.** No verdict has been reached yet.`,
+              '',
+              'If this notice is still showing when the pull request is merged, the check never finished — usually because a newer push cancelled it — and no upgrade-safety verdict was recorded for this change.',
+              '',
+              '---',
+              '<sub>Automated upgrade-safety check. The verdict replaces this notice when the run completes.</sub>',
+              '',
+            ].join('\n');
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100,
+            });
+            const existing = comments.find((c) => c.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+            core.info(`Sticky comment marked pending for ${short}.`);
+
   openapi-specs:
-    name: Generate OpenAPI specs
+    name: Generate API snapshots
     needs: changes
-    if: needs.changes.outputs.openapi == 'true'
+    if: needs.changes.outputs.open == 'true' && needs.changes.outputs.openapi == 'true' && needs.changes.outputs.fresh != 'true'
     runs-on: depot-ubuntu-24.04-4
     timeout-minutes: 30
     env:
@@ -105,11 +320,6 @@ jobs:
         with:
           ref: ${{ needs.changes.outputs.base_sha }}
 
-      - name: Setup Socket Firewall
-        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
-        with:
-          mode: firewall-free
-
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
@@ -123,29 +333,33 @@ jobs:
       # computing the marker; the root `generate-api` adds post-hooks that write
       # the chart/dashboard/MCP schemas, none of which feed the OpenAPI spec.
       # /tmp survives the second checkout's clean; the workspace does not.
-      - name: Generate base OpenAPI spec
+      - name: Generate base API snapshots
         run: |
           set -euo pipefail
-          sfw pnpm install --frozen-lockfile --prefer-offline
+          pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
           pnpm generate-api:backend
-          mkdir -p /tmp/openapi-specs
-          cp packages/backend/src/generated/swagger.json /tmp/openapi-specs/base-swagger.json
+          pnpm generate:mcp-tools-snapshot
+          mkdir -p /tmp/api-snapshots
+          cp packages/backend/src/generated/swagger.json /tmp/api-snapshots/base-swagger.json
+          cp packages/common/src/schemas/json/mcp-tools-1.0.json /tmp/api-snapshots/base-mcp-tools.json
 
       - name: Checkout PR
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      - name: Generate PR OpenAPI spec
+      - name: Generate PR API snapshots
         run: |
           set -euo pipefail
-          sfw pnpm install --frozen-lockfile --prefer-offline
+          pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
           pnpm generate-api:backend
-          cp packages/backend/src/generated/swagger.json /tmp/openapi-specs/pr-swagger.json
+          pnpm generate:mcp-tools-snapshot
+          cp packages/backend/src/generated/swagger.json /tmp/api-snapshots/pr-swagger.json
+          cp packages/common/src/schemas/json/mcp-tools-1.0.json /tmp/api-snapshots/pr-mcp-tools.json
 
-      - name: Upload the spec pair
+      - name: Upload the API snapshot pairs
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
-          name: release-safety-openapi-specs
-          path: /tmp/openapi-specs/
+          name: release-safety-api-snapshots
+          path: /tmp/api-snapshots/
           retention-days: 1
 
   preview:
@@ -155,7 +369,10 @@ jobs:
     # the migration and MCP halves still have something to say, and the comment
     # reports the REST check as not run rather than silently omitting it. A failed
     # openapi-specs job stays red on its own — this job does not launder it green.
-    if: ${{ always() && needs.changes.result == 'success' }}
+    # Skipped entirely when the diff doesn't touch the watched surface — the
+    # `retract` job owns the comment in that case — and on an `edited` event
+    # whose head+base the comment already describes (SPK-858).
+    if: ${{ always() && needs.changes.result == 'success' && needs.changes.outputs.open == 'true' && needs.changes.outputs.watched == 'true' && needs.changes.outputs.fresh != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -167,17 +384,30 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Socket Firewall
-        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
-        with:
-          mode: firewall-free
+      # SPK-1021: pnpm is set up BEFORE setup-node so that `cache: 'pnpm'` can
+      # resolve the store path — setup-node shells out to pnpm to find it, and
+      # fails with "Unable to locate executable file: pnpm" if it runs first.
+      # This is the ordering openapi-specs already uses.
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
+      # The install below was 75% of this job's runtime (255s median) because it
+      # re-fetched the whole CLI dependency tree, uncached, on every run — to
+      # obtain one library. This check is required, so that is merge latency for
+      # everyone, not background CI cost.
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version-file: '.nvmrc'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
 
       - name: Install tsx
-        run: sfw npm install -g tsx@4.19.4
+        run: npm install -g tsx@4.19.4
+
+      # SPK-941: scripts/release-safety-index.ts imports
+      # packages/cli/src/releaseSafety (ajv-backed index validation), so the
+      # otherwise dependency-free preview needs the CLI package's dependencies.
+      - name: Install CLI package dependencies
+        run: pnpm install --frozen-lockfile --filter @lightdash/cli --network-concurrency=16
 
       - name: Install oasdiff
         env:
@@ -192,35 +422,35 @@ jobs:
           sudo install -m 0755 /tmp/oasdiff /usr/local/bin/oasdiff
           oasdiff --version
 
-      - name: Download the generated OpenAPI spec pair
+      - name: Download the generated API snapshot pairs
         if: ${{ needs.openapi-specs.result == 'success' }}
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
-          name: release-safety-openapi-specs
-          path: /tmp/openapi-specs
+          name: release-safety-api-snapshots
+          path: /tmp/api-snapshots
 
       # A spec job that reported success but shipped no usable pair is broken
       # wiring, not a normal "not checked" — fail loudly instead of quietly
       # downgrading the REST result.
-      - name: Verify the spec pair
+      - name: Verify the API snapshot pairs
         if: ${{ needs.openapi-specs.result == 'success' }}
         run: |
           set -euo pipefail
-          for side in base pr; do
-            spec="/tmp/openapi-specs/${side}-swagger.json"
-            if [ ! -s "${spec}" ]; then
-              echo "::error::openapi-specs succeeded but ${spec} is missing or empty"
+          for file in base-swagger.json pr-swagger.json base-mcp-tools.json pr-mcp-tools.json; do
+            snapshot="/tmp/api-snapshots/${file}"
+            if [ ! -s "${snapshot}" ]; then
+              echo "::error::openapi-specs succeeded but ${snapshot} is missing or empty"
               exit 1
             fi
           done
 
-      - name: Select the REST spec source
-        id: rest
+      - name: Select the API snapshot sources
+        id: api
         run: |
           set -euo pipefail
           if [ "${{ needs.openapi-specs.result }}" = "success" ]; then
             echo "expected=true" >> "$GITHUB_OUTPUT"
-            echo "flags=--rest-base-spec /tmp/openapi-specs/base-swagger.json --rest-new-spec /tmp/openapi-specs/pr-swagger.json" >> "$GITHUB_OUTPUT"
+            echo "flags=--rest-base-spec /tmp/api-snapshots/base-swagger.json --rest-new-spec /tmp/api-snapshots/pr-swagger.json --mcp-base-snapshot /tmp/api-snapshots/base-mcp-tools.json --mcp-new-snapshot /tmp/api-snapshots/pr-mcp-tools.json" >> "$GITHUB_OUTPUT"
           else
             echo "expected=false" >> "$GITHUB_OUTPUT"
             echo "flags=" >> "$GITHUB_OUTPUT"
@@ -255,8 +485,25 @@ jobs:
             --previous-version "${{ needs.changes.outputs.base_short }}" \
             --last-tag "${{ needs.changes.outputs.base_sha }}" \
             --out /tmp/release-safety.json \
-            ${{ steps.rest.outputs.flags }} \
+            --index /tmp/release-safety-index.json \
+            ${{ steps.api.outputs.flags }} \
             ${AI_FLAG}
+
+      - name: Enforce API breaking-change declarations
+        id: declaration-gate
+        continue-on-error: true
+        run: |
+          tsx scripts/release-safety-pr-gate.ts \
+            --base-sha "${{ needs.changes.outputs.base_sha }}" \
+            --marker /tmp/release-safety.json
+
+      - name: Enforce SQL breaking-change declarations
+        id: sql-declaration-gate
+        continue-on-error: true
+        run: |
+          tsx scripts/sql-migration-lint.ts \
+            --last-tag "${{ needs.changes.outputs.base_sha }}" \
+            --enforce
 
       # The generator soft-degrades every REST failure to `checked: false` so that
       # nothing it does can fail a release. On a PR that silence has to be visible:
@@ -269,10 +516,10 @@ jobs:
         run: |
           set -euo pipefail
           CHECKED=$(node -e 'const m=JSON.parse(require("fs").readFileSync("/tmp/release-safety.json","utf8"));process.stdout.write(String(m?.api?.rest?.checked === true))')
-          if [ "${{ steps.rest.outputs.expected }}" = "true" ] && [ "${CHECKED}" = "true" ]; then
+          if [ "${{ steps.api.outputs.expected }}" = "true" ] && [ "${CHECKED}" = "true" ]; then
             echo "status=ran" >> "$GITHUB_OUTPUT"
             echo "broken=false" >> "$GITHUB_OUTPUT"
-          elif [ "${{ steps.rest.outputs.expected }}" = "true" ]; then
+          elif [ "${{ steps.api.outputs.expected }}" = "true" ]; then
             echo "::error::the OpenAPI spec pair was generated but the REST diff did not run — see the marker step's [rest-api-diff] log"
             echo "status=failed" >> "$GITHUB_OUTPUT"
             echo "broken=true" >> "$GITHUB_OUTPUT"
@@ -285,24 +532,40 @@ jobs:
             echo "broken=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Confirm the MCP check ran
+        id: mcp-result
+        run: |
+          set -euo pipefail
+          CHECKED=$(node -e 'const m=JSON.parse(require("fs").readFileSync("/tmp/release-safety.json","utf8"));process.stdout.write(String(m?.api?.mcp?.checked === true))')
+          if [ "${{ steps.api.outputs.expected }}" = "true" ] && [ "${CHECKED}" = "true" ]; then
+            echo "broken=false" >> "$GITHUB_OUTPUT"
+          elif [ "${{ steps.api.outputs.expected }}" = "true" ]; then
+            echo "::error::the MCP snapshot pair was generated but the MCP diff did not run — see the marker step's [mcp-tools-diff] log"
+            echo "broken=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "broken=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Capture raw SQL-linter verdict (for expand/contract attribution)
         id: lint
         run: |
           set -euo pipefail
-          if tsx scripts/sql-migration-lint.ts --last-tag "${{ needs.changes.outputs.base_sha }}" | grep -q '"breaking": true'; then
-            echo "breaking=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "breaking=false" >> "$GITHUB_OUTPUT"
-          fi
+          tsx scripts/sql-migration-lint.ts --last-tag "${{ needs.changes.outputs.base_sha }}" > /tmp/sql-lint.json
+          BREAKING=$(node -e 'const r=JSON.parse(require("fs").readFileSync("/tmp/sql-lint.json","utf8"));process.stdout.write(String(r.breaking===true))')
+          echo "breaking=${BREAKING}" >> "$GITHUB_OUTPUT"
 
       - name: Render PR comment
         run: |
           tsx scripts/release-safety-pr-comment.ts \
             --marker /tmp/release-safety.json \
             --base "${{ github.event.pull_request.base.ref }} (${{ needs.changes.outputs.base_short }})" \
+            --head-sha "${{ github.event.pull_request.head.sha }}" \
+            --base-sha "${{ needs.changes.outputs.base_sha }}" \
             --rest-status "${{ steps.rest-result.outputs.status }}" \
             ${{ steps.marker.outputs.draft == 'true' && '--draft' || '' }} \
             ${{ steps.lint.outputs.breaking == 'true' && '--linter-breaking' || '--no-linter-breaking' }} \
+            ${{ (steps.declaration-gate.outcome == 'failure' || steps.sql-declaration-gate.outcome == 'failure') && '--declaration-gate-failed' || '' }} \
+            ${{ (steps.rest-result.outputs.broken == 'true' || steps.mcp-result.outputs.broken == 'true' || steps.declaration-gate.outcome == 'failure' || steps.sql-declaration-gate.outcome == 'failure') && '--gate-failed' || '' }} \
             --out /tmp/release-safety-comment.md
 
       - name: Post or update sticky comment
@@ -315,10 +578,40 @@ jobs:
             const body = fs.readFileSync('/tmp/release-safety-comment.md', 'utf8');
             const marker = '<!-- release-safety-marker -->';
 
-            const { data: comments } = await github.rest.issues.listComments({
+            // This run computed a verdict for the EVENT's head. If the PR has
+            // moved on since (a newer push, or this is a manual re-run of an
+            // old run — concurrency only cancels runs that are still in
+            // progress when a newer one starts), writing would replace the
+            // current verdict with a stale one. The newer head's own run owns
+            // the comment; skip.
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            // SPK-1012: re-checked here and not only in `changes`, because that
+            // gate is evaluated when the job starts and this run takes ~17
+            // minutes. A PR that merges mid-run passes the job gate and reaches
+            // this step, where the base it was compared against is no longer the
+            // base it would be compared against now.
+            if (pr.state !== 'open' || pr.merged) {
+              core.info(`PR is ${pr.merged ? 'merged' : pr.state}; not writing a verdict.`);
+              return;
+            }
+
+            const eventHead = context.payload.pull_request.head.sha;
+            if (pr.head.sha !== eventHead) {
+              core.info(`PR head moved on (${eventHead.slice(0, 7)} -> ${pr.head.sha.slice(0, 7)}); not writing a stale verdict.`);
+              return;
+            }
+
+            // Paginate: the sticky comment can sit past the first page on a
+            // long PR, and missing it here would double-post a new one.
+            const comments = await github.paginate(github.rest.issues.listComments, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
+              per_page: 100,
             });
             const existing = comments.find((c) => c.body.includes(marker));
 
@@ -338,6 +631,87 @@ jobs:
               });
             }
 
-      - name: Fail when a REST check was handed its specs but did not run
-        if: ${{ steps.rest-result.outputs.broken == 'true' }}
+      - name: Fail release-safety gates
+        if: ${{ steps.rest-result.outputs.broken == 'true' || steps.mcp-result.outputs.broken == 'true' || steps.declaration-gate.outcome == 'failure' || steps.sql-declaration-gate.outcome == 'failure' }}
         run: exit 1
+
+  # SPK-857: when the current diff no longer touches the watched surface, an
+  # existing sticky comment is describing a revision that no longer exists —
+  # retract it instead of letting the frozen verdict stand (observed both ways:
+  # a stale ❓ that told the author to mark ready for a re-run that could never
+  # start, and a stale ✅ describing a migration that had left the diff). Only
+  # ever UPDATES an existing comment; a PR that never had one gets no noise.
+  retract:
+    name: Retract a stale verdict
+    needs: changes
+    if: ${{ needs.changes.result == 'success' && needs.changes.outputs.open == 'true' && needs.changes.outputs.watched != 'true' && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Retract the sticky comment if one exists
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const marker = '<!-- release-safety-marker -->';
+            const retracted = '<!-- release-safety-retracted -->';
+            const headSha = context.payload.pull_request.head.sha;
+            const short = headSha.slice(0, 7);
+
+            // Same stale-run guard as the post step: only the run for the PR's
+            // CURRENT head may touch the comment.
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            if (pr.state !== 'open' || pr.merged) {
+              core.info(`PR is ${pr.merged ? 'merged' : pr.state}; leaving the comment as it stands.`);
+              return;
+            }
+
+            if (pr.head.sha !== headSha) {
+              core.info(`PR head moved on (${short} -> ${pr.head.sha.slice(0, 7)}); leaving the comment to the newer run.`);
+              return;
+            }
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100,
+            });
+            const existing = comments.find((c) => c.body.includes(marker));
+            if (!existing) {
+              core.info('No sticky comment to retract.');
+              return;
+            }
+            // Already retracted AND naming the current head — nothing to say.
+            // A retraction naming an older head still gets refreshed so its
+            // "current diff" reference never goes stale.
+            if (existing.body.includes(retracted) && existing.body.includes(`\`${short}\``)) {
+              core.info('Sticky comment is already retracted for this head.');
+              return;
+            }
+            const body = [
+              marker,
+              retracted,
+              '## 🛡️ Upgrade safety for self-hosted customers',
+              '',
+              `- ✅ **No database or API surface in this PR's current diff.** An earlier revision of this PR touched files that affect self-hosted upgrades, and this comment described that revision. The current diff (commit \`${short}\`) no longer touches any of them, so that verdict has been retracted.`,
+              '',
+              '---',
+              '<sub>Automated upgrade-safety check. If a later revision touches the database or API surface again, a fresh verdict will replace this notice.</sub>',
+              '',
+            ].join('\n');
+
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: existing.id,
+              body,
+            });
+            core.info(`Retracted the stale verdict (head ${short}).`);

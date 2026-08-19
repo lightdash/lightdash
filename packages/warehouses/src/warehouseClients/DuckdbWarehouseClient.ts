@@ -326,11 +326,14 @@ const BLOCKED_STATEMENT_TYPES_INTERNAL_SQL = new Set([
     26, // DETACH
 ]);
 
+// `\s*"?\s*\(` also catches quoted-identifier calls (`"read_json"(...)`), which
+// DuckDB resolves to the same function; `\b` already covers schema-qualified
+// calls (`main.read_json(...)`) since `.` and `"` are word boundaries.
 const BLOCKED_FUNCTION_PATTERN =
-    /\b(current_setting|duckdb_settings|duckdb_secrets|query|query_table)\s*\(/i;
+    /\b(current_setting|duckdb_settings|duckdb_secrets|query|query_table)\s*"?\s*\(/i;
 
 const BLOCKED_USER_SQL_FILE_FUNCTION_PATTERN =
-    /\b(read\s*_\s*(?:blob|csv(?:\s*_\s*auto)?|json(?:\s*_\s*(?:auto|objects(?:\s*_\s*auto)?))?|ndjson(?:\s*_\s*(?:auto|objects(?:\s*_\s*auto)?))?|parquet|text|xlsx)|parquet\s*_\s*scan|glob|sqlite\s*_\s*scan|postgres\s*_\s*scan|mysql\s*_\s*scan)\s*\(/i;
+    /\b(read\s*_\s*(?:blob|csv(?:\s*_\s*auto)?|json(?:\s*_\s*(?:auto|objects(?:\s*_\s*auto)?))?|ndjson(?:\s*_\s*(?:auto|objects(?:\s*_\s*auto)?))?|parquet|text|xlsx)|parquet\s*_\s*(?:scan|metadata|schema|file\s*_\s*metadata|kv\s*_\s*metadata|bloom\s*_\s*probe)|sniff\s*_\s*csv|csv\s*_\s*sniffer|glob|sqlite\s*_\s*scan|postgres\s*_\s*scan|mysql\s*_\s*scan)\s*"?\s*\(/i;
 
 const BLOCKED_USER_SQL_FILE_TABLE_PATTERN = /\b(?:from|join)\s+'[^']*'/i;
 
@@ -1975,7 +1978,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         }
     }
 
-    private static validateUserSqlFileAccess(sql: string): void {
+    // Public so callers that inject server-built file reads (e.g. query-result
+    // references) can pre-validate the raw user SQL before substitution.
+    static validateUserSqlFileAccess(sql: string): void {
         const stripped = DuckdbWarehouseClient.stripSqlComments(sql);
         const functionMatch = stripped.match(
             BLOCKED_USER_SQL_FILE_FUNCTION_PATTERN,

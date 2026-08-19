@@ -51,7 +51,7 @@ const account = {
         ability: {
             can: vi.fn(() => true),
             cannot: vi.fn(() => false),
-            relevantRuleFor: vi.fn(() => undefined),
+            relevantRuleFor: vi.fn(() => ({ inverted: false })),
             rules: [],
         },
     },
@@ -206,7 +206,7 @@ const makeMcpService = () => {
         aiAgentService,
         aiAgentToolsService,
         aiOrganizationSettingsService: {
-            getSettings: vi.fn().mockResolvedValue({ aiAgentsVisible: true }),
+            isAiAgentsVisible: vi.fn().mockResolvedValue(true),
         },
         aiRouterService,
         aiWritebackService: {},
@@ -270,7 +270,7 @@ describe('McpService route_agent', () => {
         expect(getCurrentAgentTool).toBeDefined();
 
         const routeResult = (await routeAgentTool!(
-            { prompt: 'show revenue by month' },
+            { prompt: 'show revenue by month', projectUuid },
             extra,
         )) as {
             content: Array<{ text: string }>;
@@ -305,7 +305,10 @@ describe('McpService route_agent', () => {
             }),
         );
 
-        const currentResult = (await getCurrentAgentTool!({}, extra)) as {
+        const currentResult = (await getCurrentAgentTool!(
+            { projectUuid },
+            extra,
+        )) as {
             content: Array<{ text: string }>;
         };
         expect(JSON.parse(currentResult.content[0].text)).toEqual(
@@ -317,7 +320,7 @@ describe('McpService route_agent', () => {
         );
     });
 
-    it('applies routed agent scope to later tool calls', async () => {
+    it('applies an explicitly routed agent to later tool calls', async () => {
         const { aiAgentToolsService } = makeMcpService();
 
         const routeAgentTool = mockRegisteredMcpTools.get(
@@ -327,10 +330,19 @@ describe('McpService route_agent', () => {
             McpToolName.LIST_CONTENT,
         );
 
-        await routeAgentTool!({ prompt: 'show revenue by month' }, extra);
+        await routeAgentTool!(
+            { prompt: 'show revenue by month', projectUuid },
+            extra,
+        );
 
         const listContentResult = (await listContentTool!(
-            { spaceSlug: null, page: 1, pageSize: 25 },
+            {
+                projectUuid,
+                agentUuid: 'agent-uuid',
+                spaceSlug: null,
+                page: 1,
+                pageSize: 25,
+            },
             extra,
         )) as {
             content: Array<{ text: string }>;
@@ -401,9 +413,10 @@ describe('McpService route_agent', () => {
             {},
             pinnedExtra,
         )) as { content: Array<{ text: string }> };
-        const agentResult = (await getCurrentAgentTool!({}, pinnedExtra)) as {
-            content: Array<{ text: string }>;
-        };
+        const agentResult = (await getCurrentAgentTool!(
+            { projectUuid },
+            pinnedExtra,
+        )) as { content: Array<{ text: string }> };
 
         expect(JSON.parse(projectResult.content[0].text)).toEqual(
             expect.objectContaining({ projectUuid }),

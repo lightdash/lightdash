@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+export const AI_WRITEBACK_PENDING_GRACE_MS = 5 * 60 * 1000;
+
 export const TOOL_EDIT_DBT_PROJECT_DESCRIPTION = [
     'Open or update a pull request that modifies the dbt project / Lightdash semantic layer for this project.',
     'Use this tool ONLY when the user asks to CHANGE something in the underlying repo — e.g. add or rename a metric, edit a dimension definition, modify a dbt model, update YAML metadata.',

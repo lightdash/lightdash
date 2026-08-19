@@ -174,6 +174,11 @@ export default abstract class WarehouseBaseClient<
         await this.runQuery('SELECT 1');
     }
 
+    // Adapters that can report their session timezone override this.
+    async getSessionTimezone(): Promise<string | null> {
+        return null;
+    }
+
     concatString(...args: string[]): string {
         return this.sqlBuilder.concatString(...args);
     }
@@ -246,6 +251,14 @@ export default abstract class WarehouseBaseClient<
 
     castToTimestamp(date: Date): string {
         return this.sqlBuilder.castToTimestamp(date);
+    }
+
+    castToDate(date: Date): string {
+        return this.sqlBuilder.castToDate(date);
+    }
+
+    castToNaiveTimestamp(date: Date): string {
+        return this.sqlBuilder.castToNaiveTimestamp(date);
     }
 
     getIntervalSql(value: number, unit: TimeIntervalUnit): string {

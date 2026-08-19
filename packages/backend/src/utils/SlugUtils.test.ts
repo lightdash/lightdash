@@ -3,6 +3,7 @@ import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { AppsTableName } from '../database/entities/apps';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
+import { SavedChartSlugMappingsTableName } from '../database/entities/savedChartSlugMappings';
 import { SavedSqlTableName } from '../database/entities/savedSql';
 import { SpaceTableName } from '../database/entities/spaces';
 import { generateUniqueSlugScopedToProject } from './SlugUtils';
@@ -15,12 +16,17 @@ describe('generateUniqueSlugScopedToProject', () => {
         tracker = getTracker();
     });
 
+    beforeEach(() => {
+        tracker.on.select('pg_advisory_xact_lock').response({});
+    });
+
     afterEach(() => {
         tracker.reset();
     });
 
     it('uses the saved chart project UUID directly', async () => {
         tracker.on.select(SavedChartsTableName).responseOnce([]);
+        tracker.on.select(SavedChartSlugMappingsTableName).responseOnce([]);
 
         const slug = await generateUniqueSlugScopedToProject(
             database,
@@ -29,15 +35,20 @@ describe('generateUniqueSlugScopedToProject', () => {
             'Orders',
         );
 
-        const [query] = tracker.history.select;
-        expect(query.sql).toContain(`"${SavedChartsTableName}"."project_uuid"`);
-        expect(query.sql).not.toContain('join');
+        const query = tracker.history.select.find(({ sql }) =>
+            sql.includes(SavedChartsTableName),
+        );
+        expect(query?.sql).toContain(
+            `"${SavedChartsTableName}"."project_uuid"`,
+        );
+        expect(query?.sql).not.toContain('join');
         expect(slug).toBe('orders');
     });
 
     it('preserves a unique long chart slug', async () => {
         const longName = 'a'.repeat(300);
         tracker.on.select(SavedChartsTableName).responseOnce([]);
+        tracker.on.select(SavedChartSlugMappingsTableName).responseOnce([]);
 
         const slug = await generateUniqueSlugScopedToProject(
             database,
@@ -58,6 +69,7 @@ describe('generateUniqueSlugScopedToProject', () => {
             .select(SavedChartsTableName)
             .responseOnce([{ saved_query_id: 2 }]);
         tracker.on.select(SavedChartsTableName).responseOnce([]);
+        tracker.on.select(SavedChartSlugMappingsTableName).responseOnce([]);
 
         const slug = await generateUniqueSlugScopedToProject(
             database,
@@ -68,11 +80,12 @@ describe('generateUniqueSlugScopedToProject', () => {
 
         expect(slug).toHaveLength(255);
         expect(slug.endsWith('-2')).toBe(true);
-        expect(tracker.history.select).toHaveLength(3);
-        expect(tracker.history.select[1].sql).toContain('"slug" = $2');
-        expect(tracker.history.select[1].bindings).toContain(
-            `${'a'.repeat(253)}-1`,
+        const slugQueries = tracker.history.select.filter(
+            ({ sql }) => !sql.includes('pg_advisory_xact_lock'),
         );
+        expect(slugQueries).toHaveLength(4);
+        expect(slugQueries[1].sql).toContain('"slug" = $2');
+        expect(slugQueries[1].bindings).toContain(`${'a'.repeat(253)}-1`);
     });
 
     it('detects collisions for long names with the same bounded prefix', async () => {
@@ -80,6 +93,7 @@ describe('generateUniqueSlugScopedToProject', () => {
             .select(SavedChartsTableName)
             .responseOnce([{ saved_query_id: 1 }]);
         tracker.on.select(SavedChartsTableName).responseOnce([]);
+        tracker.on.select(SavedChartSlugMappingsTableName).responseOnce([]);
 
         const slug = await generateUniqueSlugScopedToProject(
             database,
@@ -89,6 +103,30 @@ describe('generateUniqueSlugScopedToProject', () => {
         );
 
         expect(slug).toBe(`${'a'.repeat(253)}-1`);
+    });
+
+    it('skips historical chart slugs', async () => {
+        tracker.on.select(SavedChartsTableName).responseOnce([]);
+        tracker.on
+            .select(SavedChartSlugMappingsTableName)
+            .responseOnce([{ slug: 'orders' }]);
+        tracker.on.select(SavedChartsTableName).responseOnce([]);
+        tracker.on.select(SavedChartSlugMappingsTableName).responseOnce([]);
+
+        const slug = await generateUniqueSlugScopedToProject(
+            database,
+            '22222222-2222-4222-8222-222222222222',
+            SavedChartsTableName,
+            'Orders',
+        );
+
+        expect(slug).toBe('orders-1');
+        const historyQueries = tracker.history.select.filter((query) =>
+            query.sql.includes(SavedChartSlugMappingsTableName),
+        );
+        expect(historyQueries).toHaveLength(2);
+        expect(historyQueries[0].bindings).toContain('orders');
+        expect(historyQueries[1].bindings).toContain('orders-1');
     });
 
     it('uses direct project ownership and exact probes for dashboards', async () => {

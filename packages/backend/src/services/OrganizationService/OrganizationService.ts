@@ -583,14 +583,17 @@ export class OrganizationService extends BaseService {
                   googleOidcOnly,
               });
 
-        let members = organizationMembers.filter((member) =>
-            auditedAbility.can(
-                'view',
+        const accessResults = auditedAbility.canBulk(
+            'view',
+            organizationMembers.map((member) =>
                 subject('OrganizationMemberProfile', {
                     ...member,
                     metadata: { userUuid: member.userUuid },
                 }),
             ),
+        );
+        let members = organizationMembers.filter(
+            (_, index) => accessResults[index],
         );
 
         // If projectUuid is set, then we can check what's the user role in that project
@@ -647,15 +650,21 @@ export class OrganizationService extends BaseService {
                 this.projectModel.getAllByOrganizationUuid(organizationUuid),
         );
 
-        return projects.filter((project) =>
-            auditedAbility.can(
-                'view',
+        const accessResults = auditedAbility.canBulk(
+            'view',
+            projects.map((project) =>
                 subject('Project', {
                     organizationUuid,
                     projectUuid: project.projectUuid,
+                    metadata: {
+                        projectUuid: project.projectUuid,
+                        projectName: project.name,
+                    },
                 }),
             ),
         );
+
+        return projects.filter((_, index) => accessResults[index]);
     }
 
     async getOnboarding(user: SessionUser): Promise<OnbordingRecord> {
@@ -766,16 +775,6 @@ export class OrganizationService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        // Race condition between check and delete
-        const [admin, ...remainingAdmins] =
-            await this.organizationMemberProfileModel.getOrganizationAdmins(
-                organizationUuid,
-            );
-        if (remainingAdmins.length === 0 && admin.userUuid === memberUserUuid) {
-            throw new ForbiddenError(
-                'Organization must have at least one admin',
-            );
-        }
         if (data.role !== undefined) {
             await validateOrganizationScopesCanBeGranted({
                 user: authenticatedUser,
@@ -808,6 +807,7 @@ export class OrganizationService extends BaseService {
             });
         }
 
+        // The model refuses to demote the organization's last active admin.
         return this.organizationMemberProfileModel.updateOrganizationMember(
             organizationUuid,
             memberUserUuid,
@@ -1031,9 +1031,9 @@ export class OrganizationService extends BaseService {
         );
 
         const auditedAbility = this.createAuditedAbility(user);
-        const allowedGroups = groups.filter((group) =>
-            auditedAbility.can(
-                'view',
+        const accessResults = auditedAbility.canBulk(
+            'view',
+            groups.map((group) =>
                 subject('Group', {
                     ...group,
                     metadata: {
@@ -1043,6 +1043,7 @@ export class OrganizationService extends BaseService {
                 }),
             ),
         );
+        const allowedGroups = groups.filter((_, index) => accessResults[index]);
 
         if (includeMembers === undefined) {
             return {

@@ -370,6 +370,7 @@ const VisualizationProvider: FC<
         hasExplorerStore,
         isTouchDevice,
         resolvedTimezone: lastValidResultsData?.resolvedTimezone,
+        dateZoom,
     };
 
     switch (chartConfig.type) {

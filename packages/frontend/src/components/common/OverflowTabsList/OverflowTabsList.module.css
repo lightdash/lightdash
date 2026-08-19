@@ -1,0 +1,73 @@
+.wrapper {
+    /* Callers on a non-body surface override this so the fade matches it. */
+    --overflow-tabs-fade: var(--mantine-color-body);
+}
+
+/* The fades anchor here, not on the wrapper, so caller padding cannot knock
+   them out of line with the strip. It also carries the strip's underline,
+   which Mantine would otherwise draw inside the scroller. */
+.viewport {
+    position: relative;
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.list {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+
+    /* The underline lives on the viewport, so it cannot scroll away. */
+    &::before {
+        display: none;
+    }
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
+}
+
+.fadeStart,
+.fadeEnd {
+    position: absolute;
+    top: 0;
+    /* Clear of the list's own bottom border, which must stay unbroken. */
+    bottom: 1px;
+    width: 38px;
+    display: flex;
+    align-items: center;
+    /* The gradient is decoration; only its arrow takes clicks. */
+    pointer-events: none;
+}
+
+.fadeStart {
+    left: 0;
+    background: linear-gradient(
+        to left,
+        transparent,
+        var(--overflow-tabs-fade) 60%
+    );
+}
+
+.fadeEnd {
+    right: 0;
+    justify-content: flex-end;
+    background: linear-gradient(
+        to right,
+        transparent,
+        var(--overflow-tabs-fade) 60%
+    );
+}
+
+.arrow {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--mantine-radius-sm);
+
+    &:hover {
+        background: var(--mantine-color-ldGray-1);
+    }
+}

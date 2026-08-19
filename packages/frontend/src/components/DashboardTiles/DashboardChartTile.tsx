@@ -420,6 +420,7 @@ const ValidDashboardChartTile: FC<{
                     isDashboard
                     tileUuid={tileUuid}
                     isTitleHidden={isTitleHidden}
+                    description={chart.description}
                     onScreenshotReady={handleScreenshotReady}
                 />
             </VisualizationProvider>
@@ -570,6 +571,7 @@ const ValidDashboardChartTileMinimal: FC<{
                 isDashboard
                 tileUuid={tileUuid}
                 isTitleHidden={isTitleHidden}
+                description={chart.description}
                 onScreenshotReady={handleScreenshotReady}
             />
         </VisualizationProvider>
@@ -1488,6 +1490,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                             />
                             <TileExecutionInfo
                                 cacheMetadata={cacheMetadata}
+                                preAggregate={metadata?.preAggregate ?? null}
                                 performance={performance}
                                 totalClientFetchTimeMs={
                                     resultsData.totalClientFetchTimeMs

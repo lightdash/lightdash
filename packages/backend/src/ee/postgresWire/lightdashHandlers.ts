@@ -9,12 +9,16 @@ import {
     type Account,
     type ResultRow,
 } from '@lightdash/common';
-import { parse } from 'pgsql-ast-parser';
 import { fromApiKey, fromServiceAccount } from '../../auth/account/account';
 import Logger from '../../logging/logger';
 import type { ServiceRepository } from '../../services/ServiceRepository';
 import type { ServiceAccountService } from '../services/ServiceAccountService/ServiceAccountService';
-import { tryHandleInformationSchema } from './informationSchema';
+import { tryHandleCatalogQuery } from './pgCatalog/catalogQuery';
+import {
+    buildCatalogRelations,
+    type CatalogRelation,
+} from './pgCatalog/catalogRelations';
+import { fieldTypeOid, PG_OID } from './pgTypes';
 import {
     PgWireServerError,
     type PgWireHandlers,
@@ -22,43 +26,27 @@ import {
     type PgWireResultField,
 } from './PostgresWireServer';
 import { compileSqlToMetricQuery, SqlCompileError } from './sqlToMetricQuery';
-import { type PgWireColumn, type PgWireField, type PgWireTable } from './types';
+import {
+    type PgWireColumn,
+    type PgWireCompiledQuery,
+    type PgWireField,
+    type PgWireTable,
+} from './types';
 
 export type LightdashPgWireSession = {
     account: Account;
     projectUuid: string;
+    /** the database name the client connected with (project UUID or slug), echoed back as current_database() */
+    databaseName: string;
     catalog: PgWireTable[];
+    /** the system catalog describing `catalog`, built once per connection */
+    catalogRelations: Map<string, CatalogRelation>;
 };
 
-const VERSION_STRING =
-    'PostgreSQL 16.3 (Lightdash semantic layer, wire protocol)';
-
-const TEXT_OID = 25;
-const BOOL_OID = 16;
-const INT8_OID = 20;
-const FLOAT8_OID = 701;
-const DATE_OID = 1082;
-const TIMESTAMP_OID = 1114;
-
-/** DimensionType / MetricType value -> Postgres type OID */
-const TYPE_OIDS: Record<string, number> = {
-    string: TEXT_OID,
-    number: FLOAT8_OID,
-    boolean: BOOL_OID,
-    date: DATE_OID,
-    timestamp: TIMESTAMP_OID,
-    count: INT8_OID,
-    count_distinct: INT8_OID,
-    sum: FLOAT8_OID,
-    average: FLOAT8_OID,
-    median: FLOAT8_OID,
-    percentile: FLOAT8_OID,
-    min: FLOAT8_OID,
-    max: FLOAT8_OID,
-};
+const TEXT_OID = PG_OID.text;
 
 const oidForColumn = (column: PgWireColumn): number =>
-    (column.type && TYPE_OIDS[column.type]) || TEXT_OID;
+    fieldTypeOid(column.type);
 
 const ISO_DATETIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
 
@@ -106,7 +94,11 @@ const SHOW_PARAMETERS: Record<string, string> = {
  */
 const tryHandleSessionStatement = (sql: string): PgWireQueryResult | null => {
     const trimmed = sql.trim().replace(/;\s*$/, '');
-    const firstWord = trimmed.split(/\s+/)[0]?.toUpperCase() ?? '';
+    const [firstWord = '', secondWord = ''] = (
+        /^(\w+)(?:\s+(\w+))?/.exec(trimmed) ?? []
+    )
+        .slice(1)
+        .map((word) => word?.toUpperCase() ?? '');
     switch (firstWord) {
         case 'BEGIN':
         case 'START':
@@ -122,11 +114,14 @@ const tryHandleSessionStatement = (sql: string): PgWireQueryResult | null => {
         case 'RESET':
             return { type: 'command', commandTag: 'RESET' };
         case 'DISCARD':
-            return { type: 'command', commandTag: 'DISCARD ALL' };
+            return {
+                type: 'command',
+                commandTag: secondWord === 'ALL' ? 'DISCARD ALL' : 'DISCARD',
+            };
         case 'DEALLOCATE':
             return { type: 'command', commandTag: 'DEALLOCATE' };
         case 'SHOW': {
-            const param = trimmed.split(/\s+/)[1]?.toLowerCase() ?? '';
+            const param = secondWord.toLowerCase();
             const value = SHOW_PARAMETERS[param];
             if (value === undefined) {
                 throw new PgWireServerError(
@@ -146,93 +141,59 @@ const tryHandleSessionStatement = (sql: string): PgWireQueryResult | null => {
     }
 };
 
-/**
- * Evaluate SELECTs without a FROM clause (SELECT 1, SELECT version(), ...)
- * used by clients as connection tests. Returns null when the statement is
- * not a FROM-less select.
- */
-const tryHandleConstantSelect = (
-    sql: string,
-    session: LightdashPgWireSession,
-): PgWireQueryResult | null => {
-    let statements;
-    try {
-        statements = parse(sql);
-    } catch {
-        return null; // let the compiler produce the error message
-    }
-    if (statements.length !== 1) return null;
-    const [statement] = statements;
-    if (statement.type !== 'select') return null;
-    if (statement.from && statement.from.length > 0) return null;
-
-    const fields: PgWireResultField[] = [];
-    const row: (string | null)[] = [];
-    for (const col of statement.columns ?? []) {
-        const { expr } = col;
-        let name = col.alias?.name ?? '?column?';
-        let oid = TEXT_OID;
-        let value: string | null;
-        switch (expr.type) {
-            case 'string':
-                value = expr.value;
-                break;
-            case 'integer':
-                oid = INT8_OID;
-                value = String(expr.value);
-                break;
-            case 'numeric':
-                oid = FLOAT8_OID;
-                value = String(expr.value);
-                break;
-            case 'boolean':
-                oid = BOOL_OID;
-                value = expr.value ? 't' : 'f';
-                break;
-            case 'null':
-                value = null;
-                break;
-            case 'call': {
-                const fn = expr.function.name.toLowerCase();
-                if (!col.alias) name = fn;
-                if (fn === 'version') value = VERSION_STRING;
-                else if (fn === 'current_database') value = session.projectUuid;
-                else if (fn === 'current_schema') value = 'public';
-                else if (fn === 'now' || fn === 'current_timestamp') {
-                    oid = TIMESTAMP_OID;
-                    value = new Date()
-                        .toISOString()
-                        .replace('T', ' ')
-                        .replace('Z', '+00');
-                } else return null;
-                break;
-            }
-            case 'keyword': {
-                if (!col.alias) name = expr.keyword;
-                if (
-                    expr.keyword === 'current_user' ||
-                    expr.keyword === 'session_user' ||
-                    expr.keyword === 'user'
-                ) {
-                    value = session.account.user?.email ?? 'lightdash';
-                } else if (expr.keyword === 'current_catalog') {
-                    value = session.projectUuid;
-                } else if (expr.keyword === 'current_schema') {
-                    value = 'public';
-                } else return null;
-                break;
-            }
-            default:
-                return null;
-        }
-        fields.push({ name, oid });
-        row.push(value);
-    }
-    return { type: 'rows', fields, rows: [row], commandTag: 'SELECT 1' };
-};
+/** Statement shape for logs without the values clients put in string literals */
+const redactLiterals = (sql: string): string =>
+    sql.replace(/'(?:[^']|'')*'/g, "'?'");
 
 const UUID_PATTERN =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Session statements, constant SELECTs and information_schema lookups are
+ * answered in memory; anything else compiles to a metric query that only
+ * `query` runs. `describe` shares this so it always agrees with `query`.
+ */
+type ResolvedStatement =
+    | { kind: 'result'; result: PgWireQueryResult }
+    | { kind: 'explore'; compiled: PgWireCompiledQuery };
+
+const resolveStatement = (
+    session: LightdashPgWireSession,
+    sql: string,
+): ResolvedStatement => {
+    const sessionResult = tryHandleSessionStatement(sql);
+    if (sessionResult) {
+        return { kind: 'result', result: sessionResult };
+    }
+
+    const catalogResult = tryHandleCatalogQuery(sql, {
+        databaseName: session.databaseName,
+        userName: session.account.user?.email ?? 'lightdash',
+        catalog: session.catalog,
+        relations: session.catalogRelations,
+    });
+    if (catalogResult) {
+        return { kind: 'result', result: catalogResult };
+    }
+
+    try {
+        return {
+            kind: 'explore',
+            compiled: compileSqlToMetricQuery(sql, session.catalog),
+        };
+    } catch (e) {
+        if (e instanceof SqlCompileError) {
+            throw compileErrorToServerError(e);
+        }
+        throw e;
+    }
+};
+
+const fieldsOf = (compiled: PgWireCompiledQuery): PgWireResultField[] =>
+    compiled.columns.map((column) => ({
+        name: column.name,
+        oid: oidForColumn(column),
+    }));
 
 export const createLightdashPgWireHandlers = (
     serviceRepository: ServiceRepository,
@@ -293,6 +254,11 @@ export const createLightdashPgWireHandlers = (
                         projectUuid,
                         summary.name,
                     );
+                    const describe = (field: {
+                        label: string;
+                        description?: string;
+                    }): string | null =>
+                        field.description?.trim() || field.label || null;
                     const fields: PgWireField[] = [
                         ...getDimensions(explore)
                             .filter((d) => !d.hidden)
@@ -300,6 +266,7 @@ export const createLightdashPgWireHandlers = (
                                 fieldId: getItemId(d),
                                 kind: 'dimension' as const,
                                 type: d.type,
+                                description: describe(d),
                             })),
                         ...getMetrics(explore)
                             .filter((m) => !m.hidden)
@@ -307,9 +274,19 @@ export const createLightdashPgWireHandlers = (
                                 fieldId: getItemId(m),
                                 kind: 'metric' as const,
                                 type: m.type,
+                                description: describe(m),
                             })),
                     ];
-                    return { name: explore.name, fields };
+                    return {
+                        name: explore.name,
+                        fields,
+                        description:
+                            explore.tables[
+                                explore.baseTable
+                            ]?.description?.trim() ||
+                            explore.label ||
+                            null,
+                    };
                 } catch (e) {
                     Logger.debug(
                         `pgwire: skipping explore ${summary.name}: ${
@@ -427,38 +404,38 @@ export const createLightdashPgWireHandlers = (
                     catalog.length
                 } explores)`,
             );
-            return { account, projectUuid, catalog };
+            return {
+                account,
+                projectUuid,
+                databaseName: database,
+                catalog,
+                catalogRelations: buildCatalogRelations({
+                    databaseName: database,
+                    userName: account.user?.email ?? 'lightdash',
+                    catalog,
+                }),
+            };
+        },
+
+        describe: async (session, sql) => {
+            const resolved = resolveStatement(session, sql);
+            if (resolved.kind === 'result') {
+                return resolved.result.type === 'rows'
+                    ? resolved.result.fields
+                    : null;
+            }
+            return fieldsOf(resolved.compiled);
         },
 
         query: async (session, sql) => {
-            const sessionResult = tryHandleSessionStatement(sql);
-            if (sessionResult) return sessionResult;
-
-            const constantResult = tryHandleConstantSelect(sql, session);
-            if (constantResult) return constantResult;
-
-            // catalog discovery via information_schema.tables / .columns
-            try {
-                const infoResult = tryHandleInformationSchema(
-                    parse(sql),
-                    session.catalog,
-                    session.projectUuid,
-                );
-                if (infoResult) return infoResult;
-            } catch (e) {
-                if (e instanceof PgWireServerError) throw e;
-                // parse errors fall through to the compiler for consistent messages
+            Logger.debug(
+                `pgwire: ${session.account.user?.email ?? 'service account'} query: ${redactLiterals(sql).slice(0, 500)}`,
+            );
+            const resolved = resolveStatement(session, sql);
+            if (resolved.kind === 'result') {
+                return resolved.result;
             }
-
-            let compiled;
-            try {
-                compiled = compileSqlToMetricQuery(sql, session.catalog);
-            } catch (e) {
-                if (e instanceof SqlCompileError) {
-                    throw compileErrorToServerError(e);
-                }
-                throw e;
-            }
+            const { compiled } = resolved;
 
             const results = await serviceRepository
                 .getProjectService()
@@ -472,12 +449,7 @@ export const createLightdashPgWireHandlers = (
                     QueryExecutionContext.API,
                 );
 
-            const fields: PgWireResultField[] = compiled.columns.map(
-                (column) => ({
-                    name: column.name,
-                    oid: oidForColumn(column),
-                }),
-            );
+            const fields = fieldsOf(compiled);
             const rows = results.rows.map((row: ResultRow) =>
                 compiled.columns.map((column) =>
                     toTextValue(row[column.source]?.value?.raw, column.type),

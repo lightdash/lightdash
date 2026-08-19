@@ -19,6 +19,7 @@ import {
     useParams,
     useSearchParams,
 } from 'react-router';
+import { validate as isUuidString } from 'uuid';
 import {
     explorerActions,
     selectMetricQuery,
@@ -159,6 +160,20 @@ type BackwardsCompatibleCreateSavedChartVersionUrlParam = Omit<
     };
 };
 
+/**
+ * The chart type a "Preview in explorer" link carries. The search string
+ * survives picking a table in the explore sidebar, so the link can be minted
+ * before a table is known.
+ */
+export const parseDataAppVizUuidFromSearchParams = (
+    search: string,
+): string | null => {
+    const dataAppVizUuid = new URLSearchParams(search).get('dataAppVizUuid');
+    return dataAppVizUuid && isUuidString(dataAppVizUuid)
+        ? dataAppVizUuid
+        : null;
+};
+
 export const parseChartFromExplorerSearchParams = (
     search: string,
 ): CreateSavedChartVersion | undefined => {
@@ -254,11 +269,17 @@ export const useExplorerRoute = () => {
     // Only sync URL when we're actually on a table page (pathParams.tableId exists)
     useEffect(() => {
         if (pathParams.tableId && metricQuery && tableName) {
+            const explorerUrl = getExplorerUrlFromCreateSavedChartVersion(
+                pathParams.projectUuid,
+                unsavedChartVersion,
+            );
+            const searchParams = new URLSearchParams(explorerUrl.search);
+            searchParams.delete('dataAppVizUuid');
             void navigate(
-                getExplorerUrlFromCreateSavedChartVersion(
-                    pathParams.projectUuid,
-                    unsavedChartVersion,
-                ),
+                {
+                    ...explorerUrl,
+                    search: searchParams.toString(),
+                },
                 { replace: true },
             );
         }
@@ -300,6 +321,11 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
         if (pathParams.tableId) {
             try {
                 const parsedChart = parseChartFromExplorerSearchParams(search);
+                // A "Preview in explorer" link preselects the chart type;
+                // explicit chart state wins over the hint.
+                const dataAppVizUuid = parsedChart
+                    ? null
+                    : parseDataAppVizUuidFromSearchParams(search);
                 const unsavedChartVersion = parsedChart || {
                     tableName: pathParams.tableId,
                     metricQuery: {
@@ -316,22 +342,32 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                     tableConfig: {
                         columnOrder: [],
                     },
-                    chartConfig: {
-                        type: ChartType.CARTESIAN,
-                        config: { layout: {}, eChartsConfig: {} },
-                    },
+                    chartConfig: dataAppVizUuid
+                        ? {
+                              type: ChartType.DATA_APP_VIZ,
+                              config: {
+                                  dataAppVizUuid,
+                                  fieldMapping: {},
+                                  optionValues: {},
+                              },
+                          }
+                        : {
+                              type: ChartType.CARTESIAN,
+                              config: { layout: {}, eChartsConfig: {} },
+                          },
                 };
 
                 return {
                     parameterReferences: [],
                     parameterDefinitions: {},
                     cachedChartConfigs: {},
-                    expandedSections: parsedChart
-                        ? [
-                              ExplorerSection.VISUALIZATION,
-                              ExplorerSection.RESULTS,
-                          ]
-                        : [ExplorerSection.RESULTS],
+                    expandedSections:
+                        parsedChart || dataAppVizUuid
+                            ? [
+                                  ExplorerSection.VISUALIZATION,
+                                  ExplorerSection.RESULTS,
+                              ]
+                            : [ExplorerSection.RESULTS],
                     unsavedChartVersion,
                     unsavedColorPaletteUuid: null,
                     modals: {

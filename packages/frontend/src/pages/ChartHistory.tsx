@@ -30,6 +30,7 @@ import {
     createExplorerStore,
     explorerActions,
 } from '../features/explorer/store';
+import { MergeProvider } from '../features/mergeQuery/context/MergeContext';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import {
     useChartHistory,
@@ -45,14 +46,22 @@ const ChartHistoryContent = memo(() => {
     // Run the query effects hook - orchestrates all query effects
     useExplorerQueryEffects();
 
-    return <Explorer hideHeader={true} />;
+    return (
+        <MergeProvider>
+            <Explorer hideHeader={true} />
+        </MergeProvider>
+    );
 });
 
-const ChartHistoryExplorer = memo<{ selectedVersionUuid: string | undefined }>(
-    ({ selectedVersionUuid }) => {
-        const { savedQueryUuid } = useParams<{ savedQueryUuid: string }>();
+type ChartHistoryExplorerProps = {
+    chartUuid: string;
+    selectedVersionUuid: string | undefined;
+};
+
+const ChartHistoryExplorer = memo<ChartHistoryExplorerProps>(
+    ({ chartUuid, selectedVersionUuid }) => {
         const chartVersionQuery = useChartVersion(
-            savedQueryUuid,
+            chartUuid,
             selectedVersionUuid,
         );
 
@@ -103,17 +112,18 @@ const ChartHistoryExplorer = memo<{ selectedVersionUuid: string | undefined }>(
 
 const ChartHistory = () => {
     const navigate = useNavigate();
-    const { savedQueryUuid, projectUuid } = useParams<{
+    const { savedQueryUuid: chartIdentifier, projectUuid } = useParams<{
         savedQueryUuid: string;
         projectUuid: string;
     }>();
     const [selectedVersionUuid, selectVersionUuid] = useState<string>();
     const [isRollbackModalOpen, setIsRollbackModalOpen] = useState(false);
     const chartQuery = useSavedQuery({
-        uuidOrSlug: savedQueryUuid,
+        uuidOrSlug: chartIdentifier,
         projectUuid,
     });
-    const historyQuery = useChartHistory(savedQueryUuid);
+    const chartUuid = chartQuery.data?.uuid;
+    const historyQuery = useChartHistory(chartUuid);
 
     useEffect(() => {
         const currentVersion = historyQuery.data?.history[0];
@@ -122,10 +132,10 @@ const ChartHistory = () => {
         }
     }, [selectedVersionUuid, historyQuery.data]);
 
-    const rollbackMutation = useChartVersionRollbackMutation(savedQueryUuid, {
+    const rollbackMutation = useChartVersionRollbackMutation(chartUuid, {
         onSuccess: () => {
             void navigate(
-                `/projects/${projectUuid}/saved/${savedQueryUuid}/view`,
+                `/projects/${projectUuid}/saved/${chartIdentifier}/view`,
             );
         },
     });
@@ -162,7 +172,7 @@ const ChartHistory = () => {
                             items={[
                                 {
                                     title: 'Chart',
-                                    to: `/projects/${projectUuid}/saved/${savedQueryUuid}/view`,
+                                    to: `/projects/${projectUuid}/saved/${chartIdentifier}/view`,
                                 },
                                 { title: 'Version history', active: true },
                             ]}
@@ -290,9 +300,10 @@ const ChartHistory = () => {
                     title="Select a version"
                 />
             )}
-            {selectedVersionUuid && (
+            {selectedVersionUuid && chartUuid && (
                 <ChartHistoryExplorer
                     key={selectedVersionUuid}
+                    chartUuid={chartUuid}
                     selectedVersionUuid={selectedVersionUuid}
                 />
             )}

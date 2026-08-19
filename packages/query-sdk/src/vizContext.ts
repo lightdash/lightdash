@@ -19,9 +19,18 @@ import {
     createElement,
     useContext,
     useEffect,
+    useMemo,
     useState,
     type ReactNode,
 } from 'react';
+import { useOptionalTransport } from './LightdashProvider';
+import type {
+    ColumnType,
+    DownloadResultsOptions,
+    DownloadResultsResult,
+    Transport,
+    UnderlyingDataResult,
+} from './types';
 
 /** A single cell of a Lightdash result row: `{ value: { raw, formatted } }`. */
 export type VizContextCell = {
@@ -39,6 +48,44 @@ export type VizContextRow = Record<string, VizContextCell | undefined>;
 export type VizContextOptionValue = boolean | number | string;
 
 /**
+ * The host's complete backend-pivot layout metadata. This is a structural
+ * mirror because query-sdk is published without a dependency on
+ * `@lightdash/common`.
+ */
+export type VizContextPivotDetails = {
+    totalColumnCount: number | null;
+    indexColumn:
+        | { reference: string; type: 'time' | 'category' }
+        | { reference: string; type: 'time' | 'category' }[]
+        | undefined;
+    valuesColumns: {
+        referenceField: string;
+        pivotColumnName: string;
+        aggregation: string;
+        pivotValues: {
+            referenceField: string;
+            value: unknown;
+            formatted?: string;
+        }[];
+        columnIndex?: number;
+    }[];
+    groupByColumns: { reference: string }[] | undefined;
+    sortBy:
+        | {
+              reference: string;
+              direction: 'ASC' | 'DESC';
+              nullsFirst?: boolean;
+              pivotValues?: {
+                  reference: string;
+                  value: string | number | boolean | null;
+              }[];
+          }[]
+        | undefined;
+    originalColumns: Record<string, { reference: string; type: ColumnType }>;
+    passthroughDimensions?: { reference: string }[];
+};
+
+/**
  * Pushed by the host into the iframe. `fieldMapping` maps each field name the
  * renderer declared to the query field id it resolves to; `rows` are the
  * host-fetched result rows keyed by field id; `options` holds the current
@@ -54,6 +101,10 @@ export type DataAppVizContextMessage = {
     options?: Record<string, VizContextOptionValue>;
     /** Absent when the installed host predates palette delivery. */
     colorPalette?: string[];
+    /** Null for unpivoted rows; absent when the installed host predates pivot metadata delivery. */
+    pivotDetails?: VizContextPivotDetails | null;
+    /** Absent when the installed host predates underlying-data delivery. */
+    underlyingData?: { enabled?: boolean };
 };
 
 /** Posted by the iframe on mount so the host pushes the current context. */
@@ -82,6 +133,25 @@ export const getRaw = (
     return row[fieldId]?.value?.raw ?? null;
 };
 
+/**
+ * Host-mediated access to the raw rows behind a clicked data point. `enabled`
+ * is false when the host predates the capability, the viewer lacks permission,
+ * or no transport is mounted — render no menu item in that case (never a
+ * disabled one). `row` is the untransformed source row from `rows`; `metric`
+ * is the declared field NAME bound to the clicked metric slot.
+ */
+export type VizUnderlyingData = {
+    enabled: boolean;
+    get: (opts: {
+        row: VizContextRow;
+        metric: string;
+        limit?: number;
+    }) => Promise<UnderlyingDataResult>;
+    download: (
+        opts: { row: VizContextRow; metric: string } & DownloadResultsOptions,
+    ) => Promise<DownloadResultsResult>;
+};
+
 export type VizContext = {
     /** field name → query field id, as bound in the host field mapping UI. */
     fieldMapping: Record<string, string>;
@@ -96,8 +166,12 @@ export type VizContext = {
      * resolved no palette; keep a fallback array in your own code for that.
      */
     colorPalette: string[];
+    /** Metadata that maps generated pivot column names back to their metric and series values. */
+    pivotDetails: VizContextPivotDetails | null;
     /** False until the first context arrives — render a placeholder while false. */
     ready: boolean;
+    /** Fetch/export the raw rows behind a clicked data point via the host. */
+    underlyingData: VizUnderlyingData;
 };
 
 type VizContextValue = {
@@ -105,6 +179,8 @@ type VizContextValue = {
     rows: VizContextRow[];
     options: Record<string, VizContextOptionValue>;
     colorPalette: string[];
+    pivotDetails: VizContextPivotDetails | null;
+    underlyingDataEnabled: boolean;
 };
 
 type VizContextState = VizContextValue | null;
@@ -135,10 +211,8 @@ const normalizeOptions = (
 };
 
 /**
- * Normalises an inbound host message into provider state. The payload crosses a
- * postMessage boundary so every key is treated as untrusted; `options` and
- * `colorPalette` are also absent from hosts predating them, and fall back to
- * `{}` / `[]`.
+ * Normalises an inbound host message into provider state. Optional capabilities
+ * are absent from hosts predating them and receive stable fallback values.
  */
 export function toVizContextState(
     message: DataAppVizContextMessage,
@@ -152,6 +226,57 @@ export function toVizContextState(
                   (color): color is string => typeof color === 'string',
               )
             : [],
+        pivotDetails: message.pivotDetails ?? null,
+        // Strict boolean check — non-boolean payloads read as disabled.
+        underlyingDataEnabled: message.underlyingData?.enabled === true,
+    };
+}
+
+/**
+ * Builds the `underlyingData` surface from the host's availability flag and
+ * the mounted transport (null when no `LightdashProvider` is present, e.g.
+ * standalone `useVizContext` usage). Exported for tests.
+ */
+export function buildVizUnderlyingData(
+    hostEnabled: boolean,
+    transport: Transport | null,
+): VizUnderlyingData {
+    // Atomic capability: the generated menu promises Download whenever
+    // `enabled` is true, so a transport must implement both methods.
+    const supported =
+        typeof transport?.getVizUnderlyingData === 'function' &&
+        typeof transport?.downloadVizUnderlyingData === 'function';
+    return {
+        enabled: hostEnabled && supported,
+        get: async ({ row, metric, limit }) => {
+            if (!hostEnabled) {
+                throw new Error(
+                    'Underlying data is not enabled for this visualization.',
+                );
+            }
+            if (!transport?.getVizUnderlyingData) {
+                throw new Error(
+                    'This SDK build predates underlying data. Rebuild the app on the current template.',
+                );
+            }
+            return transport.getVizUnderlyingData({ row, metric, limit });
+        },
+        download: async ({ row, metric, ...options }) => {
+            if (!hostEnabled) {
+                throw new Error(
+                    'Underlying data is not enabled for this visualization.',
+                );
+            }
+            if (!transport?.downloadVizUnderlyingData) {
+                throw new Error(
+                    'This SDK build predates underlying data. Rebuild the app on the current template.',
+                );
+            }
+            return transport.downloadVizUnderlyingData(
+                { row, metric },
+                options,
+            );
+        },
     };
 }
 
@@ -230,11 +355,23 @@ export function useVizContext(): VizContext {
         ? (fromProvider as VizContextState)
         : selfSubscribed;
 
+    // Null-returning lookup — standalone usage without LightdashProvider keeps
+    // working, with underlying data reported as unavailable.
+    const transport = useOptionalTransport();
+    const hostEnabled = context?.underlyingDataEnabled === true;
+
+    const underlyingData = useMemo<VizUnderlyingData>(
+        () => buildVizUnderlyingData(hostEnabled, transport),
+        [hostEnabled, transport],
+    );
+
     return {
         fieldMapping: context?.fieldMapping ?? {},
         rows: context?.rows ?? [],
         options: context?.options ?? {},
         colorPalette: context?.colorPalette ?? [],
+        pivotDetails: context?.pivotDetails ?? null,
         ready: context !== null,
+        underlyingData,
     };
 }

@@ -21,6 +21,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
+import { useMergeSetup } from '../features/mergeQuery/hooks/useMergeSetup';
 import useHealth from '../hooks/health/useHealth';
 import { useExplorerQuery } from '../hooks/useExplorerQuery';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
@@ -65,16 +66,27 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
         [dispatch],
     );
 
-    const canRunQuery = isValidQuery;
+    // A configured merge is what the explorer runs, so this is the control that
+    // runs it. Two run buttons for one result is how you end up with a chart
+    // showing the answer to a question nobody asked.
+    const merge = useMergeSetup();
+    const canRunQuery = merge.isMerging ? merge.canRun : isValidQuery;
+    // A merge blocks the run for a reason it can name; a silently disabled
+    // button makes the user hunt the sidebar for it.
+    const mergeBlockedReason =
+        merge.isMerging && !merge.canRun ? merge.blockingReason : null;
 
     const { track } = useTracking();
 
     const onClick = useCallback(() => {
-        if (canRunQuery) {
+        if (!canRunQuery) return;
+        if (merge.isMerging) {
+            merge.handleRun();
+        } else {
             fetchResults();
-            track({ name: EventName.RUN_QUERY_BUTTON_CLICKED });
         }
-    }, [fetchResults, track, canRunQuery]);
+        track({ name: EventName.RUN_QUERY_BUTTON_CLICKED });
+    }, [fetchResults, track, canRunQuery, merge]);
 
     useHotkeys([['mod + enter', onClick, { preventDefault: true }]]);
 
@@ -83,39 +95,53 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
             <Button.Group>
                 <Tooltip
                     label={
-                        <Group gap="xxs">
-                            <Kbd fw={600}>
-                                {os === 'macos' || os === 'ios' ? '⌘' : 'ctrl'}
-                            </Kbd>
+                        mergeBlockedReason ?? (
+                            <Group gap="xxs">
+                                <Kbd fw={600}>
+                                    {os === 'macos' || os === 'ios'
+                                        ? '⌘'
+                                        : 'ctrl'}
+                                </Kbd>
 
-                            <Text fw={600}>+</Text>
+                                <Text fw={600}>+</Text>
 
-                            <Kbd fw={600}>Enter</Kbd>
-                        </Group>
+                                <Kbd fw={600}>Enter</Kbd>
+                            </Group>
+                        )
                     }
                     position="bottom"
                     withArrow
                     withinPortal
-                    disabled={isLoading || !isValidQuery}
+                    disabled={
+                        isLoading || (!canRunQuery && !mergeBlockedReason)
+                    }
                 >
                     <Button
                         size={size}
                         pr={limit ? 'xs' : undefined}
-                        disabled={!isValidQuery}
+                        // data-disabled keeps the button hoverable so the
+                        // tooltip can say why the merge cannot run yet.
+                        disabled={!canRunQuery && !mergeBlockedReason}
+                        data-disabled={mergeBlockedReason ? true : undefined}
+                        aria-disabled={mergeBlockedReason ? true : undefined}
                         leftSection={<MantineIcon icon={IconPlayerPlay} />}
-                        loading={isLoading}
+                        loading={isLoading || !!merge.isRunning}
                         onClick={onClick}
                         style={(theme) => ({
                             flex: 1,
-                            borderRight: isValidQuery
+                            borderRight: canRunQuery
                                 ? `1px solid ${rgba(theme.colors.ldGray[5], 0.6)}`
                                 : undefined,
                             borderTopRightRadius: 0,
                             borderBottomRightRadius: 0,
+                            opacity: mergeBlockedReason ? 0.55 : undefined,
+                            cursor: mergeBlockedReason
+                                ? 'not-allowed'
+                                : undefined,
                         })}
                         data-testid="RefreshButton/RunQueryButton"
                     >
-                        Run query ({limit})
+                        {`Run query (${limit})`}
                     </Button>
                 </Tooltip>
 
@@ -144,7 +170,7 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
                     </Tooltip>
                 ) : (
                     <RunQuerySettings
-                        disabled={!isValidQuery}
+                        disabled={!canRunQuery}
                         size={size}
                         maxLimit={maxLimit}
                         limit={limit}

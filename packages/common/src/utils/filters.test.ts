@@ -1,5 +1,6 @@
 import { DimensionType, FieldType } from '../types/field';
 import {
+    FilterGroupOperator,
     FilterOperator,
     UnitOfTime,
     type AndFilterGroup,
@@ -17,10 +18,10 @@ import {
     addDashboardFiltersToMetricQuery,
     addFilterRule,
     applyDashboardFiltersForTile,
-    applyDefaultTimeDimensionTileTargets,
     createFilterRuleFromField,
     createFilterRuleFromModelRequiredFilterRule,
     getDashboardFilterRulesForTileAndReferences,
+    getFilterExpression,
     getFilterRuleFromFieldWithDefaultValue,
     getUnmetFilterRequirements,
     isEmptyDashboardFilterRule,
@@ -59,6 +60,74 @@ import {
 vi.mock('uuid', () => ({
     v4: vi.fn(() => 'uuid'),
 }));
+
+describe('getFilterExpression', () => {
+    const rule = (id: string): FilterRule => ({
+        id,
+        target: { fieldId: id },
+        operator: FilterOperator.NOT_NULL,
+    });
+
+    test('preserves nested groups and combines filter types with AND', () => {
+        const firstRule = rule('first');
+        const secondRule = rule('second');
+        const thirdRule = rule('third');
+        const metricRule = rule('metric');
+        const filters: Filters = {
+            dimensions: {
+                id: 'dimensions',
+                and: [
+                    firstRule,
+                    {
+                        id: 'nested',
+                        or: [secondRule, thirdRule],
+                    },
+                ],
+            },
+            metrics: {
+                id: 'metrics',
+                and: [metricRule],
+            },
+        };
+
+        expect(getFilterExpression(filters)).toEqual({
+            operator: FilterGroupOperator.and,
+            items: [
+                firstRule,
+                {
+                    operator: FilterGroupOperator.or,
+                    items: [secondRule, thirdRule],
+                },
+                metricRule,
+            ],
+        });
+    });
+
+    test('omits excluded rules and empty groups', () => {
+        const includedRule = rule('included');
+        const filters: Filters = {
+            dimensions: {
+                id: 'dimensions',
+                and: [
+                    includedRule,
+                    {
+                        id: 'nested',
+                        or: [rule('excluded')],
+                    },
+                ],
+            },
+        };
+
+        expect(
+            getFilterExpression(filters, (candidateRule) =>
+                candidateRule.id.startsWith('included'),
+            ),
+        ).toEqual({
+            operator: FilterGroupOperator.and,
+            items: [includedRule],
+        });
+    });
+});
 
 describe('addDashboardFiltersToMetricQuery', () => {
     test('should override the chart AND filter group with dashboard filters', async () => {
@@ -1422,54 +1491,6 @@ describe('applyDashboardFiltersForTile', () => {
         ).toEqual([]);
     });
 
-    test('maps an unmapped date filter to the explore default time dimension', () => {
-        const exploreWithDefaultTimeDimension = {
-            ...mockExplore,
-            tables: {
-                ...mockExplore.tables,
-                orders: {
-                    ...mockExplore.tables.orders,
-                    defaultTimeDimension: {
-                        field: 'order_date',
-                        interval: TimeFrames.DAY,
-                    },
-                },
-            },
-        };
-        const crossExploreDateRule: DashboardFilterRule = {
-            id: 'f-cross-explore-date',
-            target: {
-                fieldId: 'events_created_at',
-                tableName: 'events',
-                fallbackType: DimensionType.DATE,
-            },
-            operator: FilterOperator.EQUALS,
-            values: ['2026-08-01'],
-            label: 'Date',
-        };
-
-        const { metricQuery, appliedDashboardFilters } =
-            applyDashboardFiltersForTile({
-                tileUuid: 't-1',
-                metricQuery: baseMetricQuery,
-                dashboardFilters: {
-                    dimensions: [crossExploreDateRule],
-                    metrics: [],
-                    tableCalculations: [],
-                },
-                explore: exploreWithDefaultTimeDimension,
-            });
-
-        expect(appliedDashboardFilters.dimensions).toHaveLength(1);
-        expect(appliedDashboardFilters.dimensions[0].target).toMatchObject({
-            fieldId: 'orders_order_date',
-            tableName: 'orders',
-        });
-        expect(
-            (metricQuery.filters.dimensions as AndFilterGroup).and[0],
-        ).toMatchObject({ target: { fieldId: 'orders_order_date' } });
-    });
-
     test('drops rules whose tileTargets disable them for this tile', () => {
         const disabledRule: DashboardFilterRule = {
             ...statusRule,
@@ -1516,129 +1537,6 @@ describe('applyDashboardFiltersForTile', () => {
             target: { fieldId: 'orders_status' },
             values: [true],
         });
-    });
-});
-
-describe('applyDefaultTimeDimensionTileTargets', () => {
-    const sourceDateDimension = {
-        ...mockExplore.tables.orders.dimensions.order_date,
-        name: 'created_at',
-        table: 'events',
-        tableLabel: 'Events',
-    };
-    const defaultTimeDimension =
-        mockExplore.tables.orders.dimensions.order_date;
-
-    test('maps a date filter to each tile default without overriding explicit targets', () => {
-        const filters: DashboardFilters = {
-            dimensions: [
-                {
-                    id: 'date-filter',
-                    target: {
-                        fieldId: 'events_created_at',
-                        tableName: 'events',
-                    },
-                    operator: FilterOperator.EQUALS,
-                    values: ['2026-08-01'],
-                    label: 'Date',
-                    tileTargets: {
-                        excluded: false,
-                        explicit: {
-                            fieldId: 'custom_date',
-                            tableName: 'custom',
-                            fallbackType: DimensionType.DATE,
-                        },
-                    },
-                },
-            ],
-            metrics: [],
-            tableCalculations: [],
-        };
-
-        const result = applyDefaultTimeDimensionTileTargets(
-            filters,
-            {
-                source: [sourceDateDimension],
-                target: [defaultTimeDimension],
-                excluded: [defaultTimeDimension],
-                explicit: [defaultTimeDimension],
-            },
-            {
-                source: {
-                    fieldId: 'events_created_at',
-                    tableName: 'events',
-                    fallbackType: DimensionType.DATE,
-                },
-                target: {
-                    fieldId: 'orders_order_date',
-                    tableName: 'orders',
-                    fallbackType: DimensionType.DATE,
-                },
-                excluded: {
-                    fieldId: 'orders_order_date',
-                    tableName: 'orders',
-                    fallbackType: DimensionType.DATE,
-                },
-                explicit: {
-                    fieldId: 'orders_order_date',
-                    tableName: 'orders',
-                    fallbackType: DimensionType.DATE,
-                },
-            },
-        );
-
-        expect(result.dimensions[0].target.fallbackType).toBe(
-            DimensionType.DATE,
-        );
-        expect(result.dimensions[0].tileTargets).toEqual({
-            excluded: false,
-            explicit: {
-                fieldId: 'custom_date',
-                tableName: 'custom',
-                fallbackType: DimensionType.DATE,
-            },
-            target: {
-                fieldId: 'orders_order_date',
-                tableName: 'orders',
-                fallbackType: DimensionType.DATE,
-            },
-        });
-        expect(result.dimensions[0].tileTargets).not.toHaveProperty('source');
-    });
-
-    test('does not map non-date filters', () => {
-        const filters: DashboardFilters = {
-            dimensions: [
-                {
-                    id: 'status-filter',
-                    target: {
-                        fieldId: 'orders_status',
-                        tableName: 'orders',
-                        fallbackType: DimensionType.STRING,
-                    },
-                    operator: FilterOperator.EQUALS,
-                    values: ['completed'],
-                    label: 'Status',
-                    tileTargets: {},
-                },
-            ],
-            metrics: [],
-            tableCalculations: [],
-        };
-
-        expect(
-            applyDefaultTimeDimensionTileTargets(
-                filters,
-                { target: [defaultTimeDimension] },
-                {
-                    target: {
-                        fieldId: 'orders_order_date',
-                        tableName: 'orders',
-                        fallbackType: DimensionType.DATE,
-                    },
-                },
-            ),
-        ).toEqual(filters);
     });
 });
 
@@ -2304,4 +2202,220 @@ describe('getUnmetFilterRequirements', () => {
         });
         expect(getUnmetFilterRequirements(filters)).toEqual([]);
     });
+});
+
+describe('createFilterRuleFromField — quick filter operator per field type', () => {
+    const typedDim = (type: DimensionType) => ({
+        ...dimension('field', 'orders'),
+        type,
+    });
+    const intervalDim = (timeInterval: TimeFrames) =>
+        ({
+            ...dimension(`order_date_${timeInterval.toLowerCase()}`, 'orders'),
+            type: DimensionType.DATE,
+            timeInterval,
+            timeIntervalBaseDimensionName: 'order_date',
+            timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+        }) as const;
+
+    describe('include (equals, the default)', () => {
+        test('string dimension', () => {
+            const rule = createFilterRuleFromField(
+                typedDim(DimensionType.STRING),
+                'completed',
+            );
+            expect(rule.operator).toBe(FilterOperator.EQUALS);
+            expect(rule.values).toEqual(['completed']);
+        });
+
+        test('number dimension', () => {
+            const rule = createFilterRuleFromField(
+                typedDim(DimensionType.NUMBER),
+                42,
+            );
+            expect(rule.operator).toBe(FilterOperator.EQUALS);
+            expect(rule.values).toEqual([42]);
+        });
+
+        test('boolean dimension', () => {
+            const rule = createFilterRuleFromField(
+                typedDim(DimensionType.BOOLEAN),
+                true,
+            );
+            expect(rule.operator).toBe(FilterOperator.EQUALS);
+            expect(rule.values).toEqual([true]);
+        });
+
+        test('null value becomes isNull', () => {
+            const rule = createFilterRuleFromField(
+                typedDim(DimensionType.STRING),
+                null,
+            );
+            expect(rule.operator).toBe(FilterOperator.NULL);
+            expect(rule.values).toEqual([]);
+        });
+    });
+
+    describe('exclude (notEquals)', () => {
+        test('string dimension', () => {
+            const rule = createFilterRuleFromField(
+                typedDim(DimensionType.STRING),
+                'completed',
+                undefined,
+                FilterOperator.NOT_EQUALS,
+            );
+            expect(rule.operator).toBe(FilterOperator.NOT_EQUALS);
+            expect(rule.values).toEqual(['completed']);
+        });
+
+        test('number dimension', () => {
+            const rule = createFilterRuleFromField(
+                typedDim(DimensionType.NUMBER),
+                42,
+                undefined,
+                FilterOperator.NOT_EQUALS,
+            );
+            expect(rule.operator).toBe(FilterOperator.NOT_EQUALS);
+            expect(rule.values).toEqual([42]);
+        });
+
+        test('boolean dimension', () => {
+            const rule = createFilterRuleFromField(
+                typedDim(DimensionType.BOOLEAN),
+                false,
+                undefined,
+                FilterOperator.NOT_EQUALS,
+            );
+            expect(rule.operator).toBe(FilterOperator.NOT_EQUALS);
+            expect(rule.values).toEqual([false]);
+        });
+
+        test('null value becomes notNull', () => {
+            const rule = createFilterRuleFromField(
+                typedDim(DimensionType.STRING),
+                null,
+                undefined,
+                FilterOperator.NOT_EQUALS,
+            );
+            expect(rule.operator).toBe(FilterOperator.NOT_NULL);
+            expect(rule.values).toEqual([]);
+        });
+    });
+
+    describe('falsy but real values are kept', () => {
+        test('number 0 with equals', () => {
+            const rule = createFilterRuleFromField(
+                typedDim(DimensionType.NUMBER),
+                0,
+            );
+            expect(rule.operator).toBe(FilterOperator.EQUALS);
+            expect(rule.values).toEqual([0]);
+        });
+
+        test('number 0 with notEquals', () => {
+            const rule = createFilterRuleFromField(
+                typedDim(DimensionType.NUMBER),
+                0,
+                undefined,
+                FilterOperator.NOT_EQUALS,
+            );
+            expect(rule.values).toEqual([0]);
+        });
+
+        test('boolean false with equals', () => {
+            const rule = createFilterRuleFromField(
+                typedDim(DimensionType.BOOLEAN),
+                false,
+            );
+            expect(rule.operator).toBe(FilterOperator.EQUALS);
+            expect(rule.values).toEqual([false]);
+        });
+    });
+
+    describe.each([FilterOperator.EQUALS, FilterOperator.NOT_EQUALS] as const)(
+        'date/timestamp value formatting is identical for %s',
+        (operator) => {
+            test('DAY keeps the calendar day', () => {
+                const rule = createFilterRuleFromField(
+                    intervalDim(TimeFrames.DAY),
+                    '2026-03-03',
+                    undefined,
+                    operator,
+                );
+                expect(rule.operator).toBe(operator);
+                expect(rule.values).toEqual(['2026-03-03']);
+            });
+
+            test('WEEK keeps the week-commencing day', () => {
+                const rule = createFilterRuleFromField(
+                    intervalDim(TimeFrames.WEEK),
+                    '2026-03-02',
+                    undefined,
+                    operator,
+                );
+                expect(rule.values).toEqual(['2026-03-02']);
+            });
+
+            test('MONTH formats as YYYY-MM', () => {
+                const rule = createFilterRuleFromField(
+                    intervalDim(TimeFrames.MONTH),
+                    '2026-03-01',
+                    undefined,
+                    operator,
+                );
+                expect(rule.values).toEqual(['2026-03']);
+            });
+
+            test('QUARTER stores the first day of the quarter', () => {
+                const rule = createFilterRuleFromField(
+                    intervalDim(TimeFrames.QUARTER),
+                    '2025-04-01',
+                    undefined,
+                    operator,
+                );
+                expect(rule.values).toEqual(['2025-04-01']);
+            });
+
+            test('YEAR formats as YYYY', () => {
+                const rule = createFilterRuleFromField(
+                    intervalDim(TimeFrames.YEAR),
+                    '2026-01-01',
+                    undefined,
+                    operator,
+                );
+                expect(rule.values).toEqual(['2026']);
+            });
+
+            test('timestamp (RAW) keeps the full instant as ISO', () => {
+                const rawDim = {
+                    ...dimension('created_raw', 'customers'),
+                    type: DimensionType.TIMESTAMP,
+                    timeInterval: TimeFrames.RAW,
+                } as const;
+                const rule = createFilterRuleFromField(
+                    rawDim,
+                    '2025-06-28T11:00:00+00:00',
+                    'UTC',
+                    operator,
+                );
+                expect(rule.operator).toBe(operator);
+                expect(rule.values).toEqual(['2025-06-28T11:00:00+00:00']);
+            });
+
+            test('timestamp HOUR keeps the truncated instant', () => {
+                const hourDim = {
+                    ...dimension('timestamp_tz_hour', 'events'),
+                    type: DimensionType.TIMESTAMP,
+                    timeInterval: TimeFrames.HOUR,
+                } as const;
+                const rule = createFilterRuleFromField(
+                    hourDim,
+                    '2020-08-11T23:00:00+00:00',
+                    'UTC',
+                    operator,
+                );
+                expect(rule.values).toEqual(['2020-08-11T23:00:00+00:00']);
+            });
+        },
+    );
 });

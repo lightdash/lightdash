@@ -264,7 +264,7 @@ WHERE rank = 1;
 `;
 
 /**
- * Parameters: project_uuid, staleness_days, protect_recent_days, limit
+ * Parameters: project_uuid, staleness_days, staleness_days, protect_recent_days, limit
  */
 export const unusedChartsSql = () => `
 SELECT
@@ -313,7 +313,12 @@ GROUP BY
 HAVING
   (
     MAX(cv.timestamp) < now() - make_interval(days => ?)
-    OR MAX(cv.timestamp) IS NULL
+    -- Never-viewed content only counts as stale once it has existed for the
+    -- full staleness window; the protect window alone is not enough
+    OR (
+      MAX(cv.timestamp) IS NULL
+      AND sq.created_at < now() - make_interval(days => ?)
+    )
   )
   AND GREATEST(
     sq.created_at,
@@ -327,7 +332,7 @@ LIMIT ?;
 `;
 
 /**
- * Parameters: project_uuid, staleness_days, protect_recent_days, limit
+ * Parameters: project_uuid, staleness_days, staleness_days, protect_recent_days, limit
  */
 export const unusedDashboardsSql = () => `
 SELECT
@@ -383,7 +388,12 @@ GROUP BY
 HAVING
   (
     MAX(adv.timestamp) < now() - make_interval(days => ?)
-    OR MAX(adv.timestamp) IS NULL
+    -- Never-viewed content only counts as stale once it has existed for the
+    -- full staleness window; the protect window alone is not enough
+    OR (
+      MAX(adv.timestamp) IS NULL
+      AND d.created_at < now() - make_interval(days => ?)
+    )
   )
   AND GREATEST(
     d.created_at,

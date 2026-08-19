@@ -11,6 +11,9 @@ describeContentAsCodeSchemaContract({
         'dashboardUuid',
         'deletedAt',
         'deletedBy',
+        // A chart's merge is not expressible as code yet; the saved shape is
+        // experimental alongside the endpoint.
+        'merge',
         'organizationUuid',
         'pinnedListOrder',
         'pinnedListUuid',

@@ -56,6 +56,31 @@ export class DownloadFileModel {
         };
     }
 
+    async getDownloadFileForProject(
+        projectUuid: string,
+        fileId: string,
+    ): Promise<DownloadFile> {
+        const row = await this.database(DownloadFileTableName)
+            .where({
+                nanoid: fileId,
+                project_uuid: projectUuid,
+            })
+            .select('*')
+            .first();
+
+        if (row === undefined) {
+            throw new NotFoundError(`Cannot find file`);
+        }
+
+        return {
+            nanoid: row.nanoid,
+            path: row.path,
+            createdAt: row.created_at,
+            type: row.type as DownloadFileType,
+            projectUuid: row.project_uuid,
+        };
+    }
+
     // TODO: consider removing this method in milestone #212
     async streamResultsToCloudStorage(
         urlPrefix: string,

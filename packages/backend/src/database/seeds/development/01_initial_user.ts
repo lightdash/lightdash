@@ -125,6 +125,12 @@ export async function seed(knex: Knex): Promise<void> {
     const { organizationId, organizationUuid } =
         await addOrganization(SEED_ORG_1);
 
+    await knex('organization_homepage_settings').insert({
+        organization_uuid: organizationUuid,
+        enabled: true,
+        opening: null,
+    });
+
     // Add user attribute
     await new UserAttributesModel({ database: knex }).create(
         SEED_ORG_1.organization_uuid,
@@ -267,6 +273,7 @@ export async function seed(knex: Knex): Promise<void> {
                 onWarehouseCatalogChange: () => {},
             },
             SupportedDbtVersions.V1_11,
+            lightdashConfig.dbt.environmentVariableAllowlist,
         );
         const explores = await adapter.compileAllExplores({
             userUuid: user.user_uuid,
@@ -283,6 +290,7 @@ export async function seed(knex: Knex): Promise<void> {
         await projectModel.saveExploresToCache(
             SEED_PROJECT.project_uuid,
             explores,
+            true,
         );
 
         // Index catalog after saving explores to cache

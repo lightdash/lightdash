@@ -76,6 +76,7 @@ import { SchedulerModel } from '../../models/SchedulerModel';
 import { UserModel } from '../../models/UserModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { getAdjustedCronByOffset } from '../../utils/cronUtils';
+import { validateSchedulerWebhookTargets } from '../../utils/schedulerWebhookValidation';
 import { BaseService } from '../BaseService';
 import type { SoftDeleteOptions } from '../SoftDeletableService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
@@ -1014,6 +1015,7 @@ export class SchedulerService extends BaseService {
                 }),
                 timeZone: getTimezoneLabel(scheduler.timezone),
                 includeLinks: scheduler.includeLinks !== false,
+                plainTextEmail: scheduler.plainTextEmail === true,
             },
         };
         this.analytics.track(updateSchedulerEventData);
@@ -1690,6 +1692,8 @@ export class SchedulerService extends BaseService {
             throw new ParameterError('Timezone string is not valid');
         }
 
+        await validateSchedulerWebhookTargets(scheduler.targets);
+
         // Validate PDF format is not used with webhook destinations
         if (scheduler.format === SchedulerFormat.PDF) {
             const hasWebhookTargets = scheduler.targets.some(
@@ -2052,20 +2056,22 @@ export class SchedulerService extends BaseService {
 
         // Check user can manage scheduled deliveries in all projects
         const auditedAbility = this.createAuditedAbility(user);
-        const projectsWithoutPermission = summary.byProject
-            .filter((project) =>
-                auditedAbility.cannot(
-                    'manage',
-                    subject('ScheduledDeliveries', {
-                        organizationUuid,
+        const accessResults = auditedAbility.canBulk(
+            'manage',
+            summary.byProject.map((project) =>
+                subject('ScheduledDeliveries', {
+                    organizationUuid,
+                    projectUuid: project.projectUuid,
+                    metadata: {
+                        targetUserUuid,
                         projectUuid: project.projectUuid,
-                        metadata: {
-                            targetUserUuid,
-                            projectName: project.projectName,
-                        },
-                    }),
-                ),
-            )
+                        projectName: project.projectName,
+                    },
+                }),
+            ),
+        );
+        const projectsWithoutPermission = summary.byProject
+            .filter((_, index) => !accessResults[index])
             .map((project) => project.projectName);
 
         if (projectsWithoutPermission.length > 0) {

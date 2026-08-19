@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    activeFollowUpTools,
     AgentSuggestion,
     AgentSummaryContext,
     AI_DEEP_RESEARCH_MAX_CONTEXT_ROWS,
@@ -25,6 +24,7 @@ import {
     AiDuplicateSlackPromptError,
     AiMcpCredentialScope,
     AiMcpGithubAvailability,
+    AiMcpGithubConnectMode,
     AiMcpServer,
     AiMetricQueryWithFilters,
     AiModelOption,
@@ -64,32 +64,39 @@ import {
     EmbedArtifactVersionJobPayload,
     Explore,
     FeatureFlags,
-    followUpToolsText,
     ForbiddenError,
+    formatMergeQueryRefusal,
     GenerateArtifactQuestionJobPayload,
     getErrorMessage,
     getGroupByDimensions,
     getItemId,
     getItemMap,
+    getValidAiQueryLimit,
     getWebAiChartConfig,
     GITHUB_MCP_SERVER_NAME,
     GITHUB_MCP_SERVER_URL,
     hasAiAgentAccessToSpace,
     InsufficientGitPermissionsError,
+    isAgentToolName,
     isAiDeepResearchRunTerminal,
+    isAiMergeChartArtifactConfig,
     isAiSqlChartArtifactConfig,
     isAiWritebackRunInProgress,
+    isGithubMcpServerUrl,
     isGitProjectType,
     isSlackMessageTooLongError,
     isSlackPrompt,
     KnexPaginateArgs,
     KnexPaginatedData,
     LightdashUser,
+    MergeQuery,
     NotFoundError,
     NotImplementedError,
     OpenIdIdentity,
     OpenIdIdentityIssuerType,
     ParameterError,
+    ParametersValuesMap,
+    parsePersistedRunQueryArgs,
     parseVizConfig,
     PersistentDownloadFileAccessMode,
     ProjectType,
@@ -111,6 +118,7 @@ import {
     UserAttributeValueMap,
     validateAgentSuggestion,
     type AgentSuggestionTool,
+    type AgentToolName,
     type AiAgentEditDbtProjectPipelineJobPayload,
     type AiAgentModelConfig,
     type AiClonedThreadCreatedFrom,
@@ -123,6 +131,7 @@ import {
     type AiWebAppThreadCreatedFrom,
     type SessionUser,
     type SuggestionValidationCatalog,
+    type ToolRunQueryArgsTransformed,
     type VerifiedContentListItem,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -244,7 +253,10 @@ import {
 } from '../../models/AiDeepResearchRunModel';
 import { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
 import { ProjectContextModel } from '../../models/ProjectContextModel';
-import { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
+import {
+    aiAgentMemoryDistillEventRunAt,
+    CommercialSchedulerClient,
+} from '../../scheduler/SchedulerClient';
 import { selectAgent } from '../ai/agents/agentSelector';
 import {
     DEFAULT_AGENT_MAX_STEPS,
@@ -273,7 +285,9 @@ import {
     getCompactionModelMetadata,
     getDefaultModel,
     getModel,
+    MODEL_PRESETS,
     presetToModelOption,
+    resolveKeyManagement,
 } from '../ai/models';
 import { OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
 import {
@@ -328,6 +342,10 @@ import {
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
 import { AiCallAttribution } from '../ai/utils/aiCallTelemetry';
 import {
+    buildAiMergeQuery,
+    buildAiMergeSourceConfigs,
+} from '../ai/utils/buildAiMergeQuery';
+import {
     classifyWritebackError,
     GIT_WRITE_PERMISSION_AGENT_MESSAGE,
 } from '../ai/utils/classifyWritebackError';
@@ -340,7 +358,6 @@ import {
     getChannelLinkAgentSelectionBlocks,
     getDeepLinkBlocks,
     getFeedbackBlocks,
-    getFollowUpToolBlocks,
     getMarkdownBlocks,
     getMemoryCitationBlocks,
     getModernArtifactCardBlocks,
@@ -432,6 +449,16 @@ const ALLOWED_AGENT_AVATAR_MIME_TYPES = new Set([
 const STREAM_KEEPALIVE_INTERVAL_MS = 15_000;
 const MAX_MCP_BEARER_TOKEN_LENGTH = 8192;
 
+const GITHUB_MCP_PAT_DISABLED_ERROR =
+    'GitHub personal access tokens are disabled. Connect GitHub through the Lightdash GitHub App integration instead';
+
+const GITHUB_MCP_UNAVAILABLE_STATUS =
+    'GitHub is not connected. An organization admin can install the Lightdash GitHub App from Organization settings → Integrations to reconnect.';
+
+const isGithubMcpBearerServer = (
+    server: Pick<AiMcpServer, 'url' | 'authType'>,
+) => isGithubMcpServerUrl(server.url) && server.authType === 'bearer';
+
 type GenerateAgentExecutionOptions =
     | { mode: 'standard' }
     | {
@@ -442,6 +469,7 @@ type GenerateAgentExecutionOptions =
           canUseRawSql: boolean;
           abortSignal?: AbortSignal;
           initialTokenUsage?: number;
+          resumeContext?: string;
           onStepUsage?: (
               usage: AiDeepResearchStepUsage,
           ) => void | Promise<void>;
@@ -464,6 +492,25 @@ export const shouldEnqueueReviewClassifierForPromptUpdate = (
     update.errorMessage !== undefined ||
     (update.response !== undefined && update.tokenUsage !== undefined);
 
+export const assertDeepResearchPromptExecution = ({
+    promptRunUuid,
+    expectedRunUuid,
+}: {
+    promptRunUuid: string | undefined;
+    expectedRunUuid: string | null;
+}): void => {
+    if (expectedRunUuid === null && promptRunUuid) {
+        throw new ConflictError(
+            'This prompt belongs to a Deep Research run and cannot be used for a standard chat response',
+        );
+    }
+    if (expectedRunUuid && promptRunUuid !== expectedRunUuid) {
+        throw new ConflictError(
+            'This prompt does not match the requested Deep Research run',
+        );
+    }
+};
+
 type EmbedAiAgentRuntimeOptions = {
     embedSpaceUuid: string;
     spaceAccess: string[];
@@ -476,7 +523,9 @@ type AiAgentServiceDependencies = {
     aiAgentDocumentModel: AiAgentDocumentModel;
     aiDeepResearchRunModel: Pick<
         AiDeepResearchRunModel,
-        'findAgentContextByThreadScoped' | 'findLatestProgressByRunUuids'
+        | 'findAgentContextByThreadScoped'
+        | 'findByPromptForExecution'
+        | 'findLatestProgressByRunUuids'
     >;
     projectContextModel: ProjectContextModel;
     analytics: LightdashAnalytics;
@@ -701,6 +750,43 @@ function validateGeneratedSuggestion(
     }
 }
 
+export const assertDeepResearchFinalizerKeyManagement = (
+    expected: AiDeepResearchExecutionContextSnapshot['model']['keyManagement'],
+    current: AiDeepResearchExecutionContextSnapshot['model']['keyManagement'],
+): void => {
+    if (expected && expected !== current) {
+        throw new ParameterError(
+            'Deep Research finalizer key management changed during the run',
+        );
+    }
+};
+
+export const assertDeepResearchBedrockProfile = (
+    runtimeModelName: string,
+    configuredPrefix: string,
+): void => {
+    const selectedPreset = MODEL_PRESETS.bedrock.find(
+        (preset) =>
+            runtimeModelName === preset.name ||
+            runtimeModelName === preset.modelId ||
+            runtimeModelName.endsWith(`.${preset.modelId}`),
+    );
+    if (!selectedPreset) {
+        throw new ParameterError(
+            'Deep Research finalizer Bedrock model is unavailable',
+        );
+    }
+    const runtimePrefix = runtimeModelName.slice(
+        0,
+        -(selectedPreset.modelId.length + 1),
+    );
+    if (runtimePrefix && runtimePrefix !== configuredPrefix) {
+        throw new ParameterError(
+            'Deep Research Bedrock inference profile changed during the run',
+        );
+    }
+};
+
 export class AiAgentService extends BaseService {
     private readonly aiAgentModel: AiAgentModel;
 
@@ -727,7 +813,9 @@ export class AiAgentService extends BaseService {
 
     private readonly aiDeepResearchRunModel: Pick<
         AiDeepResearchRunModel,
-        'findAgentContextByThreadScoped' | 'findLatestProgressByRunUuids'
+        | 'findAgentContextByThreadScoped'
+        | 'findByPromptForExecution'
+        | 'findLatestProgressByRunUuids'
     >;
 
     private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
@@ -1214,6 +1302,55 @@ export class AiAgentService extends BaseService {
             .catch((error) => {
                 Logger.error(
                     'Failed to enqueue AI agent review classifier job',
+                    error,
+                );
+            });
+    }
+
+    /**
+     * Event-driven distill: same triggers as the review classifier, debounced
+     * so a burst of thread activity coalesces via the per-thread jobKey. A
+     * feedback event forces a re-distill — feedback lands in the transcript
+     * without advancing the thread's activity watermark.
+     */
+    private enqueueMemoryDistillEvent(args: {
+        eventType: 'response_saved' | 'feedback_changed';
+        organizationUuid: string | null | undefined;
+        projectUuid: string | null | undefined;
+        threadUuid: string | null | undefined;
+        userUuid?: string | null;
+    }) {
+        const { organizationUuid, projectUuid, threadUuid } = args;
+        if (!organizationUuid || !projectUuid || !threadUuid) {
+            return;
+        }
+
+        const userUuid = args.userUuid ?? 'system';
+
+        // Same principal the distill job's own gate uses — the org setting
+        // decides; the flag fallback must not vary by requesting user.
+        void this.aiOrganizationSettingsService
+            .isAiAgentMemoryEnabled({ userUuid: 'system', organizationUuid })
+            .then(async (memoryEnabled) => {
+                if (!memoryEnabled) {
+                    return undefined;
+                }
+                return this.schedulerClient.aiAgentMemoryDistill(
+                    {
+                        organizationUuid,
+                        projectUuid,
+                        userUuid,
+                        threadUuid,
+                        ...(args.eventType === 'feedback_changed'
+                            ? { force: true }
+                            : {}),
+                    },
+                    aiAgentMemoryDistillEventRunAt(new Date()),
+                );
+            })
+            .catch((error) => {
+                Logger.error(
+                    'Failed to enqueue AI agent memory distill job',
                     error,
                 );
             });
@@ -2148,6 +2285,7 @@ export class AiAgentService extends BaseService {
         projectUuid: string,
         metricQuery: AiMetricQueryWithFilters,
         vizConfig: AiAgentVizConfig['config'],
+        parameters: ParametersValuesMap | null,
     ) {
         const explore = await this.getExplore(
             user,
@@ -2205,10 +2343,66 @@ export class AiAgentService extends BaseService {
                 metricQuery: metricQueryWithCustomMetrics,
                 context: QueryExecutionContext.AI,
                 pivotConfiguration,
+                parameters: parameters ?? undefined,
             },
         );
 
         return asyncQuery;
+    }
+
+    /** The AI tool's merge shape as the core MergeQuery the engine executes. */
+    private async buildAiMergeQuery(
+        user: SessionUser,
+        projectUuid: string,
+        toolArgs: ToolRunQueryArgsTransformed,
+    ): Promise<MergeQuery> {
+        const exploreByName = Object.fromEntries(
+            await Promise.all(
+                buildAiMergeSourceConfigs(toolArgs).map(
+                    async ({ queryConfig }) =>
+                        [
+                            queryConfig.exploreName,
+                            await this.getExplore(
+                                user,
+                                projectUuid,
+                                null,
+                                queryConfig.exploreName,
+                            ),
+                        ] as const,
+                ),
+            ),
+        );
+        return buildAiMergeQuery({
+            toolArgs,
+            getExplore: (exploreName) => exploreByName[exploreName],
+            maxQueryLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
+        });
+    }
+
+    private async executeAsyncAiMergeQuery(
+        user: SessionUser,
+        projectUuid: string,
+        toolArgs: ToolRunQueryArgsTransformed,
+    ) {
+        const mergeQuery = await this.buildAiMergeQuery(
+            user,
+            projectUuid,
+            toolArgs,
+        );
+        const outcome = await this.asyncQueryService.executeAsyncMergeQuery({
+            account: fromSession(user),
+            projectUuid,
+            mergeQuery,
+            context: QueryExecutionContext.AI,
+            parameters: toolArgs.queryConfig.parameters ?? undefined,
+            mode: { type: 'interactive' },
+        });
+        if (outcome.outcome === 'refused') {
+            throw new ParameterError(formatMergeQueryRefusal(outcome.errors), {
+                errors: outcome.errors,
+            });
+        }
+        return { query: outcome.query, mergeQuery };
     }
 
     public async getAgent(
@@ -2828,14 +3022,16 @@ export class AiAgentService extends BaseService {
             embedSpaceUuid: runtimeOptions?.embedSpaceUuid,
         });
 
-        const aiOrganizationSettings =
+        const organizationDefaultModelConfig =
             body.modelConfig || agent.modelConfig
                 ? undefined
-                : await this.aiOrganizationSettingsService.getSettings(user);
+                : await this.aiOrganizationSettingsService.getDefaultModelConfig(
+                      organizationUuid,
+                  );
         const modelConfig =
             body.modelConfig ??
             agent.modelConfig ??
-            aiOrganizationSettings?.defaultAiAgentModelConfig ??
+            organizationDefaultModelConfig ??
             undefined;
 
         if (body.prompt) {
@@ -3302,9 +3498,54 @@ export class AiAgentService extends BaseService {
         });
     }
 
+    // Stored credentials don't always match runtime auth: App orgs mint tokens
+    // per run, and stored PATs may be disabled by the ai-mcp-github-pat flag.
+    private async applyGithubMcpDisplayStatus<
+        T extends Pick<
+            AiMcpServer,
+            'url' | 'authType' | 'connectionStatus' | 'error'
+        >,
+    >(user: SessionUser, servers: T[]): Promise<T[]> {
+        const { organizationUuid } = user;
+        if (!servers.some(isGithubMcpBearerServer) || !organizationUuid) {
+            return servers;
+        }
+        const installationId =
+            await this.githubAppInstallationsModel.findInstallationId(
+                organizationUuid,
+            );
+        if (installationId) {
+            return servers.map((server) =>
+                isGithubMcpBearerServer(server) &&
+                server.connectionStatus === 'not_connected'
+                    ? {
+                          ...server,
+                          connectionStatus: 'connected' as const,
+                          error: null,
+                      }
+                    : server,
+            );
+        }
+        if (await this.isGithubMcpPatEnabled(user)) {
+            return servers;
+        }
+        return servers.map((server) =>
+            isGithubMcpBearerServer(server)
+                ? {
+                      ...server,
+                      connectionStatus: 'not_connected' as const,
+                      error: GITHUB_MCP_UNAVAILABLE_STATUS,
+                  }
+                : server,
+        );
+    }
+
     public async listMcpServers(user: SessionUser, projectUuid: string) {
         await this.assertCanManageMcpServers(user, projectUuid);
-        return this.aiAgentModel.listMcpServers(projectUuid, user.userUuid);
+        return this.applyGithubMcpDisplayStatus(
+            user,
+            await this.aiAgentModel.listMcpServers(projectUuid, user.userUuid),
+        );
     }
 
     public async listMcpServerTools(
@@ -3377,7 +3618,8 @@ export class AiAgentService extends BaseService {
                         ...server
                     }) => server,
                 ),
-            );
+            )
+            .then((servers) => this.applyGithubMcpDisplayStatus(user, servers));
     }
 
     private async getAgentRuntimeMcpServers({
@@ -3399,7 +3641,7 @@ export class AiAgentService extends BaseService {
         }
 
         const attachedServers = await this.refreshGithubMcpCredentials(
-            user.organizationUuid,
+            user,
             await this.aiAgentModel.getAgentMcpServersWithSensitiveData(
                 agentUuid,
                 user.userUuid,
@@ -3773,6 +4015,9 @@ export class AiAgentService extends BaseService {
                 }
                 break;
             case 'bearer':
+                if (isGithubMcpServerUrl(normalizedUrl)) {
+                    await this.assertGithubMcpPatAllowed(user);
+                }
                 if (!body.credentials?.bearerToken?.trim()) {
                     throw new ParameterError(
                         'Bearer MCP servers require a bearer token',
@@ -3928,6 +4173,9 @@ export class AiAgentService extends BaseService {
                 'Only bearer-token MCP servers support updating the token',
             );
         }
+        if (isGithubMcpServerUrl(server.url)) {
+            await this.assertGithubMcpPatAllowed(user);
+        }
 
         const bearerToken = body.bearerToken.trim();
         if (!bearerToken) {
@@ -3994,53 +4242,172 @@ export class AiAgentService extends BaseService {
         return updated;
     }
 
-    /**
-     * Whether the one-click "Connect GitHub" affordance should be offered for
-     * this project. It is available only when the org has a GitHub App
-     * installation AND the caller has the same permission required to manage
-     * that integration (manage:GitIntegration) — so a project-level agent
-     * manager who is not an org admin does not see it.
-     */
+    private async isGithubMcpPatEnabled(user: SessionUser): Promise<boolean> {
+        const { enabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AiMcpGithubPat,
+        });
+        return enabled;
+    }
+
+    private async assertGithubMcpPatAllowed(user: SessionUser): Promise<void> {
+        if (!(await this.isGithubMcpPatEnabled(user))) {
+            throw new ForbiddenError(GITHUB_MCP_PAT_DISABLED_ERROR);
+        }
+    }
+
+    private async findGithubMcpServer(projectUuid: string, userUuid: string) {
+        const servers = await this.aiAgentModel.listMcpServers(
+            projectUuid,
+            userUuid,
+        );
+        return servers.find((server) => isGithubMcpServerUrl(server.url));
+    }
+
+    private async testGithubMcpConnection(
+        bearerToken: string,
+        failureMessage: string,
+    ): Promise<{ iconUrl: string | null }> {
+        try {
+            return await this.aiAgentMcpRuntimeClient.testConnection({
+                name: GITHUB_MCP_SERVER_NAME,
+                url: GITHUB_MCP_SERVER_URL,
+                authType: 'bearer',
+                bearerToken,
+                onUncaughtError: (error) => {
+                    Logger.error(
+                        `[AiAgent][MCP][${GITHUB_MCP_SERVER_NAME}] Uncaught MCP client error while connecting`,
+                        error,
+                    );
+                },
+            });
+        } catch (error) {
+            Logger.error(
+                `[AiAgent][MCP][${GITHUB_MCP_SERVER_NAME}] Failed to connect`,
+                error,
+            );
+            throw new ParameterError(failureMessage);
+        }
+    }
+
+    private async reconnectGithubMcpServer(args: {
+        user: SessionUser;
+        organizationUuid: string;
+        projectUuid: string;
+        server: AiMcpServer;
+        bearerToken: string;
+        scope: AiMcpCredentialScope;
+        iconUrl?: string | null;
+        analyticsMethod: 'one_click_reconnect' | 'one_click_app_reconnect';
+    }): Promise<AiMcpServer> {
+        const { user, projectUuid, server, scope } = args;
+        await this.aiAgentModel.upsertCredential({
+            serverUuid: server.uuid,
+            scope,
+            userUuid: scope === 'user' ? user.userUuid : null,
+            credentials: { type: 'bearer', bearerToken: args.bearerToken },
+            actorUserUuid: user.userUuid,
+        });
+        await this.aiAgentModel.updateMcpServerRuntimeState({
+            serverUuid: server.uuid,
+            connectionStatus: 'connected',
+            error: null,
+            ...(args.iconUrl !== undefined ? { iconUrl: args.iconUrl } : {}),
+            actorUserUuid: user.userUuid,
+        });
+        this.analytics.track({
+            event: 'ai_agent.github_mcp_connected',
+            userId: user.userUuid,
+            properties: {
+                organizationId: args.organizationUuid,
+                projectId: projectUuid,
+                mcpServerId: server.uuid,
+                method: args.analyticsMethod,
+            },
+        });
+        return (
+            (await this.findGithubMcpServer(projectUuid, user.userUuid)) ??
+            server
+        );
+    }
+
+    // 'github_app' also requires manage:GitIntegration so a project-level
+    // agent manager cannot leverage an org-wide installation they don't control.
     public async getGithubMcpAvailability(
         user: SessionUser,
         projectUuid: string,
     ): Promise<AiMcpGithubAvailability> {
+        const unavailable: AiMcpGithubAvailability = {
+            available: false,
+            availableModes: [],
+            alreadyConnected: false,
+            hasGithubAppInstallation: false,
+        };
         const { organizationUuid } = user;
         if (!organizationUuid) {
-            return { available: false, alreadyConnected: false };
+            return unavailable;
         }
 
         const isCopilotEnabled = await this.getIsCopilotEnabled(user);
         if (!isCopilotEnabled) {
-            return { available: false, alreadyConnected: false };
+            return unavailable;
         }
         const auditedAbility = this.createAuditedAbility(user);
         const canManageMcpServers = auditedAbility.can(
             'manage',
             subject('AiAgent', { organizationUuid, projectUuid }),
         );
+        const canManageGitIntegration = auditedAbility.can(
+            'manage',
+            subject('GitIntegration', { organizationUuid }),
+        );
 
-        const servers = await this.aiAgentModel.listMcpServers(
+        const installationId =
+            await this.githubAppInstallationsModel.findInstallationId(
+                organizationUuid,
+            );
+        const hasGithubAppInstallation = !!installationId;
+        const patEnabled = await this.isGithubMcpPatEnabled(user);
+
+        const githubServer = await this.findGithubMcpServer(
             projectUuid,
             user.userUuid,
         );
-        const githubServer = servers.find(
-            (server) => server.url === GITHUB_MCP_SERVER_URL,
-        );
 
-        const available = canManageMcpServers || !!githubServer;
-        if (!available) {
-            return { available: false, alreadyConnected: false };
+        const availableModes: AiMcpGithubConnectMode[] = [];
+        if (
+            hasGithubAppInstallation &&
+            canManageMcpServers &&
+            canManageGitIntegration
+        ) {
+            availableModes.push('github_app');
+        }
+        // Non-managers can still connect their own token to an existing server
+        if (patEnabled && (canManageMcpServers || !!githubServer)) {
+            availableModes.push('pat');
         }
 
-        const credential = githubServer
-            ? await this.aiAgentModel.resolveCredential(
-                  githubServer.uuid,
-                  user.userUuid,
-              )
-            : undefined;
+        if (availableModes.length === 0 && !canManageMcpServers) {
+            return unavailable;
+        }
 
-        return { available: true, alreadyConnected: !!credential };
+        // With an App installation a fresh token is minted per run, so the
+        // server is connected regardless of any stored credential.
+        const alreadyConnected =
+            !!githubServer &&
+            (hasGithubAppInstallation ||
+                (patEnabled &&
+                    !!(await this.aiAgentModel.resolveCredential(
+                        githubServer.uuid,
+                        user.userUuid,
+                    ))));
+
+        return {
+            available: availableModes.length > 0,
+            availableModes,
+            alreadyConnected,
+            hasGithubAppInstallation,
+        };
     }
 
     public async connectGithubMcpServer(
@@ -4054,6 +4421,8 @@ export class AiAgentService extends BaseService {
             throw new ForbiddenError('Organization not found');
         }
 
+        await this.assertGithubMcpPatAllowed(user);
+
         const bearerToken = personalAccessToken.trim();
         if (!bearerToken) {
             throw new ParameterError(
@@ -4066,12 +4435,9 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        const existing = await this.aiAgentModel.listMcpServers(
+        const githubServer = await this.findGithubMcpServer(
             projectUuid,
             user.userUuid,
-        );
-        const githubServer = existing.find(
-            (server) => server.url === GITHUB_MCP_SERVER_URL,
         );
 
         if (githubServer) {
@@ -4084,63 +4450,20 @@ export class AiAgentService extends BaseService {
                 );
             }
 
-            try {
-                await this.aiAgentMcpRuntimeClient.testConnection({
-                    name: GITHUB_MCP_SERVER_NAME,
-                    url: GITHUB_MCP_SERVER_URL,
-                    authType: 'bearer',
-                    bearerToken,
-                    onUncaughtError: (error) => {
-                        Logger.error(
-                            `[AiAgent][MCP][${GITHUB_MCP_SERVER_NAME}] Uncaught MCP client error while reconnecting`,
-                            error,
-                        );
-                    },
-                });
-            } catch (error) {
-                Logger.error(
-                    `[AiAgent][MCP][${GITHUB_MCP_SERVER_NAME}] Failed to reconnect with provided token`,
-                    error,
-                );
-                throw new ParameterError(
-                    "We couldn't connect to GitHub with that token. Check the token and its repository access, then try again.",
-                );
-            }
+            await this.testGithubMcpConnection(
+                bearerToken,
+                "We couldn't connect to GitHub with that token. Check the token and its repository access, then try again.",
+            );
 
-            await this.aiAgentModel.upsertCredential({
-                serverUuid: githubServer.uuid,
-                scope: credentialScope,
-                userUuid: credentialScope === 'user' ? user.userUuid : null,
-                credentials: { type: 'bearer', bearerToken },
-                actorUserUuid: user.userUuid,
-            });
-            await this.aiAgentModel.updateMcpServerRuntimeState({
-                serverUuid: githubServer.uuid,
-                connectionStatus: 'connected',
-                error: null,
-                actorUserUuid: user.userUuid,
-            });
-
-            this.analytics.track({
-                event: 'ai_agent.github_mcp_connected',
-                userId: user.userUuid,
-                properties: {
-                    organizationId: organizationUuid,
-                    projectId: projectUuid,
-                    mcpServerId: githubServer.uuid,
-                    method: 'one_click_reconnect',
-                },
-            });
-
-            const refreshed = await this.aiAgentModel.listMcpServers(
+            return this.reconnectGithubMcpServer({
+                user,
+                organizationUuid,
                 projectUuid,
-                user.userUuid,
-            );
-            return (
-                refreshed.find(
-                    (server) => server.url === GITHUB_MCP_SERVER_URL,
-                ) ?? githubServer
-            );
+                server: githubServer,
+                bearerToken,
+                scope: credentialScope,
+                analyticsMethod: 'one_click_reconnect',
+            });
         }
 
         const server = await this.createMcpServer(user, projectUuid, {
@@ -4165,22 +4488,109 @@ export class AiAgentService extends BaseService {
         return server;
     }
 
-    /**
-     * The GitHub MCP server is authed with a GitHub App installation token,
-     * which expires after ~1h. Rather than rely on the (stale) stored token,
-     * mint a fresh one per run — mirroring how writeback mints per run — so the
-     * connection can never expire mid-session.
-     */
+    // The stored installation token expires in ~1h; runtime mints a fresh one
+    // per run, so the App path keeps no long-lived secret.
+    public async connectGithubMcpServerApp(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<AiMcpServer> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        await this.assertCanManageMcpServers(user, projectUuid);
+        // manage:GitIntegration so a project-level agent manager cannot
+        // leverage an org-wide installation they don't control.
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('GitIntegration', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const installationId =
+            await this.githubAppInstallationsModel.findInstallationId(
+                organizationUuid,
+            );
+        if (!installationId) {
+            throw new ParameterError(
+                'No GitHub App installation found for this organization. Install the Lightdash GitHub App first.',
+            );
+        }
+        const bearerToken = await getInstallationToken(installationId);
+
+        const mcpConnectionMetadata = await this.testGithubMcpConnection(
+            bearerToken,
+            "We couldn't connect to GitHub with the GitHub App installation. Check the installation's repository access, then try again.",
+        );
+
+        const githubServer = await this.findGithubMcpServer(
+            projectUuid,
+            user.userUuid,
+        );
+
+        if (githubServer) {
+            return this.reconnectGithubMcpServer({
+                user,
+                organizationUuid,
+                projectUuid,
+                server: githubServer,
+                bearerToken,
+                scope: 'shared',
+                iconUrl: mcpConnectionMetadata.iconUrl,
+                analyticsMethod: 'one_click_app_reconnect',
+            });
+        }
+
+        const server = await this.aiAgentModel.createMcpServer({
+            projectUuid,
+            name: GITHUB_MCP_SERVER_NAME,
+            url: GITHUB_MCP_SERVER_URL,
+            iconUrl: mcpConnectionMetadata.iconUrl,
+            authType: 'bearer',
+            allowOAuthCredentialSharing: false,
+            credentials: { bearerToken },
+            credentialScope: 'shared',
+            actorUserUuid: user.userUuid,
+        });
+
+        await this.discoverMcpServerTools({
+            projectUuid,
+            mcpServerUuid: server.uuid,
+            actorUserUuid: user.userUuid,
+        }).catch((error) => {
+            Logger.error(
+                `[AiAgent][MCP][${server.name}] Failed to discover tools after GitHub App connect`,
+                error,
+            );
+        });
+
+        this.analytics.track({
+            event: 'ai_agent.github_mcp_connected',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                mcpServerId: server.uuid,
+                method: 'one_click_app',
+            },
+        });
+
+        return server;
+    }
+
+    // App installation tokens expire after ~1h, so mint a fresh one per run.
+    // Without the App, stored PATs are only used while ai-mcp-github-pat is on.
     private async refreshGithubMcpCredentials(
-        organizationUuid: string | undefined,
+        user: SessionUser,
         servers: AiMcpServerWithSensitiveData[],
     ): Promise<AiMcpServerWithSensitiveData[]> {
-        const hasGithubMcp = servers.some(
-            (server) =>
-                server.url === GITHUB_MCP_SERVER_URL &&
-                server.authType === 'bearer',
-        );
-        if (!hasGithubMcp || !organizationUuid) {
+        const { organizationUuid } = user;
+        if (!servers.some(isGithubMcpBearerServer) || !organizationUuid) {
             return servers;
         }
 
@@ -4189,13 +4599,16 @@ export class AiAgentService extends BaseService {
                 organizationUuid,
             );
         if (!installationId) {
-            return servers;
+            if (await this.isGithubMcpPatEnabled(user)) {
+                return servers;
+            }
+            return servers.filter((server) => !isGithubMcpBearerServer(server));
         }
 
         const bearerToken = await getInstallationToken(installationId);
 
         return servers.map((server) =>
-            server.url === GITHUB_MCP_SERVER_URL && server.authType === 'bearer'
+            isGithubMcpBearerServer(server)
                 ? {
                       ...server,
                       resolvedCredential: { type: 'bearer', bearerToken },
@@ -4779,7 +5192,7 @@ export class AiAgentService extends BaseService {
                 modelName: prompt.modelConfig?.modelName,
             });
 
-        if (!supportsCompaction || contextWindowTokens === null) {
+        if (!supportsCompaction) {
             Logger.debug(
                 `${compactionLogContext} skipped reason=unsupported-model provider=${prompt.modelConfig?.modelProvider ?? 'default'} model=${prompt.modelConfig?.modelName ?? 'default'}`,
             );
@@ -4895,6 +5308,7 @@ export class AiAgentService extends BaseService {
             retrieveRelevantArtifacts = true,
             onPromptResolved,
             resetErrorForStreamRetry = false,
+            expectedDeepResearchRunUuid,
         }: {
             agentUuid: string;
             threadUuid: string;
@@ -4905,6 +5319,7 @@ export class AiAgentService extends BaseService {
                 responseState: AiPromptResponseState,
             ) => void;
             resetErrorForStreamRetry?: boolean;
+            expectedDeepResearchRunUuid?: string | null;
         },
     ) {
         if (!user.organizationUuid) {
@@ -4968,6 +5383,31 @@ export class AiAgentService extends BaseService {
         ) {
             throw new NotFoundError(`Prompt not found: ${targetPromptUuid}`);
         }
+        if (expectedDeepResearchRunUuid !== undefined) {
+            const deepResearchRun =
+                await this.aiDeepResearchRunModel.findByPromptForExecution({
+                    promptUuid: prompt.promptUuid,
+                    organizationUuid: user.organizationUuid,
+                    projectUuid: prompt.projectUuid,
+                });
+            assertDeepResearchPromptExecution({
+                promptRunUuid:
+                    deepResearchRun?.ai_deep_research_run_uuid ?? undefined,
+                expectedRunUuid: expectedDeepResearchRunUuid,
+            });
+            const executionModeClaimed =
+                await this.aiAgentModel.claimPromptExecutionMode(
+                    prompt.promptUuid,
+                    expectedDeepResearchRunUuid === null
+                        ? 'standard'
+                        : 'deep_research',
+                );
+            if (!executionModeClaimed) {
+                throw new ConflictError(
+                    'This prompt is already assigned to a different execution mode',
+                );
+            }
+        }
         if (
             resetErrorForStreamRetry &&
             prompt.response === null &&
@@ -4987,6 +5427,9 @@ export class AiAgentService extends BaseService {
                     'This response changed while the retry was starting. Please try again.',
                 );
             }
+            // The failed attempt's interrupt row is stale now the retry has
+            // claimed the prompt; left in place it would stop every retry.
+            await this.aiAgentModel.deleteAiPromptInterrupt(prompt.promptUuid);
             prompt.respondedAt = null;
             prompt.errorMessage = null;
         }
@@ -5176,6 +5619,7 @@ export class AiAgentService extends BaseService {
                 agentUuid,
                 threadUuid,
                 resetErrorForStreamRetry: true,
+                expectedDeepResearchRunUuid: null,
                 onPromptResolved: (promptUuid, responseState) => {
                     trackedPromptUuid = promptUuid;
                     this.trackStreamPrompt(promptUuid, responseState);
@@ -5191,8 +5635,9 @@ export class AiAgentService extends BaseService {
             }
 
             // Re-running an answered prompt would stamp an error onto a good
-            // response (chat history already ends with its assistant answer)
-            if (prompt.response) {
+            // response (chat history already ends with its assistant answer).
+            // An interrupted prompt persists '' — also answered, not a retry.
+            if (prompt.response !== null) {
                 throw new ConflictError(
                     'The latest message already has a response. Refresh the page to see it.',
                 );
@@ -5782,6 +6227,10 @@ export class AiAgentService extends BaseService {
                 agentUuid,
                 threadUuid,
                 promptUuid,
+                expectedDeepResearchRunUuid:
+                    execution.mode === 'deep_research'
+                        ? execution.runUuid
+                        : null,
             });
             if (!user.organizationUuid) {
                 throw new ForbiddenError();
@@ -5838,19 +6287,74 @@ export class AiAgentService extends BaseService {
             threadUuid,
             evidencePack,
             reason,
+            model,
         }: {
             agentUuid: string;
             threadUuid: string;
             evidencePack: AiDeepResearchEvidencePack;
             reason: string;
+            model: AiDeepResearchExecutionContextSnapshot['model'];
         },
     ): Promise<AiDeepResearchSubmittedReport> {
         const copilotConfig =
             await this.orgAiCopilotConfigResolver.getCopilotConfig(
                 user.organizationUuid ?? null,
             );
+        const configuredProviders = Object.keys(
+            copilotConfig.providers,
+        ) as (typeof copilotConfig.defaultProvider)[];
+        const selectedProvider = model.provider
+            ? configuredProviders.find(
+                  (provider) =>
+                      model.provider === provider ||
+                      model.provider?.startsWith(`${provider}.`) ||
+                      (provider === 'bedrock' &&
+                          model.provider === 'amazon-bedrock'),
+              )
+            : copilotConfig.defaultProvider;
+        if (!selectedProvider) {
+            throw new ParameterError(
+                `Deep Research finalizer provider is unavailable: ${model.provider}`,
+            );
+        }
+        const currentKeyManagement = resolveKeyManagement(
+            copilotConfig,
+            selectedProvider,
+        );
+        assertDeepResearchFinalizerKeyManagement(
+            model.keyManagement,
+            currentKeyManagement,
+        );
+        const selectedModelName =
+            selectedProvider === 'bedrock'
+                ? (MODEL_PRESETS.bedrock.find(
+                      (preset) =>
+                          model.modelName === preset.name ||
+                          model.modelName === preset.modelId ||
+                          model.modelName?.endsWith(`.${preset.modelId}`),
+                  )?.modelId ?? model.modelName)
+                : model.modelName;
+        if (selectedProvider === 'bedrock' && model.modelName) {
+            const bedrockConfig = copilotConfig.providers.bedrock;
+            let configuredPrefix = 'global';
+            if (bedrockConfig?.inferenceProfilePrefix) {
+                configuredPrefix = bedrockConfig.inferenceProfilePrefix;
+            } else if (bedrockConfig?.region.startsWith('us-')) {
+                configuredPrefix = 'us';
+            } else if (bedrockConfig?.region.startsWith('eu-')) {
+                configuredPrefix = 'eu';
+            } else if (bedrockConfig?.region.startsWith('ap-')) {
+                configuredPrefix = 'apac';
+            }
+            assertDeepResearchBedrockProfile(model.modelName, configuredPrefix);
+        }
         const modelOptions = {
-            ...getModel(copilotConfig, { enableReasoning: false }),
+            ...getModel(copilotConfig, {
+                enableReasoning: false,
+                modelName: selectedModelName ?? undefined,
+                provider: selectedProvider,
+                trustPinnedModelName: true,
+            }),
             telemetry: {
                 organizationUuid: user.organizationUuid ?? null,
                 agentUuid,
@@ -6023,6 +6527,52 @@ export class AiAgentService extends BaseService {
             );
         }
 
+        if (isAiMergeChartArtifactConfig(artifact.chartConfig)) {
+            const { enabled: mergeQueriesEnabled } =
+                await this.featureFlagService.get({
+                    user,
+                    featureFlagId: FeatureFlags.MergeQueries,
+                });
+            if (!mergeQueriesEnabled) {
+                throw new ForbiddenError('Merge queries are not enabled');
+            }
+            const parsed = parsePersistedRunQueryArgs(
+                artifact.chartConfig.config,
+            );
+            if (!parsed?.mergeConfig) {
+                throw new ParameterError('Invalid merge visualization config');
+            }
+            const { query, mergeQuery } = await this.executeAsyncAiMergeQuery(
+                user,
+                projectUuid,
+                parsed,
+            );
+            this.analytics.track({
+                event: 'ai_agent.artifact_viz_query',
+                userId: user.userUuid,
+                properties: {
+                    projectId: projectUuid,
+                    organizationId: organizationUuid,
+                    agentId: agent.uuid,
+                    agentName: agent.name,
+                    artifactId: artifactUuid,
+                    artifactVersionId: versionUuid,
+                    vizType: AiResultType.QUERY_RESULT,
+                    source: 'semantic',
+                },
+            });
+            return {
+                source: 'semantic',
+                type: AiResultType.QUERY_RESULT,
+                query,
+                mergeQuery,
+                metadata: {
+                    title: artifact.title,
+                    description: artifact.description,
+                },
+            };
+        }
+
         if (isAiSqlChartArtifactConfig(artifact.chartConfig)) {
             // Embed viewers are scoped by user attributes, which raw SQL bypasses.
             if (runtimeOptions) {
@@ -6081,6 +6631,7 @@ export class AiAgentService extends BaseService {
             projectUuid,
             parsedVizConfig.metricQuery,
             artifact.chartConfig.config,
+            parsedVizConfig.parameters,
         );
 
         const metadata = {
@@ -6110,6 +6661,7 @@ export class AiAgentService extends BaseService {
             source: 'semantic',
             type: parsedVizConfig.type,
             query,
+            mergeQuery: null,
             metadata,
         };
     }
@@ -6221,6 +6773,7 @@ export class AiAgentService extends BaseService {
             projectUuid,
             parsedVizConfig.metricQuery,
             chartConfig,
+            parsedVizConfig.parameters,
         );
 
         const metadata = {
@@ -6250,6 +6803,7 @@ export class AiAgentService extends BaseService {
             source: 'semantic',
             type: parsedVizConfig.type,
             query,
+            mergeQuery: null,
             metadata,
         };
     }
@@ -6339,6 +6893,13 @@ export class AiAgentService extends BaseService {
             agentUuid: message.agentUuid,
             threadUuid: message.threadUuid,
             promptUuid: threadMessage.uuid,
+            userUuid: user.userUuid,
+        });
+        this.enqueueMemoryDistillEvent({
+            eventType: 'feedback_changed',
+            organizationUuid,
+            projectUuid: message.projectUuid,
+            threadUuid: message.threadUuid,
             userUuid: user.userUuid,
         });
     }
@@ -8269,6 +8830,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     ) {
         const { projectUuid, organizationUuid } = prompt;
         const runtimeAgentSettings = await this.getAgentSettings(user, prompt);
+        const sqlScope = await this.projectModel.getAgentSqlScope(projectUuid);
         const toolsRuntime = this.aiAgentToolsService.createRuntime({
             user,
             account: fromSession(user),
@@ -8281,6 +8843,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             spaceAccess:
                 options?.runtimeOptions?.spaceAccess ??
                 runtimeAgentSettings.spaceAccess,
+            sqlScope,
             userAttributeOverrides:
                 options?.runtimeOptions?.userAttributeOverrides,
             agentUuid: runtimeAgentSettings.uuid,
@@ -8943,11 +9506,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         return {
             listExplores: toolsRuntime.listExplores,
+            getProjectParameterDefinitions:
+                toolsRuntime.getProjectParameterDefinitions,
             getProjectContextDocument,
             getAiAgentMemoryContextEntries,
             incrementAiAgentMemoryPulls,
             resolveThreadMemoryOwnerUuid,
-            getExplore: toolsRuntime.getExplore,
             listContent: toolsRuntime.listContent,
             findContent: toolsRuntime.findContent,
             readContent: toolsRuntime.readContent,
@@ -8958,7 +9522,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updateUserName: toolsRuntime.updateUserName,
             validateContent: toolsRuntime.validateContent,
             getDashboardCharts: toolsRuntime.getDashboardCharts,
-            findFields: toolsRuntime.findFields,
             findExplores: toolsRuntime.findExplores,
             getVerifiedFieldUsage: toolsRuntime.getVerifiedFieldUsage,
             searchSemanticLayer: toolsRuntime.searchSemanticLayer,
@@ -8967,6 +9530,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updateProgress,
             getPrompt,
             runAsyncQuery: toolsRuntime.runAsyncQuery,
+            runAsyncMergeQuery: toolsRuntime.runAsyncMergeQuery,
             runSavedChartQuery: toolsRuntime.runSavedChartQuery,
             runSqlJob: toolsRuntime.runSqlJob,
             listWarehouseTables: toolsRuntime.listWarehouseTables,
@@ -9145,11 +9709,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const {
             listExplores,
+            getProjectParameterDefinitions,
             getProjectContextDocument,
             getAiAgentMemoryContextEntries,
             incrementAiAgentMemoryPulls,
             resolveThreadMemoryOwnerUuid,
-            getExplore,
             listContent,
             findContent,
             readContent,
@@ -9160,7 +9724,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updateUserName,
             validateContent,
             getDashboardCharts,
-            findFields,
             findExplores,
             getVerifiedFieldUsage,
             searchSemanticLayer,
@@ -9169,6 +9732,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updateProgress,
             getPrompt,
             runAsyncQuery,
+            runAsyncMergeQuery,
             runSavedChartQuery,
             runSqlJob,
             listWarehouseTables,
@@ -9309,6 +9873,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
               null
             : null;
 
+        const agentSqlScope = canRunSql
+            ? await this.projectModel.getAgentSqlScope(prompt.projectUuid)
+            : null;
+
         const knowledgeDocuments =
             await this.aiAgentDocumentModel.findAllContextForAgent({
                 organizationUuid: user.organizationUuid,
@@ -9351,10 +9919,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     : undefined,
             ),
         });
-        const { enabled: grepFieldsEnabled } =
+        const { enabled: mergeQueriesEnabled } =
             await this.featureFlagService.get({
                 user,
-                featureFlagId: FeatureFlags.AiGrepFields,
+                featureFlagId: FeatureFlags.MergeQueries,
             });
         let aiWritebackEnabled = hasTrustedPromptUserIdentity;
         if (!aiWritebackEnabled) {
@@ -9571,6 +10139,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 // policy. MCP run_sql is filtered from this same capability.
                 canUseRawSql: canRunSql,
                 initialTokenUsage: responseExecution.initialTokenUsage ?? 0,
+                resumeContext: responseExecution.resumeContext,
                 onStepUsage: responseExecution.onStepUsage,
                 onExecutionContextResolved:
                     responseExecution.onExecutionContextResolved,
@@ -9616,7 +10185,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableCodingAgent: codingAgentEnabled,
             enablePreviewDeploySetup: aiPreviewDeploySetupEnabled,
             enableRepoDiscovery: repoDiscoveryEnabled,
-            enableGrepFields: grepFieldsEnabled,
+            enableMergeQueries: mergeQueriesEnabled,
             repoFsRoot,
             repoFsSupportsCodeSearch,
             canRunSql,
@@ -9631,11 +10200,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 : null,
             warehouseType,
             warehouseSchema,
+            sqlScope: agentSqlScope,
             availableSkills,
             modelReasoningEnabled: prompt.modelConfig?.reasoning ?? null,
 
-            findExploresFieldSearchSize: 200,
-            findFieldsPageSize: 30,
             toolDescriptionMaxChars:
                 this.lightdashConfig.ai.copilot.toolDescriptionMaxChars,
             getDashboardChartsPageSize: 20,
@@ -9695,10 +10263,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const dependencies: AiAgentDependencies = {
             listExplores,
+            getProjectParameterDefinitions,
             getProjectContextDocument,
             getAiAgentMemoryContextEntries,
             incrementAiAgentMemoryPulls,
-            getExplore,
             listContent,
             findContent,
             readContent,
@@ -9709,13 +10277,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updateUserName,
             validateContent,
             getDashboardCharts,
-            findFields,
             findExplores,
             getVerifiedFieldUsage,
             searchSemanticLayer,
             analyzeFieldImpact,
             syncDbtProject,
             runAsyncQuery,
+            runAsyncMergeQuery,
             runSavedChartQuery,
             runSqlJob,
             listWarehouseTables,
@@ -9871,6 +10439,31 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         .catch((error) => {
                             Logger.error(
                                 'Failed to enqueue AI agent review classifier after response save',
+                                error,
+                            );
+                        });
+                }
+
+                // Error-only updates add no distillable content — distill only
+                // after a successful terminal turn write.
+                if (
+                    aiAgentMemoryEnabled &&
+                    update.response !== undefined &&
+                    update.tokenUsage !== undefined
+                ) {
+                    void updatePromise
+                        .then(() => {
+                            this.enqueueMemoryDistillEvent({
+                                eventType: 'response_saved',
+                                organizationUuid: user.organizationUuid,
+                                projectUuid: prompt.projectUuid,
+                                threadUuid: prompt.threadUuid,
+                                userUuid: user.userUuid,
+                            });
+                        })
+                        .catch((error) => {
+                            Logger.error(
+                                'Failed to enqueue AI agent memory distill after response save',
                                 error,
                             );
                         });
@@ -10064,6 +10657,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             agentUuid: promptContext?.agentUuid,
             threadUuid: promptContext?.threadUuid,
             promptUuid,
+            userUuid: userId,
+        });
+        this.enqueueMemoryDistillEvent({
+            eventType: 'feedback_changed',
+            organizationUuid: promptContext?.organizationUuid,
+            projectUuid: promptContext?.projectUuid,
+            threadUuid: promptContext?.threadUuid,
             userUuid: userId,
         });
     }
@@ -10363,10 +10963,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             legacyFeedbackBlocks.length > 0
                 ? buildFeedbackContextActions(slackPrompt.promptUuid)
                 : legacyFeedbackBlocks;
-        const followUpToolBlocks = getFollowUpToolBlocks(
-            slackPrompt,
-            promptArtifacts,
-        );
 
         const createShareUrl = async (
             path: string,
@@ -10447,7 +11043,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             ...sqlArtifactBlocks,
             ...editDbtProjectBlocks,
             ...referencedArtifactsBlocks,
-            ...followUpToolBlocks,
             ...feedbackBlocks,
             ...historyBlocks,
         ];
@@ -11067,38 +11662,85 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 });
         };
 
-        const getSlackReasoningDetails = (toolName?: string): string => {
+        const getBuiltInSlackReasoningDetails = (
+            toolName: AgentToolName,
+        ): string => {
             switch (toolName) {
+                case 'grepFields':
                 case 'discoverFields':
                 case 'findFields':
                 case 'findExplores':
+                case 'getMetadata':
+                case 'analyzeFieldImpact':
+                case 'searchFieldValues':
                     return 'Analyzing the available fields...';
                 case 'searchSemanticLayer':
+                case 'listWarehouseTables':
+                case 'describeWarehouseTable':
                     return 'Reviewing the semantic layer...';
                 case 'generateVisualization':
                 case 'generateDashboard':
+                case 'generateBarVizConfig':
+                case 'generateTableVizConfig':
+                case 'generateTimeSeriesVizConfig':
                     return 'Preparing the answer...';
                 case 'runSql':
                 case 'runContentQuery':
                 case 'runSavedChart':
+                case 'runQuery':
                     return 'Reviewing the results...';
                 case 'editDbtProject':
+                case 'editProjectContext':
+                case 'syncDbtProject':
                     return 'Preparing the semantic-layer changes...';
                 case 'setupPreviewDeploy':
                     return 'Setting up the preview...';
-                case 'repoShell':
+                case 'exploreRepo':
+                case 'discoverRepos':
+                case 'getPullRequestDiff':
+                case 'listWorkstreams':
                     return 'Inspecting the project files...';
+                case 'editRepo':
+                case 'closePullRequest':
                 case 'editContent':
                 case 'createContent':
+                case 'createScheduledDelivery':
                     return 'Saving the changes...';
                 case 'loadProjectContext':
                     return 'Reviewing the project context...';
-                case 'validateContent':
-                    return 'Validating the changes...';
-                default:
+                case 'findContent':
+                case 'findCharts':
+                case 'findDashboards':
+                case 'generateHashes':
+                case 'generateUuids':
+                case 'getDashboardCharts':
+                case 'getKnowledgeDocumentContent':
+                case 'getProjectInfo':
+                case 'listContent':
+                case 'listKnowledgeDocuments':
+                case 'listProjects':
+                case 'loadMcpTools':
+                case 'loadSkill':
+                case 'readContent':
+                case 'readPinnedThread':
+                case 'resolveUrl':
+                case 'submitResearchReport':
+                case 'delegateResearchTask':
+                case 'submitWorkerFindings':
+                case 'updateUserName':
                     return 'Answering your question';
+                default:
+                    return assertUnreachable(
+                        toolName,
+                        `Unhandled agent tool: ${toolName}`,
+                    );
             }
         };
+
+        const getSlackReasoningDetails = (toolName?: string): string =>
+            toolName && isAgentToolName(toolName)
+                ? getBuiltInSlackReasoningDetails(toolName)
+                : 'Answering your question';
 
         const appendTaskUpdate = (
             progress: string,
@@ -12060,6 +12702,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     promptUuid,
                     userUuid: body.user.id,
                 });
+                this.enqueueMemoryDistillEvent({
+                    eventType: 'feedback_changed',
+                    organizationUuid: promptContext?.organizationUuid,
+                    projectUuid: promptContext?.projectUuid,
+                    threadUuid: promptContext?.threadUuid,
+                    userUuid: body.user.id,
+                });
             }
         });
     }
@@ -12298,105 +12947,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 }
             },
         );
-    }
-
-    // eslint-disable-next-line class-methods-use-this
-    public handleExecuteFollowUpTool(app: App) {
-        activeFollowUpTools.forEach((tool) => {
-            app.action(
-                `execute_follow_up_tool.${tool}`,
-                async ({ ack, body, context, say }) => {
-                    await ack();
-
-                    const { type, channel } = body;
-
-                    if (type === 'block_actions') {
-                        const action = body.actions[0];
-
-                        if (
-                            action.action_id.includes(tool) &&
-                            action.type === 'button'
-                        ) {
-                            const prevSlackPromptUuid = action.value;
-
-                            if (!prevSlackPromptUuid || !say) {
-                                return;
-                            }
-                            const prevSlackPrompt =
-                                await this.aiAgentModel.findSlackPrompt(
-                                    prevSlackPromptUuid,
-                                );
-                            if (!prevSlackPrompt) return;
-
-                            const response = await say({
-                                thread_ts: prevSlackPrompt.slackThreadTs,
-                                text: `${followUpToolsText[tool]}`,
-                            });
-
-                            const { teamId } = context;
-
-                            if (
-                                !teamId ||
-                                !context.botUserId ||
-                                !channel ||
-                                !response.message?.text ||
-                                !response.ts
-                            ) {
-                                return;
-                            }
-                            // TODO: Remove this when implementing slack user mapping
-                            const userUuid =
-                                await this.slackAuthenticationModel.getUserUuid(
-                                    teamId,
-                                );
-
-                            let slackPromptUuid: string;
-
-                            try {
-                                [slackPromptUuid] =
-                                    await this.createSlackPrompt({
-                                        userUuid,
-                                        projectUuid:
-                                            prevSlackPrompt.projectUuid,
-                                        slackUserId: context.botUserId,
-                                        slackChannelId: channel.id,
-                                        slackThreadTs:
-                                            prevSlackPrompt.slackThreadTs,
-                                        prompt: response.message.text,
-                                        promptSlackTs: response.ts,
-                                        agentUuid: prevSlackPrompt.agentUuid,
-                                    });
-                            } catch (e) {
-                                if (e instanceof AiDuplicateSlackPromptError) {
-                                    Logger.debug(
-                                        'Failed to create slack prompt:',
-                                        e,
-                                    );
-                                    return;
-                                }
-
-                                throw e;
-                            }
-
-                            if (response.ts) {
-                                await this.aiAgentModel.updateSlackResponseTs({
-                                    promptUuid: slackPromptUuid,
-                                    responseSlackTs: response.ts,
-                                });
-                            }
-
-                            await this.schedulerClient.slackAiPrompt({
-                                slackPromptUuid,
-                                userUuid,
-                                projectUuid: prevSlackPrompt.projectUuid,
-                                organizationUuid:
-                                    prevSlackPrompt.organizationUuid,
-                            });
-                        }
-                    }
-                },
-            );
-        });
     }
 
     /**

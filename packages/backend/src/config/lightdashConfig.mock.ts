@@ -106,6 +106,9 @@ export const lightdashConfigMock: LightdashConfig = {
     queryPhaseMetrics: {
         projectUuids: [],
     },
+    dbt: {
+        environmentVariableAllowlist: [],
+    },
     dashboard: {
         maxTilesPerTab: 50,
         maxTabsPerDashboard: 20,
@@ -115,6 +118,8 @@ export const lightdashConfigMock: LightdashConfig = {
         connectionUri: undefined,
         maxConnections: undefined,
         minConnections: undefined,
+        acquireConnectionTimeout: undefined,
+        readinessProbeTtlMs: 10_000,
         allowMissingMigrations: false,
     },
     intercom: {
@@ -145,6 +150,9 @@ export const lightdashConfigMock: LightdashConfig = {
         auditActorAsString: false,
     },
     maxPayloadSize: '',
+    httpServer: {
+        keepAliveTimeoutMs: 620_000,
+    },
     pivotTable: { maxColumnLimit: 0 },
     enableImprovedExcelDates: false,
     s3: {
@@ -178,6 +186,12 @@ export const lightdashConfigMock: LightdashConfig = {
         pollInterval: 1000,
         jobTimeout: 0,
         tasks: ALL_TASK_NAMES,
+        quiesce: {
+            pollInterval: 2_000,
+            gracePeriod: 180_000,
+            resumeJitter: 60_000,
+            resumeRampPeriod: 180_000,
+        },
         queryHistory: {
             cleanup: {
                 enabled: true,
@@ -245,6 +259,7 @@ export const lightdashConfigMock: LightdashConfig = {
             maxQueryLimit: 10000,
             runSqlMaxLimit: 5000,
             telemetryEnabled: false,
+            threadDumpEnabled: false,
             requiresFeatureFlag: false,
             askAiButtonEnabled: false,
             embeddingEnabled: true,
@@ -403,6 +418,7 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     appRuntime: {
         enabled: false,
+        dataAppCodingAgent: 'claude',
         lightdashOrigin: 'https://test.lightdash.cloud',
         cdnOrigin: null,
         previewOrigin: null,

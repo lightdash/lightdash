@@ -20,6 +20,9 @@ const renderInput = ({
     onSubmit = vi.fn(),
     disabled = false,
     threadUuid = 'thread-1',
+    showDeepResearchBelowComposer = false,
+    onSqlModeChange,
+    showAgentSelector = false,
 }: {
     onStartDeepResearch?:
         | ((args: { question: string }) => Promise<void>)
@@ -27,7 +30,17 @@ const renderInput = ({
     onSubmit?: (args: { message: string; toolHints: string[] }) => void;
     disabled?: boolean;
     threadUuid?: string | null;
+    showDeepResearchBelowComposer?: boolean;
+    onSqlModeChange?: (enabled: boolean) => void;
+    showAgentSelector?: boolean;
 } = {}) => {
+    const agent = {
+        uuid: 'agent-1',
+        name: 'Aurora',
+        imageUrl: null,
+        adminOnly: false,
+    };
+
     renderWithProviders(
         <Provider store={store}>
             <MemoryRouter>
@@ -40,6 +53,13 @@ const renderInput = ({
                     threadUuid={threadUuid ?? undefined}
                     defaultValue="Why did enterprise retention fall?"
                     showSuggestions={false}
+                    showDeepResearchBelowComposer={
+                        showDeepResearchBelowComposer
+                    }
+                    sqlMode={false}
+                    onSqlModeChange={onSqlModeChange}
+                    agents={showAgentSelector ? [agent] : undefined}
+                    selectedAgent={showAgentSelector ? agent : undefined}
                 />
             </MemoryRouter>
         </Provider>,
@@ -70,6 +90,58 @@ describe('AgentChatInput Deep Research mode', () => {
                 .getByRole('button', { name: 'Enable deep research' })
                 .closest('[data-accent]'),
         ).not.toBeNull();
+    });
+
+    it('shows the compact toggle below an opted-in new-thread composer', async () => {
+        const user = userEvent.setup();
+        const onSqlModeChange = vi.fn();
+        const { onStartDeepResearch } = renderInput({
+            threadUuid: null,
+            showDeepResearchBelowComposer: true,
+            onSqlModeChange,
+        });
+
+        const getToggle = () =>
+            screen.getByRole('button', {
+                name: 'Enable deep research',
+            });
+        expect(getToggle().closest('[data-accent]')).toBeNull();
+        expect(screen.queryByText('Deep research')).not.toBeInTheDocument();
+
+        const toggle = getToggle();
+        const sqlToggle = screen.getByRole('button', {
+            name: 'Toggle SQL Runner',
+        });
+        expect(sqlToggle.closest('[data-accent]')).toBeNull();
+
+        await user.click(sqlToggle);
+        expect(onSqlModeChange).toHaveBeenCalledWith(true);
+
+        await user.hover(toggle);
+        expect(await screen.findByRole('tooltip')).toHaveTextContent(
+            'Enable deep research',
+        );
+
+        await user.click(toggle);
+        await user.click(
+            screen.getByRole('button', { name: 'Start research' }),
+        );
+
+        expect(onStartDeepResearch).toHaveBeenCalledWith({
+            question: 'Why did enterprise retention fall?',
+        });
+    });
+
+    it('keeps a single SQL toggle in a default new-thread composer', () => {
+        renderInput({
+            threadUuid: null,
+            onSqlModeChange: vi.fn(),
+            showAgentSelector: true,
+        });
+
+        expect(
+            screen.getAllByRole('button', { name: 'Toggle SQL Runner' }),
+        ).toHaveLength(1);
     });
 
     it('starts research with one click and resets the toggle after submission', async () => {

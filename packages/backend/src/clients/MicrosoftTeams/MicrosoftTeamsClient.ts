@@ -16,6 +16,7 @@ import { createHash } from 'crypto';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { buildFailureCountPhrase } from '../../utils/partialFailureUtils';
+import { postSchedulerWebhook } from '../../utils/schedulerWebhookValidation';
 import { AttachmentUrl } from '../EmailClient/EmailClient';
 
 // Adaptive Card TextBlocks render a markdown subset (links, emphasis, code) and
@@ -73,24 +74,17 @@ export class MicrosoftTeamsClient {
             throw new MissingConfigError('Microsoft Teams is not enabled');
         }
         const webhookIdentity = redactWebhookIdentity(webhookUrl);
-        const response = await fetch(webhookUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-        });
+        const response = await postSchedulerWebhook(webhookUrl, payload);
 
         const classification = classifyHttpStatus(response.status);
 
         // Accept any 2xx status: legacy webhooks return 200, Power Automate Workflows return 202
-        if (!response.ok) {
-            const responseText = await response.text();
+        if (response.status < 200 || response.status >= 300) {
             Logger.error('msteams.webhook_failed', {
                 webhookIdentity,
                 httpStatus: response.status,
                 classification,
-                responseBody: responseText.slice(0, 500),
+                responseBody: response.bodyText.slice(0, 500),
             });
             Logger.info(
                 `Microsoft teams webhook payload ${JSON.stringify(

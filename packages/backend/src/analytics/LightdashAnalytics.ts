@@ -44,7 +44,10 @@ import {
     type AiWritebackFailureStage,
     type AiWritebackWorkstream,
     type AppVersionDependencyEntry,
+    type DataAppClaudeEffort,
     type DataAppClaudeModel,
+    type DataAppCodingAgent,
+    type DataAppCodingAgentModel,
     type DataAppCreationExperience,
     type DataAppTemplate,
     type PersistentDownloadFileAccessMode,
@@ -66,6 +69,10 @@ import { type PersistentDownloadFileSource } from '../services/PersistentDownloa
 import { VERSION } from '../version';
 import type { AiUsageEvent } from './aiUsage';
 import type { EventStreamSink } from './eventStream/EventStreamSink';
+import type {
+    UpgradeEventName,
+    UpgradeEventProperties,
+} from './upgradeTelemetryEvents';
 
 type Identify = {
     userId: string;
@@ -415,7 +422,10 @@ type QueryExecutionEvent = BaseTrack & {
     );
 };
 
-type QueryExecutionSource = 'warehouse' | 'pre_aggregate_duckdb';
+type QueryExecutionSource =
+    | 'warehouse'
+    | 'pre_aggregate_duckdb'
+    | 'pre_aggregate_warehouse';
 
 type QueryReadyEvent = BaseTrack & {
     event: 'query.ready';
@@ -1500,6 +1510,7 @@ export type SchedulerUpsertEvent = BaseTrack & {
         }>;
         timeZone: string | undefined;
         includeLinks: boolean;
+        plainTextEmail: boolean;
     };
 };
 export type SchedulerTimezoneUpdateEvent = BaseTrack & {
@@ -1600,9 +1611,6 @@ export type SchedulerNotificationJobEvent = BaseTrack & {
     };
 };
 
-/** Reasoning-effort level passed via --effort to the claude CLI. */
-export type DataAppClaudeEffort = 'low' | 'high';
-
 export type DataAppCreatedEvent = BaseTrack & {
     event: 'data_app.created';
     userId: string;
@@ -1615,7 +1623,9 @@ export type DataAppCreatedEvent = BaseTrack & {
         imageCount: number;
         fileCount: number;
         template: DataAppTemplate | null;
-        claudeModel: DataAppClaudeModel;
+        claudeModel?: DataAppClaudeModel;
+        codingAgent: DataAppCodingAgent;
+        codingAgentModel: DataAppCodingAgentModel;
         samplesRequested: number;
         samplesAvailable: number;
         clarificationCount: number;
@@ -1636,7 +1646,9 @@ export type DataAppIteratedEvent = BaseTrack & {
         promptLength: number;
         imageCount: number;
         fileCount: number;
-        claudeModel: DataAppClaudeModel;
+        claudeModel?: DataAppClaudeModel;
+        codingAgent: DataAppCodingAgent;
+        codingAgentModel: DataAppCodingAgentModel;
         themeChanged: boolean;
         designUuid: string | null;
         claudeEffort: DataAppClaudeEffort;
@@ -1690,8 +1702,10 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         version: number;
         isIteration: boolean;
         isUpgrade: boolean;
-        claudeModel: DataAppClaudeModel;
-        claudeProvider: 'anthropic' | 'bedrock';
+        claudeModel?: DataAppClaudeModel;
+        codingAgent: DataAppCodingAgent;
+        codingAgentModel: DataAppCodingAgentModel;
+        claudeProvider: 'anthropic' | 'bedrock' | 'openai';
         schedulerWaitMs: number;
         claudeEffort: DataAppClaudeEffort;
         wasResumed: boolean;
@@ -1708,7 +1722,7 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         buildFixAttempts: number;
         buildFixGenerationMs: number;
         toolCallCount: number;
-        // Token/turn/cost usage summed across every `claude` invocation and
+        // Token/turn/cost usage summed across every coding-agent invocation and
         // retry in the build (main generation + build-fix + metadata). Used
         // to decompose `generateMs` into output volume vs turn count and to
         // confirm prompt caching is landing (`cacheReadInputTokens > 0`).
@@ -1718,7 +1732,7 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         cacheCreationInputTokens: number;
         numTurns: number;
         durationApiMs: number;
-        totalCostUsd: number;
+        totalCostUsd: number | null;
         generationAttemptCount: number;
         // Latency shape of the logical main generation, including retries:
         // time-to-first-token and the slowest single turn. Not combined with
@@ -1745,8 +1759,10 @@ export type DataAppVersionFailedEvent = BaseTrack & {
         version: number;
         isIteration: boolean;
         isUpgrade: boolean;
-        claudeModel: DataAppClaudeModel;
-        claudeProvider?: 'anthropic' | 'bedrock';
+        claudeModel?: DataAppClaudeModel;
+        codingAgent?: DataAppCodingAgent;
+        codingAgentModel?: DataAppCodingAgentModel;
+        claudeProvider?: 'anthropic' | 'bedrock' | 'openai';
         schedulerWaitMs?: number;
         claudeEffort: DataAppClaudeEffort;
         failureStage:
@@ -1779,7 +1795,7 @@ export type DataAppVersionFailedEvent = BaseTrack & {
         cacheCreationInputTokens?: number;
         numTurns?: number;
         durationApiMs?: number;
-        totalCostUsd?: number;
+        totalCostUsd?: number | null;
         generationAttemptCount?: number;
         timeToFirstTokenMs?: number | null;
         slowestTurnMs?: number;
@@ -1982,6 +1998,9 @@ export type AiWritebackCompletedEvent = BaseTrack & {
         numTurns: number | null;
         // Time (ms) spent in LLM API calls — the rest is local tool execution.
         durationApiMs: number | null;
+        repoContextBytes: number | null;
+        repoContextCapped: boolean | null;
+        repoContextFileCount: number | null;
     };
 };
 
@@ -2004,6 +2023,9 @@ export type AiWritebackFailedEvent = BaseTrack & {
         failureStage: AiWritebackFailureStage;
         errorMessage: string;
         totalDurationMs: number;
+        repoContextBytes: number | null;
+        repoContextCapped: boolean | null;
+        repoContextFileCount: number | null;
     };
 };
 
@@ -2189,6 +2211,16 @@ export type AiDeepResearchRunCompletedEvent = BaseTrack & {
     userId: string;
     properties: AiDeepResearchRunDimensions & {
         status: AiDeepResearchTerminalStatus;
+        /**
+         * Stable cohorting field for reliability reporting. A partial run is
+         * useful only when it produced a report; otherwise it is an empty
+         * failure from the user's perspective.
+         */
+        completionClass:
+            | 'strict_success'
+            | 'useful_partial'
+            | 'empty_failure'
+            | 'cancelled';
         terminalReason: AiDeepResearchTerminalReason | null;
         durationMs: number | null;
         inputTokens: number | null;
@@ -2203,7 +2235,23 @@ export type AiDeepResearchRunCompletedEvent = BaseTrack & {
         warehouseQueryCount: number | null;
         findingsCount: number | null;
         hasReport: boolean;
+        reportOutcome: 'report' | 'empty';
         chartCount: number | null;
+        reportStructureValid: boolean;
+        reportEvidenceGrounded: boolean;
+        reportReproducible: boolean;
+        reportQualityClass: 'strong' | 'partial' | 'none';
+        failureCategory:
+            | 'none'
+            | 'user'
+            | 'budget'
+            | 'provider'
+            | 'data'
+            | 'internal';
+        warehouseLimitPreventedCount: number | null;
+        warehouseLimitRetryCount: number | null;
+        warehouseLimitRecoveredCount: number | null;
+        warehouseLimitUnrecoveredCount: number | null;
     };
 };
 
@@ -2568,7 +2616,11 @@ export type AiAgentGithubMcpConnectedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         mcpServerId: string;
-        method: 'one_click' | 'one_click_reconnect';
+        method:
+            | 'one_click'
+            | 'one_click_reconnect'
+            | 'one_click_app'
+            | 'one_click_app_reconnect';
     };
 };
 
@@ -2837,6 +2889,14 @@ export type AiAgentArtifactsRetrievedEvent = BaseTrack & {
     };
 };
 
+export type AiAgentFindContentCoverage = {
+    searchQuery: string;
+    totalResultCount: number;
+    verifiedResultCount: number;
+    topResultVerified: boolean;
+    verifiedOnly: boolean;
+};
+
 export type AiAgentFindContentCoverageEvent = BaseTrack & {
     event: 'ai_agent.find_content_coverage';
     userId: string;
@@ -2847,11 +2907,7 @@ export type AiAgentFindContentCoverageEvent = BaseTrack & {
         agentName: string;
         threadId: string;
         promptId: string;
-        searchQuery: string;
-        totalResultCount: number;
-        verifiedResultCount: number;
-        topResultVerified: boolean;
-    };
+    } & AiAgentFindContentCoverage;
 };
 
 export type AiAgentSuggestionsGeneratedEvent = BaseTrack & {
@@ -2989,6 +3045,19 @@ export type AiAgentReviewItemWritebackFailedEvent = BaseTrack & {
         rootCause: AiAgentRootCause;
         strategy: AiAgentReviewItemWritebackStrategy | null;
         errorMessage: string;
+    };
+};
+
+// Audit trail for conversation data leaving the instance as a debug dump.
+export type AiAgentThreadDumpDownloadedEvent = BaseTrack & {
+    event: 'ai_agent.thread_dump_downloaded';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        threadId: string;
+        agentId: string | null;
+        turnCount: number;
     };
 };
 
@@ -3209,6 +3278,12 @@ export type PromptFetchedEvent = BaseTrack & {
 
 export type FeatureFlagCheckProcessType = 'api' | 'scheduler' | null;
 
+type UpgradeTelemetryAnalyticsEvent = BaseTrack & {
+    event: UpgradeEventName;
+    anonymousId: string;
+    properties: UpgradeEventProperties;
+};
+
 export type FeatureFlagCheckedAggregatedEvent = BaseTrack & {
     event: 'feature_flag.checked_aggregated';
     properties: {
@@ -3383,6 +3458,7 @@ type TypedEvent =
     | AiAgentSuggestionSubmitEvent
     | AiAgentPullRequestViewedEvent
     | AiAgentReviewEvent
+    | AiAgentThreadDumpDownloadedEvent
     | AiAgentMemoryEvent
     | AiRouterConfigUpdatedEvent
     | AiRouterInstructionsUpdatedEvent
@@ -3396,6 +3472,7 @@ type TypedEvent =
     | PersistentFileGenerationCompletedEvent
     | PersistentFileUrlRequestedEvent
     | PersistentFileUrlRespondedEvent
+    | UpgradeTelemetryAnalyticsEvent
     | AiUsageEvent;
 
 type UntypedEvent<T extends BaseTrack> = Omit<BaseTrack, 'event'> &
@@ -3449,6 +3526,8 @@ export class LightdashAnalytics extends Analytics {
                 installType:
                     process.env.LIGHTDASH_INSTALL_TYPE ||
                     LightdashInstallType.UNKNOWN,
+                installChartVersion:
+                    process.env.LIGHTDASH_HELM_CHART_VERSION || null,
             },
         };
     }

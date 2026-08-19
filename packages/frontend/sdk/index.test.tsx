@@ -2,6 +2,12 @@ import { render, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('../src/components/MonacoEditor', () => ({
+    default: () => null,
+    Editor: () => null,
+    useMonaco: () => null,
+}));
+
 // Mock react-router hooks
 const mockNavigate = vi.fn();
 vi.mock('react-router', async () => {

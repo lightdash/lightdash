@@ -41,6 +41,7 @@ const SchedulersModal: FC<
         | 'capturedQueryCount'
         | 'currentParameterValues'
         | 'availableParameters'
+        | 'filterableFieldsByTileUuid'
     > & {
         name: string;
         onClose?: () => void;
@@ -76,6 +77,7 @@ const SchedulersModal: FC<
     capturedQueryCount,
     currentParameterValues,
     availableParameters,
+    filterableFieldsByTileUuid,
     onClose = () => {},
     initialSchedulerUuid,
     defaultCreate = false,
@@ -257,6 +259,7 @@ const SchedulersModal: FC<
                 capturedQueryCount={capturedQueryCount}
                 currentParameterValues={currentParameterValues}
                 availableParameters={availableParameters}
+                filterableFieldsByTileUuid={filterableFieldsByTileUuid}
             />
         );
     }

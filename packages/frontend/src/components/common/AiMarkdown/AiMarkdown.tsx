@@ -31,6 +31,19 @@ type AiMarkdownProps = {
 
 const BASE_REMARK_PLUGINS = [remarkGfm, remarkEmoji];
 
+// Streamdown's default link renderer is a <button> that opens an inline
+// "open external link?" confirmation, both styled with Tailwind classes we
+// don't ship — so links degrade to native button chrome. Render plain
+// anchors by default; consumers with richer behavior (e.g. agent chat's
+// ContentLink pills) override `components.a`.
+const DEFAULT_COMPONENTS: StreamdownProps['components'] = {
+    a: ({ node: _node, children, ...props }) => (
+        <a {...props} target="_blank" rel="noreferrer noopener">
+            {children}
+        </a>
+    ),
+};
+
 type SanitizeSchema = {
     tagNames?: string[];
     attributes?: Record<string, unknown>;
@@ -95,6 +108,10 @@ export const AiMarkdown: FC<AiMarkdownProps> = ({
                 : rehypePlugins,
         [allowedTags, rehypePlugins],
     );
+    const mergedComponents = useMemo(
+        () => ({ ...DEFAULT_COMPONENTS, ...components }),
+        [components],
+    );
 
     return (
         <Box
@@ -111,7 +128,7 @@ export const AiMarkdown: FC<AiMarkdownProps> = ({
                     remarkPlugins={mergedRemarkPlugins}
                     rehypePlugins={mergedRehypePlugins}
                     plugins={plugins}
-                    components={components}
+                    components={mergedComponents}
                     allowedTags={allowedTags}
                 >
                     {children}

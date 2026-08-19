@@ -2,6 +2,7 @@ import { type DataAppTemplate } from '@lightdash/common';
 import {
     IconFileText,
     IconLayoutDashboard,
+    IconPencil,
     IconPresentation,
     IconPuzzle,
     type Icon as TablerIcon,
@@ -14,7 +15,7 @@ export type TemplateDefinition = {
     icon: TablerIcon;
 };
 
-export const TEMPLATES: TemplateDefinition[] = [
+const TEMPLATES: TemplateDefinition[] = [
     {
         id: 'dashboard',
         title: 'Dashboard',
@@ -36,6 +37,12 @@ export const TEMPLATES: TemplateDefinition[] = [
         icon: IconFileText,
     },
     {
+        id: 'custom',
+        title: 'From scratch',
+        description: 'Start from scratch and describe whatever you want.',
+        icon: IconPencil,
+    },
+    {
         id: 'data_app_viz',
         title: 'Data app visualization',
         description:
@@ -43,6 +50,13 @@ export const TEMPLATES: TemplateDefinition[] = [
         icon: IconPuzzle,
     },
 ];
+
+// Offered when creating a data app. Vizs (custom chart types) are created from
+// Explorer's chart type picker instead, but existing viz apps still resolve
+// their definition via `getTemplate`, so the entry stays in TEMPLATES.
+export const PICKER_TEMPLATES: TemplateDefinition[] = TEMPLATES.filter(
+    (t) => t.id !== 'data_app_viz',
+);
 
 export const getTemplate = (id: DataAppTemplate): TemplateDefinition => {
     const t = TEMPLATES.find((x) => x.id === id);

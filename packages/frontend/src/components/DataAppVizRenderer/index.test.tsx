@@ -25,6 +25,10 @@ const mocks = vi.hoisted(() => ({
                   latestBuildInProgress: true;
               }
             | {
+                  state: 'unavailable';
+                  latestBuildInProgress: false;
+              }
+            | {
                   state: 'failed';
                   latestBuildInProgress: false;
               }
@@ -43,6 +47,11 @@ const mocks = vi.hoisted(() => ({
     renderMetadataHook: vi.fn(),
     previewTokenHook: vi.fn(),
     setFetchAll: vi.fn(),
+    canViewUnderlyingData: { current: true },
+    explore: { current: undefined as { name: string } | undefined },
+    exploreHook: vi.fn(),
+    // Extra keys merged into the useVisualizationContext mock return value.
+    vizContextOverrides: { current: {} as Record<string, unknown> },
 }));
 
 vi.mock('react-router', () => ({
@@ -54,7 +63,7 @@ vi.mock('../../ee/providers/Embed/useEmbed', () => ({
 vi.mock('../../features/apps/AppIframePreview', () => ({
     default: mocks.iframePreview,
 }));
-vi.mock('../../features/apps/hooks/useDataAppVizRender', () => ({
+vi.mock('../../features/chartTypes/hooks/useDataAppVizRender', () => ({
     useDataAppVizRenderMetadata: (...args: unknown[]) => {
         mocks.renderMetadataHook(...args);
         return {
@@ -69,6 +78,17 @@ vi.mock('../../features/apps/hooks/useDataAppVizRender', () => ({
 }));
 vi.mock('../../features/apps/previewOrigin', () => ({
     usePreviewOrigin: () => 'https://preview.example.com',
+}));
+vi.mock('../../hooks/useContextMenuPermissions', () => ({
+    useContextMenuPermissions: () => ({
+        canViewUnderlyingData: mocks.canViewUnderlyingData.current,
+    }),
+}));
+vi.mock('../../hooks/useExplore', () => ({
+    useExplore: (...args: unknown[]) => {
+        mocks.exploreHook(...args);
+        return { data: mocks.explore.current };
+    },
 }));
 vi.mock('../LightdashVisualization/types', () => ({
     isDataAppVizVisualizationConfig: () => true,
@@ -90,6 +110,7 @@ vi.mock('../LightdashVisualization/useVisualizationContext', () => ({
             setFetchAll: mocks.setFetchAll,
         },
         colorPalette: ['#7162FF'],
+        ...mocks.vizContextOverrides.current,
     }),
 }));
 
@@ -144,6 +165,10 @@ describe('DataAppVizRenderer', () => {
         mocks.renderMetadataHook.mockClear();
         mocks.previewTokenHook.mockClear();
         mocks.setFetchAll.mockClear();
+        mocks.canViewUnderlyingData.current = true;
+        mocks.explore.current = undefined;
+        mocks.exploreHook.mockClear();
+        mocks.vizContextOverrides.current = {};
     });
 
     it('prompts for a visualization when none is selected', () => {
@@ -191,6 +216,24 @@ describe('DataAppVizRenderer', () => {
         expect(
             screen.getByText('Custom chart type failed to generate.'),
         ).toBeInTheDocument();
+    });
+
+    // A version that built fine and then lost its bundle is not a build
+    // failure, and must not read like one.
+    it('distinguishes an unavailable bundle from a build failure', () => {
+        mocks.metadata.current = {
+            state: 'unavailable',
+            latestBuildInProgress: false,
+        };
+
+        renderRenderer();
+
+        expect(
+            screen.getByText('Custom chart type preview is unavailable.'),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByText('Custom chart type failed to generate.'),
+        ).not.toBeInTheDocument();
     });
 
     it.each([
@@ -313,6 +356,168 @@ describe('DataAppVizRenderer', () => {
                 isEmbedded: true,
                 savedChartUuid: 'saved-chart-uuid',
             },
+        );
+    });
+});
+
+describe('DataAppVizRenderer underlying-data gating', () => {
+    const happyMetricQuery = {
+        exploreName: 'orders',
+        dimensions: ['orders_category'],
+        metrics: ['orders_count'],
+        filters: {},
+        sorts: [],
+        limit: 500,
+        tableCalculations: [],
+    };
+    const happyResultsData = () => ({
+        rows: [{ 'orders.category': { value: { raw: 'Hardware' } } }],
+        setFetchAll: mocks.setFetchAll,
+        metricQuery: happyMetricQuery,
+        queryUuid: 'source-query-uuid',
+    });
+
+    const binDimension = {
+        id: 'bin1',
+        name: 'amount_bin',
+        table: 'orders',
+        type: 'bin',
+        dimensionId: 'orders_amount',
+        binType: 'fixed_number',
+        binNumber: 5,
+    };
+
+    const lastIframeProps = () =>
+        (
+            mocks.iframePreview.mock.calls.at(-1) as unknown[] | undefined
+        )?.[0] as {
+            dataAppVizContext?: {
+                pivotDetails: unknown;
+                underlyingData: { enabled: boolean };
+            };
+            rewriteVizUnderlyingDataRequest?: (intent: unknown) => unknown;
+        };
+
+    beforeEach(() => {
+        mocks.metadata.current = readyMetadata();
+        mocks.metadataError.current = undefined;
+        mocks.token.current = 'preview-token';
+        mocks.tokenError.current = undefined;
+        mocks.embedToken.current = undefined;
+        mocks.dataAppVizUuid.current = 'viz-uuid';
+        mocks.iframePreview.mockClear();
+        mocks.exploreHook.mockClear();
+        mocks.canViewUnderlyingData.current = true;
+        mocks.explore.current = { name: 'orders' };
+        mocks.vizContextOverrides.current = { resultsData: happyResultsData() };
+    });
+
+    it('happy path: pushes enabled and installs the rewrite callback', () => {
+        renderRenderer();
+        const props = lastIframeProps();
+        expect(props.dataAppVizContext?.underlyingData).toEqual({
+            enabled: true,
+        });
+        expect(props.rewriteVizUnderlyingDataRequest).toBeTypeOf('function');
+    });
+
+    it('forwards pivot metadata and disables underlying data for pivoted rows', () => {
+        const pivotDetails = {
+            indexColumn: [],
+            valuesColumns: [],
+            groupByColumns: [{ reference: 'orders_status' }],
+        };
+        mocks.vizContextOverrides.current = {
+            resultsData: { ...happyResultsData(), pivotDetails },
+        };
+
+        renderRenderer();
+
+        const props = lastIframeProps();
+        expect(props.dataAppVizContext?.pivotDetails).toBe(pivotDetails);
+        expect(props.dataAppVizContext?.underlyingData).toEqual({
+            enabled: false,
+        });
+        expect(props.rewriteVizUnderlyingDataRequest).toBeUndefined();
+    });
+
+    it.each([
+        [
+            'permission denied',
+            () => {
+                mocks.canViewUnderlyingData.current = false;
+            },
+        ],
+        [
+            'embed context',
+            () => {
+                mocks.embedToken.current = 'embed-jwt';
+            },
+        ],
+        [
+            'minimal (screenshot) render',
+            () => {
+                mocks.vizContextOverrides.current = {
+                    resultsData: happyResultsData(),
+                    minimal: true,
+                };
+            },
+        ],
+        [
+            'no source query uuid',
+            () => {
+                mocks.vizContextOverrides.current = {
+                    resultsData: {
+                        ...happyResultsData(),
+                        queryUuid: undefined,
+                    },
+                };
+            },
+        ],
+        [
+            'custom bin dimension in the query',
+            () => {
+                mocks.vizContextOverrides.current = {
+                    resultsData: {
+                        ...happyResultsData(),
+                        metricQuery: {
+                            ...happyMetricQuery,
+                            customDimensions: [binDimension],
+                        },
+                    },
+                };
+            },
+        ],
+        [
+            'explore not loaded',
+            () => {
+                mocks.explore.current = undefined;
+            },
+        ],
+    ])('%s: pushes disabled and installs no callback', (_label, arrange) => {
+        arrange();
+        renderRenderer();
+        const props = lastIframeProps();
+        expect(props.dataAppVizContext?.underlyingData).toEqual({
+            enabled: false,
+        });
+        expect(props.rewriteVizUnderlyingDataRequest).toBeUndefined();
+    });
+
+    it('gated surfaces disable the explore fetch itself', () => {
+        mocks.embedToken.current = 'embed-jwt';
+        renderRenderer();
+        expect(mocks.exploreHook).toHaveBeenLastCalledWith(
+            'orders',
+            expect.objectContaining({ enabled: false }),
+        );
+    });
+
+    it('the happy path enables the explore fetch', () => {
+        renderRenderer();
+        expect(mocks.exploreHook).toHaveBeenLastCalledWith(
+            'orders',
+            expect.objectContaining({ enabled: true }),
         );
     });
 });

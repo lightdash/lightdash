@@ -2,14 +2,16 @@ import {
     canAddDashboardFiltersInEmbed,
     isParameterInteractivityEnabled,
     type Dashboard,
+    type DashboardTile,
     type InteractivityOptions,
 } from '@lightdash/common';
 import { Box, Button, Divider, Group, Tooltip } from '@mantine/core';
 import { IconChevronUp } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
+import { useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { DashboardFiltersBarSummary } from '../../../../../features/dashboardFilters/DashboardFiltersBarSummary';
 import { DateZoom } from '../../../../../features/dateZoom';
+import { useActiveTabParameters } from '../../../../../hooks/dashboard/useActiveTabParameters';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
 import { embedContractClass } from '../../styles/embedClassContract';
 import styles from './EmbedDashboardFilterBar.module.css';
@@ -19,11 +21,14 @@ import EmbedDashboardParameters from './EmbedDashboardParameters';
 type Props = {
     dashboard: Dashboard & InteractivityOptions;
     shouldShowFilters: boolean;
+    /** Tiles rendered on the active tab */
+    activeTiles: DashboardTile[];
 };
 
 const EmbedDashboardFilterBar: FC<Props> = ({
     dashboard,
     shouldShowFilters,
+    activeTiles,
 }) => {
     const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -34,13 +39,6 @@ const EmbedDashboardFilterBar: FC<Props> = ({
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
     );
-    const parameterDefinitions = useDashboardContext(
-        (c) => c.parameterDefinitions,
-    );
-    const parameterReferences = useDashboardContext(
-        (c) => c.dashboardParameterReferences,
-    );
-
     const parametersEnabled = isParameterInteractivityEnabled(
         dashboard.parameterInteractivity,
     );
@@ -52,15 +50,11 @@ const EmbedDashboardFilterBar: FC<Props> = ({
         ? dashboardFilters.dimensions.length +
           dashboardTemporaryFilters.dimensions.length
         : 0;
-    const totalParametersCount = useMemo(
-        () =>
-            parametersEnabled
-                ? Object.keys(parameterDefinitions).filter((key) =>
-                      parameterReferences.has(key),
-                  ).length
-                : 0,
-        [parametersEnabled, parameterDefinitions, parameterReferences],
-    );
+    // Parameters follow the UI: only shown on tabs whose charts reference them
+    const activeTabParameters = useActiveTabParameters(activeTiles);
+    const totalParametersCount = parametersEnabled
+        ? Object.keys(activeTabParameters).length
+        : 0;
     const hasVisibleParameters = totalParametersCount > 0;
 
     // Collapsing only hides filters and parameters — date zoom stays visible
@@ -115,7 +109,11 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                         orientation="vertical"
                     />
                 )}
-                {parametersEnabled && <EmbedDashboardParameters />}
+                {parametersEnabled && (
+                    <EmbedDashboardParameters
+                        parameters={activeTabParameters}
+                    />
+                )}
             </Group>
 
             <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>

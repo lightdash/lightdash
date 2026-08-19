@@ -1,8 +1,8 @@
 import { subject } from '@casl/ability';
 import {
     getHighestSpaceRole,
-    getOrganizationRoleForSpaceAccess,
-    getProjectRoleForSpaceAccess,
+    getOrganizationRoleForRoleSetSpaceAccess,
+    getProjectRoleForRoleSetSpaceAccess,
     NotFoundError,
     OrganizationMemberRole,
     ProjectMemberRole,
@@ -112,10 +112,19 @@ export class SpacePermissionService extends BaseService {
         });
 
         const auditedAbility = this.createAuditedAbility(user);
-        return Object.entries(accessContext)
-            .filter(([_, access]) =>
-                auditedAbility.can(action, subject('Space', access)),
-            )
+        const entries = Object.entries(accessContext);
+        const accessResults = auditedAbility.canBulk(
+            action,
+            entries.map(([spaceUuid, access]) =>
+                subject('Space', {
+                    ...access,
+                    metadata: { spaceUuid },
+                }),
+            ),
+        );
+
+        return entries
+            .filter((_, index) => accessResults[index])
             .map(([spaceUuid]) => spaceUuid);
     }
 
@@ -278,14 +287,19 @@ export class SpacePermissionService extends BaseService {
         projectAccessMap: Record<string, ProjectSpaceAccess[]>;
         organizationAccessMap: Record<string, OrganizationSpaceAccess[]>;
     }> {
+        const heldCustomRoleUuids = (access: {
+            roleUuid: string | null;
+            extraRoleUuids: string[];
+        }) => [
+            ...(access.roleUuid ? [access.roleUuid] : []),
+            ...access.extraRoleUuids,
+        ];
         const customRoleUuids = [
             ...new Set(
                 [
                     ...Object.values(projectAccessMap).flat(),
                     ...Object.values(organizationAccessMap).flat(),
-                ].flatMap((access) =>
-                    access.roleUuid ? [access.roleUuid] : [],
-                ),
+                ].flatMap(heldCustomRoleUuids),
             ),
         ];
         if (customRoleUuids.length === 0) {
@@ -296,21 +310,35 @@ export class SpacePermissionService extends BaseService {
             customRoleUuids,
             { trx },
         );
+        const unionScopes = (roleUuids: string[]) =>
+            roleUuids.flatMap((roleUuid) => scopesByRole[roleUuid] ?? []);
 
         return {
             projectAccessMap: Object.fromEntries(
                 Object.entries(projectAccessMap).map(
                     ([spaceUuid, accessList]) => [
                         spaceUuid,
-                        accessList.map(({ roleUuid, ...access }) =>
-                            roleUuid
-                                ? {
-                                      ...access,
-                                      role: getProjectRoleForSpaceAccess(
-                                          scopesByRole[roleUuid] ?? [],
-                                      ),
-                                  }
-                                : access,
+                        accessList.map(
+                            ({ roleUuid, extraRoleUuids, ...access }) => {
+                                const held = heldCustomRoleUuids({
+                                    roleUuid,
+                                    extraRoleUuids,
+                                });
+                                return held.length > 0
+                                    ? {
+                                          ...access,
+                                          role: getProjectRoleForRoleSetSpaceAccess(
+                                              {
+                                                  systemRole: roleUuid
+                                                      ? null
+                                                      : access.role,
+                                                  customRoleScopes:
+                                                      unionScopes(held),
+                                              },
+                                          ),
+                                      }
+                                    : access;
+                            },
                         ),
                     ],
                 ),
@@ -319,15 +347,27 @@ export class SpacePermissionService extends BaseService {
                 Object.entries(organizationAccessMap).map(
                     ([spaceUuid, accessList]) => [
                         spaceUuid,
-                        accessList.map(({ roleUuid, ...access }) =>
-                            roleUuid
-                                ? {
-                                      ...access,
-                                      role: getOrganizationRoleForSpaceAccess(
-                                          scopesByRole[roleUuid] ?? [],
-                                      ),
-                                  }
-                                : access,
+                        accessList.map(
+                            ({ roleUuid, extraRoleUuids, ...access }) => {
+                                const held = heldCustomRoleUuids({
+                                    roleUuid,
+                                    extraRoleUuids,
+                                });
+                                return held.length > 0
+                                    ? {
+                                          ...access,
+                                          role: getOrganizationRoleForRoleSetSpaceAccess(
+                                              {
+                                                  systemRole: roleUuid
+                                                      ? null
+                                                      : access.role,
+                                                  customRoleScopes:
+                                                      unionScopes(held),
+                                              },
+                                          ),
+                                      }
+                                    : access;
+                            },
                         ),
                     ],
                 ),

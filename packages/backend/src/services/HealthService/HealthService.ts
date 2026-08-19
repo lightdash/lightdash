@@ -3,7 +3,6 @@ import {
     LightdashInstallType,
     LightdashMode,
     SessionUser,
-    UnexpectedDatabaseError,
 } from '@lightdash/common';
 import { createHmac } from 'crypto';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
@@ -15,6 +14,7 @@ import { VERSION } from '../../version';
 import { BaseService } from '../BaseService';
 import { LicenseService } from '../LicenseService/LicenseService';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
+import type { ReadinessService } from '../ReadinessService/ReadinessService';
 
 type HealthServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -22,6 +22,7 @@ type HealthServiceArguments = {
     organizationModel: OrganizationModel;
     migrationModel: MigrationModel;
     organizationSettingsModel: OrganizationSettingsModel;
+    readinessService?: Pick<ReadinessService, 'getReadiness'>;
 };
 
 export class HealthService extends BaseService {
@@ -35,12 +36,15 @@ export class HealthService extends BaseService {
 
     private readonly organizationSettingsModel: OrganizationSettingsModel;
 
+    private readonly readinessService?: Pick<ReadinessService, 'getReadiness'>;
+
     constructor({
         organizationModel,
         migrationModel,
         lightdashConfig,
         licenseService,
         organizationSettingsModel,
+        readinessService,
     }: HealthServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -48,6 +52,7 @@ export class HealthService extends BaseService {
         this.organizationModel = organizationModel;
         this.migrationModel = migrationModel;
         this.organizationSettingsModel = organizationSettingsModel;
+        this.readinessService = readinessService;
     }
 
     private isEnterpriseEnabled(): boolean {
@@ -56,7 +61,7 @@ export class HealthService extends BaseService {
 
     async getHealthState(
         user: SessionUser | undefined,
-        options: { skipMigrationCheck: boolean } = {
+        _options: { skipMigrationCheck: boolean } = {
             skipMigrationCheck: false,
         },
     ): Promise<HealthState> {
@@ -79,23 +84,17 @@ export class HealthService extends BaseService {
                   csvCellsLimit: this.lightdashConfig.query.csvCellsLimit,
               };
 
-        let migrationExecutionTime = 0;
-        if (!options.skipMigrationCheck) {
-            const migrationStartTime = performance.now();
-            const { status: migrationStatus, currentVersion } =
-                await this.migrationModel.getMigrationStatus();
-            migrationExecutionTime = performance.now() - migrationStartTime;
+        const migrationStartTime = performance.now();
+        const { status: migrationStatus, currentVersion } =
+            await this.migrationModel.getMigrationStatus();
+        const migrationExecutionTime = performance.now() - migrationStartTime;
+        const requiresMigration = migrationStatus < 0;
+        const readiness = await this.readinessService?.getReadiness();
 
-            if (migrationStatus < 0) {
-                throw new UnexpectedDatabaseError(
-                    'Database has not been migrated yet',
-                    { currentVersion },
-                );
-            } else if (migrationStatus > 0) {
-                console.warn(
-                    `There are more DB migrations than defined in the code (you are running old code against a newer DB). Current version: ${currentVersion}`,
-                );
-            } // else migrationStatus === 0 (all migrations are up to date)
+        if (migrationStatus > 0) {
+            console.warn(
+                `There are more DB migrations than defined in the code (you are running old code against a newer DB). Current version: ${currentVersion}`,
+            );
         }
 
         const hasOrgsStartTime = performance.now();
@@ -125,6 +124,9 @@ export class HealthService extends BaseService {
 
         return {
             healthy: true,
+            requiresMigration,
+            migrationWarnings:
+                readiness?.status === 'ready' ? readiness.warnings : undefined,
             license: this.licenseService.getLicenseStatus(),
             mode: this.lightdashConfig.mode,
             version: VERSION,
@@ -277,6 +279,9 @@ export class HealthService extends BaseService {
                 isAmbientAiEnabled:
                     !!this.lightdashConfig.ai.copilot.providers.anthropic
                         ?.apiKey,
+                threadDumpEnabled:
+                    this.isEnterpriseEnabled() &&
+                    this.lightdashConfig.ai.copilot.threadDumpEnabled,
             },
             echarts6: {
                 enabled: false,

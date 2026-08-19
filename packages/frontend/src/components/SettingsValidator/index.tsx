@@ -2,24 +2,34 @@ import {
     isChartValidationError,
     isFixableDashboardValidationError,
     ValidationErrorType,
+    ValidationSourceType,
     type ValidationErrorChartResponse,
     type ValidationErrorDashboardResponse,
-    type ValidationSourceType,
+    type ValidationErrorGroup,
 } from '@lightdash/common';
-import { Button, Group, Loader, Paper, Text } from '@mantine/core';
+import { Button, Group, Loader, Paper, Stack, Text } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconCheck } from '@tabler/icons-react';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import useSearchParams from '../../hooks/useSearchParams';
 import {
+    useAllValidations,
     usePaginatedValidation,
     usePinnedValidation,
     useValidationMutation,
+    useValidationSummary,
 } from '../../hooks/validation/useValidation';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import { SettingsPage } from '../common/Settings/SettingsPage';
+import { BulkDeleteContentModal } from './BulkDeleteContentModal';
+import {
+    dedupeContentItems,
+    getDeletableContentItem,
+    type ValidationContentItem,
+} from './utils/deletableContent';
+import { ValidationSummarySection } from './ValidationSummarySection';
 import { ValidatorTable } from './ValidatorTable';
 import { ChartConfigurationErrorModal } from './ValidatorTable/ChartConfigurationErrorModal';
 import { FixDashboardFilterModal } from './ValidatorTable/FixDashboardFilterModal';
@@ -52,12 +62,19 @@ export const SettingsValidator: FC<{
         void navigate({ pathname }, { replace: true });
     }, [navigate, pathname]);
 
+    const { data: summary } = useValidationSummary(projectUuid, user);
+    const [activeGroup, setActiveGroup] = useState<ValidationErrorGroup | null>(
+        null,
+    );
+
     const { data, isLoading, isFetching, isError, fetchNextPage } =
         usePaginatedValidation(projectUuid, user, {
             pageSize: 20,
             searchQuery: debouncedSearch || undefined,
             sourceTypes:
                 sourceTypeFilter.length > 0 ? sourceTypeFilter : undefined,
+            errorTypes: activeGroup ? [activeGroup.errorType] : undefined,
+            tableName: activeGroup?.tableName ?? undefined,
             includeChartConfigWarnings: showConfigWarnings,
         });
 
@@ -73,6 +90,57 @@ export const SettingsValidator: FC<{
         useState<ValidationErrorChartResponse>();
     const [selectedDashboardError, setSelectedDashboardError] =
         useState<ValidationErrorDashboardResponse>();
+
+    // Bulk delete: from table row selection or from a summary group
+    const [rowSelection, setRowSelection] = useState<Record<string, boolean>>(
+        {},
+    );
+    const [selectionDeleteItems, setSelectionDeleteItems] = useState<
+        ValidationContentItem[] | null
+    >(null);
+    const [deleteGroup, setDeleteGroup] = useState<ValidationErrorGroup | null>(
+        null,
+    );
+    const { data: allValidations } = useAllValidations(
+        projectUuid,
+        deleteGroup !== null,
+    );
+
+    // Group delete targets charts referencing the model. Dashboards usually
+    // have other healthy tiles, so they stay for manual review.
+    const groupDeleteItems = useMemo(() => {
+        if (!deleteGroup || !allValidations) return null;
+        return dedupeContentItems(
+            allValidations.flatMap((validation) => {
+                if (
+                    validation.source !== ValidationSourceType.Chart ||
+                    !isChartValidationError(validation) ||
+                    validation.tableName !== deleteGroup.tableName
+                ) {
+                    return [];
+                }
+                const item = getDeletableContentItem(validation);
+                return item ? [item] : [];
+            }),
+        );
+    }, [deleteGroup, allValidations]);
+
+    const deleteModalItems = selectionDeleteItems ?? groupDeleteItems;
+
+    const closeDeleteModal = useCallback(() => {
+        setSelectionDeleteItems(null);
+        setDeleteGroup(null);
+    }, []);
+
+    // Selection references loaded rows, so clear it when the result set changes
+    useEffect(() => {
+        setRowSelection({});
+    }, [
+        debouncedSearch,
+        sourceTypeFilter,
+        showConfigWarnings,
+        activeGroup?.groupKey,
+    ]);
 
     const flatData = useMemo(
         () => data?.pages.flatMap((page) => page.data) ?? [],
@@ -103,6 +171,7 @@ export const SettingsValidator: FC<{
     const content = (
         <>
             <FixValidationErrorModal
+                key={selectedValidationError?.validationUuid}
                 validationError={selectedValidationError}
                 allValidationErrors={flatData}
                 onClose={() => {
@@ -122,58 +191,88 @@ export const SettingsValidator: FC<{
                     setSelectedConfigError(undefined);
                 }}
             />
-            {isLoading ? (
-                <Paper withBorder shadow="sm">
-                    <Group justify="center" gap="xs" p="md">
-                        <Loader color="gray" />
-                    </Group>
-                </Paper>
-            ) : flatData.length > 0 || pinnedValidation || hasActiveFilters ? (
-                <ValidatorTable
-                    data={deduplicatedData}
-                    projectUuid={projectUuid}
-                    onSelectValidationError={(validationError) => {
-                        if (isChartValidationError(validationError)) {
-                            if (
-                                validationError.errorType ===
-                                ValidationErrorType.ChartConfiguration
-                            ) {
-                                setSelectedConfigError(validationError);
-                            } else {
-                                setSelectedValidationError(validationError);
-                            }
-                        } else if (
-                            isFixableDashboardValidationError(validationError)
-                        ) {
-                            setSelectedDashboardError(validationError);
+            <BulkDeleteContentModal
+                projectUuid={projectUuid}
+                items={deleteModalItems ?? []}
+                opened={deleteModalItems !== null}
+                onClose={closeDeleteModal}
+                onDeleted={() => setRowSelection({})}
+            />
+            <Stack gap="sm">
+                {summary && (
+                    <ValidationSummarySection
+                        summary={summary}
+                        activeGroupKey={activeGroup?.groupKey ?? null}
+                        onToggleGroup={(group) =>
+                            setActiveGroup((current) =>
+                                current?.groupKey === group.groupKey
+                                    ? null
+                                    : group,
+                            )
                         }
-                    }}
-                    isFetching={isFetching}
-                    isLoading={isLoading}
-                    isError={isError}
-                    totalDBRowCount={totalDBRowCount}
-                    fetchNextPage={fetchNextPage}
-                    pinnedValidation={pinnedValidation}
-                    onUnpin={handleUnpin}
-                    searchQuery={searchQuery}
-                    setSearchQuery={setSearchQuery}
-                    sourceTypeFilter={sourceTypeFilter}
-                    setSourceTypeFilter={setSourceTypeFilter}
-                    showConfigWarnings={showConfigWarnings}
-                    setShowConfigWarnings={setShowConfigWarnings}
-                    lastValidatedAt={lastValidatedAt}
-                    flush={flush}
-                />
-            ) : (
-                <Paper withBorder shadow="sm">
-                    <Group justify="center" gap="xs" p="md">
-                        <MantineIcon icon={IconCheck} color="green" />
-                        <Text fw={500} c="ldGray.7">
-                            No validation errors found
-                        </Text>
-                    </Group>
-                </Paper>
-            )}
+                        onDeleteGroup={setDeleteGroup}
+                    />
+                )}
+                {isLoading ? (
+                    <Paper withBorder shadow="sm">
+                        <Group justify="center" gap="xs" p="md">
+                            <Loader color="gray" />
+                        </Group>
+                    </Paper>
+                ) : flatData.length > 0 ||
+                  pinnedValidation ||
+                  hasActiveFilters ? (
+                    <ValidatorTable
+                        data={deduplicatedData}
+                        projectUuid={projectUuid}
+                        onSelectValidationError={(validationError) => {
+                            if (isChartValidationError(validationError)) {
+                                if (
+                                    validationError.errorType ===
+                                    ValidationErrorType.ChartConfiguration
+                                ) {
+                                    setSelectedConfigError(validationError);
+                                } else {
+                                    setSelectedValidationError(validationError);
+                                }
+                            } else if (
+                                isFixableDashboardValidationError(
+                                    validationError,
+                                )
+                            ) {
+                                setSelectedDashboardError(validationError);
+                            }
+                        }}
+                        isFetching={isFetching}
+                        isLoading={isLoading}
+                        isError={isError}
+                        totalDBRowCount={totalDBRowCount}
+                        fetchNextPage={fetchNextPage}
+                        pinnedValidation={pinnedValidation}
+                        onUnpin={handleUnpin}
+                        searchQuery={searchQuery}
+                        setSearchQuery={setSearchQuery}
+                        sourceTypeFilter={sourceTypeFilter}
+                        setSourceTypeFilter={setSourceTypeFilter}
+                        showConfigWarnings={showConfigWarnings}
+                        setShowConfigWarnings={setShowConfigWarnings}
+                        lastValidatedAt={lastValidatedAt}
+                        flush={flush}
+                        rowSelection={rowSelection}
+                        setRowSelection={setRowSelection}
+                        onBulkDelete={setSelectionDeleteItems}
+                    />
+                ) : (
+                    <Paper withBorder shadow="sm">
+                        <Group justify="center" gap="xs" p="md">
+                            <MantineIcon icon={IconCheck} color="green" />
+                            <Text fw={500} c="ldGray.7">
+                                No validation errors found
+                            </Text>
+                        </Group>
+                    </Paper>
+                )}
+            </Stack>
         </>
     );
 

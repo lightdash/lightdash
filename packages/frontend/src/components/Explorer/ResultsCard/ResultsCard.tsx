@@ -21,6 +21,8 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
+import { resolveMergeColumnOrder } from '../../../features/mergeQuery/utils/resolveMergeColumnOrder';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -69,8 +71,15 @@ const ResultsCard: FC = memo(() => {
     }, [isGroupedDisabled, viewMode]);
 
     const { queryResults, getDownloadQueryUuid } = useExplorerQuery();
+    const merge = useMergeSafe();
+    const mergeResults = merge?.mergeResults;
 
-    const totalResults = queryResults.totalResults;
+    const mergedTotalResults =
+        mergeResults?.unpivotedResults?.totalResults ??
+        mergeResults?.results.totalResults;
+    const totalResults = mergeResults
+        ? (mergedTotalResults ?? mergeResults.metricQuery.limit)
+        : queryResults.totalResults;
 
     const savedChart = useExplorerSelector(selectSavedChart);
 
@@ -107,10 +116,16 @@ const ResultsCard: FC = memo(() => {
     // ResultsCard always downloads raw unpivoted results
     const getResultsCardDownloadQueryUuid = useCallback(
         (limit: number | null) => {
-            return getDownloadQueryUuid(limit, false);
+            return mergeResults
+                ? merge.getDownloadQueryUuid(limit, false)
+                : getDownloadQueryUuid(limit, false);
         },
-        [getDownloadQueryUuid],
+        [getDownloadQueryUuid, merge, mergeResults],
     );
+
+    const exportColumnOrder = mergeResults
+        ? resolveMergeColumnOrder(mergeResults.columnOrder, columnOrder)
+        : columnOrder;
 
     return (
         <CollapsableCard
@@ -196,8 +211,12 @@ const ResultsCard: FC = memo(() => {
                                         getDownloadQueryUuid={
                                             getResultsCardDownloadQueryUuid
                                         }
-                                        getGsheetLink={getGsheetLink}
-                                        columnOrder={columnOrder}
+                                        getGsheetLink={
+                                            mergeResults
+                                                ? undefined
+                                                : getGsheetLink
+                                        }
+                                        columnOrder={exportColumnOrder}
                                         customLabels={undefined} // for results table download, don't override labels
                                         hiddenFields={undefined} // for results table download, don't hide columns
                                         chartName={savedChart?.name}

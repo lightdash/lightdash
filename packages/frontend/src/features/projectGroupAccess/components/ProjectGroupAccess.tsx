@@ -41,6 +41,11 @@ import { useAbilityContext } from '../../../providers/Ability/useAbilityContext'
 import useApp from '../../../providers/App/useApp';
 import { TrackPage } from '../../../providers/Tracking/TrackingProvider';
 import { CategoryName, PageName, PageType } from '../../../types/Events';
+import { ProjectRoleSetCell } from '../../roleSets/components/ProjectRoleSetCell';
+import {
+    useMultipleRolesEnabled,
+    useReplaceProjectGroupRoleSetMutation,
+} from '../../roleSets/hooks/useRoleSets';
 import AddProjectGroupAccessModal from './AddProjectGroupAccessModal';
 import RevokeProjectGroupAccessModal from './RevokeProjectGroupAccessModal';
 
@@ -147,6 +152,16 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
         );
     }, [projectGroupRoleAssignments, projectUuid]);
 
+    const groupsWithExtraRoles = useMemo(
+        () =>
+            new Set(
+                (projectGroupRoleAssignments ?? [])
+                    .filter((assignment) => assignment.hasMultipleRoles)
+                    .map((assignment) => assignment.assigneeId),
+            ),
+        [projectGroupRoleAssignments],
+    );
+
     const { data: organizationRoles } = useOrganizationRoles();
 
     const rolesData = useMemo(() => {
@@ -204,8 +219,12 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
 
     const { mutateAsync: removeProjectGroupAccess, isLoading: isDeleting } =
         useDeleteProjectGroupRoleAssignmentMutation(projectUuid);
+    const replaceRoleSetMutation =
+        useReplaceProjectGroupRoleSetMutation(projectUuid);
+    const multipleRolesEnabled = useMultipleRolesEnabled();
 
-    const isMutating = isSubmitting || isDeleting;
+    const isMutating =
+        isSubmitting || isDeleting || replaceRoleSetMutation.isLoading;
 
     const handleAddProjectGroupAccess = async (
         formData: CreateProjectGroupAccess,
@@ -319,6 +338,30 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
                 size: 300,
                 Cell: ({ row }) => {
                     const r = row.original;
+                    if (multipleRolesEnabled) {
+                        return (
+                            <ProjectRoleSetCell
+                                projectUuid={projectUuid}
+                                assignee={{
+                                    type: 'group',
+                                    uuid: r.groupUuid,
+                                    label: r.group.name,
+                                }}
+                                slotRoleId={r.currentRoleUuid}
+                                hasMultipleRoles={groupsWithExtraRoles.has(
+                                    r.groupUuid,
+                                )}
+                                organizationRoles={organizationRoles}
+                                disabled={isMutating || !canManageProjectAccess}
+                                onChange={(roleSet) =>
+                                    replaceRoleSetMutation.mutate({
+                                        groupUuid: r.groupUuid,
+                                        roleSet,
+                                    })
+                                }
+                            />
+                        );
+                    }
                     return (
                         <Select
                             id={`group-role-${r.groupUuid}`}
@@ -368,6 +411,11 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
         handleDelete,
         isMutating,
         rolesData,
+        multipleRolesEnabled,
+        organizationRoles,
+        projectUuid,
+        groupsWithExtraRoles,
+        replaceRoleSetMutation,
     ]);
 
     const table = useContentTable({

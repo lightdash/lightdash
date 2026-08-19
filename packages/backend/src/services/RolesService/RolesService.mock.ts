@@ -122,6 +122,13 @@ type MockRolesModel = {
     removeScopesFromRole: MockFn;
     getOrganizationRoleAssignments: MockFn;
     getOrganizationAdmins: MockFn;
+    getOrganizationUserRoleSet: MockFn;
+    getProjectUserRoleSet: MockFn;
+    getProjectGroupRoleSet: MockFn;
+    replaceOrganizationUserRoleSet: MockFn;
+    replaceProjectUserRoleSet: MockFn;
+    replaceProjectGroupRoleSet: MockFn;
+    assertAnotherActiveAdmin: MockFn;
     upsertOrganizationUserRoleAssignment: MockFn;
     upsertSystemRoleProjectAccess: MockFn;
     upsertCustomRoleProjectAccess: MockFn;
@@ -150,6 +157,15 @@ export const mockRolesModel: MockRolesModel = {
     removeScopesFromRole: vi.fn(),
     getOrganizationRoleAssignments: vi.fn(),
     getOrganizationAdmins: vi.fn(),
+    getOrganizationUserRoleSet: vi
+        .fn()
+        .mockResolvedValue({ systemRole: 'admin', customRoleUuids: [] }),
+    getProjectUserRoleSet: vi.fn(),
+    getProjectGroupRoleSet: vi.fn(),
+    replaceOrganizationUserRoleSet: vi.fn(),
+    replaceProjectUserRoleSet: vi.fn(),
+    replaceProjectGroupRoleSet: vi.fn(),
+    assertAnotherActiveAdmin: vi.fn(),
     upsertOrganizationUserRoleAssignment: vi.fn(),
     upsertSystemRoleProjectAccess: vi.fn(),
     upsertCustomRoleProjectAccess: vi.fn(),
@@ -230,6 +246,10 @@ export const mockInviteLinkModel: Record<string, MockFn> = {
     hasValidInviteLink: vi.fn(),
     upsert: vi.fn(),
     deleteByCode: vi.fn(),
+};
+
+export const mockFeatureFlagModel: Record<string, MockFn> = {
+    get: vi.fn().mockResolvedValue({ id: 'multiple-roles', enabled: true }),
 };
 
 export const mockOrganizationMemberProfileModel: Record<string, MockFn> = {

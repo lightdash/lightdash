@@ -75,9 +75,16 @@ The backend uses two S3 endpoint settings:
 
 When the backend creates a presigned URL for browser-direct upload, it uses `S3_PUBLIC_ENDPOINT` (falling back to `S3_ENDPOINT`) as the signing endpoint. See `parseBaseS3Config()` in `packages/backend/src/config/parseConfig.ts`.
 
+## Domain Glossaries
+
+`CONTEXT-MAP.md` lists per-feature glossaries of canonical domain terms (e.g.
+pre-aggregates). Before writing code, docs, or UI copy for a feature area that
+has a glossary, read it and use the canonical terms — never the `_Avoid_`
+aliases.
+
 ## Common Development Commands
 
--   Assume the dev-server is always running. PM2 watches backend source files and restarts the API, and a separate `api-routes-watch` process regenerates TSOA routes when controllers change; backend and generated-route changes reload the API automatically.
+-   Assume the dev-server is always running and watching source files; a separate `api-routes-watch` process regenerates TSOA routes when controllers change, so backend and generated-route changes reload the API automatically.
 -   Always use package-specific commands for faster linting/typechecking/testing.
 
 **Code Quality:**
@@ -118,13 +125,7 @@ local generated routes are stale:
 pnpm generate-api
 ```
 
-The generated files (`packages/backend/src/generated/*`) are regenerated on main per build, so the committed `routes.ts` may be stale after you pull or rebase main — it can still import controllers that main has already deleted. If the backend crash-loops with `MODULE_NOT_FOUND` pointing at `generated/routes.ts`, regenerate and restart:
-
-```bash
-pnpm generate-api
-# processes are named <LD_INSTANCE_ID>-api / -scheduler (LD_INSTANCE_ID defaults to "lightdash")
-pm2 restart "${LD_INSTANCE_ID:-lightdash}-api" "${LD_INSTANCE_ID:-lightdash}-scheduler"
-```
+The generated files (`packages/backend/src/generated/*`) are regenerated on main per build, so the committed `routes.ts` may be stale after you pull or rebase main — it can still import controllers that main has already deleted. If the backend crash-loops with `MODULE_NOT_FOUND` pointing at `generated/routes.ts`, run `pnpm generate-api` and restart the dev-server.
 
 Chart-as-code JSON schema is generated from backend OpenAPI:
 
@@ -152,6 +153,29 @@ pnpm -F backend rollback-last
 2. **Database**: Uses Knex.js for migrations and query building
 3. **API**: TSOA generates OpenAPI specs from TypeScript controllers
 4. **Authentication**: CASL-based authorization with multiple auth providers
+
+## Release-safety declarations
+
+`Release-safety preview` is a required check on `main`. It protects self-hosted upgrades: `unknown` means we could not confirm the change is safe, while `breaking` means we know it is incompatible. Both hold the upgrade, for different reasons.
+
+- For migration breaks, follow the detailed [migration release-safety declarations](packages/backend/src/database/migrations/CLAUDE.md#release-safety-declarations).
+- For API or type breaks, changed, non-test TypeScript source under `packages/backend/src` or `packages/common/src` may declare `export const breaking = { reason: '<operator-facing reason>', requiredStop: false }`. It must be a top-level, unannotated object literal with exactly those fields: `reason` is a non-empty string literal, `requiredStop` is a boolean literal, and API-gate reasons must be at least 24 characters, use more than one word, and not be placeholder text.
+
+Never declare a break merely to make CI pass. Declaring a break advises every self-hosted customer to use the Recreate strategy. A release that ships as `breaking` or `unknown` stops the internal analytics instance upgrading; every later release inherits the block until someone moves the pin past it by hand.
+
+## Merge Freeze — Holding `main` While a Release Is Cut
+
+`release.yml` fires on every push to `main`, so the release that goes out is whatever `main` contains at that moment. When something needs to reach a release on its own — a fix someone is waiting on — hold merges rather than asking people in Slack not to merge:
+
+-   **Freeze**: `gh workflow run merge-freeze.yml -f action=freeze`. This adds a `merge-freeze` required status check to the `main` ruleset. Nothing ever reports that check, so merges into `main` are blocked for everyone without a ruleset bypass.
+-   **Unfreeze**: the same workflow with `action=unfreeze`. Do it as soon as the release is cut — a freeze left on blocks the whole team, and there is no auto-expiry.
+-   **Only the person who froze can unfreeze it** from the Actions tab. If they're unavailable, a repo admin can remove the `merge-freeze` check from the `main` ruleset by hand.
+-   **There is no free-text reason, deliberately** — this repo is public, and a reason box invites someone to name a customer in it. Blocked PRs show who froze it so people know who to ask, and `#engineering` gets the same on both directions. Say why in Slack.
+-   **Only `main` is affected.** Stacked PRs merging into their parent branch are untouched.
+-   **Check the current state**: the `MERGE_FREEZE` repo variable (`true`/`false`), and `MERGE_FREEZE_ACTOR` for who froze it — `gh variable list -R lightdash/lightdash`. The authority is the ruleset itself: `merge-freeze` in the `main` ruleset's required status checks (`gh api repos/lightdash/lightdash/rulesets`). The variables are a mirror, so trust the ruleset if they ever disagree.
+-   **Agents: never freeze or unfreeze on your own initiative.** It blocks every engineer in the repo. Ask, and let a human dispatch it.
+
+Freezing analytics/customer *deployments* is a different mechanism in a different repo — see the `lightdash-cloud` CLAUDE.md.
 
 ## Package-Specific Notes
 

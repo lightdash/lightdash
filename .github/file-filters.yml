@@ -45,6 +45,9 @@ release_safety_api:
   - ".github/file-filters.yml"
   - ".github/workflows/release-safety-pr.yml"
   - "scripts/gen-release-safety.ts"
+  - "scripts/mcp-tools-diff.ts"
+  - "scripts/breaking-change-declarations.ts"
+  - "scripts/release-safety-pr-gate.ts"
   - "scripts/rest-api-diff.ts"
   - *openapi_surface
 

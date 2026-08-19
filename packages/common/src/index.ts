@@ -43,6 +43,7 @@ import { timeFrameConfigs } from './utils/timeFrames';
 import type { PivotValuesColumn } from './visualizations/types';
 
 dayjs.extend(utc);
+export { getPermissionsFromAbilityRules } from './authorization/abilityPermissions';
 export * from './authorization/buildAccountHelpers';
 export { collapseAbilityRules } from './authorization/collapseAbilityRules';
 export {
@@ -67,6 +68,7 @@ export * from './compiler/exploreCompiler';
 export * from './compiler/filtersCompiler';
 export * from './compiler/lightdashModelConverter';
 export * from './compiler/parameters';
+export * from './compiler/referenceLookup';
 export * from './compiler/translator';
 export * from './parameters/reservedParameters';
 export * from './constants/screenshot';
@@ -80,6 +82,7 @@ export * from './dbt/validation';
 export * from './ee';
 export * from './preAggregates';
 export * from './pivot/derivePivotConfigFromChart';
+export * from './pivot/deriveDataAppVizPivotConfig';
 export * from './pivot/pivotConfig';
 export * from './pivot/pivotQueryResults';
 export * from './pivot/utils';
@@ -113,6 +116,7 @@ export * from './types/coder';
 export * from './types/comments';
 export * from './types/conditionalFormatting';
 export * from './types/content';
+export * from './types/contentSlug';
 export * from './types/contentVerification';
 export * from './types/dashboard';
 export * from './types/emailWhitelabel';
@@ -142,6 +146,7 @@ export * from './types/job';
 export * from './types/knex-paginate';
 export * from './types/lightdashModel';
 export * from './types/lightdashProjectConfig';
+export * from './types/mergeQuery';
 export * from './types/metricQuery';
 export * from './types/metricsExplorer';
 export * from './types/notifications';
@@ -208,6 +213,7 @@ export {
     WarehouseTypes,
 } from './types/projects';
 export type {
+    AgentSqlScope,
     ApiEnsurePlaygroundProjectResponse,
     ApiGetProjectGroupAccesses,
     ApiProjectResponse,
@@ -290,6 +296,7 @@ export type {
     TrinoCredentials,
     UpdateProjectDbtSource,
     UpdateProjectDetails,
+    UpdateAgentSqlScope,
     UpdateQueryTimezoneSettings,
     UpdateSchedulerSettings,
     WarehouseCredentials,
@@ -297,6 +304,7 @@ export type {
 export * from './types/promotion';
 export * from './types/queryHistory';
 export * from './types/queryHistoryList';
+export * from './types/querySources';
 export * from './types/rename';
 export * from './types/resourceViewItem';
 export * from './types/results';
@@ -349,6 +357,7 @@ export * from './utils/dependencyGraph';
 export * from './utils/email';
 export * from './utils/exportTabs';
 export * from './utils/fields';
+export * from './utils/filterLabels';
 export * from './utils/filters';
 export * from './utils/formatting';
 export * from './utils/github';
@@ -357,6 +366,7 @@ export * from './utils/i18n/dashboardAsCode';
 export * from './utils/i18n/merge';
 export * from './utils/i18n/types';
 export * from './utils/item';
+export * from './utils/mergeQueryItems';
 export * from './utils/queryHistoryList';
 export * from './utils/loadLightdashProjectConfig';
 export * from './utils/lightdashSqlVariables';
@@ -382,6 +392,7 @@ export * from './utils/timeFrames';
 export * from './utils/resolveQueryTimezone';
 export * from './utils/virtualView';
 export * from './utils/warehouse';
+export * from './utils/warehouseResourceLimits';
 export * from './visualizations/BigNumberDataModel';
 export * from './visualizations/CartesianChartDataModel';
 export * from './visualizations/helpers/getCartesianAxisFormatterConfig';
@@ -411,6 +422,13 @@ export const validateEmail = (email: string): boolean => {
         /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
     return re.test(String(email).toLowerCase());
 };
+
+export const validateUserName = (name: string): boolean => !/[<>]/u.test(name);
+
+export const getUserNameSchema = () =>
+    z.string().trim().min(1, { message: 'Required' }).refine(validateUserName, {
+        message: 'Name cannot contain < or >',
+    });
 
 export const getEmailSchema = () =>
     z
@@ -642,6 +660,7 @@ export const isLightdashMode = (x: string): x is LightdashMode =>
 export enum LightdashInstallType {
     DOCKER_IMAGE = 'docker_image',
     BASH_INSTALL = 'bash_install',
+    HELM = 'helm',
     HEROKU = 'heroku',
     UNKNOWN = 'unknown',
 }

@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     isChartValidationError,
     RenameType,
+    ValidationErrorType,
     type ApiRenameResponse,
     type ValidationErrorChartResponse,
     type ValidationResponse,
@@ -61,10 +62,18 @@ export const FixValidationErrorModal: FC<Props> = ({
         projectUuid: validationError?.projectUuid,
     });
     const { data: explores } = useExplores(validationError?.projectUuid, true);
-    const [oldName, setOldName] = useState<string | undefined>();
+    // Model-level errors (whole explore deleted or failed to compile) have no
+    // fieldName to rename — default those straight to model rename.
+    const isModelError =
+        validationError?.errorType === ValidationErrorType.Model;
+    const [oldName, setOldName] = useState<string | undefined>(() =>
+        isModelError ? validationError?.tableName : undefined,
+    );
     const [newName, setNewName] = useState('');
     const [fixAll, setFixAll] = useState(false);
-    const [renameType, setRenameType] = useState<RenameType>(RenameType.FIELD);
+    const [renameType, setRenameType] = useState<RenameType>(() =>
+        isModelError ? RenameType.MODEL : RenameType.FIELD,
+    );
     const [previewData, setPreviewData] = useState<
         ApiRenameResponse['results'] | null
     >(null);
@@ -107,7 +116,8 @@ export const FixValidationErrorModal: FC<Props> = ({
             return allValidationErrors.filter(
                 (e) =>
                     isChartValidationError(e) &&
-                    (e.fieldName || '').startsWith(`${tableName}_`),
+                    (e.tableName === tableName ||
+                        (e.fieldName || '').startsWith(`${tableName}_`)),
             ).length;
         } else {
             return assertUnreachable(
@@ -121,12 +131,18 @@ export const FixValidationErrorModal: FC<Props> = ({
 
     const fieldBaseTableNameCandidate = useMemo(
         () =>
+            validationError?.tableName ??
             resolveModelNameFromField(
                 fieldName ?? '',
                 savedQuery?.tableName,
                 explores?.map((e) => e.name),
             ),
-        [fieldName, savedQuery?.tableName, explores],
+        [
+            validationError?.tableName,
+            fieldName,
+            savedQuery?.tableName,
+            explores,
+        ],
     );
 
     if (!validationError) {

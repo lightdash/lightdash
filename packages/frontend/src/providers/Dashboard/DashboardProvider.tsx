@@ -1,6 +1,5 @@
 import {
     applyDimensionOverrides,
-    applyDefaultTimeDimensionTileTargets,
     applyMetricOverrides,
     compressDashboardFiltersToParam,
     convertDashboardFiltersParamToDashboardFilters,
@@ -72,6 +71,12 @@ import {
     useSavedDashboardFiltersOverrides,
 } from '../../hooks/useSavedDashboardFiltersOverrides';
 import DashboardContext from './context';
+import {
+    getDashboardParameterOverrides,
+    parseDashboardParametersUrl,
+    reconcileDashboardParameters,
+    toDashboardParameters,
+} from './dashboardParametersUrl';
 import DashboardTileStatusProvider from './DashboardTileStatusProvider';
 import { getActiveTabForTabs } from './getActiveTabForTabs';
 import useDashboardContext from './useDashboardContext';
@@ -284,7 +289,23 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         {},
     );
     // parameters that are currently applied to the dashboard
-    const [parameters, setParameters] = useState<DashboardParameters>({});
+    const hasInvalidUrlParametersRef = useRef(false);
+    const [parameters, setParameters] = useState<DashboardParameters>(() => {
+        if (isEditMode) {
+            return {};
+        }
+
+        try {
+            return toDashboardParameters(
+                parseDashboardParametersUrl(
+                    new URLSearchParams(search).get('parameters'),
+                ) ?? {},
+            );
+        } catch {
+            hasInvalidUrlParametersRef.current = true;
+            return {};
+        }
+    });
     const [parametersHaveChanged, setParametersHaveChanged] =
         useState<boolean>(false);
 
@@ -374,12 +395,25 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         [],
     );
 
-    // Set parameters to saved parameters when they are loaded
     useEffect(() => {
-        if (savedParameters) {
-            setParameters(savedParameters);
+        setParameters((currentParameters) =>
+            reconcileDashboardParameters(
+                currentParameters,
+                savedParameters,
+                isEditMode,
+            ),
+        );
+    }, [isEditMode, savedParameters]);
+
+    useEffect(() => {
+        if (hasInvalidUrlParametersRef.current) {
+            showToastWarning({
+                title: 'Could not restore parameters from URL',
+                subtitle:
+                    'The link appears to be incomplete. Please ask for it to be shared again.',
+            });
         }
-    }, [savedParameters]);
+    }, [showToastWarning]);
 
     // Set pinned parameters when dashboard is loaded
     useEffect(() => {
@@ -632,6 +666,40 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             return acc;
         }, {} as ParametersValuesMap);
     }, [parameters]);
+
+    // Keep runtime parameter overrides in shared dashboard URLs. Saved defaults
+    // are omitted so unchanged dashboards keep clean, stable URLs.
+    useEffect(() => {
+        if (embed.mode === 'sdk' || isEditMode) return;
+
+        const currentParams = new URLSearchParams(search);
+        const newParams = new URLSearchParams(search);
+        const overrides = getDashboardParameterOverrides(
+            parameterValues,
+            savedParameters,
+        );
+
+        if (Object.keys(overrides).length === 0) {
+            newParams.delete('parameters');
+        } else {
+            newParams.set('parameters', JSON.stringify(overrides));
+        }
+
+        if (newParams.toString() !== currentParams.toString()) {
+            void navigate(
+                { pathname, search: newParams.toString() },
+                { replace: true },
+            );
+        }
+    }, [
+        embed.mode,
+        isEditMode,
+        navigate,
+        parameterValues,
+        pathname,
+        savedParameters,
+        search,
+    ]);
 
     const selectedParametersCount = useMemo(() => {
         return Object.values(parameterValues).filter(
@@ -1338,7 +1406,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     }, [dashboardAvailableFiltersData]);
 
     const allFilters = useMemo(() => {
-        const filters = {
+        return {
             dimensions: [
                 ...dashboardFilters.dimensions,
                 ...safeTemporaryFilters?.dimensions,
@@ -1352,19 +1420,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                 ...safeTemporaryFilters?.tableCalculations,
             ],
         };
-        return filterableFieldsByTileUuid && dashboardAvailableFiltersData
-            ? applyDefaultTimeDimensionTileTargets(
-                  filters,
-                  filterableFieldsByTileUuid,
-                  dashboardAvailableFiltersData.defaultTimeDimensions,
-              )
-            : filters;
-    }, [
-        dashboardFilters,
-        safeTemporaryFilters,
-        filterableFieldsByTileUuid,
-        dashboardAvailableFiltersData,
-    ]);
+    }, [dashboardFilters, safeTemporaryFilters]);
 
     // Watch for filter changes and emit events (skip initial render)
     useEffect(() => {

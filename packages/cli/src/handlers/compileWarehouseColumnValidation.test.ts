@@ -406,7 +406,8 @@ describe('compile warehouse column validation', () => {
                 .mocked(lightdashApi)
                 .mock.calls.find(
                     ([request]) =>
-                        request.url === '/api/v1/projects/projectUuid/explores',
+                        request.url ===
+                        '/api/v1/projects/projectUuid/explores?complete=false',
                 );
             if (deployRequest === undefined) {
                 throw new Error('Expected explores deploy request');
