@@ -7095,12 +7095,14 @@ export class AsyncQueryService extends ProjectService {
 
             const resultsStorageClient =
                 this.getResultsStorageClientForContext(context);
-            const fileName = S3ResultsFileStorageClient.sanitizeFileExtension(
-                QueryHistoryModel.createUniqueResultsFileName(cacheKey),
+            // Stored bare, like every results path: readers append the
+            // extension themselves, so an extensioned name 404s as .jsonl.jsonl
+            const fileName =
+                QueryHistoryModel.createUniqueResultsFileName(cacheKey);
+            const stream = resultsStorageClient.createUploadStream(
+                S3ResultsFileStorageClient.sanitizeFileExtension(fileName),
+                { contentType: 'application/jsonl' },
             );
-            const stream = resultsStorageClient.createUploadStream(fileName, {
-                contentType: 'application/jsonl',
-            });
 
             const createdAt = new Date();
             let totalRows = 0;
