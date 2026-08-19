@@ -18,8 +18,6 @@ import {
 import {
     bigqueryClientMock,
     COMPILED_DIMENSION,
-    COMPILED_MONTH_NAME_DIMENSION,
-    COMPILED_WEEK_NAME_DIMENSION,
     CUSTOM_SQL_DIMENSION,
     EXPLORE,
     INTRINSIC_USER_ATTRIBUTES,
@@ -43,6 +41,7 @@ import {
     replaceUserAttributesInSqlTable,
     sortDayOfWeekName,
     sortMonthName,
+    sortQuarterName,
 } from './utils';
 
 describe('getSumOfRowsTableCalculations', () => {
@@ -578,39 +577,25 @@ const ignoreIndentation = (sql: string) => sql.replace(/\s+/g, ' ');
 describe('Time frame sorting', () => {
     it('sortMonthName SQL', () => {
         expect(
-            ignoreIndentation(
-                sortMonthName(COMPILED_MONTH_NAME_DIMENSION, '"', false),
-            ),
+            ignoreIndentation(sortMonthName('"table1_dim1"', false)),
         ).toStrictEqual(ignoreIndentation(MONTH_NAME_SORT_SQL));
     });
     it('sortMonthName Descending SQL', () => {
         expect(
-            ignoreIndentation(
-                sortMonthName(COMPILED_MONTH_NAME_DIMENSION, '"', true),
-            ),
+            ignoreIndentation(sortMonthName('"table1_dim1"', true)),
         ).toStrictEqual(ignoreIndentation(MONTH_NAME_SORT_DESCENDING_SQL));
     });
     it('sortDayOfWeekName SQL for Saturday startOfWeek', () => {
         expect(
             ignoreIndentation(
-                sortDayOfWeekName(
-                    COMPILED_WEEK_NAME_DIMENSION,
-                    undefined,
-                    `"`,
-                    true,
-                ),
+                sortDayOfWeekName('"table1_dim1"', undefined, true),
             ),
         ).toStrictEqual(ignoreIndentation(WEEK_NAME_SORT_DESCENDING_SQL));
     });
     it('sortDayOfWeekName SQL for Sunday startOfWeek', () => {
         expect(
             ignoreIndentation(
-                sortDayOfWeekName(
-                    COMPILED_WEEK_NAME_DIMENSION,
-                    WeekDay.SUNDAY,
-                    `"`,
-                    false,
-                ),
+                sortDayOfWeekName('"table1_dim1"', WeekDay.SUNDAY, false),
             ),
         ).toStrictEqual(ignoreIndentation(WEEK_NAME_SORT_SQL)); // same as undefined
     });
@@ -618,12 +603,7 @@ describe('Time frame sorting', () => {
     it('sortDayOfWeekName SQL for Wednesday startOfWeek', () => {
         expect(
             ignoreIndentation(
-                sortDayOfWeekName(
-                    COMPILED_WEEK_NAME_DIMENSION,
-                    WeekDay.WEDNESDAY,
-                    `"`,
-                    false,
-                ),
+                sortDayOfWeekName('"table1_dim1"', WeekDay.WEDNESDAY, false),
             ),
         ).toStrictEqual(
             ignoreIndentation(`(
@@ -639,6 +619,18 @@ describe('Time frame sorting', () => {
             END
         )`),
         );
+    });
+
+    it('uses an already-rendered identifier without changing its escaping', () => {
+        const fieldSql = '"table1_""month"""';
+
+        const monthSql = sortMonthName(fieldSql, false);
+        const daySql = sortDayOfWeekName(fieldSql, undefined, false);
+        const quarterSql = sortQuarterName(fieldSql, false);
+
+        expect(monthSql.match(/"table1_""month"""/g)).toHaveLength(12);
+        expect(daySql.match(/"table1_""month"""/g)).toHaveLength(7);
+        expect(quarterSql.match(/"table1_""month"""/g)).toHaveLength(4);
     });
 });
 
