@@ -1,3 +1,10 @@
+# [1.205.0](https://github.com/lightdash/lightdash/compare/1.204.0...1.205.0) (2026-08-19)
+
+
+### Features
+
+* **upgrade-automation:** serve more than one instance from one repository ([#27686](https://github.com/lightdash/lightdash/issues/27686)) ([7d61bdb](https://github.com/lightdash/lightdash/commit/7d61bdbfd56cef33b7c74d717d0c01b76464bef0))
+
 # [1.204.0](https://github.com/lightdash/lightdash/compare/1.203.1...1.204.0) (2026-08-19)
 
 
