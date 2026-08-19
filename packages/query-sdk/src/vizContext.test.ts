@@ -12,6 +12,7 @@ import {
     toVizContextState,
     type DataAppVizContextMessage,
     type VizContextOptionValue,
+    type VizContextPivotDetails,
     type VizContextRow,
 } from './vizContext';
 
@@ -200,8 +201,55 @@ describe('toVizContextState', () => {
             rows: [],
             options: {},
             colorPalette: [],
+            pivotDetails: null,
             underlyingDataEnabled: false,
         });
+    });
+
+    it('normalizes pivot metadata used to resolve generated columns', () => {
+        const pivotDetails = {
+            totalColumnCount: 2,
+            indexColumn: {
+                reference: 'orders_created_date',
+                type: 'time',
+            },
+            valuesColumns: [
+                {
+                    referenceField: 'orders_total',
+                    pivotColumnName: 'orders_total__status_shipped',
+                    aggregation: 'any',
+                    pivotValues: [
+                        {
+                            referenceField: 'orders_status',
+                            value: 'shipped',
+                            formatted: 'Shipped',
+                        },
+                    ],
+                },
+            ],
+            groupByColumns: [{ reference: 'orders_status' }],
+            sortBy: [
+                {
+                    reference: 'orders_created_date',
+                    direction: 'ASC',
+                },
+            ],
+            originalColumns: {
+                orders_created_date: {
+                    reference: 'orders_created_date',
+                    type: 'date',
+                },
+            },
+            passthroughDimensions: [{ reference: 'orders_image_url' }],
+        } satisfies VizContextPivotDetails;
+
+        expect(
+            toVizContextState(message({ pivotDetails })).pivotDetails,
+        ).toEqual(pivotDetails);
+    });
+
+    it('defaults missing pivot metadata to null', () => {
+        expect(toVizContextState(message({})).pivotDetails).toBeNull();
     });
 });
 

@@ -18,9 +18,15 @@ import { renderWithProviders } from '../../../testing/testUtils';
 import DataAppVizTestPanel from './DataAppVizTestPanel';
 import { buildTestMetricQuery, isMappingComplete } from './dataAppVizTestQuery';
 
-const { fieldSelectItems } = vi.hoisted(() => ({
-    fieldSelectItems: [] as Item[][],
-}));
+const { fieldSelectItems, exploreByProjectMock, queryExecutorMock } =
+    vi.hoisted(() => {
+        const fieldSelectItems: Item[][] = [];
+        return {
+            fieldSelectItems,
+            exploreByProjectMock: vi.fn(),
+            queryExecutorMock: vi.fn(),
+        };
+    });
 
 vi.mock('../../../components/common/FieldSelect', () => ({
     default: ({
@@ -67,10 +73,10 @@ vi.mock('../../../hooks/useExplores', () => ({
     useExplores: vi.fn(),
 }));
 vi.mock('../../../hooks/useExplore', () => ({
-    useExploreByProjectUuid: vi.fn(),
+    useExploreByProjectUuid: exploreByProjectMock,
 }));
 vi.mock('../../../providers/Explorer/useQueryExecutor', () => ({
-    useQueryExecutor: vi.fn(),
+    useQueryExecutor: queryExecutorMock,
 }));
 
 import { useColorPalettes } from '../../../hooks/appearance/useOrganizationAppearance';
@@ -269,9 +275,9 @@ describe('DataAppVizTestPanel', () => {
 
     const runSuccessfulPreviewQuery = async () => {
         const user = userEvent.setup();
-        vi.mocked(useExploreByProjectUuid).mockReturnValue({
+        exploreByProjectMock.mockReturnValue({
             data: exploreWithHiddenFields,
-        } as unknown as ReturnType<typeof useExploreByProjectUuid>);
+        });
         vi.mocked(useQueryExecutor).mockReturnValue([
             {
                 query: {
@@ -368,6 +374,7 @@ describe('DataAppVizTestPanel', () => {
                 rows: resultRows,
                 options: { showLegend: true },
                 colorPalette: ['#111111'],
+                pivotDetails: null,
                 underlyingData: { enabled: false },
             }),
         );
@@ -381,6 +388,7 @@ describe('DataAppVizTestPanel', () => {
                 rows: resultRows,
                 options: { showLegend: false },
                 colorPalette: ['#111111'],
+                pivotDetails: null,
                 underlyingData: { enabled: false },
             }),
         );
@@ -403,6 +411,7 @@ describe('DataAppVizTestPanel', () => {
                 rows: resultRows,
                 options: { showLegend: true },
                 colorPalette: ['#111111'],
+                pivotDetails: null,
                 underlyingData: { enabled: false },
             }),
         );
@@ -416,6 +425,7 @@ describe('DataAppVizTestPanel', () => {
                 rows: resultRows,
                 options: { showLegend: true },
                 colorPalette: ['#123456', '#abcdef'],
+                pivotDetails: null,
                 underlyingData: { enabled: false },
             }),
         );
@@ -459,5 +469,125 @@ describe('DataAppVizTestPanel', () => {
             ['orders_visible'],
             ['orders_visible_metric'],
         ]);
+    });
+
+    it('sends mapped series fields through the shared pivot derivation', async () => {
+        const user = userEvent.setup();
+        exploreByProjectMock.mockReturnValue({
+            data: exploreWithHiddenFields,
+        });
+
+        renderWithProviders(
+            <DataAppVizTestPanel
+                projectUuid="p1"
+                schema={{
+                    ...schema,
+                    fields: schema.fields.map((field) => ({
+                        ...field,
+                        required: true,
+                    })),
+                }}
+                onContextChange={vi.fn()}
+            />,
+        );
+
+        await user.click(screen.getByPlaceholderText('Select an explore'));
+        await user.click(await screen.findByText('Orders'));
+        await user.click(screen.getByRole('button', { name: 'Select source' }));
+        await user.click(screen.getByRole('button', { name: 'Select target' }));
+        await user.click(screen.getByRole('button', { name: 'Select value' }));
+        await user.click(
+            screen.getByRole('button', { name: /run test query/i }),
+        );
+
+        expect(useQueryExecutor).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                pivotConfiguration: {
+                    indexColumn: [],
+                    valuesColumns: [
+                        {
+                            reference: 'orders_visible_metric',
+                            aggregation: 'any',
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'orders_visible' }],
+                    sortBy: undefined,
+                },
+            }),
+            [],
+            true,
+        );
+    });
+
+    it('pushes returned pivot metadata into the builder iframe context', async () => {
+        const user = userEvent.setup();
+        const pivotDetails = {
+            indexColumn: [],
+            valuesColumns: [
+                {
+                    referenceField: 'orders_visible_metric',
+                    pivotColumnName: 'orders_visible_metric__visible_retail',
+                    aggregation: 'any',
+                    pivotValues: [
+                        {
+                            referenceField: 'orders_visible',
+                            value: 'Retail',
+                            formatted: 'Retail',
+                        },
+                    ],
+                },
+            ],
+            groupByColumns: [{ reference: 'orders_visible' }],
+        };
+        exploreByProjectMock.mockReturnValue({
+            data: exploreWithHiddenFields,
+        });
+        queryExecutorMock.mockReturnValue([
+            {
+                query: {
+                    data: { queryUuid: 'query-1' },
+                    isFetching: false,
+                    error: null,
+                },
+                queryResults: {
+                    rows: resultRows,
+                    queryUuid: 'query-1',
+                    pivotDetails,
+                    isFetchingFirstPage: false,
+                    error: null,
+                },
+            },
+            vi.fn(),
+        ]);
+        const onContextChange = vi.fn();
+
+        renderWithProviders(
+            <DataAppVizTestPanel
+                projectUuid="p1"
+                schema={{
+                    ...schema,
+                    fields: schema.fields.map((field) => ({
+                        ...field,
+                        required: true,
+                    })),
+                }}
+                onContextChange={onContextChange}
+            />,
+        );
+
+        await user.click(screen.getByPlaceholderText('Select an explore'));
+        await user.click(await screen.findByText('Orders'));
+        await user.click(screen.getByRole('button', { name: 'Select source' }));
+        await user.click(screen.getByRole('button', { name: 'Select target' }));
+        await user.click(screen.getByRole('button', { name: 'Select value' }));
+        await user.click(
+            screen.getByRole('button', { name: /run test query/i }),
+        );
+
+        await waitFor(() =>
+            expect(onContextChange).toHaveBeenLastCalledWith(
+                expect.objectContaining({ pivotDetails }),
+            ),
+        );
     });
 });

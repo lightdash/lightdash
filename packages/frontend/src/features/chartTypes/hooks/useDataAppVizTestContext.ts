@@ -1,4 +1,6 @@
 import {
+    deriveDataAppVizPivotConfig,
+    deriveDataAppVizPivotConfiguration,
     ECHARTS_DEFAULT_COLORS,
     getEffectiveOptionValues,
     getItemMap,
@@ -138,6 +140,7 @@ export const useDataAppVizTestContext = ({
                 rows,
                 options: effectiveOptions,
                 colorPalette,
+                pivotDetails: queryResults.pivotDetails ?? null,
                 underlyingData: { enabled: false },
             });
         }
@@ -146,6 +149,7 @@ export const useDataAppVizTestContext = ({
         run,
         runQueryUuid,
         queryResults.queryUuid,
+        queryResults.pivotDetails,
         effectiveOptions,
         colorPalette,
         onContextChange,
@@ -189,16 +193,31 @@ export const useDataAppVizTestContext = ({
 
     const handleRun = useCallback(() => {
         if (!exploreName || !isMappingComplete(schema, fieldMapping)) return;
+        const metricQuery = buildTestMetricQuery(
+            exploreName,
+            schema,
+            fieldMapping,
+        );
+        const pivotConfig = deriveDataAppVizPivotConfig(
+            schema.fields,
+            fieldMapping,
+        );
         setRun({
             args: {
                 projectUuid,
                 tableId: exploreName,
-                query: buildTestMetricQuery(exploreName, schema, fieldMapping),
+                query: metricQuery,
                 context: QueryExecutionContext.DATA_APP_SAMPLE,
+                pivotConfiguration: deriveDataAppVizPivotConfiguration(
+                    fieldMapping,
+                    pivotConfig,
+                    metricQuery,
+                    itemsMap,
+                ),
             },
             mapping: fieldMapping,
         });
-    }, [exploreName, schema, fieldMapping, projectUuid]);
+    }, [exploreName, schema, fieldMapping, projectUuid, itemsMap]);
 
     const exploreOptions = useMemo(
         () =>

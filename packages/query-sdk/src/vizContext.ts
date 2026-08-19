@@ -25,6 +25,7 @@ import {
 } from 'react';
 import { useOptionalTransport } from './LightdashProvider';
 import type {
+    ColumnType,
     DownloadResultsOptions,
     DownloadResultsResult,
     Transport,
@@ -47,6 +48,44 @@ export type VizContextRow = Record<string, VizContextCell | undefined>;
 export type VizContextOptionValue = boolean | number | string;
 
 /**
+ * The host's complete backend-pivot layout metadata. This is a structural
+ * mirror because query-sdk is published without a dependency on
+ * `@lightdash/common`.
+ */
+export type VizContextPivotDetails = {
+    totalColumnCount: number | null;
+    indexColumn:
+        | { reference: string; type: 'time' | 'category' }
+        | { reference: string; type: 'time' | 'category' }[]
+        | undefined;
+    valuesColumns: {
+        referenceField: string;
+        pivotColumnName: string;
+        aggregation: string;
+        pivotValues: {
+            referenceField: string;
+            value: unknown;
+            formatted?: string;
+        }[];
+        columnIndex?: number;
+    }[];
+    groupByColumns: { reference: string }[] | undefined;
+    sortBy:
+        | {
+              reference: string;
+              direction: 'ASC' | 'DESC';
+              nullsFirst?: boolean;
+              pivotValues?: {
+                  reference: string;
+                  value: string | number | boolean | null;
+              }[];
+          }[]
+        | undefined;
+    originalColumns: Record<string, { reference: string; type: ColumnType }>;
+    passthroughDimensions?: { reference: string }[];
+};
+
+/**
  * Pushed by the host into the iframe. `fieldMapping` maps each field name the
  * renderer declared to the query field id it resolves to; `rows` are the
  * host-fetched result rows keyed by field id; `options` holds the current
@@ -62,6 +101,8 @@ export type DataAppVizContextMessage = {
     options?: Record<string, VizContextOptionValue>;
     /** Absent when the installed host predates palette delivery. */
     colorPalette?: string[];
+    /** Null for unpivoted rows; absent when the installed host predates pivot metadata delivery. */
+    pivotDetails?: VizContextPivotDetails | null;
     /** Absent when the installed host predates underlying-data delivery. */
     underlyingData?: { enabled?: boolean };
 };
@@ -125,6 +166,8 @@ export type VizContext = {
      * resolved no palette; keep a fallback array in your own code for that.
      */
     colorPalette: string[];
+    /** Metadata that maps generated pivot column names back to their metric and series values. */
+    pivotDetails: VizContextPivotDetails | null;
     /** False until the first context arrives — render a placeholder while false. */
     ready: boolean;
     /** Fetch/export the raw rows behind a clicked data point via the host. */
@@ -136,6 +179,7 @@ type VizContextValue = {
     rows: VizContextRow[];
     options: Record<string, VizContextOptionValue>;
     colorPalette: string[];
+    pivotDetails: VizContextPivotDetails | null;
     underlyingDataEnabled: boolean;
 };
 
@@ -167,10 +211,8 @@ const normalizeOptions = (
 };
 
 /**
- * Normalises an inbound host message into provider state. The payload crosses a
- * postMessage boundary so every key is treated as untrusted; `options` and
- * `colorPalette` are also absent from hosts predating them, and fall back to
- * `{}` / `[]`.
+ * Normalises an inbound host message into provider state. Optional capabilities
+ * are absent from hosts predating them and receive stable fallback values.
  */
 export function toVizContextState(
     message: DataAppVizContextMessage,
@@ -184,6 +226,7 @@ export function toVizContextState(
                   (color): color is string => typeof color === 'string',
               )
             : [],
+        pivotDetails: message.pivotDetails ?? null,
         // Strict boolean check — non-boolean payloads read as disabled.
         underlyingDataEnabled: message.underlyingData?.enabled === true,
     };
@@ -327,6 +370,7 @@ export function useVizContext(): VizContext {
         rows: context?.rows ?? [],
         options: context?.options ?? {},
         colorPalette: context?.colorPalette ?? [],
+        pivotDetails: context?.pivotDetails ?? null,
         ready: context !== null,
         underlyingData,
     };

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
+import { type ReadyQueryResultsPage } from '../../types/api';
 import { type ApiSuccess, type ApiSuccessEmpty } from '../../types/api/success';
 import {
     type DashboardConfig,
@@ -1121,5 +1122,6 @@ export type DataAppVizContext = {
     rows: ResultRow[];
     options: Record<string, DataAppVizOptionValue>;
     colorPalette: string[];
+    pivotDetails: ReadyQueryResultsPage['pivotDetails'];
     underlyingData: { enabled: boolean };
 };

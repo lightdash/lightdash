@@ -391,7 +391,10 @@ describe('DataAppVizRenderer underlying-data gating', () => {
         (
             mocks.iframePreview.mock.calls.at(-1) as unknown[] | undefined
         )?.[0] as {
-            dataAppVizContext?: { underlyingData: { enabled: boolean } };
+            dataAppVizContext?: {
+                pivotDetails: unknown;
+                underlyingData: { enabled: boolean };
+            };
             rewriteVizUnderlyingDataRequest?: (intent: unknown) => unknown;
         };
 
@@ -416,6 +419,26 @@ describe('DataAppVizRenderer underlying-data gating', () => {
             enabled: true,
         });
         expect(props.rewriteVizUnderlyingDataRequest).toBeTypeOf('function');
+    });
+
+    it('forwards pivot metadata and disables underlying data for pivoted rows', () => {
+        const pivotDetails = {
+            indexColumn: [],
+            valuesColumns: [],
+            groupByColumns: [{ reference: 'orders_status' }],
+        };
+        mocks.vizContextOverrides.current = {
+            resultsData: { ...happyResultsData(), pivotDetails },
+        };
+
+        renderRenderer();
+
+        const props = lastIframeProps();
+        expect(props.dataAppVizContext?.pivotDetails).toBe(pivotDetails);
+        expect(props.dataAppVizContext?.underlyingData).toEqual({
+            enabled: false,
+        });
+        expect(props.rewriteVizUnderlyingDataRequest).toBeUndefined();
     });
 
     it.each([

@@ -92,6 +92,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     const fieldMapping = config?.fieldMapping;
     const optionValues = config?.optionValues;
     const rows = resultsData?.rows;
+    const pivotDetails = resultsData?.pivotDetails ?? null;
 
     const chartVersionUuid = useChartVersionPreview();
     const renderTarget = useMemo(
@@ -128,7 +129,8 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         canViewUnderlyingData &&
         !hasCustomBinDimension(metricQuery) &&
         !embedToken &&
-        !minimal;
+        !minimal &&
+        !pivotDetails;
 
     const { data: explore } = useExplore(metricQuery?.exploreName, {
         refetchOnMount: false,
@@ -209,6 +211,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
             // Already resolved through the full palette cascade and dark-mode
             // corrected by the visualization context.
             colorPalette,
+            pivotDetails,
             underlyingData: { enabled: underlyingDataEnabled },
         };
     }, [
@@ -217,6 +220,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         configOptions,
         optionValues,
         colorPalette,
+        pivotDetails,
         underlyingDataEnabled,
     ]);
 
