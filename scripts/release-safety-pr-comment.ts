@@ -60,6 +60,7 @@ export interface RenderOpts {
      */
     headSha?: string;
     baseSha?: string;
+    runId?: string;
     /**
      * Whether the release-safety gates failed for this revision. The stamp
      * carries it because the check is required: a skipped job reports SKIPPED,
@@ -291,11 +292,11 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
     const baseLine = opts.baseLabel ? `> Comparing against \`${opts.baseLabel}\`.\n` : '';
     const rawJson = JSON.stringify(marker, null, 2);
     const describes =
-        opts.headSha && opts.baseSha
+        opts.headSha && opts.baseSha && opts.runId
             ? [
                   `<!-- release-safety-describes head:${opts.headSha} base:${opts.baseSha} gate:${
                       opts.gateFailed ? 'fail' : 'pass'
-                  } -->`,
+                  } run:${opts.runId} -->`,
               ]
             : [];
 
@@ -345,6 +346,7 @@ function main(): void {
         declarationGateFailed: process.argv.includes('--declaration-gate-failed'),
         headSha: arg('head-sha'),
         baseSha: arg('base-sha'),
+        runId: arg('run-id'),
         gateFailed: process.argv.includes('--gate-failed'),
         draft: process.argv.includes('--draft'),
         linterBreaking: process.argv.includes('--linter-breaking')

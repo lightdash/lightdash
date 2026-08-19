@@ -102,6 +102,66 @@ assert.ok(
     'the describes-stamp reader must capture the gate outcome (SPK-1017)',
 );
 
+const commentLookups = [
+    ...workflow.matchAll(/const existing = comments\.find\(([\s\S]*?)\n\s*\);/g),
+];
+assert.strictEqual(
+    commentLookups.length,
+    4,
+    `expected four sticky comment lookups; found ${commentLookups.length}`,
+);
+for (const lookup of commentLookups) {
+    assert.ok(
+        lookup[1].includes('c.user?.login === viewer.login') &&
+            lookup[1].includes('c.body?.includes(marker)'),
+        'every sticky comment lookup must match the authenticated workflow author and marker',
+    );
+}
+assert.strictEqual(
+    workflow.match(/query \{ viewer \{ login \} \}/g)?.length,
+    commentLookups.length,
+    'every sticky comment lookup must derive its author from the authenticated workflow token',
+);
+
+const stampReader = workflow.slice(
+    workflow.indexOf("- name: Read the sticky comment's describes-stamp"),
+    workflow.indexOf(
+        '- uses: actions/checkout@',
+        workflow.indexOf("- name: Read the sticky comment's describes-stamp"),
+    ),
+);
+for (const required of [
+    'run:([1-9][0-9]*)',
+    'github.rest.actions.getWorkflowRun',
+    'github.rest.actions.getWorkflow',
+    'run.workflow_id === workflow.id',
+    "run.status === 'completed'",
+    "run.conclusion === 'success'",
+    "run.event === 'pull_request'",
+    'run.head_sha === stamp[1]',
+    'pr.number === context.issue.number',
+]) {
+    assert.ok(stampReader.includes(required), `the describes-stamp reader must verify ${required}`);
+}
+assert.ok(
+    workflow.includes('actions: read'),
+    'the workflow needs read access to verify the stamped workflow run',
+);
+assert.ok(
+    workflow.includes('--run-id "${{ github.run_id }}"'),
+    'the rendered describes-stamp must include the current workflow run ID',
+);
+for (const output of ['head', 'base', 'gate']) {
+    assert.ok(
+        stampReader.indexOf(`core.setOutput('${output}', '');`) < stampReader.indexOf('try {'),
+        `the ${output} output must fail closed before stamp verification starts`,
+    );
+}
+assert.ok(
+    stampReader.includes('catch (error)'),
+    'stamp verification errors must fail closed instead of stopping the full preview',
+);
+
 // The condition deciding "did the gates fail" now appears twice: once to fail
 // the job, once to stamp the comment. They must stay identical, or the stamp
 // will claim a pass the job did not give.
