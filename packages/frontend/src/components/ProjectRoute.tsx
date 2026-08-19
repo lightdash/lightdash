@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import React, { type FC } from 'react';
 import { Navigate, useParams } from 'react-router';
+import { validate as isUuidString } from 'uuid';
 import ErrorState from '../components/common/ErrorState';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
 import { useProject } from '../hooks/useProject';
@@ -8,9 +9,10 @@ import { Can } from '../providers/Ability';
 import useApp from '../providers/App/useApp';
 import PageSpinner from './PageSpinner';
 
-const ProjectRoute: FC<React.PropsWithChildren> = ({ children }) => {
+const ResolvedProjectRoute: FC<
+    React.PropsWithChildren<{ projectUuid: string }>
+> = ({ children, projectUuid }) => {
     const { user } = useApp();
-    const { projectUuid } = useParams();
     const { activeProjectUuid, isLoading: isInitialLoading } =
         useActiveProjectUuid({ refetchOnMount: true });
 
@@ -44,6 +46,20 @@ const ProjectRoute: FC<React.PropsWithChildren> = ({ children }) => {
                 );
             }}
         </Can>
+    );
+};
+
+const ProjectRoute: FC<React.PropsWithChildren> = ({ children }) => {
+    const { projectUuid } = useParams();
+
+    if (!projectUuid || !isUuidString(projectUuid)) {
+        return <Navigate to="/projects" replace />;
+    }
+
+    return (
+        <ResolvedProjectRoute projectUuid={projectUuid}>
+            {children}
+        </ResolvedProjectRoute>
     );
 };
 
