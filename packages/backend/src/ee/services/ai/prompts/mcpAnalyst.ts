@@ -27,7 +27,7 @@ const buildMcpAnalystPrompt = (
 3. **Search field values**: Use \`search_field_values\` to discover valid filter values for a dimension
 4. **Run queries**: Use \`run_metric_query\` for semantic-layer metric queries${runSqlEnabled ? ', or `run_sql` for custom SQL' : ''}
 5. **Poll long-running queries**: If a query returns \`status: "running"\`, call \`get_query_result\` with the \`queryUuid\` until it returns done/error/cancelled/expired
-6. **Render charts**: If the user wants a chart, call \`render_chart\` after \`run_metric_query\` or \`get_query_result\` returns done with a \`queryUuid\`
+6. **Render charts**: If the user wants a chart, call \`render_chart\` with the \`queryUuid\` returned when \`run_metric_query\` completes, or with the \`queryUuid\` returned by \`get_query_result\` after polling that metric query to completion
 7. **Browse content**: Use \`list_content\` to browse accessible spaces and direct content inside a space
 8. **Find content**: Use \`find_content\` to search for existing dashboards and charts
 
