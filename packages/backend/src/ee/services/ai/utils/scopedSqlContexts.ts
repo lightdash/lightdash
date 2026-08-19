@@ -15,7 +15,14 @@ import { QueryExecutionContext } from '@lightdash/common';
  * scope.
  */
 const AGENT_SCOPED_QUERY_CONTEXTS: ReadonlySet<QueryExecutionContext> = new Set(
-    [QueryExecutionContext.AI, QueryExecutionContext.MCP_RUN_SQL],
+    [
+        QueryExecutionContext.AI,
+        QueryExecutionContext.MCP_RUN_SQL,
+        // MCP-submitted multi-source queries: the sql source funnels through
+        // executeAsyncSqlQuery, so this context inherits the agent SQL scope
+        // (the human multiSourceQuery context stays unscoped, like sqlRunner)
+        QueryExecutionContext.MCP_MULTI_SOURCE_QUERY,
+    ],
 );
 
 export const isAgentScopedQueryContext = (

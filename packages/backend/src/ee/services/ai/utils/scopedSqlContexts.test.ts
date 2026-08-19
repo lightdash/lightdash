@@ -13,6 +13,20 @@ describe('isAgentScopedQueryContext', () => {
         ).toBe(true);
     });
 
+    it('scopes SQL run through the MCP multi-source query tools', () => {
+        expect(
+            isAgentScopedQueryContext(
+                QueryExecutionContext.MCP_MULTI_SOURCE_QUERY,
+            ),
+        ).toBe(true);
+    });
+
+    it('leaves the human multi-source query API unrestricted', () => {
+        expect(
+            isAgentScopedQueryContext(QueryExecutionContext.MULTI_SOURCE_QUERY),
+        ).toBe(false);
+    });
+
     it('leaves the human SQL Runner unrestricted', () => {
         expect(
             isAgentScopedQueryContext(QueryExecutionContext.SQL_RUNNER),

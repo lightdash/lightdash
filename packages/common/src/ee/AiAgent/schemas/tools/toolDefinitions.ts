@@ -226,6 +226,21 @@ import {
     mcpRunSqlStructuredOutputSchema,
 } from './toolQueryResultSchemas';
 import {
+    mcpGetQuerySourceSchemaStructuredOutputSchema,
+    mcpGetSourceQueryStatusStructuredOutputSchema,
+    mcpListQuerySourcesStructuredOutputSchema,
+    mcpRunSourceQueriesStructuredOutputSchema,
+    TOOL_GET_QUERY_SOURCE_SCHEMA_DESCRIPTION,
+    TOOL_GET_SOURCE_QUERY_STATUS_DESCRIPTION,
+    TOOL_LIST_QUERY_SOURCES_DESCRIPTION,
+    TOOL_RUN_SOURCE_QUERIES_DESCRIPTION,
+    toolGetQuerySourceSchemaArgsSchema,
+    toolGetSourceQueryStatusArgsSchema,
+    toolListQuerySourcesArgsSchema,
+    toolRunSourceQueriesArgsSchema,
+    toolRunSourceQueriesArgsSchemaTransformed,
+} from './toolQuerySourcesArgs';
+import {
     TOOL_READ_CONTENT_DESCRIPTION,
     toolReadContentArgsSchema,
     toolReadContentOutputSchema,
@@ -599,6 +614,79 @@ export const getQueryResultToolDefinition: ToolDefinitionWithMcpOutput<
     mcp: {
         annotations: readOnlyAnnotations,
         structuredContentSchema: mcpGetQueryResultStructuredOutputSchema,
+    },
+});
+
+export const listQuerySourcesToolDefinition: ToolDefinitionWithMcpOutput<
+    'listQuerySources',
+    typeof toolListQuerySourcesArgsSchema,
+    typeof toolListQuerySourcesArgsSchema,
+    undefined,
+    typeof mcpListQuerySourcesStructuredOutputSchema
+> = defineTool({
+    name: 'listQuerySources',
+    title: 'List query sources',
+    description: TOOL_LIST_QUERY_SOURCES_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: toolListQuerySourcesArgsSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpListQuerySourcesStructuredOutputSchema,
+    },
+});
+
+export const getQuerySourceSchemaToolDefinition: ToolDefinitionWithMcpOutput<
+    'getQuerySourceSchema',
+    typeof toolGetQuerySourceSchemaArgsSchema,
+    typeof toolGetQuerySourceSchemaArgsSchema,
+    undefined,
+    typeof mcpGetQuerySourceSchemaStructuredOutputSchema
+> = defineTool({
+    name: 'getQuerySourceSchema',
+    title: 'Get query source schema',
+    description: TOOL_GET_QUERY_SOURCE_SCHEMA_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: toolGetQuerySourceSchemaArgsSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpGetQuerySourceSchemaStructuredOutputSchema,
+    },
+});
+
+export const runSourceQueriesToolDefinition: ToolDefinitionWithMcpOutput<
+    'runSourceQueries',
+    typeof toolRunSourceQueriesArgsSchema,
+    typeof toolRunSourceQueriesArgsSchemaTransformed,
+    undefined,
+    typeof mcpRunSourceQueriesStructuredOutputSchema
+> = defineTool({
+    name: 'runSourceQueries',
+    title: 'Run source queries',
+    description: TOOL_RUN_SOURCE_QUERIES_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: toolRunSourceQueriesArgsSchema,
+    inputSchemaTransformed: toolRunSourceQueriesArgsSchemaTransformed,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpRunSourceQueriesStructuredOutputSchema,
+    },
+});
+
+export const getSourceQueryStatusToolDefinition: ToolDefinitionWithMcpOutput<
+    'getSourceQueryStatus',
+    typeof toolGetSourceQueryStatusArgsSchema,
+    typeof toolGetSourceQueryStatusArgsSchema,
+    undefined,
+    typeof mcpGetSourceQueryStatusStructuredOutputSchema
+> = defineTool({
+    name: 'getSourceQueryStatus',
+    title: 'Get source query status',
+    description: TOOL_GET_SOURCE_QUERY_STATUS_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: toolGetSourceQueryStatusArgsSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpGetSourceQueryStatusStructuredOutputSchema,
     },
 });
 
@@ -1734,6 +1822,10 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     runQueryToolDefinition,
     runSqlToolDefinition,
     getQueryResultToolDefinition,
+    listQuerySourcesToolDefinition,
+    getQuerySourceSchemaToolDefinition,
+    runSourceQueriesToolDefinition,
+    getSourceQueryStatusToolDefinition,
     renderChartToolDefinition,
     discoverFieldsToolDefinition,
     grepFieldsToolDefinition,

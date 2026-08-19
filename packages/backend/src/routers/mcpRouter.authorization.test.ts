@@ -63,6 +63,7 @@ const createMcpService = () =>
         isContentToolsEnabled: vi.fn().mockResolvedValue(false),
         isCreateScheduledDeliveryEnabled: vi.fn().mockResolvedValue(false),
         isEnabled: vi.fn().mockResolvedValue(true),
+        isMultiSourceQueryEnabled: vi.fn().mockResolvedValue(false),
         isRunMetricQueryEnabled: vi.fn().mockResolvedValue(false),
         isRunSqlEnabled: vi.fn().mockResolvedValue(false),
     }) as McpService;

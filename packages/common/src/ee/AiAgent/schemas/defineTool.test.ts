@@ -188,7 +188,10 @@ describe('defineTool', () => {
             'get_context',
             'get_metadata',
             'get_query_result',
+            'get_query_source_schema',
+            'get_source_query_status',
             'grep_fields',
+            'list_query_sources',
             'list_skills',
             'read_skill',
             'read_skill_resource',
@@ -196,6 +199,7 @@ describe('defineTool', () => {
             'route_agent',
             'run_ai_writeback',
             'run_metric_query',
+            'run_source_queries',
             'run_sql',
         ]);
     });

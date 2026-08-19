@@ -134,6 +134,7 @@ export enum QueryExecutionContext {
     MCP_RUN_METRIC_QUERY = 'mcp.run_metric_query',
     MCP_RUN_SQL = 'mcp.run_sql',
     MCP_SEARCH_FIELD_VALUES = 'mcp.search_field_values',
+    MCP_MULTI_SOURCE_QUERY = 'mcp.multi_source_query',
     API = 'api',
     CLI = 'cli',
     METRICS_EXPLORER = 'metricsExplorer',

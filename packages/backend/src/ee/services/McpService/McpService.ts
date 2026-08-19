@@ -36,7 +36,9 @@ import {
     getLightdashVersionToolDefinition,
     getMetadataToolDefinition,
     getQueryResultToolDefinition,
+    getQuerySourceSchemaToolDefinition,
     getSlackAiEchartsConfig,
+    getSourceQueryStatusToolDefinition,
     getTotalFilterRules,
     getValidAiQueryLimit,
     grepFieldsToolDefinition,
@@ -44,6 +46,7 @@ import {
     listAgentsToolDefinition,
     listContentToolDefinition,
     listExploresToolDefinition,
+    listQuerySourcesToolDefinition,
     listSkillsToolDefinition,
     listVerifiedContentToolDefinition,
     MCP_AI_WRITEBACK_TASK_POLL_INTERVAL_MS,
@@ -69,6 +72,7 @@ import {
     routeAgentToolDefinition,
     runAiWritebackToolDefinition,
     runQueryToolDefinition,
+    runSourceQueriesToolDefinition,
     runSqlToolDefinition,
     searchFieldValuesToolDefinition,
     ServiceAcctAccount,
@@ -79,6 +83,7 @@ import {
     ToolRenderChartArgsTransformed,
     toolRunQueryArgsSchemaTransformed,
     ToolRunQueryArgsTransformed,
+    toolRunSourceQueriesArgsSchemaTransformed,
     UnexpectedServerError,
     UserAttributeValueMap,
 } from '@lightdash/common';
@@ -122,6 +127,7 @@ import { CsvService } from '../../../services/CsvService/CsvService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { OAuthScope } from '../../../services/OAuthService/OAuthService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import { QuerySourceService } from '../../../services/QuerySourceService/QuerySourceService';
 import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
 import {
@@ -199,6 +205,10 @@ export enum McpToolName {
     RENDER_CHART = 'render_chart',
     RUN_SQL = 'run_sql',
     GET_QUERY_RESULT = 'get_query_result',
+    LIST_QUERY_SOURCES = 'list_query_sources',
+    GET_QUERY_SOURCE_SCHEMA = 'get_query_source_schema',
+    RUN_SOURCE_QUERIES = 'run_source_queries',
+    GET_SOURCE_QUERY_STATUS = 'get_source_query_status',
     SEARCH_FIELD_VALUES = 'search_field_values',
     LIST_VERIFIED_CONTENT = 'list_verified_content',
     RUN_AI_WRITEBACK = 'run_ai_writeback',
@@ -327,6 +337,18 @@ const mcpRunSqlTool = withProjectUuidInput(runSqlToolDefinition.for('mcp'));
 const mcpGetQueryResultTool = withProjectScopeInput(
     getQueryResultToolDefinition.for('mcp'),
 );
+const mcpListQuerySourcesTool = withProjectUuidInput(
+    listQuerySourcesToolDefinition.for('mcp'),
+);
+const mcpGetQuerySourceSchemaTool = withProjectUuidInput(
+    getQuerySourceSchemaToolDefinition.for('mcp'),
+);
+const mcpRunSourceQueriesTool = withProjectUuidInput(
+    runSourceQueriesToolDefinition.for('mcp'),
+);
+const mcpGetSourceQueryStatusTool = withProjectUuidInput(
+    getSourceQueryStatusToolDefinition.for('mcp'),
+);
 const mcpListVerifiedContentTool = withProjectScopeInput(
     listVerifiedContentToolDefinition.for('mcp'),
 );
@@ -342,6 +364,7 @@ type McpServiceArguments = {
     contentVerificationService: ContentVerificationService;
     projectModel: ProjectModel;
     projectService: ProjectService;
+    querySourceService: QuerySourceService;
     shareService: ShareService;
     userAttributesModel: UserAttributesModel;
     searchModel: SearchModel;
@@ -434,6 +457,8 @@ export class McpService extends BaseService {
 
     private projectModel: ProjectModel;
 
+    private querySourceService: QuerySourceService;
+
     private userAttributesModel: UserAttributesModel;
 
     private searchModel: SearchModel;
@@ -467,6 +492,7 @@ export class McpService extends BaseService {
         catalogService,
         contentVerificationService,
         projectService,
+        querySourceService,
         shareService,
         userAttributesModel,
         searchModel,
@@ -488,6 +514,7 @@ export class McpService extends BaseService {
         this.catalogService = catalogService;
         this.contentVerificationService = contentVerificationService;
         this.projectService = projectService;
+        this.querySourceService = querySourceService;
         this.shareService = shareService;
         this.userAttributesModel = userAttributesModel;
         this.searchModel = searchModel;
@@ -1875,6 +1902,7 @@ export class McpService extends BaseService {
             scheduledDeliveryEnabled: boolean;
             runSqlEnabled: boolean;
             runMetricQueryEnabled?: boolean;
+            multiSourceQueryEnabled?: boolean;
         } = {
             projectPinned: false,
             aiWritebackEnabled: false,
@@ -1882,6 +1910,7 @@ export class McpService extends BaseService {
             scheduledDeliveryEnabled: true,
             runSqlEnabled: false,
             runMetricQueryEnabled: true,
+            multiSourceQueryEnabled: false,
         },
     ): void {
         this.registerTrackedTool(
@@ -3248,8 +3277,15 @@ export class McpService extends BaseService {
                     const isMcpMetricQuery =
                         queryHistory.context ===
                         QueryExecutionContext.MCP_RUN_METRIC_QUERY;
+                    const isMcpSourceQuery =
+                        queryHistory.context ===
+                        QueryExecutionContext.MCP_MULTI_SOURCE_QUERY;
 
-                    if (!isMcpSqlQuery && !isMcpMetricQuery) {
+                    if (
+                        !isMcpSqlQuery &&
+                        !isMcpMetricQuery &&
+                        !isMcpSourceQuery
+                    ) {
                         throw new ParameterError(
                             'Query was not started by an MCP query tool',
                         );
@@ -3300,6 +3336,21 @@ export class McpService extends BaseService {
                             projectUuid,
                             args.agentUuid,
                         );
+                    }
+
+                    // Multi-source query results are the standard table
+                    // format whatever their source, so serve them like SQL
+                    // results (no SQL Runner deep link — the submission may
+                    // not be representable there).
+                    if (isMcpSourceQuery) {
+                        return await this.buildSqlQueryResultResponse({
+                            ctx,
+                            queryUuid: args.queryUuid,
+                            projectUuid,
+                            agentUuid: args.agentUuid,
+                            includeStatus: true,
+                            sqlRunnerUrl: null,
+                        });
                     }
 
                     if (isMcpSqlQuery) {
@@ -3380,6 +3431,195 @@ export class McpService extends BaseService {
                 }
             },
         );
+
+        // Multi-source query tools are only registered when the caller's org
+        // has the multi-source-query feature flag, keeping them out of
+        // tools/list everywhere else; QuerySourceService re-checks the flag
+        // (and per-source authorization) on every invocation.
+        if (options.multiSourceQueryEnabled) {
+            this.registerTrackedTool(
+                mcpListQuerySourcesTool.name,
+                {
+                    title: mcpListQuerySourcesTool.title,
+                    description: mcpListQuerySourcesTool.description,
+                    inputSchema: mcpListQuerySourcesTool.inputSchema.shape,
+                    outputSchema: mcpListQuerySourcesTool.outputSchema.shape,
+                    annotations: mcpListQuerySourcesTool.annotations,
+                },
+                async (args, extra) => {
+                    const ctx = getMcpContext(extra);
+                    const { account } = McpService.getAccount(ctx);
+                    const projectUuid = await this.resolveToolProjectUuid(
+                        ctx,
+                        args.projectUuid,
+                    );
+                    try {
+                        const results =
+                            await this.querySourceService.listSources(
+                                account,
+                                projectUuid,
+                            );
+                        return mcpListQuerySourcesTool.result.structured(
+                            JSON.stringify(results, null, 2),
+                            results,
+                        );
+                    } catch (e) {
+                        const errorMessage = getErrorMessage(e);
+                        this.logger.error(
+                            `[McpService] Error in list_query_sources tool: ${errorMessage}`,
+                        );
+                        return mcpListQuerySourcesTool.result.error(
+                            `Error listing query sources: ${errorMessage}`,
+                        );
+                    }
+                },
+            );
+
+            this.registerTrackedTool(
+                mcpGetQuerySourceSchemaTool.name,
+                {
+                    title: mcpGetQuerySourceSchemaTool.title,
+                    description: mcpGetQuerySourceSchemaTool.description,
+                    inputSchema: mcpGetQuerySourceSchemaTool.inputSchema.shape,
+                    outputSchema:
+                        mcpGetQuerySourceSchemaTool.outputSchema.shape,
+                    annotations: mcpGetQuerySourceSchemaTool.annotations,
+                },
+                async (args, extra) => {
+                    const ctx = getMcpContext(extra);
+                    const { account } = McpService.getAccount(ctx);
+                    const projectUuid = await this.resolveToolProjectUuid(
+                        ctx,
+                        args.projectUuid,
+                    );
+                    try {
+                        const results =
+                            await this.querySourceService.scanSchema(
+                                account,
+                                projectUuid,
+                                args.sourceType,
+                            );
+                        return mcpGetQuerySourceSchemaTool.result.structured(
+                            JSON.stringify(results, null, 2),
+                            results,
+                        );
+                    } catch (e) {
+                        const errorMessage = getErrorMessage(e);
+                        this.logger.error(
+                            `[McpService] Error in get_query_source_schema tool: ${errorMessage}`,
+                        );
+                        return mcpGetQuerySourceSchemaTool.result.error(
+                            `Error scanning query source schema: ${errorMessage}`,
+                        );
+                    }
+                },
+            );
+
+            this.registerTrackedTool(
+                mcpRunSourceQueriesTool.name,
+                {
+                    title: mcpRunSourceQueriesTool.title,
+                    description: mcpRunSourceQueriesTool.description,
+                    inputSchema: mcpRunSourceQueriesTool.inputSchema.shape,
+                    outputSchema: mcpRunSourceQueriesTool.outputSchema.shape,
+                    annotations: mcpRunSourceQueriesTool.annotations,
+                },
+                async (args, extra) => {
+                    const ctx = getMcpContext(extra);
+                    const { account } = McpService.getAccount(ctx);
+                    const projectUuid = await this.resolveToolProjectUuid(
+                        ctx,
+                        args.projectUuid,
+                    );
+                    try {
+                        const { queries } =
+                            toolRunSourceQueriesArgsSchemaTransformed.parse(
+                                args,
+                            );
+                        const results =
+                            await this.querySourceService.executeSourceQueries({
+                                account,
+                                projectUuid,
+                                queries,
+                                context:
+                                    QueryExecutionContext.MCP_MULTI_SOURCE_QUERY,
+                            });
+                        const structured = {
+                            status: 'submitted' as const,
+                            queries: results.queries,
+                            nextPollAfterMs: MCP_QUERY_POLL_INTERVAL_MS,
+                        };
+                        return mcpRunSourceQueriesTool.result.structured(
+                            `Submitted ${results.queries.length} source quer${
+                                results.queries.length === 1 ? 'y' : 'ies'
+                            }. Poll get_source_query_status with the returned queryUuids (polling the terminal query is sufficient), then fetch completed rows with get_query_result.\n${JSON.stringify(
+                                structured,
+                                null,
+                                2,
+                            )}`,
+                            structured,
+                        );
+                    } catch (e) {
+                        const errorMessage = getErrorMessage(e);
+                        this.logger.error(
+                            `[McpService] Error in run_source_queries tool: ${errorMessage}`,
+                        );
+                        return mcpRunSourceQueriesTool.result.error(
+                            `Error submitting source queries: ${errorMessage}`,
+                        );
+                    }
+                },
+            );
+
+            this.registerTrackedTool(
+                mcpGetSourceQueryStatusTool.name,
+                {
+                    title: mcpGetSourceQueryStatusTool.title,
+                    description: mcpGetSourceQueryStatusTool.description,
+                    inputSchema: mcpGetSourceQueryStatusTool.inputSchema.shape,
+                    outputSchema:
+                        mcpGetSourceQueryStatusTool.outputSchema.shape,
+                    annotations: mcpGetSourceQueryStatusTool.annotations,
+                },
+                async (args, extra) => {
+                    const ctx = getMcpContext(extra);
+                    const { account } = McpService.getAccount(ctx);
+                    const projectUuid = await this.resolveToolProjectUuid(
+                        ctx,
+                        args.projectUuid,
+                    );
+                    try {
+                        const { statuses } =
+                            await this.querySourceService.getSourceQueryStatuses(
+                                account,
+                                projectUuid,
+                                args.queryUuids,
+                            );
+                        const structured = {
+                            statuses: statuses.map((status) => ({
+                                queryUuid: status.queryUuid,
+                                status: McpService.getPollingStatus(
+                                    status.status,
+                                ),
+                                error: status.error,
+                            })),
+                        };
+                        return mcpGetSourceQueryStatusTool.result.structured(
+                            JSON.stringify(structured, null, 2),
+                            structured,
+                        );
+                    } catch (e) {
+                        const errorMessage = getErrorMessage(e);
+                        this.logger.error(
+                            `[McpService] Error in get_source_query_status tool: ${errorMessage}`,
+                        );
+                        return mcpGetSourceQueryStatusTool.result.error(
+                            `Error getting source query status: ${errorMessage}`,
+                        );
+                    }
+                },
+            );
+        }
 
         this.registerTrackedTool(
             mcpListVerifiedContentTool.name,
@@ -3850,6 +4090,7 @@ export class McpService extends BaseService {
         scheduledDeliveryEnabled?: boolean;
         runSqlEnabled?: boolean;
         runMetricQueryEnabled?: boolean;
+        multiSourceQueryEnabled?: boolean;
     }): Promise<McpServer> {
         const newServer = this.buildMcpServer({
             runSqlEnabled: options?.runSqlEnabled ?? false,
@@ -3867,6 +4108,7 @@ export class McpService extends BaseService {
             scheduledDeliveryEnabled: options?.scheduledDeliveryEnabled ?? true,
             runSqlEnabled: options?.runSqlEnabled ?? false,
             runMetricQueryEnabled: options?.runMetricQueryEnabled ?? false,
+            multiSourceQueryEnabled: options?.multiSourceQueryEnabled ?? false,
         });
         this.mcpServer = originalServer;
 
@@ -4148,6 +4390,21 @@ export class McpService extends BaseService {
         }
 
         return ability.can('manage', 'Explore');
+    }
+
+    /**
+     * Whether the multi-source query tools should be registered for this
+     * caller. Gated on the same feature flag as the HTTP query-sources API;
+     * QuerySourceService re-checks the flag and authorization per call.
+     */
+    public async isMultiSourceQueryEnabled(
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+    ): Promise<boolean> {
+        const flag = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.MultiSourceQuery,
+        });
+        return flag.enabled;
     }
 
     public getLightdashVersion(context: McpProtocolContext): string {

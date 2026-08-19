@@ -100,6 +100,29 @@ creator-scoped, mirroring query history access. Polling only the terminal
 merge query is sufficient — its completion implies upstream completion, and
 its error carries upstream failures.
 
+### MCP tools
+
+The same interface is exposed on the Lightdash MCP server
+(`packages/backend/src/ee/services/McpService/`) so agents can drive it:
+
+| Tool | Wraps |
+| --- | --- |
+| `list_query_sources` | `GET /` |
+| `get_query_source_schema` | `GET /{sourceType}/schema` |
+| `run_source_queries` | `POST /queries` (submits immediately, no waiting) |
+| `get_source_query_status` | `GET /queries/status` (statuses mapped to the MCP polling vocabulary: running/done/error/cancelled/expired) |
+
+Completed rows are fetched with the existing `get_query_result` tool, which
+accepts queries submitted by `run_source_queries` and serves them in the
+SQL-result shape (rows + columns) whatever their source. Tool registration is
+gated on the `multi-source-query` feature flag (so the tools stay out of
+`tools/list` elsewhere), and `QuerySourceService` re-checks the flag and
+authorization on every call. The tool input schema matches the HTTP request
+union, except that `semanticLayer` filters use the agent-friendly filter shape
+shared with `run_metric_query` (transformed server-side into metric-query
+filters). MCP submissions run under the `mcp.multi_source_query` execution
+context, which is agent-scoped (see below).
+
 Example body — two parallel sources merged by DuckDB:
 
 ```json
@@ -136,10 +159,10 @@ Example body — two parallel sources merged by DuckDB:
   auth) is out of scope here: the built-ins ride on the project's existing
   connections. The `QuerySourceClient` contract is the seam where per-source
   auth models will live without changing the query interface.
-- The agent SQL scope (`scopedSqlContexts.ts`) applies to `ai`/`mcp.runSql`
-  contexts only; `multiSourceQuery` and `composeSqlRunner` are not
-  agent-scoped, matching the human SQL runner. If the AI agent or MCP tools
-  ever submit through these endpoints, they must set an agent-scoped context
-  server-side (the scope check lives in
-  `AsyncQueryService.executeAsyncSqlQuery`), or the `sql` source would bypass
-  the project's agent SQL scope.
+- The agent SQL scope (`scopedSqlContexts.ts`) applies to `ai`,
+  `mcp.run_sql` and `mcp.multi_source_query` contexts; the human-facing
+  `multiSourceQuery` and `composeSqlRunner` contexts are not agent-scoped,
+  matching the human SQL runner. The MCP tools submit with the
+  `mcp.multi_source_query` context server-side, so an agent-submitted `sql`
+  source query inherits the project's agent SQL scope (the scope check lives
+  in `AsyncQueryService.executeAsyncSqlQuery`).

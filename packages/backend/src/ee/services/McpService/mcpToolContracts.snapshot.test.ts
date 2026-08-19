@@ -182,6 +182,7 @@ describe('MCP tool contracts', () => {
             aiWritebackEnabled: true,
             runSqlEnabled: true,
             runMetricQueryEnabled: true,
+            multiSourceQueryEnabled: true,
         });
 
         const prompts = mockRegisteredMcpPrompts.map(({ name, config }) => ({
@@ -221,6 +222,7 @@ describe('MCP tool contracts', () => {
         await mcpService.createServer({
             aiWritebackEnabled: true,
             runSqlEnabled: true,
+            multiSourceQueryEnabled: true,
         });
 
         const toolsByName = new Map(
@@ -256,6 +258,30 @@ describe('MCP tool contracts', () => {
         expect(mockRegisteredMcpTools.map(({ name }) => name)).not.toContain(
             McpToolName.RUN_SQL,
         );
+    });
+
+    it('registers multi-source query tools only when multiSourceQueryEnabled', async () => {
+        const mcpService = makeMcpService();
+        const multiSourceToolNames = [
+            McpToolName.LIST_QUERY_SOURCES,
+            McpToolName.GET_QUERY_SOURCE_SCHEMA,
+            McpToolName.RUN_SOURCE_QUERIES,
+            McpToolName.GET_SOURCE_QUERY_STATUS,
+        ];
+
+        mockRegisteredMcpTools.length = 0;
+        await mcpService.createServer({ multiSourceQueryEnabled: true });
+        const enabledNames = mockRegisteredMcpTools.map(({ name }) => name);
+        multiSourceToolNames.forEach((toolName) => {
+            expect(enabledNames).toContain(toolName);
+        });
+
+        mockRegisteredMcpTools.length = 0;
+        await mcpService.createServer({ multiSourceQueryEnabled: false });
+        const disabledNames = mockRegisteredMcpTools.map(({ name }) => name);
+        multiSourceToolNames.forEach((toolName) => {
+            expect(disabledNames).not.toContain(toolName);
+        });
     });
 
     it('registers run_metric_query only when runMetricQueryEnabled', async () => {
