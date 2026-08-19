@@ -1,3 +1,10 @@
+## [1.202.4](https://github.com/lightdash/lightdash/compare/1.202.3...1.202.4) (2026-08-19)
+
+
+### Bug Fixes
+
+* surface miss reason from closest pre-aggregate definition ([#27653](https://github.com/lightdash/lightdash/issues/27653)) ([4dd7d04](https://github.com/lightdash/lightdash/commit/4dd7d04146e88e158eeb43ffafaaa6d23fc7544c))
+
 ## [1.202.3](https://github.com/lightdash/lightdash/compare/1.202.2...1.202.3) (2026-08-19)
 
 
