@@ -1,10 +1,10 @@
+import { rolePresets } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ComponentProps } from 'react';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
-import { rolePresets } from '../../rolePresets';
 import { RoleBuilder } from './RoleBuilder';
 
 type OnSubmit = ComponentProps<typeof RoleBuilder>['onSubmit'];

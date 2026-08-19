@@ -1,4 +1,9 @@
-import { isScopeAssignableAtLevel, type RoleLevel } from '@lightdash/common';
+import {
+    isRolePresetAssignableAtLevel,
+    isScopeAssignableAtLevel,
+    type RoleLevel,
+    type RolePreset,
+} from '@lightdash/common';
 import {
     Box,
     Button,
@@ -24,11 +29,7 @@ import { type FC, useState } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SettingsCard } from '../../../../../components/common/Settings/SettingsCard';
-import {
-    getRolePresetScopes,
-    isRolePresetAssignableAtLevel,
-    type RolePreset,
-} from '../../rolePresets';
+import { getRolePresetScopes } from '../../utils/rolePresetUtils';
 import { validateRoleName, validateScopes } from '../../utils/roleValidation';
 import {
     getScopeDependencyStatusCounts,

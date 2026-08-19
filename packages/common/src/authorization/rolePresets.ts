@@ -1,9 +1,6 @@
-import {
-    isScopeAssignableAtLevel,
-    type RoleLevel,
-    type ScopeName,
-} from '@lightdash/common';
-import { getScopeNamesWithDependencies } from './utils/scopeUtils';
+import { type RoleLevel } from '../types/roles';
+import { type ScopeName } from '../types/scopes';
+import { isScopeAssignableAtLevel } from './scopes';
 
 export type RolePreset = {
     title: string;
@@ -55,14 +52,3 @@ export const isRolePresetAssignableAtLevel = (
     level: RoleLevel,
 ): boolean =>
     preset.scopes.every((scope) => isScopeAssignableAtLevel(scope, level));
-
-export const getRolePresetScopes = (
-    preset: RolePreset,
-    level: RoleLevel,
-): ScopeName[] => [
-    ...new Set(
-        preset.scopes
-            .flatMap(getScopeNamesWithDependencies)
-            .filter((scope) => isScopeAssignableAtLevel(scope, level)),
-    ),
-];

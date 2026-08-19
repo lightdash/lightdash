@@ -1,10 +1,6 @@
-import { getScopes } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import {
-    getRolePresetScopes,
-    isRolePresetAssignableAtLevel,
-    rolePresets,
-} from './rolePresets';
+import { isRolePresetAssignableAtLevel, rolePresets } from './rolePresets';
+import { getScopes } from './scopes';
 
 describe('rolePresets', () => {
     it('defines the five presets in display order with exact seed values', () => {
@@ -48,7 +44,7 @@ describe('rolePresets', () => {
         ]);
     });
 
-    it('only references scopes in the current authorization catalog', () => {
+    it('only references scopes in the authorization catalog', () => {
         const scopeNames = new Set(
             getScopes({ isEnterprise: true }).map(({ name }) => name),
         );
@@ -79,22 +75,5 @@ describe('rolePresets', () => {
                 isRolePresetAssignableAtLevel(preset, 'organization'),
             ),
         ).toBe(true);
-    });
-
-    it('expands and deduplicates scope dependencies', () => {
-        const preset = rolePresets.find(
-            ({ title }) => title === 'SQL Runner user',
-        );
-        expect(preset).toBeDefined();
-        if (!preset) {
-            return;
-        }
-
-        expect(getRolePresetScopes(preset, 'project')).toEqual([
-            'manage:SqlRunner',
-            'view:Project',
-            'create:Job',
-            'manage:CompileProject',
-        ]);
     });
 });
