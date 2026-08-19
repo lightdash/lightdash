@@ -26,6 +26,37 @@ export type StreamPart =
     | { type: 'text'; text: string }
     | (ToolCall & { type: 'toolCall' });
 
+export type AiAgentThreadStreamConnection =
+    | { status: 'streaming' }
+    | { status: 'recovering' }
+    | { status: 'polling' }
+    | { status: 'complete' }
+    | { status: 'error'; error: string };
+
+const activeConnectionStatuses = {
+    streaming: true,
+    recovering: true,
+    polling: true,
+    complete: false,
+    error: false,
+} satisfies Record<AiAgentThreadStreamConnection['status'], boolean>;
+
+const recoveryConnectionStatuses = {
+    streaming: false,
+    recovering: true,
+    polling: true,
+    complete: false,
+    error: false,
+} satisfies Record<AiAgentThreadStreamConnection['status'], boolean>;
+
+export const isAiAgentThreadStreamActive = (
+    connection: AiAgentThreadStreamConnection,
+) => activeConnectionStatuses[connection.status];
+
+export const isAiAgentThreadStreamRecoveryActive = (
+    connection: AiAgentThreadStreamConnection,
+) => recoveryConnectionStatuses[connection.status];
+
 const dedupeStreamParts = (parts: StreamPart[]): StreamPart[] => {
     const dedupedParts: StreamPart[] = [];
     const toolCallIndexById = new Map<string, number>();
@@ -56,7 +87,7 @@ export interface AiAgentThreadStreamingState {
     messageUuid: string;
     content: string;
     parts: StreamPart[];
-    isStreaming: boolean;
+    connection: AiAgentThreadStreamConnection;
     toolCalls: ToolCall[];
     reasoning: Reasoning[];
     decidedToolCallIds: string[];
@@ -74,7 +105,6 @@ export interface AiAgentThreadStreamingState {
      * hover, etc.) without changing the wire protocol.
      */
     stepProgressMessages: StepProgressMessage[];
-    error?: string;
 }
 
 type State = Record<string, AiAgentThreadStreamingState>;
@@ -86,7 +116,7 @@ const initialThread: Omit<
 > = {
     content: '',
     parts: [],
-    isStreaming: true,
+    connection: { status: 'streaming' },
     toolCalls: [],
     reasoning: [],
     decidedToolCallIds: [],
@@ -174,15 +204,31 @@ export const aiAgentThreadStreamSlice = createSlice({
                 toolCallId: string;
             }>(),
         },
+        markStreamRecovering: (
+            state,
+            action: PayloadAction<{ threadUuid: string }>,
+        ) => {
+            const streamingThread = state[action.payload.threadUuid];
+            if (streamingThread?.connection.status === 'streaming') {
+                streamingThread.connection = { status: 'recovering' };
+            }
+        },
+        markStreamPolling: (
+            state,
+            action: PayloadAction<{ threadUuid: string }>,
+        ) => {
+            const streamingThread = state[action.payload.threadUuid];
+            if (streamingThread?.connection.status === 'recovering') {
+                streamingThread.connection = { status: 'polling' };
+            }
+        },
         stopStreaming: (
             state,
             action: PayloadAction<{ threadUuid: string }>,
         ) => {
-            const { threadUuid } = action.payload;
-
-            const streamingThread = state[threadUuid];
+            const streamingThread = state[action.payload.threadUuid];
             if (streamingThread) {
-                streamingThread.isStreaming = false;
+                streamingThread.connection = { status: 'complete' };
             }
         },
         addToolCall: {
@@ -217,8 +263,7 @@ export const aiAgentThreadStreamSlice = createSlice({
 
             const streamingThread = state[threadUuid];
             if (streamingThread) {
-                streamingThread.isStreaming = false;
-                streamingThread.error = error;
+                streamingThread.connection = { status: 'error', error };
             }
         },
         addReasoning: {
@@ -314,6 +359,8 @@ export const {
     setMessage,
     setParts,
     markToolCallDecided,
+    markStreamRecovering,
+    markStreamPolling,
     stopStreaming,
     setError,
     addToolCall,

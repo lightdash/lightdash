@@ -105,7 +105,11 @@ export const projectAdapterFromConfig = async (
             return new DbtGithubProjectAdapter({
                 analytics,
                 warehouseClient,
-                githubPersonalAccessToken: githubToken!,
+                githubPersonalAccessToken: githubToken,
+                githubInstallationId:
+                    config.authorization_method === 'installation_id'
+                        ? config.installation_id
+                        : undefined,
                 githubRepository: config.repository,
                 githubBranch: config.branch,
                 projectDirectorySubPath: config.project_sub_path,

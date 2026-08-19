@@ -881,6 +881,40 @@ describe('Query builder', () => {
         expect(query).toMatch(/LEFT JOIN pop_metrics_/);
     });
 
+    test('Should carry period-to-date filters into the PoP CTE', () => {
+        const metricQueryWithPeriodToDateFilter: CompiledMetricQuery = {
+            ...POP_TEST_METRIC_QUERY,
+            filters: {
+                dimensions: {
+                    id: 'root',
+                    and: [
+                        {
+                            id: 'month-to-date',
+                            target: {
+                                fieldId: 'orders_order_date_year',
+                            },
+                            operator: FilterOperator.IN_PERIOD_TO_DATE,
+                            settings: { unitOfTime: UnitOfTime.months },
+                        },
+                    ],
+                },
+            },
+        };
+
+        const { query } = buildQuery({
+            explore: POP_TEST_EXPLORE,
+            compiledMetricQuery: metricQueryWithPeriodToDateFilter,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        expect(
+            query.match(/EXTRACT\(DAY FROM "orders"\.order_date\) <= \d+/g) ??
+                [],
+        ).toHaveLength(2);
+    });
+
     test('Should not carry date filter into PoP CTE when only date filters exist', () => {
         const metricQueryWithOnlyDateFilter: CompiledMetricQuery = {
             ...POP_TEST_METRIC_QUERY,

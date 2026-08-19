@@ -74,6 +74,7 @@ import {
 import { MessageModelIndicator } from './MessageModelIndicator';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
+import { StreamRecoveryAlert } from './StreamRecoveryAlert';
 import { AiEditDbtProjectToolCall } from './ToolCalls/AiEditDbtProjectToolCall';
 import { AiEditRepoToolCall } from './ToolCalls/AiEditRepoToolCall';
 import {
@@ -345,7 +346,11 @@ const AssistantBubbleContent: FC<{
 
     const isPending = message.status === 'pending';
     const hasError = message.status === 'error';
-    const streamingError = streamingState?.error;
+    const isRecovering = streamingState?.connection.status === 'recovering';
+    const streamingError =
+        streamingState?.connection.status === 'error'
+            ? streamingState.connection.error
+            : null;
     const runSqlTimeoutErrorMessage = getRunSqlTimeoutErrorMessage(message);
     const displayErrorMessage =
         runSqlTimeoutErrorMessage ||
@@ -558,12 +563,17 @@ const AssistantBubbleContent: FC<{
             {/* Reasoning lives inside the LiveActivityCard at all times, so
              *  there is one unified bento for the agent's process. */}
             {(() => {
-                const segments = streamingState?.parts
-                    ? segmentStreamParts(
-                          streamingState.parts,
-                          streamingState.decidedToolCallIds,
-                      )
-                    : [];
+                const shouldUseStreamParts =
+                    isStreaming ||
+                    (streamingState?.connection.status === 'complete' &&
+                        isPending);
+                const segments =
+                    shouldUseStreamParts && streamingState
+                        ? segmentStreamParts(
+                              streamingState.parts,
+                              streamingState.decidedToolCallIds,
+                          )
+                        : [];
 
                 if (segments.length > 0) {
                     // Tool segments are extracted into a single LiveActivityCard
@@ -832,6 +842,7 @@ const AssistantBubbleContent: FC<{
                     </>
                 );
             })()}
+            {isRecovering && isPending && <StreamRecoveryAlert />}
             {/* TypingDots fill the gap until the first visible output lands —
              *  any tool call or text part. Reasoning alone doesn't count: it
              *  collapses by default and would otherwise leave the bubble silent.
