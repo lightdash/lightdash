@@ -35,6 +35,7 @@ const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
             subtitle="Welcome back — pick up where you left off."
             legacyTitle="Sign in"
             cardId={LOGIN_PAGE_ID}
+            backgroundColor="pink"
         >
             <LoginLanding />
         </AuthLayout>
