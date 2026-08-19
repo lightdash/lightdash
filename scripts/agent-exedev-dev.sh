@@ -337,7 +337,7 @@ sync_single_file() {
 maybe_install_dependencies() {
     local metadata_path local_lock remote_lock
 
-    metadata_path="$(dirname "$REMOTE_REPO")/metadata"
+    metadata_path="$(dirname "$REMOTE_REPO")/preview-prepared"
     local_lock="$(file_hash "$REPO_ROOT/pnpm-lock.yaml")"
     remote_lock="$(
         vm_ssh "sed -n 's/^lockfile_sha256=//p' $(printf '%q' "$metadata_path") 2>/dev/null" </dev/null || true
