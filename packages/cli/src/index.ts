@@ -1532,13 +1532,13 @@ program
     .description('Rename a chart slug and update its local references')
     .option('--verbose', 'show verbose output', false)
     .option(
-        '-p, --project <project uuid>',
+        '--project <project uuid>',
         'specify a project UUID',
         parseProjectArgument,
         undefined,
     )
     .option(
-        '--path <path>',
+        '-p, --path <path>',
         'specify the local content-as-code path to update',
         undefined,
     )
