@@ -15,6 +15,12 @@
             "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/agent-okteto-dev.sh\" hook-start",
             "timeout": 1800,
             "statusMessage": "Preparing the Lightdash Okteto development environment"
+          },
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/agent-exedev-dev.sh\" hook-start",
+            "timeout": 600,
+            "statusMessage": "Provisioning the Lightdash exe.dev VM"
           }
         ]
       }
@@ -30,6 +36,18 @@
         ]
       }
     ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/agent-exedev-dev.sh\" hook-sync",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
@@ -38,6 +56,12 @@
             "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/agent-okteto-dev.sh\" hook-stop",
             "timeout": 1800,
             "statusMessage": "Verifying the Lightdash Okteto development environment"
+          },
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/agent-exedev-dev.sh\" hook-stop",
+            "timeout": 1800,
+            "statusMessage": "Verifying the Lightdash exe.dev development environment"
           }
         ]
       }
