@@ -33,7 +33,11 @@ export interface FileStorageClient {
         attachmentDownloadName?: string,
     ): Promise<string>;
 
-    uploadZip(zip: ReadStream, zipName: string): Promise<string>;
+    uploadZip(
+        zip: ReadStream,
+        zipName: string,
+        attachmentDownloadName?: string,
+    ): Promise<string>;
 
     uploadExcel(
         excel: ReadStream,

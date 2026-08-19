@@ -14,6 +14,7 @@ import {
     MetricType,
     NotEnoughResults,
     PartialFailureType,
+    PersistentDownloadFileAccessMode,
     SchedulerFormat,
     sleep,
     ThresholdOperator,
@@ -32,6 +33,7 @@ import {
 import ExecutionContext from 'node-execution-context';
 import type { Mock } from 'vitest';
 import type { ExecutionContextInfo } from '../logging/winston';
+import { WorkbookExportHelper } from '../services/ExcelService/WorkbookExportHelper';
 import SchedulerTask, {
     buildItemMapFromColumns,
     buildSchedulerLogContext,
@@ -3433,5 +3435,141 @@ describe('app delivery target senders', () => {
             failures: page.failures,
             notices: page.notices,
         });
+    });
+});
+
+describe('dashboard export download filenames', () => {
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.restoreAllMocks();
+    });
+
+    const callCreateZipDownloadUrl = (
+        task: SchedulerTask,
+        zipNameBase: string,
+    ) =>
+        (
+            task as unknown as {
+                createZipDownloadUrl: (args: {
+                    files: { entryNameBase: string; localPath: string }[];
+                    fileType: SchedulerFormat.CSV | SchedulerFormat.XLSX;
+                    zipNameBase: string;
+                    organizationUuid: string;
+                    projectUuid: string;
+                    createdByUserUuid: string | null;
+                    accessMode: PersistentDownloadFileAccessMode;
+                }) => Promise<string>;
+            }
+        ).createZipDownloadUrl({
+            files: [
+                {
+                    entryNameBase: 'Revenue',
+                    localPath: 'https://files.example.com/revenue.csv',
+                },
+            ],
+            fileType: SchedulerFormat.CSV,
+            zipNameBase,
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            createdByUserUuid: 'user-1',
+            accessMode: PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+        });
+
+    it('uploads the zip with the dashboard name as the download filename', async () => {
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(async () => new Response('a,b\n1,2\n')),
+        );
+        const uploadZip = vi
+            .fn()
+            .mockResolvedValue('https://files.example.com/export.zip');
+        const task = makeTaskWithDeps({
+            fileStorageClient: asDep<'fileStorageClient'>({
+                isEnabled: () => true,
+                uploadZip,
+            }),
+            persistentDownloadFileService:
+                asDep<'persistentDownloadFileService'>({
+                    createPersistentUrl: vi
+                        .fn()
+                        .mockResolvedValue(
+                            'https://lightdash.example.com/api/v1/file/abc',
+                        ),
+                }),
+        });
+
+        await callCreateZipDownloadUrl(task, 'Q3 Revenue / Costs');
+
+        expect(uploadZip).toHaveBeenCalledTimes(1);
+        const [, storageKey, attachmentDownloadName] = uploadZip.mock.calls[0];
+        expect(attachmentDownloadName).toBe('Q3 Revenue / Costs.zip');
+        expect(storageKey).not.toContain('/');
+        expect(storageKey).toMatch(/\.zip$/);
+        expect(storageKey).not.toBe(attachmentDownloadName);
+    });
+
+    it('uploads the workbook with the dashboard name as the download filename', async () => {
+        vi.spyOn(WorkbookExportHelper, 'createWorkbookFile').mockResolvedValue({
+            worksheetCount: 2,
+            failedFileCount: 0,
+        });
+        const uploadExcel = vi
+            .fn()
+            .mockResolvedValue('https://files.example.com/workbook.xlsx');
+        const task = makeTaskWithDeps({
+            fileStorageClient: asDep<'fileStorageClient'>({
+                isEnabled: () => true,
+                uploadExcel,
+            }),
+            persistentDownloadFileService:
+                asDep<'persistentDownloadFileService'>({
+                    createPersistentUrl: vi
+                        .fn()
+                        .mockResolvedValue(
+                            'https://lightdash.example.com/api/v1/file/abc',
+                        ),
+                }),
+        });
+
+        await (
+            task as unknown as {
+                createWorkbookDownloadUrl: (args: {
+                    files: {
+                        filename: string;
+                        path: string;
+                        localPath: string;
+                        truncated: boolean;
+                    }[];
+                    workbookNameBase: string;
+                    organizationUuid: string;
+                    projectUuid: string;
+                    createdByUserUuid: string;
+                    accessMode: PersistentDownloadFileAccessMode;
+                }) => Promise<{ url: string; numFileFailures: number }>;
+            }
+        ).createWorkbookDownloadUrl({
+            files: [
+                {
+                    filename: 'Revenue',
+                    path: 'https://files.example.com/revenue.xlsx',
+                    localPath: '/tmp/revenue.xlsx',
+                    truncated: false,
+                },
+            ],
+            workbookNameBase: 'Q3 Revenue / Costs',
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            createdByUserUuid: 'user-1',
+            accessMode: PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+        });
+
+        expect(uploadExcel).toHaveBeenCalledTimes(1);
+        const [, storageKey, attachmentDownloadName] =
+            uploadExcel.mock.calls[0];
+        expect(attachmentDownloadName).toBe('Q3 Revenue / Costs.xlsx');
+        // The key stays storage-safe and timestamped, so it must differ.
+        expect(storageKey).not.toContain('/');
+        expect(storageKey).toMatch(/\.xlsx$/);
+        expect(storageKey).not.toBe(attachmentDownloadName);
     });
 });
