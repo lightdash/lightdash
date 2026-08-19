@@ -1252,6 +1252,75 @@ export class ValidationService extends BaseService {
         }
     }
 
+    private async resolveAllowedContent(
+        user: SessionUser,
+        projectUuid: string,
+        organizationUuid: string,
+    ): Promise<{
+        allowedSpaceUuids: string[] | 'all';
+        allowedAppUuids: string[] | 'all';
+    }> {
+        if (user.role === OrganizationMemberRole.ADMIN) {
+            return { allowedSpaceUuids: 'all', allowedAppUuids: 'all' };
+        }
+
+        const spaces = await this.spaceModel.find({ projectUuid });
+        const allowedSpaceUuids =
+            await this.spacePermissionService.getAccessibleSpaceUuids(
+                'view',
+                user,
+                spaces.map((s) => s.uuid),
+            );
+
+        return {
+            allowedSpaceUuids,
+            allowedAppUuids: await this.resolveAllowedAppUuids(
+                user,
+                projectUuid,
+                organizationUuid,
+                allowedSpaceUuids,
+            ),
+        };
+    }
+
+    // Drops the validations the paginated list hides, so summary counts and the
+    // table agree. `hidePrivateContent` masks names instead, for callers that
+    // return every row.
+    static filterInaccessibleContent(
+        validations: ValidationResponse[],
+        {
+            allowedSpaceUuids,
+            allowedAppUuids,
+        }: {
+            allowedSpaceUuids: string[] | 'all';
+            allowedAppUuids: string[] | 'all';
+        },
+    ): ValidationResponse[] {
+        return validations.filter((validation) => {
+            if (isDataAppValidationError(validation)) {
+                return (
+                    allowedAppUuids === 'all' ||
+                    (validation.appUuid !== undefined &&
+                        allowedAppUuids.includes(validation.appUuid))
+                );
+            }
+
+            if (
+                isChartValidationError(validation) ||
+                isDashboardValidationError(validation)
+            ) {
+                return (
+                    allowedSpaceUuids === 'all' ||
+                    (validation.spaceUuid !== undefined &&
+                        allowedSpaceUuids.includes(validation.spaceUuid))
+                );
+            }
+
+            // Table validations are project-level, not space-specific.
+            return true;
+        });
+    }
+
     async hidePrivateContent(
         user: SessionUser,
         projectUuid: string,
@@ -1259,22 +1328,12 @@ export class ValidationService extends BaseService {
     ): Promise<ValidationResponse[]> {
         if (user.role === OrganizationMemberRole.ADMIN) return validations;
 
-        const spaces = await this.spaceModel.find({ projectUuid });
-        const spaceUuids = spaces.map((s) => s.uuid);
-
-        const allowedSpaceUuids =
-            await this.spacePermissionService.getAccessibleSpaceUuids(
-                'view',
+        const { allowedSpaceUuids, allowedAppUuids } =
+            await this.resolveAllowedContent(
                 user,
-                spaceUuids,
+                projectUuid,
+                user.organizationUuid!,
             );
-
-        const allowedAppUuids = await this.resolveAllowedAppUuids(
-            user,
-            projectUuid,
-            user.organizationUuid!,
-            allowedSpaceUuids,
-        );
         const allowedAppUuidSet = new Set(
             allowedAppUuids === 'all' ? [] : allowedAppUuids,
         );
@@ -1320,11 +1379,10 @@ export class ValidationService extends BaseService {
                     };
                 }
 
-                const space = spaces.find(
-                    (s) => s.uuid === validation.spaceUuid,
-                );
                 const hasAccess =
-                    space && allowedSpaceUuids.includes(space.uuid);
+                    allowedSpaceUuids === 'all' ||
+                    (validation.spaceUuid !== undefined &&
+                        allowedSpaceUuids.includes(validation.spaceUuid));
                 if (hasAccess) return validation;
 
                 return {
@@ -1617,13 +1675,18 @@ export class ValidationService extends BaseService {
         const allValidations = await this.validationModel.get(projectUuid);
         const validations =
             ValidationService.filterOrphanedValidations(allValidations);
-        const maskedValidations = await this.hidePrivateContent(
+        const allowedContent = await this.resolveAllowedContent(
             user,
             projectUuid,
-            validations,
+            organizationUuid!,
         );
 
-        return ValidationService.groupValidationsByRootCause(maskedValidations);
+        return ValidationService.groupValidationsByRootCause(
+            ValidationService.filterInaccessibleContent(
+                validations,
+                allowedContent,
+            ),
+        );
     }
 
     async get(
@@ -1748,6 +1811,7 @@ export class ValidationService extends BaseService {
             sourceTypes?: ValidationSourceType[];
             errorTypes?: ValidationErrorType[];
             tableName?: string;
+            fieldName?: string;
             includeChartConfigWarnings?: boolean;
             fromSettings?: boolean;
             jobId?: string;
@@ -1774,26 +1838,12 @@ export class ValidationService extends BaseService {
             throw new ForbiddenError();
         }
 
-        let allowedSpaceUuids: string[] | 'all' = 'all';
-
-        if (user.role !== OrganizationMemberRole.ADMIN) {
-            const spaces = await this.spaceModel.find({ projectUuid });
-            const spaceUuids = spaces.map((s) => s.uuid);
-
-            allowedSpaceUuids =
-                await this.spacePermissionService.getAccessibleSpaceUuids(
-                    'view',
-                    user,
-                    spaceUuids,
-                );
-        }
-
-        const allowedAppUuids = await this.resolveAllowedAppUuids(
-            user,
-            projectUuid,
-            projectSummary.organizationUuid,
-            allowedSpaceUuids,
-        );
+        const { allowedSpaceUuids, allowedAppUuids } =
+            await this.resolveAllowedContent(
+                user,
+                projectUuid,
+                projectSummary.organizationUuid,
+            );
 
         const result = await this.validationModel.getPaginated(
             projectUuid,
@@ -1805,6 +1855,7 @@ export class ValidationService extends BaseService {
                 sourceTypes: options?.sourceTypes,
                 errorTypes: options?.errorTypes,
                 tableName: options?.tableName,
+                fieldName: options?.fieldName,
                 includeChartConfigWarnings: options?.includeChartConfigWarnings,
                 allowedSpaceUuids,
                 allowedAppUuids,

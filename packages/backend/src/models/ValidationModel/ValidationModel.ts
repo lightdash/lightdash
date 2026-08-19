@@ -276,6 +276,18 @@ export class ValidationModel {
             .delete();
     }
 
+    // Dashboard rows written before `table_name` was populated only carry the
+    // table in their error message, and `parseDashboardFilterError` recovers it
+    // for the response. Filtering by table has to see the same value, or a
+    // summary chip built from it matches no rows. Keep the patterns in sync.
+    private static readonly EFFECTIVE_TABLE_NAME_SQL = `COALESCE(
+        table_name,
+        substring(error from $re$references table '([^']+)' which is not used by any chart on this dashboard$re$),
+        substring(error from $re$Table '([^']+)' no longer exists$re$),
+        substring(error from $re$the field '[^']+' does not match table '([^']+)'$re$),
+        substring(error from $re$the field '[^']+' on table '([^']+)' no longer exists$re$)
+    )`;
+
     public static parseDashboardFilterError(error: string): {
         tableName?: string;
         dashboardFilterErrorType?: DashboardFilterValidationErrorType;
@@ -990,6 +1002,7 @@ export class ValidationModel {
             sourceTypes?: ValidationSourceType[];
             errorTypes?: ValidationErrorType[];
             tableName?: string;
+            fieldName?: string;
             includeChartConfigWarnings?: boolean;
             allowedSpaceUuids?: string[] | 'all';
             allowedAppUuids?: string[] | 'all';
@@ -1003,6 +1016,7 @@ export class ValidationModel {
             sourceTypes,
             errorTypes,
             tableName,
+            fieldName,
             includeChartConfigWarnings = false,
             allowedSpaceUuids = 'all',
             allowedAppUuids = 'all',
@@ -1301,7 +1315,13 @@ export class ValidationModel {
                         void qb.whereIn('error_type', errorTypes);
                     }
                     if (tableName) {
-                        void qb.where('table_name', tableName);
+                        void qb.whereRaw(
+                            `${ValidationModel.EFFECTIVE_TABLE_NAME_SQL} = ?`,
+                            [tableName],
+                        );
+                    }
+                    if (fieldName) {
+                        void qb.where('field_name', fieldName);
                     }
                     if (!includeChartConfigWarnings) {
                         void qb.whereNot((inner) => {

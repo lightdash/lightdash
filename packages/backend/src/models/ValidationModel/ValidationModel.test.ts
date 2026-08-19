@@ -112,6 +112,37 @@ describe('ValidationModel', () => {
         });
     });
 
+    describe('getPaginated filters', () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const model = new ValidationModel({ database });
+        let tracker: Tracker;
+
+        beforeAll(() => {
+            tracker = getTracker();
+        });
+
+        afterEach(() => {
+            tracker.reset();
+        });
+
+        it('matches the table name recovered from the error message, and filters by field', async () => {
+            tracker.on.select(({ sql }) => sql.length > 0).response([]);
+
+            await model.getPaginated(
+                '22222222-2222-4222-8222-222222222222',
+                { page: 1, pageSize: 20 },
+                { tableName: 'orders', fieldName: 'orders_status' },
+            );
+
+            const [query] = tracker.history.select;
+            expect(query.sql).toContain('COALESCE(');
+            expect(query.sql).toContain('substring(error from');
+            expect(query.bindings).toContain('orders');
+            expect(query.sql).toContain('"field_name" = ');
+            expect(query.bindings).toContain('orders_status');
+        });
+    });
+
     describe('parseDashboardFilterError', () => {
         it('Should parse "table not used by any chart" error', () => {
             const error =
