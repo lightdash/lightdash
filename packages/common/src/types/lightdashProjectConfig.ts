@@ -83,6 +83,13 @@ export type ProjectDefaults = {
      * Explorer dimension labels, the Explorer sidebar tree, and the date zoom.
      */
     granularity_labels?: Record<string, string>;
+    /**
+     * Whether a matched query whose pre-aggregate execution fails is served
+     * from the source warehouse (execution fallback). When false, the query
+     * errors instead of transparently running on the warehouse.
+     * Defaults to true if not specified.
+     */
+    pre_aggregate_execution_fallback?: boolean;
     // Room for future project-wide defaults like:
     // date_format?: string;
     // number_format?: string;

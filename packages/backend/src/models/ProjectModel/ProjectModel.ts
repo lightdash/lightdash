@@ -712,6 +712,15 @@ export class ProjectModel {
             .where('project_uuid', projectUuid);
     }
 
+    async findProjectDefaults(
+        projectUuid: string,
+    ): Promise<ProjectDefaults | null> {
+        const [row] = await this.database(ProjectTableName)
+            .select('project_defaults')
+            .where('project_uuid', projectUuid);
+        return row?.project_defaults ?? null;
+    }
+
     async getTableGroups(
         projectUuid: string,
     ): Promise<Record<string, GroupType>> {

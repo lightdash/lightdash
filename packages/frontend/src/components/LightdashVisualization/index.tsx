@@ -14,6 +14,7 @@ import {
 import { EmptyState } from '../common/EmptyState';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
+import { TextWithInlineLinks } from '../common/TextWithInlineLinks';
 import CustomVisualization from '../CustomVisualization';
 import DataAppVizRenderer from '../DataAppVizRenderer';
 import FunnelChart from '../FunnelChart';
@@ -137,7 +138,9 @@ const LightdashVisualization = memo(
                             description={
                                 <Fragment>
                                     <Text style={{ whiteSpace: 'pre-wrap' }}>
-                                        {apiErrorDetail.message || ''}
+                                        <TextWithInlineLinks
+                                            text={apiErrorDetail.message || ''}
+                                        />
                                     </Text>
                                     {apiErrorDetail.data.documentationUrl && (
                                         <Fragment>
