@@ -1,3 +1,10 @@
+## [1.202.11](https://github.com/lightdash/lightdash/compare/1.202.10...1.202.11) (2026-08-19)
+
+
+### Bug Fixes
+
+* **upgrade-automation:** stop freezing on healthy instances ([#27677](https://github.com/lightdash/lightdash/issues/27677)) ([ae390e0](https://github.com/lightdash/lightdash/commit/ae390e0b424938922e06c3a9d486512359d665ea))
+
 ## [1.202.10](https://github.com/lightdash/lightdash/compare/1.202.9...1.202.10) (2026-08-19)
 
 

@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "generatedAt": "2026-08-19T15:20:22.131Z",
+  "generatedAt": "2026-08-19T15:42:07.445Z",
   "backfillFloorVersion": "0.1893.0",
   "entries": [
     {
@@ -32539,6 +32539,16 @@
       "version": "1.202.10",
       "previousVersion": "1.202.9",
       "releaseDate": "2026-08-19T15:20:22.120Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "1.111.0",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "1.202.11",
+      "previousVersion": "1.202.10",
+      "releaseDate": "2026-08-19T15:42:07.436Z",
       "rollingUpdateSafe": true,
       "requiredStops": [],
       "minPreviousVersion": "1.111.0",
