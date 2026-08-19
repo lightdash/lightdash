@@ -1,3 +1,10 @@
+## [1.200.1](https://github.com/lightdash/lightdash/compare/1.200.0...1.200.1) (2026-08-19)
+
+
+### Bug Fixes
+
+* **cli:** make slug update path option consistent ([#27625](https://github.com/lightdash/lightdash/issues/27625)) ([b1dab02](https://github.com/lightdash/lightdash/commit/b1dab027b9a29b6fa539054016de0cabee86ba9f))
+
 # [1.200.0](https://github.com/lightdash/lightdash/compare/1.199.3...1.200.0) (2026-08-19)
 
 
