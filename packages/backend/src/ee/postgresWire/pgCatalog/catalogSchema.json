@@ -683,6 +683,55 @@
                 { "name": "autoanalyze_count", "oid": 20 }
             ]
         },
+        "pg_catalog.pg_stat_all_tables": {
+            "oid": 12142,
+            "relkind": "v",
+            "columns": [
+                { "name": "relid", "oid": 26 },
+                { "name": "schemaname", "oid": 19 },
+                { "name": "relname", "oid": 19 },
+                { "name": "seq_scan", "oid": 20 },
+                { "name": "last_seq_scan", "oid": 1184 },
+                { "name": "seq_tup_read", "oid": 20 },
+                { "name": "idx_scan", "oid": 20 },
+                { "name": "last_idx_scan", "oid": 1184 },
+                { "name": "idx_tup_fetch", "oid": 20 },
+                { "name": "n_tup_ins", "oid": 20 },
+                { "name": "n_tup_upd", "oid": 20 },
+                { "name": "n_tup_del", "oid": 20 },
+                { "name": "n_tup_hot_upd", "oid": 20 },
+                { "name": "n_tup_newpage_upd", "oid": 20 },
+                { "name": "n_live_tup", "oid": 20 },
+                { "name": "n_dead_tup", "oid": 20 },
+                { "name": "n_mod_since_analyze", "oid": 20 },
+                { "name": "n_ins_since_vacuum", "oid": 20 },
+                { "name": "last_vacuum", "oid": 1184 },
+                { "name": "last_autovacuum", "oid": 1184 },
+                { "name": "last_analyze", "oid": 1184 },
+                { "name": "last_autoanalyze", "oid": 1184 },
+                { "name": "vacuum_count", "oid": 20 },
+                { "name": "autovacuum_count", "oid": 20 },
+                { "name": "analyze_count", "oid": 20 },
+                { "name": "autoanalyze_count", "oid": 20 }
+            ]
+        },
+        "pg_catalog.pg_statio_user_tables": {
+            "oid": 12179,
+            "relkind": "v",
+            "columns": [
+                { "name": "relid", "oid": 26 },
+                { "name": "schemaname", "oid": 19 },
+                { "name": "relname", "oid": 19 },
+                { "name": "heap_blks_read", "oid": 20 },
+                { "name": "heap_blks_hit", "oid": 20 },
+                { "name": "idx_blks_read", "oid": 20 },
+                { "name": "idx_blks_hit", "oid": 20 },
+                { "name": "toast_blks_read", "oid": 20 },
+                { "name": "toast_blks_hit", "oid": 20 },
+                { "name": "tidx_blks_read", "oid": 20 },
+                { "name": "tidx_blks_hit", "oid": 20 }
+            ]
+        },
         "pg_catalog.pg_stats": {
             "oid": 12053,
             "relkind": "v",

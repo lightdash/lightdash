@@ -78,6 +78,8 @@ const PG = [
     'pg_foreign_data_wrapper',
     'pg_foreign_table',
     'pg_stat_user_tables',
+    'pg_stat_all_tables',
+    'pg_statio_user_tables',
     'pg_stats',
     'pg_tables',
     'pg_views',

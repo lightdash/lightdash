@@ -364,6 +364,21 @@ const isTautology = (expr: Expr): boolean => {
     return false;
 };
 
+/** WHERE 1=0 and friends: the schema-probe idiom connectors use to read a table's shape */
+const isContradiction = (expr: Expr): boolean => {
+    if (expr.type === 'boolean' && expr.value === false) return true;
+    if (
+        expr.type === 'binary' &&
+        (expr.op === '=' || expr.op === '!=') &&
+        isLiteralExpr(expr.left) &&
+        isLiteralExpr(expr.right)
+    ) {
+        const equal = literalValue(expr.left) === literalValue(expr.right);
+        return expr.op === '=' ? !equal : equal;
+    }
+    return false;
+};
+
 const compileFilterExpr = (
     ctx: CompilerContext,
     expr: Expr,
@@ -665,24 +680,85 @@ const parseStatement = (sql: string): Statement[] => {
  * Compile a Postgres SELECT statement into a Lightdash MetricQuery against
  * one of the explores in the catalog.
  */
-export const compileSqlToMetricQuery = (
-    sql: string,
+function compileSelect(
+    select: SelectFromStatement,
     catalog: PgWireTable[],
-): PgWireCompiledQuery => {
-    const statements = parseStatement(sql);
-    if (statements.length !== 1) {
-        throw new SqlCompileError(
-            'Exactly one SQL statement is supported per query',
-        );
+): PgWireCompiledQuery {
+    /**
+     * Connectors probe a table's shape as `SELECT * FROM (query) alias [WHERE 1=0]
+     * [LIMIT n]`. When the wrapper adds nothing but a constant predicate or a
+     * limit, compile the inner query and fold the wrapper into it.
+     */
+    const unwrapTrivialSubquery = (): PgWireCompiledQuery | null => {
+        const [from] = select.from ?? [];
+        if (
+            !from ||
+            (select.from ?? []).length !== 1 ||
+            from.type !== 'statement' ||
+            from.statement.type !== 'select' ||
+            from.join
+        ) {
+            return null;
+        }
+        const selectsStar =
+            (select.columns ?? []).length === 1 &&
+            select.columns?.[0].expr.type === 'ref' &&
+            select.columns[0].expr.name === '*';
+        const whereConjuncts = select.where ? flattenAnd(select.where) : [];
+        const wrapperIsTrivial =
+            selectsStar &&
+            !select.orderBy?.length &&
+            !select.groupBy?.length &&
+            !select.having &&
+            !select.distinct &&
+            whereConjuncts.every(
+                (conjunct) =>
+                    isTautology(conjunct) || isContradiction(conjunct),
+            );
+        if (!wrapperIsTrivial) {
+            return null;
+        }
+        const inner = compileSelect(from.statement, catalog);
+        const outerLimit =
+            select.limit?.limit?.type === 'integer'
+                ? select.limit.limit.value
+                : undefined;
+        const limit =
+            outerLimit === undefined
+                ? inner.metricQuery.limit
+                : Math.min(inner.metricQuery.limit, outerLimit);
+        return {
+            ...inner,
+            metricQuery: { ...inner.metricQuery, limit },
+            alwaysEmpty:
+                inner.alwaysEmpty ||
+                limit === 0 ||
+                whereConjuncts.some(isContradiction),
+        };
+    };
+    /** Postgres-style default output name for an unaliased expression, unique within the statement */
+    const autoName = (ctx: CompilerContext, expr: Expr): string => {
+        const base =
+            expr.type === 'call'
+                ? expr.function.name.toLowerCase()
+                : '?column?';
+        let name = base;
+        for (
+            let n = 2;
+            ctx.fieldMap.has(name) ||
+            ctx.tableCalcNames.has(name) ||
+            ctx.aliasMap.has(name);
+            n += 1
+        ) {
+            name = `${base}_${n}`;
+        }
+        return name;
+    };
+
+    const unwrapped = unwrapTrivialSubquery();
+    if (unwrapped) {
+        return unwrapped;
     }
-    const [statement] = statements;
-    if (statement.type !== 'select') {
-        throw new SqlCompileError(
-            `${statement.type.toUpperCase()} statements are not supported`,
-            'Only SELECT queries can be run against the Lightdash semantic layer',
-        );
-    }
-    const select = statement as SelectFromStatement;
 
     if (select.distinct) {
         throw new SqlCompileError(
@@ -807,14 +883,9 @@ export const compileSqlToMetricQuery = (
             }
             return;
         }
-        // any other expression becomes a table calculation and requires an alias
-        if (!col.alias) {
-            throw new SqlCompileError(
-                `Expressions in SELECT must have an alias: ${toSql.expr(expr)}`,
-                'Add "AS name" after the expression',
-            );
-        }
-        const calcName = col.alias.name;
+        // any other expression becomes a table calculation; name it like
+        // Postgres when no alias is given (function name, else ?column?)
+        const calcName = col.alias?.name ?? autoName(ctx, expr);
         if (ctx.fieldMap.has(calcName)) {
             throw new SqlCompileError(
                 `Alias "${calcName}" conflicts with an existing column name`,
@@ -848,6 +919,19 @@ export const compileSqlToMetricQuery = (
     };
     selectColumns.forEach(handleSelectedColumn);
 
+    // constants-only probes (SELECT 1 FROM t) still need a field to query by;
+    // carry the first dimension without exposing it as an output column
+    if (
+        dimensions.length === 0 &&
+        metrics.length === 0 &&
+        tableCalculations.length > 0
+    ) {
+        const carrier = table.fields.find((f) => f.kind === 'dimension');
+        if (carrier) {
+            dimensions.push(carrier.fieldId);
+        }
+    }
+
     if (dimensions.length === 0 && metrics.length === 0) {
         throw new SqlCompileError(
             'Select at least one dimension or metric',
@@ -860,9 +944,12 @@ export const compileSqlToMetricQuery = (
     const metricFilters: FilterGroupItem[] = [];
     const tableCalcFilters: FilterGroupItem[] = [];
 
+    let alwaysEmpty = false;
     if (select.where) {
         for (const conjunct of flattenAnd(select.where)) {
-            if (!isTautology(conjunct)) {
+            if (isContradiction(conjunct)) {
+                alwaysEmpty = true;
+            } else if (!isTautology(conjunct)) {
                 const compiled = compileFilterExpr(ctx, conjunct);
                 const kind = asSingleKind(compiled, 'WHERE');
                 if (kind === 'dimension') dimensionFilters.push(compiled.item);
@@ -1005,5 +1092,30 @@ export const compileSqlToMetricQuery = (
         tableCalculations,
     };
 
-    return { table, metricQuery, columns };
+    return {
+        table,
+        metricQuery,
+        columns,
+        alwaysEmpty: alwaysEmpty || limit === 0,
+    };
+}
+
+export const compileSqlToMetricQuery = (
+    sql: string,
+    catalog: PgWireTable[],
+): PgWireCompiledQuery => {
+    const statements = parseStatement(sql);
+    if (statements.length !== 1) {
+        throw new SqlCompileError(
+            'Exactly one SQL statement is supported per query',
+        );
+    }
+    const [statement] = statements;
+    if (statement.type !== 'select') {
+        throw new SqlCompileError(
+            `${statement.type.toUpperCase()} statements are not supported`,
+            'Only SELECT queries can be run against the Lightdash semantic layer',
+        );
+    }
+    return compileSelect(statement as SelectFromStatement, catalog);
 };

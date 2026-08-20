@@ -37,4 +37,6 @@ export type PgWireCompiledQuery = {
     table: PgWireTable;
     metricQuery: MetricQuery;
     columns: PgWireColumn[];
+    /** WHERE 1=0 or LIMIT 0: return the column shape without querying the warehouse */
+    alwaysEmpty: boolean;
 };
