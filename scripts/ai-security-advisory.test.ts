@@ -707,6 +707,59 @@ async function run(): Promise<void> {
         assert.strictEqual(parseRetryCalls, 2);
         assert.match(correctiveMessage, /exactly one valid JSON object/);
 
+        let validationRetryCalls = 0;
+        let validationCorrectiveMessage = '';
+        let analysisSystemPrompt = '';
+        const validationRetried = await analyzeRelease({
+            apiKey: 'test',
+            previousTag: stableTags[1],
+            releaseTag: stableTags[0],
+            fetchImpl: async (_input, init) => {
+                validationRetryCalls += 1;
+                const body = JSON.parse(String(init?.body));
+                analysisSystemPrompt = body.system[0].text;
+                if (validationRetryCalls === 2) {
+                    validationCorrectiveMessage =
+                        body.messages[body.messages.length - 1].content[0].text;
+                }
+                return new Response(
+                    JSON.stringify({
+                        stop_reason: 'end_turn',
+                        content: [
+                            {
+                                type: 'text',
+                                text: JSON.stringify({
+                                    schemaVersion: 1,
+                                    previousTag: stableTags[1],
+                                    releaseTag: stableTags[0],
+                                    findings:
+                                        validationRetryCalls === 1
+                                            ? [
+                                                  finding({
+                                                      proposedCvssVector:
+                                                          'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N',
+                                                  }),
+                                              ]
+                                            : [],
+                                }),
+                            },
+                        ],
+                    }),
+                    { status: 200 },
+                );
+            },
+        });
+        assert.deepStrictEqual(validationRetried.findings, []);
+        assert.strictEqual(validationRetryCalls, 2);
+        assert.match(
+            validationCorrectiveMessage,
+            /CVSS vector has no security impact/,
+        );
+        assert.match(
+            analysisSystemPrompt,
+            /proposedCvssVector to null for defense_in_depth and uncertain/,
+        );
+
         const verifierCandidate = finding({
             introducedVersion: stableTags[1],
             existingControlsChecked: [
