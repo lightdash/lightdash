@@ -12,8 +12,12 @@ services:
             - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
             - MINIO_DEFAULT_BUCKETS=${MINIO_DEFAULT_BUCKETS:-default,results,lightdash-apps}
             - MINIO_BROWSER=${MINIO_BROWSER:-off}
+            # .env.development sets 0 (persist); fallback matches dev.mini/infra
+            - MINIO_EXPIRATION_DAYS=${MINIO_EXPIRATION_DAYS:-1}
         volumes:
-            - minio_data:/minio/data
+            # MinIO serves /data (see init-minio.sh) — mounting elsewhere
+            # leaves objects on an anonymous volume that `compose down` drops
+            - minio_data:/data
             - ./init-minio.sh:/init-minio.sh
         entrypoint: '/init-minio.sh'
 
