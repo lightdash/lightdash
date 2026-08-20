@@ -37,6 +37,7 @@ import {
 import { AiProvidersCard } from './AiProvidersCard';
 import { AiRouterInstructionsCard } from './AiRouterInstructionsCard';
 import { ReviewNotificationsSettings } from './ReviewNotificationsSettings';
+import { ThreadRetentionCard } from './ThreadRetentionCard';
 
 export const AiGeneralSettingsPage = () => {
     const { data: settings, isInitialLoading: isSettingsLoading } =
@@ -48,6 +49,9 @@ export const AiGeneralSettingsPage = () => {
         FeatureFlags.OrgAiProviderApiKeys,
     );
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const threadRetentionFlag = useServerFeatureFlag(
+        FeatureFlags.AiThreadRetention,
+    );
 
     const aiRouterQuery = useAiRouterConfig();
     const isRouterEnabled = aiRouterQuery.data?.enabled ?? false;
@@ -135,6 +139,12 @@ export const AiGeneralSettingsPage = () => {
                             />
                         </Group>
                     </SettingsCard>
+
+                    {threadRetentionFlag.data?.enabled && (
+                        <ThreadRetentionCard
+                            current={settings.threadRetentionHours ?? null}
+                        />
+                    )}
 
                     <SettingsCard>
                         <Stack gap="md">

@@ -1,4 +1,9 @@
-import { ProjectType, type AiAgentModelConfig } from '@lightdash/common';
+import {
+    MAX_RETENTION_WINDOW_HOURS,
+    MIN_RETENTION_WINDOW_HOURS,
+    ProjectType,
+    type AiAgentModelConfig,
+} from '@lightdash/common';
 import {
     AppShell,
     Box,
@@ -107,6 +112,12 @@ const formSchema = z.object({
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
     version: z.number(),
+    threadRetentionHours: z
+        .number()
+        .int()
+        .min(MIN_RETENTION_WINDOW_HOURS)
+        .max(MAX_RETENTION_WINDOW_HOURS)
+        .nullable(),
 });
 
 type Props = {
@@ -173,6 +184,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             adminOnly: false,
             modelConfig: null,
             version: 2, // INFO: Default to v2 for now
+            threadRetentionHours: null,
         },
         validate: zodResolver(formSchema),
     });
@@ -208,6 +220,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                 adminOnly: agent.adminOnly ?? false,
                 modelConfig: agent.modelConfig ?? null,
                 version: agent.version ?? 2, // INFO: Default to v2 for now
+                threadRetentionHours: agent.threadRetentionHours ?? null,
             };
             form.setValues(values);
             form.resetDirty(values);
