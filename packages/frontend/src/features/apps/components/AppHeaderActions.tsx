@@ -118,8 +118,8 @@ type Props = {
  * per-surface differences come in via the `onEdit`/`shareUrl`/`navItem` slots.
  *
  * Edit-actions are gated by `useCanEditDataApp`, because the viewer can be
- * opened by users without manage rights. Duplicate is the exception — it forks
- * the app into a personal copy, so it only needs `useCanCreateDataApp`.
+ * opened by users without manage rights. Delivery actions use their dedicated
+ * permissions, while duplicate only needs `useCanCreateDataApp`.
  */
 const AppHeaderActions: FC<Props> = ({
     projectUuid,
@@ -155,6 +155,15 @@ const AppHeaderActions: FC<Props> = ({
     const canDuplicate = useCanCreateDataApp(projectUuid);
 
     const { user, health } = useApp();
+    const canCreateScheduledDeliveries =
+        user.data?.ability.can(
+            'create',
+            subject('ScheduledDeliveries', {
+                organizationUuid: user.data.organizationUuid,
+                projectUuid,
+            }),
+        ) === true;
+
     // Same health check the chart/SQL chart Google Sheets Sync entries gate
     // on — Drive picker credentials must be configured.
     const hasGoogleDriveEnabled =
@@ -350,7 +359,7 @@ const AppHeaderActions: FC<Props> = ({
                     >
                         View network
                     </Menu.Item>
-                    {canEdit && (
+                    {canCreateScheduledDeliveries && (
                         <Menu.Item
                             leftSection={
                                 <MantineIcon icon={IconSend} size={14} />
@@ -360,7 +369,7 @@ const AppHeaderActions: FC<Props> = ({
                             Schedule delivery
                         </Menu.Item>
                     )}
-                    {canEdit && hasGoogleDriveEnabled && (
+                    {canCreateScheduledDeliveries && hasGoogleDriveEnabled && (
                         <Can
                             I="manage"
                             this={subject('GoogleSheets', {
