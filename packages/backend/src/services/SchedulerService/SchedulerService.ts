@@ -671,8 +671,20 @@ export class SchedulerService extends BaseService {
         user: SessionUser,
         appUuid: string,
     ): Promise<SchedulerAndTargets[]> {
-        await this.checkAppScheduledDeliveryAccess(user, appUuid);
-        return this.schedulerModel.getAppSchedulers(appUuid);
+        const app = await this.checkAppScheduledDeliveryAccess(user, appUuid);
+        // Same narrowing as the chart/SQL chart lists — without `manage` you
+        // only see the deliveries you created, not other users' recipients.
+        const canManageAll = this.createAuditedAbility(user).can(
+            'manage',
+            subject('ScheduledDeliveries', {
+                organizationUuid: app.organization_uuid,
+                projectUuid: app.project_uuid,
+            }),
+        );
+        return this.schedulerModel.getAppSchedulers(
+            appUuid,
+            canManageAll ? undefined : user.userUuid,
+        );
     }
 
     async createAppScheduler(

@@ -518,6 +518,105 @@ describe('SchedulerService', () => {
         });
     });
 
+    describe('getAppSchedulers', () => {
+        const listAppUuid = 'listAppUuid';
+        const listAppRow = {
+            app_uuid: listAppUuid,
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            space_uuid: null,
+            created_by_user_uuid: 'otherUserUuid',
+            name: 'Sales App',
+        };
+
+        const viewDataApp: RawRuleOf<Ability<PossibleAbilities>> = {
+            subject: 'DataApp',
+            action: ['view'],
+            conditions: { organizationUuid },
+        };
+        const createDeliveries: RawRuleOf<Ability<PossibleAbilities>> = {
+            subject: 'ScheduledDeliveries',
+            action: ['create'],
+            conditions: { organizationUuid },
+        };
+
+        const buildAppListService = () => {
+            const appListSchedulerModel = {
+                getAppSchedulers: vi.fn(async () => []),
+            };
+            const appListService = new SchedulerService({
+                lightdashConfig: lightdashConfigMock,
+                analytics: analyticsMock,
+                schedulerModel:
+                    appListSchedulerModel as unknown as SchedulerModel,
+                dashboardModel: {} as DashboardModel,
+                savedChartModel: {} as SavedChartModel,
+                savedSqlModel: {} as SavedSqlModel,
+                appModel: {
+                    findAppByUuid: vi.fn(async () => listAppRow),
+                } as unknown as AppModel,
+                projectModel: {} as ProjectModel,
+                schedulerClient: {} as SchedulerClient,
+                slackClient: {} as SlackClient,
+                emailClient: {} as EmailClient,
+                userModel: {} as UserModel,
+                googleDriveClient: {} as GoogleDriveClient,
+                userService: {} as UserService,
+                jobModel: {} as JobModel,
+                spacePermissionService:
+                    spacePermissionService as unknown as SpacePermissionService,
+            });
+            return { appListService, appListSchedulerModel };
+        };
+
+        test('returns only the requesting user’s schedulers when they cannot manage all deliveries', async () => {
+            const { appListService, appListSchedulerModel } =
+                buildAppListService();
+            const user = buildUser([viewDataApp, createDeliveries]);
+
+            await appListService.getAppSchedulers(user, listAppUuid);
+
+            expect(appListSchedulerModel.getAppSchedulers).toHaveBeenCalledWith(
+                listAppUuid,
+                user.userUuid,
+            );
+        });
+
+        test('returns every scheduler when the user can manage all deliveries', async () => {
+            const { appListService, appListSchedulerModel } =
+                buildAppListService();
+            const user = buildUser([
+                viewDataApp,
+                createDeliveries,
+                {
+                    subject: 'ScheduledDeliveries',
+                    action: ['manage'],
+                    conditions: { organizationUuid },
+                },
+            ]);
+
+            await appListService.getAppSchedulers(user, listAppUuid);
+
+            expect(appListSchedulerModel.getAppSchedulers).toHaveBeenCalledWith(
+                listAppUuid,
+                undefined,
+            );
+        });
+
+        test('throws ForbiddenError before listing when the user cannot create deliveries', async () => {
+            const { appListService, appListSchedulerModel } =
+                buildAppListService();
+            const user = buildUser([viewDataApp]);
+
+            await expect(
+                appListService.getAppSchedulers(user, listAppUuid),
+            ).rejects.toThrowError(ForbiddenError);
+            expect(
+                appListSchedulerModel.getAppSchedulers,
+            ).not.toHaveBeenCalled();
+        });
+    });
+
     describe('reassignSchedulerOwner', () => {
         const gsheetsScheduler: ChartScheduler = {
             ...chartSchedulerInPrivateSpace,
