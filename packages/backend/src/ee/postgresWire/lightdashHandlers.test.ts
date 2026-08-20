@@ -152,6 +152,32 @@ describe('lightdash pgwire handlers: describe vs query', () => {
         ).resolves.toMatchObject({ type: 'rows', commandTag: 'SHOW' });
     });
 
+    it('answers schema probes without touching the warehouse', async () => {
+        runExploreQuery.mockClear();
+        await expect(
+            handlers.query(
+                session,
+                'SELECT orders_status FROM orders WHERE 1 = 0',
+            ),
+        ).resolves.toEqual({
+            type: 'rows',
+            fields: [{ name: 'orders_status', oid: 25 }],
+            rows: [],
+            commandTag: 'SELECT 0',
+        });
+        await expect(
+            handlers.query(
+                session,
+                'SELECT orders_status, orders_total FROM orders LIMIT 0',
+            ),
+        ).resolves.toMatchObject({
+            type: 'rows',
+            rows: [],
+            commandTag: 'SELECT 0',
+        });
+        expect(runExploreQuery).not.toHaveBeenCalled();
+    });
+
     it('surfaces compile errors from describe with the same SQLSTATE as query', async () => {
         const sql = 'SELECT nope FROM orders';
         await expect(handlers.describe(session, sql)).rejects.toMatchObject({

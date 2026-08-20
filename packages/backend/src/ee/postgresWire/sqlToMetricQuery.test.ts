@@ -1439,3 +1439,43 @@ describe('compileSqlToMetricQuery', () => {
         });
     });
 });
+
+describe('schema probes', () => {
+    it('marks WHERE 1=0 and LIMIT 0 as always empty without dropping the shape', () => {
+        const probe = compileSqlToMetricQuery(
+            'SELECT orders_status FROM orders WHERE 1 = 0',
+            CATALOG,
+        );
+        expect(probe.alwaysEmpty).toBe(true);
+        expect(probe.columns.map((c) => c.name)).toEqual(['orders_status']);
+        expect(probe.metricQuery.filters).toEqual({});
+
+        expect(
+            compileSqlToMetricQuery(
+                'SELECT orders_status FROM orders LIMIT 0',
+                CATALOG,
+            ).alwaysEmpty,
+        ).toBe(true);
+        expect(
+            compileSqlToMetricQuery(
+                'SELECT orders_status FROM orders WHERE 1 != 1',
+                CATALOG,
+            ).alwaysEmpty,
+        ).toBe(true);
+        expect(
+            compileSqlToMetricQuery(
+                "SELECT orders_status FROM orders WHERE 1 = 0 AND orders_status = 'completed'",
+                CATALOG,
+            ).alwaysEmpty,
+        ).toBe(true);
+    });
+
+    it('keeps real filters non-empty and still folds tautologies', () => {
+        const query = compileSqlToMetricQuery(
+            "SELECT orders_status FROM orders WHERE 1 = 1 AND orders_status = 'completed'",
+            CATALOG,
+        );
+        expect(query.alwaysEmpty).toBe(false);
+        expect(query.metricQuery.filters.dimensions).toBeDefined();
+    });
+});

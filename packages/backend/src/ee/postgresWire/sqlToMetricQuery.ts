@@ -364,6 +364,21 @@ const isTautology = (expr: Expr): boolean => {
     return false;
 };
 
+/** WHERE 1=0 and friends: the schema-probe idiom connectors use to read a table's shape */
+const isContradiction = (expr: Expr): boolean => {
+    if (expr.type === 'boolean' && expr.value === false) return true;
+    if (
+        expr.type === 'binary' &&
+        (expr.op === '=' || expr.op === '!=') &&
+        isLiteralExpr(expr.left) &&
+        isLiteralExpr(expr.right)
+    ) {
+        const equal = literalValue(expr.left) === literalValue(expr.right);
+        return expr.op === '=' ? !equal : equal;
+    }
+    return false;
+};
+
 const compileFilterExpr = (
     ctx: CompilerContext,
     expr: Expr,
@@ -860,9 +875,12 @@ export const compileSqlToMetricQuery = (
     const metricFilters: FilterGroupItem[] = [];
     const tableCalcFilters: FilterGroupItem[] = [];
 
+    let alwaysEmpty = false;
     if (select.where) {
         for (const conjunct of flattenAnd(select.where)) {
-            if (!isTautology(conjunct)) {
+            if (isContradiction(conjunct)) {
+                alwaysEmpty = true;
+            } else if (!isTautology(conjunct)) {
                 const compiled = compileFilterExpr(ctx, conjunct);
                 const kind = asSingleKind(compiled, 'WHERE');
                 if (kind === 'dimension') dimensionFilters.push(compiled.item);
@@ -1005,5 +1023,10 @@ export const compileSqlToMetricQuery = (
         tableCalculations,
     };
 
-    return { table, metricQuery, columns };
+    return {
+        table,
+        metricQuery,
+        columns,
+        alwaysEmpty: alwaysEmpty || limit === 0,
+    };
 };
