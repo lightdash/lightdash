@@ -1,3 +1,10 @@
+# [1.224.0](https://github.com/lightdash/lightdash/compare/1.223.0...1.224.0) (2026-08-20)
+
+
+### Features
+
+* **external-sources:** route external explore queries to the DuckDB engine ([#27783](https://github.com/lightdash/lightdash/issues/27783)) ([3783c1e](https://github.com/lightdash/lightdash/commit/3783c1ef1b0e15deb16758bac91d687321a6b94d))
+
 # [1.223.0](https://github.com/lightdash/lightdash/compare/1.222.0...1.223.0) (2026-08-20)
 
 

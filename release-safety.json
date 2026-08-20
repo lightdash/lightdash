@@ -1,30 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "1.223.0",
-  "previousVersion": "1.222.0",
-  "releaseDate": "2026-08-20T18:55:37.002Z",
+  "version": "1.224.0",
+  "previousVersion": "1.223.0",
+  "releaseDate": "2026-08-20T19:07:21.046Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260819183000_create_external_sources_tables.ts",
-        "edition": "core",
-        "tables": [
-          "external_source_tables",
-          "external_sources",
-          "projects",
-          "users"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -36,14 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "GET /api/v1/projects/{projectUuid}/compile-logs — added the new `external_source` enum value to the `results/data/items/report/exploresWithErrors/items/allOf[#/components/schemas/Partial_Explore_]/type` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/compile-logs/job/{jobUuid} — added the new `external_source` enum value to the `results/log/report/exploresWithErrors/items/allOf[#/components/schemas/Partial_Explore_]/type` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/explores/{exploreId} — added the new `external_source` enum value to the `results/type` response property for the response status `200`",
-        "GET /api/v1/schedulers/runs/{runId}/logs — added the new `ingestExternalSource` enum value to the `results/logs/items/allOf[#/components/schemas/BaseSchedulerLog]/task` response property for the response status `200`",
-        "GET /api/v1/schedulers/{projectUuid}/logs — added the new `ingestExternalSource` enum value to the `results/data/logs/items/allOf[#/components/schemas/BaseSchedulerLog]/task` response property for the response status `200`"
-      ],
-      "advisoryCount": 5
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,
