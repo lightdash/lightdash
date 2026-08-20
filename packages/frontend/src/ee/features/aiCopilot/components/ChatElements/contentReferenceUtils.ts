@@ -24,6 +24,8 @@ export const getPromptContextItemKey = (item: AiPromptContextItem) => {
             return `file:${item.path}`;
         case 'repository':
             return `repository:${item.fullName}`;
+        case 'external_source':
+            return `external_source:${item.tableName}`;
         case 'pull_request':
             return `pull_request:${item.prUrl}`;
         case 'proposed_change':
@@ -56,6 +58,8 @@ const getPromptContextItemLabel = (item: AiPromptContextItem) => {
             return item.path;
         case 'repository':
             return item.fullName;
+        case 'external_source':
+            return item.tableName;
         case 'pull_request':
             return item.title ?? `PR #${item.prNumber ?? ''}`.trim();
         case 'proposed_change':
@@ -86,6 +90,7 @@ export const getPromptContextItemHref = (
         // an in-app route, so there is no link to offer.
         case 'file':
         case 'repository':
+        case 'external_source':
             return null;
         case 'pull_request':
             return item.prUrl;

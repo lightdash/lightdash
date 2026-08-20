@@ -209,6 +209,11 @@ export type AiPromptContextItemInput =
           fullName: string;
       }
     | {
+          // A durable table created from an uploaded CSV or connected sheet.
+          type: 'external_source';
+          tableName: string;
+      }
+    | {
           // The review-remediation pull request applying the proposed change.
           type: 'pull_request';
           prUrl: string;
@@ -271,6 +276,10 @@ export type AiPromptContextItem =
           // Resolved repository reference — a passthrough of the input.
           type: 'repository';
           fullName: string;
+      }
+    | {
+          type: 'external_source';
+          tableName: string;
       }
     | {
           type: 'pull_request';

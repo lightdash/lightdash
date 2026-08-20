@@ -6670,6 +6670,7 @@ How to build a pipeline:
 - Every query is a node. Name each node with "nodeId" (letters, digits, underscores; starting with a letter or underscore).
 - "semanticLayer" nodes run a metric query against an explore. Result columns are named by field id — exactly the dimensions and metrics requested (e.g. metric "payments_total_revenue" yields column "payments_total_revenue").
 - "sql" nodes run raw SQL against the project's data warehouse, in the warehouse's SQL dialect. Result columns are the SELECT output names. SQL execution may require the user to approve the SQL first.
+- "external" nodes run DuckDB SQL directly over uploaded CSV or connected Google Sheets source tables. Map each SQL table alias to its source table name with "tables". These nodes do not require warehouse SQL approval.
 - "duckdb" nodes run DuckDB SQL over other queries' results. Declare which results the SQL reads via "references": the shorthand array form lists node ids from this submission, each exposed as a table named by its node id (["orders", "revenue"] lets the SQL run SELECT * FROM orders JOIN revenue ...); the map form aliases tables or references stored results by queryUuid ({"o": "orders", "prev": "<queryUuid>"}). A referenced table's columns are the upstream result's columns.
 - The "terminal" node is the one whose results the artifact shows and whose rows are returned to you. By default it is the unique sink (the one node no other node references); pass "terminalNodeId" explicitly when the pipeline has multiple sinks.
 
@@ -6819,6 +6820,55 @@ Returns the terminal node's result columns and a CSV preview of its rows, plus p
                   "sourceType",
                   "nodeId",
                   "sql",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "limit": {
+                    "default": 500,
+                    "description": "Maximum number of rows this node returns. Defaults to 500, max 500.",
+                    "exclusiveMinimum": 0,
+                    "maximum": 500,
+                    "type": "integer",
+                  },
+                  "nodeId": {
+                    "description": "Names this query so other queries in the same submission can reference its results. Also the DuckDB table name its results are exposed as.",
+                    "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
+                    "type": "string",
+                  },
+                  "sourceType": {
+                    "const": "external",
+                    "type": "string",
+                  },
+                  "sql": {
+                    "description": "DuckDB SQL over uploaded CSV or connected Google Sheets source tables.",
+                    "type": "string",
+                  },
+                  "tables": {
+                    "anyOf": [
+                      {
+                        "items": {
+                          "type": "string",
+                        },
+                        "type": "array",
+                      },
+                      {
+                        "additionalProperties": {
+                          "type": "string",
+                        },
+                        "type": "object",
+                      },
+                    ],
+                    "description": "External source tables read by the SQL. An array exposes every source table under its own name; a map aliases SQL table names to source table names.",
+                  },
+                },
+                "required": [
+                  "sourceType",
+                  "nodeId",
+                  "sql",
+                  "tables",
                 ],
                 "type": "object",
               },

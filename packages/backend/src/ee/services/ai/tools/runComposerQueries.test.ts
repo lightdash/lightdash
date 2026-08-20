@@ -55,6 +55,14 @@ const duckdbNode: ComposerNode = {
     limit: 500,
 };
 
+const externalNode: ComposerNode = {
+    sourceType: QuerySourceType.EXTERNAL,
+    nodeId: 'targets',
+    sql: 'SELECT region, target FROM quarterly_targets',
+    tables: ['quarterly_targets'],
+    limit: 500,
+};
+
 const makeArgs = (
     overrides: Partial<ToolComposerQueriesArgs> = {},
 ): ToolComposerQueriesArgs => ({
@@ -242,6 +250,37 @@ describe('getRunComposerQueries', () => {
 
         expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
         expect(dependencies.recordSqlApproval).not.toHaveBeenCalled();
+        expect(output.metadata?.status).toBe('success');
+    });
+
+    it('passes external source nodes through without warehouse SQL approval', async () => {
+        const { tool, dependencies } = makeTool();
+
+        const output = await executeTool(
+            tool,
+            makeArgs({
+                queries: [
+                    semanticNode,
+                    externalNode,
+                    {
+                        ...duckdbNode,
+                        references: ['revenue', 'targets'],
+                    },
+                ],
+            }),
+        );
+
+        expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
+        expect(dependencies.runComposerQueries).toHaveBeenCalledWith(
+            expect.objectContaining({
+                queries: expect.arrayContaining([
+                    expect.objectContaining({
+                        sourceType: QuerySourceType.EXTERNAL,
+                        tables: ['quarterly_targets'],
+                    }),
+                ]),
+            }),
+        );
         expect(output.metadata?.status).toBe('success');
     });
 

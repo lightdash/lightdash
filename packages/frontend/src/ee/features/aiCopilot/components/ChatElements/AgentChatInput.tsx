@@ -3,12 +3,16 @@ import {
     type AiPromptContextInput,
     type AiPromptContextItem,
     type AiModelOption,
+    FeatureFlags,
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, Paper, Text, Tooltip } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
     IconArrowUp,
+    IconPaperclip,
     IconPlayerStop,
     IconTerminal2,
+    IconX,
 } from '@tabler/icons-react';
 import Mention from '@tiptap/extension-mention';
 import { type AnyExtension, type Editor } from '@tiptap/react';
@@ -20,7 +24,9 @@ import {
     ComposerSubmitButton,
     PromptComposer,
 } from '../../../../../components/common/PromptComposer';
+import { AddDataModal } from '../../../../../features/externalSources/components/AddDataModal';
 import useUser from '../../../../../hooks/user/useUser';
+import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { subscribeToDeepResearchComposerPrompt } from '../../deepResearch/deepResearchRegistry';
@@ -55,6 +61,7 @@ import {
     isContentMentionSuggestionActive,
     type ContentMentionSuggestionItem,
 } from './contentMentions';
+import { ContentReferenceLink } from './ContentReferenceLink';
 import { getAgentSuggestionModes } from './suggestionModes';
 
 const SUGGESTION_CHIP_MENTION_NAME = 'suggestionChip';
@@ -170,6 +177,14 @@ export const AgentChatInput = ({
 }: AgentChatInputProps) => {
     const user = useUser(true);
     const [value, setValueState] = useState(defaultValue ?? '');
+    const [attachedSourceTables, setAttachedSourceTables] = useState<string[]>(
+        [],
+    );
+    const [isUploadOpen, { open: openUpload, close: closeUpload }] =
+        useDisclosure(false);
+    const { data: externalSourcesFlag } = useServerFeatureFlag(
+        FeatureFlags.ExternalSources,
+    );
     const [hasClickedInput, setHasClickedInput] = useState(
         !revealControlsOnFocus,
     );
@@ -511,14 +526,26 @@ export const AgentChatInput = ({
             dismissDeepResearchNudgeForSession();
             setNudgeState('done');
         }
+        const mentionContext = extractContentMentionContext(ed);
+        const sourceContext = attachedSourceTables.map((tableName) => ({
+            type: 'external_source' as const,
+            tableName,
+        }));
+        const context = [...(mentionContext.context ?? []), ...sourceContext];
+        const optimisticContext = [
+            ...(mentionContext.optimisticContext ?? []),
+            ...sourceContext,
+        ];
         onSubmitRef.current({
             message: text,
             toolHints: extractToolHints(ed),
-            ...extractContentMentionContext(ed),
+            ...(context.length > 0 ? { context } : {}),
+            ...(optimisticContext.length > 0 ? { optimisticContext } : {}),
         });
         if (clearOnSubmitRef.current) {
             ed.commands.clearContent();
             setValueState('');
+            setAttachedSourceTables([]);
         }
     };
 
@@ -772,57 +799,125 @@ export const AgentChatInput = ({
         onValueChange: handleComposerValueChange,
         shouldBlockSubmit,
         onSubmit: handleSubmit,
+        attachments:
+            attachedSourceTables.length > 0 ? (
+                <Group gap="xs" wrap="wrap">
+                    {attachedSourceTables.map((tableName) => (
+                        <ContentReferenceLink
+                            key={tableName}
+                            kind="external_source"
+                            showArrow={false}
+                        >
+                            <Group gap={4} wrap="nowrap">
+                                <span>{tableName}</span>
+                                <ActionIcon
+                                    size="xs"
+                                    variant="transparent"
+                                    color="gray"
+                                    aria-label={`Remove ${tableName}`}
+                                    onClick={() =>
+                                        setAttachedSourceTables((tables) =>
+                                            tables.filter(
+                                                (table) => table !== tableName,
+                                            ),
+                                        )
+                                    }
+                                >
+                                    <MantineIcon icon={IconX} size={11} />
+                                </ActionIcon>
+                            </Group>
+                        </ContentReferenceLink>
+                    ))}
+                </Group>
+            ) : undefined,
     };
+
+    const canUploadCsv =
+        !!projectUuid &&
+        externalSourcesFlag?.enabled === true &&
+        !disabled &&
+        !isEmbedAiAgentRoute();
+    const uploadAction = canUploadCsv ? (
+        <Tooltip label="Upload CSV" withArrow>
+            <ActionIcon
+                variant="subtle"
+                color="gray"
+                size="sm"
+                aria-label="Upload CSV"
+                onClick={openUpload}
+            >
+                <MantineIcon icon={IconPaperclip} size={15} />
+            </ActionIcon>
+        </Tooltip>
+    ) : null;
+    const uploadModal = projectUuid ? (
+        <AddDataModal
+            projectUuid={projectUuid}
+            opened={isUploadOpen}
+            onClose={closeUpload}
+            onCreated={(tableName) => {
+                setAttachedSourceTables((tables) =>
+                    tables.includes(tableName)
+                        ? tables
+                        : [...tables, tableName],
+                );
+            }}
+        />
+    ) : null;
 
     if (isMinimalMode) {
         return (
-            <Box
-                className={`${styles.minimalContainer} ${
-                    fullWidth ? styles.minimalContainerFullWidth : ''
-                }`}
-                ref={rootRef}
-            >
-                {isThreadInput && renderChipRow(styles.threadChipFlow)}
+            <>
+                <Box
+                    className={`${styles.minimalContainer} ${
+                        fullWidth ? styles.minimalContainerFullWidth : ''
+                    }`}
+                    ref={rootRef}
+                >
+                    {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
-                <Box className={styles.threadInputStack}>
-                    <PromptComposer
-                        {...composerCommonProps}
-                        variant="inline"
-                        toolbarRight={
-                            <Group gap={4} align="center" wrap="nowrap">
-                                {deepResearchControl}
-                                {renderComposerAction('sm')}
-                            </Group>
-                        }
-                    />
-                </Box>
+                    <Box className={styles.threadInputStack}>
+                        <PromptComposer
+                            {...composerCommonProps}
+                            variant="inline"
+                            toolbarRight={
+                                <Group gap={4} align="center" wrap="nowrap">
+                                    {uploadAction}
+                                    {deepResearchControl}
+                                    {renderComposerAction('sm')}
+                                </Group>
+                            }
+                        />
+                    </Box>
 
-                {shouldShowDeepResearchBelowComposer
-                    ? renderExternalModeControls({
-                          actionSize: 'sm',
-                          iconSize: 14,
-                      })
-                    : showSqlModeControl && (
-                          <Box className={styles.belowComposerControls}>
-                              {renderSqlModeControl({
-                                  actionSize: 'sm',
-                                  iconSize: 14,
-                              })}
-                          </Box>
-                      )}
+                    {shouldShowDeepResearchBelowComposer
+                        ? renderExternalModeControls({
+                              actionSize: 'sm',
+                              iconSize: 14,
+                          })
+                        : showSqlModeControl && (
+                              <Box className={styles.belowComposerControls}>
+                                  {renderSqlModeControl({
+                                      actionSize: 'sm',
+                                      iconSize: 14,
+                                  })}
+                              </Box>
+                          )}
 
-                {!isThreadInput &&
-                    renderChipRow(
-                        styles.chipTray,
-                        shouldReserveEmptyStateSuggestions,
+                    {!isThreadInput &&
+                        renderChipRow(
+                            styles.chipTray,
+                            shouldReserveEmptyStateSuggestions,
+                        )}
+
+                    {showDisabledBanner && (
+                        <Text size="xs" c="dimmed" ta="right" mt="xs" px="sm">
+                            {disabledReason}
+                        </Text>
                     )}
-
-                {showDisabledBanner && (
-                    <Text size="xs" c="dimmed" ta="right" mt="xs" px="sm">
-                        {disabledReason}
-                    </Text>
-                )}
-            </Box>
+                </Box>
+                {uploadModal}
+            </>
         );
     }
 
@@ -843,11 +938,14 @@ export const AgentChatInput = ({
                 className={styles.agentComposer}
                 onMouseDown={handleInputCardMouseDown}
                 toolbarLeft={
-                    !shouldShowDeepResearchBelowComposer &&
-                    renderSqlModeControl({
-                        actionSize: 30,
-                        iconSize: 15,
-                    })
+                    <Group gap={4} wrap="nowrap">
+                        {uploadAction}
+                        {!shouldShowDeepResearchBelowComposer &&
+                            renderSqlModeControl({
+                                actionSize: 30,
+                                iconSize: 15,
+                            })}
+                    </Group>
                 }
                 toolbarRight={
                     <Group gap="xs" align="center" wrap="nowrap">
@@ -913,6 +1011,7 @@ export const AgentChatInput = ({
                     </Text>
                 </Paper>
             )}
+            {uploadModal}
         </Box>
     );
 };

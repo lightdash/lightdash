@@ -682,6 +682,8 @@ const toOptimisticContextItem = (
             return { type: 'file', path: item.path };
         case 'repository':
             return { type: 'repository', fullName: item.fullName };
+        case 'external_source':
+            return { type: 'external_source', tableName: item.tableName };
         case 'pull_request':
             return {
                 type: 'pull_request',

@@ -439,6 +439,7 @@ export type AiPromptContextEntityType =
     | 'thread'
     | 'file'
     | 'repository'
+    | 'external_source'
     | 'pull_request'
     | 'proposed_change'
     | 'review_finding'

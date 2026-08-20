@@ -6363,6 +6363,15 @@ export class AiAgentModel {
                         entity_ref: ctx.fullName,
                         display_name: ctx.fullName,
                     };
+                case 'external_source':
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type:
+                            'external_source' as AiPromptContextEntityType,
+                        entity_uuid: null,
+                        entity_ref: ctx.tableName,
+                        display_name: ctx.tableName,
+                    };
                 // Review-remediation references store their natural key
                 // (PR url / finding fingerprint) in entity_ref and resolve the
                 // live data at read time. preview_environment keys off a real
@@ -6667,6 +6676,11 @@ export class AiAgentModel {
                 return { type: 'file', path: row.entity_ref ?? '' };
             case 'repository':
                 return { type: 'repository', fullName: row.entity_ref ?? '' };
+            case 'external_source':
+                return {
+                    type: 'external_source',
+                    tableName: row.entity_ref ?? '',
+                };
             case 'pull_request': {
                 const prUrl = row.entity_ref ?? '';
                 return {

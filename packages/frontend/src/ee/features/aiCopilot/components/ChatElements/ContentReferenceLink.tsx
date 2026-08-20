@@ -9,6 +9,7 @@ import {
     IconGitPullRequest,
     IconLayoutDashboard,
     IconMessages,
+    IconTable,
     IconPencil,
     IconSearch,
     IconSend,
@@ -27,6 +28,7 @@ type ContentReferenceKind =
     | 'thread'
     | 'file'
     | 'repository'
+    | 'external_source'
     | 'pull_request'
     | 'proposed_change'
     | 'review_finding'
@@ -85,6 +87,12 @@ const getIconMeta = ({
                 color: 'ldGray.7',
                 fill: 'ldGray.4',
                 icon: IconBrandGithub,
+            };
+        case 'external_source':
+            return {
+                color: 'teal.7',
+                fill: 'teal.4',
+                icon: IconTable,
             };
         case 'pull_request':
             return {

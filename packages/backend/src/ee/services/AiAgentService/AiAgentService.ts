@@ -980,6 +980,9 @@ export class AiAgentService extends BaseService {
                 case 'repository':
                     key = `repository:${item.fullName}`;
                     break;
+                case 'external_source':
+                    key = `external_source:${item.tableName}`;
+                    break;
                 case 'pull_request':
                     key = `pull_request:${item.prUrl}`;
                     break;
@@ -1070,6 +1073,13 @@ export class AiAgentService extends BaseService {
                             'You do not have permission to view this project source code',
                         );
                     }
+                    return;
+                }
+
+                // The external query source applies project/explore access
+                // when it scans and executes this table. The context item is
+                // only a durable hint naming which table the user attached.
+                if (item.type === 'external_source') {
                     return;
                 }
 
@@ -8104,6 +8114,8 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     return `- File \`/dbt/${item.path}\` — a source file in this project's dbt repository. Read it with the exploreRepo tool.`;
                 case 'repository':
                     return `- Repository \`${item.fullName}\` (mounted at \`/${item.fullName}\`) — explore it with the exploreRepo tool.`;
+                case 'external_source':
+                    return `- External source table \`${item.tableName}\` — inspect the external query-source schema, then query it with an "external" node in runComposerQueries. Use \`tables: ["${item.tableName}"]\` (or an alias map) and DuckDB SQL. Join its result to other query results with a downstream "duckdb" node when needed.`;
                 case 'pull_request': {
                     const number = item.prNumber ? ` #${item.prNumber}` : '';
                     const title = item.title ? ` "${item.title}"` : '';

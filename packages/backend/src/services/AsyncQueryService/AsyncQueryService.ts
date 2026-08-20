@@ -7242,6 +7242,13 @@ export class AsyncQueryService extends ProjectService {
                         `External source table "${reference}" has no ingested data yet. Refresh the source and try again`,
                     );
                 }
+                if (
+                    table.external_source_status !== ExternalSourceStatus.READY
+                ) {
+                    throw new ParameterError(
+                        `External source table "${reference}" is not ready. Wait for its ingest to finish and try again`,
+                    );
+                }
                 return {
                     tableName,
                     tableUuid: table.external_source_table_uuid,

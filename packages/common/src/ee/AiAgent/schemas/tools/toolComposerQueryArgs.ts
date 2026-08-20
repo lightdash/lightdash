@@ -6,6 +6,7 @@ import {
 import {
     QuerySourceType,
     type DuckdbSourceQuery,
+    type ExternalSourceQuery,
     type SemanticLayerSourceQuery,
     type SqlSourceQuery,
 } from '../../../../types/querySources';
@@ -23,6 +24,7 @@ How to build a pipeline:
 - Every query is a node. Name each node with "nodeId" (letters, digits, underscores; starting with a letter or underscore).
 - "semanticLayer" nodes run a metric query against an explore. Result columns are named by field id — exactly the dimensions and metrics requested (e.g. metric "payments_total_revenue" yields column "payments_total_revenue").
 - "sql" nodes run raw SQL against the project's data warehouse, in the warehouse's SQL dialect. Result columns are the SELECT output names. SQL execution may require the user to approve the SQL first.
+- "external" nodes run DuckDB SQL directly over uploaded CSV or connected Google Sheets source tables. Map each SQL table alias to its source table name with "tables". These nodes do not require warehouse SQL approval.
 - "duckdb" nodes run DuckDB SQL over other queries' results. Declare which results the SQL reads via "references": the shorthand array form lists node ids from this submission, each exposed as a table named by its node id (["orders", "revenue"] lets the SQL run SELECT * FROM orders JOIN revenue ...); the map form aliases tables or references stored results by queryUuid ({"o": "orders", "prev": "<queryUuid>"}). A referenced table's columns are the upstream result's columns.
 - The "terminal" node is the one whose results the artifact shows and whose rows are returned to you. By default it is the unique sink (the one node no other node references); pass "terminalNodeId" explicitly when the pipeline has multiple sinks.
 
@@ -133,9 +135,26 @@ export const createToolComposerQueriesArgsSchema = ({
         limit: limitSchema,
     });
 
+    const externalNodeSchema = z.object({
+        sourceType: z.literal(QuerySourceType.EXTERNAL),
+        nodeId: nodeIdSchema,
+        sql: z
+            .string()
+            .describe(
+                'DuckDB SQL over uploaded CSV or connected Google Sheets source tables.',
+            ),
+        tables: z
+            .union([z.array(z.string()), z.record(z.string(), z.string())])
+            .describe(
+                'External source tables read by the SQL. An array exposes every source table under its own name; a map aliases SQL table names to source table names.',
+            ),
+        limit: limitSchema,
+    });
+
     const sourceQueryNodeSchema = z.discriminatedUnion('sourceType', [
         semanticLayerNodeSchema,
         sqlNodeSchema,
+        externalNodeSchema,
         duckdbNodeSchema,
     ]);
 
@@ -181,7 +200,11 @@ export type ToolComposerQueryNode = z.infer<
  */
 export const toolComposerQueryNodeToSourceQuery = (
     node: ToolComposerQueryNode,
-): SemanticLayerSourceQuery | SqlSourceQuery | DuckdbSourceQuery => {
+):
+    | SemanticLayerSourceQuery
+    | SqlSourceQuery
+    | ExternalSourceQuery
+    | DuckdbSourceQuery => {
     switch (node.sourceType) {
         case QuerySourceType.SEMANTIC_LAYER: {
             const filters: MetricQueryRequest['filters'] | undefined =
@@ -203,6 +226,14 @@ export const toolComposerQueryNodeToSourceQuery = (
                 sourceType: node.sourceType,
                 nodeId: node.nodeId,
                 sql: node.sql,
+                limit: node.limit,
+            };
+        case QuerySourceType.EXTERNAL:
+            return {
+                sourceType: node.sourceType,
+                nodeId: node.nodeId,
+                sql: node.sql,
+                tables: node.tables,
                 limit: node.limit,
             };
         case QuerySourceType.DUCKDB:
