@@ -26,7 +26,6 @@ import { ResourceInfoPopup } from '../../../../components/common/ResourceInfoPop
 import { TitleBreadCrumbs } from '../../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
 import AddTilesToDashboardModal from '../../../../components/SavedDashboards/AddTilesToDashboardModal';
 import { useProject } from '../../../../hooks/useProject';
-import { Can } from '../../../../providers/Ability';
 import useApp from '../../../../providers/App/useApp';
 import { PromotionConfirmDialog } from '../../../promotion/components/PromotionConfirmDialog';
 import {
@@ -137,6 +136,19 @@ export const HeaderView: FC = () => {
         health.data?.auth.google.oauth2ClientId !== undefined &&
         health.data?.auth.google.googleDriveApiKey !== undefined;
 
+    // Creating a sync needs delivery + Drive permissions, not chart edit
+    // rights — the same gate the saved chart and data app headers use.
+    const canSyncWithGoogleSheets =
+        hasGoogleDriveEnabled &&
+        canCreateScheduledDeliveries === true &&
+        user.data?.ability?.can(
+            'manage',
+            subject('GoogleSheets', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+            }),
+        ) === true;
+
     const { mutate: promoteSqlChart } = usePromoteSqlChartMutation(projectUuid);
     const {
         mutate: getPromoteSqlChartDiff,
@@ -207,7 +219,7 @@ export const HeaderView: FC = () => {
                             </Button>
                         )}
 
-                        {canManageChart && (
+                        {(canManageChart || canSyncWithGoogleSheets) && (
                             <Menu
                                 position="bottom"
                                 withArrow
@@ -221,49 +233,40 @@ export const HeaderView: FC = () => {
                                     </ActionIcon>
                                 </Menu.Target>
                                 <Menu.Dropdown>
-                                    <Menu.Label>Manage</Menu.Label>
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconLayoutGridAdd}
-                                            />
-                                        }
-                                        onClick={() =>
-                                            dispatch(
-                                                toggleModal('addToDashboard'),
-                                            )
-                                        }
-                                    >
-                                        Add to dashboard
-                                    </Menu.Item>
-                                    {hasGoogleDriveEnabled &&
-                                        canCreateScheduledDeliveries && (
-                                            <Can
-                                                I="manage"
-                                                this={subject('GoogleSheets', {
-                                                    organizationUuid:
-                                                        user.data
-                                                            ?.organizationUuid,
-                                                    projectUuid,
-                                                })}
+                                    {canManageChart && (
+                                        <>
+                                            <Menu.Label>Manage</Menu.Label>
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconLayoutGridAdd}
+                                                    />
+                                                }
+                                                onClick={() =>
+                                                    dispatch(
+                                                        toggleModal(
+                                                            'addToDashboard',
+                                                        ),
+                                                    )
+                                                }
                                             >
-                                                <Menu.Item
-                                                    leftSection={
-                                                        <MantineIcon
-                                                            icon={
-                                                                IconCirclesRelation
-                                                            }
-                                                        />
-                                                    }
-                                                    onClick={
-                                                        syncModalHandlers.open
-                                                    }
-                                                >
-                                                    Google Sheets Sync
-                                                </Menu.Item>
-                                            </Can>
-                                        )}
-                                    {canPromoteChart && (
+                                                Add to dashboard
+                                            </Menu.Item>
+                                        </>
+                                    )}
+                                    {canSyncWithGoogleSheets && (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconCirclesRelation}
+                                                />
+                                            }
+                                            onClick={syncModalHandlers.open}
+                                        >
+                                            Google Sheets Sync
+                                        </Menu.Item>
+                                    )}
+                                    {canManageChart && canPromoteChart && (
                                         <Tooltip
                                             label="You must enable first an upstream project in settings > Data ops"
                                             disabled={
@@ -296,23 +299,27 @@ export const HeaderView: FC = () => {
                                             </div>
                                         </Tooltip>
                                     )}
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconTrash}
-                                                color="red"
-                                            />
-                                        }
-                                        color="red"
-                                        disabled={!canManageSqlRunner}
-                                        onClick={() =>
-                                            dispatch(
-                                                toggleModal('deleteChartModal'),
-                                            )
-                                        }
-                                    >
-                                        Delete
-                                    </Menu.Item>
+                                    {canManageChart && (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconTrash}
+                                                    color="red"
+                                                />
+                                            }
+                                            color="red"
+                                            disabled={!canManageSqlRunner}
+                                            onClick={() =>
+                                                dispatch(
+                                                    toggleModal(
+                                                        'deleteChartModal',
+                                                    ),
+                                                )
+                                            }
+                                        >
+                                            Delete
+                                        </Menu.Item>
+                                    )}
                                 </Menu.Dropdown>
                             </Menu>
                         )}
