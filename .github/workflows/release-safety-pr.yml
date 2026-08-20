@@ -217,10 +217,19 @@ jobs:
               core.warning(`Could not verify the describes-stamp: ${error.message}`);
             }
 
+      # SPK-1218: blobless, like the release job's checkout (SPK-997). `fetch-depth: 0`
+      # makes actions/checkout fetch every branch and every tag with full history —
+      # 1,900 branches and 7,500 tags here, 571 MiB — and `fetch-tags: false` does not
+      # stop it, because checkout hardcodes `+refs/tags/*:refs/tags/*` into the refspec
+      # whenever the depth is 0. When a stack submit starts ~10 of these runs at once,
+      # server-side pack generation stalls and the fetch sends nothing until the job's
+      # 10-minute timeout kills it. Filtered, the same fetch moves 95 MiB. Only the
+      # commit graph is needed here: `git merge-base` reads no file contents.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         if: steps.watched.outputs.watched == 'true'
         with:
           fetch-depth: 0
+          filter: blob:none
 
       # Resolved once, here, and reused by every job: the spec pair, the migration
       # diff and the comment's base label all have to describe the same comparison.
@@ -422,9 +431,13 @@ jobs:
         with:
           egress-policy: audit
 
+      # SPK-1218: blobless, for the reason spelled out on the `changes` checkout.
+      # The gates only diff against `base_sha`, so the blobs they touch are lazily
+      # fetched on demand instead of every ref's full contents arriving up front.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
+          filter: blob:none
 
       # SPK-1021: pnpm is set up BEFORE setup-node so that `cache: 'pnpm'` can
       # resolve the store path — setup-node shells out to pnpm to find it, and
