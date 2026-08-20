@@ -33,6 +33,7 @@ import {
     selectIsEditMode,
     selectIsVisualizationConfigOpen,
     selectIsVisualizationExpanded,
+    selectParameters,
     selectSavedChart,
     selectSorts,
     selectTableCalculationsMetadata,
@@ -206,6 +207,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
     }, [query.data, queryResults, mergeResults, suppressPrimaryResults]);
 
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
+    const parameters = useExplorerSelector(selectParameters);
     const visualizationMetricQuery = suppressPrimaryResults
         ? undefined
         : (mergeResults?.metricQuery ?? unsavedChartVersion.metricQuery);
@@ -401,6 +403,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
                 metricQuery: unsavedChartVersion?.metricQuery,
                 columnOrder: exportColumnOrder,
                 showTableNames,
+                parameters,
                 customLabels,
                 hiddenFields: getHiddenTableFields(
                     unsavedChartVersion.chartConfig,
