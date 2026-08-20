@@ -1,6 +1,6 @@
 import { type ContentVerificationInfo } from './contentVerification';
 import { type FilterableDimension, type Metric } from './field';
-import { type DashboardFilters } from './filter';
+import { type DashboardFieldTarget, type DashboardFilters } from './filter';
 import { type KnexPaginatedData } from './knex-paginate';
 import { type DashboardParameters } from './parameters';
 import {
@@ -335,6 +335,10 @@ export type DashboardAvailableFilters = {
     allFilterableFields: FilterableDimension[];
     allFilterableMetrics: Metric[];
     savedQueryMetricFilters: Record<string, number[]>;
+    // Wire-compat with SDK bundles 1.64.0-1.197.x: those frontends call
+    // Object.entries() on this key unguarded, so it must stay present (empty)
+    // even though the auto-mapping feature it fed was removed in #27619.
+    defaultTimeDimensions?: Record<string, DashboardFieldTarget>;
 };
 
 export type SavedChartsInfoForDashboardAvailableFilters = {
