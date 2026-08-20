@@ -5,7 +5,8 @@ export const oauthPageStyles = `
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Open Sans', 'Helvetica Neue', sans-serif;
         background-color: #f8fafc;
         margin: 0;
-        padding: 0;
+        padding: 20px;
+        box-sizing: border-box;
         min-height: 100vh;
         display: flex;
         align-items: center;
@@ -19,8 +20,10 @@ export const oauthPageStyles = `
         border: 1px solid #e9ecef;
         box-shadow: 0px 1px 2px 0px rgba(10, 13, 18, 0.05);
         padding: 24px;
-        max-width: 400px;
-        width: 90%;
+        margin: 0;
+        box-sizing: border-box;
+        max-width: 450px;
+        width: 100%;
         text-align: center;
     }
     .logo {
@@ -82,6 +85,7 @@ const LIGHTDASH_LOGO_SVG = `
 const OAUTH_RESPONSE_TEMPLATE = `
 <html>
     <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <style>{{{styles}}}</style>
     </head>
     <body>
@@ -105,6 +109,7 @@ const OAUTH_RESPONSE_TEMPLATE = `
 const OAUTH_AUTHORIZE_TEMPLATE = `
 <html>
     <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>Authorize Application</title>
         <style>
             {{{styles}}}
