@@ -12,7 +12,9 @@ import {
     toolRunQueryArgsSchemaTransformed,
     toolRunQueryArgsSchemaV1,
     toolRunQueryArgsSchemaV2,
+    toolRunQueryArgsSchemaV2FormulaOnly,
     toolRunQueryArgsSchemaV2RejectingMerge,
+    toolRunQueryArgsSchemaV2Transformed,
     toolRunQueryArgsSchemaV3,
 } from './toolRunQueryArgs';
 
@@ -259,5 +261,57 @@ describe('isRunQueryArgsV1', () => {
 
         expect(isRunQueryArgsV1(v1)).toBe(true);
         expect(isRunQueryArgsV1(v2)).toBe(false);
+    });
+});
+
+const templateCalc = {
+    type: 'running_total',
+    name: 'running_revenue',
+    displayName: 'Running Revenue',
+    fieldId: 'orders_revenue',
+};
+
+const formulaCalc = {
+    type: 'formula',
+    name: 'aov',
+    displayName: 'AOV',
+    formula: 'orders_revenue / orders_count',
+    format: null,
+    resultType: null,
+};
+
+// MCP run_metric_query and merge-disabled agent runtimes advertise this;
+// templates must fail at the boundary while the execution parse stays wide.
+describe('toolRunQueryArgsSchemaV2FormulaOnly', () => {
+    it('accepts formula table calcs', () => {
+        expect(
+            toolRunQueryArgsSchemaV2FormulaOnly.safeParse(
+                buildV2Args({ tableCalculations: [formulaCalc] }),
+            ).success,
+        ).toBe(true);
+    });
+
+    it('rejects legacy template table calcs', () => {
+        expect(
+            toolRunQueryArgsSchemaV2FormulaOnly.safeParse(
+                buildV2Args({ tableCalculations: [templateCalc] }),
+            ).success,
+        ).toBe(false);
+    });
+
+    it('rejects template calcs through the merge-rejecting variant too', () => {
+        expect(
+            toolRunQueryArgsSchemaV2RejectingMerge.safeParse(
+                buildV2Args({ tableCalculations: [templateCalc] }),
+            ).success,
+        ).toBe(false);
+    });
+
+    it('wide transformed parse still accepts persisted template payloads', () => {
+        expect(
+            toolRunQueryArgsSchemaV2Transformed.safeParse(
+                buildV2Args({ tableCalculations: [templateCalc] }),
+            ).success,
+        ).toBe(true);
     });
 });

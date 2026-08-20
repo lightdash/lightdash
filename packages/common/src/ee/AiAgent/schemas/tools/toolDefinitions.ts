@@ -258,7 +258,7 @@ import {
     toolRenderChartArgsSchemaTransformed,
     toolRunQueryArgsSchema,
     toolRunQueryArgsSchemaTransformed,
-    toolRunQueryArgsSchemaV2,
+    toolRunQueryArgsSchemaV2FormulaOnly,
     toolRunQueryArgsSchemaV2RejectingMerge,
     toolRunQueryArgsSchemaV2Transformed,
     toolRunQueryOutputSchema,
@@ -527,7 +527,7 @@ export const generateVisualizationToolDefinition: ToolDefinitionWithoutMcpOutput
 
 export const runQueryToolDefinition: ToolDefinitionWithMcpOutput<
     'runQuery',
-    typeof toolRunQueryArgsSchemaV2,
+    typeof toolRunQueryArgsSchemaV2FormulaOnly,
     typeof toolRunQueryArgsSchemaV2Transformed,
     typeof toolRunQueryOutputSchema,
     typeof mcpRunMetricQueryStructuredOutputSchema
@@ -536,7 +536,10 @@ export const runQueryToolDefinition: ToolDefinitionWithMcpOutput<
     title: 'Run query',
     description: TOOL_RUN_QUERY_DESCRIPTION,
     availability: ['agent', 'mcp'],
-    inputSchema: toolRunQueryArgsSchemaV2,
+    // Formula-only advertised contract; incoming template calls fail
+    // validation at the boundary with an error the model can correct. The
+    // transformed parse stays wide for persisted-args replay.
+    inputSchema: toolRunQueryArgsSchemaV2FormulaOnly,
     inputSchemaTransformed: toolRunQueryArgsSchemaV2Transformed,
     agent: { outputSchema: toolRunQueryOutputSchema },
     mcp: {
@@ -551,7 +554,7 @@ export const runQueryToolDefinition: ToolDefinitionWithMcpOutput<
 // stripped to the primary query by Zod. Lazy, like `.for('agent')`.
 export const getRunQueryAgentViewRejectingMerge = (): AgentToolView<
     'runQuery',
-    typeof toolRunQueryArgsSchemaV2,
+    typeof toolRunQueryArgsSchemaV2FormulaOnly,
     typeof toolRunQueryOutputSchema
 > => ({
     ...runQueryToolDefinition.for('agent'),
