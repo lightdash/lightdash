@@ -75,6 +75,12 @@ import {
 } from '../database/entities/emailOneTimePasscodes';
 import { EmailTable, EmailTableName } from '../database/entities/emails';
 import {
+    ExternalSourceCredentialsTable,
+    ExternalSourceCredentialsTableName,
+    ExternalSourceIngestAttemptsTable,
+    ExternalSourceIngestAttemptsTableName,
+    ExternalSourceObjectsTable,
+    ExternalSourceObjectsTableName,
     ExternalSourcesTable,
     ExternalSourcesTableName,
     ExternalSourceTablesTable,
@@ -564,6 +570,9 @@ declare module 'knex/types/tables' {
         [EmailTableName]: EmailTable;
         [ExternalSourcesTableName]: ExternalSourcesTable;
         [ExternalSourceTablesTableName]: ExternalSourceTablesTable;
+        [ExternalSourceCredentialsTableName]: ExternalSourceCredentialsTable;
+        [ExternalSourceIngestAttemptsTableName]: ExternalSourceIngestAttemptsTable;
+        [ExternalSourceObjectsTableName]: ExternalSourceObjectsTable;
         [FeatureFlagsTableName]: FeatureFlagsTable;
         [FeatureFlagOverridesTableName]: FeatureFlagOverridesTable;
         [SessionTableName]: SessionTable;

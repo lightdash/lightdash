@@ -14,7 +14,8 @@ _Avoid_: connection (collides with data-app external connections), integration, 
 **Source table**:
 One queryable table belonging to an external source, backed by an ingested
 parquet file in object storage and surfaced as an explore. A CSV source has
-one table; a Google Sheets source can have one per tab.
+one table. The first release creates one Google Sheets source for one selected
+tab; multi-tab sources are not yet part of the API contract.
 _Avoid_: dataset, file, view
 
 **Ingest**:
@@ -28,6 +29,13 @@ A user-initiated request to ingest a source's current data again — re-reading
 the connected sheet, or replacing the uploaded file. Not dashboard
 auto-refresh.
 _Avoid_: sync, re-import, rebuild
+
+**Ingest attempt**:
+A durable, generation-specific request to ingest one source table. The
+scheduler payload names the attempt, not mutable source state. A lease and
+execution token fence timed-out workers; retries resume publication or rebuild
+into a new object without letting stale work publish.
+_Avoid_: job (the scheduler job is only one delivery mechanism), run
 
 **Staged upload**:
 An uploaded file that has been stored and sniffed but not yet confirmed as a
@@ -53,8 +61,31 @@ _Avoid_: path, URL, link
 - Storage lives in the pre-aggregates S3 bucket under
   `external-sources/{projectUuid}/{sourceUuid}/…` because the shared DuckDB
   engine's S3 session is configured exclusively from that bucket's config.
-- Rows are durable (no TTL), unlike query results. Deleting a source deletes
-  its rows and explores; ingested files are currently left in object storage
-  (cleanup is a follow-up).
+- Every raw/parquet object is registered before upload. Replaced, deleted,
+  failed, and abandoned-stage objects become `pending_delete`; a five-minute
+  maintenance task retries exact-key deletion. Manifests intentionally survive
+  source deletion until collection succeeds.
+- Google refresh tokens are encrypted and owned by the source, not looked up
+  through its creator. A manager can explicitly reconnect to replace that
+  credential with their current Google grant.
+- External query DuckDB clients are isolated, resource-limited, and create an
+  S3 secret scoped to the exact published object URI. User SQL remains
+  SELECT-only and file-reading functions remain blocked.
+- Customer rollout limits are configurable with `EXTERNAL_SOURCES_*`: upload
+  bytes, organization storage bytes, rows, Sheets batch size, concurrent
+  ingests, concurrent DuckDB queries, lease duration, stage TTL, and GC batch
+  size. Defaults: 100 MB/file, 5 GB/org, 1M rows, two concurrent ingests and
+  queries per organization.
 - Preview projects copy source rows with fresh uuids; the ingested files are
   shared by URI, not duplicated.
+
+## Operational caveats
+
+- The DuckDB query concurrency budget is process-local. Deployments with many
+  API workers should size the per-worker limit accordingly; ingest concurrency
+  is database-coordinated and therefore cluster-wide.
+- DuckDB `SCOPE` limits which URI receives the configured credential. Production
+  should still use dedicated S3/IAM credentials restricted to the
+  `external-sources/` prefix for defense in depth.
+- Sheets paging bounds application memory and applies byte/row caps, but Google
+  API rate limits still apply; scheduler retries use the same durable attempt.

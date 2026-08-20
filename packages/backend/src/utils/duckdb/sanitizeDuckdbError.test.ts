@@ -25,4 +25,35 @@ describe('sanitizeDuckdbError', () => {
             ),
         ).toBe('HTTP 404 at [external source data]: missing');
     });
+
+    it('redacts every locator and never leaves a quoted object-key suffix', () => {
+        expect(
+            sanitizeDuckdbError(
+                'Failed [s3://bucket/private-a.parquet], then "s3://bucket/private-b.csv?token=secret"',
+            ),
+        ).toBe(
+            'Failed [[external source data]], then "[external source data]"',
+        );
+    });
+
+    it('redacts a presigned external-source URL including its credentials', () => {
+        expect(
+            sanitizeDuckdbError(
+                "GET 'https://storage.example.com/external-sources/project/file.parquet?X-Amz-Credential=secret&X-Amz-Signature=private' failed",
+            ),
+        ).toBe("GET '[external source data]' failed");
+    });
+
+    it('does not redact unrelated HTTP URLs', () => {
+        const message =
+            'Request to https://docs.example.com/external-data/help failed';
+        expect(sanitizeDuckdbError(message)).toBe(message);
+    });
+
+    it('handles long malformed input without an unbounded wildcard', () => {
+        const locator = `s3://bucket/${'a'.repeat(50_000)}`;
+        expect(sanitizeDuckdbError(`Failed ${locator}`)).toBe(
+            'Failed [external source data]',
+        );
+    });
 });

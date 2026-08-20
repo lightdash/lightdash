@@ -341,4 +341,71 @@ describe('GoogleDriveClient', () => {
             ).toBeUndefined();
         });
     });
+
+    describe('row batches', () => {
+        test('reads bounded A1 ranges without loading the full tab', async () => {
+            vi.mocked(google.auth.fromJSON).mockReturnValue({} as never);
+            vi.mocked(google.auth.GoogleAuth).mockImplementation(
+                function MockGoogleAuth(this: object) {
+                    return this;
+                } as never,
+            );
+            const getMetadata = vi.fn().mockResolvedValue({
+                data: {
+                    sheets: [
+                        {
+                            properties: {
+                                title: "Q1's data",
+                                gridProperties: {
+                                    rowCount: 5,
+                                    columnCount: 28,
+                                },
+                            },
+                        },
+                    ],
+                },
+            });
+            const getValues = vi
+                .fn()
+                .mockResolvedValueOnce({ data: { values: [['h'], ['a']] } })
+                .mockResolvedValueOnce({ data: { values: [['b'], ['c']] } })
+                .mockResolvedValueOnce({ data: { values: [['d']] } });
+            vi.mocked(google.sheets).mockReturnValue({
+                spreadsheets: {
+                    get: getMetadata,
+                    values: { get: getValues },
+                },
+            } as never);
+            const client = new GoogleDriveClient({
+                lightdashConfig: {
+                    auth: {
+                        google: {
+                            oauth2ClientId: 'client-id',
+                            oauth2ClientSecret: 'client-secret',
+                        },
+                    },
+                },
+            } as never);
+
+            const batches: unknown[][][] = [];
+            // eslint-disable-next-line no-restricted-syntax
+            for await (const batch of client.getSheetRowBatches(
+                'refresh-token',
+                'file-id',
+                "Q1's data",
+                2,
+            )) {
+                batches.push(batch);
+            }
+
+            expect(batches).toHaveLength(3);
+            expect(
+                getValues.mock.calls.map(([request]) => request.range),
+            ).toEqual([
+                "'Q1''s data'!A1:AB2",
+                "'Q1''s data'!A3:AB4",
+                "'Q1''s data'!A5:AB5",
+            ]);
+        });
+    });
 });

@@ -221,8 +221,9 @@ const SheetsStep: FC<SheetsStepProps> = ({
                     </Callout>
                 )}
                 <Text fz="xs" c="dimmed">
-                    Reads the sheet with your Google account. Refresh the table
-                    any time from its menu.
+                    Copies your Google authorization to this project source, so
+                    refreshes keep working if your user leaves. Reconnect from
+                    the source menu to transfer ownership.
                 </Text>
                 <Group justify="space-between">
                     <Button

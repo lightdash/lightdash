@@ -232,6 +232,35 @@ export class ExternalSourceController extends BaseController {
     }
 
     /**
+     * Replace the project-owned Google credential with the current user's grant.
+     * @summary Reconnect a Google Sheets source
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/{sourceUuid}/reconnect')
+    @OperationId('ReconnectExternalSource')
+    async reconnectSource(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() sourceUuid: UUID,
+    ): Promise<ApiExternalSourceResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results:
+                await this.getExternalSourceService().reconnectGoogleSheets(
+                    req.account,
+                    projectUuid,
+                    sourceUuid,
+                ),
+        };
+    }
+
+    /**
      * Rename an external source's table. Only the display label changes;
      * the sql name stays stable so saved charts keep working.
      * @summary Rename an external source

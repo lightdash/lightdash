@@ -1140,8 +1140,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
         },
         modelProviders: {
-            externalSourceModel: ({ database }) =>
-                new ExternalSourceModel({ database }),
+            externalSourceModel: ({ database, utils }) =>
+                new ExternalSourceModel({
+                    database,
+                    encryptionUtil: utils.getEncryptionUtil(),
+                }),
             projectHomepageModel: ({ database }) =>
                 new ProjectHomepageModel({ database }),
             homepageRecommendedActionSkipsModel: ({ database }) =>

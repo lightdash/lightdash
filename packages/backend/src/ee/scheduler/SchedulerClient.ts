@@ -335,10 +335,6 @@ export class CommercialSchedulerClient extends SchedulerClient {
         return { jobId };
     }
 
-    /**
-     * One in-flight ingest per source: the stable jobKey replaces any queued
-     * ingest, so a refresh during a pending ingest coalesces.
-     */
     async ingestExternalSource(payload: IngestExternalSourceJobPayload) {
         const graphileClient = await this.graphileUtils;
         const { id: jobId } = await graphileClient.addJob(
@@ -346,8 +342,8 @@ export class CommercialSchedulerClient extends SchedulerClient {
             payload,
             {
                 runAt: new Date(),
-                maxAttempts: 1,
-                jobKey: `external-source-ingest:${payload.sourceUuid}`,
+                maxAttempts: 5,
+                jobKey: `external-source-ingest:${payload.attemptUuid}`,
             },
         );
         return { jobId };

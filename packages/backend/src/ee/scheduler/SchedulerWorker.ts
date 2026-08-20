@@ -126,7 +126,7 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     >;
     externalSourceService: Pick<
         ExternalSourceService,
-        'runIngest' | 'markIngestError'
+        'runIngest' | 'markIngestError' | 'maintain'
     >;
 };
 
@@ -201,6 +201,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
     protected getCronItems() {
         return [
             ...super.getCronItems(),
+            {
+                task: EE_SCHEDULER_TASKS.MAINTAIN_EXTERNAL_SOURCES,
+                pattern: '*/5 * * * *',
+                options: {
+                    backfillPeriod: 10 * 60 * 1000,
+                    maxAttempts: 3,
+                },
+            },
             {
                 task: EE_SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS,
                 pattern: '*/2 * * * *', // Every 2 minutes
@@ -735,10 +743,13 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     EXTERNAL_SOURCE_INGEST_TIMEOUT_MS,
                     async (_job, error) =>
                         this.externalSourceService.markIngestError(
-                            payload.sourceUuid,
+                            payload.attemptUuid,
                             error,
                         ),
                 );
+            },
+            [EE_SCHEDULER_TASKS.MAINTAIN_EXTERNAL_SOURCES]: async () => {
+                await this.externalSourceService.maintain();
             },
             [EE_SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE]: async (
                 payload,

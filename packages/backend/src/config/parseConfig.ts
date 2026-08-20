@@ -1711,6 +1711,14 @@ export type LightdashConfig = {
     externalSources: {
         /** Upload cap for external source files (CSV). Stored in the pre-aggregates bucket. */
         maxFileSizeBytes: number;
+        maxRows: number;
+        maxOrganizationBytes: number;
+        maxConcurrentIngestsPerOrganization: number;
+        maxConcurrentDuckdbQueriesPerOrganization: number;
+        googleSheetsBatchRows: number;
+        stagedUploadTtlHours: number;
+        ingestLeaseMs: number;
+        garbageCollectionBatchSize: number;
     };
     motherduckInstanceCache: {
         enabled: boolean;
@@ -3369,6 +3377,38 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'EXTERNAL_SOURCES_MAX_FILE_SIZE_BYTES',
                 ) ?? 100 * 1024 * 1024,
+            maxRows:
+                getIntegerFromEnvironmentVariable(
+                    'EXTERNAL_SOURCES_MAX_ROWS',
+                ) ?? 1_000_000,
+            maxOrganizationBytes:
+                getIntegerFromEnvironmentVariable(
+                    'EXTERNAL_SOURCES_MAX_ORGANIZATION_BYTES',
+                ) ?? 5 * 1024 * 1024 * 1024,
+            maxConcurrentIngestsPerOrganization:
+                getIntegerFromEnvironmentVariable(
+                    'EXTERNAL_SOURCES_MAX_CONCURRENT_INGESTS_PER_ORGANIZATION',
+                ) ?? 2,
+            maxConcurrentDuckdbQueriesPerOrganization:
+                getIntegerFromEnvironmentVariable(
+                    'EXTERNAL_SOURCES_MAX_CONCURRENT_DUCKDB_QUERIES_PER_ORGANIZATION',
+                ) ?? 2,
+            googleSheetsBatchRows:
+                getIntegerFromEnvironmentVariable(
+                    'EXTERNAL_SOURCES_GOOGLE_SHEETS_BATCH_ROWS',
+                ) ?? 5_000,
+            stagedUploadTtlHours:
+                getIntegerFromEnvironmentVariable(
+                    'EXTERNAL_SOURCES_STAGED_UPLOAD_TTL_HOURS',
+                ) ?? 24,
+            ingestLeaseMs:
+                getIntegerFromEnvironmentVariable(
+                    'EXTERNAL_SOURCES_INGEST_LEASE_MS',
+                ) ?? 35 * 60 * 1000,
+            garbageCollectionBatchSize:
+                getIntegerFromEnvironmentVariable(
+                    'EXTERNAL_SOURCES_GC_BATCH_SIZE',
+                ) ?? 100,
         },
         motherduckInstanceCache,
         usageEvents: {

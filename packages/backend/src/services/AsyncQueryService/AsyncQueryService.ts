@@ -366,6 +366,7 @@ type AsyncQueryExecutionPlan =
     | {
           target: 'external_source';
           warehouseQuery: string;
+          objectScope: string;
           preAggregateResolved?: false;
           preAggregateResolveReason?: string;
       }
@@ -561,7 +562,10 @@ export class AsyncQueryService extends ProjectService {
             userUuid: string;
             organizationUuid: string;
         },
-    ): Promise<{ cte: string; cacheKeySalt: string } | { error: string }> {
+    ): Promise<
+        | { cte: string; cacheKeySalt: string; objectScope: string }
+        | { error: string }
+    > {
         const { enabled } = await this.featureFlagModel.get({
             user: featureFlagContext,
             featureFlagId: FeatureFlags.ExternalSources,
@@ -603,6 +607,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             cte,
             cacheKeySalt: `esv:${ref.tableUuid}:${table.version}`,
+            objectScope: table.locator.uri,
         };
     }
 
@@ -614,7 +619,9 @@ export class AsyncQueryService extends ProjectService {
      */
     private static resolveExternalSourceExecutionPlan(
         query: string,
-        reference: { cte: string; cacheKeySalt: string } | { error: string },
+        reference:
+            | { cte: string; cacheKeySalt: string; objectScope: string }
+            | { error: string },
     ): AsyncQueryExecutionPlan {
         if ('error' in reference) {
             return { target: 'error', error: reference.error };
@@ -629,6 +636,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseQuery: AsyncQueryService.wrapSqlWithReferenceCtes(query, [
                 reference.cte,
             ]),
+            objectScope: reference.objectScope,
         };
     }
 
@@ -640,10 +648,13 @@ export class AsyncQueryService extends ProjectService {
     private async runExternalSourceQuery(
         warehouseArgs: RunAsyncWarehouseQueryArgs,
         account: Account,
+        objectScope: string,
     ): Promise<void> {
         try {
             const warehouseClient =
-                this.preAggregateStrategy.createExecutionWarehouseClient();
+                this.preAggregateStrategy.createExecutionWarehouseClient(
+                    objectScope,
+                );
             await this.runAsyncWarehouseQuery({
                 ...warehouseArgs,
                 warehouseClientOverride: warehouseClient,
@@ -4865,6 +4876,7 @@ export class AsyncQueryService extends ProjectService {
                                     return this.runExternalSourceQuery(
                                         warehouseArgs,
                                         account,
+                                        executionPlan.objectScope,
                                     );
                                 case 'materialization':
                                 case 'warehouse':

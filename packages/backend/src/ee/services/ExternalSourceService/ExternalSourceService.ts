@@ -15,6 +15,7 @@ import {
     parseGoogleSheetsSpreadsheetId,
     snakeCaseName,
     SupportedDbtAdapter,
+    TimeoutError,
     type CreateExternalSourceTablePayload,
     type CreateGoogleSheetsSourcePayload,
     type ExternalSource,
@@ -30,12 +31,13 @@ import {
     DuckdbWarehouseClient,
     warehouseSqlBuilderFromType,
 } from '@lightdash/warehouses';
-import { stringify } from 'csv-stringify/sync';
+import { stringify } from 'csv-stringify';
 import { once } from 'events';
-import { Readable } from 'stream';
+import { PassThrough, Readable } from 'stream';
 import { type GoogleDriveClient } from '../../../clients/Google/GoogleDriveClient';
 import { type S3ResultsFileStorageClient } from '../../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { type LightdashConfig } from '../../../config/parseConfig';
+import { type DbExternalSourceIngestAttempt } from '../../../database/entities/externalSources';
 import Logger from '../../../logging/logger';
 import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
@@ -52,7 +54,6 @@ import { type ExternalSourceModel } from '../../models/ExternalSourceModel';
 import { type CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 
 const INGEST_RESOURCE_LIMITS = { memoryLimit: '512MB', threads: 2 };
-const INGEST_INSTANCE_CACHE_KEY = 'external-source-ingest';
 const ERROR_MESSAGE_MAX_LENGTH = 500;
 const TABLE_NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
 
@@ -118,8 +119,10 @@ export class ExternalSourceService extends BaseService {
         projectUuid: UUID,
         sourceUuid: UUID,
         version: number,
+        executionUuid?: UUID,
     ): string {
-        return `external-sources/${projectUuid}/${sourceUuid}/raw/v${version}.csv`;
+        const executionSuffix = executionUuid ? `-${executionUuid}` : '';
+        return `external-sources/${projectUuid}/${sourceUuid}/raw/v${version}${executionSuffix}.csv`;
     }
 
     private static parquetKey(
@@ -127,8 +130,9 @@ export class ExternalSourceService extends BaseService {
         sourceUuid: UUID,
         tableUuid: UUID,
         version: number,
+        executionUuid: UUID,
     ): string {
-        return `external-sources/${projectUuid}/${sourceUuid}/${tableUuid}/v${version}.parquet`;
+        return `external-sources/${projectUuid}/${sourceUuid}/${tableUuid}/v${version}-${executionUuid}.parquet`;
     }
 
     private getBucket(): string {
@@ -158,7 +162,6 @@ export class ExternalSourceService extends BaseService {
             { type: 'duckdb_s3', s3Config },
             {
                 resourceLimits: INGEST_RESOURCE_LIMITS,
-                instanceCacheKey: INGEST_INSTANCE_CACHE_KEY,
                 logger: Logger,
             },
         );
@@ -228,6 +231,43 @@ export class ExternalSourceService extends BaseService {
         }
     }
 
+    private async uploadTrackedObject(data: {
+        organizationUuid: UUID;
+        projectUuid: UUID;
+        sourceUuid: UUID;
+        attemptUuid?: UUID;
+        key: string;
+        purpose: 'raw' | 'parquet';
+        body: Readable;
+        expectedBytes?: number;
+    }): Promise<number> {
+        await this.externalSourceModel.registerObject({
+            organizationUuid: data.organizationUuid,
+            projectUuid: data.projectUuid,
+            sourceUuid: data.sourceUuid,
+            attemptUuid: data.attemptUuid,
+            key: data.key,
+            purpose: data.purpose,
+            expectedBytes: data.expectedBytes,
+            maxOrganizationBytes:
+                this.lightdashConfig.externalSources.maxOrganizationBytes,
+        });
+        try {
+            const bytes = await this.uploadRawFile(data.key, data.body);
+            await this.externalSourceModel.completeObject(
+                data.key,
+                bytes,
+                this.lightdashConfig.externalSources.maxOrganizationBytes,
+            );
+            return bytes;
+        } catch (error) {
+            await this.externalSourceModel
+                .abandonObject(data.key, sanitizeDuckdbError(error))
+                .catch(() => {});
+            throw error;
+        }
+    }
+
     private async assertAccess(
         account: RegisteredAccount,
         projectUuid: UUID,
@@ -289,7 +329,10 @@ export class ExternalSourceService extends BaseService {
         projectUuid: UUID,
         input: ExternalSourceUploadInput,
     ): Promise<StagedExternalSourceUpload> {
-        const { userUuid } = await this.assertAccess(account, projectUuid);
+        const { organizationUuid, userUuid } = await this.assertAccess(
+            account,
+            projectUuid,
+        );
         this.assertEngineAvailable();
         this.assertValidUpload(input);
 
@@ -313,7 +356,15 @@ export class ExternalSourceService extends BaseService {
             1,
         );
         try {
-            await this.uploadRawFile(rawKey, input.body);
+            await this.uploadTrackedObject({
+                organizationUuid,
+                projectUuid,
+                sourceUuid: source.sourceUuid,
+                key: rawKey,
+                purpose: 'raw',
+                body: input.body,
+                expectedBytes: input.contentLength,
+            });
         } catch (error) {
             await this.externalSourceModel
                 .deleteSource(projectUuid, source.sourceUuid)
@@ -396,11 +447,39 @@ export class ExternalSourceService extends BaseService {
         try {
             await this.schedulerClient.ingestExternalSource(payload);
         } catch (error) {
-            await this.markIngestError(payload.sourceUuid, error).catch(
-                () => {},
+            // The durable queued attempt is recovered by maintain(); do not
+            // turn a transient scheduler outage into a broken source.
+            this.logger.warn(
+                `External source attempt ${payload.attemptUuid} was persisted but not enqueued: ${getErrorMessage(error)}`,
             );
-            throw error;
         }
+    }
+
+    private async requestIngest(data: {
+        organizationUuid: UUID;
+        projectUuid: UUID;
+        userUuid: UUID;
+        sourceUuid: UUID;
+        tableUuid: UUID;
+        targetVersion: number;
+        rawObjectKey?: string;
+    }): Promise<void> {
+        const attempt = await this.externalSourceModel.requestIngest({
+            organizationUuid: data.organizationUuid,
+            projectUuid: data.projectUuid,
+            sourceUuid: data.sourceUuid,
+            tableUuid: data.tableUuid,
+            requestedByUserUuid: data.userUuid,
+            targetVersion: data.targetVersion,
+            rawObjectKey: data.rawObjectKey,
+        });
+        await this.enqueueIngest({
+            organizationUuid: data.organizationUuid,
+            projectUuid: data.projectUuid,
+            userUuid: data.userUuid,
+            sourceUuid: data.sourceUuid,
+            attemptUuid: attempt.external_source_ingest_attempt_uuid,
+        });
     }
 
     async createGoogleSheetsSource(
@@ -446,7 +525,7 @@ export class ExternalSourceService extends BaseService {
             projectUuid,
             type: ExternalSourceType.GOOGLE_SHEETS,
             name: tableName,
-            status: ExternalSourceStatus.SYNCING,
+            status: ExternalSourceStatus.STAGED,
             connection: {
                 type: ExternalSourceType.GOOGLE_SHEETS,
                 spreadsheetId,
@@ -460,12 +539,18 @@ export class ExternalSourceService extends BaseService {
             name: tableName,
             label,
         });
-        await this.enqueueIngest({
+        await this.externalSourceModel.upsertGoogleCredential({
+            sourceUuid: source.sourceUuid,
+            refreshToken,
+            connectedByUserUuid: userUuid,
+        });
+        await this.requestIngest({
             organizationUuid,
             projectUuid,
             userUuid,
             sourceUuid: source.sourceUuid,
-            ingestVersion: table.version + 1,
+            tableUuid: table.tableUuid,
+            targetVersion: table.version + 1,
         });
         return this.externalSourceModel.getSource(
             projectUuid,
@@ -502,16 +587,59 @@ export class ExternalSourceService extends BaseService {
         if (!table) {
             throw new NotFoundError('External source has no table');
         }
-        await this.externalSourceModel.updateSource(sourceUuid, {
-            status: ExternalSourceStatus.SYNCING,
-            error_message: null,
-        });
-        await this.enqueueIngest({
+        await this.requestIngest({
             organizationUuid,
             projectUuid,
             userUuid,
             sourceUuid,
-            ingestVersion: table.version + 1,
+            tableUuid: table.tableUuid,
+            targetVersion: table.version + 1,
+        });
+        return this.externalSourceModel.getSource(projectUuid, sourceUuid);
+    }
+
+    /** Transfer the source to the current user's Google grant, then refresh. */
+    async reconnectGoogleSheets(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        sourceUuid: UUID,
+    ): Promise<ExternalSource> {
+        const { organizationUuid, userUuid } = await this.assertAccess(
+            account,
+            projectUuid,
+        );
+        const source = await this.externalSourceModel.getSource(
+            projectUuid,
+            sourceUuid,
+        );
+        if (
+            source.type !== ExternalSourceType.GOOGLE_SHEETS ||
+            source.connection.type !== ExternalSourceType.GOOGLE_SHEETS
+        ) {
+            throw new ParameterError('Only Google Sheets can be reconnected');
+        }
+        if (source.status === ExternalSourceStatus.SYNCING) {
+            throw new ParameterError('This source is already ingesting');
+        }
+        const refreshToken = await this.getGoogleRefreshToken(userUuid);
+        await this.googleDriveClient.assertFileIsGoogleSheet(
+            refreshToken,
+            source.connection.spreadsheetId,
+        );
+        await this.externalSourceModel.upsertGoogleCredential({
+            sourceUuid,
+            refreshToken,
+            connectedByUserUuid: userUuid,
+        });
+        const table = source.tables[0];
+        if (!table) throw new NotFoundError('External source has no table');
+        await this.requestIngest({
+            organizationUuid,
+            projectUuid,
+            userUuid,
+            sourceUuid,
+            tableUuid: table.tableUuid,
+            targetVersion: table.version + 1,
         });
         return this.externalSourceModel.getSource(projectUuid, sourceUuid);
     }
@@ -542,7 +670,6 @@ export class ExternalSourceService extends BaseService {
         const label = payload.label?.trim() || friendlyName(tableName);
         await this.externalSourceModel.updateSource(sourceUuid, {
             name: tableName,
-            status: ExternalSourceStatus.SYNCING,
             error_message: null,
         });
         const table = await this.externalSourceModel.createTable({
@@ -552,12 +679,18 @@ export class ExternalSourceService extends BaseService {
             label,
         });
 
-        await this.enqueueIngest({
+        await this.requestIngest({
             organizationUuid,
             projectUuid,
             userUuid,
             sourceUuid,
-            ingestVersion: table.version + 1,
+            tableUuid: table.tableUuid,
+            targetVersion: table.version + 1,
+            rawObjectKey: ExternalSourceService.rawKey(
+                projectUuid,
+                sourceUuid,
+                table.version + 1,
+            ),
         });
 
         return this.externalSourceModel.getSource(projectUuid, sourceUuid);
@@ -678,32 +811,44 @@ export class ExternalSourceService extends BaseService {
             sourceUuid,
             table.version + 1,
         );
-        await this.uploadRawFile(rawKey, input.body);
+        await this.uploadTrackedObject({
+            organizationUuid,
+            projectUuid,
+            sourceUuid,
+            key: rawKey,
+            purpose: 'raw',
+            body: input.body,
+            expectedBytes: input.contentLength,
+        });
 
         // Reject unreadable files before committing to a re-ingest
         const client = this.createIngestClient();
         try {
             await this.describeCsv(client, this.toUri(rawKey));
         } catch (error) {
+            await this.externalSourceModel
+                .abandonObject(rawKey, sanitizeDuckdbError(error))
+                .catch(() => {});
             throw new ParameterError(
                 `Could not read the file as CSV: ${sanitizeDuckdbError(error)}`,
             );
         }
 
         await this.externalSourceModel.updateSource(sourceUuid, {
-            status: ExternalSourceStatus.SYNCING,
             error_message: null,
             connection: {
                 type: ExternalSourceType.CSV,
                 originalFilename: input.filename,
             },
         });
-        await this.enqueueIngest({
+        await this.requestIngest({
             organizationUuid,
             projectUuid,
             userUuid,
             sourceUuid,
-            ingestVersion: table.version + 1,
+            tableUuid: table.external_source_table_uuid,
+            targetVersion: table.version + 1,
+            rawObjectKey: rawKey,
         });
         return this.externalSourceModel.getSource(projectUuid, sourceUuid);
     }
@@ -759,19 +904,71 @@ export class ExternalSourceService extends BaseService {
         );
     }
 
-    async markIngestError(sourceUuid: UUID, error: unknown): Promise<void> {
+    async markIngestError(attemptUuid: UUID, error: unknown): Promise<void> {
         const rawMessage = getErrorMessage(error);
         const message = sanitizeDuckdbError(error).slice(
             0,
             ERROR_MESSAGE_MAX_LENGTH,
         );
         this.logger.error(
-            `External source ingest failed for ${sourceUuid}: ${rawMessage}`,
+            `External source ingest attempt ${attemptUuid} failed: ${rawMessage}`,
         );
-        await this.externalSourceModel.updateSource(sourceUuid, {
-            status: ExternalSourceStatus.ERROR,
-            error_message: message,
-        });
+        await this.externalSourceModel.failIngestAttempt(
+            attemptUuid,
+            message,
+            error instanceof TimeoutError,
+        );
+    }
+
+    private createSheetCsvStream(data: {
+        refreshToken: string;
+        spreadsheetId: string;
+        tabName: string;
+    }): { stream: Readable; completed: Promise<number> } {
+        const output = new PassThrough();
+        const csv = stringify();
+        csv.pipe(output);
+        const completed = (async () => {
+            let rows = 0;
+            try {
+                // eslint-disable-next-line no-restricted-syntax
+                for await (const batch of this.googleDriveClient.getSheetRowBatches(
+                    data.refreshToken,
+                    data.spreadsheetId,
+                    data.tabName,
+                    this.lightdashConfig.externalSources.googleSheetsBatchRows,
+                )) {
+                    // eslint-disable-next-line no-restricted-syntax
+                    for (const row of batch) {
+                        rows += 1;
+                        if (
+                            rows - 1 >
+                            this.lightdashConfig.externalSources.maxRows
+                        ) {
+                            throw new ParameterError(
+                                `Sheet exceeds the ${this.lightdashConfig.externalSources.maxRows} row limit`,
+                            );
+                        }
+                        // csv-stringify is one ordered stream; parallel writes
+                        // would corrupt row ordering.
+                        // eslint-disable-next-line no-await-in-loop
+                        if (!csv.write(row)) await once(csv, 'drain');
+                    }
+                }
+                if (rows < 2) {
+                    throw new ParameterError(
+                        'The sheet needs a header row and at least one data row',
+                    );
+                }
+                csv.end();
+                return rows - 1;
+            } catch (error) {
+                csv.destroy(error as Error);
+                output.destroy(error as Error);
+                throw error;
+            }
+        })();
+        return { stream: output, completed };
     }
 
     /**
@@ -780,28 +977,44 @@ export class ExternalSourceService extends BaseService {
      * source row as an error status.
      */
     async runIngest(payload: IngestExternalSourceJobPayload): Promise<void> {
-        const { projectUuid, sourceUuid } = payload;
+        const claimed = await this.externalSourceModel.claimIngestAttempt({
+            attemptUuid: payload.attemptUuid,
+            leaseMs: this.lightdashConfig.externalSources.ingestLeaseMs,
+            maxConcurrentPerOrganization:
+                this.lightdashConfig.externalSources
+                    .maxConcurrentIngestsPerOrganization,
+        });
+        if (!claimed) return;
+        const sourceUuid = claimed.external_source_uuid;
+        const projectUuid = claimed.project_uuid;
+        const executionUuid = claimed.execution_uuid;
+        if (!executionUuid) throw new Error('Ingest lease has no execution id');
+        let parquetKey: string | undefined;
         try {
             const { source, tables } =
                 await this.externalSourceModel.getSourceRowsForIngest(
                     projectUuid,
                     sourceUuid,
                 );
-            const table = tables[0];
+            const table = tables.find(
+                (candidate) =>
+                    candidate.external_source_table_uuid ===
+                    claimed.external_source_table_uuid,
+            );
             if (!table) {
                 throw new NotFoundError(
                     'External source has no table to ingest',
                 );
             }
 
-            const buildVersion = payload.ingestVersion;
+            const buildVersion = claimed.target_version;
             if (table.version > buildVersion) {
                 return;
             }
             if (table.version === buildVersion) {
-                await this.externalSourceModel.updateSource(sourceUuid, {
-                    status: ExternalSourceStatus.READY,
-                    error_message: null,
+                await this.externalSourceModel.publishIngestAttempt({
+                    attemptUuid: payload.attemptUuid,
+                    executionUuid,
                 });
                 return;
             }
@@ -811,29 +1024,53 @@ export class ExternalSourceService extends BaseService {
                 );
             }
 
+            if (claimed.columns && claimed.locator) {
+                const explore = createExternalSourceExplore({
+                    name: table.name,
+                    label: table.label,
+                    columns: claimed.columns,
+                    externalSource: {
+                        sourceUuid,
+                        tableUuid: table.external_source_table_uuid,
+                        sourceType: source.type,
+                    },
+                    warehouseSqlBuilder: warehouseSqlBuilderFromType(
+                        SupportedDbtAdapter.DUCKDB,
+                    ),
+                });
+                await this.projectModel.saveExternalSourceExplore(
+                    projectUuid,
+                    explore,
+                );
+                await this.externalSourceModel.publishIngestAttempt({
+                    attemptUuid: payload.attemptUuid,
+                    executionUuid,
+                });
+                return;
+            }
+
             const client = this.createIngestClient();
             const rawFileKey = ExternalSourceService.rawKey(
                 projectUuid,
                 sourceUuid,
                 buildVersion,
+                source.type === ExternalSourceType.GOOGLE_SHEETS
+                    ? executionUuid
+                    : undefined,
             );
             const rawUri = this.toUri(rawFileKey);
 
             // Sheets sources have no uploaded file: fetch the tab's values
-            // under the connecting user's Google credentials and store them
+            // under the source-owned Google credential and store them
             // as this version's raw CSV, then the shared pipeline takes over.
             if (
                 source.type === ExternalSourceType.GOOGLE_SHEETS &&
                 source.connection.type === ExternalSourceType.GOOGLE_SHEETS
             ) {
-                if (!source.created_by_user_uuid) {
-                    throw new ParameterError(
-                        'The user who connected this sheet no longer exists. Reconnect the source',
+                const refreshToken =
+                    await this.externalSourceModel.getGoogleCredential(
+                        sourceUuid,
                     );
-                }
-                const refreshToken = await this.getGoogleRefreshToken(
-                    source.created_by_user_uuid,
-                );
                 const tabName =
                     source.connection.tabName ??
                     (
@@ -842,31 +1079,47 @@ export class ExternalSourceService extends BaseService {
                             source.connection.spreadsheetId,
                         )
                     )[0];
-                const values = await this.googleDriveClient.getSheetValues(
+                const sheetCsv = this.createSheetCsvStream({
                     refreshToken,
-                    source.connection.spreadsheetId,
+                    spreadsheetId: source.connection.spreadsheetId,
                     tabName,
-                );
-                if (values.length < 2) {
-                    throw new ParameterError(
-                        'The sheet needs a header row and at least one data row',
-                    );
-                }
-                const csv = stringify(values);
-                await this.uploadRawFile(rawFileKey, Readable.from([csv]));
+                });
+                await Promise.all([
+                    this.uploadTrackedObject({
+                        organizationUuid: claimed.organization_uuid,
+                        projectUuid,
+                        sourceUuid,
+                        attemptUuid: payload.attemptUuid,
+                        key: rawFileKey,
+                        purpose: 'raw',
+                        body: sheetCsv.stream,
+                    }),
+                    sheetCsv.completed,
+                ]);
             }
 
-            const parquetKey = ExternalSourceService.parquetKey(
+            parquetKey = ExternalSourceService.parquetKey(
                 projectUuid,
                 sourceUuid,
                 table.external_source_table_uuid,
                 buildVersion,
+                executionUuid,
             );
             const parquetUri = this.toUri(parquetKey);
             const escapedRawUri = ExternalSourceService.escapeUri(rawUri);
             const escapedParquetUri =
                 ExternalSourceService.escapeUri(parquetUri);
 
+            await this.externalSourceModel.registerObject({
+                organizationUuid: claimed.organization_uuid,
+                projectUuid,
+                sourceUuid,
+                attemptUuid: payload.attemptUuid,
+                key: parquetKey,
+                purpose: 'parquet',
+                maxOrganizationBytes:
+                    this.lightdashConfig.externalSources.maxOrganizationBytes,
+            });
             await client.runSql(
                 `COPY (SELECT * FROM read_csv('${escapedRawUri}', normalize_names=true, sample_size=-1)) TO '${escapedParquetUri}' (FORMAT PARQUET, COMPRESSION zstd, ROW_GROUP_SIZE 100000)`,
             );
@@ -889,9 +1142,22 @@ export class ExternalSourceService extends BaseService {
                 {},
             );
             const rowCount = Number(countRows[0]?.row_count ?? 0);
+            if (rowCount > this.lightdashConfig.externalSources.maxRows) {
+                throw new ParameterError(
+                    `Source exceeds the ${this.lightdashConfig.externalSources.maxRows} row limit`,
+                );
+            }
             const totalBytes = await this.storageClient.getFileSize(
                 parquetKey,
                 'parquet',
+            );
+            if (totalBytes === null) {
+                throw new Error('Could not determine ingested object size');
+            }
+            await this.externalSourceModel.completeObject(
+                parquetKey,
+                totalBytes,
+                this.lightdashConfig.externalSources.maxOrganizationBytes,
             );
 
             const explore = createExternalSourceExplore({
@@ -908,37 +1174,99 @@ export class ExternalSourceService extends BaseService {
                 ),
             });
 
-            await this.projectModel.saveExternalSourceExplore(
-                projectUuid,
-                explore,
-            );
-
             const locator: PreAggregateDuckdbLocator =
                 getPreAggregateDuckdbLocator({
                     uri: parquetUri,
                     format: 'parquet',
                 });
-            const didPublish = await this.externalSourceModel.updateTableIngest(
-                table.external_source_table_uuid,
-                {
-                    columns,
-                    locator,
-                    rowCount,
-                    totalBytes,
-                    ingestVersion: buildVersion,
-                },
+            const recorded = await this.externalSourceModel.recordIngestOutput({
+                attemptUuid: payload.attemptUuid,
+                executionUuid,
+                columns,
+                locator,
+                rowCount,
+                totalBytes,
+            });
+            if (!recorded) return;
+            await this.projectModel.saveExternalSourceExplore(
+                projectUuid,
+                explore,
             );
-            if (!didPublish) {
-                return;
-            }
-            await this.externalSourceModel.updateSource(sourceUuid, {
-                status: ExternalSourceStatus.READY,
-                error_message: null,
-                last_refreshed_at: new Date(),
+            await this.externalSourceModel.publishIngestAttempt({
+                attemptUuid: payload.attemptUuid,
+                executionUuid,
             });
         } catch (error) {
-            await this.markIngestError(sourceUuid, error).catch(() => {});
+            if (parquetKey) {
+                await this.externalSourceModel
+                    .abandonObject(parquetKey, sanitizeDuckdbError(error))
+                    .catch(() => {});
+            }
+            await this.markIngestError(payload.attemptUuid, error).catch(
+                () => {},
+            );
             throw error;
         }
+    }
+
+    /** Recover durable jobs and collect manifest-backed objects. */
+    async maintain(): Promise<void> {
+        const recoverable =
+            await this.externalSourceModel.listRecoverableAttempts(
+                this.lightdashConfig.externalSources.garbageCollectionBatchSize,
+            );
+        await Promise.allSettled(
+            recoverable.map((attempt) =>
+                this.schedulerClient.ingestExternalSource({
+                    organizationUuid: attempt.organization_uuid,
+                    projectUuid: attempt.project_uuid,
+                    userUuid: attempt.requested_by_user_uuid ?? 'system',
+                    sourceUuid: attempt.external_source_uuid,
+                    attemptUuid: attempt.external_source_ingest_attempt_uuid,
+                }),
+            ),
+        );
+
+        const now = Date.now();
+        const objects = await this.externalSourceModel.prepareGarbageCollection(
+            {
+                stagedBefore: new Date(
+                    now -
+                        this.lightdashConfig.externalSources
+                            .stagedUploadTtlHours *
+                            60 *
+                            60 *
+                            1000,
+                ),
+                uploadingBefore: new Date(
+                    now -
+                        Math.max(
+                            this.lightdashConfig.externalSources.ingestLeaseMs *
+                                2,
+                            2 * 60 * 60 * 1000,
+                        ),
+                ),
+                limit: this.lightdashConfig.externalSources
+                    .garbageCollectionBatchSize,
+            },
+        );
+        await Promise.all(
+            objects.map(async (object) => {
+                try {
+                    await this.storageClient.deleteFile(object.object_key);
+                    await this.externalSourceModel.markObjectDeleted(
+                        object.external_source_object_uuid,
+                    );
+                } catch (error) {
+                    await this.externalSourceModel.markObjectDeleteFailed(
+                        object.external_source_object_uuid,
+                        sanitizeDuckdbError(error).slice(
+                            0,
+                            ERROR_MESSAGE_MAX_LENGTH,
+                        ),
+                    );
+                }
+            }),
+        );
     }
 }

@@ -320,6 +320,7 @@ const getTagsForTask: {
         'user.uuid': payload.userUuid,
         'project.uuid': payload.projectUuid,
     }),
+    [SCHEDULER_TASKS.MAINTAIN_EXTERNAL_SOURCES]: () => ({}),
 } as const;
 
 const getTagsFromPayload = <T extends SchedulerTaskName>(

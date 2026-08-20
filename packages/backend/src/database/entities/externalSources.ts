@@ -9,6 +9,24 @@ import { type PreAggregateDuckdbLocator } from '../../utils/duckdb/duckdbSqlTabl
 
 export const ExternalSourcesTableName = 'external_sources';
 export const ExternalSourceTablesTableName = 'external_source_tables';
+export const ExternalSourceCredentialsTableName = 'external_source_credentials';
+export const ExternalSourceIngestAttemptsTableName =
+    'external_source_ingest_attempts';
+export const ExternalSourceObjectsTableName = 'external_source_objects';
+
+export type ExternalSourceIngestAttemptStatus =
+    | 'queued'
+    | 'running'
+    | 'publishing'
+    | 'succeeded'
+    | 'failed'
+    | 'cancelled';
+
+export type ExternalSourceObjectStatus =
+    | 'uploading'
+    | 'active'
+    | 'pending_delete'
+    | 'deleted';
 
 export type DbExternalSource = {
     external_source_uuid: string;
@@ -95,4 +113,114 @@ export type ExternalSourceTablesTable = Knex.CompositeTableType<
     DbExternalSourceTable,
     DbExternalSourceTableIn,
     DbExternalSourceTableUpdate
+>;
+
+export type DbExternalSourceCredential = {
+    external_source_uuid: string;
+    provider: string;
+    encrypted_refresh_token: Buffer;
+    connected_by_user_uuid: string | null;
+    created_at: Date;
+    updated_at: Date;
+};
+
+export type ExternalSourceCredentialsTable = Knex.CompositeTableType<
+    DbExternalSourceCredential,
+    Pick<
+        DbExternalSourceCredential,
+        | 'external_source_uuid'
+        | 'provider'
+        | 'encrypted_refresh_token'
+        | 'connected_by_user_uuid'
+    >,
+    Partial<
+        Pick<
+            DbExternalSourceCredential,
+            | 'provider'
+            | 'encrypted_refresh_token'
+            | 'connected_by_user_uuid'
+            | 'updated_at'
+        >
+    >
+>;
+
+export type DbExternalSourceIngestAttempt = {
+    external_source_ingest_attempt_uuid: string;
+    organization_uuid: string;
+    project_uuid: string;
+    external_source_uuid: string;
+    external_source_table_uuid: string;
+    requested_by_user_uuid: string | null;
+    target_version: number;
+    status: ExternalSourceIngestAttemptStatus;
+    execution_uuid: string | null;
+    lease_expires_at: Date | null;
+    run_count: number;
+    columns: ResultColumns | null;
+    locator: PreAggregateDuckdbLocator | null;
+    row_count: number | null;
+    total_bytes: number | null;
+    error_message: string | null;
+    created_at: Date;
+    updated_at: Date;
+    finished_at: Date | null;
+};
+
+type DbExternalSourceIngestAttemptIn = Pick<
+    DbExternalSourceIngestAttempt,
+    | 'organization_uuid'
+    | 'project_uuid'
+    | 'external_source_uuid'
+    | 'external_source_table_uuid'
+    | 'requested_by_user_uuid'
+    | 'target_version'
+> &
+    Partial<DbExternalSourceIngestAttempt>;
+
+type DbExternalSourceIngestAttemptUpdate = Partial<
+    Omit<DbExternalSourceIngestAttempt, 'external_source_ingest_attempt_uuid'>
+>;
+
+export type ExternalSourceIngestAttemptsTable = Knex.CompositeTableType<
+    DbExternalSourceIngestAttempt,
+    DbExternalSourceIngestAttemptIn,
+    DbExternalSourceIngestAttemptUpdate
+>;
+
+export type DbExternalSourceObject = {
+    external_source_object_uuid: string;
+    organization_uuid: string;
+    project_uuid: string;
+    external_source_uuid: string;
+    external_source_ingest_attempt_uuid: string | null;
+    object_key: string;
+    purpose: 'raw' | 'parquet';
+    status: ExternalSourceObjectStatus;
+    size_bytes: number | null;
+    delete_after: Date | null;
+    delete_attempts: number;
+    last_error: string | null;
+    created_at: Date;
+    updated_at: Date;
+};
+
+type DbExternalSourceObjectIn = Pick<
+    DbExternalSourceObject,
+    | 'organization_uuid'
+    | 'project_uuid'
+    | 'external_source_uuid'
+    | 'external_source_ingest_attempt_uuid'
+    | 'object_key'
+    | 'purpose'
+> &
+    Partial<DbExternalSourceObject>;
+
+type DbExternalSourceObjectUpdate = Partial<
+    Omit<DbExternalSourceObject, 'external_source_object_uuid'>
+>;
+
+export type ExternalSourceObjectsTable = Knex.CompositeTableType<
+    DbExternalSourceObject,
+    DbExternalSourceObjectIn,
+    DbExternalSourceObjectUpdate
 >;
