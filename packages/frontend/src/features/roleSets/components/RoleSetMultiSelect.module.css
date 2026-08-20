@@ -1,0 +1,7 @@
+/* Mantine gives the inline search field min-width: 100px, which wraps it to a
+   second line (doubling the field height) as soon as pills fill the row. A
+   caret-sized minimum keeps the field single-line; it can still wrap once the
+   user actually types. */
+.inputField {
+    min-width: 24px;
+}
