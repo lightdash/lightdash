@@ -20,6 +20,7 @@ import { SidebarPosition, type SidebarWidthProps } from './types';
 
 type Props = {
     isOpen?: boolean;
+    keepMounted?: boolean;
     isCollapsed?: boolean;
     collapsible?: boolean;
     collapsedContent?: React.ReactNode;
@@ -47,6 +48,7 @@ const ResizeHandle: FC<{
 
 const Sidebar: FC<React.PropsWithChildren<Props>> = ({
     isOpen = true,
+    keepMounted = false,
     isCollapsed = false,
     collapsible = false,
     collapsedContent,
@@ -150,6 +152,7 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
             >
                 <Transition
                     mounted={isOpen}
+                    keepMounted={keepMounted}
                     duration={SIDEBAR_ANIMATION_DURATION}
                     transition={transition}
                 >

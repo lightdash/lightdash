@@ -61,10 +61,10 @@ import LightdashVisualization from '../../LightdashVisualization';
 import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
 import { type EchartsSeriesClickEvent } from '../../SimpleChart';
 import SortButton from '../../SortButton';
-import { VisualizationConfigPortalId } from '../ExplorePanel/constants';
 import { DevCopyChartDebugData } from '../ExplorerHeader/DevCopyChartDebugData';
 import VisualizationConfig from '../VisualizationCard/VisualizationConfig';
 import { SeriesContextMenu } from './SeriesContextMenu';
+import useVisualizationConfigPortalTarget from './useVisualizationConfigPortalTarget';
 import VisualizationTimezone from './VisualizationTimezone';
 import VisualizationWarning from './VisualizationWarning';
 
@@ -287,22 +287,15 @@ const VisualizationCard: FC<Props> = memo((props) => {
         [dispatch],
     );
 
-    const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+    const portalTarget = useVisualizationConfigPortalTarget(
+        isVisualizationConfigOpen,
+    );
 
     const {
         ref: measureRef,
         width: containerWidth,
         height: containerHeight,
     } = useElementSize();
-
-    useLayoutEffect(() => {
-        if (isVisualizationConfigOpen) {
-            const target = document.getElementById(VisualizationConfigPortalId);
-            setPortalTarget(target);
-        } else {
-            setPortalTarget(null);
-        }
-    }, [isVisualizationConfigOpen]);
 
     useLayoutEffect(() => {
         if (!isEditMode) {

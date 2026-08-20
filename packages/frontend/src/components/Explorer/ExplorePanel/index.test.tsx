@@ -4,7 +4,10 @@ import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createExplorerStore } from '../../../features/explorer/store';
+import {
+    createExplorerStore,
+    explorerActions,
+} from '../../../features/explorer/store';
 import { useExplore } from '../../../hooks/useExplore';
 import { renderWithProviders } from '../../../testing/testUtils';
 import ExplorePanel from './index';
@@ -88,15 +91,24 @@ const exploreQuery = (overrides: Partial<ExploreQuery>): ExploreQuery =>
         ...overrides,
     }) as unknown as ExploreQuery;
 
-const renderPanel = (appMocks?: Parameters<typeof renderWithProviders>[1]) =>
-    renderWithProviders(
+const renderPanel = (
+    appMocks?: Parameters<typeof renderWithProviders>[1],
+    openVisualizationConfig = false,
+) => {
+    const store = createExplorerStore();
+    if (openVisualizationConfig) {
+        store.dispatch(explorerActions.openVisualizationConfig());
+    }
+
+    return renderWithProviders(
         <MemoryRouter>
-            <Provider store={createExplorerStore()}>
+            <Provider store={store}>
                 <ExplorePanel />
             </Provider>
         </MemoryRouter>,
         appMocks,
     );
+};
 
 describe('ExplorePanel loading state', () => {
     beforeEach(() => {
@@ -140,6 +152,22 @@ describe('ExplorePanel loading state', () => {
         renderPanel();
 
         expect(screen.queryByTestId('explore-tree')).not.toBeNull();
+    });
+});
+
+describe('ExplorePanel chart configuration placement', () => {
+    beforeEach(() => {
+        mockUseExplore.mockReturnValue(exploreQuery({ data: mockExplore }));
+        testState.enabledFlags.clear();
+    });
+
+    it('swaps the fields for the config portal while configuring', () => {
+        renderPanel(undefined, true);
+
+        expect(
+            document.getElementById('visualization-config-portal'),
+        ).not.toBeNull();
+        expect(screen.getByTestId('explore-tree')).not.toBeVisible();
     });
 });
 

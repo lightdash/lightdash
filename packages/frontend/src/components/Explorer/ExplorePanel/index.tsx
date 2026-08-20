@@ -60,9 +60,9 @@ import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import ExploreTree from '../ExploreTree';
 import LoadingSkeleton from '../ExploreTree/LoadingSkeleton';
 import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailProvider';
+import VisualizationConfigPortal from '../VisualizationCard/VisualizationConfigPortal';
 import WarningsHoverCardContent from '../WarningsHoverCardContent';
 import { useIsGitProject } from '../WriteBackModal/hooks';
-import { VisualizationConfigPortalId } from './constants';
 
 interface ExplorePanelProps {
     onBack?: () => void;
@@ -260,14 +260,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
 
     return (
         <>
-            <Stack
-                id={VisualizationConfigPortalId}
-                style={{
-                    flexGrow: 1,
-                    overflow: 'hidden',
-                    display: isVisualizationConfigOpen ? 'flex' : 'none',
-                }}
-            />
+            <VisualizationConfigPortal active={isVisualizationConfigOpen} />
 
             <Stack
                 h="100%"

@@ -52,6 +52,8 @@ type Props = {
     sidebarWidthProps?: SidebarWidthProps;
     rightSidebar?: React.ReactNode;
     isRightSidebarOpen?: boolean;
+    keepRightSidebarMounted?: boolean;
+    noRightSidebarPadding?: boolean;
     rightSidebarWidthProps?: SidebarWidthProps;
     header?: React.ReactNode;
 } & Omit<StyleProps, 'withSidebar' | 'withHeader' | 'hasBanner'>;
@@ -67,6 +69,8 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     sidebarWidthProps,
     rightSidebar,
     isRightSidebarOpen = false,
+    keepRightSidebarMounted = false,
+    noRightSidebarPadding,
     rightSidebarWidthProps,
 
     withCenteredContent = false,
@@ -176,10 +180,13 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
 
                 {rightSidebar ? (
                     <Sidebar
-                        noSidebarPadding={noSidebarPadding}
+                        noSidebarPadding={
+                            noRightSidebarPadding ?? noSidebarPadding
+                        }
                         widthProps={rightSidebarWidthProps}
                         mainWidth={mainWidth}
                         isOpen={isRightSidebarOpen}
+                        keepMounted={keepRightSidebarMounted}
                         position={SidebarPosition.RIGHT}
                         onResizeStart={startSidebarResizing}
                         onResizeEnd={stopSidebarResizing}
