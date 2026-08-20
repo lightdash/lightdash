@@ -1,3 +1,16 @@
+# [1.228.0](https://github.com/lightdash/lightdash/compare/1.227.1...1.228.0) (2026-08-20)
+
+
+### Bug Fixes
+
+* **auth:** enforce per-organisation SSO login policy ([#27781](https://github.com/lightdash/lightdash/issues/27781)) ([75b8834](https://github.com/lightdash/lightdash/commit/75b8834f1231382e7606a35039db8f56ef98e234))
+* isolate OAuth error redirects ([#27780](https://github.com/lightdash/lightdash/issues/27780)) ([72a1359](https://github.com/lightdash/lightdash/commit/72a13598800e99ffaec93075934e14954d1ddb45))
+
+
+### Features
+
+* add runComposerQueries tool for multi-source AI agent pipelines ([#27792](https://github.com/lightdash/lightdash/issues/27792)) ([439554a](https://github.com/lightdash/lightdash/commit/439554a33e4492a34c670055ed960236455e992c))
+
 ## [1.227.1](https://github.com/lightdash/lightdash/compare/1.227.0...1.227.1) (2026-08-20)
 
 

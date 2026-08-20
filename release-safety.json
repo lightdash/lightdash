@@ -1,38 +1,18 @@
 {
   "schemaVersion": "2",
-  "version": "1.227.1",
-  "previousVersion": "1.227.0",
-  "releaseDate": "2026-08-20T19:46:33.971Z",
+  "version": "1.228.0",
+  "previousVersion": "1.227.1",
+  "releaseDate": "2026-08-20T20:07:24.237Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260820190000_create_external_source_lifecycle_tables.ts",
-        "edition": "core",
-        "tables": [
-          "external_source_credentials",
-          "external_source_ingest_attempts",
-          "external_source_objects",
-          "external_source_tables",
-          "external_sources",
-          "organizations",
-          "projects",
-          "users"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": "unknown",
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
-    "rollingUpdateSafe": "unknown",
-    "recommendedStrategy": "Recreate"
+    "rollingUpdateSafe": true,
+    "recommendedStrategy": "RollingUpdate"
   },
   "api": {
     "rest": {
@@ -41,10 +21,9 @@
       "changes": [],
       "breakingCount": 0,
       "advisories": [
-        "GET /api/v1/schedulers/runs/{runId}/logs — added the new `maintainExternalSources` enum value to the `results/logs/items/allOf[#/components/schemas/BaseSchedulerLog]/task` response property for the response status `200`",
-        "GET /api/v1/schedulers/{projectUuid}/logs — added the new `maintainExternalSources` enum value to the `results/data/logs/items/allOf[#/components/schemas/BaseSchedulerLog]/task` response property for the response status `200`"
+        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid} — added the new `runComposerQueries` enum value to the `results/allOf[subschema #2]/messages/items/anyOf[#/components/schemas/AiAgentMessageAssistant]/toolResults/items/allOf[subschema #2]/anyOf[subschema #1]/toolName` response property for the response status `200`"
       ],
-      "advisoryCount": 2
+      "advisoryCount": 1
     },
     "mcp": {
       "checked": true,
