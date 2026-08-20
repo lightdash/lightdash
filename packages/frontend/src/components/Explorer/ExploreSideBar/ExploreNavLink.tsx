@@ -14,12 +14,9 @@ import {
     Stack,
 } from '@mantine/core';
 import { useToggle } from '@mantine/hooks';
-import {
-    IconAlertTriangle,
-    IconInfoCircle,
-    IconTable,
-} from '@tabler/icons-react';
+import { IconAlertTriangle, IconInfoCircle } from '@tabler/icons-react';
 import React from 'react';
+import { getExploreIcon } from '../../../features/externalSources/utils/exploreIcons';
 import MantineIcon from '../../common/MantineIcon';
 import { TableItemDetailPreview } from '../ExploreTree/TableTree/ItemDetailPreview';
 import WarningsHoverCardContent from '../WarningsHoverCardContent';
@@ -103,7 +100,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
                     withBorder={false}
                 >
                     <MantineIcon
-                        icon={IconTable}
+                        icon={getExploreIcon(explore)}
                         size="md"
                         color="ldGray.7"
                         stroke={1.5}
