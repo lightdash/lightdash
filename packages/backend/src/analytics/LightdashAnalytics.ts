@@ -2599,6 +2599,16 @@ export type AiAgentCreatedEvent = BaseTrack & {
     };
 };
 
+export type AiAgentThreadsRetentionCleanedEvent = BaseTrack & {
+    event: 'ai_agent.threads_retention_cleaned';
+    anonymousId: string;
+    properties: {
+        organizationId: string;
+        threadsDeleted: number;
+        memoriesDeleted: number;
+    };
+};
+
 type AiAgentProvisioningFailedEvent = BaseTrack & {
     event: 'ai_agent.provisioning_failed';
     userId: string;
@@ -3434,6 +3444,7 @@ type TypedEvent =
     | SubtotalQueryEvent
     | DeprecatedRouteCalled
     | AiAgentCreatedEvent
+    | AiAgentThreadsRetentionCleanedEvent
     | AiAgentProvisioningFailedEvent
     | AiAgentGithubMcpConnectedEvent
     | AiAgentDeletedEvent

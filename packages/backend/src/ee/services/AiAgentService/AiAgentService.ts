@@ -163,6 +163,7 @@ import { EventEmitter } from 'events';
 import fs from 'fs/promises';
 import _ from 'lodash';
 import { nanoid as nanoidGenerator } from 'nanoid';
+import pLimit from 'p-limit';
 import slackifyMarkdown from 'slackify-markdown';
 import { Readable } from 'stream';
 import { z } from 'zod';
@@ -183,6 +184,7 @@ import {
     AiAgentSlackChannelLinkedEvent,
     AiAgentSuggestionsGeneratedEvent,
     AiAgentSuggestionSubmitEvent,
+    AiAgentThreadsRetentionCleanedEvent,
     AiAgentToolCallEvent,
     AiAgentUpdatedEvent,
     ContentVerificationEvent,
@@ -3201,6 +3203,80 @@ export class AiAgentService extends BaseService {
             threadUuid,
             messageUuid,
         });
+    }
+
+    async cleanExpiredThreads(batchSize: number): Promise<{
+        threadsDeleted: number;
+        memoriesDeleted: number;
+        hitBatchLimit: boolean;
+    }> {
+        const organizationUuids =
+            await this.aiAgentModel.findOrganizationsWithThreadRetention();
+
+        const flagLimit = pLimit(5);
+        const flags = await Promise.all(
+            organizationUuids.map((organizationUuid) =>
+                flagLimit(async () => ({
+                    organizationUuid,
+                    flag: await this.featureFlagService.get({
+                        user: { userUuid: 'system', organizationUuid },
+                        featureFlagId: FeatureFlags.AiThreadRetention,
+                    }),
+                })),
+            ),
+        );
+        const enabledOrganizationUuids = flags
+            .filter(({ flag }) => flag.enabled)
+            .map(({ organizationUuid }) => organizationUuid);
+
+        // Each deletion is a transaction cascading a full batch of threads, so
+        // keep the concurrency low to bound the load on the database.
+        const deleteLimit = pLimit(3);
+        const results = await Promise.all(
+            enabledOrganizationUuids.map((organizationUuid) =>
+                deleteLimit(async () => {
+                    const { deletedThreadUuids, deletedMemoriesCount } =
+                        await this.aiAgentModel.deleteExpiredThreads(
+                            organizationUuid,
+                            batchSize,
+                        );
+                    if (deletedThreadUuids.length > 0) {
+                        Logger.info(
+                            `AI thread retention: deleted ${deletedThreadUuids.length} threads and ${deletedMemoriesCount} derived memories for organization ${organizationUuid}`,
+                        );
+                        this.analytics.track<AiAgentThreadsRetentionCleanedEvent>(
+                            {
+                                event: 'ai_agent.threads_retention_cleaned',
+                                anonymousId: LightdashAnalytics.anonymousId,
+                                properties: {
+                                    organizationId: organizationUuid,
+                                    threadsDeleted: deletedThreadUuids.length,
+                                    memoriesDeleted: deletedMemoriesCount,
+                                },
+                            },
+                        );
+                    }
+                    return {
+                        threadsDeleted: deletedThreadUuids.length,
+                        memoriesDeleted: deletedMemoriesCount,
+                    };
+                }),
+            ),
+        );
+
+        return {
+            threadsDeleted: results.reduce(
+                (sum, result) => sum + result.threadsDeleted,
+                0,
+            ),
+            memoriesDeleted: results.reduce(
+                (sum, result) => sum + result.memoriesDeleted,
+                0,
+            ),
+            hitBatchLimit: results.some(
+                (result) => result.threadsDeleted >= batchSize,
+            ),
+        };
     }
 
     private async validateThreadRetentionUpdate(
