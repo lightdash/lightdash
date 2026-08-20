@@ -732,6 +732,7 @@ export class EmbedService extends BaseService {
                 allFilterableFields: [],
                 allFilterableMetrics: [],
                 savedQueryMetricFilters: {},
+                defaultTimeDimensions: {},
             };
         }
 
@@ -881,6 +882,7 @@ export class EmbedService extends BaseService {
             allFilterableFields,
             allFilterableMetrics: [],
             savedQueryMetricFilters: {},
+            defaultTimeDimensions: {},
         };
     }
 
