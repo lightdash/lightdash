@@ -79,6 +79,11 @@ additional dimensions stay unknown (the expression may change the domain), and
 an additional dimension's interval children inherit its own resolved domain,
 never the parent column's annotation.
 
+This matters for BigQuery partition pruning: the prunable `DATE(col, tz)` form
+for non-UTC day-or-coarser filters is only emitted for known-aware columns, so a
+`sql:`-backed or additional dimension over a partitioned TIMESTAMP needs an
+explicit `timestamp_domain: aware` to prune.
+
 A modeler can always override the catalog in YAML:
 
 ```yaml
