@@ -1,3 +1,10 @@
+## [1.228.3](https://github.com/lightdash/lightdash/compare/1.228.2...1.228.3) (2026-08-20)
+
+
+### Bug Fixes
+
+* set the viewport on the OAuth consent pages ([#27810](https://github.com/lightdash/lightdash/issues/27810)) ([2fbc873](https://github.com/lightdash/lightdash/commit/2fbc873ca6874ae972523512de84c9756309d189))
+
 ## [1.228.2](https://github.com/lightdash/lightdash/compare/1.228.1...1.228.2) (2026-08-20)
 
 
