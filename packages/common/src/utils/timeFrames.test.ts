@@ -943,9 +943,8 @@ describe('TimeFrames', () => {
             });
         });
 
-        // Wrapped aware path: DATE(ts, tz) is by definition the calendar date
-        // of the instant in tz — same value as the DATETIME round-trip, but
-        // the partition pruner can see through it.
+        // Wrapped aware path: DATE(ts, tz) replaces the DATETIME round-trip
+        // with the same value in a form the partition pruner can see through.
         describe('BigQuery prunable tz-wrapped trunc for known-aware columns', () => {
             const bqAwareTrunc = (
                 timeFrame: TimeFrames,

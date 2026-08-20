@@ -76,16 +76,17 @@ type WarehouseConfig = {
         type: DimensionType,
         startOfWeek?: WeekDay | null,
     ) => string;
-    // Timezone-wrapped variant of the above for known-aware columns: returns a
-    // DATE in `timezone` directly, skipping the conversion round-trip that
-    // defeats partition pruning (BigQuery only).
-    getSqlForTruncatedDateAsDateInTimezone?: (
-        timeFrame: TimeFrames,
-        originalSql: string,
-        type: DimensionType,
-        startOfWeek: WeekDay | null | undefined,
-        timezone: string,
-    ) => string;
+    // Known-aware variant: a DATE in `timezone` without the conversion
+    // round-trip that defeats partition pruning. Null where not prunable.
+    getSqlForTruncatedDateAsDateInTimezone:
+        | ((
+              timeFrame: TimeFrames,
+              originalSql: string,
+              type: DimensionType,
+              startOfWeek: WeekDay | null | undefined,
+              timezone: string,
+          ) => string)
+        | null;
     getSqlForDatePart: (
         timeFrame: TimeFrames,
         originalSql: string,
@@ -526,9 +527,8 @@ const bigqueryConfig: WarehouseConfig = {
         }
         return `DATE_TRUNC(${originalSql}, ${datePart})`;
     },
-    // DATE(ts, tz) is by definition the calendar date of the instant in tz —
-    // same value as CAST(DATETIME_TRUNC(DATETIME(ts, tz), ...) AS DATE), but
-    // the pruner can see through it.
+    // DATE(ts, tz) is the calendar date of the instant in tz: same value as
+    // the DATETIME round-trip, but the partition pruner can see through it.
     getSqlForTruncatedDateAsDateInTimezone: (
         timeFrame,
         originalSql,
@@ -616,6 +616,7 @@ const bigqueryConfig: WarehouseConfig = {
 
 // Snowflake handles start of week by setting a session variable (WEEK_START)
 const snowflakeConfig: WarehouseConfig = {
+    getSqlForTruncatedDateAsDateInTimezone: null,
     getSqlForTruncatedDate: (timeFrame, originalSql) =>
         `DATE_TRUNC('${timeFrame}', ${originalSql})`,
     getSqlForDatePart: (timeFrame: TimeFrames, originalSql: string) => {
@@ -667,6 +668,7 @@ const snowflakeConfig: WarehouseConfig = {
 };
 
 const postgresConfig: WarehouseConfig = {
+    getSqlForTruncatedDateAsDateInTimezone: null,
     getSqlForTruncatedDate: (timeFrame, originalSql, _, startOfWeek) => {
         if (timeFrame === TimeFrames.WEEK && isWeekDay(startOfWeek)) {
             const intervalDiff = `${startOfWeek} days`;
@@ -737,6 +739,7 @@ const postgresConfig: WarehouseConfig = {
 };
 
 const databricksConfig: WarehouseConfig = {
+    getSqlForTruncatedDateAsDateInTimezone: null,
     getSqlForTruncatedDate: (timeFrame, originalSql, _, startOfWeek) => {
         if (timeFrame === TimeFrames.WEEK && isWeekDay(startOfWeek)) {
             const intervalDiff = `${startOfWeek}`;
@@ -807,6 +810,7 @@ const databricksConfig: WarehouseConfig = {
 };
 
 const trinoConfig: WarehouseConfig = {
+    getSqlForTruncatedDateAsDateInTimezone: null,
     // Trino rejects sub-day DATE_TRUNC on DATE columns ('SECOND' is not a
     // valid DATE field). Cast to TIMESTAMP for sub-day grains; no-op when the
     // input is already a TIMESTAMP.
@@ -885,6 +889,7 @@ const trinoConfig: WarehouseConfig = {
 };
 
 const clickhouseConfig: WarehouseConfig = {
+    getSqlForTruncatedDateAsDateInTimezone: null,
     getSqlForTruncatedDate: (timeFrame, originalSql, _, startOfWeek) => {
         if (timeFrame === TimeFrames.WEEK && isWeekDay(startOfWeek)) {
             const intervalDiff = startOfWeek;
