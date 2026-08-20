@@ -323,6 +323,11 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                             savedSqlUuid={artifactData.savedSqlUuid}
                             sql={sqlVizQueryData.sql}
                             limit={sqlVizQueryData.limit}
+                            queryUuid={sqlVizQueryData.query.queryUuid}
+                            totalResults={
+                                queryResults.totalResults ??
+                                queryResults.rows.length
+                            }
                             title={title}
                             description={description}
                             columns={Object.values(queryResults.columns ?? {})}
