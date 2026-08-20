@@ -76,6 +76,16 @@ type WarehouseConfig = {
         type: DimensionType,
         startOfWeek?: WeekDay | null,
     ) => string;
+    // Timezone-wrapped variant of the above for known-aware columns: returns a
+    // DATE in `timezone` directly, skipping the conversion round-trip that
+    // defeats partition pruning (BigQuery only).
+    getSqlForTruncatedDateAsDateInTimezone?: (
+        timeFrame: TimeFrames,
+        originalSql: string,
+        type: DimensionType,
+        startOfWeek: WeekDay | null | undefined,
+        timezone: string,
+    ) => string;
     getSqlForDatePart: (
         timeFrame: TimeFrames,
         originalSql: string,
@@ -515,6 +525,21 @@ const bigqueryConfig: WarehouseConfig = {
                 : `DATE_TRUNC(DATE(${originalSql}), ${datePart})`;
         }
         return `DATE_TRUNC(${originalSql}, ${datePart})`;
+    },
+    // DATE(ts, tz) is by definition the calendar date of the instant in tz —
+    // same value as CAST(DATETIME_TRUNC(DATETIME(ts, tz), ...) AS DATE), but
+    // the pruner can see through it.
+    getSqlForTruncatedDateAsDateInTimezone: (
+        timeFrame,
+        originalSql,
+        _type,
+        startOfWeek,
+        timezone,
+    ) => {
+        const datePart = bigqueryDatePart(timeFrame, startOfWeek);
+        return timeFrame === TimeFrames.DAY
+            ? `DATE(${originalSql}, '${timezone}')`
+            : `DATE_TRUNC(DATE(${originalSql}, '${timezone}'), ${datePart})`;
     },
     getSqlForDatePart: (
         timeFrame: TimeFrames,
@@ -1096,6 +1121,24 @@ export const getSqlForTruncatedDate = (
             originalSql,
             type,
             startOfWeek,
+        );
+    }
+
+    // Known-aware columns can truncate to a DATE in the target tz directly
+    // where the adapter defines a prunable form (BigQuery, GLITCH-628).
+    const truncatedDateAsDateInTimezone =
+        warehouseConfigs[adapterType].getSqlForTruncatedDateAsDateInTimezone;
+    if (
+        castToDate &&
+        wrap.timestampDomain === 'aware' &&
+        truncatedDateAsDateInTimezone
+    ) {
+        return truncatedDateAsDateInTimezone(
+            timeFrame,
+            originalSql,
+            type,
+            startOfWeek,
+            wrap.timezone,
         );
     }
 
