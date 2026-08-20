@@ -9,6 +9,7 @@ describeContentAsCodeSchemaContract({
         'baseTable',
         'caseSensitive',
         'databricksCompute',
+        'externalSource',
         'granularityLabels',
         'groupLabel',
         'groups',
