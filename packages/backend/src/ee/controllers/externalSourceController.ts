@@ -4,9 +4,11 @@ import {
     ParameterError,
     type ApiExternalSourceResponse,
     type ApiExternalSourcesResponse,
+    type ApiExternalSourceTablePreviewResponse,
     type ApiStagedExternalSourceUploadResponse,
     type ApiSuccessEmpty,
     type CreateExternalSourceTablePayload,
+    type UpdateExternalSourcePayload,
     type UUID,
 } from '@lightdash/common';
 import {
@@ -16,8 +18,10 @@ import {
     Hidden,
     Middlewares,
     OperationId,
+    Patch,
     Path,
     Post,
+    Put,
     Query,
     Request,
     Response,
@@ -161,6 +165,117 @@ export class ExternalSourceController extends BaseController {
                 req.account,
                 projectUuid,
                 sourceUuid,
+            ),
+        };
+    }
+
+    /**
+     * Rename an external source's table. Only the display label changes;
+     * the sql name stays stable so saved charts keep working.
+     * @summary Rename an external source
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('/{sourceUuid}')
+    @OperationId('UpdateExternalSource')
+    async updateSource(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() sourceUuid: UUID,
+        @Body() body: UpdateExternalSourcePayload,
+    ): Promise<ApiExternalSourceResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getExternalSourceService().rename(
+                req.account,
+                projectUuid,
+                sourceUuid,
+                body,
+            ),
+        };
+    }
+
+    /**
+     * Replace a CSV source's file. Send raw bytes as the body with
+     * Content-Type and Content-Length headers; pass the new filename as a
+     * query parameter. The table re-ingests and reports a syncing status
+     * until it finishes.
+     * @summary Replace a CSV source's file
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Put('/{sourceUuid}/csv')
+    @OperationId('ReplaceExternalSourceCsv')
+    async replaceCsv(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() sourceUuid: UUID,
+        @Query() filename: string,
+    ): Promise<ApiExternalSourceResponse> {
+        assertRegisteredAccount(req.account);
+        const contentType = req.headers['content-type'];
+        if (!contentType) {
+            throw new ParameterError('Content-Type header is required');
+        }
+        if (!req.headers['content-length']) {
+            throw new ParameterError('Content-Length header is required');
+        }
+        const contentLength = parseInt(req.headers['content-length'], 10);
+        if (Number.isNaN(contentLength) || contentLength <= 0) {
+            throw new ParameterError(
+                'Content-Length must be a positive integer',
+            );
+        }
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getExternalSourceService().replaceCsv(
+                req.account,
+                projectUuid,
+                sourceUuid,
+                {
+                    filename,
+                    contentType,
+                    contentLength,
+                    body: req,
+                },
+            ),
+        };
+    }
+
+    /**
+     * Sample rows from a source table's ingested data.
+     * @summary Preview an external source table
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{sourceUuid}/tables/{tableUuid}/preview')
+    @OperationId('PreviewExternalSourceTable')
+    async previewTable(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() sourceUuid: UUID,
+        @Path() tableUuid: UUID,
+    ): Promise<ApiExternalSourceTablePreviewResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getExternalSourceService().getTablePreview(
+                req.account,
+                projectUuid,
+                sourceUuid,
+                tableUuid,
             ),
         };
     }

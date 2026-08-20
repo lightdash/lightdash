@@ -88,12 +88,14 @@ export const useSettingsNavigation = (
         hasAnyAiAgentAccess,
         embeddingEnabled,
         dataAppsFlag,
+        externalSourcesFlag,
         isGitProject,
     } = context;
 
     const isEmbeddingEnabled = embeddingEnabled?.enabled ?? false;
     const isScimEnabled = isScimTokenManagementEnabled?.enabled ?? false;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
+    const isExternalSourcesEnabled = externalSourcesFlag?.enabled ?? false;
 
     return useMemo<SettingsNavigationSection[]>(() => {
         const ability = user?.ability;
@@ -759,6 +761,26 @@ export const useSettingsNavigation = (
             }
 
             if (
+                isExternalSourcesEnabled &&
+                ability?.can(
+                    'manage',
+                    subject('ExternalSource', {
+                        organizationUuid: organization.organizationUuid,
+                        projectUuid: project.projectUuid,
+                    }),
+                )
+            ) {
+                projectItems.push({
+                    label: 'External sources',
+                    to: `${base}/externalSources`,
+                    icon: IconDatabaseExport,
+                    keywords: ['csv', 'upload', 'files', 'google sheets'],
+                    children: [],
+                    exact: true,
+                });
+            }
+
+            if (
                 ability?.can(
                     'view',
                     subject('Analytics', {
@@ -988,6 +1010,7 @@ export const useSettingsNavigation = (
         hasAnyAiAgentAccess,
         isEmbeddingEnabled,
         isDataAppsEnabled,
+        isExternalSourcesEnabled,
         isGitProject,
         track,
     ]);

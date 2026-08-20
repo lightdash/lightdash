@@ -36,6 +36,8 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { ExternalSourceBadge } from '../../../features/externalSources/components/ExternalSourceBadge';
+import { ExternalSourceExploreMenu } from '../../../features/externalSources/components/ExternalSourceExploreMenu';
 import { MergeJoinBar } from '../../../features/mergeQuery/components/MergeJoinBar';
 import { MergeQuerySidebar } from '../../../features/mergeQuery/components/MergeQuerySidebar';
 import {
@@ -286,6 +288,12 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                 >
                     <Group gap="xs">
                         <PageBreadcrumbs size="md" items={breadcrumbs} />
+                        {explore.type === ExploreType.EXTERNAL_SOURCE &&
+                            explore.externalSource && (
+                                <ExternalSourceBadge
+                                    sourceRef={explore.externalSource}
+                                />
+                            )}
                         {explore.warnings && explore.warnings.length > 0 && (
                             <HoverCard
                                 withinPortal
@@ -389,48 +397,63 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                 </Menu.Dropdown>
                             </Menu>
                         )}
-                    {(canViewSourceCode || canMergeAnotherQuery) && (
-                        <Menu withArrow offset={-2}>
-                            <Menu.Target>
-                                <ActionIcon
-                                    aria-label="Query options"
-                                    color="gray"
-                                    variant="transparent"
-                                >
-                                    <MantineIcon icon={IconDots} />
-                                </ActionIcon>
-                            </Menu.Target>
-                            <Menu.Dropdown>
-                                {canViewSourceCode && (
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon icon={IconCode} />
-                                        }
-                                        onClick={handleViewSourceCode}
+                    {explore.type === ExploreType.EXTERNAL_SOURCE &&
+                        explore.externalSource &&
+                        projectUuid && (
+                            <ExternalSourceExploreMenu
+                                projectUuid={projectUuid}
+                                explore={explore}
+                                sourceRef={explore.externalSource}
+                                canMergeAnotherQuery={canMergeAnotherQuery}
+                                onAddMergeSource={handleAddMergeSource}
+                            />
+                        )}
+                    {explore.type !== ExploreType.EXTERNAL_SOURCE &&
+                        (canViewSourceCode || canMergeAnotherQuery) && (
+                            <Menu withArrow offset={-2}>
+                                <Menu.Target>
+                                    <ActionIcon
+                                        aria-label="Query options"
+                                        color="gray"
+                                        variant="transparent"
                                     >
-                                        <Text fz="xs" fw={500}>
-                                            View source code
-                                        </Text>
-                                    </Menu.Item>
-                                )}
-                                {canViewSourceCode && canMergeAnotherQuery && (
-                                    <Menu.Divider />
-                                )}
-                                {canMergeAnotherQuery && (
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon icon={IconGitMerge} />
-                                        }
-                                        onClick={handleAddMergeSource}
-                                    >
-                                        <Text fz="xs" fw={500}>
-                                            Merge another query
-                                        </Text>
-                                    </Menu.Item>
-                                )}
-                            </Menu.Dropdown>
-                        </Menu>
-                    )}
+                                        <MantineIcon icon={IconDots} />
+                                    </ActionIcon>
+                                </Menu.Target>
+                                <Menu.Dropdown>
+                                    {canViewSourceCode && (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon icon={IconCode} />
+                                            }
+                                            onClick={handleViewSourceCode}
+                                        >
+                                            <Text fz="xs" fw={500}>
+                                                View source code
+                                            </Text>
+                                        </Menu.Item>
+                                    )}
+                                    {canViewSourceCode &&
+                                        canMergeAnotherQuery && (
+                                            <Menu.Divider />
+                                        )}
+                                    {canMergeAnotherQuery && (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconGitMerge}
+                                                />
+                                            }
+                                            onClick={handleAddMergeSource}
+                                        >
+                                            <Text fz="xs" fw={500}>
+                                                Merge another query
+                                            </Text>
+                                        </Menu.Item>
+                                    )}
+                                </Menu.Dropdown>
+                            </Menu>
+                        )}
                 </Group>
 
                 {isGuidedMerge ? (

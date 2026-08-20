@@ -85,6 +85,16 @@ export type CreateExternalSourceTablePayload = {
     label?: string;
 };
 
+/** Rename changes how the table appears; the sql name stays stable so saved charts keep working. */
+export type UpdateExternalSourcePayload = {
+    label: string;
+};
+
+export type ExternalSourceTablePreview = {
+    columns: ResultColumns;
+    sampleRows: Record<string, unknown>[];
+};
+
 export const MAX_EXTERNAL_SOURCE_FILE_BYTES = 100 * 1024 * 1024;
 
 export type ApiExternalSourceResponse = {
@@ -100,4 +110,9 @@ export type ApiExternalSourcesResponse = {
 export type ApiStagedExternalSourceUploadResponse = {
     status: 'ok';
     results: StagedExternalSourceUpload;
+};
+
+export type ApiExternalSourceTablePreviewResponse = {
+    status: 'ok';
+    results: ExternalSourceTablePreview;
 };

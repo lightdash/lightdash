@@ -3,7 +3,9 @@ import {
     type ApiError,
     type CreateExternalSourceTablePayload,
     type ExternalSource,
+    type ExternalSourceTablePreview,
     type StagedExternalSourceUpload,
+    type UpdateExternalSourcePayload,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
@@ -11,6 +13,13 @@ import useToaster from '../../../hooks/toaster/useToaster';
 
 const EXTERNAL_SOURCES_BASE = (projectUuid: string) =>
     `/ee/projects/${projectUuid}/external-sources`;
+
+const listExternalSourcesApi = async (projectUuid: string) =>
+    lightdashApi<ExternalSource[]>({
+        url: EXTERNAL_SOURCES_BASE(projectUuid),
+        method: 'GET',
+        body: undefined,
+    });
 
 const getExternalSourceApi = async (projectUuid: string, sourceUuid: string) =>
     lightdashApi<ExternalSource>({
@@ -109,3 +118,173 @@ export const useInvalidateTables = () => {
             queryKey: ['tables', projectUuid],
         });
 };
+
+export const useExternalSources = (projectUuid: string | undefined) =>
+    useQuery<ExternalSource[], ApiError>({
+        queryKey: ['external-sources', projectUuid],
+        queryFn: () => listExternalSourcesApi(projectUuid!),
+        enabled: !!projectUuid,
+        refetchInterval: (data) =>
+            data?.some(
+                (source) => source.status === ExternalSourceStatus.SYNCING,
+            )
+                ? 2000
+                : false,
+    });
+
+const renameExternalSourceApi = async (args: {
+    projectUuid: string;
+    sourceUuid: string;
+    payload: UpdateExternalSourcePayload;
+}) =>
+    lightdashApi<ExternalSource>({
+        url: `${EXTERNAL_SOURCES_BASE(args.projectUuid)}/${args.sourceUuid}`,
+        method: 'PATCH',
+        body: JSON.stringify(args.payload),
+    });
+
+export const useRenameExternalSource = (projectUuid: string | undefined) => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+    return useMutation<
+        ExternalSource,
+        ApiError,
+        { sourceUuid: string; payload: UpdateExternalSourcePayload }
+    >({
+        mutationFn: ({ sourceUuid, payload }) =>
+            renameExternalSourceApi({
+                projectUuid: projectUuid!,
+                sourceUuid,
+                payload,
+            }),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({
+                queryKey: ['external-sources', projectUuid],
+            });
+            await queryClient.invalidateQueries({
+                queryKey: ['tables', projectUuid],
+            });
+            showToastSuccess({ title: 'Table renamed' });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Could not rename the table',
+                apiError: error,
+            });
+        },
+    });
+};
+
+const replaceCsvApi = async (args: {
+    projectUuid: string;
+    sourceUuid: string;
+    file: File;
+}) => {
+    const search = new URLSearchParams({ filename: args.file.name });
+    return lightdashApi<ExternalSource>({
+        url: `${EXTERNAL_SOURCES_BASE(args.projectUuid)}/${
+            args.sourceUuid
+        }/csv?${search.toString()}`,
+        method: 'PUT',
+        body: args.file,
+        headers: {
+            'Content-Type': args.file.type || 'text/csv',
+        },
+    });
+};
+
+export const useReplaceCsvFile = (projectUuid: string | undefined) => {
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+    return useMutation<
+        ExternalSource,
+        ApiError,
+        { sourceUuid: string; file: File }
+    >({
+        mutationFn: ({ sourceUuid, file }) =>
+            replaceCsvApi({ projectUuid: projectUuid!, sourceUuid, file }),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({
+                queryKey: ['external-sources', projectUuid],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Could not replace the file',
+                apiError: error,
+            });
+        },
+    });
+};
+
+const deleteExternalSourceApi = async (args: {
+    projectUuid: string;
+    sourceUuid: string;
+}) =>
+    lightdashApi<undefined>({
+        url: `${EXTERNAL_SOURCES_BASE(args.projectUuid)}/${args.sourceUuid}`,
+        method: 'DELETE',
+        body: undefined,
+    });
+
+export const useDeleteExternalSource = (projectUuid: string | undefined) => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+    return useMutation<undefined, ApiError, string>({
+        mutationFn: (sourceUuid) =>
+            deleteExternalSourceApi({
+                projectUuid: projectUuid!,
+                sourceUuid,
+            }),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({
+                queryKey: ['external-sources', projectUuid],
+            });
+            await queryClient.invalidateQueries({
+                queryKey: ['tables', projectUuid],
+            });
+            showToastSuccess({ title: 'External source deleted' });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Could not delete the external source',
+                apiError: error,
+            });
+        },
+    });
+};
+
+const getTablePreviewApi = async (args: {
+    projectUuid: string;
+    sourceUuid: string;
+    tableUuid: string;
+}) =>
+    lightdashApi<ExternalSourceTablePreview>({
+        url: `${EXTERNAL_SOURCES_BASE(args.projectUuid)}/${
+            args.sourceUuid
+        }/tables/${args.tableUuid}/preview`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useExternalSourceTablePreview = (args: {
+    projectUuid: string | undefined;
+    sourceUuid: string | undefined;
+    tableUuid: string | undefined;
+}) =>
+    useQuery<ExternalSourceTablePreview, ApiError>({
+        queryKey: [
+            'external-sources',
+            args.projectUuid,
+            args.sourceUuid,
+            'preview',
+            args.tableUuid,
+        ],
+        queryFn: () =>
+            getTablePreviewApi({
+                projectUuid: args.projectUuid!,
+                sourceUuid: args.sourceUuid!,
+                tableUuid: args.tableUuid!,
+            }),
+        enabled: !!args.projectUuid && !!args.sourceUuid && !!args.tableUuid,
+    });
