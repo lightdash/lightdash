@@ -113,8 +113,18 @@ const matchingOpening = (delimiter: ClosingDelimiter): OpeningDelimiter => {
 
 const decodeEscaped = (value: string): string =>
     value.replace(
-        /\\(?:u\{([\da-fA-F]+)\}|u([\da-fA-F]{4})|x([\da-fA-F]{2})|([0btnvfr'"`\\]))/g,
-        (_match, codePoint, unicode, hex, escaped: string | undefined) => {
+        /\\(?:u\{([\da-fA-F]+)\}|u([\da-fA-F]{4})|x([\da-fA-F]{2})|([0btnvfr'"`\\])|(\r\n|[\n\r\u2028\u2029]))/g,
+        (
+            _match,
+            codePoint,
+            unicode,
+            hex,
+            escaped: string | undefined,
+            lineContinuation: string | undefined,
+        ) => {
+            // A line continuation evaluates to nothing, so keeping it would
+            // hide the keyword it splits.
+            if (lineContinuation !== undefined) return '';
             if (codePoint !== undefined) {
                 return String.fromCodePoint(Number.parseInt(codePoint, 16));
             }
@@ -339,16 +349,31 @@ const migrationEdition = (migrationPath: string): 'core' | 'ee' =>
         ? 'ee'
         : 'core';
 
-const collectStringConstants = (tokens: Token[]): Map<string, string> => {
+/**
+ * PURE. Module-scope constants whose value is a complete literal, bound exactly
+ * once. Callers treat a hit as fact, so anything shadowed or partly dynamic is
+ * left out; that costs only an unknown verdict.
+ */
+const collectStringConstants = (
+    tokens: Token[],
+    kinds: readonly TokenKind[] = ['string', 'template'],
+): Map<string, string> => {
     const constants = new Map<string, string>();
+    const bindingSites = collectBindingSites(tokens);
     for (let index = 0; index + 3 < tokens.length; index += 1) {
+        const terminator = tokens[index + 4];
         if (
             tokens[index].kind === 'identifier' &&
             tokens[index].value === 'const' &&
+            tokens[index].depth === 0 &&
             tokens[index + 1].kind === 'identifier' &&
+            bindingSites.get(tokens[index + 1].value)?.size === 1 &&
             tokens[index + 2].kind === 'operator' &&
             tokens[index + 2].value === '=' &&
-            ['string', 'template'].includes(tokens[index + 3].kind)
+            kinds.includes(tokens[index + 3].kind) &&
+            (terminator === undefined ||
+                (terminator.kind === 'punctuation' &&
+                    [';', ','].includes(terminator.value)))
         ) {
             constants.set(tokens[index + 1].value, tokens[index + 3].value);
         }
@@ -379,6 +404,82 @@ const findMatching = (
         if (depth === 0) return index;
     }
     return null;
+};
+
+const BINDING_KEYWORDS = ['const', 'let', 'var', 'function', 'class', 'catch'];
+
+const CLOSING_FOR: Record<OpeningDelimiter, ClosingDelimiter> = {
+    '(': ')',
+    '[': ']',
+    '{': '}',
+};
+
+/**
+ * PURE. Every token index that binds a name, keyed by name. Indices not counts,
+ * because one declaration is reached by several of the rules below.
+ */
+const collectBindingSites = (tokens: Token[]): Map<string, Set<number>> => {
+    const sites = new Map<string, Set<number>>();
+    const bind = (name: string, index: number): void => {
+        const seen = sites.get(name) ?? new Set<number>();
+        seen.add(index);
+        sites.set(name, seen);
+    };
+    const closingIndexOf = (openerIndex: number): number | null => {
+        const opening = tokens[openerIndex]?.value as OpeningDelimiter;
+        const closing = CLOSING_FOR[opening];
+        return closing === undefined
+            ? null
+            : findMatching(tokens, openerIndex, opening, closing);
+    };
+    const bindEnclosed = (openerIndex: number): void => {
+        const end = closingIndexOf(openerIndex);
+        if (end === null) return;
+        for (let index = openerIndex + 1; index < end; index += 1) {
+            if (tokens[index].kind !== 'identifier') continue;
+            // A member name is a property, not a binding.
+            if (tokens[index - 1]?.value === '.') continue;
+            bind(tokens[index].value, index);
+        }
+    };
+
+    for (let index = 0; index < tokens.length; index += 1) {
+        const token = tokens[index];
+        const next = tokens[index + 1];
+        if (next === undefined) continue;
+
+        // An assignment target or a parameter default rebinds the name.
+        if (
+            token.kind === 'identifier' &&
+            next.kind === 'operator' &&
+            next.value === '='
+        ) {
+            bind(token.value, index);
+        }
+
+        // An arrow parameter list binds every name it lists.
+        if (token.kind === 'punctuation' && token.value === '(') {
+            const end = closingIndexOf(index);
+            if (end !== null && tokens[end + 1]?.value === '=>') {
+                bindEnclosed(index);
+            }
+        }
+
+        if (token.kind !== 'identifier') continue;
+        if (!BINDING_KEYWORDS.includes(token.value)) continue;
+
+        if (next.kind === 'identifier') {
+            bind(next.value, index + 1);
+            // A function declaration also binds its parameters.
+            if (tokens[index + 2]?.value === '(') bindEnclosed(index + 2);
+            continue;
+        }
+        // Destructuring, and a catch or parameter list.
+        if (next.kind === 'punctuation' && ['{', '[', '('].includes(next.value)) {
+            bindEnclosed(index + 1);
+        }
+    }
+    return sites;
 };
 
 const findUpBody = (tokens: Token[]): Token[] | null => {
@@ -443,6 +544,34 @@ const resolveTable = (
     return null;
 };
 
+const TEMPLATE_PLACEHOLDER = /\$\{([^}]*)\}/g;
+
+/**
+ * PURE. The SQL a `knex.raw()` argument stands for, or null when it cannot be
+ * read statically. Any `${` surviving substitution means the argument was not
+ * understood, so refuse rather than report heaviness the statement never had.
+ */
+const resolveSqlArgument = (
+    token: Token | undefined,
+    constants: ReadonlyMap<string, string>,
+): string | null => {
+    if (!token) return null;
+    if (token.kind === 'string' || token.kind === 'template') {
+        return token.value;
+    }
+    if (token.kind !== 'dynamicTemplate') return null;
+    let resolved = '';
+    let cursor = 0;
+    for (const match of token.value.matchAll(TEMPLATE_PLACEHOLDER)) {
+        const substitution = constants.get(match[1].trim());
+        if (substitution === undefined) return null;
+        resolved += token.value.slice(cursor, match.index) + substitution;
+        cursor = match.index + match[0].length;
+    }
+    resolved += token.value.slice(cursor);
+    return resolved.includes('${') ? null : resolved;
+};
+
 const rawSqlTables = (sql: string): string[] => {
     const tables = new Set<string>();
     const patterns = [
@@ -459,6 +588,15 @@ const rawSqlTables = (sql: string): string[] => {
     return [...tables];
 };
 
+const SQL_COMMENTS = /--[^\n]*|\/\*[\s\S]*?\*\//g;
+
+const sqlStatements = (sql: string): string[] =>
+    sql.replace(SQL_COMMENTS, ' ').split(';');
+
+const addsValidatedConstraint = (statement: string): boolean =>
+    /\badd\s+constraint\b/i.test(statement) &&
+    !/\bnot\s+valid\b/i.test(statement);
+
 export function analyzeMigrationSource(
     migrationPath: string,
     source: string,
@@ -468,6 +606,11 @@ export function analyzeMigrationSource(
     const tokenized = tokenize(source);
     const body = findUpBody(tokenized.tokens);
     const constants = collectStringConstants(tokenized.tokens);
+    const sqlConstants = collectStringConstants(tokenized.tokens, [
+        'string',
+        'template',
+        'number',
+    ]);
     const tables = new Set<string>();
     const heaviness: MigrationHeaviness = {
         locksTable: false,
@@ -587,14 +730,18 @@ export function analyzeMigrationSource(
             if (token.value === 'alter') markUnknown('rewritesTable');
 
             if (token.value === 'raw') {
-                if (
-                    argument?.kind !== 'string' &&
-                    argument?.kind !== 'template'
-                ) {
+                // The argument is only the whole argument when the call ends
+                // or a second one follows; anything else builds it at runtime.
+                const argumentEnds = [')', ','].includes(
+                    body[index + 3]?.value ?? '',
+                );
+                const sql = argumentEnds
+                    ? resolveSqlArgument(argument, sqlConstants)
+                    : null;
+                if (sql === null) {
                     markUnknown('locksTable', 'rewritesTable', 'scansTable');
                     continue;
                 }
-                const sql = argument.value;
                 for (const table of rawSqlTables(sql)) tables.add(table);
                 if (/\b(?:alter|drop|rename|truncate)\s+table\b/i.test(sql)) {
                     mark('locksTable');
@@ -610,6 +757,12 @@ export function analyzeMigrationSource(
                         sql,
                     )
                 ) {
+                    mark('scansTable');
+                }
+                // Adding a constraint validates every existing row unless
+                // the statement says NOT VALID. Checked per statement so one
+                // deferred add cannot vouch for a validated one beside it.
+                if (sqlStatements(sql).some(addsValidatedConstraint)) {
                     mark('scansTable');
                 }
                 if (
