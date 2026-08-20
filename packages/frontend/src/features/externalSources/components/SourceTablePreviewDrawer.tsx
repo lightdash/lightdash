@@ -1,10 +1,10 @@
 import { type ExternalSourceRef } from '@lightdash/common';
 import {
     Badge,
-    Box,
     Drawer,
     Group,
     Loader,
+    ScrollArea,
     Stack,
     Tabs,
     Text,
@@ -102,7 +102,7 @@ export const SourceTablePreviewDrawer: FC<Props> = ({
                                     Read only
                                 </Badge>
                             </Group>
-                            <Box style={{ overflowX: 'auto' }}>
+                            <ScrollArea type="auto">
                                 <LightTable
                                     containerRef={previewTableRef}
                                     w="100%"
@@ -159,7 +159,7 @@ export const SourceTablePreviewDrawer: FC<Props> = ({
                                         )}
                                     </LightTable.Body>
                                 </LightTable>
-                            </Box>
+                            </ScrollArea>
                         </Stack>
                     </Tabs.Panel>
                     <Tabs.Panel value="columns" pt="md">

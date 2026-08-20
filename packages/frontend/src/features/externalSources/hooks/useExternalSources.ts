@@ -199,6 +199,42 @@ export const useRefreshExternalSource = (projectUuid: string | undefined) => {
     });
 };
 
+const reconnectExternalSourceApi = (args: {
+    projectUuid: string;
+    sourceUuid: string;
+}) =>
+    lightdashApi<ExternalSource>({
+        url: `${EXTERNAL_SOURCES_BASE(args.projectUuid)}/${args.sourceUuid}/reconnect`,
+        method: 'POST',
+        body: undefined,
+    });
+
+export const useReconnectExternalSource = (projectUuid: string | undefined) => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+    return useMutation<ExternalSource, ApiError, string>({
+        mutationFn: (sourceUuid) =>
+            reconnectExternalSourceApi({
+                projectUuid: projectUuid!,
+                sourceUuid,
+            }),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({
+                queryKey: ['external-sources', projectUuid],
+            });
+            showToastSuccess({
+                title: 'Google Sheet reconnected',
+                subtitle: 'The project now owns this connection.',
+            });
+        },
+        onError: ({ error }) =>
+            showToastApiError({
+                title: 'Could not reconnect the source',
+                apiError: error,
+            }),
+    });
+};
+
 const renameExternalSourceApi = async (args: {
     projectUuid: string;
     sourceUuid: string;

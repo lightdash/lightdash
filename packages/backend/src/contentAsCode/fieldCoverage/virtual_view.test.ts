@@ -9,9 +9,6 @@ describeContentAsCodeSchemaContract({
         'baseTable',
         'caseSensitive',
         'databricksCompute',
-        // External source explores are not content-as-code'd; virtual views
-        // never carry this ref
-        'externalSource',
         'granularityLabels',
         'groupLabel',
         'groups',

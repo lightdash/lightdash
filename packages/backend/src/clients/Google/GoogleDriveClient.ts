@@ -34,6 +34,17 @@ const GOOGLE_SHEETS_CELL_CHAR_LIMIT = 50000;
 const TRUNCATION_SUFFIX = '... [TRUNCATED]';
 const TRUNCATE_INDEX = GOOGLE_SHEETS_CELL_CHAR_LIMIT - TRUNCATION_SUFFIX.length;
 
+const columnNumberToA1 = (columnCount: number): string => {
+    let value = columnCount;
+    let result = '';
+    while (value > 0) {
+        value -= 1;
+        result = String.fromCharCode(65 + (value % 26)) + result;
+        value = Math.floor(value / 26);
+    }
+    return result || 'A';
+};
+
 export class GoogleDriveClient {
     private readonly lightdashConfig: LightdashConfig;
 
@@ -253,6 +264,55 @@ export class GoogleDriveClient {
             }),
         );
         return response.data.values ?? [];
+    }
+
+    /**
+     * Page a sheet by row range. This bounds memory while retaining the same
+     * unformatted-value semantics as getSheetValues.
+     */
+    async *getSheetRowBatches(
+        refreshToken: string,
+        fileId: string,
+        tabName: string,
+        batchRows: number,
+    ): AsyncGenerator<unknown[][]> {
+        if (!this.isEnabled) {
+            throw new MissingConfigError('Google Drive is not enabled');
+        }
+        const auth = await this.getCredentials(refreshToken);
+        const sheets = google.sheets({ version: 'v4', auth });
+        const metadata = await GoogleDriveClient.catchApiError(
+            sheets.spreadsheets.get({
+                spreadsheetId: fileId,
+                fields: 'sheets(properties(title,gridProperties(rowCount,columnCount)))',
+            }),
+        );
+        const properties = (metadata.data.sheets ?? []).find(
+            (sheet) => sheet.properties?.title === tabName,
+        )?.properties;
+        if (!properties) {
+            throw new NotFoundError(`Google Sheet tab not found: ${tabName}`);
+        }
+        const rowCount = properties.gridProperties?.rowCount ?? 0;
+        const columnCount = properties.gridProperties?.columnCount ?? 0;
+        if (rowCount === 0 || columnCount === 0) return;
+
+        const escapedTab = tabName.replaceAll("'", "''");
+        const lastColumn = columnNumberToA1(columnCount);
+        for (let startRow = 1; startRow <= rowCount; startRow += batchRows) {
+            const endRow = Math.min(startRow + batchRows - 1, rowCount);
+            // Sequential paging avoids Google API quota bursts.
+            // eslint-disable-next-line no-await-in-loop
+            const response = await GoogleDriveClient.catchApiError(
+                sheets.spreadsheets.values.get({
+                    spreadsheetId: fileId,
+                    range: `'${escapedTab}'!A${startRow}:${lastColumn}${endRow}`,
+                    valueRenderOption: 'UNFORMATTED_VALUE',
+                    dateTimeRenderOption: 'FORMATTED_STRING',
+                }),
+            );
+            yield response.data.values ?? [];
+        }
     }
 
     async assertFileIsGoogleSheet(refreshToken: string, fileId: string) {

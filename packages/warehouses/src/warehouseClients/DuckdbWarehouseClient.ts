@@ -104,6 +104,8 @@ export type DuckdbS3SessionConfig = {
     secretKey?: string;
     forcePathStyle: boolean;
     useSsl: boolean;
+    /** Limit this DuckDB secret to one trusted S3 URI or prefix. */
+    scope?: string;
 };
 
 export type DuckdbResourceLimits = {
@@ -152,6 +154,8 @@ export type DuckdbWarehouseClientOptions = {
     embeddedQueryTimeoutMs?: number;
     enableInstanceCache?: boolean;
     projectUuid?: string;
+    /** Process-local per-organization cap for isolated S3 query clients. */
+    organizationConcurrencyLimit?: number;
 };
 
 export const mapFieldTypeFromTypeId = (typeId: number): DimensionType => {
@@ -431,6 +435,11 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         ConcurrencyBudget
     >();
 
+    private static readonly organizationConcurrencyBudgets = new Map<
+        string,
+        ConcurrencyBudget
+    >();
+
     private static readonly sqlBuilder = new DuckdbSqlBuilder();
 
     private readonly databasePath: string;
@@ -460,6 +469,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     private readonly enableInstanceCache: boolean;
 
     private readonly projectUuid?: string;
+
+    private readonly organizationConcurrencyLimit?: number;
 
     private allowsPreAggregateFileReads = false;
 
@@ -580,6 +591,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             options?.embeddedQueryTimeoutMs ?? EMBEDDED_QUERY_TIMEOUT_MS;
         this.enableInstanceCache = options?.enableInstanceCache ?? false;
         this.projectUuid = options?.projectUuid;
+        this.organizationConcurrencyLimit =
+            options?.organizationConcurrencyLimit;
     }
 
     private static hashDucklakeConfig(
@@ -665,6 +678,26 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             if (organizationBudget.isIdle()) {
                 DuckdbWarehouseClient.embeddedOrganizationConcurrencyBudgets.delete(
                     organizationUuid,
+                );
+            }
+        };
+    }
+
+    private static tryAcquireOrganizationConcurrency(
+        organizationUuid: string,
+        limit: number,
+    ): (() => void) | undefined {
+        const key = `${limit}:${organizationUuid}`;
+        const budget =
+            DuckdbWarehouseClient.organizationConcurrencyBudgets.get(key) ??
+            new ConcurrencyBudget(limit);
+        DuckdbWarehouseClient.organizationConcurrencyBudgets.set(key, budget);
+        if (!budget.tryAcquire()) return undefined;
+        return () => {
+            budget.release();
+            if (budget.isIdle()) {
+                DuckdbWarehouseClient.organizationConcurrencyBudgets.delete(
+                    key,
                 );
             }
         };
@@ -1209,6 +1242,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         const secretClause = s3Config.secretKey
             ? `SECRET '${escape(s3Config.secretKey)}',`
             : '';
+        const scopeClause = s3Config.scope
+            ? `SCOPE '${escape(s3Config.scope)}',`
+            : '';
 
         return `CREATE OR REPLACE SECRET __lightdash_s3 (
             TYPE s3,
@@ -1217,6 +1253,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             ${secretClause}
             ENDPOINT '${escape(s3Config.endpoint)}',
             ${regionClause}
+            ${scopeClause}
             URL_STYLE '${s3Config.forcePathStyle ? 'path' : 'vhost'}',
             USE_SSL ${s3Config.useSsl}
         );`;
@@ -1512,41 +1549,64 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             durationMs: number,
         ) => void,
     ): Promise<T> {
-        if (this.embeddedConfig) {
-            return this.withDirectSession(
-                callback,
-                organizationUuid,
-                onPhaseTiming,
+        const releaseOrganizationConcurrency =
+            !this.embeddedConfig &&
+            organizationUuid &&
+            this.organizationConcurrencyLimit
+                ? DuckdbWarehouseClient.tryAcquireOrganizationConcurrency(
+                      organizationUuid,
+                      this.organizationConcurrencyLimit,
+                  )
+                : undefined;
+        if (
+            !this.embeddedConfig &&
+            organizationUuid &&
+            this.organizationConcurrencyLimit &&
+            !releaseOrganizationConcurrency
+        ) {
+            throw new WarehouseQueryError(
+                'External source query capacity is full. Try again shortly.',
             );
         }
-
-        if (this.isMotherduck()) {
-            if (
-                this.enableInstanceCache &&
-                this.credentials.requireUserCredentials !== true
-            ) {
-                return this.withMotherduckCachedSession(
+        try {
+            if (this.embeddedConfig) {
+                return await this.withDirectSession(
                     callback,
-                    retryable,
+                    organizationUuid,
                     onPhaseTiming,
                 );
             }
-            return this.withDirectSession(
-                callback,
-                organizationUuid,
-                onPhaseTiming,
-            );
-        }
 
-        if (this.hasResourceLimits()) {
-            return this.withIsolatedSession(callback);
-        }
+            if (this.isMotherduck()) {
+                if (
+                    this.enableInstanceCache &&
+                    this.credentials.requireUserCredentials !== true
+                ) {
+                    return await this.withMotherduckCachedSession(
+                        callback,
+                        retryable,
+                        onPhaseTiming,
+                    );
+                }
+                return await this.withDirectSession(
+                    callback,
+                    organizationUuid,
+                    onPhaseTiming,
+                );
+            }
 
-        if (this.instanceCacheKey) {
-            return this.withSharedSession(callback);
-        }
+            if (this.hasResourceLimits()) {
+                return await this.withIsolatedSession(callback);
+            }
 
-        return this.withEphemeralQuerySession(callback);
+            if (this.instanceCacheKey) {
+                return await this.withSharedSession(callback);
+            }
+
+            return await this.withEphemeralQuerySession(callback);
+        } finally {
+            releaseOrganizationConcurrency?.();
+        }
     }
 
     private async withMotherduckCachedSession<T>(

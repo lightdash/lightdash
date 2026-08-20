@@ -11,6 +11,7 @@ import {
     IconGitMerge,
     IconInfoCircle,
     IconPencil,
+    IconPlugConnected,
     IconRefresh,
     IconTrash,
     IconUpload,
@@ -19,7 +20,10 @@ import { useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useApp from '../../../providers/App/useApp';
-import { useRefreshExternalSource } from '../hooks/useExternalSources';
+import {
+    useReconnectExternalSource,
+    useRefreshExternalSource,
+} from '../hooks/useExternalSources';
 import { DeleteExternalSourceModal } from './DeleteExternalSourceModal';
 import { RenameExternalSourceModal } from './RenameExternalSourceModal';
 import { ReplaceCsvFileModal } from './ReplaceCsvFileModal';
@@ -52,6 +56,7 @@ export const ExternalSourceExploreMenu: FC<Props> = ({
         ) === true;
 
     const refreshMutation = useRefreshExternalSource(projectUuid);
+    const reconnectMutation = useReconnectExternalSource(projectUuid);
     const [isRenameOpen, renameHandlers] = useDisclosure(false);
     const [isReplaceOpen, replaceHandlers] = useDisclosure(false);
     const [isDeleteOpen, deleteHandlers] = useDisclosure(false);
@@ -102,20 +107,38 @@ export const ExternalSourceExploreMenu: FC<Props> = ({
                             )}
                             {sourceRef.sourceType ===
                                 ExternalSourceType.GOOGLE_SHEETS && (
-                                <Menu.Item
-                                    leftSection={
-                                        <MantineIcon icon={IconRefresh} />
-                                    }
-                                    onClick={() =>
-                                        refreshMutation.mutate(
-                                            sourceRef.sourceUuid,
-                                        )
-                                    }
-                                >
-                                    <Text fz="xs" fw={500}>
-                                        Refresh from Google Sheets
-                                    </Text>
-                                </Menu.Item>
+                                <>
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon icon={IconRefresh} />
+                                        }
+                                        onClick={() =>
+                                            refreshMutation.mutate(
+                                                sourceRef.sourceUuid,
+                                            )
+                                        }
+                                    >
+                                        <Text fz="xs" fw={500}>
+                                            Refresh from Google Sheets
+                                        </Text>
+                                    </Menu.Item>
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconPlugConnected}
+                                            />
+                                        }
+                                        onClick={() =>
+                                            reconnectMutation.mutate(
+                                                sourceRef.sourceUuid,
+                                            )
+                                        }
+                                    >
+                                        <Text fz="xs" fw={500}>
+                                            Reconnect Google account
+                                        </Text>
+                                    </Menu.Item>
+                                </>
                             )}
                             <Menu.Item
                                 leftSection={<MantineIcon icon={IconPencil} />}

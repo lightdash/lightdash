@@ -887,6 +887,85 @@ describe('DuckdbWarehouseClient', () => {
         expect(secretSql).not.toContain("SECRET '");
     });
 
+    it('scopes S3 credentials to the trusted external-source object', async () => {
+        const runMock = vi.fn();
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(
+                vi.fn(async () =>
+                    getMockStreamResult(
+                        [[{ val: 1 }]],
+                        [DUCKDB_TYPE_IDS.INTEGER],
+                    ),
+                ),
+                runMock,
+            ),
+        );
+        const scope =
+            's3://bucket/external-sources/project/source/table/v1.parquet';
+        const client = DuckdbWarehouseClient.createForPreAggregate({
+            type: 'duckdb_s3',
+            s3Config: {
+                endpoint: 's3.amazonaws.com',
+                forcePathStyle: false,
+                useSsl: true,
+                scope,
+            },
+        });
+
+        await client.runQuery('SELECT 1');
+
+        const secretSql = runMock.mock.calls
+            .map(([sql]) => sql as string)
+            .find((sql) =>
+                sql.includes('CREATE OR REPLACE SECRET __lightdash_s3'),
+            );
+        expect(secretSql).toContain(`SCOPE '${scope}'`);
+    });
+
+    it('caps isolated S3 queries per organization', async () => {
+        let resolveStream: (
+            result: ReturnType<typeof getMockStreamResult>,
+        ) => void = () => {};
+        const streamMock = vi.fn(
+            () =>
+                new Promise<ReturnType<typeof getMockStreamResult>>(
+                    (resolve) => {
+                        resolveStream = resolve;
+                    },
+                ),
+        );
+        createInstanceMock.mockImplementation(async () =>
+            createMockConnection(streamMock),
+        );
+        const createClient = () =>
+            DuckdbWarehouseClient.createForPreAggregate(
+                {
+                    type: 'duckdb_s3',
+                    s3Config: {
+                        endpoint: 's3.amazonaws.com',
+                        forcePathStyle: false,
+                        useSsl: true,
+                        scope: 's3://bucket/external-sources/object.parquet',
+                    },
+                },
+                {
+                    resourceLimits: { memoryLimit: '128MB', threads: 1 },
+                    organizationConcurrencyLimit: 1,
+                },
+            );
+        const tags = { organization_uuid: 'external-source-org' };
+
+        const first = createClient().runQuery('SELECT 1', tags);
+        await vi.waitFor(() => expect(streamMock).toHaveBeenCalledOnce());
+        await expect(createClient().runQuery('SELECT 2', tags)).rejects.toThrow(
+            'External source query capacity is full',
+        );
+        resolveStream(
+            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+        await first;
+    });
+
     it('should load bundled extensions without runtime installs', async () => {
         const accessMock = vi.spyOn(fs, 'access').mockResolvedValue();
         try {

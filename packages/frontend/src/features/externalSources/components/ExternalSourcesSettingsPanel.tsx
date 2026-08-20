@@ -24,6 +24,7 @@ import {
     IconFileSpreadsheet,
     IconInfoCircle,
     IconPencil,
+    IconPlugConnected,
     IconPlus,
     IconRefresh,
     IconTrash,
@@ -35,27 +36,15 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import {
     useExternalSources,
+    useReconnectExternalSource,
     useRefreshExternalSource,
 } from '../hooks/useExternalSources';
+import { getExternalSourceTypeLabel } from '../utils/sourceTypeLabel';
 import { AddDataModal } from './AddDataModal';
 import { DeleteExternalSourceModal } from './DeleteExternalSourceModal';
 import { RenameExternalSourceModal } from './RenameExternalSourceModal';
 import { ReplaceCsvFileModal } from './ReplaceCsvFileModal';
 import { SourceTablePreviewDrawer } from './SourceTablePreviewDrawer';
-
-const getSourceTypeLabel = (sourceType: ExternalSourceType): string => {
-    switch (sourceType) {
-        case ExternalSourceType.CSV:
-            return 'CSV file';
-        case ExternalSourceType.GOOGLE_SHEETS:
-            return 'Google Sheet';
-        default:
-            return assertUnreachable(
-                sourceType,
-                'Unknown external source type',
-            );
-    }
-};
 
 const StatusBadge: FC<{ source: ExternalSource }> = ({ source }) => {
     switch (source.status) {
@@ -101,6 +90,7 @@ export const ExternalSourcesSettingsPanel: FC<{ projectUuid: string }> = ({
     const navigate = useNavigate();
     const sourcesResult = useExternalSources(projectUuid);
     const refreshMutation = useRefreshExternalSource(projectUuid);
+    const reconnectMutation = useReconnectExternalSource(projectUuid);
     const [isAddOpen, addHandlers] = useDisclosure(false);
     const [renameTarget, setRenameTarget] = useState<ModalTarget>();
     const [replaceTarget, setReplaceTarget] = useState<ModalTarget>();
@@ -177,7 +167,7 @@ export const ExternalSourcesSettingsPanel: FC<{ projectUuid: string }> = ({
                                         </Table.Td>
                                         <Table.Td>
                                             <Text fz="sm" c="dimmed">
-                                                {getSourceTypeLabel(
+                                                {getExternalSourceTypeLabel(
                                                     source.type,
                                                 )}
                                             </Text>
@@ -252,22 +242,40 @@ export const ExternalSourcesSettingsPanel: FC<{ projectUuid: string }> = ({
                                                         <Menu.Divider />
                                                         {source.type ===
                                                             ExternalSourceType.GOOGLE_SHEETS && (
-                                                            <Menu.Item
-                                                                leftSection={
-                                                                    <MantineIcon
-                                                                        icon={
-                                                                            IconRefresh
-                                                                        }
-                                                                    />
-                                                                }
-                                                                onClick={() =>
-                                                                    refreshMutation.mutate(
-                                                                        source.sourceUuid,
-                                                                    )
-                                                                }
-                                                            >
-                                                                Refresh
-                                                            </Menu.Item>
+                                                            <>
+                                                                <Menu.Item
+                                                                    leftSection={
+                                                                        <MantineIcon
+                                                                            icon={
+                                                                                IconRefresh
+                                                                            }
+                                                                        />
+                                                                    }
+                                                                    onClick={() =>
+                                                                        refreshMutation.mutate(
+                                                                            source.sourceUuid,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    Refresh
+                                                                </Menu.Item>
+                                                                <Menu.Item
+                                                                    leftSection={
+                                                                        <MantineIcon
+                                                                            icon={
+                                                                                IconPlugConnected
+                                                                            }
+                                                                        />
+                                                                    }
+                                                                    onClick={() =>
+                                                                        reconnectMutation.mutate(
+                                                                            source.sourceUuid,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    Reconnect
+                                                                </Menu.Item>
+                                                            </>
                                                         )}
                                                         {source.type ===
                                                             ExternalSourceType.CSV && (

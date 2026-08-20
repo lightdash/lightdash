@@ -392,6 +392,14 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     externalSources: {
         maxFileSizeBytes: 100 * 1024 * 1024,
+        maxRows: 1_000_000,
+        maxOrganizationBytes: 5 * 1024 * 1024 * 1024,
+        maxConcurrentIngestsPerOrganization: 2,
+        maxConcurrentDuckdbQueriesPerOrganization: 2,
+        googleSheetsBatchRows: 5_000,
+        stagedUploadTtlHours: 24,
+        ingestLeaseMs: 35 * 60 * 1000,
+        garbageCollectionBatchSize: 100,
     },
     preAggregates: {
         enabled: false,

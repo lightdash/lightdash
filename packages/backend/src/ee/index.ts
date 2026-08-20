@@ -1015,7 +1015,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     externalSourceTableResolver: (projectUuid, tableUuid) =>
                         models
                             .getExternalSourceModel<ExternalSourceModel>()
-                            .findTableByUuid(projectUuid, tableUuid),
+                            .findTableForQuery(projectUuid, tableUuid),
                     preAggregateStrategy: new PreAggregateStrategy({
                         preAggregationDuckDbClient:
                             new PreAggregationDuckDbClient({
@@ -1140,8 +1140,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
         },
         modelProviders: {
-            externalSourceModel: ({ database }) =>
-                new ExternalSourceModel({ database }),
+            externalSourceModel: ({ database, utils }) =>
+                new ExternalSourceModel({
+                    database,
+                    encryptionUtil: utils.getEncryptionUtil(),
+                }),
             projectHomepageModel: ({ database }) =>
                 new ProjectHomepageModel({ database }),
             homepageRecommendedActionSkipsModel: ({ database }) =>

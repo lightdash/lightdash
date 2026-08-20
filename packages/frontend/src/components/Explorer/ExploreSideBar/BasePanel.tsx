@@ -139,7 +139,9 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
             if (explore.type === ExploreType.PRE_AGGREGATE) {
                 preAggregateExplores.push(explore);
             } else if (explore.type === ExploreType.EXTERNAL_SOURCE) {
-                externalSourceExplores.push(explore);
+                if (externalSourcesFlag?.enabled === true) {
+                    externalSourceExplores.push(explore);
+                }
             } else if (exploreHasGroups(explore)) {
                 groupedExplores.push(explore);
             } else if (explore.type === ExploreType.VIRTUAL) {
@@ -169,7 +171,7 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
             preAggregateExplores,
             externalSourceExplores,
         ];
-    }, [filteredExplores, tableGroupDetails]);
+    }, [externalSourcesFlag?.enabled, filteredExplores, tableGroupDetails]);
 
     const handleExploreClick = useCallback(
         (explore: SummaryExplore) => {
@@ -210,7 +212,7 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
         return (
             <>
                 <ItemDetailProvider>
-                    <Stack h="100%" style={{ flexGrow: 1 }}>
+                    <Stack h="100%" flex={1}>
                         <Can
                             I="manage"
                             this={subject('Explore', {

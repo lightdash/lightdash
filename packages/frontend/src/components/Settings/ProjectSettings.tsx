@@ -73,7 +73,9 @@ const ProjectSettingsPage: FC<ProjectSettingsPageProps> = ({
     </SettingsPage>
 );
 
-const ProjectSettings: FC = () => {
+const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
+    externalSourcesEnabled,
+}) => {
     const { projectUuid } = useParams<{
         projectUuid: string;
     }>();
@@ -110,11 +112,8 @@ const ProjectSettings: FC = () => {
         ) ??
             false);
 
-    const { data: externalSourcesFlag } = useServerFeatureFlag(
-        FeatureFlags.ExternalSources,
-    );
     const canManageExternalSources =
-        (externalSourcesFlag?.enabled ?? false) &&
+        externalSourcesEnabled &&
         !!project &&
         (user.data?.ability.can(
             'manage',

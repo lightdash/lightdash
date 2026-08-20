@@ -630,6 +630,7 @@ export type PublishAnnouncementPayload = TraceTaskBase & {
 };
 
 export type IngestExternalSourceJobPayload = TraceTaskBase & {
+    attemptUuid: string;
     sourceUuid: string;
 };
 

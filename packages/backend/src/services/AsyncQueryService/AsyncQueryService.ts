@@ -30,6 +30,7 @@ import {
     Explore,
     ExploreCompiler,
     ExploreType,
+    ExternalSourceStatus,
     FeatureFlags,
     FieldType,
     ForbiddenError,
@@ -186,6 +187,7 @@ import {
     quoteDuckdbIdentifier,
 } from '../../utils/duckdb/duckdbSqlTables';
 import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
+import { sanitizeDuckdbError } from '../../utils/duckdb/sanitizeDuckdbError';
 import {
     processFieldsForExport,
     streamJsonlData,
@@ -364,6 +366,7 @@ type AsyncQueryExecutionPlan =
     | {
           target: 'external_source';
           warehouseQuery: string;
+          objectScope: string;
           preAggregateResolved?: false;
           preAggregateResolveReason?: string;
       }
@@ -396,7 +399,12 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     externalSourceTableResolver?: (
         projectUuid: string,
         tableUuid: string,
-    ) => Promise<DbExternalSourceTable | undefined>;
+    ) => Promise<
+        | (DbExternalSourceTable & {
+              external_source_status: ExternalSourceStatus;
+          })
+        | undefined
+    >;
 };
 
 type ResolvedWarehouseCredentials = CreateWarehouseCredentials & {
@@ -550,7 +558,21 @@ export class AsyncQueryService extends ProjectService {
     private async resolveExternalSourceReference(
         projectUuid: string,
         explore: Explore,
-    ): Promise<{ cte: string; cacheKeySalt: string } | { error: string }> {
+        featureFlagContext: {
+            userUuid: string;
+            organizationUuid: string;
+        },
+    ): Promise<
+        | { cte: string; cacheKeySalt: string; objectScope: string }
+        | { error: string }
+    > {
+        const { enabled } = await this.featureFlagModel.get({
+            user: featureFlagContext,
+            featureFlagId: FeatureFlags.ExternalSources,
+        });
+        if (!enabled) {
+            return { error: 'External sources are not enabled' };
+        }
         const ref = explore.externalSource;
         if (!ref) {
             return {
@@ -571,6 +593,11 @@ export class AsyncQueryService extends ProjectService {
                 error: 'The external source table has no ingested data yet. Refresh the source and try again',
             };
         }
+        if (table.external_source_status !== ExternalSourceStatus.READY) {
+            return {
+                error: 'The external source is not ready. Wait for its ingest to finish and try again',
+            };
+        }
         const cte = `${quoteDuckdbIdentifier(
             explore.baseTable,
         )} AS (SELECT * FROM ${getDuckdbPreAggregateSqlTable(
@@ -580,6 +607,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             cte,
             cacheKeySalt: `esv:${ref.tableUuid}:${table.version}`,
+            objectScope: table.locator.uri,
         };
     }
 
@@ -591,7 +619,9 @@ export class AsyncQueryService extends ProjectService {
      */
     private static resolveExternalSourceExecutionPlan(
         query: string,
-        reference: { cte: string; cacheKeySalt: string } | { error: string },
+        reference:
+            | { cte: string; cacheKeySalt: string; objectScope: string }
+            | { error: string },
     ): AsyncQueryExecutionPlan {
         if ('error' in reference) {
             return { target: 'error', error: reference.error };
@@ -606,6 +636,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseQuery: AsyncQueryService.wrapSqlWithReferenceCtes(query, [
                 reference.cte,
             ]),
+            objectScope: reference.objectScope,
         };
     }
 
@@ -617,10 +648,13 @@ export class AsyncQueryService extends ProjectService {
     private async runExternalSourceQuery(
         warehouseArgs: RunAsyncWarehouseQueryArgs,
         account: Account,
+        objectScope: string,
     ): Promise<void> {
         try {
             const warehouseClient =
-                this.preAggregateStrategy.createExecutionWarehouseClient();
+                this.preAggregateStrategy.createExecutionWarehouseClient(
+                    objectScope,
+                );
             await this.runAsyncWarehouseQuery({
                 ...warehouseArgs,
                 warehouseClientOverride: warehouseClient,
@@ -633,7 +667,7 @@ export class AsyncQueryService extends ProjectService {
                 warehouseArgs.projectUuid,
                 {
                     status: QueryHistoryStatus.ERROR,
-                    error: getErrorMessage(e),
+                    error: sanitizeDuckdbError(e),
                     errored_at: new Date(),
                 },
                 account,
@@ -4359,6 +4393,10 @@ export class AsyncQueryService extends ProjectService {
                             ? await this.resolveExternalSourceReference(
                                   projectUuid,
                                   explore,
+                                  {
+                                      userUuid: account.user.id,
+                                      organizationUuid,
+                                  },
                               )
                             : undefined;
 
@@ -4838,6 +4876,7 @@ export class AsyncQueryService extends ProjectService {
                                     return this.runExternalSourceQuery(
                                         warehouseArgs,
                                         account,
+                                        executionPlan.objectScope,
                                     );
                                 case 'materialization':
                                 case 'warehouse':

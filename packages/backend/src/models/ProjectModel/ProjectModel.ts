@@ -204,6 +204,7 @@ type RawSummaryRow = {
     groups: Explore['groups'] | null;
     type: Explore['type'] | null;
     preAggregateSource: Explore['preAggregateSource'] | null;
+    externalSource: Explore['externalSource'] | null;
     errors: ExploreError['errors'] | null; // Fatal errors from ExploreError
     warnings: Explore['warnings'] | null; // Non-fatal warnings from partial compilation
     baseTable: Explore['baseTable'];
@@ -1554,6 +1555,7 @@ export class ProjectModel {
                     explore->'groups' as "groups",
                     explore->'type' as type,
                     explore->'preAggregateSource' as "preAggregateSource",
+                    explore->'externalSource' as "externalSource",
                     explore->'errors' as errors,
                     explore->'warnings' as warnings,
                     explore->'baseTable' as "baseTable",
@@ -1579,6 +1581,7 @@ export class ProjectModel {
             aiHint: row.aiHint ?? undefined,
             type: row.type ?? undefined,
             preAggregateSource: row.preAggregateSource ?? undefined,
+            externalSource: row.externalSource ?? undefined,
             baseTableRequiredAttributes:
                 row.baseTableRequiredAttributes ?? undefined,
             baseTableAnyAttributes: row.baseTableAnyAttributes ?? undefined,
@@ -4317,35 +4320,8 @@ export class ProjectModel {
         });
     }
 
-    async createExternalSourceExplore(
+    async saveExternalSourceExplore(
         projectUuid: string,
-        explore: Explore,
-    ): Promise<void> {
-        await this.database.transaction(async (trx) => {
-            await ProjectModel.lockAndEnsureCachedExplores(trx, projectUuid);
-            const existing = await trx(CachedExploreTableName)
-                .select('name')
-                .where('project_uuid', projectUuid)
-                .andWhere('name', explore.name)
-                .first();
-            if (existing) {
-                throw new AlreadyExistsError(
-                    `Explore "${explore.name}" already exists`,
-                );
-            }
-            await trx(CachedExploreTableName).insert({
-                project_uuid: projectUuid,
-                name: explore.name,
-                table_names: Object.keys(explore.tables || {}),
-                explore,
-            });
-            await ProjectModel.rebuildCachedExplores(trx, projectUuid);
-        });
-    }
-
-    async updateExternalSourceExplore(
-        projectUuid: string,
-        exploreName: string,
         explore: Explore,
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
@@ -4353,37 +4329,54 @@ export class ProjectModel {
             const existing = await trx(CachedExploreTableName)
                 .select<{ explore: Explore | ExploreError }[]>('explore')
                 .where('project_uuid', projectUuid)
-                .andWhere('name', exploreName)
+                .andWhere('name', explore.name)
                 .first();
             if (
-                !existing ||
+                existing &&
                 existing.explore.type !== ExploreType.EXTERNAL_SOURCE
             ) {
-                throw new NotFoundError(
-                    `External source table "${exploreName}" does not exist`,
+                throw new AlreadyExistsError(
+                    `Explore "${explore.name}" already exists`,
                 );
             }
-            await trx(CachedExploreTableName)
-                .update({
+
+            const row = {
+                project_uuid: projectUuid,
+                name: explore.name,
+                table_names: Object.keys(explore.tables || {}),
+                explore,
+            };
+            if (existing) {
+                await trx(CachedExploreTableName)
+                    .where('project_uuid', projectUuid)
+                    .andWhere('name', explore.name)
+                    .update({
+                        table_names: row.table_names,
+                        explore: row.explore,
+                    });
+            } else {
+                await trx(CachedExploreTableName).insert({
+                    project_uuid: row.project_uuid,
+                    name: row.name,
                     table_names: Object.keys(explore.tables || {}),
                     explore,
-                })
-                .where('project_uuid', projectUuid)
-                .andWhere('name', exploreName);
+                });
+            }
             await ProjectModel.rebuildCachedExplores(trx, projectUuid);
         });
     }
 
-    async deleteExternalSourceExplore(
+    async deleteExternalSourceExplores(
         projectUuid: string,
-        name: string,
+        names: string[],
     ): Promise<void> {
+        if (names.length === 0) return;
         await this.database.transaction(async (trx) => {
             await ProjectModel.lockAndEnsureCachedExplores(trx, projectUuid);
             await trx(CachedExploreTableName)
                 .where('project_uuid', projectUuid)
                 .whereRaw("explore->>'type' = ?", [ExploreType.EXTERNAL_SOURCE])
-                .andWhere('name', name)
+                .whereIn('name', names)
                 .delete();
             await ProjectModel.rebuildCachedExplores(trx, projectUuid);
         });

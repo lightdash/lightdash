@@ -48,7 +48,7 @@ export const RenameExternalSourceModal: FC<Props> = ({
             icon={IconPencil}
             size="md"
         >
-            <form onSubmit={handleSubmit}>
+            <form id="external-source-rename-form" onSubmit={handleSubmit}>
                 <Stack gap="md">
                     <TextInput
                         label="Name"
@@ -60,11 +60,16 @@ export const RenameExternalSourceModal: FC<Props> = ({
                         keep working.
                     </Text>
                     <Group justify="flex-end">
-                        <Button variant="default" onClick={onClose}>
+                        <Button
+                            type="button"
+                            variant="default"
+                            onClick={onClose}
+                        >
                             Cancel
                         </Button>
                         <Button
                             type="submit"
+                            form="external-source-rename-form"
                             loading={renameMutation.isLoading}
                         >
                             Rename

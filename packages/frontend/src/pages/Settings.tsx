@@ -153,6 +153,7 @@ const Settings: FC = () => {
         project,
         isScimTokenManagementEnabled,
         dataAppsFlag,
+        externalSourcesFlag,
         isDataAppsFlagLoading,
         isAiCopilotEnabledOrTrial,
         shouldShowAiAgentReviews,
@@ -477,7 +478,11 @@ const Settings: FC = () => {
                 path: '/projectManagement/:projectUuid/*',
                 element: (
                     <TrackPage name={PageName.PROJECT_SETTINGS}>
-                        <ProjectSettings />
+                        <ProjectSettings
+                            externalSourcesEnabled={
+                                externalSourcesFlag?.enabled ?? false
+                            }
+                        />
                     </TrackPage>
                 ),
             });
@@ -775,6 +780,7 @@ const Settings: FC = () => {
         health?.hasGitlab,
         health?.auth.google.enabled,
         dataAppsFlag?.enabled,
+        externalSourcesFlag?.enabled,
         isProLimitsEnabled,
         isOrganizationRoadmapEnabled,
         isSsoOrganizationSettingsEnabled,

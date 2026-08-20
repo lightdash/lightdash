@@ -55,6 +55,7 @@ const AI_AGENT_MEMORY_CONSOLIDATE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const APP_GENERATE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
 const AI_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000;
 const AGENT_ONBOARDING_TIMEOUT_MS = 60 * 60 * 1000;
+const EXTERNAL_SOURCE_INGEST_TIMEOUT_MS = 30 * 60 * 1000;
 
 export const cleanAiDeepResearchReports = async ({
     aiDeepResearchService,
@@ -123,7 +124,10 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
         ProjectHomepageService,
         'publishScheduledAnnouncement' | 'sweepDueAnnouncements'
     >;
-    externalSourceService: Pick<ExternalSourceService, 'runIngest'>;
+    externalSourceService: Pick<
+        ExternalSourceService,
+        'runIngest' | 'markIngestError' | 'maintain'
+    >;
 };
 
 export class CommercialSchedulerWorker extends SchedulerWorker {
@@ -197,6 +201,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
     protected getCronItems() {
         return [
             ...super.getCronItems(),
+            {
+                task: EE_SCHEDULER_TASKS.MAINTAIN_EXTERNAL_SOURCES,
+                pattern: '*/5 * * * *',
+                options: {
+                    backfillPeriod: 10 * 60 * 1000,
+                    maxAttempts: 3,
+                },
+            },
             {
                 task: EE_SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS,
                 pattern: '*/2 * * * *', // Every 2 minutes
@@ -715,8 +727,29 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     },
                 );
             },
-            [EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE]: async (payload) => {
-                await this.externalSourceService.runIngest(payload);
+            [EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        () => this.externalSourceService.runIngest(payload),
+                    ),
+                    helpers.job,
+                    EXTERNAL_SOURCE_INGEST_TIMEOUT_MS,
+                    async (_job, error) =>
+                        this.externalSourceService.markIngestError(
+                            payload.attemptUuid,
+                            error,
+                        ),
+                );
+            },
+            [EE_SCHEDULER_TASKS.MAINTAIN_EXTERNAL_SOURCES]: async () => {
+                await this.externalSourceService.maintain();
             },
             [EE_SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE]: async (
                 payload,
