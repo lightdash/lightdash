@@ -555,6 +555,27 @@ describe('routing', () => {
         expect(rowsOf('select now()').rows[0][0]).not.toBe(first);
     });
 
+    it('lists explores in pg_tables and reports never-analyzed statistics per table', () => {
+        expect(
+            objectsOf(
+                `select tablename, tableowner from pg_tables where schemaname = 'public' order by 1`,
+            ),
+        ).toEqual([
+            { tablename: 'customers', tableowner: 'alice@example.com' },
+            { tablename: 'orders', tableowner: 'alice@example.com' },
+        ]);
+        expect(
+            objectsOf(
+                `select relname, n_live_tup, last_analyze from pg_stat_user_tables where schemaname = 'public' and relname = 'orders'`,
+            ),
+        ).toEqual([{ relname: 'orders', n_live_tup: '0', last_analyze: null }]);
+        expect(
+            rowsOf(
+                `select relid from pg_stat_all_tables where relname = 'customers'`,
+            ).rows,
+        ).toEqual([['16385']]);
+    });
+
     it('answers the SQL editor keyword probe with an empty set', () => {
         const { fields, rows } = rowsOf(
             'SELECT word FROM pg_catalog.pg_get_keywords()',

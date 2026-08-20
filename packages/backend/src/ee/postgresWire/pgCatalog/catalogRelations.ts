@@ -345,6 +345,21 @@ const informationSchemaColumns = ({
         }),
     );
 
+/**
+ * Never-analyzed table statistics, as real Postgres reports for fresh tables;
+ * Domo Cloud Amplifier and similar tools read these when registering a table.
+ */
+const statRows = ({ catalog }: CatalogContext): CatalogRow[] =>
+    catalog.map((table, index) => ({
+        relid: FIRST_EXPLORE_OID + index,
+        schemaname: 'public',
+        relname: table.name,
+        n_live_tup: 0,
+        n_dead_tup: 0,
+        n_mod_since_analyze: 0,
+        n_ins_since_vacuum: 0,
+    }));
+
 const ROW_BUILDERS: RowBuilders = {
     'pg_catalog.pg_namespace': () =>
         NAMESPACES.map((n) => ({ ...n, nspowner: SESSION_ROLE_OID })),
@@ -406,6 +421,18 @@ const ROW_BUILDERS: RowBuilders = {
             lanpltrusted: true,
         },
     ],
+    'pg_catalog.pg_tables': ({ catalog, userName }) =>
+        catalog.map((table) => ({
+            schemaname: 'public',
+            tablename: table.name,
+            tableowner: userName,
+            hasindexes: false,
+            hasrules: false,
+            hastriggers: false,
+            rowsecurity: false,
+        })),
+    'pg_catalog.pg_stat_user_tables': statRows,
+    'pg_catalog.pg_stat_all_tables': statRows,
     'information_schema.schemata': ({ databaseName }) =>
         NAMESPACES.filter((n) => n.nspname !== 'pg_toast').map((n) => ({
             catalog_name: databaseName,
