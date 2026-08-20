@@ -1,3 +1,17 @@
+# [1.215.0](https://github.com/lightdash/lightdash/compare/1.214.0...1.215.0) (2026-08-20)
+
+
+### Features
+
+* **ai:** data retention settings UI with org ceiling and agent override ([#27666](https://github.com/lightdash/lightdash/issues/27666)) ([aa11444](https://github.com/lightdash/lightdash/commit/aa11444c41722400d66b7e8a8e8baed48af3fb01))
+* **ai:** disclose retention window in agent chat surfaces ([#27667](https://github.com/lightdash/lightdash/issues/27667)) ([6a8219c](https://github.com/lightdash/lightdash/commit/6a8219c517e7b4a98c06c70f8a69400d3520066b))
+* **ai:** hourly retention cleanup job for AI agent threads ([#27665](https://github.com/lightdash/lightdash/issues/27665)) ([60c30a0](https://github.com/lightdash/lightdash/commit/60c30a031ba42900c12743b809f59694dc3f6606))
+* **ai:** manage thread retention through agent-as-code with flag-off warn-and-drop ([#27668](https://github.com/lightdash/lightdash/issues/27668)) ([aa7fddf](https://github.com/lightdash/lightdash/commit/aa7fddf7eecb2a82d90e1bc229f6d1c95bbcdc0b))
+* **ai:** org and agent thread retention settings with ceiling validation ([#27664](https://github.com/lightdash/lightdash/issues/27664)) ([459a31f](https://github.com/lightdash/lightdash/commit/459a31f5f0ec6b40ec60c6f8f18ba5e58c2eb6b2))
+* allow downloading Agent chart results ([#27724](https://github.com/lightdash/lightdash/issues/27724)) ([79d5062](https://github.com/lightdash/lightdash/commit/79d5062fd7dd3b802ee07fa92dae79c1fad93cc8))
+* allow downloading Agent SQL results ([#27726](https://github.com/lightdash/lightdash/issues/27726)) ([8556a2c](https://github.com/lightdash/lightdash/commit/8556a2c2d1443e652a97503cdd592f5797042e1f)), closes [#27709](https://github.com/lightdash/lightdash/issues/27709)
+* export Agent chart artifacts as images ([#27745](https://github.com/lightdash/lightdash/issues/27745)) ([cd2424a](https://github.com/lightdash/lightdash/commit/cd2424a2849bca88bb993e36a0db69836eea4a87)), closes [#27707](https://github.com/lightdash/lightdash/issues/27707)
+
 # [1.214.0](https://github.com/lightdash/lightdash/compare/1.213.0...1.214.0) (2026-08-20)
 
 

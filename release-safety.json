@@ -1,18 +1,32 @@
 {
   "schemaVersion": "2",
-  "version": "1.214.0",
-  "previousVersion": "1.213.0",
-  "releaseDate": "2026-08-20T11:37:07.194Z",
+  "version": "1.215.0",
+  "previousVersion": "1.214.0",
+  "releaseDate": "2026-08-20T12:19:19.496Z",
   "migrations": {
-    "present": false,
-    "count": 0,
+    "present": true,
+    "count": 1,
     "coreCount": 0,
-    "eeCount": 0,
-    "files": []
+    "eeCount": 1,
+    "files": [
+      {
+        "name": "20260819140000_add_ai_thread_retention_settings.ts",
+        "edition": "ee",
+        "tables": [
+          "ai_agent",
+          "ai_organization_settings"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": "unknown",
+          "scansTable": "unknown"
+        }
+      }
+    ]
   },
   "compatibility": {
-    "rollingUpdateSafe": true,
-    "recommendedStrategy": "RollingUpdate"
+    "rollingUpdateSafe": "unknown",
+    "recommendedStrategy": "Recreate"
   },
   "api": {
     "rest": {
@@ -20,8 +34,11 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [],
-      "advisoryCount": 0
+      "advisories": [
+        "GET /api/v1/schedulers/runs/{runId}/logs — added the new `cleanAiAgentThreads` enum value to the `results/logs/items/allOf[#/components/schemas/BaseSchedulerLog]/task` response property for the response status `200`",
+        "GET /api/v1/schedulers/{projectUuid}/logs — added the new `cleanAiAgentThreads` enum value to the `results/data/logs/items/allOf[#/components/schemas/BaseSchedulerLog]/task` response property for the response status `200`"
+      ],
+      "advisoryCount": 2
     },
     "mcp": {
       "checked": true,

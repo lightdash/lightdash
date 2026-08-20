@@ -6495,6 +6495,11 @@
                         ],
                         "nullable": true
                     },
+                    "threadRetentionHours": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
                     "enableSqlMode": {
                         "type": "boolean"
                     },
@@ -8765,6 +8770,12 @@
             },
             "AgentAsCodeUpsertChanges": {
                 "properties": {
+                    "warnings": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "deleted": {
                         "items": {
                             "type": "string"
@@ -20657,7 +20668,7 @@
                 "type": "object",
                 "description": "Body of POST /api/v1/aiAgents/documents. Both scope fields are deprecated:\nscope now comes from the agent-scoped route path. Once they are removed this\nendpoint only creates organization level documents."
             },
-            "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-version_": {
+            "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-version-or-threadRetentionHours_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -20767,6 +20778,11 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "threadRetentionHours": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -20792,13 +20808,14 @@
                     "enableUserContext",
                     "enableSqlMode",
                     "adminOnly",
-                    "modelConfig"
+                    "modelConfig",
+                    "threadRetentionHours"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgentSummary": {
-                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-version_"
+                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-version-or-threadRetentionHours_"
             },
             "ApiAiAgentSummaryResponse": {
                 "properties": {
@@ -21324,7 +21341,7 @@
             "ApiAiAgentProjectThreadSummaryListResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_AiAgentProjectThreadSummary-Array__"
             },
-            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-version_": {
+            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-version-or-threadRetentionHours_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -21434,6 +21451,11 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "threadRetentionHours": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -21459,13 +21481,14 @@
                     "enableUserContext",
                     "enableSqlMode",
                     "adminOnly",
-                    "modelConfig"
+                    "modelConfig",
+                    "threadRetentionHours"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgent": {
-                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-version_"
+                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-version-or-threadRetentionHours_"
             },
             "ApiAiAgentResponse": {
                 "properties": {
@@ -22273,6 +22296,11 @@
                     },
                     {
                         "properties": {
+                            "threadRetentionHours": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            },
                             "modelConfig": {
                                 "allOf": [
                                     {
@@ -22404,6 +22432,11 @@
                     },
                     {
                         "properties": {
+                            "threadRetentionHours": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            },
                             "mcpServerUuids": {
                                 "items": {
                                     "type": "string"
@@ -31467,6 +31500,11 @@
             },
             "AiOrganizationRuntimeSettings": {
                 "properties": {
+                    "threadRetentionHours": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
                     "visibleDataAppModels": {
                         "items": {
                             "$ref": "#/components/schemas/DataAppClaudeModel"
@@ -35899,6 +35937,11 @@
             },
             "AiOrganizationSettings": {
                 "properties": {
+                    "threadRetentionHours": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
                     "providerApiKeyHints": {
                         "$ref": "#/components/schemas/AiProviderApiKeyHints"
                     },
@@ -36024,6 +36067,38 @@
             "ApiAiOrganizationSettingsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiOrganizationSettings-and-ComputedAiOrganizationSettings_"
             },
+            "AiThreadRetentionPreview": {
+                "properties": {
+                    "agentCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "threadCount": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["agentCount", "threadCount"],
+                "type": "object",
+                "description": "What an org-level retention window of `retentionHours` would delete on the\nnext cleanup run. Backs the confirmation dialog shown before lowering the\norg ceiling."
+            },
+            "ApiSuccess_AiThreadRetentionPreview_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiThreadRetentionPreview"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiThreadRetentionPreviewResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiThreadRetentionPreview_"
+            },
             "ApiSuccess_AiOrganizationSettings_": {
                 "properties": {
                     "results": {
@@ -36056,6 +36131,11 @@
             },
             "UpdateAiOrganizationSettings": {
                 "properties": {
+                    "threadRetentionHours": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
                     "providerApiKeys": {
                         "$ref": "#/components/schemas/UpdateAiProviderApiKeys"
                     },
@@ -40585,6 +40665,7 @@
                     "consolidateAiAgentMemoryPartition",
                     "cleanMcpToolCalls",
                     "cleanAiDeepResearchReports",
+                    "cleanAiAgentThreads",
                     "publishAnnouncement",
                     "sweepDueAnnouncements",
                     "handleScheduledDelivery",
@@ -55457,7 +55538,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.214.0",
+        "version": "1.215.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -69570,6 +69651,47 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/aiAgents/admin/settings/thread-retention-preview": {
+            "get": {
+                "operationId": "getAiThreadRetentionPreview",
+                "responses": {
+                    "200": {
+                        "description": "Retrieved thread retention preview",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiThreadRetentionPreviewResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Preview what an org-level thread retention window would delete on the\nnext cleanup run",
+                "summary": "Preview thread retention impact",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "retentionHours",
+                        "required": true,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/warehouse-connect/code": {
@@ -86825,7 +86947,7 @@
                         }
                     }
                 },
-                "description": "Get the complete role set a user holds directly on the project.\nRequires the `multiple-roles` feature.",
+                "description": "Get the complete role set a user holds directly on the project.\nRequires custom roles (Enterprise).",
                 "summary": "Get project role set for user",
                 "tags": ["v2", "Project Roles"],
                 "security": [],
@@ -86872,7 +86994,7 @@
                         }
                     }
                 },
-                "description": "Atomically replace the complete role set a user holds directly on the project.\nAt most one system role plus any number of custom roles; the set must not be empty.\nRequires the `multiple-roles` feature.",
+                "description": "Atomically replace the complete role set a user holds directly on the project.\nAt most one system role plus any number of custom roles; the set must not be empty.\nRequires custom roles (Enterprise).",
                 "summary": "Replace project role set for user",
                 "tags": ["v2", "Project Roles"],
                 "security": [],
@@ -86931,7 +87053,7 @@
                         }
                     }
                 },
-                "description": "Get the complete role set a group holds on the project.\nRequires the `multiple-roles` feature.",
+                "description": "Get the complete role set a group holds on the project.\nRequires custom roles (Enterprise).",
                 "summary": "Get project role set for group",
                 "tags": ["v2", "Project Roles"],
                 "security": [],
@@ -86978,7 +87100,7 @@
                         }
                     }
                 },
-                "description": "Atomically replace the complete role set a group holds on the project.\nAt most one system role plus any number of custom roles; the set must not be empty.\nRequires the `multiple-roles` feature.",
+                "description": "Atomically replace the complete role set a group holds on the project.\nAt most one system role plus any number of custom roles; the set must not be empty.\nRequires custom roles (Enterprise).",
                 "summary": "Replace project role set for group",
                 "tags": ["v2", "Project Roles"],
                 "security": [],
@@ -87306,7 +87428,7 @@
                         }
                     }
                 },
-                "description": "Get the complete role set (system role plus custom roles) a user holds in the organization.\nRequires the `multiple-roles` feature.",
+                "description": "Get the complete role set (system role plus custom roles) a user holds in the organization.\nRequires custom roles (Enterprise).",
                 "summary": "Get organization role set for user",
                 "tags": ["v2", "Organization Roles"],
                 "security": [],
@@ -87353,7 +87475,7 @@
                         }
                     }
                 },
-                "description": "Atomically replace the complete role set a user holds in the organization.\nAt most one system role plus any number of custom roles; the set must not be empty.\nRequires the `multiple-roles` feature.",
+                "description": "Atomically replace the complete role set a user holds in the organization.\nAt most one system role plus any number of custom roles; the set must not be empty.\nRequires custom roles (Enterprise).",
                 "summary": "Replace organization role set for user",
                 "tags": ["v2", "Organization Roles"],
                 "security": [],
