@@ -8273,6 +8273,42 @@ describe('Session-independent explicit path (per-column, no session pin)', () =>
         );
     });
 
+    test('BigQuery known-aware day grain emits the prunable DATE(col, tz) in SELECT and filter LHS', () => {
+        const explore = buildNaiveExplore(
+            SupportedDbtAdapter.BIGQUERY,
+            'aware',
+        );
+        const args = gateArgs(
+            SupportedDbtAdapter.BIGQUERY,
+            bigqueryClientMock,
+            explore,
+        );
+        const { query } = buildQuery({
+            ...args,
+            compiledMetricQuery: {
+                ...args.compiledMetricQuery,
+                filters: filterOn('events_occurred_at_day'),
+            },
+        });
+        const prunable = `DATE("events".occurred_at, 'Asia/Tokyo')`;
+        // Selected dim and filter LHS both carry the direct prunable form.
+        expect(query.split(prunable).length - 1).toBeGreaterThanOrEqual(2);
+        expect(query).not.toContain('DATETIME_TRUNC');
+    });
+
+    test('BigQuery unknown-domain day grain keeps the DATETIME round-trip', () => {
+        const { query } = buildQuery(
+            gateArgs(
+                SupportedDbtAdapter.BIGQUERY,
+                bigqueryClientMock,
+                buildNaiveExplore(SupportedDbtAdapter.BIGQUERY),
+            ),
+        );
+        expect(query).toContain(
+            `CAST(DATETIME_TRUNC(DATETIME(TIMESTAMP("events".occurred_at), 'Asia/Tokyo'), DAY) AS DATE)`,
+        );
+    });
+
     test('unknown domains stay byte-identical to a no-domain compile (Trino)', () => {
         const explore = buildNaiveExplore(SupportedDbtAdapter.TRINO);
         const { query } = buildQuery(

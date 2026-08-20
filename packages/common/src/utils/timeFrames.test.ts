@@ -908,7 +908,7 @@ describe('TimeFrames', () => {
                 );
             });
 
-            test('tz-wrapped path is unchanged (never pruned, stays as-is)', () => {
+            test('tz-wrapped path with unknown domain keeps the DATETIME round-trip', () => {
                 expect(
                     getSqlForTruncatedDate(
                         SupportedDbtAdapter.BIGQUERY,
@@ -940,6 +940,93 @@ describe('TimeFrames', () => {
                         true,
                     ),
                 ).toEqual(`CAST(DATE_TRUNC('DAY', ${col}) AS DATE)`);
+            });
+        });
+
+        // Wrapped aware path: DATE(ts, tz) is by definition the calendar date
+        // of the instant in tz — same value as the DATETIME round-trip, but
+        // the partition pruner can see through it.
+        describe('BigQuery prunable tz-wrapped trunc for known-aware columns', () => {
+            const bqAwareTrunc = (
+                timeFrame: TimeFrames,
+                startOfWeek: WeekDay | null = null,
+            ) =>
+                getSqlForTruncatedDate(
+                    SupportedDbtAdapter.BIGQUERY,
+                    timeFrame,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    startOfWeek,
+                    tz,
+                    undefined,
+                    'aware',
+                    true, // castDayOrCoarserToDate
+                );
+
+            test('day grain emits DATE(col, tz)', () => {
+                expect(bqAwareTrunc(TimeFrames.DAY)).toEqual(
+                    `DATE(${col}, '${tz}')`,
+                );
+            });
+
+            test('month/quarter/year grains emit DATE_TRUNC(DATE(col, tz), part)', () => {
+                expect(bqAwareTrunc(TimeFrames.MONTH)).toEqual(
+                    `DATE_TRUNC(DATE(${col}, '${tz}'), MONTH)`,
+                );
+                expect(bqAwareTrunc(TimeFrames.QUARTER)).toEqual(
+                    `DATE_TRUNC(DATE(${col}, '${tz}'), QUARTER)`,
+                );
+                expect(bqAwareTrunc(TimeFrames.YEAR)).toEqual(
+                    `DATE_TRUNC(DATE(${col}, '${tz}'), YEAR)`,
+                );
+            });
+
+            test('week grain keeps the custom start of week', () => {
+                expect(bqAwareTrunc(TimeFrames.WEEK, WeekDay.TUESDAY)).toEqual(
+                    `DATE_TRUNC(DATE(${col}, '${tz}'), WEEK(TUESDAY))`,
+                );
+            });
+
+            test('sub-day grain keeps the DATETIME round-trip', () => {
+                expect(bqAwareTrunc(TimeFrames.HOUR)).toEqual(
+                    `TIMESTAMP(DATETIME_TRUNC(DATETIME(TIMESTAMP(${col}), '${tz}'), HOUR), '${tz}')`,
+                );
+            });
+
+            test('naive domain keeps the rebased round-trip', () => {
+                expect(
+                    getSqlForTruncatedDate(
+                        SupportedDbtAdapter.BIGQUERY,
+                        TimeFrames.DAY,
+                        col,
+                        DimensionType.TIMESTAMP,
+                        null,
+                        tz,
+                        'Asia/Tokyo',
+                        'naive',
+                        true,
+                    ),
+                ).toEqual(
+                    `CAST(DATETIME_TRUNC(DATETIME(TIMESTAMP(${col}, 'Asia/Tokyo'), '${tz}'), DAY) AS DATE)`,
+                );
+            });
+
+            test('non-BigQuery adapters keep the generic wrapped cast', () => {
+                expect(
+                    getSqlForTruncatedDate(
+                        SupportedDbtAdapter.POSTGRES,
+                        TimeFrames.DAY,
+                        col,
+                        DimensionType.TIMESTAMP,
+                        null,
+                        tz,
+                        undefined,
+                        'aware',
+                        true,
+                    ),
+                ).toEqual(
+                    `CAST(DATE_TRUNC('DAY', (${col})::timestamptz AT TIME ZONE '${tz}') AS DATE)`,
+                );
             });
         });
 
