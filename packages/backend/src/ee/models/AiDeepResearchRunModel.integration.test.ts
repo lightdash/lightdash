@@ -1,5 +1,6 @@
 import {
     AI_DEEP_RESEARCH_EVENT_TYPES,
+    AI_DEEP_RESEARCH_FAILURE_STAGES,
     AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
     SEED_ORG_1,
     SEED_ORG_1_ADMIN,
@@ -266,6 +267,23 @@ describe('AiDeepResearchRunModel integration', () => {
         ).resolves.toHaveLength(AI_DEEP_RESEARCH_EVENT_TYPES.length);
     });
 
+    it('accepts every canonical Deep Research failure stage', async () => {
+        const run = await createRun();
+
+        await expect(
+            Promise.all(
+                AI_DEEP_RESEARCH_FAILURE_STAGES.map((failureStage) =>
+                    database(AiDeepResearchRunsTableName)
+                        .where(
+                            'ai_deep_research_run_uuid',
+                            run.ai_deep_research_run_uuid,
+                        )
+                        .update({ failure_stage: failureStage }),
+                ),
+            ),
+        ).resolves.toEqual(AI_DEEP_RESEARCH_FAILURE_STAGES.map(() => 1));
+    });
+
     it('rejects research after standard execution claims the prompt', async () => {
         const standardPromptUuid = await createAdditionalPrompt();
         await database(AiPromptTableName)
@@ -390,6 +408,7 @@ describe('AiDeepResearchRunModel integration', () => {
             run.ai_deep_research_run_uuid,
             '# Partial report',
             'time_limit',
+            'investigation',
         );
 
         // The outbox is a delivery queue; the reason has to outlive it.
@@ -398,6 +417,7 @@ describe('AiDeepResearchRunModel integration', () => {
         ).toMatchObject({
             status: 'partially_completed',
             terminal_reason: 'time_limit',
+            failure_stage: 'investigation',
         });
     });
 
@@ -412,6 +432,27 @@ describe('AiDeepResearchRunModel integration', () => {
         ).toMatchObject({
             status: 'completed',
             terminal_reason: null,
+            failure_stage: null,
+        });
+    });
+
+    it('records the stage where a run failed', async () => {
+        const run = await createRun();
+        await model.claimQueuedRun(run.ai_deep_research_run_uuid);
+
+        await model.markFailed(
+            run.ai_deep_research_run_uuid,
+            'No report',
+            'provider_error',
+            'finalization',
+        );
+
+        await expect(
+            model.findByUuid(run.ai_deep_research_run_uuid),
+        ).resolves.toMatchObject({
+            status: 'failed',
+            terminal_reason: 'provider_error',
+            failure_stage: 'finalization',
         });
     });
 
@@ -460,7 +501,10 @@ describe('AiDeepResearchRunModel integration', () => {
         const racedRun = await model.findByUuid(run.ai_deep_research_run_uuid);
         if (racedRun?.status === 'running') {
             expect(racedRun.cancellation_requested_at).not.toBeNull();
-            await model.markCancelled(run.ai_deep_research_run_uuid);
+            await model.markCancelled(
+                run.ai_deep_research_run_uuid,
+                'investigation',
+            );
         }
 
         expect(
@@ -492,6 +536,7 @@ describe('AiDeepResearchRunModel integration', () => {
         ).resolves.toMatchObject({
             status: 'cancelled',
             terminal_reason: 'user_cancellation',
+            failure_stage: 'enqueue',
         });
     });
 
@@ -507,7 +552,10 @@ describe('AiDeepResearchRunModel integration', () => {
         const racedRun = await model.findByUuid(run.ai_deep_research_run_uuid);
         if (racedRun?.status === 'running') {
             expect(racedRun.cancellation_requested_at).not.toBeNull();
-            await model.markCancelled(run.ai_deep_research_run_uuid);
+            await model.markCancelled(
+                run.ai_deep_research_run_uuid,
+                'investigation',
+            );
         }
 
         const terminalRun = await model.findByUuid(
@@ -547,7 +595,10 @@ describe('AiDeepResearchRunModel integration', () => {
         await model.checkpointReport(run.ai_deep_research_run_uuid, report);
         await model.requestCancellation(run.ai_deep_research_run_uuid);
 
-        await model.markCancelled(run.ai_deep_research_run_uuid);
+        await model.markCancelled(
+            run.ai_deep_research_run_uuid,
+            'investigation',
+        );
 
         await expect(
             model.findByUuid(run.ai_deep_research_run_uuid),
@@ -573,6 +624,7 @@ describe('AiDeepResearchRunModel integration', () => {
                     run.ai_deep_research_run_uuid,
                     report,
                     'query_limit',
+                    'investigation',
                 );
             }
 
@@ -1040,6 +1092,7 @@ describe('AiDeepResearchRunModel integration', () => {
         expect(staleRuns[0]).toMatchObject({
             ai_deep_research_run_uuid: run.ai_deep_research_run_uuid,
             status: 'failed',
+            failure_stage: 'recovery',
         });
         expect(await getEventSequence(run.ai_deep_research_run_uuid)).toEqual([
             'status_changed:queued',
@@ -1069,6 +1122,7 @@ describe('AiDeepResearchRunModel integration', () => {
         expect(staleRuns[0]).toMatchObject({
             status: 'partially_completed',
             terminal_reason: 'internal_error',
+            failure_stage: 'recovery',
             result_markdown: report,
         });
         expect(await getEventSequence(run.ai_deep_research_run_uuid)).toEqual([
@@ -1092,6 +1146,7 @@ describe('AiDeepResearchRunModel integration', () => {
         expect(staleRuns[0]).toMatchObject({
             status: 'cancelled',
             terminal_reason: 'user_cancellation',
+            failure_stage: 'recovery',
             result_markdown: null,
         });
         expect(await getEventSequence(run.ai_deep_research_run_uuid)).toEqual([
