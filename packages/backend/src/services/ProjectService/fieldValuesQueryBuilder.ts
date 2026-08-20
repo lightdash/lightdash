@@ -1,6 +1,7 @@
 import {
     FilterOperator,
     findFieldByIdInExplore,
+    getFilterAutocompleteLabelDimension,
     getItemId,
     isDimension,
     isExploreError,
@@ -115,46 +116,69 @@ export async function getFieldValuesMetricQuery({
         );
     }
 
-    const optionsFromDimension =
-        initialField.filterAutocomplete?.optionsFromDimension;
+    const { filterAutocomplete } = initialField;
+    const staticResults =
+        filterAutocomplete && !filterAutocomplete.fetchFromWarehouse
+            ? searchFilterAutocompleteValues(
+                  filterAutocomplete.values ?? [],
+                  search,
+              ).slice(0, parsedLimit)
+            : null;
+
+    // Curated values answer the search on their own, so the lookup source is
+    // only resolved when we would otherwise query the warehouse.
+    const optionsFromDimension = staticResults
+        ? undefined
+        : filterAutocomplete?.optionsFromDimension;
+
     let field = initialField;
     if (optionsFromDimension) {
-        const sourceExplore = await exploreResolver.findExploreByTableName(
-            projectUuid,
-            optionsFromDimension.model,
-        );
+        const { model, dimension } = optionsFromDimension;
+        const sourceExplore =
+            (await exploreResolver.findExploreByTableName(
+                projectUuid,
+                model,
+            )) ??
+            (await exploreResolver.findJoinAliasExplore(projectUuid, model));
         if (!sourceExplore) {
             throw new NotFoundError(
-                `Explore ${optionsFromDimension.model} does not exist`,
+                `Filter autocomplete for ${getItemId(
+                    initialField,
+                )} reads options from model '${model}', which has no explore (hidden models and seeds can't be used as a source)`,
             );
         }
         if (isExploreError(sourceExplore)) {
             throw new NotFoundError(
-                `Explore ${optionsFromDimension.model} has errors`,
+                `Filter autocomplete for ${getItemId(
+                    initialField,
+                )} reads options from model '${model}', whose explore has errors`,
             );
         }
 
         explore = sourceExplore;
+        // An explore's name can differ from the table it is built on.
         fieldId = getItemId({
-            table: optionsFromDimension.model,
-            name: optionsFromDimension.dimension,
+            table: sourceExplore.baseTable,
+            name: dimension,
         });
         const sourceField = findFieldByIdInExplore(explore, fieldId);
         if (!sourceField) {
-            throw new NotFoundError(`Can't dimension with id: ${fieldId}`);
+            throw new NotFoundError(
+                `Filter autocomplete options source '${model}.${dimension}' does not exist`,
+            );
         }
         if (!isDimension(sourceField)) {
             throw new ParameterError(
-                `Searching by field is only available for dimensions, but ${fieldId} is a ${sourceField.type}`,
+                `Filter autocomplete options source must be a dimension, but ${fieldId} is a ${sourceField.type}`,
             );
         }
         field = sourceField;
     }
 
     let labelFieldId: string | null = null;
-    const labelDimension = optionsFromDimension
-        ? optionsFromDimension.labelDimension
-        : initialField.filterAutocomplete?.labelDimension;
+    const labelDimension = staticResults
+        ? undefined
+        : getFilterAutocompleteLabelDimension(filterAutocomplete);
     if (labelDimension) {
         const candidateLabelFieldId = getItemId({
             table: field.table,
@@ -257,15 +281,6 @@ export async function getFieldValuesMetricQuery({
         ],
         limit: parsedLimit,
     };
-
-    const { filterAutocomplete } = initialField;
-    const staticResults =
-        filterAutocomplete && !filterAutocomplete.fetchFromWarehouse
-            ? searchFilterAutocompleteValues(
-                  filterAutocomplete.values ?? [],
-                  search,
-              ).slice(0, parsedLimit)
-            : null;
 
     return {
         metricQuery,

@@ -2,6 +2,7 @@ import {
     convertAdditionalMetric,
     DimensionType,
     getFields,
+    getFilterAutocompleteLabelDimension,
     getItemId,
     getResultValueArray,
     isCustomSqlDimension,
@@ -78,10 +79,8 @@ export const useFieldsWithSuggestions = ({
                         // the warehouse; harvesting raw result values masks the labels.
                         const hasLabelDimension =
                             isDimension(field) &&
-                            !!(
-                                field.filterAutocomplete?.labelDimension ??
-                                field.filterAutocomplete?.optionsFromDimension
-                                    ?.labelDimension
+                            !!getFilterAutocompleteLabelDimension(
+                                field.filterAutocomplete,
                             );
                         if (
                             type === DimensionType.STRING &&

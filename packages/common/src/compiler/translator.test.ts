@@ -807,6 +807,41 @@ describe('convert tables from dbt models', () => {
         });
     });
 
+    it('should warn when options_from_dimension is combined with fetch_from_warehouse false', () => {
+        const table = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            {
+                ...MODEL_WITH_NO_METRICS,
+                columns: {
+                    user_id: {
+                        ...MODEL_WITH_NO_METRICS.columns.user_id,
+                        meta: {
+                            dimension: {
+                                filter_autocomplete: {
+                                    fetch_from_warehouse: false,
+                                    values: [{ value: 'active' }],
+                                    options_from_dimension: {
+                                        model: 'users',
+                                        dimension: 'user_id',
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(table.warnings).toEqual([
+            {
+                type: InlineErrorType.FIELD_ERROR,
+                message:
+                    'Dimension "user_id" in dbt model "myTable" sets both "options_from_dimension" and "fetch_from_warehouse: false". Curated values are used and "options_from_dimension" is ignored.',
+            },
+        ]);
+    });
+
     it('should warn and keep the first duplicate dimension filter autocomplete value', () => {
         const table = convertTable(
             SupportedDbtAdapter.BIGQUERY,
