@@ -1,3 +1,10 @@
+## [1.211.1](https://github.com/lightdash/lightdash/compare/1.211.0...1.211.1) (2026-08-20)
+
+
+### Bug Fixes
+
+* make dashboard slug routes safe ([#27643](https://github.com/lightdash/lightdash/issues/27643)) ([aca4fbd](https://github.com/lightdash/lightdash/commit/aca4fbd562aae66bdab913fd87ba0c49b365cf00))
+
 # [1.211.0](https://github.com/lightdash/lightdash/compare/1.210.0...1.211.0) (2026-08-20)
 
 
