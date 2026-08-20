@@ -1,3 +1,10 @@
+## [1.212.2](https://github.com/lightdash/lightdash/compare/1.212.1...1.212.2) (2026-08-20)
+
+
+### Bug Fixes
+
+* **cli:** show content copy failure reason in start-preview ([#27732](https://github.com/lightdash/lightdash/issues/27732)) ([42ae2d2](https://github.com/lightdash/lightdash/commit/42ae2d267373af63f2a8cb2eac5e127455e9c814))
+
 ## [1.212.1](https://github.com/lightdash/lightdash/compare/1.212.0...1.212.1) (2026-08-20)
 
 
