@@ -74,6 +74,9 @@ export type AppGeneratePipelineJobPayload = TraceTaskBase & {
     // the Claude session best-effort) so this run cold-starts on the current
     // template image. Absent on ordinary jobs.
     isUpgrade?: boolean;
+    /** Deterministic completion copy for upgrade surfaces that do not render
+     *  the coding agent's final response (currently reusable chart types). */
+    upgradeStatusMessage?: string;
     chartReferences?: ChartReference[];
     // Structural snapshot of the attached dashboard (tabs, tile layout,
     // filters). Written into the sandbox as a layout blueprint alongside the
