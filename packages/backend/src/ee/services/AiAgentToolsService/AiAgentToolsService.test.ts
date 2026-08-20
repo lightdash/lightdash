@@ -9,8 +9,11 @@ import {
     JobStatusType,
     NotFoundError,
     QueryExecutionContext,
+    QueryHistoryStatus,
+    QuerySourceType,
     RequestMethod,
     SessionUser,
+    SourceQuery,
     UnitOfTime,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -100,6 +103,7 @@ const makeService = ({
     },
     projectModel = {},
     projectService = {},
+    querySourceService = {},
 }: {
     explores?: Record<string, Explore>;
     userAttributes?: Record<string, string[]>;
@@ -120,6 +124,7 @@ const makeService = ({
     featureFlagService?: Record<string, unknown>;
     projectModel?: Record<string, unknown>;
     projectService?: Record<string, unknown>;
+    querySourceService?: Record<string, unknown>;
 } = {}) =>
     new AiAgentToolsService({
         builtInSkills: {
@@ -188,6 +193,7 @@ const makeService = ({
         previewDeploySetupService: {},
         shareService: {},
         asyncQueryService,
+        querySourceService,
     } as unknown as ConstructorParameters<typeof AiAgentToolsService>[0]);
 
 function makeRuntimeContext(
@@ -1679,5 +1685,136 @@ describe('AiAgentToolsService', () => {
             ).rejects.toBeInstanceOf(ForbiddenError);
             expect(get).not.toHaveBeenCalled();
         });
+    });
+});
+
+describe('AiAgentToolsService runComposerQueries', () => {
+    const composerQueries = [
+        {
+            sourceType: QuerySourceType.SEMANTIC_LAYER,
+            nodeId: 'orders',
+            exploreName: 'orders',
+            dimensions: ['orders_status'],
+            metrics: ['orders_total'],
+        },
+        {
+            sourceType: QuerySourceType.DUCKDB,
+            nodeId: 'joined',
+            sql: 'SELECT * FROM orders',
+            references: ['orders'],
+        },
+    ] as SourceQuery[];
+
+    const submissions = [
+        {
+            nodeId: 'orders',
+            sourceType: QuerySourceType.SEMANTIC_LAYER,
+            queryUuid: 'query-1',
+        },
+        {
+            nodeId: 'joined',
+            sourceType: QuerySourceType.DUCKDB,
+            queryUuid: 'query-2',
+        },
+    ];
+
+    const readyResults = {
+        status: QueryHistoryStatus.READY,
+        rows: [{ orders_total: { value: { raw: 42, formatted: '42' } } }],
+        columns: {
+            orders_total: {
+                reference: 'orders_total',
+                type: DimensionType.NUMBER,
+            },
+        },
+    };
+
+    it('submits the pipeline with the AI context and returns the terminal snapshot', async () => {
+        const executeSourceQueries = vi
+            .fn()
+            .mockResolvedValue({ queries: submissions });
+        const getAsyncQueryResults = vi.fn().mockResolvedValue(readyResults);
+        const service = makeService({
+            querySourceService: { executeSourceQueries },
+            asyncQueryService: { getAsyncQueryResults },
+        });
+
+        const result = await service
+            .createRuntime(makeRuntimeContext())
+            .runComposerQueries({
+                queries: composerQueries,
+                terminalNodeId: 'joined',
+            });
+
+        expect(executeSourceQueries).toHaveBeenCalledWith({
+            account,
+            projectUuid,
+            queries: composerQueries,
+            context: QueryExecutionContext.AI,
+        });
+        expect(getAsyncQueryResults).toHaveBeenCalledWith(
+            expect.objectContaining({ queryUuid: 'query-2', page: 1 }),
+        );
+        expect(result.submissions).toEqual(submissions);
+        expect(result.terminal).toEqual({
+            queryUuid: 'query-2',
+            columns: readyResults.columns,
+            rows: [{ orders_total: 42 }],
+            rowCount: 1,
+        });
+    });
+
+    it('rejects a terminal node that was not part of the submission', async () => {
+        const executeSourceQueries = vi
+            .fn()
+            .mockResolvedValue({ queries: submissions });
+        const service = makeService({
+            querySourceService: { executeSourceQueries },
+        });
+
+        await expect(
+            service.createRuntime(makeRuntimeContext()).runComposerQueries({
+                queries: composerQueries,
+                terminalNodeId: 'unknown_node',
+            }),
+        ).rejects.toThrow('unknown_node');
+    });
+
+    it('names the failing node when the terminal query errors', async () => {
+        const executeSourceQueries = vi
+            .fn()
+            .mockResolvedValue({ queries: submissions });
+        const getAsyncQueryResults = vi.fn().mockResolvedValue({
+            status: QueryHistoryStatus.ERROR,
+            error: 'referenced query failed',
+        });
+        const getSourceQueryStatuses = vi.fn().mockResolvedValue({
+            statuses: [
+                {
+                    queryUuid: 'query-1',
+                    status: QueryHistoryStatus.ERROR,
+                    error: 'relation does not exist',
+                },
+                {
+                    queryUuid: 'query-2',
+                    status: QueryHistoryStatus.ERROR,
+                    error: 'referenced query failed',
+                },
+            ],
+        });
+        const service = makeService({
+            querySourceService: {
+                executeSourceQueries,
+                getSourceQueryStatuses,
+            },
+            asyncQueryService: { getAsyncQueryResults },
+        });
+
+        await expect(
+            service.createRuntime(makeRuntimeContext()).runComposerQueries({
+                queries: composerQueries,
+                terminalNodeId: 'joined',
+            }),
+        ).rejects.toThrow(/"orders" \(relation does not exist\)/);
     });
 });

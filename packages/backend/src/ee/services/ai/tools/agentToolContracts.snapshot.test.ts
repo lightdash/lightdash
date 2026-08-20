@@ -33,6 +33,7 @@ import { getListWorkstreams } from './listWorkstreams';
 import { getLoadMcpTools } from './loadMcpTools';
 import { getLoadSkill } from './loadSkill';
 import { getReadContent } from './readContent';
+import { getRunComposerQueries } from './runComposerQueries';
 import { getRunContentQuery } from './runContentQuery';
 import { getRunSavedChart } from './runSavedChart';
 import { getRunSql } from './runSql';
@@ -194,6 +195,17 @@ const makeAgentTools = () => {
             maxQueryLimit: 500,
             updateProgress: noopAsync,
             updateSlackMessage: noop,
+            waitForSqlApproval: noop,
+        }),
+        runComposerQueries: getRunComposerQueries({
+            createOrUpdateArtifact: noop,
+            enableDataAccess: true,
+            canRunSql: true,
+            getPrompt: noop,
+            recordSqlApproval: noop,
+            runComposerQueries: noop,
+            maxQueryLimit: 500,
+            updateProgress: noopAsync,
             waitForSqlApproval: noop,
         }),
         searchFieldValues: getSearchFieldValues({

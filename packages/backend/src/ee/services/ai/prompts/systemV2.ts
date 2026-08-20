@@ -58,6 +58,9 @@ export const getSystemPromptV2 = (args: {
     // web and MCP prompts.
     slackChannelId?: string | null;
     canRunSql?: boolean;
+    // When composer queries are on, the standalone runSql tool is withheld
+    // and raw SQL runs as `sql` nodes inside runComposerQueries instead.
+    enableComposerQueries?: boolean;
     enableMergeQueries?: boolean;
     warehouseType?: WarehouseTypes | null;
     warehouseSchema?: string | null;
@@ -84,6 +87,7 @@ export const getSystemPromptV2 = (args: {
         enableAiAgentMemory = false,
         slackChannelId = null,
         canRunSql = false,
+        enableComposerQueries = false,
         enableMergeQueries = false,
         warehouseType = null,
         warehouseSchema = null,
@@ -97,6 +101,9 @@ export const getSystemPromptV2 = (args: {
     if (enableMergeQueries) {
         crossExploreJoinRule =
             '  - To combine fields from two explores that are not joined in the semantic layer, use generateVisualization with mergeConfig. Keep the primary query in queryConfig, put exactly one additional query in mergeConfig.additionalSources, and join dimensions at the same type and grain. Do not use runSql merely to combine explores.';
+    } else if (enableComposerQueries) {
+        crossExploreJoinRule =
+            '  - You cannot mix fields from different explores in a single generateVisualization call. When the user needs data combined across explores that are not joined in the semantic layer, use runComposerQueries: one semanticLayer node per explore plus a duckdb node that joins their results.';
     } else if (canRunSql) {
         crossExploreJoinRule =
             '  - You cannot mix fields from different explores in a single generateVisualization call. When the user needs data combined across explores that are not joined in the semantic layer, use the runSql tool to write raw SQL across those tables.';
@@ -211,7 +218,11 @@ export const getSystemPromptV2 = (args: {
     let availableExploresContent: string;
     if (args.availableExplores.length === 0) {
         availableExploresContent = canRunSql
-            ? 'No explores are available to this agent yet, but you DO have direct warehouse access. Do not tell the user there is no data. Instead, use listWarehouseTables and describeWarehouseTable to discover the schema, then answer questions with runSql.'
+            ? `No explores are available to this agent yet, but you DO have direct warehouse access. Do not tell the user there is no data. Instead, use listWarehouseTables and describeWarehouseTable to discover the schema, then answer questions with ${
+                  enableComposerQueries
+                      ? 'runComposerQueries using a sql node'
+                      : 'runSql'
+              }.`
             : 'No explores are available to this agent. Tell the user there is no data you can query and suggest they ask an administrator to set up explores or adjust the agent configuration.';
     } else if (
         args.availableExplores.length <= AVAILABLE_EXPLORES_INLINE_LIMIT
@@ -267,6 +278,7 @@ export const getSystemPromptV2 = (args: {
                       warehouseSchema,
                       sqlScope,
                       runSqlMaxLimit,
+                      viaComposerQueries: enableComposerQueries,
                   })
                 : '',
         )

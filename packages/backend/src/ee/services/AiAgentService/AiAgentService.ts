@@ -79,6 +79,7 @@ import {
     hasAiAgentAccessToSpace,
     InsufficientGitPermissionsError,
     isAgentToolName,
+    isAiComposerChartArtifactConfig,
     isAiDeepResearchRunTerminal,
     isAiMergeChartArtifactConfig,
     isAiSqlChartArtifactConfig,
@@ -2897,9 +2898,12 @@ export class AiAgentService extends BaseService {
                 'Tool call does not belong to the supplied agent',
             );
         }
-        if (context.toolName !== 'runSql') {
+        if (
+            context.toolName !== 'runSql' &&
+            context.toolName !== 'runComposerQueries'
+        ) {
             throw new ParameterError(
-                `Tool call ${toolCallId} is not a runSql approval`,
+                `Tool call ${toolCallId} is not a SQL approval`,
             );
         }
         if (context.hasResult) {
@@ -6694,6 +6698,14 @@ export class AiAgentService extends BaseService {
             };
         }
 
+        // v0 composer artifacts render straight from the stored terminal
+        // result id on the frontend; re-execution-as-viewer is a follow-up.
+        if (isAiComposerChartArtifactConfig(artifact.chartConfig)) {
+            throw new ParameterError(
+                'Composer artifacts do not support re-execution yet',
+            );
+        }
+
         if (isAiSqlChartArtifactConfig(artifact.chartConfig)) {
             // Embed viewers are scoped by user attributes, which raw SQL bypasses.
             if (runtimeOptions) {
@@ -9665,6 +9677,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             runAsyncMergeQuery: toolsRuntime.runAsyncMergeQuery,
             runSavedChartQuery: toolsRuntime.runSavedChartQuery,
             runSqlJob: toolsRuntime.runSqlJob,
+            runComposerQueries: toolsRuntime.runComposerQueries,
             listWarehouseTables: toolsRuntime.listWarehouseTables,
             describeWarehouseTable: toolsRuntime.describeWarehouseTable,
             listKnowledgeDocuments: toolsRuntime.listKnowledgeDocuments,
@@ -9867,6 +9880,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             runAsyncMergeQuery,
             runSavedChartQuery,
             runSqlJob,
+            runComposerQueries,
             listWarehouseTables,
             describeWarehouseTable,
             listKnowledgeDocuments,
@@ -10056,6 +10070,22 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 user,
                 featureFlagId: FeatureFlags.MergeQueries,
             });
+        // Composer queries (multi-source pipelines): the MultiSourceQuery flag
+        // gates the whole feature (the service re-checks it at execution);
+        // v0 surface is standard web chat only, so Slack prompts never get the
+        // tool, and neither do deep-research runs — composer supersedes the
+        // standalone runSql tool, but the deep-research worker/coordinator
+        // toolsets still rely on runSql.
+        const { enabled: multiSourceQueryEnabled } =
+            await this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.MultiSourceQuery,
+            });
+        const enableComposerQueries =
+            multiSourceQueryEnabled &&
+            agentSettings.enableDataAccess &&
+            !isSlackPrompt(prompt) &&
+            responseExecution.mode !== 'deep_research';
         let aiWritebackEnabled = hasTrustedPromptUserIdentity;
         if (!aiWritebackEnabled) {
             this.logger.info(
@@ -10321,6 +10351,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             repoFsRoot,
             repoFsSupportsCodeSearch,
             canRunSql,
+            enableComposerQueries,
             canCreateDashboards,
             autoApproveSql: options.autoApproveSql ?? false,
             autoApproveSqlUserUuid: options.autoApproveSql
@@ -10418,6 +10449,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             runAsyncMergeQuery,
             runSavedChartQuery,
             runSqlJob,
+            runComposerQueries,
             listWarehouseTables,
             describeWarehouseTable,
             listKnowledgeDocuments,
@@ -11817,6 +11849,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 case 'generateTimeSeriesVizConfig':
                     return 'Preparing the answer...';
                 case 'runSql':
+                case 'runComposerQueries':
                 case 'runContentQuery':
                 case 'runSavedChart':
                 case 'runQuery':

@@ -17,6 +17,7 @@ export const QUERY_TOOL_NAMES: ReadonlySet<string> = new Set([
     'runContentQuery',
     'runSavedChart',
     'runSql',
+    'runComposerQueries',
 ]);
 
 /** Re-running a heavy scan that already timed out is especially wasteful. */

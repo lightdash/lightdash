@@ -12,6 +12,7 @@ import {
     migrateRunQueryArgsV1ToV2,
     type AiAgentToolResult,
     type ToolAnalyzeFieldImpactArgs,
+    type ToolComposerQueriesArgs,
     type ToolCreateScheduledDeliveryOutput,
     type ToolDashboardArgs,
     type ToolDescribeWarehouseTableArgs,
@@ -38,6 +39,7 @@ import {
 import type { FC } from 'react';
 import type { ToolCallSummary } from '../utils/types';
 import { AiChartGenerationToolCallDescription } from './AiChartGenerationToolCallDescription';
+import { ComposerQueriesToolCallDescription } from './ComposerQueriesToolCallDescription';
 import { ContentEditorToolCallDescription } from './ContentEditorToolCallDescription';
 import { ContentSearchToolCallDescription } from './ContentSearchToolCallDescription';
 import { DashboardChartsToolCallDescription } from './DashboardChartsToolCallDescription';
@@ -227,6 +229,14 @@ export const ToolCallDescription: FC<{
                 <SqlRunToolCallDescription
                     sql={sqlToolArgs.sql}
                     limit={sqlToolArgs.limit}
+                />
+            );
+        case 'runComposerQueries':
+            const composerToolArgs =
+                toolCall.toolArgs as ToolComposerQueriesArgs;
+            return (
+                <ComposerQueriesToolCallDescription
+                    queries={composerToolArgs.queries ?? []}
                 />
             );
         case 'readContent':

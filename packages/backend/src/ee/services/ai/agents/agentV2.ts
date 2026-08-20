@@ -82,6 +82,7 @@ import { getProjectContextSearchEntries } from '../tools/memoryProjectContext';
 import { getReadContent } from '../tools/readContent';
 import { getReadPinnedThread } from '../tools/readPinnedThread';
 import { getResolveUrl } from '../tools/resolveUrl';
+import { getRunComposerQueries } from '../tools/runComposerQueries';
 import { getRunContentQuery } from '../tools/runContentQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
@@ -857,25 +858,45 @@ export const getAgentTools = (
         enableDataAccess: args.enableDataAccess,
     });
 
-    const runSql = args.canRunSql
-        ? getRunSql({
+    // Composer queries supersede the standalone runSql tool: a single `sql`
+    // node is the direct equivalent, and exposing both lets the model shadow
+    // the composer path with raw runSql calls.
+    const runSql =
+        args.canRunSql && !args.enableComposerQueries
+            ? getRunSql({
+                  updateProgress: dependencies.updateProgress,
+                  runSqlJob: dependencies.runSqlJob,
+                  getPrompt: dependencies.getPrompt,
+                  sendFile: dependencies.sendFile,
+                  updateSlackMessage: dependencies.updateSlackMessage,
+                  siteUrl: args.siteUrl,
+                  waitForSqlApproval: dependencies.waitForSqlApproval,
+                  recordSqlApproval: dependencies.recordSqlApproval,
+                  isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
+                  storeToolResults: dependencies.storeToolResults,
+                  createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
+                  maxQueryLimit: args.runSqlMaxLimit,
+                  enableDataAccess: args.enableDataAccess,
+                  sqlScope: args.sqlScope,
+                  autoApproveSql: args.autoApproveSql,
+                  autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
+                  useSlackStreamCard: args.useSlackStreamCard,
+              })
+            : null;
+
+    const runComposerQueries = args.enableComposerQueries
+        ? getRunComposerQueries({
               updateProgress: dependencies.updateProgress,
-              runSqlJob: dependencies.runSqlJob,
+              runComposerQueries: dependencies.runComposerQueries,
               getPrompt: dependencies.getPrompt,
-              sendFile: dependencies.sendFile,
-              updateSlackMessage: dependencies.updateSlackMessage,
-              siteUrl: args.siteUrl,
               waitForSqlApproval: dependencies.waitForSqlApproval,
               recordSqlApproval: dependencies.recordSqlApproval,
-              isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
-              storeToolResults: dependencies.storeToolResults,
               createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
               maxQueryLimit: args.runSqlMaxLimit,
               enableDataAccess: args.enableDataAccess,
-              sqlScope: args.sqlScope,
+              canRunSql: args.canRunSql,
               autoApproveSql: args.autoApproveSql,
               autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
-              useSlackStreamCard: args.useSlackStreamCard,
           })
         : null;
 
@@ -1123,6 +1144,7 @@ export const getAgentTools = (
         ...(getPullRequestDiff ? { getPullRequestDiff } : {}),
         ...(args.enableDataAccess ? { searchFieldValues } : {}),
         ...(runSql ? { runSql } : {}),
+        ...(runComposerQueries ? { runComposerQueries } : {}),
         ...(listWarehouseTables ? { listWarehouseTables } : {}),
         ...(describeWarehouseTable ? { describeWarehouseTable } : {}),
         ...(loadSkill ? { loadSkill } : {}),
@@ -1429,6 +1451,7 @@ export const getAgentMessages = (
         enableContentTools: args.enableDataAccess && args.enableContentTools,
         slackChannelId: args.slackChannelId,
         canRunSql: args.canRunSql,
+        enableComposerQueries: args.enableComposerQueries,
         enableMergeQueries: args.enableMergeQueries,
         warehouseType: args.warehouseType,
         warehouseSchema: args.warehouseSchema,

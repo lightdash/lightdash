@@ -63,6 +63,7 @@ import { ContentService } from '../../../services/ContentService/ContentService'
 import { DashboardService } from '../../../services/DashboardService/DashboardService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import { QuerySourceService } from '../../../services/QuerySourceService/QuerySourceService';
 import { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import { SearchService } from '../../../services/SearchService/SearchService';
 import { ShareService } from '../../../services/ShareService/ShareService';
@@ -107,6 +108,7 @@ import {
     ResolveUrlFn,
     RunAsyncMergeQueryFn,
     RunAsyncQueryFn,
+    RunComposerQueriesFn,
     RunSavedChartQueryFn,
     RunSqlJobFn,
     SearchFieldValuesFn,
@@ -207,6 +209,7 @@ export type AiAgentToolsRuntime = {
     runAsyncMergeQuery: RunAsyncMergeQueryFn;
     runSavedChartQuery: RunSavedChartQueryFn;
     runSqlJob: RunSqlJobFn;
+    runComposerQueries: RunComposerQueriesFn;
     listWarehouseTables: ListWarehouseTablesFn;
     describeWarehouseTable: DescribeWarehouseTableFn;
     listContent: ListContentFn;
@@ -265,6 +268,7 @@ type AiAgentToolsServiceDependencies = {
     jobModel: JobModel;
     userAttributesModel: UserAttributesModel;
     asyncQueryService: AsyncQueryService;
+    querySourceService: QuerySourceService;
     catalogService: CatalogService;
     contentVerificationModel: ContentVerificationModel;
     searchModel: SearchModel;
@@ -306,6 +310,8 @@ export class AiAgentToolsService extends BaseService {
     private readonly userAttributesModel: UserAttributesModel;
 
     private readonly asyncQueryService: AsyncQueryService;
+
+    private readonly querySourceService: QuerySourceService;
 
     private readonly catalogService: CatalogService;
 
@@ -390,6 +396,7 @@ export class AiAgentToolsService extends BaseService {
         jobModel,
         userAttributesModel,
         asyncQueryService,
+        querySourceService,
         catalogService,
         contentVerificationModel,
         searchModel,
@@ -420,6 +427,7 @@ export class AiAgentToolsService extends BaseService {
         this.jobModel = jobModel;
         this.userAttributesModel = userAttributesModel;
         this.asyncQueryService = asyncQueryService;
+        this.querySourceService = querySourceService;
         this.catalogService = catalogService;
         this.contentVerificationModel = contentVerificationModel;
         this.searchModel = searchModel;
@@ -575,6 +583,8 @@ export class AiAgentToolsService extends BaseService {
             runSavedChartQuery: (args) =>
                 this.runSavedChartQuery(context, args),
             runSqlJob: (args) => this.runSqlJob(context, args),
+            runComposerQueries: (args) =>
+                this.runComposerQueries(context, args),
             listWarehouseTables: () => this.listWarehouseTables(context),
             describeWarehouseTable: (args) =>
                 this.describeWarehouseTable(context, args),
@@ -2170,6 +2180,161 @@ export class AiAgentToolsService extends BaseService {
                 }
             },
         );
+    }
+
+    private runComposerQueries(
+        context: AiAgentToolsRuntimeContext,
+        { queries, terminalNodeId }: Parameters<RunComposerQueriesFn>[0],
+    ): ReturnType<RunComposerQueriesFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.runComposerQueries`,
+            { projectUuid: context.projectUuid, queryCount: queries.length },
+            async () => {
+                await context.onWarehouseQuery?.();
+
+                // Feature flag + CASL checks (and per-source checks, incl. the
+                // agent SQL scope for `sql` nodes via the AI execution context)
+                // are enforced inside the service.
+                const { queries: submissions } =
+                    await this.querySourceService.executeSourceQueries({
+                        account: context.account,
+                        projectUuid: context.projectUuid,
+                        queries,
+                        context: context.defaultQueryExecutionContext,
+                    });
+
+                const terminalSubmission = submissions.find(
+                    (submission) => submission.nodeId === terminalNodeId,
+                );
+                if (!terminalSubmission) {
+                    throw new ParameterError(
+                        `Terminal node "${terminalNodeId}" was not part of the submission`,
+                    );
+                }
+
+                const terminalQuery = queries.find(
+                    (query) => query.nodeId === terminalNodeId,
+                );
+                const pageSize = Math.min(
+                    terminalQuery?.limit ??
+                        this.lightdashConfig.ai.copilot.maxQueryLimit,
+                    this.lightdashConfig.ai.copilot.maxQueryLimit,
+                );
+
+                // Polling only the terminal node is sufficient: its execution
+                // waits on every referenced result and fails if any upstream
+                // query fails.
+                const maxWaitMs = 5 * 60 * 1000;
+                const startTime = Date.now();
+                let delayMs = 500;
+
+                // eslint-disable-next-line no-constant-condition
+                while (true) {
+                    if (Date.now() - startTime > maxWaitMs) {
+                        throw new TimeoutError(
+                            'Composer query timed out after 5 minutes',
+                        );
+                    }
+
+                    const queryResults =
+                        // eslint-disable-next-line no-await-in-loop
+                        await this.asyncQueryService.getAsyncQueryResults({
+                            account: context.account,
+                            projectUuid: context.projectUuid,
+                            queryUuid: terminalSubmission.queryUuid,
+                            page: 1,
+                            pageSize,
+                        });
+
+                    if (queryResults.status === QueryHistoryStatus.READY) {
+                        const wrappedRows = (queryResults.rows ?? []) as Record<
+                            string,
+                            AnyType
+                        >[];
+                        const rows = wrappedRows.map((row) =>
+                            Object.fromEntries(
+                                Object.entries(row).map(([k, v]) => [
+                                    k,
+                                    AiAgentToolsService.unwrapCell(v),
+                                ]),
+                            ),
+                        );
+                        return {
+                            submissions,
+                            terminal: {
+                                queryUuid: terminalSubmission.queryUuid,
+                                columns: queryResults.columns,
+                                rows,
+                                rowCount: rows.length,
+                            },
+                        };
+                    }
+
+                    if (queryResults.status === QueryHistoryStatus.ERROR) {
+                        // eslint-disable-next-line no-await-in-loop
+                        const failedNodes = await this.findFailedComposerNodes(
+                            context,
+                            submissions,
+                        );
+                        throw new WarehouseQueryError(
+                            `Composer query failed${
+                                failedNodes.length > 0
+                                    ? ` on node(s): ${failedNodes
+                                          .map(
+                                              ({ nodeId, error }) =>
+                                                  `"${nodeId}" (${error ?? 'Unknown error'})`,
+                                          )
+                                          .join(', ')}`
+                                    : `: ${queryResults.error ?? 'Unknown error'}`
+                            }`,
+                        );
+                    }
+
+                    if (queryResults.status === QueryHistoryStatus.CANCELLED) {
+                        throw new WarehouseQueryError(
+                            'Composer query was cancelled',
+                        );
+                    }
+
+                    const localDelay = delayMs;
+                    // eslint-disable-next-line no-await-in-loop
+                    await new Promise<void>((resolve) => {
+                        setTimeout(resolve, localDelay);
+                    });
+                    delayMs = Math.min(delayMs * 2, 2000);
+                }
+            },
+        );
+    }
+
+    /**
+     * Best-effort per-node failure lookup so composer errors name the failing
+     * node the model should fix. Never throws — falls back to an empty list.
+     */
+    private async findFailedComposerNodes(
+        context: AiAgentToolsRuntimeContext,
+        submissions: { nodeId: string; queryUuid: string }[],
+    ): Promise<{ nodeId: string; error: string | null }[]> {
+        try {
+            const { statuses } =
+                await this.querySourceService.getSourceQueryStatuses(
+                    context.account,
+                    context.projectUuid,
+                    submissions.map((submission) => submission.queryUuid),
+                );
+            return statuses
+                .filter((status) => status.status === QueryHistoryStatus.ERROR)
+                .map((status) => ({
+                    nodeId:
+                        submissions.find(
+                            (submission) =>
+                                submission.queryUuid === status.queryUuid,
+                        )?.nodeId ?? status.queryUuid,
+                    error: status.error,
+                }));
+        } catch {
+            return [];
+        }
     }
 
     private listWarehouseTables(

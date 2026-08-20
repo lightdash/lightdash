@@ -69,7 +69,7 @@ const PREVIEW_ROW_LIMIT = 50;
 const SLACK_INLINE_ROW_LIMIT = 10;
 const LARGE_RESULT_THRESHOLD = 25;
 
-const validateSelectOnly = (sql: string) => {
+export const validateSelectOnly = (sql: string) => {
     const stripped = stripCommentsAndStrings(sql);
     if (!STARTS_WITH_SELECT_OR_WITH.test(stripped)) {
         throw new Error('Only SELECT or WITH queries are allowed.');

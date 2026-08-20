@@ -52,6 +52,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     runContentQuery: 'run_content_query',
     runSavedChart: 'run_saved_chart',
     runSql: 'run_sql',
+    runComposerQueries: 'run_composer_queries',
     listWarehouseTables: 'list_warehouse_tables',
     describeWarehouseTable: 'describe_warehouse_table',
     listKnowledgeDocuments: 'list_knowledge_documents',

@@ -107,6 +107,31 @@ type SqlApprovalSegment = {
 };
 type StreamSegment = TextSegment | ToolGroup | SqlApprovalSegment;
 
+// A composer pipeline gates on human approval only when it contains raw
+// warehouse SQL nodes; those nodes' SQL is what the approval card presents.
+const getComposerApprovalSql = (toolArgs: unknown): string | null => {
+    if (!toolArgs || typeof toolArgs !== 'object' || !('queries' in toolArgs)) {
+        return null;
+    }
+    const { queries } = toolArgs as { queries?: unknown };
+    if (!Array.isArray(queries)) return null;
+    const sqlNodes = queries.filter(
+        (node): node is { nodeId?: string; sql: string } =>
+            !!node &&
+            typeof node === 'object' &&
+            'sourceType' in node &&
+            node.sourceType === 'sql' &&
+            'sql' in node &&
+            typeof node.sql === 'string',
+    );
+    if (sqlNodes.length === 0) return null;
+    return sqlNodes
+        .map((node) =>
+            node.nodeId ? `-- node: ${node.nodeId}\n${node.sql}` : node.sql,
+        )
+        .join('\n\n');
+};
+
 const segmentStreamParts = (
     parts: StreamPart[],
     decidedToolCallIds: string[],
@@ -132,6 +157,21 @@ const segmentStreamParts = (
                 limit: args.limit,
             });
             return;
+        }
+        if (
+            part.toolName === 'runComposerQueries' &&
+            !part.toolResult &&
+            !decidedToolCallIds.includes(part.toolCallId)
+        ) {
+            const approvalSql = getComposerApprovalSql(part.toolArgs);
+            if (approvalSql) {
+                segments.push({
+                    kind: 'sqlApproval',
+                    toolCallId: part.toolCallId,
+                    sql: approvalSql,
+                });
+                return;
+            }
         }
         const call: ToolCallSummary = {
             toolCallId: part.toolCallId,
@@ -169,11 +209,14 @@ const getPendingPersistedSqlApprovals = (
         message.toolResults.map((result) => result.toolCallId),
     );
 
-    return message.toolCalls.filter(
-        (toolCall) =>
-            toolCall.toolName === 'runSql' &&
-            !resolvedToolCallIds.has(toolCall.toolCallId),
-    );
+    return message.toolCalls.filter((toolCall) => {
+        if (resolvedToolCallIds.has(toolCall.toolCallId)) return false;
+        if (toolCall.toolName === 'runSql') return true;
+        return (
+            toolCall.toolName === 'runComposerQueries' &&
+            getComposerApprovalSql(toolCall.toolArgs) !== null
+        );
+    });
 };
 
 const getToolOutputStatus = (toolOutput: unknown) => {
@@ -755,10 +798,18 @@ const AssistantBubbleContent: FC<{
                                     threadUuid={message.threadUuid}
                                     toolCallId={toolCall.toolCallId}
                                     toolArgs={
-                                        toolCall.toolArgs as {
-                                            sql: string;
-                                            limit?: number;
-                                        }
+                                        toolCall.toolName ===
+                                        'runComposerQueries'
+                                            ? {
+                                                  sql:
+                                                      getComposerApprovalSql(
+                                                          toolCall.toolArgs,
+                                                      ) ?? '',
+                                              }
+                                            : (toolCall.toolArgs as {
+                                                  sql: string;
+                                                  limit?: number;
+                                              })
                                     }
                                 />
                             ))}

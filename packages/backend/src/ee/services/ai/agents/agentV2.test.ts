@@ -1004,6 +1004,8 @@ describe('getAgentTools workstream tool gate', () => {
         enableAiWriteback: boolean;
         aiAgentMemoryEnabled?: boolean;
         canCreateDashboards?: boolean;
+        canRunSql?: boolean;
+        enableComposerQueries?: boolean;
         enableContentTools?: boolean;
         enableDataAccess?: boolean;
     };
@@ -1215,6 +1217,31 @@ describe('getAgentTools workstream tool gate', () => {
         expect(names).not.toContain('listWorkstreams');
         expect(names).not.toContain('closePullRequest');
         expect(names).not.toContain('getPullRequestDiff');
+    });
+
+    it('withholds runSql when composer queries are enabled — a sql node supersedes it', () => {
+        const names = toolNames({
+            enableCodingAgent: false,
+            enableAiWriteback: false,
+            canRunSql: true,
+            enableComposerQueries: true,
+        });
+        expect(names).toContain('runComposerQueries');
+        expect(names).not.toContain('runSql');
+        // The SQL discovery companions stay: composer sql nodes need them.
+        expect(names).toContain('listWarehouseTables');
+        expect(names).toContain('describeWarehouseTable');
+    });
+
+    it('keeps runSql when composer queries are disabled', () => {
+        const names = toolNames({
+            enableCodingAgent: false,
+            enableAiWriteback: false,
+            canRunSql: true,
+            enableComposerQueries: false,
+        });
+        expect(names).toContain('runSql');
+        expect(names).not.toContain('runComposerQueries');
     });
 
     const buildResearchArgs = (

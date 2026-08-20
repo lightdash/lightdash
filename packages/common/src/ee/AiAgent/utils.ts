@@ -1,3 +1,4 @@
+import { isAiComposerChartArtifactConfig } from './composerArtifact';
 import { AI_DEFAULT_MAX_QUERY_LIMIT } from './constants';
 import type {
     AiChartArtifactConfig,
@@ -150,6 +151,10 @@ export const parseAiArtifactChartConfig = (
     config: unknown,
 ): AiChartArtifactConfig | null => {
     if (!config || typeof config !== 'object') return null;
+
+    if (isAiComposerChartArtifactConfig(config)) {
+        return config;
+    }
 
     if (
         'source' in config &&

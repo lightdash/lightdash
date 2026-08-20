@@ -177,6 +177,10 @@ export const getToolCallChipLabel = (
         }
         case 'discoverRepos':
             return null;
+        case 'runComposerQueries': {
+            const args = toolArgs as { title?: string | null };
+            return args.title ?? null;
+        }
         case 'runSql':
         case 'runSavedChart':
         case 'generateHashes':

@@ -137,6 +137,20 @@ services:
             LIGHTDASH_LOG_LEVEL: debug
             LIGHTDASH_LOG_FORMAT: json
 
+            # AI agents ("Ask AI"). The ai-copilot flag is intentionally not
+            # in the preview force-enabled flag set (see
+            # docs/preview-feature-flags.md): it follows instance config so a
+            # preview never advertises an unconfigured copilot. Enablement is
+            # therefore driven from the okteto admin UI: set
+            # AI_COPILOT_ENABLED=true together with a provider key (and
+            # AI_DEFAULT_PROVIDER when that key is not OpenAI's). With the
+            # variables unset these resolve to empty strings and the copilot
+            # stays off, so previews fail safe.
+            AI_COPILOT_ENABLED: ${AI_COPILOT_ENABLED}
+            AI_DEFAULT_PROVIDER: ${AI_DEFAULT_PROVIDER}
+            ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+            OPENAI_API_KEY: ${OPENAI_API_KEY}
+
             # These were set in the render UI but are secret
             # these are set in the okteto admin UI - DO NOT SET THESE LOCALLY WHEN DEPLOYING or they will override the values in the okteto admin UI
             RUDDERSTACK_WRITE_KEY: ${RUDDERSTACK_WRITE_KEY}
