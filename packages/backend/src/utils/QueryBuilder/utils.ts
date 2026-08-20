@@ -446,71 +446,54 @@ export const getJoinType = (type: DbtModelJoinType = 'left') => {
     }
 };
 
-export const sortMonthName = (
-    dimension: Dimension,
-    fieldQuoteChar: string,
-    descending: Boolean,
-) => {
-    const fieldId = `${fieldQuoteChar}${getItemId(dimension)}${fieldQuoteChar}`;
-
-    return `(
+export const sortMonthName = (fieldSql: string, descending: boolean) => `(
         CASE
-            WHEN ${fieldId} = 'January' THEN 1
-            WHEN ${fieldId} = 'February' THEN 2
-            WHEN ${fieldId} = 'March' THEN 3
-            WHEN ${fieldId} = 'April' THEN 4
-            WHEN ${fieldId} = 'May' THEN 5
-            WHEN ${fieldId} = 'June' THEN 6
-            WHEN ${fieldId} = 'July' THEN 7
-            WHEN ${fieldId} = 'August' THEN 8
-            WHEN ${fieldId} = 'September' THEN 9
-            WHEN ${fieldId} = 'October' THEN 10
-            WHEN ${fieldId} = 'November' THEN 11
-            WHEN ${fieldId} = 'December' THEN 12
+            WHEN ${fieldSql} = 'January' THEN 1
+            WHEN ${fieldSql} = 'February' THEN 2
+            WHEN ${fieldSql} = 'March' THEN 3
+            WHEN ${fieldSql} = 'April' THEN 4
+            WHEN ${fieldSql} = 'May' THEN 5
+            WHEN ${fieldSql} = 'June' THEN 6
+            WHEN ${fieldSql} = 'July' THEN 7
+            WHEN ${fieldSql} = 'August' THEN 8
+            WHEN ${fieldSql} = 'September' THEN 9
+            WHEN ${fieldSql} = 'October' THEN 10
+            WHEN ${fieldSql} = 'November' THEN 11
+            WHEN ${fieldSql} = 'December' THEN 12
             ELSE 0
         END
     )${descending ? ' DESC' : ''}`;
-};
 export const sortDayOfWeekName = (
-    dimension: Dimension,
+    fieldSql: string,
     startOfWeek: WeekDay | null | undefined,
-    fieldQuoteChar: string,
-    descending: Boolean,
+    descending: boolean,
 ) => {
-    const fieldId = `${fieldQuoteChar}${getItemId(dimension)}${fieldQuoteChar}`;
     const calculateDayIndex = (dayNumber: number) => {
         if (startOfWeek === null || startOfWeek === undefined) return dayNumber; // startOfWeek can be 0, so don't do !startOfWeek
         return ((dayNumber + 7 - (startOfWeek + 2)) % 7) + 1;
     };
     return `(
         CASE
-            WHEN ${fieldId} = 'Sunday' THEN ${calculateDayIndex(1)}
-            WHEN ${fieldId} = 'Monday' THEN ${calculateDayIndex(2)}
-            WHEN ${fieldId} = 'Tuesday' THEN ${calculateDayIndex(3)}
-            WHEN ${fieldId} = 'Wednesday' THEN ${calculateDayIndex(4)}
-            WHEN ${fieldId} = 'Thursday' THEN ${calculateDayIndex(5)}
-            WHEN ${fieldId} = 'Friday' THEN ${calculateDayIndex(6)}
-            WHEN ${fieldId} = 'Saturday' THEN ${calculateDayIndex(7)}
+            WHEN ${fieldSql} = 'Sunday' THEN ${calculateDayIndex(1)}
+            WHEN ${fieldSql} = 'Monday' THEN ${calculateDayIndex(2)}
+            WHEN ${fieldSql} = 'Tuesday' THEN ${calculateDayIndex(3)}
+            WHEN ${fieldSql} = 'Wednesday' THEN ${calculateDayIndex(4)}
+            WHEN ${fieldSql} = 'Thursday' THEN ${calculateDayIndex(5)}
+            WHEN ${fieldSql} = 'Friday' THEN ${calculateDayIndex(6)}
+            WHEN ${fieldSql} = 'Saturday' THEN ${calculateDayIndex(7)}
             ELSE 0
         END
     )${descending ? ' DESC' : ''}`;
 };
-export const sortQuarterName = (
-    dimension: Dimension,
-    fieldQuoteChar: string,
-    descending: boolean,
-) => {
-    const fieldId = `${fieldQuoteChar}${getItemId(dimension)}${fieldQuoteChar}`;
-    return `(
+export const sortQuarterName = (fieldSql: string, descending: boolean) => `(
         CASE
-            WHEN ${fieldId} = 'Q1' THEN 1
-            WHEN ${fieldId} = 'Q2' THEN 2
-            WHEN ${fieldId} = 'Q3' THEN 3
-            WHEN ${fieldId} = 'Q4' THEN 4
+            WHEN ${fieldSql} = 'Q1' THEN 1
+            WHEN ${fieldSql} = 'Q2' THEN 2
+            WHEN ${fieldSql} = 'Q3' THEN 3
+            WHEN ${fieldSql} = 'Q4' THEN 4
             ELSE 0
         END
     )${descending ? ' DESC' : ''}`;
-};
 // Remove comments and limit clauses from SQL
 export const removeComments = (sql: string): string => {
     let s = sql.trim();

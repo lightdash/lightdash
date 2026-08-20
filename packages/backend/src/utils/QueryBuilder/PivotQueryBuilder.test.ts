@@ -1860,6 +1860,159 @@ describe('PivotQueryBuilder', () => {
         });
     });
 
+    describe('Identifier quoting', () => {
+        test('escapes dynamic identifiers through grouped aggregation and sorting', () => {
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                {
+                    indexColumn: [
+                        {
+                            reference: 'row"dim',
+                            type: VizIndexType.CATEGORY,
+                        },
+                    ],
+                    valuesColumns: [
+                        {
+                            reference: 'amount"value',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'group"dim' }],
+                    sortBy: [
+                        {
+                            reference: 'row"dim',
+                            direction: SortByDirection.ASC,
+                        },
+                    ],
+                },
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = replaceWhitespace(builder.toSql());
+
+            expect(result).toContain(
+                'SELECT "group""dim", "row""dim", sum("amount""value") AS "amount""value_sum"',
+            );
+            expect(result).toContain(
+                'DENSE_RANK() OVER (ORDER BY g."row""dim" ASC)',
+            );
+            expect(result).not.toContain('g."row"dim" ASC');
+        });
+
+        test('quotes a custom-bin _order identifier after composing its name', () => {
+            const reference = 'amount"bin';
+            const binDimension: CustomBinDimension = {
+                id: reference,
+                name: reference,
+                table: 'orders',
+                type: CustomDimensionType.BIN,
+                dimensionId: 'orders_amount',
+                binType: BinType.FIXED_WIDTH,
+                binWidth: 10,
+            };
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                {
+                    indexColumn: [{ reference, type: VizIndexType.CATEGORY }],
+                    valuesColumns: [
+                        {
+                            reference: 'revenue',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'event_type' }],
+                    sortBy: [{ reference, direction: SortByDirection.ASC }],
+                },
+                mockWarehouseSqlBuilder,
+                500,
+                { [reference]: binDimension },
+            );
+
+            const result = replaceWhitespace(builder.toSql());
+
+            expect(result).toContain('"amount""bin_order"');
+            expect(result).toContain(
+                'DENSE_RANK() OVER (ORDER BY g."amount""bin_order" ASC)',
+            );
+            expect(result).not.toContain('"amount""bin"_order');
+        });
+
+        test('quotes table-calculation _any aliases after composing their names', () => {
+            const calculationName = 'calc"name';
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                {
+                    indexColumn: [
+                        { reference: 'date', type: VizIndexType.TIME },
+                    ],
+                    valuesColumns: [
+                        {
+                            reference: 'metric1',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                        {
+                            reference: calculationName,
+                            aggregation: VizAggregationOptions.ANY,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'category' }],
+                    sortBy: [
+                        {
+                            reference: 'date',
+                            direction: SortByDirection.ASC,
+                        },
+                    ],
+                },
+                mockWarehouseSqlBuilder,
+                500,
+                {
+                    [calculationName]: {
+                        name: calculationName,
+                        table: 'table1',
+                        tableLabel: 'Table 1',
+                        type: TableCalculationType.NUMBER,
+                        displayName: 'Calculated name',
+                        sql: 'pivot_offset(${table1.metric1}, 0)',
+                    },
+                },
+            );
+
+            const result = builder.toSql();
+
+            expect(result).toContain('AS "calc""name_any"');
+            expect(result).not.toContain('AS "calc"name_any"');
+        });
+
+        test('uses BigQuery backtick and backslash escaping at pivot boundaries', () => {
+            const reference = 'row`dim\\path';
+            const bigQuerySqlBuilder = {
+                ...mockWarehouseSqlBuilder,
+                getFieldQuoteChar: () => '`',
+                getAdapterType: () => SupportedDbtAdapter.BIGQUERY,
+            } as unknown as WarehouseSqlBuilder;
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                {
+                    indexColumn: [{ reference, type: VizIndexType.CATEGORY }],
+                    valuesColumns: [
+                        {
+                            reference: 'revenue',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                    ],
+                    groupByColumns: undefined,
+                    sortBy: [{ reference, direction: SortByDirection.ASC }],
+                },
+                bigQuerySqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            expect(result).toContain('`row\\`dim\\\\path`');
+            expect(result).not.toContain('`row`dim\\path`');
+        });
+    });
+
     describe('SQL sanitization', () => {
         test('Should remove trailing semicolon from input SQL', () => {
             const pivotConfiguration = {
@@ -2967,6 +3120,56 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(result).toContain(
                 '"orders_month_name" = \'January\' THEN 1',
             );
+        });
+
+        test('Should preserve escaped field IDs in chronological sort expressions', () => {
+            const quotedNameDimensions: CompiledDimension[] = [
+                {
+                    ...monthNameDimension,
+                    name: 'month"name',
+                },
+                {
+                    ...dayNameDimension,
+                    name: 'month"name',
+                },
+                {
+                    ...quarterNameDimension,
+                    name: 'month"name',
+                },
+            ];
+            const markers = ['January', 'Sunday', 'Q1'];
+
+            quotedNameDimensions.forEach((dimension, index) => {
+                const reference = 'orders_month"name';
+                const builder = new PivotQueryBuilder(
+                    baseSql,
+                    {
+                        indexColumn: [
+                            { reference, type: VizIndexType.CATEGORY },
+                        ],
+                        valuesColumns: [
+                            {
+                                reference: 'revenue',
+                                aggregation: VizAggregationOptions.SUM,
+                            },
+                        ],
+                        groupByColumns: undefined,
+                        sortBy: [
+                            {
+                                reference,
+                                direction: SortByDirection.ASC,
+                            },
+                        ],
+                    },
+                    mockWarehouseSqlBuilder,
+                    500,
+                    { [reference]: dimension },
+                );
+
+                expect(builder.toSql()).toContain(
+                    `WHEN "orders_month""name" = '${markers[index]}'`,
+                );
+            });
         });
 
         test('Should sort MONTH_NAME in pivot query with groupBy columns', () => {
