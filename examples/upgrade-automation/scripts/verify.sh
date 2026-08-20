@@ -107,7 +107,9 @@ summary_file=$(mktemp)
 issue_body=$(mktemp)
 trap 'rm -f "$response_body" "$response_headers" "$summary_file" "$issue_body"' EXIT
 
-if [[ "$DEPLOY_CONCLUSION" == "success" ]]; then
+# A cancelled run proves neither failure nor success, so poll: the running
+# version decides, and nothing deployed still freezes.
+if [[ "$DEPLOY_CONCLUSION" == "success" || "$DEPLOY_CONCLUSION" == "cancelled" ]]; then
     while [[ $(date +%s) -lt $deadline ]]; do
         remaining_seconds=$((deadline - $(date +%s)))
         curl_timeout=$((remaining_seconds < 20 ? remaining_seconds : 20))
