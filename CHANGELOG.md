@@ -1,3 +1,15 @@
+# [1.217.0](https://github.com/lightdash/lightdash/compare/1.216.1...1.217.0) (2026-08-20)
+
+
+### Bug Fixes
+
+* **ai:** prevent Deep Research event schema drift ([#27747](https://github.com/lightdash/lightdash/issues/27747)) ([e207a98](https://github.com/lightdash/lightdash/commit/e207a98e1099e7b1a7c0a78cb485a6166b2b3047))
+
+
+### Features
+
+* **ai-agents:** retire memories with unresolved objects deterministically ([#27717](https://github.com/lightdash/lightdash/issues/27717)) ([4f6aab0](https://github.com/lightdash/lightdash/commit/4f6aab01c288fbfc4d12e8c7f8d54875d009d7ea))
+
 ## [1.216.1](https://github.com/lightdash/lightdash/compare/1.216.0...1.216.1) (2026-08-20)
 
 
