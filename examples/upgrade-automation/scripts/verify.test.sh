@@ -329,10 +329,13 @@ run_version_comparison_test 1.2.4 1.2.3 0 superseded superseded:1.2.4 false 'new
 run_version_comparison_test 1.2.2 1.2.3 1 failure version_mismatch:1.2.2 true 'older version mismatch'
 run_version_comparison_test 1.2.4-beta.1 1.2.3 1 failure version_mismatch:1.2.4-beta.1 true 'prerelease version mismatch'
 
-# A push to the default branch cancels the deployment run already in flight.
-# The replacement run carries the same commit and verifies the same version, so
-# a cancellation must not freeze every future upgrade.
-run_version_comparison_test 1.2.3 1.2.3 0 superseded deploy_workflow_cancelled false 'cancelled deployment run' cancelled
+# A cancelled run decides nothing on its own, so the running version decides.
+# A later run that deploys this pin verifies normally; a pin already moved on
+# reports superseded; nothing deployed still freezes. Asserting all three stops
+# a future change quietly treating every cancellation as safe.
+run_version_comparison_test 1.2.3 1.2.3 0 success ready false 'cancelled run whose replacement deployed the pin' cancelled
+run_version_comparison_test 1.2.4 1.2.3 0 superseded superseded:1.2.4 false 'cancelled run overtaken by a newer pin' cancelled
+run_version_comparison_test 1.2.2 1.2.3 1 failure version_mismatch:1.2.2 true 'cancelled run that never deployed' cancelled
 run_version_comparison_test 1.2.3 1.2.3 1 failure deploy_workflow_failure true 'failed deployment run' failure
 
 run_freeze_cleanup_test() {

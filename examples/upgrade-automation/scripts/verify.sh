@@ -107,7 +107,15 @@ summary_file=$(mktemp)
 issue_body=$(mktemp)
 trap 'rm -f "$response_body" "$response_headers" "$summary_file" "$issue_body"' EXIT
 
-if [[ "$DEPLOY_CONCLUSION" == "success" ]]; then
+# A cancelled run is not a failed deployment: a push to the default branch
+# cancels the run already in flight, and the run that replaces it carries the
+# same commit. Neither is it proof of success, because a cancellation may have
+# no replacement at all. Poll instead of deciding: the running version is the
+# evidence. It converges when a later run deploys this pin, reports the
+# superseded path when the pin has already moved on, and freezes when nothing
+# deployed. Deciding either way without polling would trade a false freeze for
+# a silent one.
+if [[ "$DEPLOY_CONCLUSION" == "success" || "$DEPLOY_CONCLUSION" == "cancelled" ]]; then
     while [[ $(date +%s) -lt $deadline ]]; do
         remaining_seconds=$((deadline - $(date +%s)))
         curl_timeout=$((remaining_seconds < 20 ? remaining_seconds : 20))
@@ -159,14 +167,6 @@ if [[ "$DEPLOY_CONCLUSION" == "success" ]]; then
         fi
         sleep 20
     done
-elif [[ "$DEPLOY_CONCLUSION" == "cancelled" ]]; then
-    # A push to the default branch cancels the deployment run already in
-    # flight. That is routine on a busy branch and says nothing about this
-    # pin: the run that replaced it carries the same commit, and its own
-    # verification covers the same version. Freezing here would stop every
-    # future upgrade over a deployment that never actually failed.
-    last_reason=deploy_workflow_cancelled
-    superseded=true
 else
     last_reason="deploy_workflow_$DEPLOY_CONCLUSION"
 fi
