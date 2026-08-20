@@ -18,39 +18,45 @@ const chartAsCodeSchema = z.object({
             type: z.literal(ChartType.CARTESIAN),
             config: z
                 .object({
-                    eChartsConfig: z.object({
-                        xAxis: z
-                            .array(
-                                z.object({
-                                    name: z.string().optional(),
-                                }),
-                            )
-                            .optional(),
-                        yAxis: z
-                            .array(
-                                z.object({
-                                    name: z.string().optional(),
-                                }),
-                            )
-                            .optional(),
-                        // chartConfig.config?.eChartsConfig.series[0].markLine?.data[0].name
-                        series: z
-                            .array(
-                                z.object({
-                                    name: z.string().optional(),
-                                    markLine: z
-                                        .object({
-                                            data: z.array(
-                                                z.object({
-                                                    name: z.string().optional(),
-                                                }),
-                                            ),
-                                        })
-                                        .optional(),
-                                }),
-                            )
-                            .optional(),
-                    }),
+                    eChartsConfig: z
+                        .object({
+                            xAxis: z
+                                .array(
+                                    z.object({
+                                        name: z.string().optional(),
+                                    }),
+                                )
+                                .optional(),
+                            yAxis: z
+                                .array(
+                                    z.object({
+                                        name: z.string().optional(),
+                                    }),
+                                )
+                                .optional(),
+                            // chartConfig.config?.eChartsConfig.series[0].markLine?.data[0].name
+                            series: z
+                                .array(
+                                    z.object({
+                                        name: z.string().optional(),
+                                        markLine: z
+                                            .object({
+                                                data: z
+                                                    .array(
+                                                        z.object({
+                                                            name: z
+                                                                .string()
+                                                                .optional(),
+                                                        }),
+                                                    )
+                                                    .optional(),
+                                            })
+                                            .optional(),
+                                    }),
+                                )
+                                .optional(),
+                        })
+                        .optional(),
                 })
                 .nullable()
                 .optional()
@@ -106,8 +112,15 @@ const chartAsCodeSchema = z.object({
                         .record(
                             z.string(),
                             z.object({
-                                name: z.string(),
+                                name: z.string().optional(),
                             }),
+                        )
+                        .transform((columns) =>
+                            Object.fromEntries(
+                                Object.entries(columns).filter(
+                                    ([, column]) => column.name !== undefined,
+                                ),
+                            ),
                         )
                         .optional(),
                 })
