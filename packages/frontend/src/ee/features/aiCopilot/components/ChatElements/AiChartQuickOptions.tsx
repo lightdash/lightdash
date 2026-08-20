@@ -18,16 +18,22 @@ import {
     IconExternalLink,
     IconEye,
     IconLayoutDashboard,
+    IconPhoto,
     IconSend,
     IconTableShortcut,
     IconTerminal2,
 } from '@tabler/icons-react';
 import { Fragment, useCallback, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
+import {
+    CHART_TYPES_WITHOUT_IMAGE_EXPORT,
+    DownloadType,
+} from '../../../../../components/common/ChartDownload/chartDownloadUtils';
 import CodeBlock from '../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { SaveToSpaceOrDashboard } from '../../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
+import ExportImageModal from '../../../../../components/DashboardTiles/ExportImageModal';
 import { useVisualizationContext } from '../../../../../components/LightdashVisualization/useVisualizationContext';
 import useEmbed from '../../../../../ee/providers/Embed/useEmbed';
 import {
@@ -112,6 +118,10 @@ export const AiChartQuickOptions = ({
     ] = useDisclosure(false);
     const [sqlModalOpened, { open: openSqlModal, close: closeSqlModal }] =
         useDisclosure(false);
+    const [
+        exportImageModalOpened,
+        { open: openExportImageModal, close: closeExportImageModal },
+    ] = useDisclosure(false);
 
     const canCreateScheduledDeliveries = user.data?.ability?.can(
         'create',
@@ -136,6 +146,7 @@ export const AiChartQuickOptions = ({
         resultsData,
         chartConfig,
         pivotDimensions,
+        chartRef,
     } = useVisualizationContext();
     const { mutate: savePromptQuery } = useSavePromptQuery(
         projectUuid,
@@ -157,6 +168,18 @@ export const AiChartQuickOptions = ({
     const isVerified = artifactData?.verifiedByUserUuid !== null;
 
     const isDisabled = !metricQuery || !type || !visualizationConfig;
+    const canExportImage =
+        artifactData?.artifactType === 'chart' &&
+        !isEmbed &&
+        !!type &&
+        !CHART_TYPES_WITHOUT_IMAGE_EXPORT.includes(type) &&
+        user.data?.ability?.can(
+            'manage',
+            subject('ExportCsv', {
+                organizationUuid: user.data.organizationUuid,
+                projectUuid,
+            }),
+        );
 
     // Renamed to the merge editor's conventions so the saved chart and the
     // explore link are indistinguishable from a merge built by hand.
@@ -473,7 +496,8 @@ export const AiChartQuickOptions = ({
         hasSavedChartAction ||
         hasSaveActions ||
         hasExploreAction ||
-        hasSqlActions;
+        hasSqlActions ||
+        canExportImage;
 
     return (
         <Fragment>
@@ -512,6 +536,14 @@ export const AiChartQuickOptions = ({
                     </Menu.Target>
                     <Menu.Dropdown>
                         <Menu.Label>Quick actions</Menu.Label>
+                        {canExportImage && (
+                            <Menu.Item
+                                leftSection={<MantineIcon icon={IconPhoto} />}
+                                onClick={openExportImageModal}
+                            >
+                                Export image
+                            </Menu.Item>
+                        )}
                         {message.savedQueryUuid ? (
                             !isEmbed && (
                                 <>
@@ -644,6 +676,13 @@ export const AiChartQuickOptions = ({
                     />
                 )}
             </MantineModal>
+            <ExportImageModal
+                echartRef={chartRef}
+                chartName={saveChartOptions.name ?? 'Untitled chart'}
+                isOpen={exportImageModalOpened}
+                onClose={closeExportImageModal}
+                unavailableOptions={[DownloadType.JSON]}
+            />
             {!!compiledSql && (
                 <MantineModal
                     opened={sqlModalOpened}
