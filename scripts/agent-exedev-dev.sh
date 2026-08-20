@@ -22,6 +22,17 @@ SSH_TIMEOUT_SECONDS="${EXEDEV_SSH_TIMEOUT_SECONDS:-180}"
 POLL_INTERVAL_SECONDS="${EXEDEV_POLL_INTERVAL_SECONDS:-5}"
 SETUP_DOC="docs/agent-exedev.md"
 
+# Transport: how the client reaches exe.dev and the VM.
+#   ssh   - control plane over `ssh exe.dev`, VM ops over SSH (the original path)
+#   https - control plane over POST https://exe.dev/exec (tokens signed locally
+#           with the SSH key), VM ops over the session agent on the VM's 443
+#           front door. For sandboxes where outbound SSH (port 22) is blocked.
+#   auto  - probe SSH to the control host once; fall back to https if it fails.
+TRANSPORT="${LIGHTDASH_EXEDEV_TRANSPORT:-auto}"
+AGENT_PORT="${LIGHTDASH_EXEDEV_AGENT_PORT:-8090}"
+AGENT_SCRIPT_REL="scripts/agent-exedev-session-agent.mjs"
+REMOTE_AGENT_LOG="/home/exedev/linear-agent/session-agent.log"
+
 fail() {
     echo "ERROR: $*" >&2
     exit 1
@@ -178,16 +189,178 @@ git_ssh_command() {
     printf '%s' "$out"
 }
 
+# ---------------------------------------------------------------------------
+# HTTPS transport
+#
+# The exe.dev control plane and each VM both speak an HTTPS API authenticated
+# by bearer tokens signed with the account's SSH key (no ssh-agent, no port 22).
+# On the VM the session agent (see $AGENT_SCRIPT_REL) is the 443 front door.
+# ---------------------------------------------------------------------------
+
+b64url() { tr -d '\n=' | tr '+/' '-_'; }
+
+# Sign a permissions JSON into an exe0 bearer token for the given namespace
+# (`v0@exe.dev` for the control plane, `v0@<vm>.exe.xyz` for a VM). Mirrors the
+# documented local-signing flow.
+sign_exe_token() {
+    local permissions="$1" namespace="$2" payload sig sigblob
+    payload="$(printf '%s' "$permissions" | base64 | b64url)"
+    sig="$(printf '%s' "$permissions" | ssh-keygen -Y sign -f "$KEY_FILE" -n "$namespace" 2>/dev/null)" ||
+        fail "Could not sign an exe.dev token. Check $KEY_ENV_VAR."
+    sigblob="$(printf '%s\n' "$sig" | sed '1d;$d' | b64url)"
+    printf 'exe0.%s.%s' "$payload" "$sigblob"
+}
+
+configure_https() {
+    [ -n "${CONTROL_TOKEN:-}" ] && return 0
+    ensure_key_file
+    require_command ssh-keygen
+    require_command curl
+    require_command base64
+    local exp
+    exp="$(( $(date +%s) + 43200 ))" # 12h; provisioning + a long session
+    CONTROL_TOKEN="$(sign_exe_token "{\"exp\":${exp}}" "v0@exe.dev")"
+    VM_TOKEN="$(sign_exe_token "{\"exp\":${exp},\"ctx\":{\"role\":\"lightdash-agent\"}}" "v0@${VM_HOST}")"
+    # Agent auth: the shared secret authorizes /__agent/* even once the port is
+    # public (where exe.dev injects no identity header). Generated once and
+    # persisted so every invocation in the session presents the same value.
+    AGENT_SECRET_FILE="$RUN_DIR/agent-secret"
+    if [ ! -s "$AGENT_SECRET_FILE" ]; then
+        mkdir -p "$RUN_DIR"
+        ( umask 077; head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n' >"$AGENT_SECRET_FILE" )
+    fi
+    AGENT_SECRET="$(cat "$AGENT_SECRET_FILE")"
+    AGENT_CURL_AUTH=(
+        -H "X-Exedev-Authorization: Bearer $VM_TOKEN"
+        -H "x-ld-agent-secret: $AGENT_SECRET"
+    )
+}
+
+# Control-plane command over HTTPS. Returns non-zero on any non-2xx.
+exe_ctl_https() {
+    configure_https
+    local body="$*" code out
+    out="$(curl -sS -m 60 -w '\n%{http_code}' -X POST \
+        -H "Authorization: Bearer $CONTROL_TOKEN" \
+        --data-binary "$body" "https://$CONTROL_HOST/exec")" || return 1
+    code="${out##*$'\n'}"
+    printf '%s' "${out%$'\n'*}"
+    [ "$code" = "200" ]
+}
+
+# Run a command on the VM through the session agent. Stdin is forwarded to the
+# process; stdout+stderr stream back; the remote exit code is recovered from the
+# agent's trailer line and becomes this function's exit status.
+vm_exec_https() {
+    configure_https
+    local cmd="$*" cwd="$REMOTE_REPO" out code
+    out="$(curl -sS -m "${AGENT_EXEC_TIMEOUT:-3600}" \
+        "${AGENT_CURL_AUTH[@]}" \
+        -H "x-agent-cmd: $(printf '%s' "$cmd" | base64 | tr -d '\n')" \
+        --data-binary @- -X POST \
+        "https://$VM_HOST/__agent/exec?cwd=$cwd&timeout=${AGENT_EXEC_TIMEOUT:-3600}")" || return 1
+    code="$(printf '%s' "$out" | sed -n 's/^__LD_AGENT_EXIT__:\([0-9][0-9]*\)$/\1/p' | tail -n 1)"
+    printf '%s' "$out" | sed '/^__LD_AGENT_EXIT__:/,$d'
+    return "${code:-1}"
+}
+
 exe_ctl() {
-    ssh "${SSH_OPTS[@]}" "$CONTROL_HOST" "$@" </dev/null
+    if [ "$TRANSPORT" = "https" ]; then
+        exe_ctl_https "$@"
+    else
+        ssh "${SSH_OPTS[@]}" "$CONTROL_HOST" "$@" </dev/null
+    fi
 }
 
 vm_ssh() {
-    ssh "${SSH_OPTS[@]}" "$REMOTE_USER@$VM_HOST" "$@"
+    if [ "$TRANSPORT" = "https" ]; then
+        vm_exec_https "$@"
+    else
+        ssh "${SSH_OPTS[@]}" "$REMOTE_USER@$VM_HOST" "$@"
+    fi
 }
 
+# Turn TRANSPORT=auto into a concrete choice, then wire up that transport. In
+# auto mode a single short SSH attempt to the control host decides: reachable →
+# ssh (the original fast path), blocked (sandbox without port 22) → https.
+configure_transport() {
+    local cache="$RUN_DIR/transport"
+    # Resolve `auto` once per session and cache it, so per-edit hooks don't pay
+    # for an SSH probe every time.
+    if [ "$TRANSPORT" = "auto" ] && [ -s "$cache" ]; then
+        TRANSPORT="$(cat "$cache")"
+    fi
+    if [ "$TRANSPORT" = "auto" ]; then
+        configure_ssh
+        if ssh "${SSH_OPTS[@]}" "$CONTROL_HOST" whoami >/dev/null 2>&1; then
+            TRANSPORT="ssh"
+        else
+            TRANSPORT="https"
+            echo "SSH to $CONTROL_HOST unavailable; using the HTTPS transport." >&2
+        fi
+        mkdir -p "$RUN_DIR" && printf '%s' "$TRANSPORT" >"$cache"
+    fi
+    if [ "$TRANSPORT" = "https" ]; then
+        configure_https
+    else
+        configure_ssh
+    fi
+}
+
+agent_healthy() {
+    [ "$(
+        curl --silent --output /dev/null --write-out '%{http_code}' --max-time 10 \
+            "${AGENT_CURL_AUTH[@]}" "https://$VM_HOST/__agent/health" 2>/dev/null
+    )" = "200" ]
+}
+
+# Bootstrap the session agent on the VM without SSH: Shelley (exe.dev's on-VM
+# agent, reachable over the HTTPS control plane) launches it. In a template that
+# already ships $AGENT_SCRIPT_REL the file is used as-is; older templates fetch
+# it from origin/main first.
+bootstrap_agent_via_shelley() {
+    local launch prompt
+    printf -v launch '%s' \
+"cd $REMOTE_REPO; F=$AGENT_SCRIPT_REL; if [ ! -f \$F ]; then git fetch --depth=1 origin main && git show FETCH_HEAD:\$F > \$F; fi; N=\$(ls -d /opt/node-v*-linux-*/bin/node | head -1); pkill -f session-agent.mjs || true; LD_AGENT_PORT=$AGENT_PORT LD_AGENT_SECRET=$AGENT_SECRET LD_AGENT_REPO=$REMOTE_REPO nohup \$N \$F > $REMOTE_AGENT_LOG 2>&1 & sleep 2; curl -s localhost:$AGENT_PORT/__agent/health"
+    prompt="Run this command verbatim in bash and show only its output: $launch"
+    # Single-quote the prompt so the exe.dev parser passes it to Shelley intact.
+    exe_ctl "shelley prompt $VM_NAME '$prompt'" ||
+        fail "Could not reach Shelley to bootstrap the session agent on $VM_HOST."
+}
+
+# Ensure the VM's 443 front door is the session agent and it is healthy.
+ensure_agent() {
+    configure_https
+    exe_ctl share port "$VM_NAME" "$AGENT_PORT" >/dev/null 2>&1 ||
+        echo "WARNING: could not map port $AGENT_PORT on $VM_NAME." >&2
+
+    if ! agent_healthy; then
+        echo "Bootstrapping the session agent on $VM_NAME..."
+        bootstrap_agent_via_shelley
+        local deadline=$((SECONDS + SSH_TIMEOUT_SECONDS))
+        until agent_healthy; do
+            ((SECONDS < deadline)) ||
+                fail "Session agent did not come up on $VM_HOST (log: $REMOTE_AGENT_LOG)."
+            sleep "$POLL_INTERVAL_SECONDS"
+        done
+    fi
+    # Allow git pushes into the VM checkout for the delta sync.
+    vm_ssh "git -C $REMOTE_REPO_Q config http.receivepack true" </dev/null || true
+}
+
+# Resolve the transport and, over https, make sure the VM's session agent is up
+# before a sync or health wait.
+prepare_transport() {
+    configure_transport
+    [ "$TRANSPORT" = "https" ] && ensure_agent
+    return 0
+}
+
+# The delimiter before/after the host differs by transport: whitespace in the
+# SSH table, a JSON quote in the HTTPS `/exec` response. Accept either.
 vm_exists() {
-    exe_ctl ls 2>/dev/null | grep -Eq "(^|[[:space:]])${VM_NAME}\.exe\.xyz([[:space:]]|$)"
+    exe_ctl ls 2>/dev/null |
+        grep -Eq "([^A-Za-z0-9.-]|^)${VM_NAME}\.exe\.xyz([^A-Za-z0-9.-]|$)"
 }
 
 ensure_vm() {
@@ -219,10 +392,20 @@ wait_for_vm_ssh() {
 }
 
 push_session_ref() {
-    GIT_SSH_COMMAND="$(git_ssh_command)" git -C "$REPO_ROOT" push \
-        --quiet --force \
-        "ssh://$REMOTE_USER@$VM_HOST$REMOTE_REPO" \
-        HEAD:refs/agent/session
+    if [ "$TRANSPORT" = "https" ]; then
+        configure_https
+        git -C "$REPO_ROOT" \
+            -c "http.extraHeader=X-Exedev-Authorization: Bearer $VM_TOKEN" \
+            -c "http.extraHeader=x-ld-agent-secret: $AGENT_SECRET" \
+            push --quiet --force \
+            "https://$VM_HOST/__agent/git/$(basename "$REMOTE_REPO")" \
+            HEAD:refs/agent/session
+    else
+        GIT_SSH_COMMAND="$(git_ssh_command)" git -C "$REPO_ROOT" push \
+            --quiet --force \
+            "ssh://$REMOTE_USER@$VM_HOST$REMOTE_REPO" \
+            HEAD:refs/agent/session
+    fi
 }
 
 remote_has_commit() {
@@ -383,8 +566,12 @@ launch_bootstrap() {
     vm_ssh "$remote_cmd" </dev/null ||
         fail "Could not launch the preview bootstrap on $VM_HOST."
 
-    exe_ctl share port "$VM_NAME" "$PREVIEW_PORT" ||
-        echo "WARNING: could not publish port $PREVIEW_PORT for $VM_NAME." >&2
+    # ssh: 443 maps straight to the Vite port. https: 443 maps to the session
+    # agent, which reverse proxies to the app.
+    local publish_port="$PREVIEW_PORT"
+    [ "$TRANSPORT" = "https" ] && publish_port="$AGENT_PORT"
+    exe_ctl share port "$VM_NAME" "$publish_port" ||
+        echo "WARNING: could not publish port $publish_port for $VM_NAME." >&2
     exe_ctl share set-public "$VM_NAME" ||
         echo "WARNING: could not make $VM_NAME public." >&2
 }
@@ -418,9 +605,13 @@ wait_until_healthy() {
 
 provision() {
     require_runtime
-    configure_ssh
+    configure_transport
     ensure_vm
-    wait_for_vm_ssh
+    if [ "$TRANSPORT" = "https" ]; then
+        ensure_agent
+    else
+        wait_for_vm_ssh
+    fi
     full_sync
     maybe_install_dependencies
     launch_bootstrap
@@ -494,7 +685,7 @@ hook_stop() {
     load_session_config
     require_runtime
     require_command jq
-    configure_ssh
+    prepare_transport
 
     if ! hook_output="$( (full_sync && maybe_install_dependencies && wait_until_healthy) 2>&1)"; then
         printf '%s\n' "$hook_output" >&2
@@ -537,7 +728,7 @@ hook_sync() {
     load_session_config
     [ -f "$PROVISIONED_FILE" ] || return 0
 
-    configure_ssh
+    configure_transport
     tool_name="$(extract_json_string "$hook_input" "tool_name")"
     case "$tool_name" in
         Edit | Write | MultiEdit | NotebookEdit)
@@ -574,7 +765,7 @@ main() {
                 return
             fi
             load_session_config
-            configure_ssh
+            configure_transport
             case "$command_name" in
                 ssh) vm_ssh "$@" ;;
                 exe) exe_ctl "$@" ;;
@@ -591,14 +782,14 @@ main() {
                 start) provision ;;
                 wait)
                     require_runtime
-                    configure_ssh
+                    prepare_transport
                     full_sync
                     maybe_install_dependencies
                     wait_until_healthy
                     ;;
                 sync)
                     require_runtime
-                    configure_ssh
+                    prepare_transport
                     full_sync
                     ;;
                 url) echo "$PUBLIC_URL" ;;

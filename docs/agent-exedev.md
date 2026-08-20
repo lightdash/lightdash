@@ -88,6 +88,63 @@ for code. Deleting a locally *untracked* file does not delete it on the VM.
 ./scripts/agent-exedev-dev.sh exe <cmd>  # exe.dev control command (ls, share, tag, ...)
 ```
 
+`ssh`/`exe` are transport-agnostic names: they run over SSH or over HTTPS
+depending on the resolved [transport](#transport-ssh-or-https).
+
+## Transport: SSH or HTTPS
+
+exe.dev exposes the same command surface two ways, and the script can drive the
+VM over either. `LIGHTDASH_EXEDEV_TRANSPORT` selects which:
+
+-   `ssh` (the original path): the control plane is `ssh exe.dev <cmd>` and VM
+    operations run over an SSH session. Requires outbound port 22.
+-   `https`: for sandboxes where outbound SSH is blocked but HTTPS is allowed —
+    for example Anthropic-hosted [Claude Code on the
+    web](https://code.claude.com/docs/en/claude-code-on-the-web), whose egress
+    proxy forwards only 443 and re-terminates TLS, so raw SSH and non-443 ports
+    never connect.
+-   `auto` (default): try a short SSH probe to the control host; fall back to
+    `https` if it fails. The choice is cached per session.
+
+### How the HTTPS transport works
+
+Everything is bearer-token-authenticated HTTPS, no port 22:
+
+-   **Control plane** — `POST https://exe.dev/exec` with an `exe0` token signed
+    locally from the account SSH key (`ssh-keygen -Y sign`, namespace
+    `v0@exe.dev`). `cp`, `tag`, `share`, `ls`, and `shelley` all run this way.
+-   **VM front door** — exe.dev forwards a single VM port to the public 443
+    endpoint, so the session agent (`scripts/agent-exedev-session-agent.mjs`)
+    listens there and *is* the front door. It serves `/__agent/*` control
+    endpoints and reverse proxies everything else — including Vite HMR
+    WebSockets — to the preview app on `FE_PORT`. `share port` points 443 at the
+    agent; `share set-public` then exposes the app as usual.
+-   **VM commands** — `POST https://<vm>.exe.xyz/__agent/exec`. The command is a
+    base64 `x-agent-cmd` header, the request body is piped to the process stdin
+    (so `git apply`, `tar -x`, and `rm` reuse one primitive), and the response
+    streams output ending in a `__LD_AGENT_EXIT__:<code>` trailer.
+-   **Code sync** — `git push https://<vm>.exe.xyz/__agent/git/<repo>` reaches
+    git's smart-HTTP backend inside the agent, preserving the delta-push model.
+-   **Auth** — requests carry a VM-scoped exe.dev token (`X-Exedev-Authorization`,
+    which the proxy validates and strips) and a per-session shared secret
+    (`x-ld-agent-secret`). The token gets requests past the proxy while the port
+    is private; the secret authorizes `/__agent/*` once the port is public,
+    where exe.dev injects no identity. The secret is generated once per session
+    and never leaves the client except to the agent.
+
+### Bootstrapping the agent
+
+The agent binary is committed to the repo, so a template refreshed from `main`
+already ships it and clones start it directly. To stand it up without SSH the
+script uses **Shelley** (exe.dev's on-VM agent, reachable over the HTTPS control
+plane): `shelley prompt <vm> "<launch command>"`. On a template that predates
+the file, the launch command fetches it from `origin/main` first. Once the agent
+answers `/__agent/health`, all later operations go straight to it. For a fully
+deterministic, Shelley-free startup, bake a systemd unit that launches the agent
+into the template (note the per-session secret must still be injected, or the
+agent must run on a private port and authorize via the exe.dev identity header
+only).
+
 ## Environment variables
 
 | Variable | Default | Purpose |
@@ -102,14 +159,24 @@ for code. Deleting a locally *untracked* file does not delete it on the VM.
 | `LIGHTDASH_EXEDEV_REMOTE_REPO` | `/opt/linear-agent-template/repository` | Repo checkout path on the VM |
 | `LIGHTDASH_EXEDEV_BOOTSTRAP` | `scripts/agent-exedev-bootstrap.sh` | Local bootstrap script uploaded to the VM |
 | `LIGHTDASH_EXEDEV_REMOTE_LOG` | `/home/exedev/linear-agent/bootstrap.log` | Bootstrap log path on the VM |
-| `LIGHTDASH_EXEDEV_PREVIEW_PORT` | `3000` | Port published via `share port` |
+| `LIGHTDASH_EXEDEV_PREVIEW_PORT` | `3000` | Port published via `share port` (SSH transport) |
+| `LIGHTDASH_EXEDEV_TRANSPORT` | `auto` | Transport: `ssh`, `https`, or `auto` |
+| `LIGHTDASH_EXEDEV_AGENT_PORT` | `8090` | VM port the session agent serves; 443 maps here (HTTPS transport) |
 | `EXEDEV_READY_TIMEOUT_SECONDS` | `900` | `wait`/Stop-hook readiness deadline |
 
 ## Claude Code on the web / desktop app
 
 Set `LIGHTDASH_EXEDEV_SSH_KEY` as a secret in the code-session environment
-configuration. Network access must allow outbound SSH (port 22) to `exe.dev`
-and `*.exe.xyz`, and HTTPS to `*.exe.xyz` for health checks.
+configuration.
+
+-   **With outbound SSH (port 22):** allow SSH to `exe.dev` and `*.exe.xyz`, plus
+    HTTPS to `*.exe.xyz` for health checks. `LIGHTDASH_EXEDEV_TRANSPORT=auto`
+    (the default) uses SSH.
+-   **HTTPS only** (Anthropic-hosted web sessions block port 22): allow HTTPS
+    (443) to `exe.dev` and `*.exe.xyz`. `auto` detects the blocked port and
+    falls back to the [HTTPS transport](#transport-ssh-or-https); set
+    `LIGHTDASH_EXEDEV_TRANSPORT=https` to skip the probe. The account SSH key is
+    still required — it signs the HTTPS bearer tokens locally.
 
 ## Operations
 

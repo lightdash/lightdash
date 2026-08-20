@@ -6,15 +6,23 @@
 
 When `LIGHTDASH_EXEDEV_SSH_KEY` is set, clones this session's VM from the
 `ld-linear-agent-template` exe.dev template (copy-on-write), pushes git-computed deltas
-of the working tree over SSH, and launches the preview stack in the background;
+of the working tree, and launches the preview stack in the background;
 `wait` blocks until the app is healthy and prints the public test URL
 (`READY: https://<vm>.exe.xyz`). Hook commands (`hook-start`, `hook-sync`,
 `hook-stop`) are wired in `.claude/settings.json` and no-op when the key is
 unset. See `docs/agent-exedev.md`.
 
+`LIGHTDASH_EXEDEV_TRANSPORT` (`ssh` | `https` | `auto`, default `auto`) selects
+how the VM is reached. `https` needs no outbound port 22 — it drives the
+exe.dev HTTPS API and a VM-side session agent
+(`agent-exedev-session-agent.mjs`) that fronts the app on port 443 — for
+sandboxes like Claude Code on the web. `auto` probes SSH and falls back to
+`https`.
+
 Use `agent-exedev-dev.sh ssh <cmd>` to run commands on the session VM and
 `agent-exedev-dev.sh exe <cmd>` for exe.dev control commands (`ls`, `share`,
-`tag`, ...) with the session identity already wired up.
+`tag`, ...) with the session identity already wired up; both use the resolved
+transport.
 
 ## Claude Code Okteto Environment
 

@@ -1,19 +1,25 @@
 #!/usr/bin/env node
 // VM-side session agent for the agent exe.dev HTTPS transport.
 //
-// exe.dev only forwards a single VM port to the public 443 endpoint, and the
-// agent client (Claude's cloud container) can reach the VM over that 443
-// endpoint only. So this process is the VM's front door: it serves its own
-// `/__agent/*` control endpoints (exec, upload, delete, git push) and reverse
+// exe.dev forwards a single VM port to the public 443 endpoint, and the agent
+// client (Claude's cloud container) can reach the VM over that 443 endpoint
+// only — non-443 ports and raw SSH are blocked. So this process is the VM's
+// front door: it serves its own `/__agent/*` control endpoints and reverse
 // proxies everything else — including Vite HMR WebSockets — to the preview app.
 //
 // Transport is HTTPS end to end; no SSH. See docs/agent-exedev.md.
 //
+// Endpoints (all under /__agent, authorized):
+//   GET  /__agent/health          liveness + resolved app port (unauthorized)
+//   POST /__agent/exec            run a command; see handleExec
+//   ALL  /__agent/git/<repo>/...  git smart-HTTP backend (enables `git push`)
+// Everything else is reverse proxied to the preview app.
+//
 // Config (environment):
-//   LD_AGENT_PORT     port this server listens on; exe.dev maps 443 here (default 8090)
-//   LD_AGENT_SECRET   shared secret required on `/__agent/*` requests
-//   LD_AGENT_REPO     repository checkout served for git + used as default cwd
-//   LD_AGENT_APP_PORT preview app port to proxy to; overrides FE_PORT discovery
+//   LD_AGENT_PORT      port this server listens on; exe.dev maps 443 here (default 8090)
+//   LD_AGENT_SECRET    shared secret required on `/__agent/*` requests
+//   LD_AGENT_REPO      repository checkout served for git + used as default cwd
+//   LD_AGENT_APP_PORT  preview app port to proxy to; overrides FE_PORT discovery
 //   LD_AGENT_ALLOW_UID exe.dev user id allowed via proxy-injected header (optional)
 //
 // Zero dependencies: Node core only.
@@ -21,16 +27,14 @@
 import http from 'node:http';
 import net from 'node:net';
 import { spawn } from 'node:child_process';
-import { readFileSync, statSync, mkdirSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 const PORT = Number(process.env.LD_AGENT_PORT || 8090);
 const SECRET = process.env.LD_AGENT_SECRET || '';
 const REPO = process.env.LD_AGENT_REPO || '/opt/linear-agent-template/repository';
 const ALLOW_UID = process.env.LD_AGENT_ALLOW_UID || '';
-const APP_PORT_OVERRIDE = process.env.LD_AGENT_APP_PORT
-    ? Number(process.env.LD_AGENT_APP_PORT)
-    : null;
+const APP_PORT_OVERRIDE = process.env.LD_AGENT_APP_PORT ? Number(process.env.LD_AGENT_APP_PORT) : null;
 const ENV_FILE = path.join(REPO, '.env.development.local');
 const EXIT_MARKER = '__LD_AGENT_EXIT__:'; // trailer the exec stream ends with
 
@@ -64,28 +68,26 @@ function authorized(req) {
 
 function sendJson(res, code, body) {
     const text = JSON.stringify(body);
-    res.writeHead(code, {
-        'content-type': 'application/json',
-        'content-length': Buffer.byteLength(text),
-    });
+    res.writeHead(code, { 'content-type': 'application/json', 'content-length': Buffer.byteLength(text) });
     res.end(text);
 }
 
-function readBody(req) {
-    return new Promise((resolve, reject) => {
-        const chunks = [];
-        req.on('data', (c) => chunks.push(c));
-        req.on('end', () => resolve(Buffer.concat(chunks)));
-        req.on('error', reject);
-    });
-}
-
-// POST /__agent/exec — body is the shell command. Streams combined output as it
-// arrives and ends with a trailer line `\n__LD_AGENT_EXIT__:<code>\n` so the
-// client learns the exit status without a second request. `?cwd=`, `?timeout=`.
-async function handleExec(req, res, url) {
-    const cmd = (await readBody(req)).toString('utf8');
-    if (!cmd.trim()) return sendJson(res, 400, { error: 'empty command' });
+// POST /__agent/exec — run a shell command. The command is base64 in the
+// `x-agent-cmd` header (base64 avoids header-encoding limits and keeps
+// newlines/quotes intact); the request body, if any, is piped to the process
+// stdin, so `git apply`, `tar -x`, and `rm` all reuse this one primitive.
+// Output (stdout+stderr interleaved) streams back as it is produced and ends
+// with `\n__LD_AGENT_EXIT__:<code>\n` so the client learns the exit status
+// without a second request. Query: `?cwd=` and `?timeout=` (seconds).
+function handleExec(req, res, url) {
+    const encoded = req.headers['x-agent-cmd'];
+    if (!encoded) return sendJson(res, 400, { error: 'missing x-agent-cmd' });
+    let cmd;
+    try {
+        cmd = Buffer.from(encoded, 'base64').toString('utf8');
+    } catch {
+        return sendJson(res, 400, { error: 'bad x-agent-cmd encoding' });
+    }
     const cwd = url.searchParams.get('cwd') || REPO;
     const timeoutSec = Number(url.searchParams.get('timeout') || 3600);
 
@@ -100,62 +102,22 @@ async function handleExec(req, res, url) {
     });
     child.on('close', (code, signal) => {
         clearTimeout(killer);
-        const status = code === null ? `signal:${signal}` : code;
-        res.end(`\n${EXIT_MARKER}${status}\n`);
+        res.end(`\n${EXIT_MARKER}${code === null ? `signal:${signal}` : code}\n`);
     });
     req.on('aborted', () => child.kill('SIGKILL'));
-}
-
-// POST /__agent/upload?dest=DIR — request body is a tar stream, extracted into
-// DIR. Mirrors the SSH `tar -x` sync path.
-async function handleUpload(req, res, url) {
-    const dest = url.searchParams.get('dest') || REPO;
-    try {
-        mkdirSync(dest, { recursive: true });
-    } catch {
-        /* best effort */
-    }
-    const tar = spawn('tar', ['--warning=no-unknown-keyword', '-C', dest, '-xf', '-']);
-    let stderr = '';
-    tar.stderr.on('data', (d) => (stderr += d));
-    tar.on('close', (code) =>
-        code === 0
-            ? sendJson(res, 200, { ok: true })
-            : sendJson(res, 500, { error: stderr.trim() || `tar exit ${code}` }),
-    );
-    tar.on('error', (err) => sendJson(res, 500, { error: err.message }));
-    req.pipe(tar.stdin);
-}
-
-// POST /__agent/delete — { cwd, paths: [...] }. Removes tracked files that were
-// deleted locally, matching the SSH sync's `rm -f`.
-async function handleDelete(req, res) {
-    let payload;
-    try {
-        payload = JSON.parse((await readBody(req)).toString('utf8'));
-    } catch {
-        return sendJson(res, 400, { error: 'invalid json' });
-    }
-    const cwd = payload.cwd || REPO;
-    const paths = Array.isArray(payload.paths) ? payload.paths : [];
-    if (paths.length === 0) return sendJson(res, 200, { ok: true });
-    const child = spawn('rm', ['-f', '--', ...paths], { cwd });
-    child.on('close', (code) =>
-        code === 0 ? sendJson(res, 200, { ok: true }) : sendJson(res, 500, { error: `rm exit ${code}` }),
-    );
-    child.on('error', (err) => sendJson(res, 500, { error: err.message }));
+    req.pipe(child.stdin);
+    child.stdin.on('error', () => {}); // ignore EPIPE when a command reads no stdin
 }
 
 // /__agent/git/<repo>/... — git's smart HTTP backend as CGI, so the client can
-// `git push https://<vm>/__agent/git/<repo>`. Preserves the delta-push model
+// `git push https://<vm>/__agent/git/<repo>`, preserving the delta-push model
 // the SSH transport used.
 function handleGit(req, res, url) {
-    const pathInfo = url.pathname.slice('/__agent/git'.length) || '/';
     const env = {
         ...process.env,
         GIT_PROJECT_ROOT: path.dirname(REPO),
         GIT_HTTP_EXPORT_ALL: '1',
-        PATH_INFO: pathInfo,
+        PATH_INFO: url.pathname.slice('/__agent/git'.length) || '/',
         REQUEST_METHOD: req.method,
         QUERY_STRING: url.search.replace(/^\?/, ''),
         CONTENT_TYPE: req.headers['content-type'] || '',
@@ -163,6 +125,7 @@ function handleGit(req, res, url) {
     };
     const cgi = spawn('git', ['http-backend'], { env });
     req.pipe(cgi.stdin);
+    cgi.stdin.on('error', () => {});
 
     // Parse the CGI header block, then stream the body straight through.
     let head = Buffer.alloc(0);
@@ -172,11 +135,9 @@ function handleGit(req, res, url) {
         head = Buffer.concat([head, chunk]);
         const sep = head.indexOf('\r\n\r\n');
         if (sep === -1) return;
-        const rawHeaders = head.slice(0, sep).toString('utf8');
-        const rest = head.slice(sep + 4);
         let status = 200;
         const headers = {};
-        for (const line of rawHeaders.split('\r\n')) {
+        for (const line of head.slice(0, sep).toString('utf8').split('\r\n')) {
             const idx = line.indexOf(':');
             if (idx === -1) continue;
             const key = line.slice(0, idx).trim();
@@ -186,17 +147,16 @@ function handleGit(req, res, url) {
         }
         res.writeHead(status, headers);
         headersSent = true;
+        const rest = head.slice(sep + 4);
         if (rest.length) res.write(rest);
     });
     cgi.stderr.on('data', (d) => process.stderr.write(d));
-    cgi.on('close', () => {
+    const finish = () => {
         if (!headersSent) res.writeHead(500);
         res.end();
-    });
-    cgi.on('error', () => {
-        if (!headersSent) res.writeHead(500);
-        res.end();
-    });
+    };
+    cgi.on('close', finish);
+    cgi.on('error', finish);
 }
 
 // Reverse proxy any non-agent request to the preview app.
@@ -223,14 +183,10 @@ const server = http.createServer((req, res) => {
         return sendJson(res, 400, { error: 'bad url' });
     }
 
-    if (url.pathname === '/__agent/health') {
-        return sendJson(res, 200, { ok: true, appPort: appPort() });
-    }
+    if (url.pathname === '/__agent/health') return sendJson(res, 200, { ok: true, appPort: appPort() });
     if (url.pathname.startsWith('/__agent/')) {
         if (!authorized(req)) return sendJson(res, 401, { error: 'unauthorized' });
         if (url.pathname === '/__agent/exec' && req.method === 'POST') return handleExec(req, res, url);
-        if (url.pathname === '/__agent/upload' && req.method === 'POST') return handleUpload(req, res, url);
-        if (url.pathname === '/__agent/delete' && req.method === 'POST') return handleDelete(req, res);
         if (url.pathname.startsWith('/__agent/git')) return handleGit(req, res, url);
         return sendJson(res, 404, { error: 'unknown agent route' });
     }
