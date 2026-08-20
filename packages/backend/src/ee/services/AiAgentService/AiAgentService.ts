@@ -391,7 +391,10 @@ import { type AiDeepResearchSubmittedReport } from '../AiDeepResearchService/AiD
 import { isDeepResearchRawSqlMcpTool } from '../AiDeepResearchService/toolClassification';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
-import { WritebackThreadPrClosedError } from '../AiWritebackService/errors';
+import {
+    WritebackDbtParseError,
+    WritebackThreadPrClosedError,
+} from '../AiWritebackService/errors';
 import type { AiWritebackSource } from '../AiWritebackService/types';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
@@ -8659,6 +8662,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             } else if (error instanceof InsufficientGitPermissionsError) {
                 toolResult = GIT_WRITE_PERMISSION_AGENT_MESSAGE;
                 errorCode = 'git_write_permission';
+            } else if (error instanceof WritebackDbtParseError) {
+                // The host's `dbt parse` gate blocked the pull request. The
+                // error already tells the agent what broke and what to do, and
+                // it's the agent's own mistake — not a system failure.
+                toolResult = error.message;
+                errorCode = 'unknown';
             } else {
                 toolResult = toolErrorHandler(
                     error,

@@ -82,6 +82,31 @@ const buildStagedProfilesSteps = (dbtProjectDir: string): string => `
 
 3. End your final reply with the two structured-output blocks below.`;
 
+/**
+ * Prompt for the one repair turn the host grants when its own `dbt parse` gate
+ * fails on the agent's changes. The agent still has the session (and the
+ * files) it just edited, so this only has to hand it dbt's error and the
+ * expectation: fix it, or revert to a state that parses.
+ */
+export const buildDbtParseRepairPrompt = (parseFailure: string): string =>
+    `
+Your changes do not parse. The host ran \`dbt parse\` on the working tree after
+you finished and it failed:
+
+<dbt_parse_error>
+${parseFailure}
+</dbt_parse_error>
+
+Fix this now — no pull request is opened while the project does not parse.
+
+- Fix the file(s) you changed so the project parses. Do NOT work around the
+  error by disabling, deleting, or renaming unrelated models.
+- If your approach cannot be made to parse, revert your changes entirely and
+  say so in your reply instead.
+- Re-run the compile wrapper to confirm before you finish.
+- End your reply with the same structured-output blocks as before.
+`.trim();
+
 export const buildSystemPrompt = (
     dbtProjectDir: string,
     context: {
@@ -163,6 +188,11 @@ ${context.repoContext.listing}
 `
             : ''
     }
+When you finish, the host runs \`dbt parse\` on your changes itself. If they do
+not parse you get ONE chance to fix them, and if they still do not parse no pull
+request is opened — so do the compile step below rather than assuming an edit
+was fine.
+
 If you made any file changes, perform these follow-up steps before you finish:
 ${
     context.profilesStaged
