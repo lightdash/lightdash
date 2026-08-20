@@ -146,11 +146,7 @@ import {
     type WarehouseResults,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
-import {
-    DuckdbWarehouseClient,
-    SshTunnel,
-    warehouseSqlBuilderFromType,
-} from '@lightdash/warehouses';
+import { DuckdbWarehouseClient, SshTunnel } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import { Readable, Writable } from 'stream';
 import {
@@ -162,6 +158,7 @@ import { type FileStorageClient } from '../../clients/FileStorage/FileStorageCli
 import type { INatsClient } from '../../clients/NatsClient';
 import { createLocalParquetUploadStream } from '../../clients/ResultsFileStorageClients/LocalParquetUploadStream';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
+import { type DbExternalSourceTable } from '../../database/entities/externalSources';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
 import { isAgentScopedQueryContext } from '../../ee/services/ai/utils/scopedSqlContexts';
 import {
@@ -184,6 +181,7 @@ import { traceSpan } from '../../tracing/tracing';
 import { wrapSentryTransaction } from '../../utils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import {
+    getDuckdbPreAggregateSqlTable,
     getJsonlSqlTable,
     quoteDuckdbIdentifier,
 } from '../../utils/duckdb/duckdbSqlTables';
@@ -194,6 +192,7 @@ import {
 } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import { buildComposeMergeSql } from '../../utils/QueryBuilder/composeMergeSql';
 import { updateExploreWithDateZoom } from '../../utils/QueryBuilder/dateZoom';
+import { getSqlBuilderForExplore } from '../../utils/QueryBuilder/getSqlBuilderForExplore';
 import {
     buildMergeResultMetricQuery,
     MergeQueryComposer,
@@ -363,6 +362,12 @@ type AsyncQueryExecutionPlan =
           preAggregateResolveReason?: string;
       }
     | {
+          target: 'external_source';
+          warehouseQuery: string;
+          preAggregateResolved?: false;
+          preAggregateResolveReason?: string;
+      }
+    | {
           target: 'error';
           error: string;
           preAggregateResolved?: false;
@@ -383,6 +388,15 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     persistentDownloadFileService: PersistentDownloadFileService;
     organizationAccessService: OrganizationAccessService;
     preAggregateStrategy?: PreAggregateStrategy;
+    /**
+     * Resolves an external source table (locator, columns, version) for
+     * explores of type EXTERNAL_SOURCE. Injected by the enterprise edition;
+     * absent on OSS, where external source queries are refused.
+     */
+    externalSourceTableResolver?: (
+        projectUuid: string,
+        tableUuid: string,
+    ) => Promise<DbExternalSourceTable | undefined>;
 };
 
 type ResolvedWarehouseCredentials = CreateWarehouseCredentials & {
@@ -505,6 +519,8 @@ export class AsyncQueryService extends ProjectService {
 
     protected readonly preAggregateStrategy: PreAggregateStrategy;
 
+    private readonly externalSourceTableResolver: AsyncQueryServiceArguments['externalSourceTableResolver'];
+
     constructor(args: AsyncQueryServiceArguments) {
         super(args);
         this.queryHistoryModel = args.queryHistoryModel;
@@ -522,6 +538,107 @@ export class AsyncQueryService extends ProjectService {
         this.organizationAccessService = args.organizationAccessService;
         this.preAggregateStrategy =
             args.preAggregateStrategy ?? new NoOpPreAggregateStrategy();
+        this.externalSourceTableResolver = args.externalSourceTableResolver;
+    }
+
+    /**
+     * Resolve the late-bound file reference for an external source explore:
+     * the CTE that maps the explore's table name onto its ingested file, and
+     * a cache-key salt carrying the ingest version (refreshes change results
+     * without changing the SQL text).
+     */
+    private async resolveExternalSourceReference(
+        projectUuid: string,
+        explore: Explore,
+    ): Promise<{ cte: string; cacheKeySalt: string } | { error: string }> {
+        const ref = explore.externalSource;
+        if (!ref) {
+            return {
+                error: 'External source explore is missing its source reference',
+            };
+        }
+        if (!this.externalSourceTableResolver) {
+            return {
+                error: 'External source queries need the enterprise DuckDB engine',
+            };
+        }
+        const table = await this.externalSourceTableResolver(
+            projectUuid,
+            ref.tableUuid,
+        );
+        if (!table || !table.locator || !table.columns) {
+            return {
+                error: 'The external source table has no ingested data yet. Refresh the source and try again',
+            };
+        }
+        const cte = `${quoteDuckdbIdentifier(
+            explore.baseTable,
+        )} AS (SELECT * FROM ${getDuckdbPreAggregateSqlTable(
+            table.locator,
+            table.columns,
+        )})`;
+        return {
+            cte,
+            cacheKeySalt: `esv:${ref.tableUuid}:${table.version}`,
+        };
+    }
+
+    /**
+     * External source queries always run on the DuckDB engine with the file
+     * reference bound as a CTE. The compiled SQL can carry user-authored
+     * fragments (custom metrics, table calculations), so file access is
+     * re-validated before the server-built CTE is attached.
+     */
+    private static resolveExternalSourceExecutionPlan(
+        query: string,
+        reference: { cte: string; cacheKeySalt: string } | { error: string },
+    ): AsyncQueryExecutionPlan {
+        if ('error' in reference) {
+            return { target: 'error', error: reference.error };
+        }
+        try {
+            DuckdbWarehouseClient.validateUserSqlFileAccess(query);
+        } catch (e) {
+            return { target: 'error', error: getErrorMessage(e) };
+        }
+        return {
+            target: 'external_source',
+            warehouseQuery: AsyncQueryService.wrapSqlWithReferenceCtes(query, [
+                reference.cte,
+            ]),
+        };
+    }
+
+    /**
+     * Execute an external source query on the shared DuckDB engine. The
+     * wrapped SQL (file CTE attached) travels only here — the stored
+     * compiled_sql keeps the plain query against the table name.
+     */
+    private async runExternalSourceQuery(
+        warehouseArgs: RunAsyncWarehouseQueryArgs,
+        account: Account,
+    ): Promise<void> {
+        try {
+            const warehouseClient =
+                this.preAggregateStrategy.createExecutionWarehouseClient();
+            await this.runAsyncWarehouseQuery({
+                ...warehouseArgs,
+                warehouseClientOverride: warehouseClient,
+                warehouseCredentialsTypeOverride:
+                    warehouseClient.credentials.type,
+            });
+        } catch (e) {
+            await this.queryHistoryModel.update(
+                warehouseArgs.queryUuid,
+                warehouseArgs.projectUuid,
+                {
+                    status: QueryHistoryStatus.ERROR,
+                    error: getErrorMessage(e),
+                    errored_at: new Date(),
+                },
+                account,
+            );
+        }
     }
 
     private recordPreAggregateStats(params: {
@@ -4237,6 +4354,14 @@ export class AsyncQueryService extends ProjectService {
                     // resolved value includes project and config fallbacks. Two queries with
                     // the same SQL but different resolved timezones produce different results
                     // (e.g., timezone-aware DATE_TRUNC, filter boundaries) and must not share a cache entry.
+                    const externalSourceReference =
+                        explore.type === ExploreType.EXTERNAL_SOURCE
+                            ? await this.resolveExternalSourceReference(
+                                  projectUuid,
+                                  explore,
+                              )
+                            : undefined;
+
                     const cacheKey = QueryHistoryModel.getCacheKey(
                         projectUuid,
                         {
@@ -4247,6 +4372,11 @@ export class AsyncQueryService extends ProjectService {
                                     ? account.user.id
                                     : null,
                             dataTimezone: resolvedDataTimezone,
+                            externalSourceSalt:
+                                externalSourceReference &&
+                                'cacheKeySalt' in externalSourceReference
+                                    ? externalSourceReference.cacheKeySalt
+                                    : undefined,
                         },
                     );
 
@@ -4314,7 +4444,8 @@ export class AsyncQueryService extends ProjectService {
                         executionSource?:
                             | 'warehouse'
                             | 'pre_aggregate_duckdb'
-                            | 'pre_aggregate_warehouse',
+                            | 'pre_aggregate_warehouse'
+                            | 'external_source_duckdb',
                     ) =>
                         this.analytics.trackAccount(account, {
                             event: 'query.executed',
@@ -4461,27 +4592,31 @@ export class AsyncQueryService extends ProjectService {
                     }
 
                     const resolveStart = Date.now();
-                    const executionPlan =
-                        await this.resolveAsyncQueryExecutionPlan({
-                            projectUuid,
-                            warehouseQuery: query,
-                            metricQuery,
-                            timezone: timezone ?? 'UTC',
-                            dateZoom,
-                            parameters: queryComposer.getParameters(),
-                            routingTarget: routingTarget ?? 'warehouse',
-                            preAggregationRoute,
-                            fieldsMap,
-                            pivotConfiguration,
-                            startOfWeek: warehouseCredentials.startOfWeek,
-                            userAccessControls:
-                                queryComposer.getUserAccessControls(),
-                            availableParameterDefinitions:
-                                queryComposer.getAvailableParameterDefinitions(),
-                            queryUuid: queryHistoryUuid,
-                            useTimezoneAwareDateTrunc:
-                                queryComposer.getUseTimezoneAwareDateTrunc(),
-                        });
+                    const executionPlan = externalSourceReference
+                        ? AsyncQueryService.resolveExternalSourceExecutionPlan(
+                              query,
+                              externalSourceReference,
+                          )
+                        : await this.resolveAsyncQueryExecutionPlan({
+                              projectUuid,
+                              warehouseQuery: query,
+                              metricQuery,
+                              timezone: timezone ?? 'UTC',
+                              dateZoom,
+                              parameters: queryComposer.getParameters(),
+                              routingTarget: routingTarget ?? 'warehouse',
+                              preAggregationRoute,
+                              fieldsMap,
+                              pivotConfiguration,
+                              startOfWeek: warehouseCredentials.startOfWeek,
+                              userAccessControls:
+                                  queryComposer.getUserAccessControls(),
+                              availableParameterDefinitions:
+                                  queryComposer.getAvailableParameterDefinitions(),
+                              queryUuid: queryHistoryUuid,
+                              useTimezoneAwareDateTrunc:
+                                  queryComposer.getUseTimezoneAwareDateTrunc(),
+                          });
                     const resolveMs = Date.now() - resolveStart;
 
                     this.logger.info(
@@ -4551,6 +4686,8 @@ export class AsyncQueryService extends ProjectService {
                             executionPlan.preAggregateExecution === 'duckdb'
                                 ? 'pre_aggregate_duckdb'
                                 : 'pre_aggregate_warehouse';
+                    } else if (executionPlan.target === 'external_source') {
+                        executedSource = 'external_source_duckdb';
                     }
                     trackQueryExecuted(executedSource);
 
@@ -4588,7 +4725,10 @@ export class AsyncQueryService extends ProjectService {
                         );
                     }
 
-                    if (this.lightdashConfig.natsWorker.enabled) {
+                    if (
+                        this.lightdashConfig.natsWorker.enabled &&
+                        executionPlan.target !== 'external_source'
+                    ) {
                         this.logger.info(
                             `Enqueueing query ${queryHistoryUuid} on NATS JetStream (${executionPlan.target})`,
                         );
@@ -4694,6 +4834,11 @@ export class AsyncQueryService extends ProjectService {
                                         preAggregateExecution:
                                             executionPlan.preAggregateExecution,
                                     });
+                                case 'external_source':
+                                    return this.runExternalSourceQuery(
+                                        warehouseArgs,
+                                        account,
+                                    );
                                 case 'materialization':
                                 case 'warehouse':
                                     return this.runAsyncWarehouseQuery(
@@ -4947,9 +5092,9 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
-        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
-            warehouseCredentials.type,
-            warehouseCredentials.startOfWeek,
+        const warehouseSqlBuilder = getSqlBuilderForExplore(
+            explore,
+            warehouseCredentials,
         );
 
         // Combine default parameter values with request parameters first
@@ -5364,9 +5509,9 @@ export class AsyncQueryService extends ProjectService {
             isServiceAccount: account.isServiceAccount(),
         });
 
-        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
-            warehouseCredentials.type,
-            warehouseCredentials.startOfWeek,
+        const warehouseSqlBuilder = getSqlBuilderForExplore(
+            explore,
+            warehouseCredentials,
         );
 
         const combinedParameters = await this.combineParameters(
@@ -5670,9 +5815,9 @@ export class AsyncQueryService extends ProjectService {
             isServiceAccount: account.isServiceAccount(),
         });
 
-        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
-            warehouseCredentials.type,
-            warehouseCredentials.startOfWeek,
+        const warehouseSqlBuilder = getSqlBuilderForExplore(
+            explore,
+            warehouseCredentials,
         );
 
         // Combine default parameter values, saved chart parameters, and request parameters first
@@ -6103,9 +6248,9 @@ export class AsyncQueryService extends ProjectService {
                 this.projectParametersModel.find(projectUuid),
         ]);
 
-        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
-            warehouseCredentials.type,
-            warehouseCredentials.startOfWeek,
+        const warehouseSqlBuilder = getSqlBuilderForExplore(
+            explore,
+            warehouseCredentials,
         );
 
         const dashboardParameters = convertDashboardParametersToValuesMap(
@@ -6296,11 +6441,6 @@ export class AsyncQueryService extends ProjectService {
             isServiceAccount: account.isServiceAccount(),
         });
 
-        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
-            warehouseCredentials.type,
-            warehouseCredentials.startOfWeek,
-        );
-
         const { metricQuery, fields: metricQueryFields } =
             await this.queryHistoryModel.get(
                 underlyingDataSourceQueryUuid,
@@ -6317,6 +6457,11 @@ export class AsyncQueryService extends ProjectService {
                 exploreName,
                 organizationUuid,
             );
+
+        const warehouseSqlBuilder = getSqlBuilderForExplore(
+            explore,
+            warehouseCredentials,
+        );
 
         // Combine parameters early so we can filter dimensions by parameter availability
         const combinedParameters = await this.combineParameters(
@@ -7314,7 +7459,8 @@ export class AsyncQueryService extends ProjectService {
             };
         }
 
-        // Result sources have no warehouse statement to fall back to
+        // Result sources and external source tables have no warehouse
+        // statement to fall back to
         if (compiledMerge.requiresCompose) {
             return {
                 outcome: 'refused',
@@ -7324,7 +7470,7 @@ export class AsyncQueryService extends ProjectService {
                         sourceId: null,
                         fieldIds: [],
                         message:
-                            'This merge reads existing query results, which need the compose engine. It is not enabled or not available on this instance.',
+                            'This merge reads existing query results or external source tables, which need the compose engine. It is not enabled or not available on this instance.',
                     },
                 ],
                 parameterReferences: compiledMerge.parameterReferences,
@@ -8683,9 +8829,9 @@ export class AsyncQueryService extends ProjectService {
             isServiceAccount: account.isServiceAccount(),
         });
 
-        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
-            warehouseCredentials.type,
-            warehouseCredentials.startOfWeek,
+        const warehouseSqlBuilder = getSqlBuilderForExplore(
+            explore,
+            warehouseCredentials,
         );
 
         const queryComposer = await this.prepareMetricQueryAsyncQueryArgs({

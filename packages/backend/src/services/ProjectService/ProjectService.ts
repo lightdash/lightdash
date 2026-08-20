@@ -5364,8 +5364,6 @@ export class ProjectService extends BaseService {
             userAttributeOverrides,
         } = args;
 
-        const requiresCompose = mergeQuery.sources.some(isMergeResultSource);
-
         // One metadata load feeds validation, output typing and display
         // labels. Metric sources resolve through their explore (query-defined
         // fields join the same item map, so custom dimensions and metrics
@@ -5418,6 +5416,16 @@ export class ProjectService extends BaseService {
                 };
             }),
         );
+        // Result sources have no warehouse statement, and external source
+        // explores have no warehouse relation — either forces the compose
+        // engine.
+        const requiresCompose =
+            mergeQuery.sources.some(isMergeResultSource) ||
+            maybeResolvedSources.some(
+                (source) =>
+                    source?.explore?.type === ExploreType.EXTERNAL_SOURCE,
+            );
+
         if (resolutionErrors.length > 0) {
             return {
                 sql: null,

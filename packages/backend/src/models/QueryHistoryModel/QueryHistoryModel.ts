@@ -114,6 +114,11 @@ export class QueryHistoryModel {
             timezone?: string;
             userUuid: string | null;
             dataTimezone?: string;
+            /**
+             * External source tables version their ingested files without the
+             * SQL text changing, so a refresh must produce a new key.
+             */
+            externalSourceSalt?: string;
         },
     ) {
         const CACHE_VERSION = 'v3'; // change when we want to force invalidation
@@ -136,6 +141,10 @@ export class QueryHistoryModel {
         // prefixed so it cannot collide with the display timezone above.
         if (resultsIdentifiers.dataTimezone) {
             queryHashKey += `.dtz:${resultsIdentifiers.dataTimezone}`;
+        }
+
+        if (resultsIdentifiers.externalSourceSalt) {
+            queryHashKey += `.${resultsIdentifiers.externalSourceSalt}`;
         }
 
         return crypto.createHash('sha256').update(queryHashKey).digest('hex');

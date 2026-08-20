@@ -1010,6 +1010,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getPersistentDownloadFileService(),
                     organizationAccessService:
                         repository.getOrganizationAccessService(),
+                    externalSourceTableResolver: (projectUuid, tableUuid) =>
+                        models
+                            .getExternalSourceModel<ExternalSourceModel>()
+                            .findTableByUuid(projectUuid, tableUuid),
                     preAggregateStrategy: new PreAggregateStrategy({
                         preAggregationDuckDbClient:
                             new PreAggregationDuckDbClient({
