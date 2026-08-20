@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "1.228.0",
-  "previousVersion": "1.227.1",
-  "releaseDate": "2026-08-20T20:07:24.237Z",
+  "version": "1.228.1",
+  "previousVersion": "1.228.0",
+  "releaseDate": "2026-08-20T22:14:50.914Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -20,10 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid} — added the new `runComposerQueries` enum value to the `results/allOf[subschema #2]/messages/items/anyOf[#/components/schemas/AiAgentMessageAssistant]/toolResults/items/allOf[subschema #2]/anyOf[subschema #1]/toolName` response property for the response status `200`"
-      ],
-      "advisoryCount": 1
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,

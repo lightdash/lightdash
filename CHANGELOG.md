@@ -1,3 +1,11 @@
+## [1.228.1](https://github.com/lightdash/lightdash/compare/1.228.0...1.228.1) (2026-08-20)
+
+
+### Bug Fixes
+
+* **release-safety:** read raw SQL that interpolates local constants ([#27807](https://github.com/lightdash/lightdash/issues/27807)) ([a97adbb](https://github.com/lightdash/lightdash/commit/a97adbb009a941601bb48a373467779179657755))
+* **upgrade-automation:** stop a cancelled deploy run freezing upgrades ([#27808](https://github.com/lightdash/lightdash/issues/27808)) ([a16df33](https://github.com/lightdash/lightdash/commit/a16df336101ba4cfc93bc5fe713015fb996f7c9d))
+
 # [1.228.0](https://github.com/lightdash/lightdash/compare/1.227.1...1.228.0) (2026-08-20)
 
 
