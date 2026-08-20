@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     isDimension,
     isFilterAutocompleteManualOnly,
     type FilterableItem,
@@ -32,11 +33,11 @@ import {
     useState,
     type FC,
 } from 'react';
-import useHealth from '../../../../hooks/health/useHealth';
 import {
     MAX_AUTOCOMPLETE_RESULTS,
     useFieldValues,
 } from '../../../../hooks/useFieldValues';
+import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../../MantineIcon';
 import { MultiSelectCombobox } from '../../MultiSelectCombobox/MultiSelectCombobox';
 import useFiltersContext from '../useFiltersContext';
@@ -144,7 +145,9 @@ const FilterStringAutoComplete: FC<Props> = ({
         throw new Error('projectUuid is required in FiltersProvider');
     }
 
-    const { data: healthData } = useHealth();
+    const { data: autocompleteCacheFlag } = useServerFeatureFlag(
+        FeatureFlags.AutocompleteCacheEnabled,
+    );
 
     const [search, setSearch] = useState('');
     const [pastePopUpOpened, setPastePopUpOpened] = useState(false);
@@ -513,7 +516,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                                 ) : null
                             }
                             footer={
-                                healthData?.hasCacheAutocompleResults &&
+                                autocompleteCacheFlag?.enabled &&
                                 canRefreshAutocomplete ? (
                                     <RefreshIndicator
                                         refreshedAtRef={refreshedAtRef}

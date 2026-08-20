@@ -408,6 +408,12 @@ const getMockedProjectService = (
                         enabled: lightdashConfig.results.cacheEnabled,
                     };
                 }
+                if (featureFlagId === FeatureFlags.AutocompleteCacheEnabled) {
+                    return {
+                        id: featureFlagId,
+                        enabled: lightdashConfig.results.autocompleteEnabled,
+                    };
+                }
                 return { id: featureFlagId, enabled: false };
             }),
         } as unknown as FeatureFlagModel,

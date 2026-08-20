@@ -1,4 +1,4 @@
-import { type CompiledDimension } from '@lightdash/common';
+import { FeatureFlags, type CompiledDimension } from '@lightdash/common';
 import {
     Group,
     Highlight,
@@ -14,11 +14,11 @@ import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import MultiValuePastePopover from '../../../../components/common/Filters/FilterInputs/MultiValuePastePopover';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { MultiSelectCombobox } from '../../../../components/common/MultiSelectCombobox/MultiSelectCombobox';
-import useHealth from '../../../../hooks/health/useHealth';
 import {
     MAX_AUTOCOMPLETE_RESULTS,
     useFieldValues,
 } from '../../../../hooks/useFieldValues';
+import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import styles from './MetricExploreFilterAutoComplete.module.css';
 
@@ -53,7 +53,9 @@ export const MetricExploreFilterAutoComplete: FC<Props> = ({
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
-    const { data: healthData } = useHealth();
+    const { data: autocompleteCacheFlag } = useServerFeatureFlag(
+        FeatureFlags.AutocompleteCacheEnabled,
+    );
 
     const [search, setSearch] = useState('');
     const [pastePopUpOpened, setPastePopUpOpened] = useState(false);
@@ -210,7 +212,7 @@ export const MetricExploreFilterAutoComplete: FC<Props> = ({
                     ) : null
                 }
                 footer={
-                    healthData?.hasCacheAutocompleResults ? (
+                    autocompleteCacheFlag?.enabled ? (
                         <Tooltip
                             withinPortal
                             position="left"

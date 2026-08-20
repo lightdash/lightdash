@@ -30,6 +30,7 @@ const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
     // preview never advertises a feature whose backend isn't configured.
     CommercialFeatureFlags.AiCopilot,
     FeatureFlags.ResultsCacheEnabled,
+    FeatureFlags.AutocompleteCacheEnabled,
     FeatureFlags.EnableTimezoneSupport,
 ]);
 

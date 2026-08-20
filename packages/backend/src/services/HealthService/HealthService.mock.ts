@@ -109,7 +109,6 @@ export const BaseResponse: HealthState = {
         tracesSampleRate: 0,
         profilesSampleRate: 0,
     },
-    hasCacheAutocompleResults: false,
     appearance: {
         overrideColorPalette: undefined,
         overrideColorPaletteName: undefined,

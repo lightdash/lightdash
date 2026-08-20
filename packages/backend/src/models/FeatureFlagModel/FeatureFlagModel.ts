@@ -65,6 +65,12 @@ export class FeatureFlagModel {
                     this.lightdashConfig.results.cacheEnabled,
                     options,
                 ),
+            [FeatureFlags.AutocompleteCacheEnabled]: (flagArgs, options) =>
+                this.getWithEnvFallback(
+                    flagArgs,
+                    this.lightdashConfig.results.autocompleteEnabled,
+                    options,
+                ),
         };
     }
 

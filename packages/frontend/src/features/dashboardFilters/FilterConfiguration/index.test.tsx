@@ -53,10 +53,8 @@ vi.mock('../../../hooks/useFieldValues', () => ({
     })),
 }));
 
-vi.mock('../../../hooks/health/useHealth', () => ({
-    default: vi.fn(() => ({
-        data: { hasCacheAutocompleResults: false },
-    })),
+vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: vi.fn(() => ({ data: { enabled: false } })),
 }));
 
 const mockField = {

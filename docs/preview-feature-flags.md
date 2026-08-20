@@ -19,7 +19,8 @@ exclusion, with a reason, when that isn't safe. Flags are excluded when they:
   real repos),
 - are off pending a security review, or are deprecated,
 - derive their value from instance configuration (`ai-copilot`,
-  `results-cache-enabled`, `enable-timezone-support`) — these are left to their
+  `results-cache-enabled`, `autocomplete-cache-enabled`,
+  `enable-timezone-support`) — these are left to their
   config handler so a preview never advertises an unconfigured backend. To test
   AI copilot in a preview, configure a provider (`AI_COPILOT_ENABLED` plus
   credentials) rather than forcing the flag.

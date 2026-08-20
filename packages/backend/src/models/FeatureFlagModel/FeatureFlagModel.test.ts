@@ -577,6 +577,71 @@ describe('FeatureFlagModel', () => {
         });
     });
 
+    describe('AutocompleteCacheEnabled env fallback', () => {
+        const autocompleteEnabledConfig = {
+            results: {
+                ...lightdashConfigMock.results,
+                autocompleteEnabled: true,
+            },
+        };
+
+        it('default_enabled:false overrides an env fallback of true', async () => {
+            const model = buildModel(
+                autocompleteEnabledConfig,
+                buildFakeDatabase({ flag: { default_enabled: false } }),
+            );
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.AutocompleteCacheEnabled,
+                user: dbUser,
+            });
+
+            expect(result).toEqual({
+                id: FeatureFlags.AutocompleteCacheEnabled,
+                enabled: false,
+            });
+        });
+
+        it('org override wins over an env fallback of false', async () => {
+            const model = buildModel(
+                {
+                    results: {
+                        ...lightdashConfigMock.results,
+                        autocompleteEnabled: false,
+                    },
+                },
+                buildFakeDatabase({
+                    flag: { default_enabled: false },
+                    orgOverride: { enabled: true },
+                }),
+            );
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.AutocompleteCacheEnabled,
+                user: dbUser,
+            });
+
+            expect(result.enabled).toBe(true);
+        });
+
+        it('falls through to the env fallback when the DB has no row', async () => {
+            const model = buildModel(
+                autocompleteEnabledConfig,
+                buildFakeDatabase({}),
+            );
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.AutocompleteCacheEnabled,
+                user: dbUser,
+            });
+
+            expect(result).toEqual({
+                id: FeatureFlags.AutocompleteCacheEnabled,
+                enabled: true,
+            });
+        });
+    });
+
     describe('EnableTimezoneSupport defaults to on', () => {
         const withTimezoneSupport = (enableTimezoneSupport: boolean) => ({
             query: { ...lightdashConfigMock.query, enableTimezoneSupport },

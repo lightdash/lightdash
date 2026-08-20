@@ -166,6 +166,13 @@ export enum FeatureFlags {
     ResultsCacheEnabled = 'results-cache-enabled',
 
     /**
+     * Enable filter autocomplete results caching. DB value (user/org
+     * override or flag default) takes precedence; falls back to the
+     * AUTOCOMPLETE_CACHE_ENABLED env var when no DB row is set.
+     */
+    AutocompleteCacheEnabled = 'autocomplete-cache-enabled',
+
+    /**
      * Allow dashboard editors to mark individual dashboard filters as locked.
      * Locked filters are visible to viewers but cannot be edited from view
      * mode, and URL/embed filter overrides targeting a locked filter's field

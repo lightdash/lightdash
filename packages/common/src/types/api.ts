@@ -664,7 +664,6 @@ export type HealthState = {
     hasGitlab: boolean;
     hasHeadlessBrowser: boolean;
     hasExtendedUsageAnalytics: boolean;
-    hasCacheAutocompleResults: boolean;
     appearance: {
         overrideColorPalette: string[] | undefined;
         overrideColorPaletteName: string | undefined;

@@ -7783,8 +7783,12 @@ export class ProjectService extends BaseService {
             },
         ).compile();
 
-        const isUserCacheEnabled =
-            this.lightdashConfig.results.autocompleteEnabled && !!user.userUuid;
+        const { enabled: autocompleteCacheEnabled } =
+            await this.featureFlagModel.get({
+                user,
+                featureFlagId: FeatureFlags.AutocompleteCacheEnabled,
+            });
+        const isUserCacheEnabled = autocompleteCacheEnabled && !!user.userUuid;
 
         const userUuid = getCacheUserUuid(warehouseCredentials, user.userUuid);
 
