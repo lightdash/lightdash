@@ -1,9 +1,11 @@
 import {
     BinType,
+    ChartType,
     CompiledDimension,
     CustomBinDimension,
     CustomDimensionType,
     defaultNullSafeEqualSql,
+    derivePivotConfigurationFromChart,
     DimensionType,
     FieldType,
     ItemsMap,
@@ -6219,6 +6221,121 @@ SELECT * FROM group_by_query LIMIT 50`);
             // Sanity check: the folded anchors use the short _ca/_ra suffixes.
             expect(result).toContain(`AS "${longRef}_ca_value"`);
             expect(result).toContain(`AS "${longRef}_ra_value"`);
+        });
+
+        test('Hidden row dimension stays in GROUP BY and row_index ranking (PROD-10392)', () => {
+            // https://github.com/lightdash/lightdash/issues/27739
+            // Repro: table pivoted on order_month with row dims
+            // [company_name, company_id], company_id hidden via
+            // columnProperties, sorted DESC by the metric. Two records share
+            // the same company_name and differ only by company_id.
+            // Bug: the derived config dropped the hidden dim from indexColumn,
+            // so group_by_query collapsed both records into one row whose
+            // metric came from an arbitrary record (ANY aggregation).
+            // Expectation: the hidden dim stays a structural index column all
+            // the way into the SQL — grouped, anchored, and ranked — with
+            // hiding left to the renderer.
+            const fields: ItemsMap = {
+                orders_company_name: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    name: 'company_name',
+                    table: 'orders',
+                    label: 'Company name',
+                    tableLabel: 'Orders',
+                    sql: '${TABLE}.company_name',
+                    hidden: false,
+                },
+                orders_company_id: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    name: 'company_id',
+                    table: 'orders',
+                    label: 'Company ID',
+                    tableLabel: 'Orders',
+                    sql: '${TABLE}.company_id',
+                    hidden: false,
+                },
+                orders_order_month: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.DATE,
+                    name: 'order_month',
+                    table: 'orders',
+                    label: 'Order month',
+                    tableLabel: 'Orders',
+                    sql: '${TABLE}.order_month',
+                    hidden: false,
+                },
+                payments_total_revenue: {
+                    fieldType: FieldType.METRIC,
+                    type: MetricType.SUM,
+                    name: 'total_revenue',
+                    table: 'payments',
+                    label: 'Total revenue',
+                    tableLabel: 'Payments',
+                    sql: '${TABLE}.amount',
+                    hidden: false,
+                },
+            } as unknown as ItemsMap;
+
+            const pivotConfiguration = derivePivotConfigurationFromChart(
+                {
+                    chartConfig: {
+                        type: ChartType.TABLE,
+                        config: {
+                            columns: {
+                                orders_company_id: { visible: false },
+                            },
+                            showSubtotals: false,
+                        },
+                    },
+                    pivotConfig: { columns: ['orders_order_month'] },
+                },
+                {
+                    exploreName: 'orders',
+                    dimensions: [
+                        'orders_company_name',
+                        'orders_company_id',
+                        'orders_order_month',
+                    ],
+                    metrics: ['payments_total_revenue'],
+                    filters: {},
+                    sorts: [
+                        { fieldId: 'payments_total_revenue', descending: true },
+                    ],
+                    limit: 500,
+                    tableCalculations: [],
+                },
+                fields,
+            );
+
+            expect(pivotConfiguration).toBeDefined();
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration!,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = replaceWhitespace(builder.toSql());
+
+            // group_by_query groups by the hidden dim too → the two records
+            // stay distinct rows.
+            expect(result).toContain(
+                'group by "orders_order_month", "orders_company_name", "orders_company_id"',
+            );
+
+            // The row anchor is computed per (company_name, company_id), so
+            // the metric sort ranks each underlying record by its own value.
+            expect(result).toContain(
+                'GROUP BY q."orders_company_name", q."orders_company_id"',
+            );
+
+            // row_index dense_rank includes the hidden dim as a tiebreaker →
+            // both records get their own row_index.
+            expect(result).toContain(
+                'DENSE_RANK() OVER (ORDER BY g."payments_total_revenue_ra_value" DESC, g."orders_company_name" ASC, g."orders_company_id" ASC) AS "row_index"',
+            );
         });
     });
 

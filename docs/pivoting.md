@@ -129,10 +129,17 @@ Cross-cutting terms only — fuller definitions live in the linked package docs.
 - **`indexColumn` / `groupByColumns` / `valuesColumns`** — the row dimensions, the
   pivot (column) dimensions, and the metrics/aggregations being spread.
 - **`sortOnlyColumns` & `sortOnlyDimensions` vs `passthroughDimensions`** — the
-  most-confused trio. The first two carry _hidden, sorted_ fields through SQL so
-  they influence ordering without being displayed; `passthroughDimensions` carry
-  _hidden, non-sorted_ fields through `GROUP BY` so richText/image templates can
-  still reference them.
+  most-confused trio, all scoped to fields that are _not_ row dimensions.
+  `sortOnlyColumns` carries sorted-but-not-displayed metrics/table calcs
+  (cartesian charts); `sortOnlyDimensions` carries _hidden, sorted_
+  pivot-column dims so they drive column ORDER BY without becoming headers;
+  `passthroughDimensions` carries _hidden, non-sorted_ pivot-column dims
+  through `GROUP BY` so richText/image templates can still reference them.
+  Hidden _row_ dims use none of these: they stay in `indexColumn` so SQL row
+  identity is unchanged (rows differing only by a hidden value stay separate),
+  and rendering drops them via `hiddenDimensionFieldIds` — the result reshape
+  re-exposes their per-row values as render-only passthrough columns for
+  templates and drill-down.
 - **`metricsAsRows`** — layout flag; when true, metrics fan out down the rows
   instead of across the columns (affects the column-count math).
 - **`pivotConfig.rows` / `rowFieldIds`** — persisted and runtime names for the
