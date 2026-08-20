@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { parseChangeDeclarations } from './breaking-change-declarations';
 
 /** Knex migration files are timestamped: YYYYMMDDHHMMSS_description.ts */
 const MIGRATION_FILENAME_RE = /^\d{14}_.+\.(ts|js)$/;
@@ -851,7 +852,11 @@ export function readMigrationMetadata(
 
         const analysis = analyzeMigrationSource(migrationPath, source);
         migrations.push(analysis.migration);
-        if (!analysis.complete) {
+        const classification = parseChangeDeclarations(
+            source,
+            migrationPath,
+        ).classification;
+        if (!analysis.complete && classification === null) {
             log(`metadata extraction incomplete for ${options.ref}:${migrationPath}`);
             complete = false;
         }
