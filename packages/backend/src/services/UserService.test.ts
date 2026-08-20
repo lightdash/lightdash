@@ -208,6 +208,8 @@ const sessionModel = {
 };
 
 const organizationMemberProfileModel = {
+    getOrganizationMemberByUuid:
+        vi.fn<OrganizationMemberProfileModel['getOrganizationMemberByUuid']>(),
     getOrganizationAdmins: vi.fn<
         OrganizationMemberProfileModel['getOrganizationAdmins']
     >(async () => []),
@@ -716,6 +718,111 @@ describe('UserService', () => {
             await service.delete(orgAdmin, memberUser.userUuid);
 
             expect(userModel.delete).toHaveBeenCalledWith(memberUser.userUuid);
+        });
+    });
+
+    describe('leaveOrganization', () => {
+        const organizationMember = (
+            role: OrganizationMemberRole,
+            userUuid = sessionUser.userUuid,
+        ): OrganizationMemberProfile => ({
+            userUuid,
+            userCreatedAt: new Date(),
+            userUpdatedAt: new Date(),
+            firstName: 'First',
+            lastName: 'Last',
+            email: `${userUuid}@example.com`,
+            organizationUuid: organisation.organizationUuid,
+            role,
+            roleUuid: undefined,
+            isActive: true,
+            avatarUrl: null,
+            avatarGradient: null,
+        });
+        const userDetails: LightdashUser = {
+            ...userWithoutOrg,
+            userUuid: sessionUser.userUuid,
+            organizationUuid: sessionUser.organizationUuid,
+        };
+
+        test('refuses the sole admin and emits a denied audit event', async () => {
+            const admin = organizationMember(OrganizationMemberRole.ADMIN);
+            vi.mocked(
+                organizationMemberProfileModel.getOrganizationMemberByUuid,
+            ).mockResolvedValueOnce(admin);
+            vi.mocked(
+                organizationMemberProfileModel.getOrganizationAdmins,
+            ).mockResolvedValueOnce([admin]);
+            const service = createUserService(lightdashConfigMock);
+
+            await expect(
+                service.leaveOrganization(sessionUser),
+            ).rejects.toThrow(ForbiddenError);
+
+            expect(auditLogSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    action: 'leave_organization',
+                    status: 'denied',
+                    reason: 'Last admin in organization',
+                    actor: expect.objectContaining({
+                        uuid: sessionUser.userUuid,
+                    }),
+                    resource: expect.objectContaining({
+                        type: 'OrganizationMembership',
+                        organizationUuid: sessionUser.organizationUuid,
+                        metadata: { role: OrganizationMemberRole.ADMIN },
+                    }),
+                }),
+            );
+            expect(userModel.delete).not.toHaveBeenCalled();
+        });
+
+        test('allows an admin to leave when another admin remains', async () => {
+            const admin = organizationMember(OrganizationMemberRole.ADMIN);
+            const coAdmin = organizationMember(
+                OrganizationMemberRole.ADMIN,
+                'co-admin-uuid',
+            );
+            vi.mocked(
+                organizationMemberProfileModel.getOrganizationMemberByUuid,
+            ).mockResolvedValueOnce(admin);
+            vi.mocked(
+                organizationMemberProfileModel.getOrganizationAdmins,
+            ).mockResolvedValueOnce([admin, coAdmin]);
+            vi.mocked(userModel.getUserDetailsByUuid).mockResolvedValueOnce(
+                userDetails,
+            );
+            const service = createUserService(lightdashConfigMock);
+
+            await service.leaveOrganization(sessionUser);
+
+            expect(userModel.delete).toHaveBeenCalledWith(sessionUser.userUuid);
+        });
+
+        test('allows a non-admin member to leave', async () => {
+            const member = organizationMember(OrganizationMemberRole.MEMBER);
+            const admin = organizationMember(
+                OrganizationMemberRole.ADMIN,
+                'admin-uuid',
+            );
+            vi.mocked(
+                organizationMemberProfileModel.getOrganizationMemberByUuid,
+            ).mockResolvedValueOnce(member);
+            vi.mocked(
+                organizationMemberProfileModel.getOrganizationAdmins,
+            ).mockResolvedValueOnce([admin]);
+            vi.mocked(userModel.getUserDetailsByUuid).mockResolvedValueOnce(
+                userDetails,
+            );
+            const service = createUserService(lightdashConfigMock);
+            const memberUser = {
+                ...sessionUser,
+                role: OrganizationMemberRole.MEMBER,
+            };
+
+            await service.leaveOrganization(memberUser);
+
+            expect(userModel.delete).toHaveBeenCalledWith(sessionUser.userUuid);
         });
     });
 

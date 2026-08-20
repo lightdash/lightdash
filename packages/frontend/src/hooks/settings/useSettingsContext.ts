@@ -58,11 +58,6 @@ export const useSettingsContext = (): SettingsContext => {
         isUserImpersonationEnabled?.enabled &&
         user?.ability?.can('update', 'Organization');
 
-    const { data: leaveOrganizationFlag } = useServerFeatureFlag(
-        FeatureFlags.LeaveOrganization,
-    );
-    const isLeaveOrganizationEnabled = leaveOrganizationFlag?.enabled === true;
-
     const { data: customRolesFlag } = useServerFeatureFlag(
         CommercialFeatureFlags.CustomRoles,
     );
@@ -186,7 +181,6 @@ export const useSettingsContext = (): SettingsContext => {
         organization,
         project,
         showImpersonationPanel,
-        isLeaveOrganizationEnabled,
         isCustomRolesEnabled,
         isProLimitsEnabled,
         isOrganizationRoadmapEnabled,
