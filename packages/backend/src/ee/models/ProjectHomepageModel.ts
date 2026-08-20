@@ -22,6 +22,8 @@ import {
     type UpdateOrganizationHomepageSettings,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { isStatementTimeout } from '../../database/errors';
+import Logger from '../../logging/logger';
 import { OrganizationHomepageSettingsTableName } from '../database/entities/organizationHomepageSettings';
 import {
     AnnouncementsTableName,
@@ -30,6 +32,8 @@ import {
     type DbAnnouncement,
     type DbProjectHomepage,
 } from '../database/entities/projectHomepages';
+
+const RECENTLY_VIEWED_STATEMENT_TIMEOUT_MS = 10_000;
 
 export class ProjectHomepageModel {
     private readonly database: Knex;
@@ -318,14 +322,19 @@ export class ProjectHomepageModel {
         userUuid: string,
         limit: number = 8,
     ): Promise<HomepageRecentlyViewedItem[]> {
-        const { rows } = await this.database.raw<{
-            rows: Array<{
-                content_type: 'chart' | 'dashboard';
-                content_uuid: string;
-                viewed_at: Date;
-            }>;
-        }>(
-            `
+        try {
+            return await this.database.transaction(async (trx) => {
+                await trx.raw(
+                    `SET LOCAL statement_timeout = ${RECENTLY_VIEWED_STATEMENT_TIMEOUT_MS}`,
+                );
+                const { rows } = await trx.raw<{
+                    rows: Array<{
+                        content_type: 'chart' | 'dashboard';
+                        content_uuid: string;
+                        viewed_at: Date;
+                    }>;
+                }>(
+                    `
             SELECT content_type, content_uuid, max(viewed_at) AS viewed_at
             FROM (
                 SELECT 'chart' AS content_type,
@@ -371,13 +380,21 @@ export class ProjectHomepageModel {
             ORDER BY viewed_at DESC
             LIMIT :limit
             `,
-            { userUuid, projectUuid, limit },
-        );
-        return rows.map((row) => ({
-            contentType: row.content_type,
-            uuid: row.content_uuid,
-            viewedAt: row.viewed_at,
-        }));
+                    { userUuid, projectUuid, limit },
+                );
+                return rows.map((row) => ({
+                    contentType: row.content_type,
+                    uuid: row.content_uuid,
+                    viewedAt: row.viewed_at,
+                }));
+            });
+        } catch (error) {
+            if (!isStatementTimeout(error)) throw error;
+            Logger.warn(
+                `Recently viewed query exceeded ${RECENTLY_VIEWED_STATEMENT_TIMEOUT_MS}ms in project ${projectUuid}; returning no items`,
+            );
+            return [];
+        }
     }
 
     // Publishing to "everyone" promotes the homepage to the project default
