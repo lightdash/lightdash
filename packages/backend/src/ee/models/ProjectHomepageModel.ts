@@ -344,13 +344,15 @@ export class ProjectHomepageModel {
                   -- Tiles are tagged where we can, but several code paths
                   -- write untagged rows, so also drop chart views that land
                   -- in the moments around one of this user's dashboard views.
+                  -- Keep the range on tile_dv.timestamp: that is what lets a
+                  -- (user_uuid, timestamp) index serve this lookup.
                   AND (acv.context ->> 'source') IS DISTINCT FROM 'dashboard'
                   AND NOT EXISTS (
                       SELECT 1
                       FROM analytics_dashboard_views tile_dv
                       WHERE tile_dv.user_uuid = acv.user_uuid
-                        AND acv.timestamp BETWEEN tile_dv.timestamp - interval '2 seconds'
-                                              AND tile_dv.timestamp + interval '15 seconds'
+                        AND tile_dv.timestamp BETWEEN acv.timestamp - interval '15 seconds'
+                                                  AND acv.timestamp + interval '2 seconds'
                   )
                 UNION ALL
                 SELECT 'dashboard' AS content_type,
