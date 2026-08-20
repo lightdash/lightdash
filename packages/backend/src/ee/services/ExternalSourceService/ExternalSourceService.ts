@@ -15,15 +15,16 @@ import {
     parseGoogleSheetsSpreadsheetId,
     snakeCaseName,
     SupportedDbtAdapter,
-    type Account,
     type CreateExternalSourceTablePayload,
     type CreateGoogleSheetsSourcePayload,
     type ExternalSource,
     type ExternalSourceTablePreview,
     type IngestExternalSourceJobPayload,
+    type RegisteredAccount,
     type ResultColumns,
     type StagedExternalSourceUpload,
     type UpdateExternalSourcePayload,
+    type UUID,
 } from '@lightdash/common';
 import {
     DuckdbWarehouseClient,
@@ -31,7 +32,7 @@ import {
 } from '@lightdash/warehouses';
 import { stringify } from 'csv-stringify/sync';
 import { once } from 'events';
-import { type Readable } from 'stream';
+import { Readable } from 'stream';
 import { type GoogleDriveClient } from '../../../clients/Google/GoogleDriveClient';
 import { type S3ResultsFileStorageClient } from '../../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { type LightdashConfig } from '../../../config/parseConfig';
@@ -46,6 +47,7 @@ import {
 } from '../../../utils/duckdb/duckdbSqlTables';
 import { duckdbTypeToDimensionType } from '../../../utils/duckdb/duckdbTypeToDimensionType';
 import { getDuckdbRuntimeConfig } from '../../../utils/duckdb/getDuckdbRuntimeConfig';
+import { sanitizeDuckdbError } from '../../../utils/duckdb/sanitizeDuckdbError';
 import { type ExternalSourceModel } from '../../models/ExternalSourceModel';
 import { type CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 
@@ -71,6 +73,13 @@ type ExternalSourceServiceArguments = {
     storageClient: S3ResultsFileStorageClient;
     googleDriveClient: GoogleDriveClient;
     userOAuthGrantsModel: Pick<UserOAuthGrantsModel, 'getRefreshToken'>;
+};
+
+type ExternalSourceUploadInput = {
+    filename: string;
+    contentType: string;
+    contentLength: number;
+    body: Readable;
 };
 
 export class ExternalSourceService extends BaseService {
@@ -106,17 +115,17 @@ export class ExternalSourceService extends BaseService {
     }
 
     private static rawKey(
-        projectUuid: string,
-        sourceUuid: string,
+        projectUuid: UUID,
+        sourceUuid: UUID,
         version: number,
     ): string {
         return `external-sources/${projectUuid}/${sourceUuid}/raw/v${version}.csv`;
     }
 
     private static parquetKey(
-        projectUuid: string,
-        sourceUuid: string,
-        tableUuid: string,
+        projectUuid: UUID,
+        sourceUuid: UUID,
+        tableUuid: UUID,
         version: number,
     ): string {
         return `external-sources/${projectUuid}/${sourceUuid}/${tableUuid}/v${version}.parquet`;
@@ -163,9 +172,65 @@ export class ExternalSourceService extends BaseService {
         }
     }
 
+    private getMaxUploadBytes(): number {
+        return this.lightdashConfig.externalSources.maxFileSizeBytes;
+    }
+
+    private getMaxUploadMegabytes(): number {
+        return Math.floor(this.getMaxUploadBytes() / (1024 * 1024));
+    }
+
+    private assertValidUpload(input: ExternalSourceUploadInput): void {
+        const baseContentType = input.contentType.split(';')[0].trim();
+        if (!ALLOWED_UPLOAD_CONTENT_TYPES.includes(baseContentType)) {
+            throw new ParameterError(
+                'Unsupported file type. Upload a .csv or .tsv file',
+            );
+        }
+        if (input.contentLength > this.getMaxUploadBytes()) {
+            throw new ParameterError(
+                `File exceeds the ${this.getMaxUploadMegabytes()} MB upload limit`,
+            );
+        }
+    }
+
+    private async uploadRawFile(key: string, body: Readable): Promise<number> {
+        const { writeStream, close } = this.storageClient.createUploadStream(
+            key,
+            { contentType: 'text/csv' },
+        );
+        let totalBytes = 0;
+        try {
+            // eslint-disable-next-line no-restricted-syntax
+            for await (const chunk of body) {
+                const buffer = Buffer.isBuffer(chunk)
+                    ? chunk
+                    : Buffer.from(chunk);
+                totalBytes += buffer.length;
+                if (totalBytes > this.getMaxUploadBytes()) {
+                    throw new ParameterError(
+                        `File exceeds the ${this.getMaxUploadMegabytes()} MB upload limit`,
+                    );
+                }
+                if (!writeStream.write(buffer)) {
+                    await once(writeStream, 'drain');
+                }
+            }
+            if (totalBytes === 0) {
+                throw new ParameterError('Upload body is empty');
+            }
+            await close();
+            return totalBytes;
+        } catch (error) {
+            writeStream.destroy();
+            await close().catch(() => {});
+            throw error;
+        }
+    }
+
     private async assertAccess(
-        account: Account,
-        projectUuid: string,
+        account: RegisteredAccount,
+        projectUuid: UUID,
     ): Promise<{ organizationUuid: string; userUuid: string }> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -220,32 +285,13 @@ export class ExternalSourceService extends BaseService {
     }
 
     async stageCsvUpload(
-        account: Account,
-        projectUuid: string,
-        input: {
-            filename: string;
-            contentType: string;
-            contentLength: number;
-            body: Readable;
-        },
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        input: ExternalSourceUploadInput,
     ): Promise<StagedExternalSourceUpload> {
         const { userUuid } = await this.assertAccess(account, projectUuid);
         this.assertEngineAvailable();
-
-        const baseContentType = input.contentType.split(';')[0].trim();
-        if (!ALLOWED_UPLOAD_CONTENT_TYPES.includes(baseContentType)) {
-            throw new ParameterError(
-                'Unsupported file type. Upload a .csv or .tsv file',
-            );
-        }
-        const maxBytes = this.lightdashConfig.externalSources.maxFileSizeBytes;
-        if (input.contentLength > maxBytes) {
-            throw new ParameterError(
-                `File exceeds the ${Math.floor(
-                    maxBytes / (1024 * 1024),
-                )} MB upload limit`,
-            );
-        }
+        this.assertValidUpload(input);
 
         const source = await this.externalSourceModel.createSource({
             projectUuid,
@@ -266,37 +312,9 @@ export class ExternalSourceService extends BaseService {
             source.sourceUuid,
             1,
         );
-        const { writeStream, close } = this.storageClient.createUploadStream(
-            rawKey,
-            { contentType: 'text/csv' },
-        );
-
-        let totalBytes = 0;
         try {
-            // eslint-disable-next-line no-restricted-syntax
-            for await (const chunk of input.body) {
-                const buffer = Buffer.isBuffer(chunk)
-                    ? chunk
-                    : Buffer.from(chunk);
-                totalBytes += buffer.length;
-                if (totalBytes > maxBytes) {
-                    throw new ParameterError(
-                        `File exceeds the ${Math.floor(
-                            maxBytes / (1024 * 1024),
-                        )} MB upload limit`,
-                    );
-                }
-                if (!writeStream.write(buffer)) {
-                    await once(writeStream, 'drain');
-                }
-            }
-            if (totalBytes === 0) {
-                throw new ParameterError('Upload body is empty');
-            }
-            await close();
+            await this.uploadRawFile(rawKey, input.body);
         } catch (error) {
-            writeStream.destroy();
-            await close().catch(() => {});
             await this.externalSourceModel
                 .deleteSource(projectUuid, source.sourceUuid)
                 .catch(() => {});
@@ -323,13 +341,13 @@ export class ExternalSourceService extends BaseService {
                 .deleteSource(projectUuid, source.sourceUuid)
                 .catch(() => {});
             throw new ParameterError(
-                `Could not read the file as CSV: ${getErrorMessage(error)}`,
+                `Could not read the file as CSV: ${sanitizeDuckdbError(error)}`,
             );
         }
     }
 
     private async validateNewTableName(
-        projectUuid: string,
+        projectUuid: UUID,
         rawName: string,
     ): Promise<string> {
         const tableName = snakeCaseName(rawName);
@@ -372,9 +390,22 @@ export class ExternalSourceService extends BaseService {
         }
     }
 
+    private async enqueueIngest(
+        payload: IngestExternalSourceJobPayload,
+    ): Promise<void> {
+        try {
+            await this.schedulerClient.ingestExternalSource(payload);
+        } catch (error) {
+            await this.markIngestError(payload.sourceUuid, error).catch(
+                () => {},
+            );
+            throw error;
+        }
+    }
+
     async createGoogleSheetsSource(
-        account: Account,
-        projectUuid: string,
+        account: RegisteredAccount,
+        projectUuid: UUID,
         payload: CreateGoogleSheetsSourcePayload,
     ): Promise<ExternalSource> {
         const { organizationUuid, userUuid } = await this.assertAccess(
@@ -423,17 +454,18 @@ export class ExternalSourceService extends BaseService {
             },
             createdByUserUuid: userUuid,
         });
-        await this.externalSourceModel.createTable({
+        const table = await this.externalSourceModel.createTable({
             sourceUuid: source.sourceUuid,
             projectUuid,
             name: tableName,
             label,
         });
-        await this.schedulerClient.ingestExternalSource({
+        await this.enqueueIngest({
             organizationUuid,
             projectUuid,
             userUuid,
             sourceUuid: source.sourceUuid,
+            ingestVersion: table.version + 1,
         });
         return this.externalSourceModel.getSource(
             projectUuid,
@@ -443,9 +475,9 @@ export class ExternalSourceService extends BaseService {
 
     /** Re-read the connected sheet and re-ingest. Google Sheets sources only. */
     async refresh(
-        account: Account,
-        projectUuid: string,
-        sourceUuid: string,
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        sourceUuid: UUID,
     ): Promise<ExternalSource> {
         const { organizationUuid, userUuid } = await this.assertAccess(
             account,
@@ -466,23 +498,28 @@ export class ExternalSourceService extends BaseService {
                 'This source is already ingesting. Wait for it to finish and try again',
             );
         }
+        const table = source.tables[0];
+        if (!table) {
+            throw new NotFoundError('External source has no table');
+        }
         await this.externalSourceModel.updateSource(sourceUuid, {
             status: ExternalSourceStatus.SYNCING,
             error_message: null,
         });
-        await this.schedulerClient.ingestExternalSource({
+        await this.enqueueIngest({
             organizationUuid,
             projectUuid,
             userUuid,
             sourceUuid,
+            ingestVersion: table.version + 1,
         });
         return this.externalSourceModel.getSource(projectUuid, sourceUuid);
     }
 
     async createCsvTable(
-        account: Account,
-        projectUuid: string,
-        sourceUuid: string,
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        sourceUuid: UUID,
         payload: CreateExternalSourceTablePayload,
     ): Promise<ExternalSource> {
         const { organizationUuid, userUuid } = await this.assertAccess(
@@ -508,26 +545,27 @@ export class ExternalSourceService extends BaseService {
             status: ExternalSourceStatus.SYNCING,
             error_message: null,
         });
-        await this.externalSourceModel.createTable({
+        const table = await this.externalSourceModel.createTable({
             sourceUuid,
             projectUuid,
             name: tableName,
             label,
         });
 
-        await this.schedulerClient.ingestExternalSource({
+        await this.enqueueIngest({
             organizationUuid,
             projectUuid,
             userUuid,
             sourceUuid,
+            ingestVersion: table.version + 1,
         });
 
         return this.externalSourceModel.getSource(projectUuid, sourceUuid);
     }
 
     async list(
-        account: Account,
-        projectUuid: string,
+        account: RegisteredAccount,
+        projectUuid: UUID,
     ): Promise<ExternalSource[]> {
         await this.assertAccess(account, projectUuid);
         const sources = await this.externalSourceModel.listSources(projectUuid);
@@ -537,9 +575,9 @@ export class ExternalSourceService extends BaseService {
     }
 
     async get(
-        account: Account,
-        projectUuid: string,
-        sourceUuid: string,
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        sourceUuid: UUID,
     ): Promise<ExternalSource> {
         await this.assertAccess(account, projectUuid);
         return this.externalSourceModel.getSource(projectUuid, sourceUuid);
@@ -551,9 +589,9 @@ export class ExternalSourceService extends BaseService {
      * rebuilt from the stored schema — no re-ingest.
      */
     async rename(
-        account: Account,
-        projectUuid: string,
-        sourceUuid: string,
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        sourceUuid: UUID,
         payload: UpdateExternalSourcePayload,
     ): Promise<ExternalSource> {
         await this.assertAccess(account, projectUuid);
@@ -588,9 +626,8 @@ export class ExternalSourceService extends BaseService {
                     SupportedDbtAdapter.DUCKDB,
                 ),
             });
-            await this.projectModel.updateExternalSourceExplore(
+            await this.projectModel.saveExternalSourceExplore(
                 projectUuid,
-                table.name,
                 explore,
             );
         }
@@ -603,15 +640,10 @@ export class ExternalSourceService extends BaseService {
      * new file drops will fail validation.
      */
     async replaceCsv(
-        account: Account,
-        projectUuid: string,
-        sourceUuid: string,
-        input: {
-            filename: string;
-            contentType: string;
-            contentLength: number;
-            body: Readable;
-        },
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        sourceUuid: UUID,
+        input: ExternalSourceUploadInput,
     ): Promise<ExternalSource> {
         const { organizationUuid, userUuid } = await this.assertAccess(
             account,
@@ -639,58 +671,14 @@ export class ExternalSourceService extends BaseService {
             );
         }
 
-        const baseContentType = input.contentType.split(';')[0].trim();
-        if (!ALLOWED_UPLOAD_CONTENT_TYPES.includes(baseContentType)) {
-            throw new ParameterError(
-                'Unsupported file type. Upload a .csv or .tsv file',
-            );
-        }
-        const maxBytes = this.lightdashConfig.externalSources.maxFileSizeBytes;
-        if (input.contentLength > maxBytes) {
-            throw new ParameterError(
-                `File exceeds the ${Math.floor(
-                    maxBytes / (1024 * 1024),
-                )} MB upload limit`,
-            );
-        }
+        this.assertValidUpload(input);
 
         const rawKey = ExternalSourceService.rawKey(
             projectUuid,
             sourceUuid,
             table.version + 1,
         );
-        const { writeStream, close } = this.storageClient.createUploadStream(
-            rawKey,
-            { contentType: 'text/csv' },
-        );
-        let totalBytes = 0;
-        try {
-            // eslint-disable-next-line no-restricted-syntax
-            for await (const chunk of input.body) {
-                const buffer = Buffer.isBuffer(chunk)
-                    ? chunk
-                    : Buffer.from(chunk);
-                totalBytes += buffer.length;
-                if (totalBytes > maxBytes) {
-                    throw new ParameterError(
-                        `File exceeds the ${Math.floor(
-                            maxBytes / (1024 * 1024),
-                        )} MB upload limit`,
-                    );
-                }
-                if (!writeStream.write(buffer)) {
-                    await once(writeStream, 'drain');
-                }
-            }
-            if (totalBytes === 0) {
-                throw new ParameterError('Upload body is empty');
-            }
-            await close();
-        } catch (error) {
-            writeStream.destroy();
-            await close().catch(() => {});
-            throw error;
-        }
+        await this.uploadRawFile(rawKey, input.body);
 
         // Reject unreadable files before committing to a re-ingest
         const client = this.createIngestClient();
@@ -698,7 +686,7 @@ export class ExternalSourceService extends BaseService {
             await this.describeCsv(client, this.toUri(rawKey));
         } catch (error) {
             throw new ParameterError(
-                `Could not read the file as CSV: ${getErrorMessage(error)}`,
+                `Could not read the file as CSV: ${sanitizeDuckdbError(error)}`,
             );
         }
 
@@ -710,20 +698,21 @@ export class ExternalSourceService extends BaseService {
                 originalFilename: input.filename,
             },
         });
-        await this.schedulerClient.ingestExternalSource({
+        await this.enqueueIngest({
             organizationUuid,
             projectUuid,
             userUuid,
             sourceUuid,
+            ingestVersion: table.version + 1,
         });
         return this.externalSourceModel.getSource(projectUuid, sourceUuid);
     }
 
     async getTablePreview(
-        account: Account,
-        projectUuid: string,
-        sourceUuid: string,
-        tableUuid: string,
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        sourceUuid: UUID,
+        tableUuid: UUID,
     ): Promise<ExternalSourceTablePreview> {
         await this.assertAccess(account, projectUuid);
         const table = await this.externalSourceModel.findTableByUuid(
@@ -750,9 +739,9 @@ export class ExternalSourceService extends BaseService {
     }
 
     async delete(
-        account: Account,
-        projectUuid: string,
-        sourceUuid: string,
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        sourceUuid: UUID,
     ): Promise<void> {
         await this.assertAccess(account, projectUuid);
         const { source, tables } =
@@ -760,23 +749,29 @@ export class ExternalSourceService extends BaseService {
                 projectUuid,
                 sourceUuid,
             );
-        await Promise.all(
-            tables.map((table) =>
-                this.projectModel
-                    .deleteExternalSourceExplore(projectUuid, table.name)
-                    .catch((error) => {
-                        this.logger.warn(
-                            `Failed to delete explore for external source table ${
-                                table.name
-                            }: ${getErrorMessage(error)}`,
-                        );
-                    }),
-            ),
+        await this.projectModel.deleteExternalSourceExplores(
+            projectUuid,
+            tables.map((table) => table.name),
         );
         await this.externalSourceModel.deleteSource(
             projectUuid,
             source.external_source_uuid,
         );
+    }
+
+    async markIngestError(sourceUuid: UUID, error: unknown): Promise<void> {
+        const rawMessage = getErrorMessage(error);
+        const message = sanitizeDuckdbError(error).slice(
+            0,
+            ERROR_MESSAGE_MAX_LENGTH,
+        );
+        this.logger.error(
+            `External source ingest failed for ${sourceUuid}: ${rawMessage}`,
+        );
+        await this.externalSourceModel.updateSource(sourceUuid, {
+            status: ExternalSourceStatus.ERROR,
+            error_message: message,
+        });
     }
 
     /**
@@ -799,8 +794,24 @@ export class ExternalSourceService extends BaseService {
                 );
             }
 
+            const buildVersion = payload.ingestVersion;
+            if (table.version > buildVersion) {
+                return;
+            }
+            if (table.version === buildVersion) {
+                await this.externalSourceModel.updateSource(sourceUuid, {
+                    status: ExternalSourceStatus.READY,
+                    error_message: null,
+                });
+                return;
+            }
+            if (table.version !== buildVersion - 1) {
+                throw new ParameterError(
+                    `External source ingest version ${buildVersion} cannot follow version ${table.version}`,
+                );
+            }
+
             const client = this.createIngestClient();
-            const buildVersion = table.version + 1;
             const rawFileKey = ExternalSourceService.rawKey(
                 projectUuid,
                 sourceUuid,
@@ -842,12 +853,7 @@ export class ExternalSourceService extends BaseService {
                     );
                 }
                 const csv = stringify(values);
-                const { writeStream, close } =
-                    this.storageClient.createUploadStream(rawFileKey, {
-                        contentType: 'text/csv',
-                    });
-                writeStream.end(csv);
-                await close();
+                await this.uploadRawFile(rawFileKey, Readable.from([csv]));
             }
 
             const parquetKey = ExternalSourceService.parquetKey(
@@ -902,47 +908,36 @@ export class ExternalSourceService extends BaseService {
                 ),
             });
 
-            if (table.version === 0) {
-                await this.projectModel.createExternalSourceExplore(
-                    projectUuid,
-                    explore,
-                );
-            } else {
-                await this.projectModel.updateExternalSourceExplore(
-                    projectUuid,
-                    table.name,
-                    explore,
-                );
-            }
+            await this.projectModel.saveExternalSourceExplore(
+                projectUuid,
+                explore,
+            );
 
             const locator: PreAggregateDuckdbLocator =
                 getPreAggregateDuckdbLocator({
                     uri: parquetUri,
                     format: 'parquet',
                 });
-            await this.externalSourceModel.updateTableIngest(
+            const didPublish = await this.externalSourceModel.updateTableIngest(
                 table.external_source_table_uuid,
-                { columns, locator, rowCount, totalBytes },
+                {
+                    columns,
+                    locator,
+                    rowCount,
+                    totalBytes,
+                    ingestVersion: buildVersion,
+                },
             );
+            if (!didPublish) {
+                return;
+            }
             await this.externalSourceModel.updateSource(sourceUuid, {
                 status: ExternalSourceStatus.READY,
                 error_message: null,
                 last_refreshed_at: new Date(),
             });
         } catch (error) {
-            const message = getErrorMessage(error).slice(
-                0,
-                ERROR_MESSAGE_MAX_LENGTH,
-            );
-            this.logger.error(
-                `External source ingest failed for ${sourceUuid}: ${message}`,
-            );
-            await this.externalSourceModel
-                .updateSource(sourceUuid, {
-                    status: ExternalSourceStatus.ERROR,
-                    error_message: message,
-                })
-                .catch(() => {});
+            await this.markIngestError(sourceUuid, error).catch(() => {});
             throw error;
         }
     }

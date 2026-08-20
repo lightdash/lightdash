@@ -1,11 +1,19 @@
 import { Knex } from 'knex';
 
+export const classification = {
+    kind: 'safe',
+    reason: 'Adds empty external-source tables without changing existing data or application contracts',
+} as const;
+
 const EXTERNAL_SOURCES_TABLE = 'external_sources';
 const EXTERNAL_SOURCE_TABLES_TABLE = 'external_source_tables';
 const PROJECTS_TABLE = 'projects';
 const USERS_TABLE = 'users';
+const LOCK_TIMEOUT = '5s';
 
 export async function up(knex: Knex): Promise<void> {
+    await knex.raw(`SET LOCAL lock_timeout = '${LOCK_TIMEOUT}'`);
+
     await knex.schema.createTable(EXTERNAL_SOURCES_TABLE, (table) => {
         table
             .uuid('external_source_uuid')
@@ -96,6 +104,8 @@ export async function up(knex: Knex): Promise<void> {
 }
 
 export async function down(knex: Knex): Promise<void> {
+    await knex.raw(`SET LOCAL lock_timeout = '${LOCK_TIMEOUT}'`);
+
     await knex.schema.dropTableIfExists(EXTERNAL_SOURCE_TABLES_TABLE);
     await knex.schema.dropTableIfExists(EXTERNAL_SOURCES_TABLE);
 }

@@ -188,9 +188,10 @@ export class ExternalSourceModel {
             locator: PreAggregateDuckdbLocator;
             rowCount: number | null;
             totalBytes: number | null;
+            ingestVersion: number;
         },
-    ): Promise<void> {
-        await this.database.transaction(async (trx) => {
+    ): Promise<boolean> {
+        return this.database.transaction(async (trx) => {
             const row = await trx(ExternalSourceTablesTableName)
                 .where('external_source_table_uuid', tableUuid)
                 .forUpdate()
@@ -200,6 +201,17 @@ export class ExternalSourceModel {
                     `External source table ${tableUuid} not found`,
                 );
             }
+            if (row.version > data.ingestVersion) {
+                return false;
+            }
+            if (row.version === data.ingestVersion) {
+                return true;
+            }
+            if (row.version !== data.ingestVersion - 1) {
+                throw new Error(
+                    `Cannot publish external source ingest version ${data.ingestVersion} after version ${row.version}`,
+                );
+            }
             await trx(ExternalSourceTablesTableName)
                 .where('external_source_table_uuid', tableUuid)
                 .update({
@@ -207,10 +219,11 @@ export class ExternalSourceModel {
                     locator: data.locator,
                     row_count: data.rowCount,
                     total_bytes: data.totalBytes,
-                    version: row.version + 1,
+                    version: data.ingestVersion,
                     last_ingested_at: new Date(),
                     updated_at: new Date(),
                 });
+            return true;
         });
     }
 
@@ -244,5 +257,30 @@ export class ExternalSourceModel {
             .where('project_uuid', projectUuid)
             .andWhere('external_source_table_uuid', tableUuid)
             .first();
+    }
+
+    async findTableForQuery(projectUuid: string, tableUuid: string) {
+        const row = await this.database(ExternalSourceTablesTableName)
+            .innerJoin(
+                ExternalSourcesTableName,
+                `${ExternalSourcesTableName}.external_source_uuid`,
+                `${ExternalSourceTablesTableName}.external_source_uuid`,
+            )
+            .select(`${ExternalSourceTablesTableName}.*`)
+            .select(
+                `${ExternalSourcesTableName}.status as external_source_status`,
+            )
+            .where(`${ExternalSourceTablesTableName}.project_uuid`, projectUuid)
+            .andWhere(`${ExternalSourcesTableName}.project_uuid`, projectUuid)
+            .andWhere(
+                `${ExternalSourceTablesTableName}.external_source_table_uuid`,
+                tableUuid,
+            )
+            .first();
+        return row as
+            | (DbExternalSourceTable & {
+                  external_source_status: ExternalSourceStatus;
+              })
+            | undefined;
     }
 }

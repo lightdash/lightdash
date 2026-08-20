@@ -30,6 +30,7 @@ import {
     Explore,
     ExploreCompiler,
     ExploreType,
+    ExternalSourceStatus,
     FeatureFlags,
     FieldType,
     ForbiddenError,
@@ -186,6 +187,7 @@ import {
     quoteDuckdbIdentifier,
 } from '../../utils/duckdb/duckdbSqlTables';
 import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
+import { sanitizeDuckdbError } from '../../utils/duckdb/sanitizeDuckdbError';
 import {
     processFieldsForExport,
     streamJsonlData,
@@ -396,7 +398,12 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     externalSourceTableResolver?: (
         projectUuid: string,
         tableUuid: string,
-    ) => Promise<DbExternalSourceTable | undefined>;
+    ) => Promise<
+        | (DbExternalSourceTable & {
+              external_source_status: ExternalSourceStatus;
+          })
+        | undefined
+    >;
 };
 
 type ResolvedWarehouseCredentials = CreateWarehouseCredentials & {
@@ -550,7 +557,18 @@ export class AsyncQueryService extends ProjectService {
     private async resolveExternalSourceReference(
         projectUuid: string,
         explore: Explore,
+        featureFlagContext: {
+            userUuid: string;
+            organizationUuid: string;
+        },
     ): Promise<{ cte: string; cacheKeySalt: string } | { error: string }> {
+        const { enabled } = await this.featureFlagModel.get({
+            user: featureFlagContext,
+            featureFlagId: FeatureFlags.ExternalSources,
+        });
+        if (!enabled) {
+            return { error: 'External sources are not enabled' };
+        }
         const ref = explore.externalSource;
         if (!ref) {
             return {
@@ -569,6 +587,11 @@ export class AsyncQueryService extends ProjectService {
         if (!table || !table.locator || !table.columns) {
             return {
                 error: 'The external source table has no ingested data yet. Refresh the source and try again',
+            };
+        }
+        if (table.external_source_status !== ExternalSourceStatus.READY) {
+            return {
+                error: 'The external source is not ready. Wait for its ingest to finish and try again',
             };
         }
         const cte = `${quoteDuckdbIdentifier(
@@ -633,7 +656,7 @@ export class AsyncQueryService extends ProjectService {
                 warehouseArgs.projectUuid,
                 {
                     status: QueryHistoryStatus.ERROR,
-                    error: getErrorMessage(e),
+                    error: sanitizeDuckdbError(e),
                     errored_at: new Date(),
                 },
                 account,
@@ -4359,6 +4382,10 @@ export class AsyncQueryService extends ProjectService {
                             ? await this.resolveExternalSourceReference(
                                   projectUuid,
                                   explore,
+                                  {
+                                      userUuid: account.user.id,
+                                      organizationUuid,
+                                  },
                               )
                             : undefined;
 

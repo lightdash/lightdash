@@ -72,7 +72,7 @@ const SchemaPreviewStep: FC<SchemaPreviewStepProps> = ({
     });
 
     return (
-        <form onSubmit={handleSubmit}>
+        <form id="external-source-csv-schema-form" onSubmit={handleSubmit}>
             <Stack gap="md">
                 <TextInput
                     label="Table name"
@@ -120,13 +120,18 @@ const SchemaPreviewStep: FC<SchemaPreviewStepProps> = ({
                 </Stack>
                 <Group justify="space-between">
                     <Button
+                        type="button"
                         variant="default"
                         onClick={onBack}
                         disabled={commitMutation.isLoading}
                     >
                         Back
                     </Button>
-                    <Button type="submit" loading={commitMutation.isLoading}>
+                    <Button
+                        type="submit"
+                        form="external-source-csv-schema-form"
+                        loading={commitMutation.isLoading}
+                    >
                         Create table
                     </Button>
                 </Group>
@@ -175,7 +180,7 @@ const SheetsStep: FC<SheetsStepProps> = ({
     });
 
     return (
-        <form onSubmit={handleSubmit}>
+        <form id="external-source-sheets-form" onSubmit={handleSubmit}>
             <Stack gap="md">
                 <TextInput
                     label="Google Sheets URL"
@@ -203,6 +208,7 @@ const SheetsStep: FC<SheetsStepProps> = ({
                             <Text fz="sm">{errorMessage}</Text>
                             {needsGoogleAuth && (
                                 <Button
+                                    type="button"
                                     variant="default"
                                     size="compact-sm"
                                     loading={googleLogin.isLoading}
@@ -220,13 +226,18 @@ const SheetsStep: FC<SheetsStepProps> = ({
                 </Text>
                 <Group justify="space-between">
                     <Button
+                        type="button"
                         variant="default"
                         onClick={onBack}
                         disabled={createMutation.isLoading}
                     >
                         Back
                     </Button>
-                    <Button type="submit" loading={createMutation.isLoading}>
+                    <Button
+                        type="submit"
+                        form="external-source-sheets-form"
+                        loading={createMutation.isLoading}
+                    >
                         Connect sheet
                     </Button>
                 </Group>

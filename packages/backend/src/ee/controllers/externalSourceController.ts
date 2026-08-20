@@ -38,6 +38,22 @@ import {
 import { BaseController } from '../../controllers/baseController';
 import { ExternalSourceService } from '../services/ExternalSourceService/ExternalSourceService';
 
+const getRawUploadRequest = (req: express.Request, filename: string) => {
+    const contentType = req.headers['content-type'];
+    if (!contentType) {
+        throw new ParameterError('Content-Type header is required');
+    }
+    const contentLengthHeader = req.headers['content-length'];
+    if (!contentLengthHeader) {
+        throw new ParameterError('Content-Length header is required');
+    }
+    const contentLength = Number(contentLengthHeader);
+    if (!Number.isSafeInteger(contentLength) || contentLength <= 0) {
+        throw new ParameterError('Content-Length must be a positive integer');
+    }
+    return { filename, contentType, contentLength, body: req };
+};
+
 @Route('/api/v1/ee/projects/{projectUuid}/external-sources')
 @Hidden()
 @Response<ApiErrorPayload>('default', 'Error')
@@ -63,31 +79,13 @@ export class ExternalSourceController extends BaseController {
         @Query() filename: string,
     ): Promise<ApiStagedExternalSourceUploadResponse> {
         assertRegisteredAccount(req.account);
-        const contentType = req.headers['content-type'];
-        if (!contentType) {
-            throw new ParameterError('Content-Type header is required');
-        }
-        if (!req.headers['content-length']) {
-            throw new ParameterError('Content-Length header is required');
-        }
-        const contentLength = parseInt(req.headers['content-length'], 10);
-        if (Number.isNaN(contentLength) || contentLength <= 0) {
-            throw new ParameterError(
-                'Content-Length must be a positive integer',
-            );
-        }
         this.setStatus(201);
         return {
             status: 'ok',
             results: await this.getExternalSourceService().stageCsvUpload(
                 req.account,
                 projectUuid,
-                {
-                    filename,
-                    contentType,
-                    contentLength,
-                    body: req,
-                },
+                getRawUploadRequest(req, filename),
             ),
         };
     }
@@ -125,6 +123,7 @@ export class ExternalSourceController extends BaseController {
     }
 
     /**
+     * Return every committed external source in the project.
      * @summary List external sources
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -147,6 +146,7 @@ export class ExternalSourceController extends BaseController {
     }
 
     /**
+     * Return one external source and its source tables.
      * @summary Get an external source
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -285,19 +285,6 @@ export class ExternalSourceController extends BaseController {
         @Query() filename: string,
     ): Promise<ApiExternalSourceResponse> {
         assertRegisteredAccount(req.account);
-        const contentType = req.headers['content-type'];
-        if (!contentType) {
-            throw new ParameterError('Content-Type header is required');
-        }
-        if (!req.headers['content-length']) {
-            throw new ParameterError('Content-Length header is required');
-        }
-        const contentLength = parseInt(req.headers['content-length'], 10);
-        if (Number.isNaN(contentLength) || contentLength <= 0) {
-            throw new ParameterError(
-                'Content-Length must be a positive integer',
-            );
-        }
         this.setStatus(200);
         return {
             status: 'ok',
@@ -305,12 +292,7 @@ export class ExternalSourceController extends BaseController {
                 req.account,
                 projectUuid,
                 sourceUuid,
-                {
-                    filename,
-                    contentType,
-                    contentLength,
-                    body: req,
-                },
+                getRawUploadRequest(req, filename),
             ),
         };
     }

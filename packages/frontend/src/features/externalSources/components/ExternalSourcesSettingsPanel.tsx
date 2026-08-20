@@ -37,25 +37,12 @@ import {
     useExternalSources,
     useRefreshExternalSource,
 } from '../hooks/useExternalSources';
+import { getExternalSourceTypeLabel } from '../utils/sourceTypeLabel';
 import { AddDataModal } from './AddDataModal';
 import { DeleteExternalSourceModal } from './DeleteExternalSourceModal';
 import { RenameExternalSourceModal } from './RenameExternalSourceModal';
 import { ReplaceCsvFileModal } from './ReplaceCsvFileModal';
 import { SourceTablePreviewDrawer } from './SourceTablePreviewDrawer';
-
-const getSourceTypeLabel = (sourceType: ExternalSourceType): string => {
-    switch (sourceType) {
-        case ExternalSourceType.CSV:
-            return 'CSV file';
-        case ExternalSourceType.GOOGLE_SHEETS:
-            return 'Google Sheet';
-        default:
-            return assertUnreachable(
-                sourceType,
-                'Unknown external source type',
-            );
-    }
-};
 
 const StatusBadge: FC<{ source: ExternalSource }> = ({ source }) => {
     switch (source.status) {
@@ -177,7 +164,7 @@ export const ExternalSourcesSettingsPanel: FC<{ projectUuid: string }> = ({
                                         </Table.Td>
                                         <Table.Td>
                                             <Text fz="sm" c="dimmed">
-                                                {getSourceTypeLabel(
+                                                {getExternalSourceTypeLabel(
                                                     source.type,
                                                 )}
                                             </Text>
