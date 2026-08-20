@@ -1,3 +1,17 @@
+# [1.212.0](https://github.com/lightdash/lightdash/compare/1.211.2...1.212.0) (2026-08-20)
+
+
+### Bug Fixes
+
+* **backend:** escape identifiers in pivot query builder ([#27680](https://github.com/lightdash/lightdash/issues/27680)) ([d705c43](https://github.com/lightdash/lightdash/commit/d705c43d8a4997ba9d6b9a022ef1657ea78663eb))
+* **pgwire:** answer dataset-registration probes without the warehouse ([#27725](https://github.com/lightdash/lightdash/issues/27725)) ([51f627e](https://github.com/lightdash/lightdash/commit/51f627ea92ab56b003cb8635f6e01ad8117de7eb)), closes [#27624](https://github.com/lightdash/lightdash/issues/27624) [#27624](https://github.com/lightdash/lightdash/issues/27624)
+* serialize distinct_keys when copying charts to preview projects ([#27687](https://github.com/lightdash/lightdash/issues/27687)) ([f797f4e](https://github.com/lightdash/lightdash/commit/f797f4e33849f1083f62510ab3225d08a9ab5e2a))
+
+
+### Features
+
+* **frontend:** add custom role presets ([#27676](https://github.com/lightdash/lightdash/issues/27676)) ([928161f](https://github.com/lightdash/lightdash/commit/928161f68f593be261015f4227c6c3a747c7f67f))
+
 ## [1.211.2](https://github.com/lightdash/lightdash/compare/1.211.1...1.211.2) (2026-08-20)
 
 
