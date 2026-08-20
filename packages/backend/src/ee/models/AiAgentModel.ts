@@ -202,6 +202,7 @@ import {
     DbAiEvalRunResult,
     DbAiEvalRunResultAssessment,
 } from '../database/entities/aiEvals';
+import { ServiceAccountsTableName } from '../database/entities/serviceAccounts';
 import { type SqlApprovalDecision } from '../services/ai/tools/sqlApprovals';
 import { AiAgentReviewClassifierModel } from './AiAgentReviewClassifierModel';
 import { claimAiPromptExecutionMode } from './claimAiPromptExecutionMode';
@@ -3032,6 +3033,8 @@ export class AiAgentModel {
               projectUuid: string;
               agentUuid: string | null;
               ownerUserUuid: string | null;
+              createdFrom: AiThreadCreatedFrom;
+              ownerIsServiceAccount: boolean;
           }
         | undefined
     > {
@@ -3058,13 +3061,23 @@ export class AiAgentModel {
                     project_uuid: string;
                     agent_uuid: string | null;
                     owner_user_uuid: string | null;
+                    created_from: AiThreadCreatedFrom;
+                    owner_is_service_account: boolean;
                 }[]
             >(
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiThreadTableName}.project_uuid`,
                 `${AiThreadTableName}.agent_uuid`,
+                `${AiThreadTableName}.created_from`,
                 this.database.raw(
                     `COALESCE(first_prompt.created_by_user_uuid, ${AiWebAppThreadTableName}.user_uuid) as owner_user_uuid`,
+                ),
+                this.database.raw(
+                    `EXISTS (
+                        select 1 from ${ServiceAccountsTableName}
+                        where ${ServiceAccountsTableName}.service_account_user_uuid =
+                            COALESCE(first_prompt.created_by_user_uuid, ${AiWebAppThreadTableName}.user_uuid)
+                    ) as owner_is_service_account`,
                 ),
             )
             .first();
@@ -3075,6 +3088,8 @@ export class AiAgentModel {
             projectUuid: row.project_uuid,
             agentUuid: row.agent_uuid,
             ownerUserUuid: row.owner_user_uuid,
+            createdFrom: row.created_from,
+            ownerIsServiceAccount: row.owner_is_service_account,
         };
     }
 

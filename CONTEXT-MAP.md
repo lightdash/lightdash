@@ -11,3 +11,4 @@ collisions with other contexts' or repo-wide meanings.
 ## Contexts
 
 - [Pre-aggregates](./docs/pre-aggregates/CONTEXT.md) — user-defined, pre-computed summaries of explores that serve matching queries from materialized files instead of the warehouse
+- [AI agent memory](./docs/ai-agent-memory/CONTEXT.md) — per-user, per-project knowledge the AI analyst distills from a user's threads and recalls on their future threads
