@@ -1,3 +1,10 @@
+## [1.212.3](https://github.com/lightdash/lightdash/compare/1.212.2...1.212.3) (2026-08-20)
+
+
+### Bug Fixes
+
+* **scim:** run last-admin guard before deactivating a user ([#27738](https://github.com/lightdash/lightdash/issues/27738)) ([afb61c3](https://github.com/lightdash/lightdash/commit/afb61c32accd5838108c2b9311e430e2c45b99f3))
+
 ## [1.212.2](https://github.com/lightdash/lightdash/compare/1.212.1...1.212.2) (2026-08-20)
 
 
