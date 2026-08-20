@@ -1,3 +1,10 @@
+# [1.222.0](https://github.com/lightdash/lightdash/compare/1.221.2...1.222.0) (2026-08-20)
+
+
+### Features
+
+* **explorer:** minimal flagged chart gallery sidebar ([#27773](https://github.com/lightdash/lightdash/issues/27773)) ([fc9c219](https://github.com/lightdash/lightdash/commit/fc9c21934012c0def35b138bcbb511c241b7de49))
+
 ## [1.221.2](https://github.com/lightdash/lightdash/compare/1.221.1...1.221.2) (2026-08-20)
 
 
