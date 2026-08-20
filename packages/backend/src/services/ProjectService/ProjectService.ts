@@ -139,6 +139,7 @@ import {
     LightdashUser,
     ManifestCollision,
     ManifestSource,
+    MAX_RESULTS_CACHE_TTL_SECONDS,
     maybeOverrideDbtConnection,
     maybeOverrideWarehouseConnection,
     maybeReplaceFieldsInChartVersion,
@@ -154,6 +155,7 @@ import {
     mergeWarehouseCredentials,
     MetricQuery,
     MetricType,
+    MIN_RESULTS_CACHE_TTL_SECONDS,
     MissingWarehouseCredentialsError,
     MostPopularAndRecentlyUpdated,
     normalizeIndexColumns,
@@ -191,6 +193,7 @@ import {
     ResolvedProjectColorPalette,
     resolveQueryTimezone,
     ResultRow,
+    ResultsCacheProjectSettings,
     SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
     SessionUser,
@@ -214,6 +217,7 @@ import {
     UpdateProjectDetails,
     UpdateProjectMember,
     UpdateQueryTimezoneSettings,
+    UpdateResultsCacheProjectSettings,
     UpdateSchedulerSettings,
     UpdateVirtualViewPayload,
     UserAccessControls,
@@ -6895,14 +6899,20 @@ export class ProjectService extends BaseService {
                     const cacheEntryMetadata = await this.s3CacheClient
                         .getResultsMetadata(queryHash)
                         .catch((e) => undefined); // ignore since error is tracked in fileStorageClient
+                    const isCacheEntryFresh = async () => {
+                        if (!cacheEntryMetadata?.LastModified) return false;
+                        const cacheTtlSeconds =
+                            await this.projectModel.getEffectiveResultsCacheTtlSeconds(
+                                projectUuid,
+                            );
+                        return (
+                            Date.now() -
+                                cacheEntryMetadata.LastModified.getTime() <
+                            cacheTtlSeconds * 1000
+                        );
+                    };
 
-                    if (
-                        cacheEntryMetadata?.LastModified &&
-                        new Date().getTime() -
-                            cacheEntryMetadata.LastModified.getTime() <
-                            this.lightdashConfig.results.cacheStateTimeSeconds *
-                                1000
-                    ) {
+                    if (await isCacheEntryFresh()) {
                         this.logger.debug(
                             `Getting data from cache, key: ${queryHash}`,
                         );
@@ -9357,6 +9367,82 @@ export class ProjectService extends BaseService {
         const persisted =
             await this.projectModel.getPreviewExpirationSettings(projectUuid);
         return { projectUuid, ...persisted };
+    }
+
+    async getProjectResultsCacheSettings(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ResultsCacheProjectSettings> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'update',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const settings =
+            await this.projectModel.getResultsCacheSettings(projectUuid);
+        return {
+            projectUuid,
+            ...settings,
+            instanceDefaultTtlSeconds:
+                this.lightdashConfig.results.cacheStateTimeSeconds,
+        };
+    }
+
+    async updateProjectResultsCacheSettings(
+        user: SessionUser,
+        projectUuid: string,
+        settings: UpdateResultsCacheProjectSettings,
+    ): Promise<ResultsCacheProjectSettings> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'update',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const { enabled: resultsCacheEnabled } =
+            await this.featureFlagModel.get({
+                user,
+                featureFlagId: FeatureFlags.ResultsCacheEnabled,
+            });
+        if (!resultsCacheEnabled) {
+            throw new ForbiddenError('Results caching is not enabled');
+        }
+        const { cacheTtlSeconds } = settings;
+        if (cacheTtlSeconds !== null) {
+            if (!Number.isInteger(cacheTtlSeconds)) {
+                throw new ParameterError(
+                    'Cache duration must be a whole number of seconds',
+                );
+            }
+            if (
+                cacheTtlSeconds < MIN_RESULTS_CACHE_TTL_SECONDS ||
+                cacheTtlSeconds > MAX_RESULTS_CACHE_TTL_SECONDS
+            ) {
+                throw new ParameterError(
+                    `Cache duration must be between ${MIN_RESULTS_CACHE_TTL_SECONDS} and ${MAX_RESULTS_CACHE_TTL_SECONDS} seconds (30 days)`,
+                );
+            }
+        }
+        await this.projectModel.updateResultsCacheSettings(projectUuid, {
+            cacheTtlSeconds,
+        });
+        return {
+            projectUuid,
+            cacheTtlSeconds,
+            instanceDefaultTtlSeconds:
+                this.lightdashConfig.results.cacheStateTimeSeconds,
+        };
     }
 
     async updatePreviewExpiresAt(

@@ -136,6 +136,7 @@ export * from './types/dataRetention';
 export * from './types/featureFlags';
 export * from './types/impersonationOrganizationSettings';
 export * from './types/previewExpirationProjectSettings';
+export * from './types/resultsCacheProjectSettings';
 export * from './types/upstreamDiff';
 export * from './types/field';
 export * from './types/ci';

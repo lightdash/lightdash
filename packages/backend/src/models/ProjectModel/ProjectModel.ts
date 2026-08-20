@@ -803,6 +803,48 @@ export class ProjectModel {
             });
     }
 
+    async getResultsCacheSettings(
+        projectUuid: string,
+    ): Promise<{ cacheTtlSeconds: number | null }> {
+        const row = await this.database(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            .select('results_cache_ttl_seconds')
+            .first();
+
+        if (!row) {
+            throw new NotFoundError(
+                `Cannot find project with id: ${projectUuid}`,
+            );
+        }
+
+        return { cacheTtlSeconds: row.results_cache_ttl_seconds };
+    }
+
+    async updateResultsCacheSettings(
+        projectUuid: string,
+        settings: { cacheTtlSeconds: number | null },
+    ): Promise<void> {
+        const affectedRows = await this.database(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            .update({ results_cache_ttl_seconds: settings.cacheTtlSeconds });
+        if (affectedRows === 0) {
+            throw new NotFoundError(
+                `Cannot find project with id: ${projectUuid}`,
+            );
+        }
+    }
+
+    async getEffectiveResultsCacheTtlSeconds(
+        projectUuid: string,
+    ): Promise<number> {
+        const { cacheTtlSeconds } =
+            await this.getResultsCacheSettings(projectUuid);
+        return (
+            cacheTtlSeconds ??
+            this.lightdashConfig.results.cacheStateTimeSeconds
+        );
+    }
+
     async updateExpiresAt(projectUuid: string, expiresAt: Date): Promise<void> {
         await this.database(ProjectTableName)
             .where('project_uuid', projectUuid)
