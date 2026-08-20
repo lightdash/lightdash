@@ -107,3 +107,33 @@
 .formSubtitle {
     color: var(--mantine-color-ldGray-6);
 }
+
+.root[data-purple-background='true'] .brandPanel {
+    background-color: var(--mantine-color-ldBrandViolet-9);
+}
+
+.root[data-purple-background='true'] .formPanel {
+    background: var(--auth-purple-background);
+}
+
+.root[data-purple-background='true'] .brandMark {
+    background-color: var(--mantine-color-ldBrandViolet-7);
+}
+
+.root[data-purple-background='true'] .decorationTop,
+.root[data-purple-background='true'] .decorationBottom {
+    background-color: var(--mantine-color-white);
+}
+
+.legacyBackdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background: var(--auth-purple-background);
+    pointer-events: none;
+}
+
+.legacyContent {
+    position: relative;
+    z-index: 1;
+}

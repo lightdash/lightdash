@@ -1,0 +1,4 @@
+.minimalRoot {
+    min-height: 100vh;
+    background: var(--auth-purple-background);
+}

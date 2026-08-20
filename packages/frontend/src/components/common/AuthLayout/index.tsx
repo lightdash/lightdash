@@ -28,6 +28,8 @@ type Props = {
     cardId?: string;
     /** Pages that bring their own cards (Invite) opt out of the legacy card. */
     withLegacyCard?: boolean;
+    /** Tints the page with the brand purple instead of the neutral surface. */
+    withPurpleBackground?: boolean;
     footer?: ReactNode;
 };
 
@@ -38,6 +40,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
     legacyTitle,
     cardId,
     withLegacyCard = true,
+    withPurpleBackground = false,
     footer,
     children,
 }) => {
@@ -50,7 +53,10 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
     if (!isNewLayout) {
         return (
             <Page title={pageTitle} withCenteredContent withNavbar={false}>
-                <Stack w={400} mt="4xl">
+                {withPurpleBackground && (
+                    <Box className={classes.legacyBackdrop} aria-hidden />
+                )}
+                <Stack w={400} mt="4xl" className={classes.legacyContent}>
                     <Box mx="auto" my="lg">
                         <LightdashLogo />
                     </Box>
@@ -82,7 +88,10 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
         <>
             <DocumentTitle title={pageTitle} />
 
-            <Box className={classes.root}>
+            <Box
+                className={classes.root}
+                data-purple-background={withPurpleBackground}
+            >
                 <Box className={classes.brandPanel}>
                     <Box className={classes.decorationTop} aria-hidden />
                     <Box className={classes.decorationBottom} aria-hidden />

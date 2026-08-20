@@ -4,11 +4,21 @@
 :root {
     --table-selected-bg: #ecf6fe;
     --table-selected-border: #4170cb;
+    --auth-purple-background: linear-gradient(
+        180deg,
+        var(--mantine-color-ldBrandViolet-1) 0%,
+        var(--mantine-color-ldBrandViolet-0) 55%
+    );
 }
 
 [data-mantine-color-scheme='dark'] {
     --table-selected-bg: var(--mantine-color-blue-9);
     --table-selected-border: var(--mantine-color-blue-5);
+    --auth-purple-background: linear-gradient(
+        180deg,
+        var(--mantine-color-ldBrandViolet-9) 0%,
+        var(--mantine-color-dark-8) 60%
+    );
 }
 
 html,
