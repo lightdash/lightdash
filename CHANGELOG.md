@@ -1,3 +1,10 @@
+## [1.212.1](https://github.com/lightdash/lightdash/compare/1.212.0...1.212.1) (2026-08-20)
+
+
+### Bug Fixes
+
+* **frontend:** gate delivery actions by delivery permissions ([#27723](https://github.com/lightdash/lightdash/issues/27723)) ([a3d5761](https://github.com/lightdash/lightdash/commit/a3d57610c7006f021c87091561ca0c46227c92b3))
+
 # [1.212.0](https://github.com/lightdash/lightdash/compare/1.211.2...1.212.0) (2026-08-20)
 
 
