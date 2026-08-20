@@ -107,14 +107,8 @@ summary_file=$(mktemp)
 issue_body=$(mktemp)
 trap 'rm -f "$response_body" "$response_headers" "$summary_file" "$issue_body"' EXIT
 
-# A cancelled run is not a failed deployment: a push to the default branch
-# cancels the run already in flight, and the run that replaces it carries the
-# same commit. Neither is it proof of success, because a cancellation may have
-# no replacement at all. Poll instead of deciding: the running version is the
-# evidence. It converges when a later run deploys this pin, reports the
-# superseded path when the pin has already moved on, and freezes when nothing
-# deployed. Deciding either way without polling would trade a false freeze for
-# a silent one.
+# A cancelled run proves neither failure nor success, so poll: the running
+# version decides, and nothing deployed still freezes.
 if [[ "$DEPLOY_CONCLUSION" == "success" || "$DEPLOY_CONCLUSION" == "cancelled" ]]; then
     while [[ $(date +%s) -lt $deadline ]]; do
         remaining_seconds=$((deadline - $(date +%s)))
