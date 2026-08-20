@@ -189,12 +189,15 @@ type AddDataModalProps = {
     projectUuid: string;
     opened: boolean;
     onClose: () => void;
+    /** Overrides the default navigate-into-the-explore behavior on create. */
+    onCreated?: (exploreName: string) => void;
 };
 
 export const AddDataModal: FC<AddDataModalProps> = ({
     projectUuid,
     opened,
     onClose,
+    onCreated,
 }) => {
     const navigate = useNavigate();
     const { showToastSuccess } = useToaster();
@@ -259,9 +262,13 @@ export const AddDataModal: FC<AddDataModalProps> = ({
                                     'Pick fields to build your first chart.',
                             });
                             handleClose();
-                            void navigate(
-                                `/projects/${projectUuid}/tables/${exploreName}`,
-                            );
+                            if (onCreated) {
+                                onCreated(exploreName);
+                            } else {
+                                void navigate(
+                                    `/projects/${projectUuid}/tables/${exploreName}`,
+                                );
+                            }
                         }}
                         onRetry={() => {
                             setCommittedSourceUuid(undefined);

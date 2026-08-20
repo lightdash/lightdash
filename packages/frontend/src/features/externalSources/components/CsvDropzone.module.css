@@ -13,16 +13,10 @@
     background-color: var(--mantine-color-blue-0);
 }
 
-.browseButton {
-    background: none;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    text-decoration: underline;
-    color: inherit;
-    font: inherit;
+.dropzone {
+    display: block;
 }
 
-.browseButton:hover {
-    text-decoration: none;
+.hiddenInput {
+    display: none;
 }

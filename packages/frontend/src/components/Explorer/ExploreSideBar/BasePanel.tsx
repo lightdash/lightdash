@@ -43,9 +43,13 @@ type Props = {
     // Overrides the default navigation to the project's explore page. Embeds
     // use this to keep the selected table inside the embed route.
     onExploreClick?: (explore: SummaryExplore) => void;
+    // Enables "Add data" in overridden-navigation contexts (the merge picker):
+    // a table created through the upload modal is handed here instead of
+    // navigating, so the host flow keeps its state.
+    onExploreCreated?: (exploreName: string) => void;
 };
 
-const BasePanel = ({ onExploreClick }: Props) => {
+const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
     const navigate = useNavigate();
     const location = useLocation();
     const projectUuid = useProjectUuid();
@@ -62,12 +66,13 @@ const BasePanel = ({ onExploreClick }: Props) => {
         isAddDataModalOpen,
         { open: openAddDataModal, close: closeAddDataModal },
     ] = useDisclosure(false);
-    // The modal navigates into the created table; inside embeds and the merge
-    // picker (onExploreClick overridden) that navigation would break the
-    // host flow, so the affordance is hidden there.
+    // The modal navigates into the created table by default; inside embeds
+    // and the merge picker (onExploreClick overridden) that navigation would
+    // break the host flow, so the affordance only shows there when the host
+    // handles the created table itself via onExploreCreated.
     const canShowAddData =
         externalSourcesFlag?.enabled === true &&
-        !onExploreClick &&
+        (!onExploreClick || !!onExploreCreated) &&
         !!projectUuid;
 
     const filteredExplores = useMemo(() => {
@@ -287,6 +292,7 @@ const BasePanel = ({ onExploreClick }: Props) => {
                         projectUuid={projectUuid}
                         opened={isAddDataModalOpen}
                         onClose={closeAddDataModal}
+                        onCreated={onExploreCreated}
                     />
                 )}
             </>
