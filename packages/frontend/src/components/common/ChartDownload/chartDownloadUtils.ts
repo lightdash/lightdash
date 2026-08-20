@@ -83,7 +83,12 @@ export function downloadJson(object: Object) {
     document.body.removeChild(link);
 }
 
-export function downloadPdf(base64: string, width: number, height: number) {
+export function downloadPdf(
+    base64: string,
+    width: number,
+    height: number,
+    name?: string,
+) {
     const padding: number = 20;
     let doc: JsPDF;
     if (width > height) {
@@ -98,5 +103,5 @@ export function downloadPdf(base64: string, width: number, height: number) {
         width,
         height,
     });
-    doc.save(FILE_NAME);
+    doc.save(name || FILE_NAME);
 }
