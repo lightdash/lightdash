@@ -707,7 +707,23 @@ export type FilterAutocompleteConfig = {
     values?: FilterAutocompleteValue[];
     fetchFromWarehouse: boolean;
     labelDimension?: string;
+    optionsFromDimension?: {
+        model: string;
+        dimension: string;
+        labelDimension?: string;
+    };
 };
+
+/**
+ * The label source follows the value source: when values come from another
+ * model, only that lookup's own label dimension is in scope.
+ */
+export const getFilterAutocompleteLabelDimension = (
+    filterAutocomplete: FilterAutocompleteConfig | undefined,
+): string | undefined =>
+    filterAutocomplete?.optionsFromDimension
+        ? filterAutocomplete.optionsFromDimension.labelDimension
+        : filterAutocomplete?.labelDimension;
 
 /**
  * There is nothing to autocomplete: warehouse fetching is off and no curated
