@@ -1,3 +1,11 @@
+# [1.226.0](https://github.com/lightdash/lightdash/compare/1.225.0...1.226.0) (2026-08-20)
+
+
+### Features
+
+* **external-sources:** join hint and upload inside the merge picker ([#27786](https://github.com/lightdash/lightdash/issues/27786)) ([d7baad3](https://github.com/lightdash/lightdash/commit/d7baad330122dbae092c33de6940b346c1cd292d))
+* **external-sources:** manage affordances and the settings page ([#27785](https://github.com/lightdash/lightdash/issues/27785)) ([36ee7dc](https://github.com/lightdash/lightdash/commit/36ee7dcba7dc151267ce4343f2514532249cab56))
+
 # [1.225.0](https://github.com/lightdash/lightdash/compare/1.224.0...1.225.0) (2026-08-20)
 
 

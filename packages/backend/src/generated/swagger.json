@@ -12332,6 +12332,45 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "UpdateExternalSourcePayload": {
+                "properties": {
+                    "label": {
+                        "type": "string"
+                    }
+                },
+                "required": ["label"],
+                "type": "object",
+                "description": "Rename changes how the table appears; the sql name stays stable so saved charts keep working."
+            },
+            "ExternalSourceTablePreview": {
+                "properties": {
+                    "sampleRows": {
+                        "items": {
+                            "$ref": "#/components/schemas/Record_string.unknown_"
+                        },
+                        "type": "array"
+                    },
+                    "columns": {
+                        "$ref": "#/components/schemas/ResultColumns"
+                    }
+                },
+                "required": ["sampleRows", "columns"],
+                "type": "object"
+            },
+            "ApiExternalSourceTablePreviewResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ExternalSourceTablePreview"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ExternalConnection": {
                 "properties": {
                     "updatedAt": {
@@ -55844,7 +55883,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.225.0",
+        "version": "1.226.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
