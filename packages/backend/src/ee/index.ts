@@ -363,6 +363,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         clients.getSchedulerClient() as CommercialSchedulerClient,
                     storageClient:
                         clients.getPreAggregateResultsFileStorageClient(),
+                    googleDriveClient: clients.getGoogleDriveClient(),
+                    userOAuthGrantsModel: models.getUserOAuthGrantsModel(),
                 }),
             appGenerateService: ({ context, models, clients, repository }) =>
                 new AppGenerateService({

@@ -10,11 +10,14 @@ import {
     getErrorMessage,
     MissingConfigError,
     NotFoundError,
+    OpenIdIdentityIssuerType,
     ParameterError,
+    parseGoogleSheetsSpreadsheetId,
     snakeCaseName,
     SupportedDbtAdapter,
     type Account,
     type CreateExternalSourceTablePayload,
+    type CreateGoogleSheetsSourcePayload,
     type ExternalSource,
     type ExternalSourceTablePreview,
     type IngestExternalSourceJobPayload,
@@ -26,13 +29,16 @@ import {
     DuckdbWarehouseClient,
     warehouseSqlBuilderFromType,
 } from '@lightdash/warehouses';
+import { stringify } from 'csv-stringify/sync';
 import { once } from 'events';
 import { type Readable } from 'stream';
+import { type GoogleDriveClient } from '../../../clients/Google/GoogleDriveClient';
 import { type S3ResultsFileStorageClient } from '../../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { type LightdashConfig } from '../../../config/parseConfig';
 import Logger from '../../../logging/logger';
 import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { type UserOAuthGrantsModel } from '../../../models/UserOAuthGrantsModel';
 import { BaseService } from '../../../services/BaseService';
 import {
     getPreAggregateDuckdbLocator,
@@ -63,6 +69,8 @@ type ExternalSourceServiceArguments = {
     featureFlagModel: FeatureFlagModel;
     schedulerClient: Pick<CommercialSchedulerClient, 'ingestExternalSource'>;
     storageClient: S3ResultsFileStorageClient;
+    googleDriveClient: GoogleDriveClient;
+    userOAuthGrantsModel: Pick<UserOAuthGrantsModel, 'getRefreshToken'>;
 };
 
 export class ExternalSourceService extends BaseService {
@@ -78,6 +86,13 @@ export class ExternalSourceService extends BaseService {
 
     private readonly storageClient: S3ResultsFileStorageClient;
 
+    private readonly googleDriveClient: GoogleDriveClient;
+
+    private readonly userOAuthGrantsModel: Pick<
+        UserOAuthGrantsModel,
+        'getRefreshToken'
+    >;
+
     constructor(args: ExternalSourceServiceArguments) {
         super({ serviceName: 'ExternalSourceService' });
         this.lightdashConfig = args.lightdashConfig;
@@ -86,6 +101,8 @@ export class ExternalSourceService extends BaseService {
         this.featureFlagModel = args.featureFlagModel;
         this.schedulerClient = args.schedulerClient;
         this.storageClient = args.storageClient;
+        this.googleDriveClient = args.googleDriveClient;
+        this.userOAuthGrantsModel = args.userOAuthGrantsModel;
     }
 
     private static rawKey(
@@ -311,6 +328,157 @@ export class ExternalSourceService extends BaseService {
         }
     }
 
+    private async validateNewTableName(
+        projectUuid: string,
+        rawName: string,
+    ): Promise<string> {
+        const tableName = snakeCaseName(rawName);
+        if (!TABLE_NAME_PATTERN.test(tableName)) {
+            throw new ParameterError(
+                'Table name must start with a letter and contain only lowercase letters, numbers, and underscores',
+            );
+        }
+        const existingExplore = await this.projectModel.findExploreByTableName(
+            projectUuid,
+            tableName,
+        );
+        if (existingExplore) {
+            throw new AlreadyExistsError(
+                `A table named "${tableName}" already exists in this project`,
+            );
+        }
+        const existingSource = await this.externalSourceModel.findSourceByName(
+            projectUuid,
+            tableName,
+        );
+        if (existingSource) {
+            throw new AlreadyExistsError(
+                `An external source named "${tableName}" already exists in this project`,
+            );
+        }
+        return tableName;
+    }
+
+    private async getGoogleRefreshToken(userUuid: string): Promise<string> {
+        try {
+            return await this.userOAuthGrantsModel.getRefreshToken(
+                userUuid,
+                OpenIdIdentityIssuerType.GOOGLE,
+            );
+        } catch (error) {
+            throw new ParameterError(
+                'Connect your Google account to read Google Sheets, then try again',
+            );
+        }
+    }
+
+    async createGoogleSheetsSource(
+        account: Account,
+        projectUuid: string,
+        payload: CreateGoogleSheetsSourcePayload,
+    ): Promise<ExternalSource> {
+        const { organizationUuid, userUuid } = await this.assertAccess(
+            account,
+            projectUuid,
+        );
+        this.assertEngineAvailable();
+
+        const spreadsheetId = parseGoogleSheetsSpreadsheetId(payload.url);
+        if (!spreadsheetId) {
+            throw new ParameterError(
+                'That does not look like a Google Sheets link. Paste the sheet URL from your browser',
+            );
+        }
+        const tableName = await this.validateNewTableName(
+            projectUuid,
+            payload.tableName,
+        );
+        const label = payload.label?.trim() || friendlyName(tableName);
+
+        const refreshToken = await this.getGoogleRefreshToken(userUuid);
+        await this.googleDriveClient.assertFileIsGoogleSheet(
+            refreshToken,
+            spreadsheetId,
+        );
+        const tabs = await this.googleDriveClient.listSheetTabs(
+            refreshToken,
+            spreadsheetId,
+        );
+        const tabName = payload.tabName?.trim() || tabs[0];
+        if (!tabName || (payload.tabName && !tabs.includes(tabName))) {
+            throw new ParameterError(
+                'The sheet has no readable tab with that name',
+            );
+        }
+
+        const source = await this.externalSourceModel.createSource({
+            projectUuid,
+            type: ExternalSourceType.GOOGLE_SHEETS,
+            name: tableName,
+            status: ExternalSourceStatus.SYNCING,
+            connection: {
+                type: ExternalSourceType.GOOGLE_SHEETS,
+                spreadsheetId,
+                tabName,
+            },
+            createdByUserUuid: userUuid,
+        });
+        await this.externalSourceModel.createTable({
+            sourceUuid: source.sourceUuid,
+            projectUuid,
+            name: tableName,
+            label,
+        });
+        await this.schedulerClient.ingestExternalSource({
+            organizationUuid,
+            projectUuid,
+            userUuid,
+            sourceUuid: source.sourceUuid,
+        });
+        return this.externalSourceModel.getSource(
+            projectUuid,
+            source.sourceUuid,
+        );
+    }
+
+    /** Re-read the connected sheet and re-ingest. Google Sheets sources only. */
+    async refresh(
+        account: Account,
+        projectUuid: string,
+        sourceUuid: string,
+    ): Promise<ExternalSource> {
+        const { organizationUuid, userUuid } = await this.assertAccess(
+            account,
+            projectUuid,
+        );
+        this.assertEngineAvailable();
+        const source = await this.externalSourceModel.getSource(
+            projectUuid,
+            sourceUuid,
+        );
+        if (source.type !== ExternalSourceType.GOOGLE_SHEETS) {
+            throw new ParameterError(
+                'Only Google Sheets sources can be refreshed. Replace the file instead',
+            );
+        }
+        if (source.status === ExternalSourceStatus.SYNCING) {
+            throw new ParameterError(
+                'This source is already ingesting. Wait for it to finish and try again',
+            );
+        }
+        await this.externalSourceModel.updateSource(sourceUuid, {
+            status: ExternalSourceStatus.SYNCING,
+            error_message: null,
+        });
+        await this.schedulerClient.ingestExternalSource({
+            organizationUuid,
+            projectUuid,
+            userUuid,
+            sourceUuid,
+        });
+        return this.externalSourceModel.getSource(projectUuid, sourceUuid);
+    }
+
     async createCsvTable(
         account: Account,
         projectUuid: string,
@@ -330,32 +498,10 @@ export class ExternalSourceService extends BaseService {
             throw new ParameterError('This upload has already been committed');
         }
 
-        const tableName = snakeCaseName(payload.tableName);
-        if (!TABLE_NAME_PATTERN.test(tableName)) {
-            throw new ParameterError(
-                'Table name must start with a letter and contain only lowercase letters, numbers, and underscores',
-            );
-        }
-
-        const existingExplore = await this.projectModel.findExploreByTableName(
+        const tableName = await this.validateNewTableName(
             projectUuid,
-            tableName,
+            payload.tableName,
         );
-        if (existingExplore) {
-            throw new AlreadyExistsError(
-                `A table named "${tableName}" already exists in this project`,
-            );
-        }
-        const existingSource = await this.externalSourceModel.findSourceByName(
-            projectUuid,
-            tableName,
-        );
-        if (existingSource) {
-            throw new AlreadyExistsError(
-                `An external source named "${tableName}" already exists in this project`,
-            );
-        }
-
         const label = payload.label?.trim() || friendlyName(tableName);
         await this.externalSourceModel.updateSource(sourceUuid, {
             name: tableName,
@@ -655,13 +801,55 @@ export class ExternalSourceService extends BaseService {
 
             const client = this.createIngestClient();
             const buildVersion = table.version + 1;
-            const rawUri = this.toUri(
-                ExternalSourceService.rawKey(
-                    projectUuid,
-                    sourceUuid,
-                    buildVersion,
-                ),
+            const rawFileKey = ExternalSourceService.rawKey(
+                projectUuid,
+                sourceUuid,
+                buildVersion,
             );
+            const rawUri = this.toUri(rawFileKey);
+
+            // Sheets sources have no uploaded file: fetch the tab's values
+            // under the connecting user's Google credentials and store them
+            // as this version's raw CSV, then the shared pipeline takes over.
+            if (
+                source.type === ExternalSourceType.GOOGLE_SHEETS &&
+                source.connection.type === ExternalSourceType.GOOGLE_SHEETS
+            ) {
+                if (!source.created_by_user_uuid) {
+                    throw new ParameterError(
+                        'The user who connected this sheet no longer exists. Reconnect the source',
+                    );
+                }
+                const refreshToken = await this.getGoogleRefreshToken(
+                    source.created_by_user_uuid,
+                );
+                const tabName =
+                    source.connection.tabName ??
+                    (
+                        await this.googleDriveClient.listSheetTabs(
+                            refreshToken,
+                            source.connection.spreadsheetId,
+                        )
+                    )[0];
+                const values = await this.googleDriveClient.getSheetValues(
+                    refreshToken,
+                    source.connection.spreadsheetId,
+                    tabName,
+                );
+                if (values.length < 2) {
+                    throw new ParameterError(
+                        'The sheet needs a header row and at least one data row',
+                    );
+                }
+                const csv = stringify(values);
+                const { writeStream, close } =
+                    this.storageClient.createUploadStream(rawFileKey, {
+                        contentType: 'text/csv',
+                    });
+                writeStream.end(csv);
+                await close();
+            }
+
             const parquetKey = ExternalSourceService.parquetKey(
                 projectUuid,
                 sourceUuid,

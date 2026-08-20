@@ -1,10 +1,10 @@
 import {
     ExternalSourceStatus,
+    parseGoogleSheetsSpreadsheetId,
     snakeCaseName,
     type StagedExternalSourceUpload,
 } from '@lightdash/common';
 import {
-    Badge,
     Button,
     Group,
     Loader,
@@ -14,14 +14,21 @@ import {
     TextInput,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconFileSpreadsheet } from '@tabler/icons-react';
+import {
+    IconBrandGoogleDrive,
+    IconFileSpreadsheet,
+    IconLink,
+} from '@tabler/icons-react';
 import { useEffect, useRef, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import Callout from '../../../components/common/Callout';
+import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
+import { useGoogleLoginPopup } from '../../../hooks/gdrive/useGdrive';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
     useCommitCsvUpload,
+    useCreateSheetsSource,
     useExternalSource,
     useInvalidateTables,
     useUploadCsv,
@@ -128,6 +135,106 @@ const SchemaPreviewStep: FC<SchemaPreviewStepProps> = ({
     );
 };
 
+type SheetsStepProps = {
+    projectUuid: string;
+    onBack: () => void;
+    onCreated: (sourceUuid: string) => void;
+};
+
+const SheetsStep: FC<SheetsStepProps> = ({
+    projectUuid,
+    onBack,
+    onCreated,
+}) => {
+    const createMutation = useCreateSheetsSource(projectUuid);
+    const googleLogin = useGoogleLoginPopup('gdrive');
+    const form = useForm({
+        initialValues: { url: '', tableName: '' },
+        validate: {
+            url: (value) =>
+                parseGoogleSheetsSpreadsheetId(value)
+                    ? null
+                    : 'Paste the sheet URL from your browser',
+            tableName: (value) =>
+                value.trim().length === 0 ? 'Give the table a name' : null,
+        },
+    });
+    const slug = snakeCaseName(form.values.tableName || '');
+    const errorMessage = createMutation.isError
+        ? createMutation.error.error.message
+        : undefined;
+    const needsGoogleAuth = errorMessage
+        ?.toLowerCase()
+        .includes('google account');
+
+    const handleSubmit = form.onSubmit((values) => {
+        createMutation.mutate(
+            { url: values.url.trim(), tableName: values.tableName.trim() },
+            { onSuccess: (source) => onCreated(source.sourceUuid) },
+        );
+    });
+
+    return (
+        <form onSubmit={handleSubmit}>
+            <Stack gap="md">
+                <TextInput
+                    label="Google Sheets URL"
+                    placeholder="https://docs.google.com/spreadsheets/d/…"
+                    leftSection={<MantineIcon icon={IconLink} size="sm" />}
+                    data-autofocus
+                    {...form.getInputProps('url')}
+                />
+                <TextInput
+                    label="Table name"
+                    placeholder="quarterly_targets"
+                    description={
+                        slug
+                            ? `Will appear as ${slug}`
+                            : 'How this table will appear in the sidebar'
+                    }
+                    {...form.getInputProps('tableName')}
+                />
+                {errorMessage && (
+                    <Callout
+                        variant="danger"
+                        title="Couldn't connect the sheet"
+                    >
+                        <Stack gap="xs" align="flex-start">
+                            <Text fz="sm">{errorMessage}</Text>
+                            {needsGoogleAuth && (
+                                <Button
+                                    variant="default"
+                                    size="compact-sm"
+                                    loading={googleLogin.isLoading}
+                                    onClick={() => googleLogin.mutate()}
+                                >
+                                    Connect Google account
+                                </Button>
+                            )}
+                        </Stack>
+                    </Callout>
+                )}
+                <Text fz="xs" c="dimmed">
+                    Reads the sheet with your Google account. Refresh the table
+                    any time from its menu.
+                </Text>
+                <Group justify="space-between">
+                    <Button
+                        variant="default"
+                        onClick={onBack}
+                        disabled={createMutation.isLoading}
+                    >
+                        Back
+                    </Button>
+                    <Button type="submit" loading={createMutation.isLoading}>
+                        Connect sheet
+                    </Button>
+                </Group>
+            </Stack>
+        </form>
+    );
+};
+
 type PreparingStepProps = {
     projectUuid: string;
     sourceUuid: string;
@@ -203,40 +310,60 @@ export const AddDataModal: FC<AddDataModalProps> = ({
     const { showToastSuccess } = useToaster();
     const uploadMutation = useUploadCsv(projectUuid);
     const [committedSourceUuid, setCommittedSourceUuid] = useState<string>();
+    const [mode, setMode] = useState<'csv' | 'sheets'>('csv');
     const invalidateTables = useInvalidateTables();
 
     const handleClose = () => {
         uploadMutation.reset();
         setCommittedSourceUuid(undefined);
+        setMode('csv');
         onClose();
     };
 
     const stage = uploadMutation.data;
+    const isSheetsMode = mode === 'sheets' && !stage && !committedSourceUuid;
 
     return (
         <MantineModal
             opened={opened}
             onClose={handleClose}
-            title="Upload a CSV"
-            icon={IconFileSpreadsheet}
+            title={isSheetsMode ? 'Connect a Google Sheet' : 'Upload a CSV'}
+            icon={isSheetsMode ? IconBrandGoogleDrive : IconFileSpreadsheet}
             size="lg"
         >
             <Stack gap="md">
-                {!stage && !committedSourceUuid && (
+                {!stage && !committedSourceUuid && mode === 'csv' && (
                     <>
                         <CsvDropzone
                             isUploading={uploadMutation.isLoading}
                             onFile={(file) => uploadMutation.mutate(file)}
                         />
-                        <Group gap="xs" justify="center">
-                            <Badge variant="light" color="gray" size="xs">
-                                Coming soon
-                            </Badge>
-                            <Text fz="xs" c="dimmed">
-                                Google Sheets and other sources
-                            </Text>
+                        <Group justify="center">
+                            <Button
+                                variant="subtle"
+                                size="compact-xs"
+                                leftSection={
+                                    <MantineIcon
+                                        icon={IconBrandGoogleDrive}
+                                        size="sm"
+                                    />
+                                }
+                                onClick={() => setMode('sheets')}
+                            >
+                                Connect a Google Sheet instead
+                            </Button>
                         </Group>
                     </>
+                )}
+                {isSheetsMode && (
+                    <SheetsStep
+                        projectUuid={projectUuid}
+                        onBack={() => setMode('csv')}
+                        onCreated={(sourceUuid) => {
+                            setCommittedSourceUuid(sourceUuid);
+                            setMode('csv');
+                        }}
+                    />
                 )}
                 {stage && !committedSourceUuid && (
                     <SchemaPreviewStep

@@ -90,6 +90,18 @@ export type UpdateExternalSourcePayload = {
     label: string;
 };
 
+export type CreateGoogleSheetsSourcePayload = {
+    url: string;
+    tableName: string;
+    label?: string;
+    /** Sheet tab to read; the first tab when omitted. */
+    tabName?: string;
+};
+
+export const parseGoogleSheetsSpreadsheetId = (
+    url: string,
+): string | undefined => url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)?.[1];
+
 export type ExternalSourceTablePreview = {
     columns: ResultColumns;
     sampleRows: Record<string, unknown>[];

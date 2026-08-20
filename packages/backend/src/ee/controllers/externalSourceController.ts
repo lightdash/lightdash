@@ -8,6 +8,7 @@ import {
     type ApiStagedExternalSourceUploadResponse,
     type ApiSuccessEmpty,
     type CreateExternalSourceTablePayload,
+    type CreateGoogleSheetsSourcePayload,
     type UpdateExternalSourcePayload,
     type UUID,
 } from '@lightdash/common';
@@ -162,6 +163,67 @@ export class ExternalSourceController extends BaseController {
         return {
             status: 'ok',
             results: await this.getExternalSourceService().get(
+                req.account,
+                projectUuid,
+                sourceUuid,
+            ),
+        };
+    }
+
+    /**
+     * Connect a Google Sheet as an external source. Reads the sheet under
+     * the connecting user's Google account and ingests it like an uploaded
+     * file; the source reports a syncing status until the ingest finishes.
+     * @summary Connect a Google Sheet
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('201', 'Created')
+    @Post('/google-sheets')
+    @OperationId('CreateGoogleSheetsSource')
+    async createGoogleSheetsSource(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Body() body: CreateGoogleSheetsSourcePayload,
+    ): Promise<ApiExternalSourceResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(201);
+        return {
+            status: 'ok',
+            results:
+                await this.getExternalSourceService().createGoogleSheetsSource(
+                    req.account,
+                    projectUuid,
+                    body,
+                ),
+        };
+    }
+
+    /**
+     * Re-read the connected sheet and re-ingest. Google Sheets sources only.
+     * @summary Refresh an external source
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/{sourceUuid}/refresh')
+    @OperationId('RefreshExternalSource')
+    async refreshSource(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() sourceUuid: UUID,
+    ): Promise<ApiExternalSourceResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getExternalSourceService().refresh(
                 req.account,
                 projectUuid,
                 sourceUuid,

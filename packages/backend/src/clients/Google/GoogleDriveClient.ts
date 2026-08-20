@@ -208,6 +208,53 @@ export class GoogleDriveClient {
         return response.data;
     }
 
+    async listSheetTabs(
+        refreshToken: string,
+        fileId: string,
+    ): Promise<string[]> {
+        if (!this.isEnabled) {
+            throw new MissingConfigError('Google Drive is not enabled');
+        }
+        const auth = await this.getCredentials(refreshToken);
+        const sheets = google.sheets({ version: 'v4', auth });
+
+        const response = await GoogleDriveClient.catchApiError(
+            sheets.spreadsheets.get({
+                spreadsheetId: fileId,
+                fields: 'sheets(properties(title))',
+            }),
+        );
+        return (response.data.sheets ?? []).flatMap((sheet) =>
+            sheet.properties?.title ? [sheet.properties.title] : [],
+        );
+    }
+
+    /**
+     * Read a tab's cell values. Unformatted values with formatted date
+     * strings, so numbers arrive as numbers and dates as readable text.
+     */
+    async getSheetValues(
+        refreshToken: string,
+        fileId: string,
+        tabName: string,
+    ): Promise<unknown[][]> {
+        if (!this.isEnabled) {
+            throw new MissingConfigError('Google Drive is not enabled');
+        }
+        const auth = await this.getCredentials(refreshToken);
+        const sheets = google.sheets({ version: 'v4', auth });
+
+        const response = await GoogleDriveClient.catchApiError(
+            sheets.spreadsheets.values.get({
+                spreadsheetId: fileId,
+                range: `'${tabName.replaceAll("'", "''")}'`,
+                valueRenderOption: 'UNFORMATTED_VALUE',
+                dateTimeRenderOption: 'FORMATTED_STRING',
+            }),
+        );
+        return response.data.values ?? [];
+    }
+
     async assertFileIsGoogleSheet(refreshToken: string, fileId: string) {
         const auth = await this.getCredentials(refreshToken);
         const sheets = google.sheets({ version: 'v4', auth });

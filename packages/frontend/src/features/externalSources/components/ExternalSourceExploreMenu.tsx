@@ -11,6 +11,7 @@ import {
     IconGitMerge,
     IconInfoCircle,
     IconPencil,
+    IconRefresh,
     IconTrash,
     IconUpload,
 } from '@tabler/icons-react';
@@ -18,6 +19,7 @@ import { useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useApp from '../../../providers/App/useApp';
+import { useRefreshExternalSource } from '../hooks/useExternalSources';
 import { DeleteExternalSourceModal } from './DeleteExternalSourceModal';
 import { RenameExternalSourceModal } from './RenameExternalSourceModal';
 import { ReplaceCsvFileModal } from './ReplaceCsvFileModal';
@@ -49,6 +51,7 @@ export const ExternalSourceExploreMenu: FC<Props> = ({
             }),
         ) === true;
 
+    const refreshMutation = useRefreshExternalSource(projectUuid);
     const [isRenameOpen, renameHandlers] = useDisclosure(false);
     const [isReplaceOpen, replaceHandlers] = useDisclosure(false);
     const [isDeleteOpen, deleteHandlers] = useDisclosure(false);
@@ -94,6 +97,23 @@ export const ExternalSourceExploreMenu: FC<Props> = ({
                                 >
                                     <Text fz="xs" fw={500}>
                                         Replace file
+                                    </Text>
+                                </Menu.Item>
+                            )}
+                            {sourceRef.sourceType ===
+                                ExternalSourceType.GOOGLE_SHEETS && (
+                                <Menu.Item
+                                    leftSection={
+                                        <MantineIcon icon={IconRefresh} />
+                                    }
+                                    onClick={() =>
+                                        refreshMutation.mutate(
+                                            sourceRef.sourceUuid,
+                                        )
+                                    }
+                                >
+                                    <Text fz="xs" fw={500}>
+                                        Refresh from Google Sheets
                                     </Text>
                                 </Menu.Item>
                             )}
