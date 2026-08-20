@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import {
     generateOAuthAuthorizePage,
-    generateOAuthRedirectPage,
     getErrorMessage,
     OAuthIntrospectResponse,
     parseScopeString,
@@ -27,6 +26,36 @@ const oauthRouter: Router = express.Router({ mergeParams: true });
 function getOAuthService(req: express.Request): OAuthService {
     return req.services.getOauthService();
 }
+
+const getValidatedRedirectUrl = async (
+    req: express.Request,
+): Promise<URL | null> => {
+    const clientId = req.body.client_id;
+    const redirectUri = req.body.redirect_uri;
+    if (typeof clientId !== 'string' || typeof redirectUri !== 'string') {
+        return null;
+    }
+
+    const isRegistered = await getOAuthService(req).validateRedirectUri(
+        clientId,
+        redirectUri,
+    );
+    if (!isRegistered) {
+        return null;
+    }
+
+    try {
+        return new URL(redirectUri);
+    } catch {
+        return null;
+    }
+};
+
+const sendInvalidRedirectResponse = (res: express.Response) =>
+    res.status(400).json({
+        error: 'invalid_request',
+        error_description: 'Invalid client_id or redirect_uri',
+    });
 
 // Get authorization - use OAuth2Server
 oauthRouter.get('/authorize', async (req, res, next) => {
@@ -105,34 +134,24 @@ oauthRouter.get('/authorize', async (req, res, next) => {
 });
 
 oauthRouter.post('/authorize', async (req, res) => {
-    if (req.body.approve === 'false') {
-        // Denied
-        res.set('Content-Type', 'text/html');
-        const redirectUri = req.body.redirect_uri;
-        if (!redirectUri) {
-            return res.status(400).json({
-                error: 'invalid_request',
-                error_description: 'Missing redirect_uri',
-            });
-        }
-        const url = new URL(redirectUri);
-        url.searchParams.set('error', 'access_denied');
-        if (req.body.state) {
-            url.searchParams.set('state', req.body.state);
-        }
-        return res.send(
-            generateOAuthRedirectPage({
-                redirectUrl: url.toString(),
-                message:
-                    'Access denied. Redirecting you back to your application...',
-            }),
-        );
-    }
     if (!req.user) {
         return res.status(401).send('Unauthorized');
     }
     if (!req.user.userId || !req.user.organizationUuid) {
         return res.status(400).send('Missing userUuid or organizationUuid');
+    }
+
+    const redirectUrl = await getValidatedRedirectUrl(req);
+    if (!redirectUrl) {
+        return sendInvalidRedirectResponse(res);
+    }
+
+    if (req.body.approve === 'false') {
+        redirectUrl.searchParams.set('error', 'access_denied');
+        if (req.body.state) {
+            redirectUrl.searchParams.set('state', req.body.state);
+        }
+        return res.redirect(302, redirectUrl.toString());
     }
 
     // Normalize scope parameter directly on the request object
@@ -155,40 +174,23 @@ oauthRouter.post('/authorize', async (req, res) => {
                 organizationUuid: req.user.organizationUuid,
             },
         );
-        const redirectUri = req.body.redirect_uri;
-        if (!redirectUri) {
-            return res.status(400).json({
-                error: 'invalid_request',
-                error_description: 'Missing redirect_uri',
-            });
-        }
-        const url = new URL(redirectUri);
-        url.searchParams.set('code', authorizationCode.authorizationCode);
+        redirectUrl.searchParams.set(
+            'code',
+            authorizationCode.authorizationCode,
+        );
         if (req.body.state) {
-            url.searchParams.set('state', req.body.state);
+            redirectUrl.searchParams.set('state', req.body.state);
         }
 
-        res.set('Content-Type', 'text/html');
-        return res.send(
-            generateOAuthRedirectPage({
-                redirectUrl: url.toString(),
-                message: 'Redirecting you back to your application...',
-            }),
-        );
+        return res.redirect(302, redirectUrl.toString());
     } catch (error) {
         Logger.error(`Authorization error: ${error}`);
-        const redirectUrl = new URL(req.body.redirect_uri);
-        redirectUrl.searchParams.set('error', 'server_error');
-        if (req.body.state)
-            redirectUrl.searchParams.set('state', req.body.state);
-        res.set('Content-Type', 'text/html');
-        return res.send(
-            generateOAuthRedirectPage({
-                redirectUrl: redirectUrl.toString(),
-                message:
-                    'An error occurred. Redirecting you back to your application...',
-            }),
-        );
+        const errorUrl = new URL(req.body.redirect_uri);
+        errorUrl.searchParams.set('error', 'server_error');
+        if (req.body.state) {
+            errorUrl.searchParams.set('state', req.body.state);
+        }
+        return res.redirect(302, errorUrl.toString());
     }
 });
 

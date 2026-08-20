@@ -80,6 +80,17 @@ export class OAuthService extends BaseService {
         });
     }
 
+    public async validateRedirectUri(
+        clientId: string,
+        redirectUri: string,
+    ): Promise<boolean> {
+        const client = await this.oauthModel.getClient(clientId);
+        return (
+            client !== false &&
+            this.oauthModel.validateRedirectUri(redirectUri, client)
+        );
+    }
+
     public async token(
         request: OAuth2Server.Request,
         response: OAuth2Server.Response,
