@@ -42326,6 +42326,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                pre_aggregate_execution_fallback: { dataType: 'boolean' },
                 granularity_labels: { ref: 'Record_string.string_' },
                 additional_time_intervals: {
                     dataType: 'nestedObjectLiteral',

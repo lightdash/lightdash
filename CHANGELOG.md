@@ -1,3 +1,21 @@
+# [1.219.0](https://github.com/lightdash/lightdash/compare/1.218.0...1.219.0) (2026-08-20)
+
+
+### Bug Fixes
+
+* accept slug URLs in backend unfurls ([#27647](https://github.com/lightdash/lightdash/issues/27647)) ([8d2fb25](https://github.com/lightdash/lightdash/commit/8d2fb25a02bf47a5e0c42eae2059ea61bcd2c730))
+
+
+### Features
+
+* **ai-agent:** formula table calculations in agent visualizations ([#27728](https://github.com/lightdash/lightdash/issues/27728)) ([d9864ff](https://github.com/lightdash/lightdash/commit/d9864fff073079bd2e5e4608b0c7915c29032712)), closes [#27708](https://github.com/lightdash/lightdash/issues/27708)
+* setting to disable pre-aggregate warehouse fallback and error instead ([#27652](https://github.com/lightdash/lightdash/issues/27652)) ([ee5133d](https://github.com/lightdash/lightdash/commit/ee5133d822bf5028ea42c0db08fec700d97a2074)), closes [#27577](https://github.com/lightdash/lightdash/issues/27577)
+
+
+### Performance Improvements
+
+* add organization_uuid index to ai_thread for retention sweeps ([#27754](https://github.com/lightdash/lightdash/issues/27754)) ([30b26ba](https://github.com/lightdash/lightdash/commit/30b26baf48dfbebc2c1f24a88d45d0ee691cc1ef))
+
 # [1.218.0](https://github.com/lightdash/lightdash/compare/1.217.1...1.218.0) (2026-08-20)
 
 

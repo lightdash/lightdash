@@ -42589,6 +42589,10 @@
             },
             "ProjectDefaults": {
                 "properties": {
+                    "pre_aggregate_execution_fallback": {
+                        "type": "boolean",
+                        "description": "Whether a matched query whose pre-aggregate execution fails is served\nfrom the source warehouse (execution fallback). When false, the query\nerrors instead of transparently running on the warehouse.\nDefaults to true if not specified."
+                    },
                     "granularity_labels": {
                         "$ref": "#/components/schemas/Record_string.string_",
                         "description": "Override the display label of standard granularities (e.g. `week`:\n\"Week starting Monday\"). Keyed by standard granularity name; applies to\nExplorer dimension labels, the Explorer sidebar tree, and the date zoom."
@@ -55538,7 +55542,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.218.0",
+        "version": "1.219.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
