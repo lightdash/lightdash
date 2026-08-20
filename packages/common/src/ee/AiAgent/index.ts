@@ -17,6 +17,10 @@ import type {
     ToolTimeSeriesArgs,
     ToolVerticalBarArgs,
 } from '../..';
+import {
+    MAX_RETENTION_WINDOW_HOURS,
+    MIN_RETENTION_WINDOW_HOURS,
+} from '../../types/dataRetention';
 import assertUnreachable from '../../utils/assertUnreachable';
 import { type AiAgentReviewItemStatus } from './aiAgentReviewClassifierTypes';
 import { type AiEvalRunResultAssessment } from './aiEvalAssessment';
@@ -156,6 +160,12 @@ export const baseAgentSchema = z.object({
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
     version: z.number(),
+    threadRetentionHours: z
+        .number()
+        .int()
+        .min(MIN_RETENTION_WINDOW_HOURS)
+        .max(MAX_RETENTION_WINDOW_HOURS)
+        .nullable(),
 });
 
 export type BaseAiAgent = z.infer<typeof baseAgentSchema>;
@@ -185,6 +195,7 @@ export type AiAgent = Pick<
     | 'adminOnly'
     | 'modelConfig'
     | 'version'
+    | 'threadRetentionHours'
 >;
 
 export type AiAgentSummary = Pick<
@@ -212,6 +223,7 @@ export type AiAgentSummary = Pick<
     | 'adminOnly'
     | 'modelConfig'
     | 'version'
+    | 'threadRetentionHours'
 >;
 
 // An empty spaceAccess list means the agent is unrestricted (all spaces).
@@ -578,6 +590,7 @@ export type ApiCreateAiAgent = Pick<
     adminOnly?: boolean;
     mcpServerUuids?: string[];
     modelConfig?: AiAgentModelConfig | null;
+    threadRetentionHours?: number | null;
 };
 
 export type ApiUpdateAiAgent = Partial<
@@ -605,6 +618,7 @@ export type ApiUpdateAiAgent = Partial<
     uuid: string;
     enableSqlMode?: boolean;
     mcpServerUuids?: string[];
+    threadRetentionHours?: number | null;
 };
 
 export type ApiCreateAiAgentResponse = {

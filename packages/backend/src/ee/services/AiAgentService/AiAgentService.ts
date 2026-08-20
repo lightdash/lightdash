@@ -62,6 +62,7 @@ import {
     derivePivotConfigurationFromChart,
     DownloadFileType,
     EmbedArtifactVersionJobPayload,
+    exceedsRetentionCeiling,
     Explore,
     FeatureFlags,
     ForbiddenError,
@@ -3202,6 +3203,28 @@ export class AiAgentService extends BaseService {
         });
     }
 
+    private async validateThreadRetentionUpdate(
+        user: SessionUser,
+        threadRetentionHours: number | null,
+    ): Promise<void> {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        await this.aiOrganizationSettingsService.assertThreadRetentionWriteAllowed(
+            user,
+            threadRetentionHours,
+        );
+        const ceiling =
+            await this.aiOrganizationSettingsService.getThreadRetentionCeiling(
+                user.organizationUuid,
+            );
+        if (exceedsRetentionCeiling(threadRetentionHours, ceiling)) {
+            throw new ParameterError(
+                `Agent thread retention cannot exceed the organization limit of ${ceiling} hours`,
+            );
+        }
+    }
+
     public async createAgent(
         user: SessionUser,
         body: ApiCreateAiAgent,
@@ -3233,6 +3256,13 @@ export class AiAgentService extends BaseService {
             throw new ForbiddenError();
         }
 
+        if (body.threadRetentionHours != null) {
+            await this.validateThreadRetentionUpdate(
+                user,
+                body.threadRetentionHours,
+            );
+        }
+
         const agent = await this.aiAgentModel.createAgent({
             name: body.name,
             description: body.description,
@@ -3257,6 +3287,7 @@ export class AiAgentService extends BaseService {
             adminOnly: body.adminOnly ?? false,
             modelConfig: body.modelConfig ?? null,
             version: body.version,
+            threadRetentionHours: body.threadRetentionHours ?? null,
         });
 
         this.analytics.track<AiAgentCreatedEvent>({
@@ -4854,6 +4885,16 @@ export class AiAgentService extends BaseService {
             nextImageUrlSource = body.imageUrl ? 'url' : null;
         }
 
+        if (
+            body.threadRetentionHours !== undefined &&
+            body.threadRetentionHours !== agent.threadRetentionHours
+        ) {
+            await this.validateThreadRetentionUpdate(
+                user,
+                body.threadRetentionHours,
+            );
+        }
+
         const updatedAgent = await this.aiAgentModel.updateAgent({
             agentUuid,
             name: body.name,
@@ -4881,6 +4922,7 @@ export class AiAgentService extends BaseService {
             adminOnly: body.adminOnly,
             modelConfig: body.modelConfig,
             version: body.version,
+            threadRetentionHours: body.threadRetentionHours,
         });
 
         this.analytics.track<AiAgentUpdatedEvent>({

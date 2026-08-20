@@ -130,6 +130,7 @@ describe('AiDeepResearchRunModel integration', () => {
                 model_config: null,
                 is_system: false,
                 version: 2,
+                thread_retention_hours: null,
             })
             .returning('ai_agent_uuid');
         agentUuid = agent.ai_agent_uuid;

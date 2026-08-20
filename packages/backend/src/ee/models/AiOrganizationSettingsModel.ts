@@ -132,6 +132,7 @@ export class AiOrganizationSettingsModel {
                 anthropic: null,
                 openai: null,
             },
+            threadRetentionHours: db.thread_retention_hours,
         };
     }
 
@@ -205,6 +206,7 @@ export class AiOrganizationSettingsModel {
                 data_app_model_visibility: data.dataAppModelVisibility,
                 encrypted_provider_api_keys: this.encryptProviderApiKeys(keys),
                 provider_api_key_hints: buildProviderApiKeyHints(keys),
+                thread_retention_hours: data.threadRetentionHours ?? null,
             })
             .returning('*');
 
@@ -230,6 +232,7 @@ export class AiOrganizationSettingsModel {
                 | 'data_app_model_visibility'
                 | 'encrypted_provider_api_keys'
                 | 'provider_api_key_hints'
+                | 'thread_retention_hours'
             >
         > = {};
         if (data.aiAgentsVisible !== undefined) {
@@ -262,6 +265,9 @@ export class AiOrganizationSettingsModel {
         }
         if (data.dataAppModelVisibility !== undefined) {
             updateData.data_app_model_visibility = data.dataAppModelVisibility;
+        }
+        if (data.threadRetentionHours !== undefined) {
+            updateData.thread_retention_hours = data.threadRetentionHours;
         }
         if (data.providerApiKeys !== undefined) {
             const providerApiKeyUpdates = data.providerApiKeys;
@@ -362,6 +368,7 @@ export class AiOrganizationSettingsModel {
                 modelVisibility: data.modelVisibility ?? null,
                 dataAppModelVisibility: data.dataAppModelVisibility ?? null,
                 providerApiKeys: data.providerApiKeys,
+                threadRetentionHours: data.threadRetentionHours ?? null,
             },
             database,
         );

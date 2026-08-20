@@ -14,6 +14,7 @@ describeContentAsCodeSchemaContract({
         'projectUuid',
         'spaceAccess',
         'userAccess',
+        'threadRetentionHours',
         'uuid',
     ],
     documentOnlyFields: [
