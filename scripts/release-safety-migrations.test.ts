@@ -119,6 +119,82 @@ test('dynamic raw SQL degrades unknown dimensions and completeness', () => {
     assert.strictEqual(result.complete, false);
 });
 
+test('raw SQL built from a local constant reads as fully as a literal', () => {
+    const result = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260810000003_index.ts',
+        `
+            const TableName = 'analytics_chart_views';
+            const IndexName = 'analytics_chart_views_user_uuid_timestamp_idx';
+            export async function up(knex) {
+                await knex.raw(\`DROP INDEX CONCURRENTLY IF EXISTS \${IndexName}\`);
+                await knex.raw(
+                    \`CREATE INDEX CONCURRENTLY \${IndexName} ON \${TableName} (user_uuid, timestamp)\`,
+                );
+            }
+        `,
+    );
+    assert.deepStrictEqual(result.migration.tables, ['analytics_chart_views']);
+    assert.deepStrictEqual(result.migration.heaviness, {
+        locksTable: false,
+        rewritesTable: false,
+        scansTable: true,
+    });
+    assert.strictEqual(result.complete, true);
+});
+
+test('numeric constants substitute as readily as string ones', () => {
+    const result = analyzeMigrationSource(
+        'packages/backend/src/ee/database/migrations/20260810000004_bounds.ts',
+        `
+            const Table = 'ai_organization_settings';
+            const Column = 'thread_retention_hours';
+            const MIN_HOURS = 1;
+            const MAX_HOURS = 876000;
+            export async function up(knex) {
+                await knex.raw(
+                    \`ALTER TABLE \${Table} ADD CONSTRAINT \${Table}_\${Column}_range CHECK (\${Column} IS NULL OR (\${Column} >= \${MIN_HOURS} AND \${Column} <= \${MAX_HOURS}))\`,
+                );
+            }
+        `,
+    );
+    assert.deepStrictEqual(result.migration.tables, [
+        'ai_organization_settings',
+    ]);
+    assert.strictEqual(result.migration.heaviness.locksTable, true);
+    assert.strictEqual(result.complete, true);
+});
+
+test('an unresolvable interpolation still degrades', () => {
+    for (const body of [
+        'await knex.raw(`DROP INDEX ${buildName()}`);',
+        'await knex.raw(`DROP INDEX ${fromSomewhereElse}`);',
+    ]) {
+        const result = analyzeMigrationSource(
+            'packages/backend/src/database/migrations/20260810000005_unresolvable.ts',
+            `export async function up(knex) { ${body} }`,
+        );
+        assert.deepStrictEqual(result.migration.heaviness, {
+            locksTable: 'unknown',
+            rewritesTable: 'unknown',
+            scansTable: 'unknown',
+        });
+        assert.strictEqual(result.complete, false);
+    }
+});
+
+test('one unresolvable placeholder degrades the whole statement', () => {
+    const result = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260810000006_mixed.ts',
+        `
+            const Table = 'events';
+            export async function up(knex) {
+                await knex.raw(\`TRUNCATE TABLE \${Table}_\${suffix}\`);
+            }
+        `,
+    );
+    assert.strictEqual(result.complete, false);
+});
+
 test('IO reads the requested ref and represents unreadable paths honestly', () => {
     const existing =
         'packages/backend/src/database/migrations/20250602185100_add_treemap_to_chart_type.ts';

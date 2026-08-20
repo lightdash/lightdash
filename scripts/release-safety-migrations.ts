@@ -339,7 +339,10 @@ const migrationEdition = (migrationPath: string): 'core' | 'ee' =>
         ? 'ee'
         : 'core';
 
-const collectStringConstants = (tokens: Token[]): Map<string, string> => {
+const collectStringConstants = (
+    tokens: Token[],
+    kinds: readonly TokenKind[] = ['string', 'template'],
+): Map<string, string> => {
     const constants = new Map<string, string>();
     for (let index = 0; index + 3 < tokens.length; index += 1) {
         if (
@@ -348,7 +351,7 @@ const collectStringConstants = (tokens: Token[]): Map<string, string> => {
             tokens[index + 1].kind === 'identifier' &&
             tokens[index + 2].kind === 'operator' &&
             tokens[index + 2].value === '=' &&
-            ['string', 'template'].includes(tokens[index + 3].kind)
+            kinds.includes(tokens[index + 3].kind)
         ) {
             constants.set(tokens[index + 1].value, tokens[index + 3].value);
         }
@@ -443,6 +446,38 @@ const resolveTable = (
     return null;
 };
 
+const TEMPLATE_PLACEHOLDER = /\$\{([^}]*)\}/g;
+
+/**
+ * PURE. The SQL a `knex.raw()` argument stands for, or null when the argument
+ * cannot be read statically.
+ *
+ * A template holding `${...}` reaches here as a `dynamicTemplate`. Substituting
+ * the local constants it names recovers the real statement, which is how
+ * migrations normally keep a `CREATE INDEX` and its matching `DROP INDEX` in
+ * step. A placeholder naming anything else stays unreadable and returns null,
+ * so the caller keeps degrading the verdict rather than guessing.
+ */
+const resolveSqlArgument = (
+    token: Token | undefined,
+    constants: ReadonlyMap<string, string>,
+): string | null => {
+    if (!token) return null;
+    if (token.kind === 'string' || token.kind === 'template') {
+        return token.value;
+    }
+    if (token.kind !== 'dynamicTemplate') return null;
+    let resolved = '';
+    let cursor = 0;
+    for (const match of token.value.matchAll(TEMPLATE_PLACEHOLDER)) {
+        const substitution = constants.get(match[1].trim());
+        if (substitution === undefined) return null;
+        resolved += token.value.slice(cursor, match.index) + substitution;
+        cursor = match.index + match[0].length;
+    }
+    return resolved + token.value.slice(cursor);
+};
+
 const rawSqlTables = (sql: string): string[] => {
     const tables = new Set<string>();
     const patterns = [
@@ -468,6 +503,11 @@ export function analyzeMigrationSource(
     const tokenized = tokenize(source);
     const body = findUpBody(tokenized.tokens);
     const constants = collectStringConstants(tokenized.tokens);
+    const sqlConstants = collectStringConstants(tokenized.tokens, [
+        'string',
+        'template',
+        'number',
+    ]);
     const tables = new Set<string>();
     const heaviness: MigrationHeaviness = {
         locksTable: false,
@@ -587,14 +627,11 @@ export function analyzeMigrationSource(
             if (token.value === 'alter') markUnknown('rewritesTable');
 
             if (token.value === 'raw') {
-                if (
-                    argument?.kind !== 'string' &&
-                    argument?.kind !== 'template'
-                ) {
+                const sql = resolveSqlArgument(argument, sqlConstants);
+                if (sql === null) {
                     markUnknown('locksTable', 'rewritesTable', 'scansTable');
                     continue;
                 }
-                const sql = argument.value;
                 for (const table of rawSqlTables(sql)) tables.add(table);
                 if (/\b(?:alter|drop|rename|truncate)\s+table\b/i.test(sql)) {
                     mark('locksTable');
