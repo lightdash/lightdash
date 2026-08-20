@@ -1080,8 +1080,11 @@ export class SchedulerModel {
         return this.getSchedulersWithTargets(await schedulers);
     }
 
-    async getAppSchedulers(appUuid: string): Promise<SchedulerAndTargets[]> {
-        const schedulers = SchedulerModel.getBaseSchedulerQuery(this.database)
+    async getAppSchedulers(
+        appUuid: string,
+        createdByUserUuid?: string,
+    ): Promise<SchedulerAndTargets[]> {
+        let schedulers = SchedulerModel.getBaseSchedulerQuery(this.database)
             .where(`${SchedulerTableName}.app_uuid`, appUuid)
             .orderBy([
                 {
@@ -1093,6 +1096,12 @@ export class SchedulerModel {
                     order: 'asc',
                 },
             ]);
+        if (createdByUserUuid) {
+            schedulers = schedulers.where(
+                `${SchedulerTableName}.created_by`,
+                createdByUserUuid,
+            );
+        }
         return this.getSchedulersWithTargets(await schedulers);
     }
 
