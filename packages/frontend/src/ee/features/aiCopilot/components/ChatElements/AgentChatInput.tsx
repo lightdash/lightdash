@@ -12,7 +12,14 @@ import {
 } from '@tabler/icons-react';
 import Mention from '@tiptap/extension-mention';
 import { type AnyExtension, type Editor } from '@tiptap/react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type ReactNode,
+} from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { ModelSelector } from '../../../../../components/common/ModelSelector/ModelSelector';
@@ -121,6 +128,8 @@ interface AgentChatInputProps {
     // Shrinks padding/min-heights for a more compact composer.
     dense?: boolean;
     showDeepResearchBelowComposer?: boolean;
+    // Rendered below the input, right-aligned like the disabled-reason banner.
+    footerNotice?: ReactNode;
 }
 
 const extractToolHints = (editor: Editor | null): string[] => {
@@ -167,6 +176,7 @@ export const AgentChatInput = ({
     revealControlsOnFocus = false,
     dense = false,
     showDeepResearchBelowComposer = false,
+    footerNotice,
 }: AgentChatInputProps) => {
     const user = useUser(true);
     const [value, setValueState] = useState(defaultValue ?? '');
@@ -822,6 +832,10 @@ export const AgentChatInput = ({
                         {disabledReason}
                     </Text>
                 )}
+
+                {footerNotice && (
+                    <Box className={styles.footerNotice}>{footerNotice}</Box>
+                )}
             </Box>
         );
     }
@@ -912,6 +926,10 @@ export const AgentChatInput = ({
                         {disabledReason}
                     </Text>
                 </Paper>
+            )}
+
+            {footerNotice && (
+                <Box className={styles.footerNotice}>{footerNotice}</Box>
             )}
         </Box>
     );
