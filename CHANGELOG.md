@@ -1,3 +1,10 @@
+## [1.219.1](https://github.com/lightdash/lightdash/compare/1.219.0...1.219.1) (2026-08-20)
+
+
+### Bug Fixes
+
+* explain missing project branch on dbt write-back instead of "Something went wrong" ([#27761](https://github.com/lightdash/lightdash/issues/27761)) ([90a3142](https://github.com/lightdash/lightdash/commit/90a31429e52d2299af9ef48e5e00b574ae5476a5))
+
 # [1.219.0](https://github.com/lightdash/lightdash/compare/1.218.0...1.219.0) (2026-08-20)
 
 
