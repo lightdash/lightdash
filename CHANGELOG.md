@@ -1,3 +1,12 @@
+## [1.211.2](https://github.com/lightdash/lightdash/compare/1.211.1...1.211.2) (2026-08-20)
+
+
+### Bug Fixes
+
+* **devx:** stop shared MinIO expiring dev objects after 1 day ([#27662](https://github.com/lightdash/lightdash/issues/27662)) ([21d55e4](https://github.com/lightdash/lightdash/commit/21d55e4046c0c9641bfa76dc83cef0cfc19b0f81))
+* **embed:** keep defaultTimeDimensions in availableFilters response for SDK wire-compat ([#27720](https://github.com/lightdash/lightdash/issues/27720)) ([f048e3c](https://github.com/lightdash/lightdash/commit/f048e3cff3f935c595721dfc856f78c681cb120f)), closes [#27619](https://github.com/lightdash/lightdash/issues/27619) [#27718](https://github.com/lightdash/lightdash/issues/27718)
+* **embed:** skip charts with missing explores in availableFilters ([#27721](https://github.com/lightdash/lightdash/issues/27721)) ([076df03](https://github.com/lightdash/lightdash/commit/076df0306a4963332c93852345e2df5452dad1ff)), closes [#27719](https://github.com/lightdash/lightdash/issues/27719)
+
 ## [1.211.1](https://github.com/lightdash/lightdash/compare/1.211.0...1.211.1) (2026-08-20)
 
 
