@@ -23,6 +23,7 @@ export const QUERY_TOOL_NAMES: ReadonlySet<string> = new Set([
 export const WAREHOUSE_SLOW_CAP = 2;
 /** Executed-query failures of any kind: the model is looping, not converging. */
 export const WAREHOUSE_ERROR_CAP = 3;
+export const REPEATED_QUERY_ERROR_CAP = 2;
 /** Two changed query attempts after the original resource-limit failure. */
 export const DEEP_RESEARCH_RESOURCE_RECOVERY_ATTEMPTS = 2;
 /**
@@ -88,10 +89,18 @@ type QueryRetryCapDecision =
  */
 const shouldCapQueryRetries = (
     classes: QueryResultClass[],
+    hasRepeatedRuntimeError: boolean,
 ): QueryRetryCapDecision => {
     const warehouseSlow = classes.filter((c) => c === 'warehouse-slow').length;
     const warehouseErrors = classes.filter(isWarehouseFailure).length;
     const invalidInputs = classes.filter((c) => c === 'invalid-input').length;
+    if (hasRepeatedRuntimeError) {
+        return {
+            capped: true,
+            reason: 'the same query error repeated',
+            kind: 'give-up',
+        };
+    }
     if (warehouseSlow >= WAREHOUSE_SLOW_CAP) {
         return {
             capped: true,
@@ -176,6 +185,31 @@ const cleanWarehouseError = (value: string): string =>
         .trim();
 
 const MAX_ERROR_SNIPPET_CHARS = 500;
+
+const hasRepeatedRuntimeError = (results: QueryResult[]): boolean => {
+    const latestSuccessIndex = results.findLastIndex(
+        (result) => result.class === 'ok',
+    );
+    const signatures = results
+        .slice(latestSuccessIndex + 1)
+        .filter((result) => result.class === 'other')
+        .map((result) =>
+            cleanWarehouseError(result.value)
+                .replace(/\s+/g, ' ')
+                .trim()
+                .toLowerCase(),
+        )
+        .filter(Boolean);
+    const counts = signatures.reduce<Map<string, number>>(
+        (accumulator, signature) =>
+            accumulator.set(signature, (accumulator.get(signature) ?? 0) + 1),
+        new Map(),
+    );
+
+    return [...counts.values()].some(
+        (count) => count >= REPEATED_QUERY_ERROR_CAP,
+    );
+};
 
 const countActiveResourceFailureRounds = (results: QueryResult[]): number => {
     const rounds = new Map<number, QueryResult[]>();
@@ -282,7 +316,10 @@ export const buildQueryRetryStepOverride = (
                 executionMode !== 'deep_research' ||
                 !isRecoverableResourceFailure(resultClass),
         );
-    const decision = shouldCapQueryRetries(classes);
+    const decision = shouldCapQueryRetries(
+        classes,
+        executionMode === 'deep_research' && hasRepeatedRuntimeError(results),
+    );
     if (!decision.capped) return null;
 
     switch (decision.kind) {
