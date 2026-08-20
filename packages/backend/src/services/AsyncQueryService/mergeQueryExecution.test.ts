@@ -1,4 +1,5 @@
 import {
+    isMergeMetricSource,
     MergeJoinType,
     type MergeQuery,
     type MetricQuery,
@@ -68,7 +69,10 @@ describe('merge query execution', () => {
                 csvCellsLimit: 60,
             }).limit,
         ).toBe(10);
-        expect(mergeQuery.sources[0].metricQuery.limit).toBe(500);
+        const [firstSource] = mergeQuery.sources;
+        expect(
+            isMergeMetricSource(firstSource) && firstSource.metricQuery.limit,
+        ).toBe(500);
     });
 
     test('leaves structural validation to compilation', () => {

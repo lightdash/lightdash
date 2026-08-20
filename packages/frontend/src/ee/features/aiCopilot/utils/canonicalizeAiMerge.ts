@@ -1,7 +1,9 @@
 import {
     getItemId,
+    isMergeMetricSource,
     MERGE_TABLE_NAME,
     type MergeQuery,
+    type MergeQueryMetricSource,
 } from '@lightdash/common';
 import {
     DEFAULT_ADDITIONAL_SOURCE_ID,
@@ -10,7 +12,7 @@ import {
 } from '../../../../features/mergeQuery/constants';
 
 export type CanonicalAiMerge = {
-    mergeQuery: MergeQuery;
+    mergeQuery: MergeQuery & { sources: MergeQueryMetricSource[] };
     /** Merged output column ids under the AI's names to their canonical ids. */
     fieldIdByAiFieldId: Record<string, string>;
 };
@@ -30,14 +32,18 @@ export const canonicalizeAiMerge = (
     mergeQuery: MergeQuery,
 ): CanonicalAiMerge | null => {
     if (mergeQuery.sources.length !== 2) return null;
-    const [primary, additional] = mergeQuery.sources;
+    // AI merges are built from metric queries; a merge over existing results
+    // has no canonical editor form to rename into.
+    const metricSources = mergeQuery.sources.filter(isMergeMetricSource);
+    if (metricSources.length !== 2) return null;
+    const [primary, additional] = metricSources;
     const idBySourceId: Record<string, string> = {
         [primary.id]: PRIMARY_SOURCE_ID,
         [additional.id]: DEFAULT_ADDITIONAL_SOURCE_ID,
     };
 
     const fieldIdByAiFieldId: Record<string, string> = {};
-    mergeQuery.sources.forEach((source) => {
+    metricSources.forEach((source) => {
         const canonicalId = idBySourceId[source.id];
         [
             ...source.metricQuery.metrics,
@@ -66,7 +72,7 @@ export const canonicalizeAiMerge = (
 
     return {
         mergeQuery: {
-            sources: mergeQuery.sources.map((source) => ({
+            sources: metricSources.map((source) => ({
                 id: idBySourceId[source.id],
                 metricQuery: source.metricQuery,
             })),

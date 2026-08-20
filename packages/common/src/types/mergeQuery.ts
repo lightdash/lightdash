@@ -21,12 +21,59 @@ export enum MergeJoinType {
     INNER = 'inner',
 }
 
-/** One side of a merge: a metric query. */
-export type MergeQuerySource = {
+/** One side of a merge: a metric query compiled and run as part of the merge. */
+export type MergeQueryMetricSource = {
     /** Stable id. Names the CTE, and the table its merged fields belong to. */
     id: string;
     metricQuery: MetricQuery;
 };
+
+/**
+ * One side of a merge: an existing query result, referenced by queryUuid and
+ * joined as the rows it already holds — nothing re-runs. Its structure and
+ * types resolve at compile time from the stored query metadata, and the join
+ * executes on the compose engine (`requiresCompose` on the compiled merge),
+ * so a merge with a result source is refused where that engine is
+ * unavailable. Results are creator-scoped and expire; an expired reference
+ * is re-submitted as a query, not refreshed by handle.
+ */
+export type MergeQueryResultSource = {
+    /** Stable id. Names the CTE, and the table its merged fields belong to. */
+    id: string;
+    queryUuid: string;
+};
+
+export type MergeQuerySource = MergeQueryMetricSource | MergeQueryResultSource;
+
+/**
+ * A merge whose sources are all metric queries — what AI-built artifacts
+ * hold and their endpoints return. Response contracts use this so
+ * `metricQuery` stays required on every returned source, while the
+ * run/compile requests accept the wider MergeQuerySource union
+ * (expand-only: requests widen, responses do not).
+ */
+export type MetricSourcedMergeQuery = {
+    // Spelled out rather than derived with Omit: TSOA drops required
+    // markers on mapped types, which reads as a breaking response change.
+    sources: MergeQueryMetricSource[];
+    joinKey: MergeJoinKeyPart[];
+    joinType: MergeJoinType;
+    tableCalculations: MergeTableCalculation[];
+    limit: number;
+};
+
+export const isMergeResultSource = (
+    source: MergeQuerySource,
+): source is MergeQueryResultSource => 'queryUuid' in source;
+
+export const isMergeMetricSource = (
+    source: MergeQuerySource,
+): source is MergeQueryMetricSource => 'metricQuery' in source;
+
+export const isMetricSourcedMergeQuery = (
+    mergeQuery: MergeQuery,
+): mergeQuery is MetricSourcedMergeQuery =>
+    mergeQuery.sources.every(isMergeMetricSource);
 
 /**
  * One column of the join key. Sources name the same real-world key differently
@@ -202,6 +249,17 @@ export enum MergeQueryErrorKind {
      * text — the same refusal the query makes when it runs on its own.
      */
     MISSING_PARAMETERS = 'missing_parameters',
+    /**
+     * The merge references existing query results, which only the compose
+     * engine can join — there is no warehouse statement to fall back to.
+     */
+    COMPOSE_REQUIRED = 'compose_required',
+    /**
+     * A referenced query result cannot back a merge source: not found, not
+     * the caller's, not ready, or expired. The remedy is re-running the
+     * referenced query, not retrying the merge.
+     */
+    RESULT_SOURCE_UNAVAILABLE = 'result_source_unavailable',
 }
 
 export type MergeQueryError = {
@@ -233,6 +291,9 @@ export const getUnaccountedDimensions = (
     source: MergeQuerySource,
     joinKey: MergeJoinKeyPart[],
 ): FieldId[] => {
+    // A result source's structure lives in stored query metadata; the
+    // compiler resolves it and re-runs this check on the resolved form.
+    if (isMergeResultSource(source)) return [];
     const accounted = new Set([
         ...getJoinKeyFieldIdsForSource(joinKey, source.id),
     ]);
@@ -331,8 +392,12 @@ export const validateMergeQuery = (
             }
             // The join compiles against the source's own output columns, so a
             // key naming a field the source does not select produces SQL that
-            // references a column the warehouse has never heard of.
-            if (!source.metricQuery.dimensions.includes(fieldId)) {
+            // references a column the warehouse has never heard of. Result
+            // sources defer this to the compiler, which has their structure.
+            if (
+                isMergeMetricSource(source) &&
+                !source.metricQuery.dimensions.includes(fieldId)
+            ) {
                 errors.push({
                     kind: MergeQueryErrorKind.JOIN_KEY_NOT_SELECTED,
                     sourceId: source.id,
@@ -523,6 +588,12 @@ export type ApiCompiledMergeQueryResults = {
      * before anything downstream sees them.
      */
     fieldIdByColumn: Record<string, FieldId>;
+    /**
+     * The merge references existing query results, so it has no warehouse
+     * statement (`sql`/`coreSql` stay null without that being an error) and
+     * only the compose engine can run it.
+     */
+    requiresCompose: boolean;
     errors: MergeQueryError[];
 };
 

@@ -89,7 +89,7 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     LightdashUser,
-    MergeQuery,
+    MetricSourcedMergeQuery,
     NotFoundError,
     NotImplementedError,
     OpenIdIdentity,
@@ -2355,7 +2355,7 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         toolArgs: ToolRunQueryArgsTransformed,
-    ): Promise<MergeQuery> {
+    ): Promise<MetricSourcedMergeQuery> {
         const exploreByName = Object.fromEntries(
             await Promise.all(
                 buildAiMergeSourceConfigs(toolArgs).map(

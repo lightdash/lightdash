@@ -10,6 +10,7 @@ import {
     getSlackAiEchartsConfig,
     getTotalFilterRules,
     getValidAiQueryLimit,
+    isMergeMetricSource,
     isSlackPrompt,
     MERGE_TABLE_NAME,
     toolRunQueryArgsSchemaTransformed,
@@ -359,14 +360,16 @@ export const getRunQuery = ({
                                     name: part.name,
                                 }),
                         );
-                        const metricIds = mergeQuery.sources.flatMap((source) =>
-                            source.metricQuery.metrics.map((metricId) =>
-                                getItemId({
-                                    table: source.id,
-                                    name: metricId,
-                                }),
-                            ),
-                        );
+                        const metricIds = mergeQuery.sources
+                            .filter(isMergeMetricSource)
+                            .flatMap((source) =>
+                                source.metricQuery.metrics.map((metricId) =>
+                                    getItemId({
+                                        table: source.id,
+                                        name: metricId,
+                                    }),
+                                ),
+                            );
                         const selected = new Set([
                             ...dimensionIds,
                             ...metricIds,
