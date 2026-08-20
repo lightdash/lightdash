@@ -61,6 +61,8 @@ import LightdashVisualization from '../../LightdashVisualization';
 import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
 import { type EchartsSeriesClickEvent } from '../../SimpleChart';
 import SortButton from '../../SortButton';
+import ExplorerChartSidebar from '../ChartGallery/ExplorerChartSidebar';
+import { useIsChartGalleryEnabled } from '../ChartGallery/useIsChartGalleryEnabled';
 import { DevCopyChartDebugData } from '../ExplorerHeader/DevCopyChartDebugData';
 import VisualizationConfig from '../VisualizationCard/VisualizationConfig';
 import { SeriesContextMenu } from './SeriesContextMenu';
@@ -92,6 +94,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
     const dispatch = useExplorerDispatch();
     // In fullscreen the chart card header is hidden so the chart owns the viewport
     const { isFullscreen } = useFullscreen();
+    const isChartGalleryEnabled = useIsChartGalleryEnabled();
 
     // Get savedChart from Redux
     const savedChart = useExplorerSelector(selectSavedChart);
@@ -289,6 +292,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
 
     const portalTarget = useVisualizationConfigPortalTarget(
         isVisualizationConfigOpen,
+        { followHost: isChartGalleryEnabled },
     );
 
     const {
@@ -513,13 +517,27 @@ const VisualizationCard: FC<Props> = memo((props) => {
                                  */}
                                 {portalTarget &&
                                     createPortal(
-                                        <VisualizationConfig
-                                            chartType={
-                                                unsavedChartVersion.chartConfig
-                                                    .type
-                                            }
-                                            onClose={closeVisualizationConfig}
-                                        />,
+                                        isChartGalleryEnabled ? (
+                                            <ExplorerChartSidebar
+                                                chartType={
+                                                    unsavedChartVersion
+                                                        .chartConfig.type
+                                                }
+                                                onClose={
+                                                    closeVisualizationConfig
+                                                }
+                                            />
+                                        ) : (
+                                            <VisualizationConfig
+                                                chartType={
+                                                    unsavedChartVersion
+                                                        .chartConfig.type
+                                                }
+                                                onClose={
+                                                    closeVisualizationConfig
+                                                }
+                                            />
+                                        ),
                                         portalTarget,
                                     )}
 

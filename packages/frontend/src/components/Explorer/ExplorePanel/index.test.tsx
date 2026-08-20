@@ -161,13 +161,24 @@ describe('ExplorePanel chart configuration placement', () => {
         testState.enabledFlags.clear();
     });
 
-    it('swaps the fields for the config portal while configuring', () => {
+    it('keeps the legacy portal and hides fields when the gallery flag is off', () => {
         renderPanel(undefined, true);
 
         expect(
             document.getElementById('visualization-config-portal'),
         ).not.toBeNull();
         expect(screen.getByTestId('explore-tree')).not.toBeVisible();
+    });
+
+    it('keeps fields mounted and leaves the portal to the right rail when enabled', () => {
+        testState.enabledFlags.add(FeatureFlags.ExplorerChartGallery);
+
+        renderPanel(undefined, true);
+
+        expect(
+            document.getElementById('visualization-config-portal'),
+        ).toBeNull();
+        expect(screen.getByTestId('explore-tree')).toBeVisible();
     });
 });
 

@@ -57,6 +57,7 @@ import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
+import { useIsChartGalleryEnabled } from '../ChartGallery/useIsChartGalleryEnabled';
 import ExploreTree from '../ExploreTree';
 import LoadingSkeleton from '../ExploreTree/LoadingSkeleton';
 import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailProvider';
@@ -85,6 +86,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         FeatureFlags.EditYamlInUi,
     );
     const { data: mergeFlag } = useServerFeatureFlag(FeatureFlags.MergeQueries);
+    const isChartGalleryEnabled = useIsChartGalleryEnabled();
     const merge = useMergeSafe();
     const additionalSource = merge?.additionalSources[0];
     const [isChoosingMergeExplore, setIsChoosingMergeExplore] = useState(
@@ -260,13 +262,18 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
 
     return (
         <>
-            <VisualizationConfigPortal active={isVisualizationConfigOpen} />
+            {!isChartGalleryEnabled && (
+                <VisualizationConfigPortal active={isVisualizationConfigOpen} />
+            )}
 
             <Stack
                 h="100%"
                 style={{
                     flexGrow: 1,
-                    display: isVisualizationConfigOpen ? 'none' : 'flex',
+                    display:
+                        !isChartGalleryEnabled && isVisualizationConfigOpen
+                            ? 'none'
+                            : 'flex',
                 }}
             >
                 {merge?.isMerging && merge.readOnly && <MergeJoinBar />}

@@ -197,6 +197,56 @@ describe('useDataAppVizVisualizationConfig', () => {
         });
     });
 
+    it('adopts a viz switched from outside without echoing it back', () => {
+        const onConfigChange = vi.fn();
+        const { result, rerender } = renderHook(
+            ({ config }) =>
+                useDataAppVizVisualizationConfig(config, onConfigChange),
+            { initialProps: { config: initialConfig } },
+        );
+
+        act(() => result.current.setOption('viz-1', 'barColor', '#ff0000'));
+        onConfigChange.mockClear();
+
+        rerender({
+            config: {
+                dataAppVizUuid: 'viz-2',
+                fieldMapping: { value: 'orders_total' },
+                optionValues: {},
+            },
+        });
+
+        expect(result.current.dataAppVizUuid).toBe('viz-2');
+        expect(result.current.fieldMapping).toEqual({ value: 'orders_total' });
+        expect(result.current.optionValues).toEqual({});
+        expect(onConfigChange).not.toHaveBeenCalled();
+
+        act(() => result.current.setOption('viz-2', 'barColor', '#00ff00'));
+
+        expect(onConfigChange).toHaveBeenCalledWith({
+            dataAppVizUuid: 'viz-2',
+            fieldMapping: { value: 'orders_total' },
+            optionValues: { barColor: '#00ff00' },
+        });
+    });
+
+    it('keeps local edits when the same viz is echoed back', () => {
+        const onConfigChange = vi.fn();
+        const { result, rerender } = renderHook(
+            ({ config }) =>
+                useDataAppVizVisualizationConfig(config, onConfigChange),
+            { initialProps: { config: initialConfig } },
+        );
+
+        act(() => result.current.setOption('viz-1', 'barColor', '#ff0000'));
+        rerender({ config: { ...initialConfig } });
+
+        expect(result.current.optionValues).toEqual({
+            showLegend: false,
+            barColor: '#ff0000',
+        });
+    });
+
     it('round-trips the emitted config back into a fresh hook', () => {
         const onConfigChange = vi.fn();
         const { result } = renderHook(() =>

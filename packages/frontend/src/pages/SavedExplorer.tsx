@@ -5,6 +5,7 @@ import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import Explorer from '../components/Explorer';
+import { useChartGalleryRightSidebar } from '../components/Explorer/ChartGallery/useChartGalleryRightSidebar';
 import LoadingSkeleton from '../components/Explorer/ExploreTree/LoadingSkeleton';
 import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
 import {
@@ -26,6 +27,9 @@ const LazyExplorePanel = lazy(
 const SavedExplorerContent = memo(() => {
     const { mode } = useParams<{ mode?: string }>();
     const isEditMode = mode === 'edit';
+    const rightSidebarProps = useChartGalleryRightSidebar({
+        enabled: isEditMode,
+    });
 
     // Run the query effects hook - orchestrates all query effects
     useExplorerQueryEffects();
@@ -40,6 +44,7 @@ const SavedExplorerContent = memo(() => {
                 </Suspense>
             }
             isSidebarOpen={isEditMode}
+            {...rightSidebarProps}
             withFullHeight
             withPaddedContent
         >
