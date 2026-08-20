@@ -25593,7 +25593,7 @@
                     }
                 ]
             },
-            "MergeQuerySource": {
+            "MergeQueryMetricSource": {
                 "properties": {
                     "metricQuery": {
                         "$ref": "#/components/schemas/MetricQuery"
@@ -25605,9 +25605,9 @@
                 },
                 "required": ["metricQuery", "id"],
                 "type": "object",
-                "description": "One side of a merge: a metric query."
+                "description": "One side of a merge: a metric query compiled and run as part of the merge."
             },
-            "MergeQuery": {
+            "MetricSourcedMergeQuery": {
                 "properties": {
                     "limit": {
                         "type": "number",
@@ -25617,8 +25617,7 @@
                         "items": {
                             "$ref": "#/components/schemas/MergeTableCalculation"
                         },
-                        "type": "array",
-                        "description": "Calculations over the merged result. Applied last, after any pivot."
+                        "type": "array"
                     },
                     "joinType": {
                         "$ref": "#/components/schemas/MergeJoinType"
@@ -25631,7 +25630,7 @@
                     },
                     "sources": {
                         "items": {
-                            "$ref": "#/components/schemas/MergeQuerySource"
+                            "$ref": "#/components/schemas/MergeQueryMetricSource"
                         },
                         "type": "array"
                     }
@@ -25643,7 +25642,8 @@
                     "joinKey",
                     "sources"
                 ],
-                "type": "object"
+                "type": "object",
+                "description": "A merge whose sources are all metric queries — what AI-built artifacts\nhold and their endpoints return. Response contracts use this so\n`metricQuery` stays required on every returned source, while the\nrun/compile requests accept the wider MergeQuerySource union\n(expand-only: requests widen, responses do not)."
             },
             "AiVizMetadata": {
                 "properties": {
@@ -25667,7 +25667,7 @@
                     "mergeQuery": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/MergeQuery"
+                                "$ref": "#/components/schemas/MetricSourcedMergeQuery"
                             }
                         ],
                         "nullable": true,
@@ -43254,7 +43254,9 @@
                     "duplicate_calculation_name",
                     "unresolved_calculation_reference",
                     "unresolved_column_type",
-                    "missing_parameters"
+                    "missing_parameters",
+                    "compose_required",
+                    "result_source_unavailable"
                 ],
                 "type": "string"
             },
@@ -43288,6 +43290,10 @@
                             "$ref": "#/components/schemas/MergeQueryError"
                         },
                         "type": "array"
+                    },
+                    "requiresCompose": {
+                        "type": "boolean",
+                        "description": "The merge references existing query results, so it has no warehouse\nstatement (`sql`/`coreSql` stay null without that being an error) and\nonly the compose engine can run it."
                     },
                     "fieldIdByColumn": {
                         "$ref": "#/components/schemas/Record_string.FieldId_",
@@ -43356,6 +43362,7 @@
                 },
                 "required": [
                     "errors",
+                    "requiresCompose",
                     "fieldIdByColumn",
                     "usedParametersValues",
                     "parameterReferences",
@@ -43370,6 +43377,68 @@
                 ],
                 "type": "object",
                 "description": "What the compile endpoint returns. `sql` is null exactly when `errors` is\nnon-empty: a merge that would produce wrong numbers is reported, not run."
+            },
+            "MergeQueryResultSource": {
+                "properties": {
+                    "queryUuid": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string",
+                        "description": "Stable id. Names the CTE, and the table its merged fields belong to."
+                    }
+                },
+                "required": ["queryUuid", "id"],
+                "type": "object",
+                "description": "One side of a merge: an existing query result, referenced by queryUuid and\njoined as the rows it already holds — nothing re-runs. Its structure and\ntypes resolve at compile time from the stored query metadata, and the join\nexecutes on the compose engine (`requiresCompose` on the compiled merge),\nso a merge with a result source is refused where that engine is\nunavailable. Results are creator-scoped and expire; an expired reference\nis re-submitted as a query, not refreshed by handle."
+            },
+            "MergeQuerySource": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/MergeQueryMetricSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/MergeQueryResultSource"
+                    }
+                ]
+            },
+            "MergeQuery": {
+                "properties": {
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeTableCalculation"
+                        },
+                        "type": "array",
+                        "description": "Calculations over the merged result. Applied last, after any pivot."
+                    },
+                    "joinType": {
+                        "$ref": "#/components/schemas/MergeJoinType"
+                    },
+                    "joinKey": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeJoinKeyPart"
+                        },
+                        "type": "array"
+                    },
+                    "sources": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeQuerySource"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "limit",
+                    "tableCalculations",
+                    "joinType",
+                    "joinKey",
+                    "sources"
+                ],
+                "type": "object"
             },
             "CompileMergeQueryRequest": {
                 "properties": {
@@ -51773,7 +51842,8 @@
                                 "$ref": "#/components/schemas/PivotConfiguration"
                             },
                             "mergeQuery": {
-                                "$ref": "#/components/schemas/MergeQuery"
+                                "$ref": "#/components/schemas/MetricSourcedMergeQuery",
+                                "description": "Warehouse-side merges are metric-sourced by construction, so this\nmember keeps the strict shape it always had; merges that reference\nexisting results record as ExecuteAsyncComposeMergeQueryRequestParams\ninstead (expand-only: the echo in query history only gains branches)."
                             }
                         },
                         "required": ["mergeQuery"],
@@ -51781,6 +51851,26 @@
                     }
                 ],
                 "description": "A merge run: the spec that produced it, recorded verbatim."
+            },
+            "ExecuteAsyncComposeMergeQueryRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "pivotConfiguration": {
+                                "$ref": "#/components/schemas/PivotConfiguration"
+                            },
+                            "mergeQuery": {
+                                "$ref": "#/components/schemas/MergeQuery"
+                            }
+                        },
+                        "required": ["mergeQuery"],
+                        "type": "object"
+                    }
+                ],
+                "description": "A compose-engine merge run, which may reference existing results."
             },
             "ExecuteAsyncSqlQueryRequestParams": {
                 "allOf": [
@@ -52075,6 +52165,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/ExecuteAsyncMergeQueryRequestParams"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ExecuteAsyncComposeMergeQueryRequestParams"
                     },
                     {
                         "$ref": "#/components/schemas/ExecuteAsyncSqlQueryRequestParams"
@@ -52887,7 +52980,8 @@
                         "$ref": "#/components/schemas/QueryExecutionContext"
                     },
                     "mergeQuery": {
-                        "$ref": "#/components/schemas/MergeQuery"
+                        "$ref": "#/components/schemas/MetricSourcedMergeQuery",
+                        "description": "Warehouse-side merges are metric-sourced by construction, so this\nmember keeps the strict shape it always had; merges that reference\nexisting results record as ExecuteAsyncComposeMergeQueryRequestParams\ninstead (expand-only: the echo in query history only gains branches)."
                     }
                 },
                 "required": ["mergeQuery"],
@@ -52976,6 +53070,31 @@
                     }
                 ],
                 "description": "One-call merge execution request. Derived pivot SQL remains server-owned."
+            },
+            "ApiExecuteAsyncComposeMergeQueryRequest": {
+                "properties": {
+                    "chart": {
+                        "$ref": "#/components/schemas/MergeQueryChart"
+                    },
+                    "mode": {
+                        "$ref": "#/components/schemas/MergeQueryExecutionMode"
+                    },
+                    "mergeQuery": {
+                        "$ref": "#/components/schemas/MergeQuery"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "invalidateCache": {
+                        "type": "boolean"
+                    },
+                    "context": {
+                        "$ref": "#/components/schemas/QueryExecutionContext"
+                    }
+                },
+                "required": ["mergeQuery"],
+                "type": "object",
+                "description": "Merge execution request for the compose endpoint, which accepts the full\nMergeQuerySource union (including references to existing query results).\nA separate endpoint keeps the original merge-query contract untouched for\nexisting clients while compose-only capabilities evolve on their own path."
             },
             "ApiExecuteAsyncFieldValueSearchResults": {
                 "properties": {
@@ -55257,7 +55376,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.209.0",
+        "version": "1.210.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -88229,6 +88348,57 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ApiExecuteAsyncMergeQueryRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/compose-merge-query": {
+            "post": {
+                "operationId": "executeAsyncComposeMergeQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_ApiExecuteAsyncMergeQueryResults_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Validates and executes a merge on the compose engine as one asynchronous query request. Unlike Execute merge query, sources may reference existing query results by queryUuid; each referenced query is authorized with the same access checks as fetching its results. Requires the merge-on-compose feature flag.",
+                "summary": "Execute compose merge query",
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiExecuteAsyncComposeMergeQueryRequest"
                             }
                         }
                     }

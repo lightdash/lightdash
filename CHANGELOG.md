@@ -1,3 +1,10 @@
+# [1.210.0](https://github.com/lightdash/lightdash/compare/1.209.0...1.210.0) (2026-08-20)
+
+
+### Features
+
+* **merge-queries:** merge existing query results by queryUuid ([#27701](https://github.com/lightdash/lightdash/issues/27701)) ([70bb20e](https://github.com/lightdash/lightdash/commit/70bb20e38988c8252a02afb45658fb27ac8ed7f0))
+
 # [1.209.0](https://github.com/lightdash/lightdash/compare/1.208.0...1.209.0) (2026-08-19)
 
 

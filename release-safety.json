@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "1.209.0",
-  "previousVersion": "1.208.0",
-  "releaseDate": "2026-08-19T23:47:12.430Z",
+  "version": "1.210.0",
+  "previousVersion": "1.209.0",
+  "releaseDate": "2026-08-20T00:32:22.018Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -20,8 +20,17 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [],
-      "advisoryCount": 0
+      "advisories": [
+        "POST /api/v1/projects/{projectUuid}/mergeQuery/compile — removed the request property `mergeQuery/sources/items/id`",
+        "POST /api/v1/projects/{projectUuid}/mergeQuery/compile — removed the request property `mergeQuery/sources/items/metricQuery`",
+        "POST /api/v1/projects/{projectUuid}/mergeQuery/compile — added the new `compose_required` enum value to the `results/errors/items/kind` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/mergeQuery/compile — added the new `result_source_unavailable` enum value to the `results/errors/items/kind` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/mergeQuery/run — removed the request property `mergeQuery/sources/items/id`",
+        "POST /api/v1/projects/{projectUuid}/mergeQuery/run — removed the request property `mergeQuery/sources/items/metricQuery`",
+        "POST /api/v2/projects/{projectUuid}/query/merge-query — added the new `compose_required` enum value to the `results/anyOf[subschema #2]/allOf[subschema #2]/errors/items/kind` response property for the response status `200`",
+        "POST /api/v2/projects/{projectUuid}/query/merge-query — added the new `result_source_unavailable` enum value to the `results/anyOf[subschema #2]/allOf[subschema #2]/errors/items/kind` response property for the response status `200`"
+      ],
+      "advisoryCount": 8
     },
     "mcp": {
       "checked": true,

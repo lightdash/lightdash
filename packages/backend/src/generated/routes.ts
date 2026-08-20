@@ -25101,7 +25101,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    MergeQuerySource: {
+    MergeQueryMetricSource: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -25113,7 +25113,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    MergeQuery: {
+    MetricSourcedMergeQuery: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -25135,7 +25135,10 @@ const models: TsoaRoute.Models = {
                 },
                 sources: {
                     dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'MergeQuerySource' },
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'MergeQueryMetricSource',
+                    },
                     required: true,
                 },
             },
@@ -25178,7 +25181,7 @@ const models: TsoaRoute.Models = {
                 mergeQuery: {
                     dataType: 'union',
                     subSchemas: [
-                        { ref: 'MergeQuery' },
+                        { ref: 'MetricSourcedMergeQuery' },
                         { dataType: 'enum', enums: [null] },
                     ],
                     required: true,
@@ -42940,6 +42943,8 @@ const models: TsoaRoute.Models = {
             'unresolved_calculation_reference',
             'unresolved_column_type',
             'missing_parameters',
+            'compose_required',
+            'result_source_unavailable',
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -42978,6 +42983,7 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'refAlias', ref: 'MergeQueryError' },
                     required: true,
                 },
+                requiresCompose: { dataType: 'boolean', required: true },
                 fieldIdByColumn: {
                     ref: 'Record_string.FieldId_',
                     required: true,
@@ -43042,6 +43048,60 @@ const models: TsoaRoute.Models = {
                         { dataType: 'string' },
                         { dataType: 'enum', enums: [null] },
                     ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MergeQueryResultSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                queryUuid: { dataType: 'string', required: true },
+                id: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MergeQuerySource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'MergeQueryMetricSource' },
+                { ref: 'MergeQueryResultSource' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MergeQuery: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                limit: { dataType: 'double', required: true },
+                tableCalculations: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'MergeTableCalculation',
+                    },
+                    required: true,
+                },
+                joinType: { ref: 'MergeJoinType', required: true },
+                joinKey: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'MergeJoinKeyPart' },
+                    required: true,
+                },
+                sources: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'MergeQuerySource' },
                     required: true,
                 },
             },
@@ -51570,6 +51630,27 @@ const models: TsoaRoute.Models = {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
                         pivotConfiguration: { ref: 'PivotConfiguration' },
+                        mergeQuery: {
+                            ref: 'MetricSourcedMergeQuery',
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExecuteAsyncComposeMergeQueryRequestParams: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'CommonExecuteQueryRequestParams' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        pivotConfiguration: { ref: 'PivotConfiguration' },
                         mergeQuery: { ref: 'MergeQuery', required: true },
                     },
                 },
@@ -51830,6 +51911,7 @@ const models: TsoaRoute.Models = {
             subSchemas: [
                 { ref: 'ExecuteAsyncMetricQueryRequestParams' },
                 { ref: 'ExecuteAsyncMergeQueryRequestParams' },
+                { ref: 'ExecuteAsyncComposeMergeQueryRequestParams' },
                 { ref: 'ExecuteAsyncSqlQueryRequestParams' },
                 { ref: 'ExecuteAsyncComposeSqlQueryRequestParams' },
                 { ref: 'ExecuteAsyncSavedChartRequestParams' },
@@ -52696,7 +52778,10 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
-                    mergeQuery: { ref: 'MergeQuery', required: true },
+                    mergeQuery: {
+                        ref: 'MetricSourcedMergeQuery',
+                        required: true,
+                    },
                 },
                 validators: {},
             },
@@ -52790,6 +52875,22 @@ const models: TsoaRoute.Models = {
                     },
                 },
             ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiExecuteAsyncComposeMergeQueryRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                chart: { ref: 'MergeQueryChart' },
+                mode: { ref: 'MergeQueryExecutionMode' },
+                mergeQuery: { ref: 'MergeQuery', required: true },
+                parameters: { ref: 'ParametersValuesMap' },
+                invalidateCache: { dataType: 'boolean' },
+                context: { ref: 'QueryExecutionContext' },
+            },
             validators: {},
         },
     },
@@ -103491,6 +103592,71 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'executeAsyncMergeQuery',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsQueryController_executeAsyncComposeMergeQuery: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'ApiExecuteAsyncComposeMergeQueryRequest',
+        },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.post(
+        '/api/v2/projects/:projectUuid/query/compose-merge-query',
+        ...fetchMiddlewares<RequestHandler>(QueryController),
+        ...fetchMiddlewares<RequestHandler>(
+            QueryController.prototype.executeAsyncComposeMergeQuery,
+        ),
+
+        async function QueryController_executeAsyncComposeMergeQuery(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsQueryController_executeAsyncComposeMergeQuery,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<QueryController>(QueryController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'executeAsyncComposeMergeQuery',
                     controller,
                     response,
                     next,
