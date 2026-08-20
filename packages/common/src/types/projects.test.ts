@@ -279,10 +279,11 @@ describe('mergeWarehouseCredentials', () => {
 });
 
 describe('latest dbt version', () => {
-    test('`latest` resolves to LATEST_SUPPORTED_DBT_VERSION', () => {
-        expect(getLatestSupportDbtVersion()).toBe(LATEST_SUPPORTED_DBT_VERSION);
+    test('`latest` resolves to dbt 1.12', () => {
+        expect(LATEST_SUPPORTED_DBT_VERSION).toBe(SupportedDbtVersions.V1_12);
+        expect(getLatestSupportDbtVersion()).toBe(SupportedDbtVersions.V1_12);
         expect(resolveDbtVersion(DbtVersionOptionLatest.LATEST)).toBe(
-            LATEST_SUPPORTED_DBT_VERSION,
+            SupportedDbtVersions.V1_12,
         );
     });
 
@@ -296,12 +297,12 @@ describe('latest dbt version', () => {
         expect(missing).toEqual([]);
     });
 
-    test('records dbt 1.12 as missing databricks support', () => {
+    test('records dbt 1.12 databricks support', () => {
         expect(
             isWarehouseSupportedByDbtVersion(
                 SupportedDbtVersions.V1_12,
                 WarehouseTypes.DATABRICKS,
             ),
-        ).toBe(false);
+        ).toBe(true);
     });
 });

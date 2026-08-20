@@ -41,7 +41,7 @@ async function createProject(
                 type: 'dbt',
                 project_dir: process.env.DBT_PROJECT_DIR,
             },
-            dbtVersion: 'v1.11',
+            dbtVersion: 'v1.12',
             warehouseConnection: warehouseConfig,
         },
     );
