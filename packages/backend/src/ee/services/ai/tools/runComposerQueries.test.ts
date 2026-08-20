@@ -55,6 +55,16 @@ const duckdbNode: ComposerNode = {
     limit: 500,
 };
 
+const externalNode: ComposerNode = {
+    sourceType: QuerySourceType.EXTERNAL,
+    nodeId: 'targets',
+    sql: 'SELECT region, target FROM targets',
+    tables: {
+        targets: '2b7cd26e-1b5a-4aaf-9955-e25c381c501f',
+    },
+    limit: 500,
+};
+
 const makeArgs = (
     overrides: Partial<ToolComposerQueriesArgs> = {},
 ): ToolComposerQueriesArgs => ({
@@ -242,6 +252,56 @@ describe('getRunComposerQueries', () => {
 
         expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
         expect(dependencies.recordSqlApproval).not.toHaveBeenCalled();
+        expect(output.metadata?.status).toBe('success');
+    });
+
+    it('passes attached external tables through without SQL approval', async () => {
+        const { tool, dependencies } = makeTool();
+
+        const output = await executeTool(
+            tool,
+            makeArgs({ queries: [externalNode] }),
+        );
+
+        expect(dependencies.runComposerQueries).toHaveBeenCalledWith({
+            queries: [
+                {
+                    ...externalNode,
+                    tables: {
+                        targets: '2b7cd26e-1b5a-4aaf-9955-e25c381c501f',
+                    },
+                },
+            ],
+            terminalNodeId: 'targets',
+        });
+        expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
+        expect(output.metadata?.status).toBe('success');
+    });
+
+    it('composes semantic layer results with an attached external table', async () => {
+        const { tool, dependencies } = makeTool();
+        const composedNode: ComposerNode = {
+            ...duckdbNode,
+            sql: 'SELECT revenue.*, targets.target FROM revenue JOIN targets USING (region)',
+            references: ['revenue', 'targets'],
+        };
+
+        const output = await executeTool(
+            tool,
+            makeArgs({
+                queries: [semanticNode, externalNode, composedNode],
+            }),
+        );
+
+        expect(dependencies.runComposerQueries).toHaveBeenCalledWith({
+            queries: [
+                { ...semanticNode, filters: undefined, sorts: undefined },
+                externalNode,
+                composedNode,
+            ],
+            terminalNodeId: 'joined',
+        });
+        expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
         expect(output.metadata?.status).toBe('success');
     });
 
