@@ -172,6 +172,26 @@ const convertFilterAutocomplete = (
             ...(filterAutocomplete.label_dimension
                 ? { labelDimension: filterAutocomplete.label_dimension }
                 : {}),
+            ...(filterAutocomplete.options_from_dimension
+                ? {
+                      optionsFromDimension: {
+                          model: filterAutocomplete.options_from_dimension
+                              .model,
+                          dimension:
+                              filterAutocomplete.options_from_dimension
+                                  .dimension,
+                          ...(filterAutocomplete.options_from_dimension
+                              .label_dimension
+                              ? {
+                                    labelDimension:
+                                        filterAutocomplete
+                                            .options_from_dimension
+                                            .label_dimension,
+                                }
+                              : {}),
+                      },
+                  }
+                : {}),
         },
         warnings,
     };

@@ -63,6 +63,32 @@ const exploreWithFilterAutocomplete = (
     },
 });
 
+const lookupExplore: Explore = {
+    ...validExplore,
+    name: 'lookup',
+    baseTable: 'lookup',
+    joinedTables: [],
+    tables: {
+        lookup: {
+            ...validExplore.tables.a,
+            name: 'lookup',
+            dimensions: {
+                code: {
+                    ...validExplore.tables.a.dimensions.dim1,
+                    name: 'code',
+                    table: 'lookup',
+                },
+                name: {
+                    ...validExplore.tables.a.dimensions.dim1,
+                    name: 'name',
+                    table: 'lookup',
+                },
+            },
+            metrics: {},
+        },
+    },
+};
+
 const mockExploreResolver = {
     findExploreByTableName: vi.fn(),
     findJoinAliasExplore: vi.fn(),
@@ -207,6 +233,58 @@ describe('getFieldValuesMetricQuery', () => {
         const filterRules = dims && 'and' in dims ? dims.and : [];
         // 2 autocomplete filters + 1 compatible filter (nonexistent_field is excluded)
         expect(filterRules).toHaveLength(3);
+    });
+
+    test('fetches values from the configured dimension and ignores cascading filters', async () => {
+        const sourceExplore = exploreWithFilterAutocomplete({
+            fetchFromWarehouse: true,
+            optionsFromDimension: {
+                model: 'lookup',
+                dimension: 'code',
+                labelDimension: 'name',
+            },
+        });
+        mockExploreResolver.findExploreByTableName.mockImplementation(
+            async (_projectUuid: string, table: string) =>
+                table === 'lookup' ? lookupExplore : sourceExplore,
+        );
+
+        const result = await getFieldValuesMetricQuery({
+            projectUuid: 'project-uuid',
+            table: 'a',
+            initialFieldId: 'a_dim1',
+            search: 'AA',
+            limit: 10,
+            maxLimit: 5000,
+            filters: {
+                id: 'filter-group',
+                and: [
+                    {
+                        id: 'cascading-filter',
+                        operator: FilterOperator.EQUALS,
+                        values: ['foo'],
+                        target: { fieldId: 'a_dim1' },
+                    },
+                ],
+            },
+            exploreResolver: mockExploreResolver,
+        });
+
+        expect(result.explore).toBe(lookupExplore);
+        expect(result.fieldId).toBe('lookup_code');
+        expect(result.labelFieldId).toBe('lookup_name');
+        expect(result.metricQuery).toMatchObject({
+            exploreName: 'lookup',
+            dimensions: ['lookup_code', 'lookup_name'],
+            sorts: [{ fieldId: 'lookup_name', descending: false }],
+        });
+        const dimensions = result.metricQuery.filters?.dimensions;
+        const filterRules =
+            dimensions && 'and' in dimensions ? dimensions.and : [];
+        expect(filterRules).toHaveLength(2);
+        expect(filterRules).not.toContainEqual(
+            expect.objectContaining({ id: 'cascading-filter' }),
+        );
     });
 
     test('falls back to join alias explore when table not found', async () => {

@@ -78,7 +78,11 @@ export const useFieldsWithSuggestions = ({
                         // the warehouse; harvesting raw result values masks the labels.
                         const hasLabelDimension =
                             isDimension(field) &&
-                            !!field.filterAutocomplete?.labelDimension;
+                            !!(
+                                field.filterAutocomplete?.labelDimension ??
+                                field.filterAutocomplete?.optionsFromDimension
+                                    ?.labelDimension
+                            );
                         if (
                             type === DimensionType.STRING &&
                             !hasLabelDimension

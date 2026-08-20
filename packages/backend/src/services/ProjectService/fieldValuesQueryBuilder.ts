@@ -103,20 +103,58 @@ export async function getFieldValuesMetricQuery({
         throw new NotFoundError(`Explore ${table} has errors`);
     }
 
-    const field = findFieldByIdInExplore(explore, fieldId);
+    const initialField = findFieldByIdInExplore(explore, fieldId);
 
-    if (!field) {
+    if (!initialField) {
         throw new NotFoundError(`Can't dimension with id: ${fieldId}`);
     }
 
-    if (!isDimension(field)) {
+    if (!isDimension(initialField)) {
         throw new ParameterError(
-            `Searching by field is only available for dimensions, but ${fieldId} is a ${field.type}`,
+            `Searching by field is only available for dimensions, but ${fieldId} is a ${initialField.type}`,
         );
     }
 
+    const optionsFromDimension =
+        initialField.filterAutocomplete?.optionsFromDimension;
+    let field = initialField;
+    if (optionsFromDimension) {
+        const sourceExplore = await exploreResolver.findExploreByTableName(
+            projectUuid,
+            optionsFromDimension.model,
+        );
+        if (!sourceExplore) {
+            throw new NotFoundError(
+                `Explore ${optionsFromDimension.model} does not exist`,
+            );
+        }
+        if (isExploreError(sourceExplore)) {
+            throw new NotFoundError(
+                `Explore ${optionsFromDimension.model} has errors`,
+            );
+        }
+
+        explore = sourceExplore;
+        fieldId = getItemId({
+            table: optionsFromDimension.model,
+            name: optionsFromDimension.dimension,
+        });
+        const sourceField = findFieldByIdInExplore(explore, fieldId);
+        if (!sourceField) {
+            throw new NotFoundError(`Can't dimension with id: ${fieldId}`);
+        }
+        if (!isDimension(sourceField)) {
+            throw new ParameterError(
+                `Searching by field is only available for dimensions, but ${fieldId} is a ${sourceField.type}`,
+            );
+        }
+        field = sourceField;
+    }
+
     let labelFieldId: string | null = null;
-    const labelDimension = field.filterAutocomplete?.labelDimension;
+    const labelDimension = optionsFromDimension
+        ? optionsFromDimension.labelDimension
+        : initialField.filterAutocomplete?.labelDimension;
     if (labelDimension) {
         const candidateLabelFieldId = getItemId({
             table: field.table,
@@ -181,7 +219,7 @@ export async function getFieldValuesMetricQuery({
             values: [],
         },
     ];
-    if (filters) {
+    if (filters && !optionsFromDimension) {
         if (!Array.isArray(filters.and)) {
             throw new ParameterError(
                 'Filters must include an "and" array of filter rules',
@@ -220,7 +258,7 @@ export async function getFieldValuesMetricQuery({
         limit: parsedLimit,
     };
 
-    const { filterAutocomplete } = field;
+    const { filterAutocomplete } = initialField;
     const staticResults =
         filterAutocomplete && !filterAutocomplete.fetchFromWarehouse
             ? searchFilterAutocompleteValues(

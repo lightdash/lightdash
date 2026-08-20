@@ -707,6 +707,11 @@ export type FilterAutocompleteConfig = {
     values?: FilterAutocompleteValue[];
     fetchFromWarehouse: boolean;
     labelDimension?: string;
+    optionsFromDimension?: {
+        model: string;
+        dimension: string;
+        labelDimension?: string;
+    };
 };
 
 /**
