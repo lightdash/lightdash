@@ -1,3 +1,10 @@
+## [1.217.1](https://github.com/lightdash/lightdash/compare/1.217.0...1.217.1) (2026-08-20)
+
+
+### Bug Fixes
+
+* **ai:** stop repeated Deep Research query errors ([#27748](https://github.com/lightdash/lightdash/issues/27748)) ([f2b62d3](https://github.com/lightdash/lightdash/commit/f2b62d38cac444bfa590ff0ef62229225151911d)), closes [#27747](https://github.com/lightdash/lightdash/issues/27747)
+
 # [1.217.0](https://github.com/lightdash/lightdash/compare/1.216.1...1.217.0) (2026-08-20)
 
 
