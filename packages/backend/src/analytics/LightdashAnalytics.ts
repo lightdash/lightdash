@@ -37,6 +37,7 @@ import {
     type AiAgentReviewItemWritebackStrategy,
     type AiAgentRootCause,
     type AiDeepResearchEntryPoint,
+    type AiDeepResearchFailureStage,
     type AiDeepResearchTerminalReason,
     type AiDeepResearchTerminalStatus,
     type AiRouterDecisionConfidence,
@@ -2222,6 +2223,7 @@ export type AiDeepResearchRunCompletedEvent = BaseTrack & {
             | 'empty_failure'
             | 'cancelled';
         terminalReason: AiDeepResearchTerminalReason | null;
+        failureStage: AiDeepResearchFailureStage | null;
         durationMs: number | null;
         inputTokens: number | null;
         outputTokens: number | null;

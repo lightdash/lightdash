@@ -10,6 +10,7 @@ import {
     type AiDeepResearchEventPayloadMap,
     type AiDeepResearchEventType,
     type AiDeepResearchExecutionContextSnapshot,
+    type AiDeepResearchFailureStage,
     type AiDeepResearchProgress,
     type AiDeepResearchReportAdjustment,
     type AiDeepResearchRunStatus,
@@ -732,6 +733,7 @@ export class AiDeepResearchRunModel {
         status: 'completed' | 'partially_completed',
         resultMarkdown: string,
         terminalReason: AiDeepResearchTerminalReason | null,
+        failureStage: AiDeepResearchFailureStage | null,
         adjustments?: AiDeepResearchReportAdjustment,
     ): Promise<boolean> {
         return this.database.transaction(async (transaction) => {
@@ -760,6 +762,7 @@ export class AiDeepResearchRunModel {
                 .update({
                     status,
                     terminal_reason: terminalReason,
+                    failure_stage: failureStage,
                     result_markdown: resultMarkdown,
                     report_expires_at: transaction.raw(
                         "now() + (? * interval '1 day')",
@@ -817,6 +820,7 @@ export class AiDeepResearchRunModel {
             'completed',
             resultMarkdown,
             null,
+            null,
             adjustments,
         );
     }
@@ -842,6 +846,7 @@ export class AiDeepResearchRunModel {
         aiDeepResearchRunUuid: string,
         resultMarkdown: string,
         terminalReason: AiDeepResearchTerminalReason,
+        failureStage: AiDeepResearchFailureStage,
         adjustments?: AiDeepResearchReportAdjustment,
     ): Promise<boolean> {
         return this.markWithReport(
@@ -849,6 +854,7 @@ export class AiDeepResearchRunModel {
             'partially_completed',
             resultMarkdown,
             terminalReason,
+            failureStage,
             adjustments,
         );
     }
@@ -857,6 +863,7 @@ export class AiDeepResearchRunModel {
         aiDeepResearchRunUuid: string,
         errorMessage: string,
         terminalReason: AiDeepResearchTerminalReason,
+        failureStage: AiDeepResearchFailureStage,
     ): Promise<boolean> {
         return this.database.transaction(async (transaction) => {
             const currentRun = await transaction<AiDeepResearchRunsTable>(
@@ -882,6 +889,7 @@ export class AiDeepResearchRunModel {
                 .update({
                     status: 'failed',
                     terminal_reason: terminalReason,
+                    failure_stage: failureStage,
                     ...metrics,
                     duration_ms:
                         AiDeepResearchRunModel.getDurationMs(transaction),
@@ -913,6 +921,7 @@ export class AiDeepResearchRunModel {
 
     async markCancelled(
         aiDeepResearchRunUuid: string,
+        failureStage: AiDeepResearchFailureStage,
         terminalReason: AiDeepResearchTerminalReason = 'user_cancellation',
     ): Promise<boolean> {
         return this.database.transaction(async (transaction) => {
@@ -941,6 +950,7 @@ export class AiDeepResearchRunModel {
                 .update({
                     status: 'cancelled',
                     terminal_reason: terminalReason,
+                    failure_stage: failureStage,
                     result_markdown: null,
                     ...metrics,
                     duration_ms:
@@ -984,6 +994,7 @@ export class AiDeepResearchRunModel {
                 .update({
                     status: 'cancelled',
                     terminal_reason: 'user_cancellation',
+                    failure_stage: 'enqueue',
                     cancellation_requested_at: now,
                     completed_at: now,
                     updated_at: now,
@@ -1144,6 +1155,7 @@ export class AiDeepResearchRunModel {
                     terminal_reason: transaction.raw(
                         "case when cancellation_requested_at is not null then 'user_cancellation' else 'internal_error' end",
                     ) as unknown as DbAiDeepResearchRun['terminal_reason'],
+                    failure_stage: 'recovery',
                     result_markdown: transaction.raw(
                         'case when cancellation_requested_at is not null then null else result_markdown end',
                     ) as unknown as string | null,
