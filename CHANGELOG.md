@@ -1,3 +1,15 @@
+# [1.220.0](https://github.com/lightdash/lightdash/compare/1.219.1...1.220.0) (2026-08-20)
+
+
+### Bug Fixes
+
+* **previews:** install dbt 1.12 ([#27734](https://github.com/lightdash/lightdash/issues/27734)) ([01d4369](https://github.com/lightdash/lightdash/commit/01d4369dddb6debf3c6d1fa1a21bf44577a62f4a))
+
+
+### Features
+
+* **filters:** fetch autocomplete options from another dimension ([#27744](https://github.com/lightdash/lightdash/issues/27744)) ([3015306](https://github.com/lightdash/lightdash/commit/3015306a5a95ec0c82565f275975d7b417f31cb6))
+
 ## [1.219.1](https://github.com/lightdash/lightdash/compare/1.219.0...1.219.1) (2026-08-20)
 
 

@@ -12980,6 +12980,14 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                optionsFromDimension: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        labelDimension: { dataType: 'string' },
+                        dimension: { dataType: 'string', required: true },
+                        model: { dataType: 'string', required: true },
+                    },
+                },
                 labelDimension: { dataType: 'string' },
                 fetchFromWarehouse: { dataType: 'boolean', required: true },
                 values: {
