@@ -9,6 +9,52 @@ The standard table format already exists and is universal: every query path retu
 `ResultColumns` (`Record<string, {reference, type}>`) + rows, addressed by a `queryUuid`
 (`query_history` row → S3 results file).
 
+## Status (2026-08-20)
+
+Shipped on `claude/composer-queries-agent-plan-oyckgn` (PR #27792; plan doc:
+[composer-queries-agent-plan.md](composer-queries-agent-plan.md)):
+
+- **Agent chat surface** — done (v0): the `runComposerQueries` agent tool wraps
+  `QuerySourceService.executeSourceQueries` behind the `multi-source-query` flag (standard web
+  chat only — not Slack, not deep research). `sql` nodes go through the per-thread human approval
+  gate and inherit the agent SQL scope via the AI execution context; semanticLayer/duckdb-only
+  pipelines need no approval. Results return to the model as the terminal `ResultColumns` + CSV
+  preview plus per-node queryUuids, and any node's queryUuid can be referenced by a later
+  submission (map form of `references`) without re-running it — the iterative
+  source-once/duckdb-many explore loop.
+- **Composer chart artifact** — done (v0): each run stores `{source: 'composer', schemaVersion: 1,
+  queries, terminalNodeId, lastQueryUuid}` and the thread renders the terminal result as a table
+  straight from `lastQueryUuid`, with a designed expired-results empty state. The artifact
+  serializes only the final submission; cross-call queryUuid references stay opaque (see
+  copy-on-save expansion below).
+- **runSql superseded** — when the flag is on, the standalone `runSql` tool is withheld and raw
+  warehouse SQL runs as a single `sql` node under the same approval/scope/select-only rules; the
+  system prompt teaches sql-via-composer. Deep research keeps `runSql` (its worker/coordinator
+  toolsets depend on it).
+
+### Agent-chat follow-up work (deliberately deferred)
+
+- **Copy-on-save pipeline expansion**: the v0 artifact stores only the final submission, so a
+  pipeline whose duckdb node references earlier calls' queryUuids stops being replayable once
+  those results expire. Every compose query's `query_history` row stores its `requestParameters`
+  including the resolved references map (and sql/semanticLayer rows store their own request
+  params), so a save step can recursively walk queryUuid references through query history and
+  materialise the full source-query graph — it must run at save time, while the referenced rows
+  still exist. This is the composer instance of the saved-objects copy-on-save below, and the
+  precondition for re-execution-as-viewer and sharing.
+- **Inline "tool executing" metadata UI**: while a pipeline runs, the chat shows a generic tool
+  chip plus a "Running composer queries..." progress line. Improve the inline metadata: render
+  the pipeline's nodes as they execute (node id, source type, per-node status from the batch
+  status endpoint) so a multi-node run reads as a pipeline, not a spinner.
+- **Artifact "under the hood" explorer**: the composer artifact renders only the terminal table.
+  Add an artifact UI for inspecting the pipeline behind it — per node, the raw SQL (warehouse or
+  duckdb) or metric-query definition, the data source configuration it ran against, and its
+  result. The stored `queries` array already carries everything needed for the final submission;
+  full upstream visibility arrives with copy-on-save expansion.
+- The remaining v0 exclusions (re-execution fallback as the viewer, model-generated chart
+  configs, save/share) are tracked in
+  [composer-queries-agent-plan.md](composer-queries-agent-plan.md#follow-ups-explicitly-not-v0-unblocked-by-the-artifact-shape).
+
 ## Status (2026-08-18)
 
 Shipped on `claude/query-dag-agent-ergonomics-p6s957` (see
@@ -29,7 +75,8 @@ Shipped on `claude/query-dag-agent-ergonomics-p6s957` (see
 - **Saved objects** — not started; the submission body is the serialization format for now
   (node-id references make an interactive session replayable verbatim).
 - **Source management, results store upgrades (parquet/range reads), structural caching, MCP
-  tools, usage/cost capture, viz binding to bare queryUuids** — not started.
+  tools (the `run_composer_queries` tool definition exists but is not yet registered on the MCP
+  server), usage/cost capture, viz binding to bare queryUuids** — not started.
 
 One deliberate divergence from the v1 plan below: no opaque handle table — references are
 `queryUuid`s (or in-submission node ids) directly. Revisit handle minting when copy-on-save or
