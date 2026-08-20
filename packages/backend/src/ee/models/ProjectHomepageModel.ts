@@ -336,18 +336,24 @@ export class ProjectHomepageModel {
                     }>;
                 }>(
                     `
+            -- MATERIALIZED keeps the planner from flattening this back into a
+            -- scan of every view on the project's charts.
+            WITH user_chart_views AS MATERIALIZED (
+                SELECT user_uuid, chart_uuid, context, timestamp
+                FROM analytics_chart_views
+                WHERE user_uuid = :userUuid
+                  AND timestamp > now() - make_interval(days => :windowDays)
+            )
             SELECT content_type, content_uuid, max(viewed_at) AS viewed_at
             FROM (
                 SELECT 'chart' AS content_type,
                        acv.chart_uuid AS content_uuid,
                        acv.timestamp AS viewed_at
-                FROM analytics_chart_views acv
+                FROM user_chart_views acv
                 JOIN saved_queries sq ON sq.saved_query_uuid = acv.chart_uuid
                 JOIN spaces s ON s.space_id = sq.space_id
                 JOIN projects p ON p.project_id = s.project_id
-                WHERE acv.user_uuid = :userUuid
-                  AND acv.timestamp > now() - make_interval(days => :windowDays)
-                  AND p.project_uuid = :projectUuid
+                WHERE p.project_uuid = :projectUuid
                   AND sq.deleted_at IS NULL
                   AND s.deleted_at IS NULL
                   -- Opening a dashboard records a view for every tile on it,
