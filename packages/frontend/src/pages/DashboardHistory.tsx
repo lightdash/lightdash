@@ -37,7 +37,7 @@ import DashboardVersionComparison from './DashboardVersionComparison';
 
 const DashboardHistory = () => {
     const navigate = useNavigate();
-    const { dashboardUuid: dashboardIdentifier, projectUuid } = useParams<{
+    const { dashboardUuid: routeDashboardIdentifier, projectUuid } = useParams<{
         dashboardUuid: string;
         projectUuid: string;
     }>();
@@ -45,10 +45,12 @@ const DashboardHistory = () => {
     const [selectedVersionUuid, setSelectedVersionUuid] = useState<string>();
 
     const dashboardQuery = useDashboardQuery({
-        uuidOrSlug: dashboardIdentifier,
+        uuidOrSlug: routeDashboardIdentifier,
         projectUuid,
     });
     const dashboardUuid = dashboardQuery.data?.uuid;
+    const dashboardIdentifier =
+        dashboardQuery.data?.slug ?? routeDashboardIdentifier;
     const historyQuery = useDashboardHistory(dashboardUuid);
 
     const rollbackMutation = useDashboardVersionRollbackMutation(dashboardUuid);

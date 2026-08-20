@@ -195,6 +195,7 @@ export class UserFavoritesModel {
             .select(
                 `${SpaceTableName}.space_uuid`,
                 `${DashboardsTableName}.dashboard_uuid`,
+                `${DashboardsTableName}.slug`,
                 'users.user_uuid as updated_by_user_uuid',
             )
             .max({
@@ -209,6 +210,7 @@ export class UserFavoritesModel {
             .groupBy(
                 `${SpaceTableName}.space_uuid`,
                 `${DashboardsTableName}.dashboard_uuid`,
+                `${DashboardsTableName}.slug`,
                 'users.user_uuid',
             )) as Record<string, AnyType>[];
 
@@ -216,6 +218,7 @@ export class UserFavoritesModel {
             type: ResourceViewItemType.DASHBOARD as const,
             data: {
                 uuid: row.dashboard_uuid,
+                slug: row.slug,
                 spaceUuid: row.space_uuid,
                 description: row.description,
                 name: row.name,

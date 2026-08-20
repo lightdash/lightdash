@@ -81,7 +81,7 @@ export const getResourceUrl = (projectUuid: string, item: ResourceViewItem) => {
     const itemType = item.type;
     switch (item.type) {
         case ResourceViewItemType.DASHBOARD:
-            return `/projects/${projectUuid}/dashboards/${item.data.uuid}/view`;
+            return `/projects/${projectUuid}/dashboards/${item.data.slug}/view`;
         case ResourceViewItemType.CHART:
             return getChartResourceUrl(projectUuid, item);
         case ResourceViewItemType.SPACE:

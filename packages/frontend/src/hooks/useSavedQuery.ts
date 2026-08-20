@@ -342,7 +342,7 @@ export const useUpdateMutation = (
                               icon: IconArrowRight,
                               onClick: () =>
                                   navigate(
-                                      `/projects/${data.projectUuid}/dashboards/${dashboardUuid}`,
+                                      `/projects/${data.projectUuid}/dashboards/${data.dashboardSlug ?? dashboardUuid}`,
                                   ),
                           }
                         : undefined,
@@ -556,7 +556,7 @@ export const useAddVersionMutation = (options?: {
                         icon: IconArrowRight,
                         onClick: () =>
                             navigate(
-                                `/projects/${data.projectUuid}/dashboards/${dashboardUuid}`,
+                                `/projects/${data.projectUuid}/dashboards/${data.dashboardSlug ?? dashboardUuid}`,
                             ),
                     },
                 });

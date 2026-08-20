@@ -25,7 +25,7 @@ import {
     type FC,
 } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
-import { useLocation, useNavigate, useParams } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { DASHBOARD_HEADER_HEIGHT } from '../../components/common/Dashboard/dashboard.constants';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -313,11 +313,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
 
     const { search } = useLocation();
     const navigate = useNavigate();
-    const { dashboardUuid: dashboardIdentifier } = useParams<{
-        dashboardUuid: string;
-    }>();
-
-    const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
+    const dashboard = useDashboardContext((c) => c.dashboard);
+    const dashboardUuid = dashboard?.uuid;
+    const dashboardIdentifier = dashboard?.slug;
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const setHaveTabsChanged = useDashboardContext((c) => c.setHaveTabsChanged);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);

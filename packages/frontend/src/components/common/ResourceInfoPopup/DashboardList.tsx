@@ -27,10 +27,10 @@ export const DashboardList: FC<Props> = ({ resourceItemId, projectUuid }) => {
             )}
             {!!relatedDashboards?.length && (
                 <List size="xs">
-                    {relatedDashboards.map(({ uuid, name }) => (
+                    {relatedDashboards.map(({ uuid, slug, name }) => (
                         <List.Item key={uuid}>
                             <Anchor
-                                href={`${window.location.origin}/projects/${projectUuid}/dashboards/${uuid}/view/`}
+                                href={`${window.location.origin}/projects/${projectUuid}/dashboards/${slug}/view/`}
                                 target="_blank"
                                 onClick={(
                                     e: React.MouseEvent<HTMLAnchorElement>,

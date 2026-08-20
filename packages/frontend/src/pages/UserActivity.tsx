@@ -1,6 +1,7 @@
 import {
     type ActivityViews,
     type ChartActivityViews,
+    type DashboardActivityViews,
     type UserActivity as UserActivityResponse,
     type UserWithCount,
 } from '@lightdash/common';
@@ -73,8 +74,8 @@ const BigNumberVis: FC<{ value: number | string; label: string }> = ({
     );
 };
 
-const getDashboardLink = (projectUuid: string, dashboardUuid: string) =>
-    `/projects/${projectUuid}/dashboards/${dashboardUuid}`;
+const getDashboardLink = (projectUuid: string, dashboardSlug: string) =>
+    `/projects/${projectUuid}/dashboards/${dashboardSlug}`;
 
 const getChartLink = (projectUuid: string, chartSlug: string) =>
     `/projects/${projectUuid}/saved/${chartSlug}`;
@@ -448,7 +449,7 @@ const UserActivity: FC = () => {
                                                 component={Link}
                                                 to={getDashboardLink(
                                                     projectUuid,
-                                                    user.dashboardUuid,
+                                                    user.dashboardSlug,
                                                 )}
                                             >
                                                 {user.dashboardName}
@@ -478,10 +479,10 @@ const UserActivity: FC = () => {
                                 {showTableViews({
                                     key: 'dashboard-views',
                                     views: data.dashboardViews,
-                                    getLink: (view) =>
+                                    getLink: (view: DashboardActivityViews) =>
                                         getDashboardLink(
                                             projectUuid,
-                                            view.uuid,
+                                            view.slug,
                                         ),
                                 })}
                             </Table>

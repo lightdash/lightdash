@@ -407,8 +407,8 @@ const MinimalDashboard: FC = () => {
 
     const generateTabUrl = useCallback(
         (tabId: string) =>
-            `/minimal/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tabId}`,
-        [projectUuid, dashboardUuid],
+            `/minimal/projects/${projectUuid}/dashboards/${dashboard?.slug ?? dashboardUuid}/view/tabs/${tabId}`,
+        [projectUuid, dashboard?.slug, dashboardUuid],
     );
 
     const sortedTabs = useMemo(

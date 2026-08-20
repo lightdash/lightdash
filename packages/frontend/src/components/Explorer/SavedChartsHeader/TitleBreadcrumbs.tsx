@@ -9,6 +9,7 @@ type Props = {
     spaceUuid: string | null;
     spaceName: string | null;
     dashboardUuid?: string | null;
+    dashboardSlug?: string | null;
     dashboardName?: string | null;
 };
 
@@ -25,6 +26,7 @@ export const TitleBreadCrumbs: FC<Props> = ({
     spaceUuid,
     spaceName,
     dashboardUuid,
+    dashboardSlug,
     dashboardName,
 }) => {
     const isChartWithinDashboard = !!(dashboardUuid && dashboardName);
@@ -51,7 +53,7 @@ export const TitleBreadCrumbs: FC<Props> = ({
                                 <ActionIcon
                                     variant="subtle"
                                     component={Link}
-                                    to={`/projects/${projectUuid}/dashboards/${dashboardUuid}`}
+                                    to={`/projects/${projectUuid}/dashboards/${dashboardSlug ?? dashboardUuid}`}
                                 >
                                     <MantineIcon
                                         color="ldGray.4"
@@ -102,7 +104,7 @@ export const TitleBreadCrumbs: FC<Props> = ({
                             c="ldGray.6"
                             fz="md"
                             component={Link}
-                            to={`/projects/${projectUuid}/dashboards/${dashboardUuid}`}
+                            to={`/projects/${projectUuid}/dashboards/${dashboardSlug ?? dashboardUuid}`}
                             truncate
                             display="inline-block"
                             maw={MAX_WIDTH_TITLE_PX}

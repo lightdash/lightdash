@@ -181,6 +181,7 @@ export const dashboardsDetails: DashboardBasicDetails[] = [
         organizationUuid: user.organizationUuid!,
         projectUuid: dashboard.projectUuid,
         uuid: dashboard.uuid,
+        slug: dashboard.slug,
         name: dashboard.name,
         description: dashboard.description,
         updatedAt: dashboard.updatedAt,

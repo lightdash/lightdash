@@ -27,7 +27,7 @@ describe('Dashboard List', () => {
 
         cy.url().should(
             'match',
-            /.*\/projects\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\/dashboards\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/,
+            /\/projects\/[0-9a-f-]{36}\/dashboards\/[^/]+\/edit$/,
         );
         cy.findByText('Untitled dashboard').should('exist');
     });

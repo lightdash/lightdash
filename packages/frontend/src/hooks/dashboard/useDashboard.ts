@@ -467,7 +467,13 @@ export const useUpdateDashboard = (
                 await queryClient.invalidateQueries([
                     'dashboards-containing-chart',
                 ]);
-                await queryClient.resetQueries(['saved_dashboard_query', id]);
+                await Promise.all([
+                    queryClient.resetQueries(['saved_dashboard_query', id]),
+                    queryClient.resetQueries([
+                        'saved_dashboard_query',
+                        updatedDashboard.slug,
+                    ]),
+                ]);
                 // Remove stale chart results so navigating back doesn't
                 // show old cache timestamps after a save
                 queryClient.removeQueries({
@@ -496,7 +502,7 @@ export const useUpdateDashboard = (
                               icon: IconArrowRight,
                               onClick: () =>
                                   navigate(
-                                      `/projects/${projectUuid}/dashboards/${id}`,
+                                      `/projects/${projectUuid}/dashboards/${updatedDashboard.slug}`,
                                   ),
                           }
                         : undefined,
@@ -550,7 +556,7 @@ export const useCreateMutation = (
                                   icon: IconArrowRight,
                                   onClick: () =>
                                       navigate(
-                                          `/projects/${projectUuid}/dashboards/${result.uuid}`,
+                                          `/projects/${projectUuid}/dashboards/${result.slug}`,
                                       ),
                               }
                             : undefined,
@@ -598,7 +604,7 @@ export const useCreateDashboardWithChartsMutation = (
                             children: 'Open dashboard',
                             onClick: () =>
                                 navigate(
-                                    `/projects/${projectUuid}/dashboards/${result.uuid}`,
+                                    `/projects/${projectUuid}/dashboards/${result.slug}`,
                                 ),
                         },
                     });
@@ -657,7 +663,7 @@ export const useDuplicateDashboardMutation = (
                               icon: IconArrowRight,
                               onClick: () =>
                                   navigate(
-                                      `/projects/${projectUuid}/dashboards/${data.uuid}`,
+                                      `/projects/${projectUuid}/dashboards/${data.slug}`,
                                   ),
                           }
                         : undefined,

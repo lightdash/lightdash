@@ -412,8 +412,8 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                 );
                 void navigate(
                     activeTabUuid
-                        ? `/projects/${projectUuid}/dashboards/${originatingDashboard.dashboardUuid}/edit/tabs/${activeTabUuid}`
-                        : `/projects/${projectUuid}/dashboards/${originatingDashboard.dashboardUuid}/edit`,
+                        ? `/projects/${projectUuid}/dashboards/${originatingDashboardData?.slug ?? originatingDashboard.dashboardUuid}/edit/tabs/${activeTabUuid}`
+                        : `/projects/${projectUuid}/dashboards/${originatingDashboardData?.slug ?? originatingDashboard.dashboardUuid}/edit`,
                 );
                 showToastSuccess({
                     title: `Success! ${values.name} was added to ${originatingDashboard.dashboardName}`,

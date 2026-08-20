@@ -958,6 +958,7 @@ export type SavedChart = {
     pinnedListOrder: number | null;
     dashboardUuid: string | null;
     dashboardName: string | null;
+    dashboardSlug?: string | null;
     /**
      * @deprecated Use `resolvedColorPalette.colors` instead. This field carries
      * only the resolved colors and will be removed once renderers migrate to
@@ -1346,6 +1347,7 @@ export type ChartSummary = Pick<
     | 'pinnedListUuid'
     | 'dashboardUuid'
     | 'dashboardName'
+    | 'dashboardSlug'
     | 'slug'
 > & {
     chartType?: ChartType | undefined;

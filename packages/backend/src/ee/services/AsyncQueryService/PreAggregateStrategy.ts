@@ -303,6 +303,7 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
                     chartName: row.chartName,
                     dashboardUuid: row.dashboardUuid,
                     dashboardName: row.dashboardName,
+                    dashboardSlug: row.dashboardSlug,
                     queryContext: row.queryContext,
                     hitCount: row.hitCount,
                     missCount: row.missCount,

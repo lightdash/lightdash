@@ -219,6 +219,7 @@ export class ContentVerificationModel {
                 `${ContentVerificationTableName}.content_type`,
                 `${ContentVerificationTableName}.content_uuid`,
                 `${DashboardsTableName}.name`,
+                `${DashboardsTableName}.slug`,
                 `${DashboardsTableName}.description`,
                 `${DashboardsTableName}.views_count`,
                 this.database(DashboardVersionsTableName)
@@ -279,6 +280,7 @@ export class ContentVerificationModel {
             (row) => ({
                 ...toBaseItem(row),
                 contentType: ContentType.DASHBOARD,
+                slug: row.slug,
             }),
         );
 

@@ -479,6 +479,7 @@ export class DashboardModel {
                     )
                     .select<GetDashboardDetailsQuery[]>([
                         `${DashboardsTableName}.dashboard_uuid`,
+                        `${DashboardsTableName}.slug`,
                         `${DashboardsTableName}.name`,
                         `${DashboardsTableName}.description`,
                         `${DashboardVersionsTableName}.created_at`,
@@ -561,6 +562,7 @@ export class DashboardModel {
                     name,
                     description,
                     dashboard_uuid,
+                    slug,
                     created_at,
                     project_uuid,
                     user_uuid,
@@ -585,6 +587,7 @@ export class DashboardModel {
                         name,
                         description,
                         uuid: dashboard_uuid,
+                        slug,
                         updatedAt: created_at,
                         projectUuid: project_uuid,
                         updatedByUser: {

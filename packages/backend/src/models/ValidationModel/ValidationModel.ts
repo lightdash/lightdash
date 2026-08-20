@@ -60,6 +60,7 @@ type NormalizedValidationRow = {
     dashboard_uuid: string | null;
     app_uuid: string | null;
     resource_name: string | null;
+    resource_slug: string | null;
     views_count: number | null;
     last_updated_at: Date | null;
     first_name: string | null;
@@ -525,7 +526,10 @@ export class ValidationModel {
             )
             .select<
                 (DbValidationTable &
-                    Pick<DashboardTable['base'], 'name' | 'views_count'> &
+                    Pick<
+                        DashboardTable['base'],
+                        'name' | 'slug' | 'views_count'
+                    > &
                     Pick<UserTable['base'], 'first_name' | 'last_name'> &
                     Pick<DbSpace, 'space_uuid'> & {
                         last_updated_at: Date;
@@ -533,6 +537,7 @@ export class ValidationModel {
             >([
                 `${ValidationTableName}.*`,
                 `${DashboardsTableName}.name`,
+                `${DashboardsTableName}.slug`,
                 `${DashboardVersionsTableName}.created_at as last_updated_at`,
                 `${UserTableName}.first_name`,
                 `${UserTableName}.last_name`,
@@ -567,6 +572,7 @@ export class ValidationModel {
                 return {
                     createdAt: validationError.created_at,
                     dashboardUuid: validationError.dashboard_uuid!,
+                    dashboardSlug: validationError.slug,
                     dashboardViews: validationError.views_count,
                     projectUuid: validationError.project_uuid,
                     error: validationError.error,
@@ -740,6 +746,7 @@ export class ValidationModel {
                 source: ValidationSourceType.Dashboard,
                 fieldName: row.field_name ?? undefined,
                 dashboardUuid: row.dashboard_uuid!,
+                dashboardSlug: row.resource_slug ?? undefined,
                 dashboardViews: row.views_count ?? 0,
                 name: row.resource_name || 'Dashboard does not exist',
                 lastUpdatedBy: row.first_name
@@ -868,6 +875,7 @@ export class ValidationModel {
                 this.database.raw(
                     `COALESCE(${SavedChartsTableName}.name, ${ValidationTableName}.chart_name, 'Chart does not exist') as resource_name`,
                 ),
+                this.database.raw('NULL::text as resource_slug'),
                 `${SavedChartsTableName}.views_count`,
                 this.database.raw(
                     `${SavedChartsTableName}.last_version_updated_at as last_updated_at`,
@@ -924,6 +932,7 @@ export class ValidationModel {
                 this.database.raw(
                     `COALESCE(${DashboardsTableName}.name, ${ValidationTableName}.model_name, 'Dashboard does not exist') as resource_name`,
                 ),
+                `${DashboardsTableName}.slug as resource_slug`,
                 `${DashboardsTableName}.views_count`,
                 this.database.raw(
                     `${DashboardVersionsTableName}.created_at as last_updated_at`,
@@ -960,6 +969,7 @@ export class ValidationModel {
                 this.database.raw(
                     `${ValidationTableName}.model_name as resource_name`,
                 ),
+                this.database.raw('NULL::text as resource_slug'),
                 this.database.raw('NULL::integer as views_count'),
                 this.database.raw('NULL::timestamp as last_updated_at'),
                 this.database.raw('NULL::text as first_name'),
@@ -1089,6 +1099,7 @@ export class ValidationModel {
                 this.database.raw(
                     `COALESCE(${SavedChartsTableName}.name, ${ValidationTableName}.chart_name, 'Chart does not exist') as resource_name`,
                 ),
+                this.database.raw('NULL::text as resource_slug'),
                 `${SavedChartsTableName}.views_count`,
                 this.database.raw(
                     `${SavedChartsTableName}.last_version_updated_at as last_updated_at`,
@@ -1166,6 +1177,7 @@ export class ValidationModel {
                 this.database.raw(
                     `COALESCE(${DashboardsTableName}.name, ${ValidationTableName}.model_name, 'Dashboard does not exist') as resource_name`,
                 ),
+                `${DashboardsTableName}.slug as resource_slug`,
                 `${DashboardsTableName}.views_count`,
                 this.database.raw(
                     `${DashboardVersionsTableName}.created_at as last_updated_at`,
@@ -1220,6 +1232,7 @@ export class ValidationModel {
                 this.database.raw(
                     `${ValidationTableName}.model_name as resource_name`,
                 ),
+                this.database.raw('NULL::text as resource_slug'),
                 this.database.raw('NULL::integer as views_count'),
                 this.database.raw('NULL::timestamp as last_updated_at'),
                 this.database.raw('NULL::text as first_name'),
@@ -1270,6 +1283,7 @@ export class ValidationModel {
                 `${ValidationTableName}.dashboard_uuid`,
                 `${ValidationTableName}.app_uuid`,
                 `${AppsTableName}.name as resource_name`,
+                this.database.raw('NULL::text as resource_slug'),
                 this.database.raw('NULL::integer as views_count'),
                 `${LATEST_APP_VERSION_ALIAS}.created_at as last_updated_at`,
                 `${APP_VERSION_AUTHOR_ALIAS}.first_name`,

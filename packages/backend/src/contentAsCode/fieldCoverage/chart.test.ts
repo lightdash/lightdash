@@ -26,7 +26,6 @@ describeContentAsCodeSchemaContract({
     ],
     documentOnlyFields: [
         'contentType',
-        'dashboardSlug',
         'downloadedAt',
         'spaceSlug',
         'verified',

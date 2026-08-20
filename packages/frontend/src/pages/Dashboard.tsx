@@ -54,7 +54,7 @@ const Dashboard: FC = () => {
     const navigate = useNavigate();
     const {
         projectUuid,
-        dashboardUuid: dashboardIdentifier,
+        dashboardUuid: routeDashboardIdentifier,
         mode,
     } = useParams<{
         projectUuid: string;
@@ -68,6 +68,7 @@ const Dashboard: FC = () => {
     const isDashboardLoading = useDashboardContext((c) => c.isDashboardLoading);
     const dashboard = useDashboardContext((c) => c.dashboard);
     const dashboardUuid = dashboard?.uuid;
+    const dashboardIdentifier = dashboard?.slug ?? routeDashboardIdentifier;
 
     const dashboardError = useDashboardContext((c) => c.dashboardError);
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);

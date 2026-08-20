@@ -85,7 +85,7 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
                                         component={Link}
                                         fz="sm"
                                         target="_blank"
-                                        to={`/projects/${projectUuid}/dashboards/${dashboard.uuid}`}
+                                        to={`/projects/${projectUuid}/dashboards/${dashboard.slug}`}
                                     >
                                         {dashboard.name}
                                     </Anchor>
