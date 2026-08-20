@@ -38475,6 +38475,20 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ChartActivityViews: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                slug: { dataType: 'string', required: true },
+                name: { dataType: 'string', required: true },
+                uuid: { dataType: 'string', required: true },
+                count: { dataType: 'double', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     UserActivity: {
         dataType: 'refAlias',
         type: {
@@ -38482,7 +38496,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 chartViews: {
                     dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'ActivityViews' },
+                    array: { dataType: 'refAlias', ref: 'ChartActivityViews' },
                     required: true,
                 },
                 userMostViewedDashboards: {
@@ -44180,6 +44194,7 @@ const models: TsoaRoute.Models = {
                             required: true,
                         },
                         chartKind: { ref: 'ChartKind', required: true },
+                        slug: { dataType: 'string', required: true },
                         contentType: {
                             ref: 'ContentType.CHART',
                             required: true,
@@ -50186,7 +50201,7 @@ const models: TsoaRoute.Models = {
         type: { ref: 'CatalogMetadata', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_ChartSummary.uuid-or-name-or-description-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid-or-chartKind_':
+    'Pick_ChartSummary.uuid-or-slug-or-name-or-description-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid-or-chartKind_':
         {
             dataType: 'refAlias',
             type: {
@@ -50200,6 +50215,7 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
+                    slug: { dataType: 'string', required: true },
                     uuid: { dataType: 'string', required: true },
                     chartKind: {
                         dataType: 'union',
@@ -50242,7 +50258,7 @@ const models: TsoaRoute.Models = {
                         dataType: 'intersection',
                         subSchemas: [
                             {
-                                ref: 'Pick_ChartSummary.uuid-or-name-or-description-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid-or-chartKind_',
+                                ref: 'Pick_ChartSummary.uuid-or-slug-or-name-or-description-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid-or-chartKind_',
                             },
                             {
                                 dataType: 'nestedObjectLiteral',

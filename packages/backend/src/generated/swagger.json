@@ -38479,11 +38479,30 @@
                 "required": ["name", "uuid", "count"],
                 "type": "object"
             },
+            "ChartActivityViews": {
+                "properties": {
+                    "slug": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "count": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["slug", "name", "uuid", "count"],
+                "type": "object"
+            },
             "UserActivity": {
                 "properties": {
                     "chartViews": {
                         "items": {
-                            "$ref": "#/components/schemas/ActivityViews"
+                            "$ref": "#/components/schemas/ChartActivityViews"
                         },
                         "type": "array"
                     },
@@ -44523,11 +44542,19 @@
                             "chartKind": {
                                 "$ref": "#/components/schemas/ChartKind"
                             },
+                            "slug": {
+                                "type": "string"
+                            },
                             "contentType": {
                                 "$ref": "#/components/schemas/ContentType.CHART"
                             }
                         },
-                        "required": ["exploreName", "chartKind", "contentType"],
+                        "required": [
+                            "exploreName",
+                            "chartKind",
+                            "slug",
+                            "contentType"
+                        ],
                         "type": "object"
                     }
                 ]
@@ -50427,7 +50454,7 @@
             "ApiCatalogMetadataResults": {
                 "$ref": "#/components/schemas/CatalogMetadata"
             },
-            "Pick_ChartSummary.uuid-or-name-or-description-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid-or-chartKind_": {
+            "Pick_ChartSummary.uuid-or-slug-or-name-or-description-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid-or-chartKind_": {
                 "properties": {
                     "name": {
                         "type": "string",
@@ -50436,6 +50463,10 @@
                     "description": {
                         "type": "string",
                         "description": "Optional description of what this chart displays"
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "Unique identifier slug for this chart"
                     },
                     "uuid": {
                         "type": "string"
@@ -50460,6 +50491,7 @@
                 },
                 "required": [
                     "name",
+                    "slug",
                     "uuid",
                     "spaceUuid",
                     "spaceName",
@@ -50475,7 +50507,7 @@
                         "items": {
                             "allOf": [
                                 {
-                                    "$ref": "#/components/schemas/Pick_ChartSummary.uuid-or-name-or-description-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid-or-chartKind_"
+                                    "$ref": "#/components/schemas/Pick_ChartSummary.uuid-or-slug-or-name-or-description-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid-or-chartKind_"
                                 },
                                 {
                                     "properties": {
@@ -55376,7 +55408,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.210.0",
+        "version": "1.211.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

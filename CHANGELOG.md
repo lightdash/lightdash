@@ -1,3 +1,10 @@
+# [1.211.0](https://github.com/lightdash/lightdash/compare/1.210.0...1.211.0) (2026-08-20)
+
+
+### Features
+
+* use chart slugs in frontend navigation ([#27642](https://github.com/lightdash/lightdash/issues/27642)) ([20bb1e5](https://github.com/lightdash/lightdash/commit/20bb1e52fa85ef51db21eca4f05df6cb88a1b99a))
+
 # [1.210.0](https://github.com/lightdash/lightdash/compare/1.209.0...1.210.0) (2026-08-20)
 
 
