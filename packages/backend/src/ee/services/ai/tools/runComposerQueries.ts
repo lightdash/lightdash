@@ -221,8 +221,8 @@ export const getRunComposerQueries = ({
                     .map((column) => `${column.reference} (${column.type})`)
                     .join(', ');
                 const resultSummary = [
-                    `Composer query complete. Terminal node "${resolvedTerminalNodeId}" returned ${terminal.rowCount} rows (queryUuid ${terminal.queryUuid} — reference it in a later submission via the map form of "references").`,
-                    `Submitted nodes:\n${nodeSummary}`,
+                    `Composer query complete. Terminal node "${resolvedTerminalNodeId}" returned ${terminal.rowCount} rows (queryUuid ${terminal.queryUuid}).`,
+                    `Submitted nodes (any queryUuid below can be reused by a later submission via the map form of "references", without re-running that query):\n${nodeSummary}`,
                     `Terminal columns: ${columnSummary}.`,
                 ].join('\n');
 

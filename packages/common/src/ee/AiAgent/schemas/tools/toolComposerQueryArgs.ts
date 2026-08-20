@@ -23,9 +23,14 @@ How to build a pipeline:
 - Every query is a node. Name each node with "nodeId" (letters, digits, underscores; starting with a letter or underscore).
 - "semanticLayer" nodes run a metric query against an explore. Result columns are named by field id — exactly the dimensions and metrics requested (e.g. metric "payments_total_revenue" yields column "payments_total_revenue").
 - "sql" nodes run raw SQL against the project's data warehouse, in the warehouse's SQL dialect. Result columns are the SELECT output names. SQL execution may require the user to approve the SQL first.
-- "duckdb" nodes run DuckDB SQL over other queries' results. Declare which results the SQL reads via "references": the shorthand array form lists node ids from this submission, each exposed as a table named by its node id (["orders", "revenue"] lets the SQL run SELECT * FROM orders JOIN revenue ...); the map form aliases tables or references existing results by queryUuid ({"o": "orders", "prev": "<queryUuid>"}). A referenced table's columns are the upstream result's columns.
+- "duckdb" nodes run DuckDB SQL over other queries' results. Declare which results the SQL reads via "references": the shorthand array form lists node ids from this submission, each exposed as a table named by its node id (["orders", "revenue"] lets the SQL run SELECT * FROM orders JOIN revenue ...); the map form aliases tables or references stored results by queryUuid ({"o": "orders", "prev": "<queryUuid>"}). A referenced table's columns are the upstream result's columns.
 - The "terminal" node is the one whose results the artifact shows and whose rows are returned to you. By default it is the unique sink (the one node no other node references); pass "terminalNodeId" explicitly when the pipeline has multiple sinks.
-- Results of a previous runComposerQueries call can be referenced in a later call via the map form of "references" using the terminal queryUuid returned by that call.
+
+Results are reusable across calls:
+- Every call returns a queryUuid per node. Any of them — not just the terminal one — can be referenced by a later call via the map form of "references".
+- Referencing a queryUuid reads the stored result; the query behind it is NOT re-run. A duckdb-only submission over stored results touches no source and needs no SQL approval, however many times you iterate.
+- This supports step-by-step work: run a source query once, then explore its result with as many follow-up duckdb submissions over the same queryUuid as you need.
+- The artifact shown in the thread always renders your LATEST call's terminal result, so finish with the submission that produces the table the user should see — referencing earlier queryUuids keeps that final pipeline small.
 
 Returns the terminal node's result columns and a CSV preview of its rows, plus per-node queryUuids.`;
 
@@ -123,7 +128,7 @@ export const createToolComposerQueriesArgsSchema = ({
         references: z
             .union([z.array(z.string()), z.record(z.string(), z.string())])
             .describe(
-                'Which query results the SQL reads. Shorthand array of node ids from this submission (each exposed as a table named by its node id), or a map of {tableName: nodeIdOrQueryUuid} for aliasing or referencing existing results.',
+                'Which query results the SQL reads. Shorthand array of node ids from this submission (each exposed as a table named by its node id), or a map of {tableName: nodeIdOrQueryUuid} for aliasing or reusing stored results from earlier calls without re-running them.',
             ),
         limit: limitSchema,
     });
