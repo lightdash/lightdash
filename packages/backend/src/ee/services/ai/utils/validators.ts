@@ -52,7 +52,9 @@ import {
     UnitOfTime,
     WeekDay,
     WindowFunctionType,
+    withLeadingEquals,
 } from '@lightdash/common';
+import { extractColumnRefs, parse as parseFormula } from '@lightdash/formula';
 import { z } from 'zod';
 import Logger from '../../../../logging/logger';
 import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
@@ -1075,6 +1077,18 @@ const NUMERIC_CALCULATION_TYPES: TableCalcSchema['type'][] = [
     'running_total',
 ];
 
+function parseFormulaRefs(
+    formula: string,
+): { refs: string[] } | { error: string } {
+    try {
+        return {
+            refs: extractColumnRefs(parseFormula(withLeadingEquals(formula))),
+        };
+    } catch (e) {
+        return { error: getErrorMessage(e) };
+    }
+}
+
 function buildTableCalcSchemaDependencyGraph(
     tableCalcs: TableCalcsSchema,
 ): DependencyNode[] {
@@ -1082,6 +1096,14 @@ function buildTableCalcSchemaDependencyGraph(
 
     return tableCalcs.map((tc) => {
         const deps: string[] = [];
+
+        if (tc.type === 'formula') {
+            // Parse errors are reported by validateTableCalculations
+            const parsed = parseFormulaRefs(tc.formula);
+            if ('refs' in parsed) {
+                deps.push(...parsed.refs);
+            }
+        }
 
         // Add fieldId dependency if it exists
         if ('fieldId' in tc && tc.fieldId !== null) {
@@ -1224,6 +1246,29 @@ export function validateTableCalculations(
 
     tableCalcs.forEach((tableCalc) => {
         const { type, name } = tableCalc;
+
+        if (type === 'formula') {
+            const parsed = parseFormulaRefs(tableCalc.formula);
+            if ('error' in parsed) {
+                errors.push(
+                    `Table calculation "${name}" has an invalid formula: ${parsed.error}`,
+                );
+                return;
+            }
+
+            parsed.refs.forEach((ref) => {
+                if (!allSelectedFieldIds.includes(ref)) {
+                    errors.push(
+                        `Table calculation "${name}" references "${ref}" which is not selected in the query. ` +
+                            'Formulas can only reference selected dimensions, metrics, custom metrics, or other table calculations. ' +
+                            `Selected fields: ${allSelectedFieldIds.join(
+                                ', ',
+                            )}.`,
+                    );
+                }
+            });
+            return;
+        }
 
         if (type === 'window_function') {
             const needsFieldId = !nullaryWindowFunctions.includes(

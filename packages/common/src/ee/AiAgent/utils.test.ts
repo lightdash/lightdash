@@ -188,6 +188,68 @@ describe('parseVizConfig with legacy persisted configs', () => {
     });
 });
 
+describe('parseVizConfig table calculations', () => {
+    const runQueryArgs = (tableCalculations: unknown) => ({
+        title: 'Revenue',
+        description: 'Revenue',
+        queryConfig: {
+            exploreName: 'orders',
+            dimensions: ['orders_created_month'],
+            metrics: ['orders_revenue', 'orders_count'],
+            sorts: [],
+            limit: 500,
+            customMetrics: null,
+            tableCalculations,
+            filters: null,
+        },
+        chartConfig: null,
+    });
+
+    it('parses persisted args with legacy template table calcs', () => {
+        const parsed = parseVizConfig(
+            runQueryArgs([
+                {
+                    type: 'running_total',
+                    name: 'running_revenue',
+                    displayName: 'Running Revenue',
+                    fieldId: 'orders_revenue',
+                },
+            ]),
+        );
+
+        expect(parsed?.type).toBe(AiResultType.QUERY_RESULT);
+        expect(parsed?.metricQuery.tableCalculations).toEqual([
+            expect.objectContaining({
+                name: 'running_revenue',
+                template: expect.objectContaining({ type: 'running_total' }),
+            }),
+        ]);
+    });
+
+    it('parses args with formula table calcs', () => {
+        const parsed = parseVizConfig(
+            runQueryArgs([
+                {
+                    type: 'formula',
+                    name: 'aov',
+                    displayName: 'AOV',
+                    formula: 'orders_revenue / orders_count',
+                    format: null,
+                    resultType: null,
+                },
+            ]),
+        );
+
+        expect(parsed?.type).toBe(AiResultType.QUERY_RESULT);
+        expect(parsed?.metricQuery.tableCalculations).toEqual([
+            expect.objectContaining({
+                name: 'aov',
+                formula: '=orders_revenue / orders_count',
+            }),
+        ]);
+    });
+});
+
 describe('parseVizConfig parameters', () => {
     const runQueryConfig = {
         title: 'Add to cart events',

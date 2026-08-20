@@ -64,10 +64,11 @@ ${runSqlEnabled ? RUN_SQL_GUIDANCE : ''}### Time Filtering
 - Always provide axis labels
 
 ### Table Calculations
-Use table calculations for:
-- Aggregating already-aggregated metrics (e.g., average of monthly totals)
-- Row comparisons: % of total, period-over-period change, rankings, running totals
-- "Top N per group" patterns: create \`row_number\` with \`partitionBy\`, then filter
+Author table calculations as type \`formula\` (the field's schema documents the syntax). Use them for:
+- Arithmetic across metrics: \`metric_a + metric_b\`, ratios \`metric_a / metric_b\`
+- Aggregating already-aggregated metrics (e.g., average of monthly totals): \`AVG(metric)\`
+- Row comparisons: % of total \`m / SUM(m)\`, period-over-period \`(m - LAG(m, ORDER BY date)) / LAG(m, ORDER BY date)\`, rankings \`RANK(...)\`, running totals \`RUNNING_TOTAL(m, ORDER BY date)\`, trailing 3-period average \`MOVING_AVG(m, 2, ORDER BY date)\`
+- "Top N per group" patterns: \`ROW_NUMBER(PARTITION BY group, ORDER BY m DESC)\`, then filter
 
 ### Custom Metrics
 - Use when the explore lacks a needed aggregation

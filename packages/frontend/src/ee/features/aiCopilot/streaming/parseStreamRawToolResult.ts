@@ -1,6 +1,8 @@
 import {
     agentToolDefinitionsByName,
     isAiAgentMcpToolName,
+    toolDashboardV2ArgsSchemaPersisted,
+    toolRunQueryArgsSchemaPersisted,
     type ToolDefinition,
     type ToolName,
 } from '@lightdash/common';
@@ -9,9 +11,19 @@ import { type z } from 'zod';
 type ParsedToolName = ToolName;
 type McpStreamToolName = `mcp_${string}`;
 
-type ToolArgs<TName extends ToolName> = z.infer<
-    (typeof agentToolDefinitionsByName)[TName]['inputSchema']
->;
+// Streamed args can be wider than the advertised (formula-only) contract:
+// merge-disabled runtimes advertise the wide V2 query contract and models
+// resuming old threads may echo legacy template table calcs the backend still
+// executes. Parse those tools with the wide persisted schemas so they render.
+const wideInputSchemaOverrides = {
+    generateVisualization: toolRunQueryArgsSchemaPersisted,
+    generateDashboard: toolDashboardV2ArgsSchemaPersisted,
+} as const;
+
+type ToolArgs<TName extends ToolName> =
+    TName extends keyof typeof wideInputSchemaOverrides
+        ? z.infer<(typeof wideInputSchemaOverrides)[TName]>
+        : z.infer<(typeof agentToolDefinitionsByName)[TName]['inputSchema']>;
 type ToolOutputSchema<TName extends ToolName> =
     (typeof agentToolDefinitionsByName)[TName] extends ToolDefinition<
         string,
@@ -87,8 +99,16 @@ const parseMcpToolArgs = (toolArgs: unknown): object =>
         ? toolArgs
         : {};
 
+const hasWideInputSchema = (
+    toolName: ParsedToolName,
+): toolName is keyof typeof wideInputSchemaOverrides =>
+    toolName in wideInputSchemaOverrides;
+
 const parseToolArgs = (toolName: ParsedToolName, toolArgs: unknown) =>
-    agentToolDefinitionsByName[toolName].inputSchema.safeParse(toolArgs);
+    (hasWideInputSchema(toolName)
+        ? wideInputSchemaOverrides[toolName]
+        : agentToolDefinitionsByName[toolName].inputSchema
+    ).safeParse(toolArgs);
 
 const parseToolOutput = (toolName: ParsedToolName, toolOutput: unknown) => {
     const outputSchema =
