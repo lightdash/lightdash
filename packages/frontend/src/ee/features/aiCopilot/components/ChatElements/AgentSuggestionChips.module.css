@@ -95,6 +95,11 @@
     }
 }
 
+.chipSkeleton {
+    height: 22px;
+    border-radius: 6px;
+}
+
 .fadeIn {
     animation: chipCascade 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
     animation-delay: calc(var(--chip-idx, 0) * 45ms);

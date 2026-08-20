@@ -121,14 +121,6 @@
     }
 }
 
-.chipReserved {
-    visibility: hidden;
-}
-
-.chipTrayReserve {
-    min-height: rem(50px);
-}
-
 .threadChipFlow {
     margin-bottom: rem(8px);
 }

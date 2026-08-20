@@ -1,5 +1,5 @@
 import type { AgentSuggestion } from '@lightdash/common';
-import { Box, Button } from '@mantine/core';
+import { Box, Button, Skeleton } from '@mantine/core';
 import { IconArrowUpRight } from '@tabler/icons-react';
 import { useEffect, useRef } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -30,6 +30,19 @@ const renderRightIcon = (
     if (chip.kind !== 'prompt' || !showPromptAffordance) return undefined;
     return <MantineIcon icon={IconArrowUpRight} size={12} stroke={1.75} />;
 };
+
+// Suggestions are generated per project, so they land a beat after the
+// composer. Stand in for them with chip-shaped skeletons rather than generic
+// example prompts, which read as real suggestions until they're swapped out.
+const SKELETON_CHIP_WIDTHS = [148, 108, 176];
+
+export const AgentSuggestionChipsSkeleton = () => (
+    <Box className={styles.row} data-testid="agent-suggestion-chips-skeleton">
+        {SKELETON_CHIP_WIDTHS.map((width) => (
+            <Skeleton key={width} className={styles.chipSkeleton} w={width} />
+        ))}
+    </Box>
+);
 
 export const AgentSuggestionChips = ({
     chips,

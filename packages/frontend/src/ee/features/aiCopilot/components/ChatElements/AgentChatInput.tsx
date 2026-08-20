@@ -48,7 +48,10 @@ import {
     type AgentComposerMode,
 } from '../DeepResearch/DeepResearchModeControl';
 import styles from './AgentChatInput.module.css';
-import { AgentSuggestionChips } from './AgentSuggestionChips';
+import {
+    AgentSuggestionChips,
+    AgentSuggestionChipsSkeleton,
+} from './AgentSuggestionChips';
 import {
     createContentMentionExtension,
     extractContentMentionContext,
@@ -634,22 +637,22 @@ export const AgentChatInput = ({
         handleImpression,
         isThreadInput,
     ]);
-    const shouldReserveEmptyStateSuggestions =
+    const showEmptyStateSuggestionsSkeleton =
         !isThreadInput &&
         emptyStateMode &&
         !chipRow &&
         !suggestionsQuery.isError &&
         (suggestionsQuery.isLoading || suggestionsQuery.isFetching);
 
-    const renderChipRow = (extraClassName = '', reserve = false) =>
-        (chipRow || reserve) && (
+    const renderChipRow = (extraClassName = '', showSkeleton = false) =>
+        (chipRow || showSkeleton) && (
             <Box
                 className={`${styles.chipReveal} ${extraClassName} ${
                     chipsNearBottom ? '' : styles.chipHidden
-                } ${!chipRow ? styles.chipReserved : ''}`}
+                }`}
                 aria-hidden={!chipsNearBottom || !chipRow}
             >
-                {chipRow ?? <Box className={styles.chipTrayReserve} />}
+                {chipRow ?? <AgentSuggestionChipsSkeleton />}
             </Box>
         );
 
@@ -814,7 +817,7 @@ export const AgentChatInput = ({
                 {!isThreadInput &&
                     renderChipRow(
                         styles.chipTray,
-                        shouldReserveEmptyStateSuggestions,
+                        showEmptyStateSuggestionsSkeleton,
                     )}
 
                 {showDisabledBanner && (
@@ -903,7 +906,7 @@ export const AgentChatInput = ({
             {!isThreadInput &&
                 renderChipRow(
                     styles.chipTray,
-                    shouldReserveEmptyStateSuggestions,
+                    showEmptyStateSuggestionsSkeleton,
                 )}
 
             {showDisabledBanner && (
