@@ -210,16 +210,17 @@ export interface DeterministicSafetyInput {
     sqlLint?: SqlLintSummary | null;
 }
 
-const DETERMINISTICALLY_SAFE_OPERATIONS: ReadonlySet<MigrationOperation> =
-    new Set([
-        'create-index-concurrently',
-        'drop-index-concurrently-if-exists',
-        'set-statement-timeout',
-        'reset-statement-timeout',
-        'set-lock-timeout',
-        'reset-lock-timeout',
-        'select-invalid-index',
-    ]);
+const DETERMINISTIC_OPERATION_SAFETY = {
+    'create-index-concurrently': true,
+    'create-unique-index-concurrently': false,
+    'drop-index-concurrently-if-exists': true,
+    'set-statement-timeout': true,
+    'reset-statement-timeout': true,
+    'set-lock-timeout': true,
+    'reset-lock-timeout': true,
+    'select-invalid-index': true,
+    unknown: false,
+} satisfies Record<MigrationOperation, boolean>;
 
 export function isDeterministicallyRollingUpdateSafe(
     input: DeterministicSafetyInput,
@@ -238,8 +239,9 @@ export function isDeterministicallyRollingUpdateSafe(
         (input.declaredBreaks?.length ?? 0) === 0 &&
         !(input.sqlLint?.ran && input.sqlLint.breaking) &&
         operations.length > 0 &&
-        operations.every((operation) =>
-            DETERMINISTICALLY_SAFE_OPERATIONS.has(operation),
+        operations.every(
+            (operation) =>
+                DETERMINISTIC_OPERATION_SAFETY[operation] === true,
         )
     );
 }

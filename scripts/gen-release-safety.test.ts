@@ -230,6 +230,23 @@ test('unsupported and mixed migration operations stay unknown', () => {
     }
 });
 
+test('a newly added operation cannot silently become safe at runtime', () => {
+    const input = {
+        ...base,
+        migrations: migration,
+        migrationDetails,
+        migrationOperations: ['future-operation' as MigrationOperation],
+        migrationMetadataComplete: true,
+        declarationMetadataComplete: true,
+        ...checkedSurfaces,
+    };
+    assert.strictEqual(isDeterministicallyRollingUpdateSafe(input), false);
+    assert.strictEqual(
+        buildMarker(input).compatibility.rollingUpdateSafe,
+        'unknown',
+    );
+});
+
 test('incomplete migration metadata blocks deterministic safety', () => {
     const input = {
         ...base,
