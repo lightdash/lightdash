@@ -1,3 +1,10 @@
+## [1.220.1](https://github.com/lightdash/lightdash/compare/1.220.0...1.220.1) (2026-08-20)
+
+
+### Bug Fixes
+
+* **dashboards:** make filter auto-apply tab-aware when adding tiles ([#27736](https://github.com/lightdash/lightdash/issues/27736)) ([6fe29be](https://github.com/lightdash/lightdash/commit/6fe29bed047096f6129c7d93dad78fbb1d09c771))
+
 # [1.220.0](https://github.com/lightdash/lightdash/compare/1.219.1...1.220.0) (2026-08-20)
 
 
