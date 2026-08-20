@@ -2,6 +2,7 @@ import {
     ExternalSourceStatus,
     type ApiError,
     type CreateExternalSourceTablePayload,
+    type CreateGoogleSheetsSourcePayload,
     type ExternalSource,
     type ExternalSourceTablePreview,
     type StagedExternalSourceUpload,
@@ -131,6 +132,72 @@ export const useExternalSources = (projectUuid: string | undefined) =>
                 ? 2000
                 : false,
     });
+
+const createSheetsSourceApi = async (args: {
+    projectUuid: string;
+    payload: CreateGoogleSheetsSourcePayload;
+}) =>
+    lightdashApi<ExternalSource>({
+        url: `${EXTERNAL_SOURCES_BASE(args.projectUuid)}/google-sheets`,
+        method: 'POST',
+        body: JSON.stringify(args.payload),
+    });
+
+export const useCreateSheetsSource = (projectUuid: string | undefined) => {
+    const queryClient = useQueryClient();
+    return useMutation<
+        ExternalSource,
+        ApiError,
+        CreateGoogleSheetsSourcePayload
+    >({
+        mutationFn: (payload) =>
+            createSheetsSourceApi({ projectUuid: projectUuid!, payload }),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({
+                queryKey: ['external-sources', projectUuid],
+            });
+        },
+    });
+};
+
+const refreshExternalSourceApi = async (args: {
+    projectUuid: string;
+    sourceUuid: string;
+}) =>
+    lightdashApi<ExternalSource>({
+        url: `${EXTERNAL_SOURCES_BASE(args.projectUuid)}/${
+            args.sourceUuid
+        }/refresh`,
+        method: 'POST',
+        body: undefined,
+    });
+
+export const useRefreshExternalSource = (projectUuid: string | undefined) => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+    return useMutation<ExternalSource, ApiError, string>({
+        mutationFn: (sourceUuid) =>
+            refreshExternalSourceApi({
+                projectUuid: projectUuid!,
+                sourceUuid,
+            }),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({
+                queryKey: ['external-sources', projectUuid],
+            });
+            showToastSuccess({
+                title: 'Refreshing from Google Sheets',
+                subtitle: 'The table updates when the ingest finishes.',
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Could not refresh the source',
+                apiError: error,
+            });
+        },
+    });
+};
 
 const renameExternalSourceApi = async (args: {
     projectUuid: string;
