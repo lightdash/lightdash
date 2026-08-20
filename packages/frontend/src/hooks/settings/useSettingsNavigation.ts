@@ -89,6 +89,7 @@ export const useSettingsNavigation = (
         embeddingEnabled,
         dataAppsFlag,
         externalSourcesFlag,
+        isResultsCacheEnabled,
         isGitProject,
     } = context;
 
@@ -695,6 +696,23 @@ export const useSettingsNavigation = (
                 });
             }
 
+            if (isResultsCacheEnabled) {
+                projectItems.push({
+                    label: 'Results caching',
+                    to: `${base}/caching`,
+                    icon: IconDatabaseExport,
+                    keywords: [
+                        'cache',
+                        'results',
+                        'duration',
+                        'expire',
+                        'refresh',
+                    ],
+                    children: [],
+                    exact: true,
+                });
+            }
+
             projectItems.push({
                 label: 'Parameters',
                 to: `${base}/parameters`,
@@ -1011,6 +1029,7 @@ export const useSettingsNavigation = (
         isEmbeddingEnabled,
         isDataAppsEnabled,
         isExternalSourcesEnabled,
+        isResultsCacheEnabled,
         isGitProject,
         track,
     ]);

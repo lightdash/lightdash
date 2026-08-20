@@ -45,6 +45,7 @@ import ProjectAppearance from '../ProjectAppearance/ProjectAppearance';
 import { UpdateProjectConnection } from '../ProjectConnection';
 import ProjectParameters from '../ProjectParameters';
 import ProjectPreviewExpiration from '../ProjectPreviewExpiration';
+import ProjectResultsCache from '../ProjectResultsCache';
 import ProjectTablesConfiguration from '../ProjectTablesConfiguration/ProjectTablesConfiguration';
 import SettingsAgentDataScope from '../SettingsAgentDataScope';
 import SettingsQueryTimezone from '../SettingsQueryTimezone';
@@ -99,6 +100,9 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
 
     const { data: dataAppsFlag, isLoading: isDataAppsFlagLoading } =
         useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const { data: resultsCacheFlag, isLoading: isResultsCacheFlagLoading } =
+        useServerFeatureFlag(FeatureFlags.ResultsCacheEnabled);
+    const isResultsCacheEnabled = resultsCacheFlag?.enabled ?? false;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
     const canManageExternalConnections =
         isDataAppsEnabled &&
@@ -366,6 +370,23 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
                       },
                   ]
                 : []),
+            ...(isResultsCacheEnabled
+                ? [
+                      {
+                          path: `/caching`,
+                          element: (
+                              <ProjectSettingsPage
+                                  title="Results caching"
+                                  description="Choose how long charts and dashboards in this project load from cached results before Lightdash queries the warehouse again."
+                              >
+                                  <ProjectResultsCache
+                                      projectUuid={projectUuid}
+                                  />
+                              </ProjectSettingsPage>
+                          ),
+                      },
+                  ]
+                : []),
             {
                 path: `/preAggregates`,
                 children: [
@@ -464,6 +485,7 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
         isSoftDeleteEnabled,
         isPgWireEnabled,
         isGitProject,
+        isResultsCacheEnabled,
         user.data?.ability,
         canManageExternalConnections,
         canManageExternalSources,
@@ -485,12 +507,19 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
             '/generalSettings/projectManagement/:projectUuid/dataAppConnections',
             location.pathname,
         );
+    const isAwaitingCachingRoute =
+        isResultsCacheFlagLoading &&
+        !!matchPath(
+            '/generalSettings/projectManagement/:projectUuid/caching',
+            location.pathname,
+        );
 
     if (
         isInitialLoading ||
         !project ||
         !projectUuid ||
-        isAwaitingDataAppConnectionsRoute
+        isAwaitingDataAppConnectionsRoute ||
+        isAwaitingCachingRoute
     ) {
         return (
             <div style={{ marginTop: '20px' }}>
