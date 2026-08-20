@@ -810,7 +810,10 @@ export class EmbedService extends BaseService {
             {};
 
         const explorePromises = savedCharts.reduce<
-            Promise<{ key: string; explore: Explore | ExploreError | undefined }>[]
+            Promise<{
+                key: string;
+                explore: Explore | ExploreError | undefined;
+            }>[]
         >((acc, chart) => {
             const key = chart.tableName;
             if (!exploreCacheKeys[key]) {
