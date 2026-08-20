@@ -333,18 +333,14 @@ const ChartTypeBuilder: FC = () => {
             false,
         );
     }, [activeVizUuid, explorerChart, projectUuid]);
-    const handlePreviewInExplorer = useCallback(() => {
-        if (!activeVizUuid) return;
+    const previewInExplorerLink = useMemo(() => {
+        if (!activeVizUuid) return null;
 
-        if (explorerDestination) {
-            void navigate(explorerDestination);
-            return;
-        }
-
-        void navigate(
-            `/projects/${projectUuid}/tables?dataAppVizUuid=${activeVizUuid}`,
+        return (
+            explorerDestination ??
+            `/projects/${projectUuid}/tables?dataAppVizUuid=${activeVizUuid}`
         );
-    }, [activeVizUuid, explorerDestination, navigate, projectUuid]);
+    }, [activeVizUuid, explorerDestination, projectUuid]);
 
     const canEdit = useCanEditDataApp(projectUuid, {
         spaceUuid: appMeta?.spaceUuid ?? null,
@@ -480,7 +476,7 @@ const ChartTypeBuilder: FC = () => {
                         ? handleCloseHistory()
                         : setIsHistoryOpen(true)
                 }
-                onPreviewInExplorer={handlePreviewInExplorer}
+                previewInExplorerLink={previewInExplorerLink}
             />
             <PanelGroup direction="horizontal" className={classes.main}>
                 <Panel id="chart-type-builder-canvas" order={1} minSize={50}>
