@@ -271,7 +271,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             const composerTitle =
                 artifactData.title ?? 'Composer query results';
             const composerHead = (
-                <div className={styles.head}>
+                <Box className={styles.head}>
                     <Stack gap={0} flex={1} miw={0}>
                         <TruncatedText fz="sm" fw={600} maxWidth="100%">
                             {composerTitle}
@@ -295,19 +295,19 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                             </ActionIcon>
                         </Group>
                     )}
-                </div>
+                </Box>
             );
             return (
-                <div className={styles.floatingPanel}>
-                    <div
+                <Box className={styles.floatingPanel}>
+                    <Box
                         className={`${styles.floatingContent} ${styles.sqlArtifactContent}`}
                     >
                         <AiComposerArtifactVisualization
                             results={queryResults}
                             headerContent={composerHead}
                         />
-                    </div>
-                </div>
+                    </Box>
+                </Box>
             );
         }
 

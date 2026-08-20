@@ -55,6 +55,43 @@ Shipped on `claude/composer-queries-agent-plan-oyckgn` (PR #27792; plan doc:
   configs, save/share) are tracked in
   [composer-queries-agent-plan.md](composer-queries-agent-plan.md#follow-ups-explicitly-not-v0-unblocked-by-the-artifact-shape).
 
+### Plan: DuckDB-WASM execution in the browser
+
+Goal: when the agent is used from the web app, `duckdb` steps over already-materialised results
+should not need a server round trip (submit → poll → results fetch). DuckDB-WASM in the frontend
+executes those transforms locally over data the browser already has (or can stream), making
+duckdb-over-results iteration effectively instant and taking load off the shared server instance.
+
+Where it applies — the execution split matters:
+
+- **Presentation-layer transforms (pure client)**: re-slicing/re-aggregating a fetched result for
+  viz (chart-type switching, the artifact "under the hood" explorer, user-driven follow-up
+  transforms in the UI). These produce no `queryUuid` and never need one — run them fully local.
+- **Agent-loop `duckdb` nodes (server-canonical, optionally client-optimistic)**: the model runs
+  server-side and consumes the result there, and a canonical `queryUuid` is what makes results
+  reusable across calls and artifacts renderable — so agent submissions keep executing on the
+  server. A live web session can additionally execute the same duckdb SQL locally over
+  already-fetched referenced results to paint the artifact table immediately, reconciling with
+  the server result when it lands.
+
+Build items:
+
+- **Ship DuckDB-WASM in the frontend** with the referenced results registered as tables: v1 feeds
+  it rows the browser already fetched through the standard paginated results endpoint (same authz
+  as today — the client can only transform what it could read anyway); parquet range reads over
+  signed URLs come with the results store/serve upgrade below, and inherit its open decision on
+  handing URLs to clients.
+- **Dialect/version parity**: pin the wasm bundle to the same DuckDB version as the server
+  (`@duckdb/node-api` 1.5.x today) and reuse the same select-only validation, so SQL written for
+  one target runs identically on the other and optimistic local results match the canonical run.
+- **Trust boundary**: client-computed results are untrusted — never persisted as `query_history`
+  rows or artifact snapshots. Anything that needs identity (reuse by reference, artifacts,
+  saving) is the server run's job; local execution is a latency optimisation, not a source of
+  truth.
+- **Row-volume guardrail**: local execution only when every referenced result is small enough to
+  hold in the page (respecting the existing page-size caps); otherwise fall through to
+  server-side execution transparently.
+
 ## Status (2026-08-18)
 
 Shipped on `claude/query-dag-agent-ergonomics-p6s957` (see
