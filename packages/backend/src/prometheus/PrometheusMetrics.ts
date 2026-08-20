@@ -148,6 +148,9 @@ export default class PrometheusMetrics {
 
     public aiAgentMemoryCitedCounter: prometheus.Counter | null = null;
 
+    public aiAgentMemoryUnresolvedRetiredCounter: prometheus.Counter | null =
+        null;
+
     public aiDeepResearchReportCleanupCounter: prometheus.Counter<'outcome'> | null =
         null;
 
@@ -620,6 +623,13 @@ export default class PrometheusMetrics {
                     ...rest,
                 });
 
+                this.aiAgentMemoryUnresolvedRetiredCounter =
+                    new prometheus.Counter({
+                        name: 'ai_agent_memory_unresolved_retired_total',
+                        help: 'Memories retired by the sweep because every object they name left the catalog',
+                        ...rest,
+                    });
+
                 this.aiDeepResearchReportCleanupCounter =
                     new prometheus.Counter({
                         name: 'ai_deep_research_report_cleanup_total',
@@ -829,6 +839,7 @@ export default class PrometheusMetrics {
                 this.aiAgentMemorySweepEnqueuedCounter?.inc(0);
                 this.aiAgentMemoryUnknownToolPolicyCounter?.inc(0);
                 this.aiAgentMemoryCitedCounter?.inc(0);
+                this.aiAgentMemoryUnresolvedRetiredCounter?.inc(0);
                 (['scanned', 'expired', 'failed'] as const).forEach(
                     (outcome) => {
                         this.aiDeepResearchReportCleanupCounter?.inc(
@@ -1817,6 +1828,10 @@ export default class PrometheusMetrics {
 
     public incrementAiAgentMemoryCited(count: number) {
         this.aiAgentMemoryCitedCounter?.inc(count);
+    }
+
+    public incrementAiAgentMemoryUnresolvedRetired(count: number) {
+        this.aiAgentMemoryUnresolvedRetiredCounter?.inc(count);
     }
 
     public incrementAiDeepResearchReportCleanup(

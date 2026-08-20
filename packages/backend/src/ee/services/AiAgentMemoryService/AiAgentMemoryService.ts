@@ -103,7 +103,10 @@ import {
 } from './consolidationSchema';
 import { distillOutputSchema, type DistillOutput } from './distillSchema';
 import { reportAiAgentMemoryFailure } from './failureReporting';
-import { validateMemoryObjects } from './memoryObjects';
+import {
+    shouldRetireForUnresolvedObjects,
+    validateMemoryObjects,
+} from './memoryObjects';
 import {
     buildMemoryPromotionEntry,
     getMemoryPromotionFingerprint,
@@ -242,7 +245,10 @@ type Dependencies = {
     >;
     aiAgentModel: Pick<AiAgentModel, 'getAgent' | 'findThreadOwnership'>;
     groupsModel: Pick<GroupsModel, 'findUserInGroups'>;
-    projectModel: Pick<ProjectModel, 'findExploresFromCache' | 'getSummary'>;
+    projectModel: Pick<
+        ProjectModel,
+        'findExploresFromCache' | 'getCachedExploreNames' | 'getSummary'
+    >;
     projectContextModel: Pick<ProjectContextModel, 'getDocument'>;
     userModel: Pick<UserModel, 'findSessionUserAndOrgByUuid'>;
     featureFlagService: FeatureFlagService;
@@ -1033,6 +1039,90 @@ export class AiAgentMemoryService extends BaseService {
             sweptUpdatedAt: thread.latestActivity.toISOString(),
             force: true,
         });
+    }
+
+    /**
+     * Deterministic counterpart to the consolidation curator: retires every
+     * active memory whose objects have all left the catalog. Pure catalog
+     * resolution — no LLM call and no partition floor, so a one-memory
+     * partition is swept the same day as a large one. Runs before the
+     * consolidation sweep so the curator selects from the cleaned corpus.
+     */
+    async sweepUnresolvedObjectMemories(): Promise<number> {
+        const candidates =
+            await this.aiAgentMemoryModel.findObjectSweepCandidates();
+        const due = await this.filterByEnabledOrganizations(candidates);
+
+        let retired = 0;
+        for (const candidate of due) {
+            // eslint-disable-next-line no-await-in-loop
+            retired += await this.retireUnresolvedObjectMemoriesForProject(
+                candidate.projectUuid,
+            );
+        }
+        this.prometheusMetrics?.incrementAiAgentMemoryUnresolvedRetired(
+            retired,
+        );
+        return retired;
+    }
+
+    /** A project that cannot be swept is skipped, never the whole pass. */
+    private async retireUnresolvedObjectMemoriesForProject(
+        projectUuid: UUID,
+    ): Promise<number> {
+        try {
+            const memories =
+                await this.aiAgentMemoryModel.findActiveObjectMemoriesByProject(
+                    projectUuid,
+                );
+            if (memories.length === 0) return 0;
+
+            // An empty catalog — which a failed dbt refresh also produces —
+            // would read every object as unresolved; that is not evidence.
+            const catalogNames =
+                await this.projectModel.getCachedExploreNames(projectUuid);
+            if (catalogNames.length === 0) {
+                this.logger.warn(
+                    'Skipping AI agent memory object sweep: catalog is empty',
+                    { projectUuid },
+                );
+                return 0;
+            }
+
+            const explores = await this.projectModel.findExploresFromCache(
+                projectUuid,
+                'name',
+                memories.flatMap((memory) =>
+                    memory.objects.map((object) =>
+                        object.type === 'explore'
+                            ? object.name
+                            : object.explore,
+                    ),
+                ),
+            );
+            const toRetire = memories
+                .filter((memory) =>
+                    shouldRetireForUnresolvedObjects(memory.objects, explores),
+                )
+                .map((memory) => memory.ai_agent_memory_uuid);
+            if (toRetire.length === 0) return 0;
+
+            const retired =
+                await this.aiAgentMemoryModel.retireForUnresolvedObjects(
+                    toRetire,
+                );
+            this.logger.info(
+                'Retired AI agent memories with unresolved objects',
+                { projectUuid, retired },
+            );
+            return retired;
+        } catch (error) {
+            this.logger.warn('Dropping AI agent memory object sweep project', {
+                projectUuid,
+                error: getErrorMessage(error),
+            });
+            return 0;
+        }
     }
 
     /**

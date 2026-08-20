@@ -62,10 +62,21 @@ _Avoid_: replace, overwrite
 
 **Retire**:
 To take a memory out of recall because it is contradicted, stale, or its
-catalog objects no longer exist. Owners can retire manually; consolidation
-retires with a reason. A retired memory is the only closed status an owner
-can reopen.
+catalog objects no longer exist. Owners can retire manually, consolidation
+retires at the curator's discretion, and the object sweep retires
+deterministically; every path records its reason on the row. A retired
+memory is the only closed status an owner can reopen.
 _Avoid_: delete, archive, deactivate
+
+**Object sweep**:
+The deterministic daily pass that retires an active memory when every object
+it names is unresolved. No LLM call and no partition floor, so it reaches
+partitions consolidation never curates. All objects unresolved is the bar —
+a partially stale memory is the curator's judgment call, and memories are
+routinely born with some unresolved objects. An errored explore or an empty
+catalog blocks retirement: a broken dbt compile hides objects without
+removing them.
+_Avoid_: cleanup, garbage collection
 
 **Status**:
 A memory's lifecycle state: active (recalled), superseded (replaced by

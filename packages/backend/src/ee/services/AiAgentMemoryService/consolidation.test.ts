@@ -81,6 +81,7 @@ const memoryRow = (
     unresolved_objects: [],
     status: 'active',
     scope: 'user',
+    retired_reason: null,
     superseded_by_uuid: null,
     generated_at: new Date('2026-07-20T10:00:00Z'),
     cited_count: 7,
