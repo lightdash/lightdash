@@ -174,14 +174,15 @@ describe('HeaderView — Google Sheets Sync entry point', () => {
         expect(screen.queryByText('Edit chart')).not.toBeInTheDocument();
     });
 
-    it('renders no menu when the user has neither edit nor delivery permissions', async () => {
+    it('renders no menu when the user has neither edit nor delivery permissions', () => {
         renderWithProviders(<HeaderView />, {
             health: withGoogleDriveConfigured(),
             user: { abilityRules: [] },
         });
 
-        // findBy* polls until it times out, so this asserts the menu target
-        // never appears — not merely that it hasn't rendered yet.
-        await expect(screen.findByRole('button')).rejects.toThrow();
+        // Synchronous on purpose: dropping the gate would render the target on
+        // the first pass, so this catches it without polling. The tests above
+        // are what prove the menu appears once permissions are granted.
+        expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 });
