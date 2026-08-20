@@ -472,12 +472,16 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                                     disabled={u.hasProjectRole}
                                     multiline
                                     w={
-                                        u.isMember && !u.hasProjectRole
+                                        u.highestRole ===
+                                            OrganizationMemberRole.MEMBER &&
+                                        !u.hasProjectRole
                                             ? 280
                                             : undefined
                                     }
                                     label={
-                                        u.isMember && !u.hasProjectRole ? (
+                                        u.highestRole ===
+                                            OrganizationMemberRole.MEMBER &&
+                                        !u.hasProjectRole ? (
                                             <Text fz="xs">
                                                 <Text fw={600} fz="xs">
                                                     Members have no access to

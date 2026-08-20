@@ -1088,6 +1088,11 @@ describe('ScimService', () => {
                     ScimServiceArgumentsMock.groupsModel
                         .removeUserFromAllGroups,
                 ).not.toHaveBeenCalled();
+                // the guard must fire BEFORE the user row is touched — a
+                // refused deactivation may not flip is_active (partial write)
+                expect(
+                    ScimServiceArgumentsMock.userModel.updateUser,
+                ).not.toHaveBeenCalled();
             });
         });
 
