@@ -12332,6 +12332,25 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "CreateGoogleSheetsSourcePayload": {
+                "properties": {
+                    "tabName": {
+                        "type": "string",
+                        "description": "Sheet tab to read; the first tab when omitted."
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "url": {
+                        "type": "string"
+                    }
+                },
+                "required": ["tableName", "url"],
+                "type": "object"
+            },
             "UpdateExternalSourcePayload": {
                 "properties": {
                     "label": {
@@ -55883,7 +55902,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.226.0",
+        "version": "1.227.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

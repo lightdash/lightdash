@@ -1,3 +1,15 @@
+# [1.227.0](https://github.com/lightdash/lightdash/compare/1.226.0...1.227.0) (2026-08-20)
+
+
+### Bug Fixes
+
+* **ci:** fetch blobless in the release-safety preview checkouts ([#27806](https://github.com/lightdash/lightdash/issues/27806)) ([154473c](https://github.com/lightdash/lightdash/commit/154473c183fc609fc03722ea4be1071b2d308044))
+
+
+### Features
+
+* **external-sources:** Google Sheets sources ([#27787](https://github.com/lightdash/lightdash/issues/27787)) ([4903a1a](https://github.com/lightdash/lightdash/commit/4903a1a688975513584e8fcd578f5d5887c2d554))
+
 # [1.226.0](https://github.com/lightdash/lightdash/compare/1.225.0...1.226.0) (2026-08-20)
 
 
