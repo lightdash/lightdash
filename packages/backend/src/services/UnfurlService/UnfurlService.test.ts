@@ -80,6 +80,7 @@ function createService(
     overrides: Partial<{
         savedSqlModel: Partial<SavedSqlModel>;
         savedChartModel: Partial<SavedChartModel>;
+        dashboardModel: Partial<DashboardModel>;
         headlessBrowser: Record<string, unknown>;
     }> = {},
 ) {
@@ -92,7 +93,8 @@ function createService(
                 ...(overrides.headlessBrowser ?? {}),
             },
         } as unknown as LightdashConfig,
-        dashboardModel: {} as unknown as DashboardModel,
+        dashboardModel: (overrides.dashboardModel ??
+            {}) as unknown as DashboardModel,
         savedChartModel: (overrides.savedChartModel ??
             {}) as unknown as SavedChartModel,
         savedSqlModel: (overrides.savedSqlModel ??
@@ -388,6 +390,93 @@ describe('UnfurlService', () => {
 
             expect(result.isValid).toBe(false);
             expect(getBySlug).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('parseUrl - chart and dashboard slugs', () => {
+        const PROJECT_UUID = '21eef0b9-5bae-40f3-851e-9554588e71a6';
+        const CHART_UUID = '11111111-2222-4333-8444-555555555555';
+        const DASHBOARD_UUID = '66666666-7777-4888-8999-000000000000';
+
+        it.each(['current-chart', 'retired-chart-alias'])(
+            'resolves chart identifier %s to its canonical UUID',
+            async (identifier) => {
+                const get = vi.fn().mockResolvedValue({ uuid: CHART_UUID });
+                const service = createService({
+                    savedChartModel: { get },
+                });
+
+                const result = await service.parseUrl(
+                    `https://app.lightdash.cloud/projects/${PROJECT_UUID}/saved/${identifier}/view`,
+                );
+
+                expect(get).toHaveBeenCalledWith(identifier, undefined, {
+                    projectUuid: PROJECT_UUID,
+                });
+                expect(result).toMatchObject({
+                    isValid: true,
+                    lightdashPage: LightdashPage.CHART,
+                    projectUuid: PROJECT_UUID,
+                    chartUuid: CHART_UUID,
+                    minimalUrl: `http://headless-browser:8080/minimal/projects/${PROJECT_UUID}/saved/${CHART_UUID}`,
+                });
+            },
+        );
+
+        it('resolves a dashboard slug to its canonical UUID', async () => {
+            const getByIdOrSlug = vi
+                .fn()
+                .mockResolvedValue({ uuid: DASHBOARD_UUID });
+            const service = createService({
+                dashboardModel: { getByIdOrSlug },
+            });
+
+            const result = await service.parseUrl(
+                `https://app.lightdash.cloud/projects/${PROJECT_UUID}/dashboards/current-dashboard/view?foo=bar`,
+            );
+
+            expect(getByIdOrSlug).toHaveBeenCalledWith('current-dashboard', {
+                projectUuid: PROJECT_UUID,
+            });
+            expect(result).toMatchObject({
+                isValid: true,
+                lightdashPage: LightdashPage.DASHBOARD,
+                projectUuid: PROJECT_UUID,
+                dashboardUuid: DASHBOARD_UUID,
+                minimalUrl: `http://headless-browser:8080/minimal/projects/${PROJECT_UUID}/dashboards/${DASHBOARD_UUID}?foo=bar`,
+            });
+        });
+
+        it('keeps UUID URLs on the existing lookup-free path', async () => {
+            const get = vi.fn();
+            const getByIdOrSlug = vi.fn();
+            const service = createService({
+                savedChartModel: { get },
+                dashboardModel: { getByIdOrSlug },
+            });
+
+            const chartResult = await service.parseUrl(
+                `https://app.lightdash.cloud/projects/${PROJECT_UUID}/saved/${CHART_UUID}/view`,
+            );
+            const dashboardResult = await service.parseUrl(
+                `https://app.lightdash.cloud/projects/${PROJECT_UUID}/dashboards/${DASHBOARD_UUID}/view`,
+            );
+
+            expect(get).not.toHaveBeenCalled();
+            expect(getByIdOrSlug).not.toHaveBeenCalled();
+            expect(chartResult.chartUuid).toBe(CHART_UUID);
+            expect(dashboardResult.dashboardUuid).toBe(DASHBOARD_UUID);
+        });
+
+        it('returns an invalid result when a slug does not resolve', async () => {
+            const get = vi.fn().mockRejectedValue(new Error('not found'));
+            const service = createService({ savedChartModel: { get } });
+
+            const result = await service.parseUrl(
+                `https://app.lightdash.cloud/projects/${PROJECT_UUID}/saved/missing-chart/view`,
+            );
+
+            expect(result.isValid).toBe(false);
         });
     });
 

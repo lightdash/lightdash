@@ -81,6 +81,7 @@ import { countPdfPages } from './countPdfPages';
 
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const uuidRegex = new RegExp(uuid, 'g');
+const uuidExactRegex = new RegExp(`^${uuid}$`);
 const nanoid = '[\\w-]{21}';
 const nanoidRegex = new RegExp(nanoid);
 const shareUrlRegex = new RegExp(`/share/(${nanoid})`);
@@ -2549,8 +2550,10 @@ export class UnfurlService extends BaseService {
             ? await this.getSharedUrl(linkUrl)
             : linkUrl;
 
-        const dashboardUrl = new RegExp(`/projects/${uuid}/dashboards/${uuid}`);
-        const chartUrl = new RegExp(`/projects/${uuid}/saved/${uuid}`);
+        const dashboardUrl = new RegExp(
+            `/projects/(${uuid})/dashboards/([^/?#]+)`,
+        );
+        const chartUrl = new RegExp(`/projects/(${uuid})/saved/([^/?#]+)`);
         const exploreUrl = new RegExp(`/projects/${uuid}/tables/`);
         const sqlChartUrl = new RegExp(
             `/projects/(${uuid})/sql-runner/([^/?#]+)`,
@@ -2571,34 +2574,75 @@ export class UnfurlService extends BaseService {
                 appUuid,
             };
         }
-        if (url.match(dashboardUrl) !== null) {
-            const [projectUuid, dashboardUuid] = url.match(uuidRegex) || [];
+        const dashboardMatch = url.match(dashboardUrl);
+        if (dashboardMatch !== null) {
+            const [, projectUuid, encodedIdentifier] = dashboardMatch;
+            try {
+                const dashboardIdentifier =
+                    decodeURIComponent(encodedIdentifier);
+                const dashboardUuid = uuidExactRegex.test(dashboardIdentifier)
+                    ? dashboardIdentifier
+                    : (
+                          await this.dashboardModel.getByIdOrSlug(
+                              dashboardIdentifier,
+                              { projectUuid },
+                          )
+                      ).uuid;
 
-            const { searchParams } = new URL(url);
-            return {
-                isValid: true,
-                lightdashPage: LightdashPage.DASHBOARD,
-                url,
-                minimalUrl: `${
-                    this.lightdashConfig.headlessBrowser.internalLightdashHost
-                }/minimal/projects/${projectUuid}/dashboards/${dashboardUuid}?${searchParams.toString()}`,
-                projectUuid,
-                dashboardUuid,
-            };
+                const { searchParams } = new URL(url);
+                return {
+                    isValid: true,
+                    lightdashPage: LightdashPage.DASHBOARD,
+                    url,
+                    minimalUrl: `${
+                        this.lightdashConfig.headlessBrowser
+                            .internalLightdashHost
+                    }/minimal/projects/${projectUuid}/dashboards/${dashboardUuid}?${searchParams.toString()}`,
+                    projectUuid,
+                    dashboardUuid,
+                };
+            } catch (e) {
+                this.logger.debug(
+                    `Dashboard ${encodedIdentifier} did not resolve in project ${projectUuid}: ${getErrorMessage(
+                        e,
+                    )}`,
+                );
+            }
         }
-        if (url.match(chartUrl) !== null) {
-            const [projectUuid, chartUuid] = url.match(uuidRegex) || [];
-            return {
-                isValid: true,
-                lightdashPage: LightdashPage.CHART,
-                url,
-                minimalUrl: new URL(
-                    `/minimal/projects/${projectUuid}/saved/${chartUuid}`,
-                    this.lightdashConfig.headlessBrowser.internalLightdashHost,
-                ).href,
-                projectUuid,
-                chartUuid,
-            };
+        const chartMatch = url.match(chartUrl);
+        if (chartMatch !== null) {
+            const [, projectUuid, encodedIdentifier] = chartMatch;
+            try {
+                const chartIdentifier = decodeURIComponent(encodedIdentifier);
+                const chartUuid = uuidExactRegex.test(chartIdentifier)
+                    ? chartIdentifier
+                    : (
+                          await this.savedChartModel.get(
+                              chartIdentifier,
+                              undefined,
+                              { projectUuid },
+                          )
+                      ).uuid;
+
+                return {
+                    isValid: true,
+                    lightdashPage: LightdashPage.CHART,
+                    url,
+                    minimalUrl: new URL(
+                        `/minimal/projects/${projectUuid}/saved/${chartUuid}`,
+                        this.lightdashConfig.headlessBrowser
+                            .internalLightdashHost,
+                    ).href,
+                    projectUuid,
+                    chartUuid,
+                };
+            } catch (e) {
+                this.logger.debug(
+                    `Chart ${encodedIdentifier} did not resolve in project ${projectUuid}: ${getErrorMessage(
+                        e,
+                    )}`,
+                );
+            }
         }
         if (url.match(exploreUrl) !== null) {
             const [projectUuid] = url.match(uuidRegex) || [];
