@@ -1,3 +1,10 @@
+# [1.225.0](https://github.com/lightdash/lightdash/compare/1.224.0...1.225.0) (2026-08-20)
+
+
+### Features
+
+* **external-sources:** upload flow and sidebar section in the Explorer ([#27784](https://github.com/lightdash/lightdash/issues/27784)) ([e5bf275](https://github.com/lightdash/lightdash/commit/e5bf275f6f19c6d600dad7b09ea7170ed140f8c6))
+
 # [1.224.0](https://github.com/lightdash/lightdash/compare/1.223.0...1.224.0) (2026-08-20)
 
 
