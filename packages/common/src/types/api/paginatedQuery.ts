@@ -6,6 +6,10 @@ import type { AndFilterGroup, DashboardFilters, Filters } from '../filter';
 import { type MergeQuery, type MetricSourcedMergeQuery } from '../mergeQuery';
 import type { MetricQueryRequest, SortField } from '../metricQuery';
 import type { PivotConfig } from '../pivot';
+import type {
+    ExternalSourceTableReference,
+    QuerySourceTableName,
+} from '../querySources';
 import type { DateGranularity } from '../timeFrames';
 import type { UUID } from './uuid';
 
@@ -102,6 +106,14 @@ export type ExecuteAsyncComposeSqlQueryRequestParams =
          * additionalProperties intact (and validates the uuid format).
          */
         references?: Record<string, UUID>;
+    };
+
+export type ExecuteAsyncExternalSqlQueryRequestParams =
+    CommonExecuteQueryRequestParams & {
+        sql: string;
+        limit?: number;
+        /** Table alias to external table SQL name or UUID. */
+        tables: Record<QuerySourceTableName, ExternalSourceTableReference>;
     };
 
 export type ExecuteAsyncUnderlyingDataRequestParams =

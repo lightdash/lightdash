@@ -15,11 +15,13 @@ import {
     type DashboardFilters,
     type DateZoom,
     type DownloadAsyncQueryResultsPayload,
+    type ExternalSourceTableReference,
     type Filters,
     type ItemsMap,
     type ParametersValuesMap,
     type PreAggregateExecutionEngine,
     type QueryExecutionContext,
+    type QuerySourceTableName,
     type ResultColumns,
     type ResultsPaginationArgs,
     type RunQueryTags,
@@ -179,6 +181,13 @@ export type ExecuteAsyncComposeSqlQueryArgs = CommonAsyncQueryArgs & {
     limit?: number;
     /** Table name -> queryUuid of a previous async query to expose as that table. */
     references?: Record<string, UUID>;
+};
+
+export type ExecuteAsyncExternalSqlQueryArgs = CommonAsyncQueryArgs & {
+    sql: string;
+    limit?: number;
+    /** Table name -> external source table (name or uuid) to expose as that table. */
+    tables: Record<QuerySourceTableName, ExternalSourceTableReference>;
 };
 
 export type ExecuteAsyncMergeQueryArgs = CommonAsyncQueryArgs & {

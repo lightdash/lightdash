@@ -79,6 +79,7 @@ import {
     MissingConfigError,
     normalizeIndexColumns,
     NotFoundError,
+    NotImplementedError,
     NotSupportedError,
     OrganizationAccessStatus,
     ParameterError,
@@ -121,12 +122,14 @@ import {
     type ExecuteAsyncComposeMergeQueryRequestParams,
     type ExecuteAsyncComposeSqlQueryRequestParams,
     type ExecuteAsyncDashboardChartRequestParams,
+    type ExecuteAsyncExternalSqlQueryRequestParams,
     type ExecuteAsyncFieldValueSearchRequestParams,
     type ExecuteAsyncMergeQueryRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
     type ExecuteAsyncQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
+    type ExternalSourceTableReference,
     type MergeQueryChart,
     type Organization,
     type ParameterDefinitions,
@@ -257,6 +260,7 @@ import {
     type ExecuteAsyncComposeSqlQueryArgs,
     type ExecuteAsyncDashboardChartQueryArgs,
     type ExecuteAsyncDashboardSqlChartArgs,
+    type ExecuteAsyncExternalSqlQueryArgs,
     type ExecuteAsyncFieldValueSearchArgs,
     type ExecuteAsyncMergeQueryArgs,
     type ExecuteAsyncMetricQueryArgs,
@@ -391,14 +395,10 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     persistentDownloadFileService: PersistentDownloadFileService;
     organizationAccessService: OrganizationAccessService;
     preAggregateStrategy?: PreAggregateStrategy;
-    /**
-     * Resolves an external source table (locator, columns, version) for
-     * explores of type EXTERNAL_SOURCE. Injected by the enterprise edition;
-     * absent on OSS, where external source queries are refused.
-     */
+    /** EE resolver for external tables; absent in OSS. */
     externalSourceTableResolver?: (
         projectUuid: string,
-        tableUuid: string,
+        tableUuidOrName: ExternalSourceTableReference,
     ) => Promise<
         | (DbExternalSourceTable & {
               external_source_status: ExternalSourceStatus;
@@ -7160,6 +7160,206 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
+    /** Executes DuckDB SQL over versioned external tables without persisting file URIs. */
+    async executeAsyncExternalSqlQuery({
+        account,
+        projectUuid,
+        sql,
+        context,
+        limit,
+        tables,
+    }: ExecuteAsyncExternalSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
+        assertIsAccountWithOrg(account);
+
+        const { enabled: isEndpointEnabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+            },
+            featureFlagId: FeatureFlags.ExternalSources,
+        });
+        if (!isEndpointEnabled) {
+            throw new ForbiddenError('External sources are not enabled');
+        }
+
+        const projectSummary = await this.projectModel.getSummary(projectUuid);
+        const { organizationUuid } = projectSummary;
+
+        // External SQL uses the same ability as compose SQL.
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('Explore', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        try {
+            DuckdbWarehouseClient.validateUserSqlFileAccess(sql);
+        } catch (e) {
+            throw new ParameterError(getErrorMessage(e));
+        }
+
+        const tableEntries = Object.entries(tables);
+        if (tableEntries.length === 0) {
+            throw new ParameterError(
+                'External SQL queries must name at least one external source table',
+            );
+        }
+        const resolver = this.externalSourceTableResolver;
+        if (!resolver) {
+            throw new NotImplementedError(
+                'External source queries need the enterprise DuckDB engine',
+            );
+        }
+
+        const resolvedTables = await Promise.all(
+            tableEntries.map(async ([tableName, reference]) => {
+                const table = await resolver(projectUuid, reference);
+                if (!table) {
+                    throw new ParameterError(
+                        `Unknown external source table "${reference}"`,
+                    );
+                }
+                if (!table.locator || !table.columns) {
+                    throw new ParameterError(
+                        `External source table "${reference}" has no ingested data yet. Refresh the source and try again`,
+                    );
+                }
+                return {
+                    tableName,
+                    tableUuid: table.external_source_table_uuid,
+                    version: table.version,
+                    locator: table.locator,
+                    columns: table.columns,
+                };
+            }),
+        );
+
+        const referenceCtes = resolvedTables.map(
+            ({ tableName, locator, columns }) =>
+                `${quoteDuckdbIdentifier(
+                    tableName,
+                )} AS (SELECT * FROM ${getDuckdbPreAggregateSqlTable(
+                    locator,
+                    columns,
+                )})`,
+        );
+
+        // Table versions invalidate cached SQL results after refresh.
+        const externalSourceSalt = resolvedTables
+            .map(({ tableUuid, version }) => `esv:${tableUuid}:${version}`)
+            .sort()
+            .join('|');
+        const cacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
+            sql: JSON.stringify({
+                sql,
+                tables: [...tableEntries].sort(([a], [b]) =>
+                    a.localeCompare(b),
+                ),
+            }),
+            userUuid: null,
+            externalSourceSalt,
+        });
+
+        // Throws NotImplementedError when the engine is unavailable
+        const warehouseClient =
+            this.preAggregateStrategy.createExecutionWarehouseClient();
+
+        const queryTags: RunQueryTags = {
+            ...this.getUserQueryTags(account),
+            ...AsyncQueryService.getSchedulerQueryTags(),
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            query_context: context,
+        };
+
+        const placeholderComposer = new SqlQueryComposer({
+            userSql: sql,
+            columns: [],
+            warehouseClient,
+            pivotConfiguration: undefined,
+            limit,
+            parameters: undefined,
+            dashboardFilters: undefined,
+            tileUuid: undefined,
+            dashboardSorts: undefined,
+        });
+
+        const requestParameters: ExecuteAsyncExternalSqlQueryRequestParams = {
+            sql,
+            limit,
+            context,
+            tables,
+        };
+
+        const queryCreatedAt = new Date();
+        const { queryUuid } = await this.queryHistoryModel.create(account, {
+            projectUuid,
+            organizationUuid,
+            context,
+            fields: {},
+            compiledSql: sql,
+            requestParameters,
+            metricQuery: placeholderComposer.getMetricQuery(),
+            cacheKey,
+            pivotConfiguration: null,
+            originalColumns: {},
+        });
+        this.prometheusMetrics?.trackQueryStateTransition(
+            'new',
+            QueryHistoryStatus.PENDING,
+            context,
+        );
+
+        const onboardingFlow = await this.getOnboardingFlow({
+            userUuid: account.user.id,
+            organizationUuid,
+        });
+
+        void this.runDuckdbSqlQuery({
+            account,
+            projectUuid,
+            organizationUuid,
+            isPreviewProject:
+                projectSummary.type === ProjectType.PREVIEW ||
+                projectSummary.provisioningSource === 'playground',
+            onboardingFlow,
+            queryUuid,
+            resolvedSql: AsyncQueryService.wrapSqlWithReferenceCtes(
+                sql,
+                referenceCtes,
+            ),
+            // Only persist the user SQL; resolved SQL contains private URIs.
+            storedCompiledSql: sql,
+            limit,
+            warehouseClient,
+            queryTags,
+            queryCreatedAt,
+            cacheKey,
+            context,
+        }).catch((e) => {
+            this.logger.error(
+                `Async external SQL query ${queryUuid} failed: ${getErrorMessage(
+                    e,
+                )}`,
+            );
+        });
+
+        return {
+            queryUuid,
+            cacheMetadata: { cacheHit: false },
+            parameterReferences: [],
+            usedParametersValues: {},
+            resolvedTimezone: null,
+        };
+    }
+
     /** How long a compose query waits for a referenced query's results. */
     private static readonly REFERENCE_WAIT_TIMEOUT_MS = 15 * 60 * 1000;
 
@@ -7222,11 +7422,72 @@ export class AsyncQueryService extends ProjectService {
                   })
                 : [];
 
-            const resolvedSql = AsyncQueryService.wrapSqlWithReferenceCtes(
-                sql,
-                referenceCtes,
+            await this.runDuckdbSqlQuery({
+                account,
+                projectUuid,
+                organizationUuid,
+                isPreviewProject,
+                onboardingFlow,
+                queryUuid,
+                resolvedSql: AsyncQueryService.wrapSqlWithReferenceCtes(
+                    sql,
+                    referenceCtes,
+                ),
+                limit,
+                warehouseClient,
+                queryTags,
+                queryCreatedAt,
+                cacheKey,
+                context,
+            });
+        } catch (e) {
+            await this.queryHistoryModel.update(
+                queryUuid,
+                projectUuid,
+                {
+                    status: QueryHistoryStatus.ERROR,
+                    error: getErrorMessage(e),
+                    errored_at: new Date(),
+                },
+                account,
             );
+        }
+    }
 
+    /** Executes resolved DuckDB SQL through the standard query lifecycle. */
+    private async runDuckdbSqlQuery({
+        account,
+        projectUuid,
+        organizationUuid,
+        isPreviewProject,
+        onboardingFlow,
+        queryUuid,
+        resolvedSql,
+        storedCompiledSql,
+        limit,
+        warehouseClient,
+        queryTags,
+        queryCreatedAt,
+        cacheKey,
+        context,
+    }: {
+        account: Account;
+        projectUuid: string;
+        organizationUuid: string;
+        isPreviewProject: boolean;
+        onboardingFlow: OnboardingFlow;
+        queryUuid: string;
+        resolvedSql: string;
+        /** Safe SQL persisted instead of resolved SQL containing private URIs. */
+        storedCompiledSql?: string;
+        limit: number | undefined;
+        warehouseClient: WarehouseClient;
+        queryTags: RunQueryTags;
+        queryCreatedAt: Date;
+        cacheKey: string;
+        context: QueryExecutionContext;
+    }): Promise<void> {
+        try {
             // Column discovery (LIMIT 1) also validates the SQL
             const columns: { name: string; type: DimensionType }[] = [];
             const columnDiscoverySql = applyLimitToSqlQuery({
@@ -7292,7 +7553,7 @@ export class AsyncQueryService extends ProjectService {
                 queryUuid,
                 projectUuid,
                 {
-                    compiled_sql: query,
+                    compiled_sql: storedCompiledSql ?? query,
                     fields: fieldsMap,
                     original_columns: originalColumns,
                 },
