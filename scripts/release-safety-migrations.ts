@@ -339,19 +339,62 @@ const migrationEdition = (migrationPath: string): 'core' | 'ee' =>
         ? 'ee'
         : 'core';
 
+const DECLARATION_KEYWORDS = ['const', 'let', 'var'];
+
+/**
+ * PURE. How many times each name is declared anywhere in the file, at any
+ * depth.
+ *
+ * A name declared twice cannot be resolved by scanning alone: the binding in
+ * force at a `knex.raw()` call depends on lexical scope this tokenizer does
+ * not model. Counting lets the caller drop those names instead of resolving
+ * the wrong one.
+ */
+const countDeclarations = (tokens: Token[]): Map<string, number> => {
+    const counts = new Map<string, number>();
+    for (let index = 0; index + 1 < tokens.length; index += 1) {
+        if (
+            tokens[index].kind === 'identifier' &&
+            DECLARATION_KEYWORDS.includes(tokens[index].value) &&
+            tokens[index + 1].kind === 'identifier'
+        ) {
+            const name = tokens[index + 1].value;
+            counts.set(name, (counts.get(name) ?? 0) + 1);
+        }
+    }
+    return counts;
+};
+
+/**
+ * PURE. Module-scope constants whose value is a complete literal.
+ *
+ * Three conditions keep this honest, because callers treat a hit as fact:
+ * the declaration sits at depth 0, so no enclosing block can rebind it; the
+ * name is declared exactly once, so no inner scope shadows it; and the literal
+ * is the whole initializer, so `'ALTER TABLE ' + build()` is rejected rather
+ * than recorded as its prefix. Anything else is left out, which costs only an
+ * unknown verdict.
+ */
 const collectStringConstants = (
     tokens: Token[],
     kinds: readonly TokenKind[] = ['string', 'template'],
 ): Map<string, string> => {
     const constants = new Map<string, string>();
+    const declarationCounts = countDeclarations(tokens);
     for (let index = 0; index + 3 < tokens.length; index += 1) {
+        const terminator = tokens[index + 4];
         if (
             tokens[index].kind === 'identifier' &&
             tokens[index].value === 'const' &&
+            tokens[index].depth === 0 &&
             tokens[index + 1].kind === 'identifier' &&
+            declarationCounts.get(tokens[index + 1].value) === 1 &&
             tokens[index + 2].kind === 'operator' &&
             tokens[index + 2].value === '=' &&
-            kinds.includes(tokens[index + 3].kind)
+            kinds.includes(tokens[index + 3].kind) &&
+            (terminator === undefined ||
+                (terminator.kind === 'punctuation' &&
+                    [';', ','].includes(terminator.value)))
         ) {
             constants.set(tokens[index + 1].value, tokens[index + 3].value);
         }
@@ -457,6 +500,14 @@ const TEMPLATE_PLACEHOLDER = /\$\{([^}]*)\}/g;
  * migrations normally keep a `CREATE INDEX` and its matching `DROP INDEX` in
  * step. A placeholder naming anything else stays unreadable and returns null,
  * so the caller keeps degrading the verdict rather than guessing.
+ *
+ * The tokenizer flags a template dynamic on sight of `${` but does not track
+ * nesting, so a nested template ends the token mid-placeholder and leaves a
+ * fragment this regex cannot match. Returning that fragment would read as
+ * clean SQL and report heaviness the statement never had, so any `${` left
+ * after substitution means the argument was not understood. Refusing is the
+ * only safe answer: a wrong `false` claims a migration is light, while an
+ * unknown merely asks a person to look.
  */
 const resolveSqlArgument = (
     token: Token | undefined,
@@ -475,7 +526,8 @@ const resolveSqlArgument = (
         resolved += token.value.slice(cursor, match.index) + substitution;
         cursor = match.index + match[0].length;
     }
-    return resolved + token.value.slice(cursor);
+    resolved += token.value.slice(cursor);
+    return resolved.includes('${') ? null : resolved;
 };
 
 const rawSqlTables = (sql: string): string[] => {
@@ -646,6 +698,15 @@ export function analyzeMigrationSource(
                     /\b(?:select[\s\S]+from|set\s+not\s+null|validate\s+constraint|create\s+(?:unique\s+)?index)\b/i.test(
                         sql,
                     )
+                ) {
+                    mark('scansTable');
+                }
+                // Postgres validates a new CHECK or FOREIGN KEY constraint
+                // against every existing row unless the statement says NOT
+                // VALID, so the add is a full scan in all but that one form.
+                if (
+                    /\badd\s+constraint\b/i.test(sql) &&
+                    !/\bnot\s+valid\b/i.test(sql)
                 ) {
                     mark('scansTable');
                 }

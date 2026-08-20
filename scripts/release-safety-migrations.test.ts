@@ -164,6 +164,78 @@ test('numeric constants substitute as readily as string ones', () => {
     assert.strictEqual(result.complete, true);
 });
 
+// The four cases below are the fail-safe direction. Each one used to reach
+// `complete: false` with every heaviness value unknown, and a reader that
+// guesses instead would publish a confident wrong answer. A false `false`
+// tells the upgrade gate a migration is light when it is not.
+test('a nested template refuses rather than reading a fragment', () => {
+    // The tokenizer ends the outer token at the inner backtick, so the value
+    // is the fragment `${` and no placeholder matches. The real statement is
+    // an UPDATE, which rewrites and scans.
+    const result = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260810000007_nested.ts',
+        'const A = `users`;\n' +
+            'export async function up(knex) { await knex.raw(`${`UPDATE ${A} SET x = 1`}`); }',
+    );
+    assert.deepStrictEqual(result.migration.heaviness, {
+        locksTable: 'unknown',
+        rewritesTable: 'unknown',
+        scansTable: 'unknown',
+    });
+    assert.strictEqual(result.complete, false);
+});
+
+test('a literal that is only part of the initializer is not a constant', () => {
+    const result = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260810000008_partial.ts',
+        `
+            const SQL = 'ALTER TABLE users ' + buildRest();
+            export async function up(knex) { await knex.raw(\`\${SQL}\`); }
+        `,
+    );
+    assert.strictEqual(result.complete, false);
+    assert.strictEqual(result.migration.heaviness.locksTable, 'unknown');
+});
+
+test('a shadowed name is not resolved from the outer scope', () => {
+    const result = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260810000009_shadowed.ts',
+        `
+            const SQL = 'SELECT 1';
+            export async function up(knex) {
+                const SQL = buildDangerousSql();
+                await knex.raw(\`\${SQL}\`);
+            }
+        `,
+    );
+    assert.strictEqual(result.complete, false);
+    assert.strictEqual(result.migration.heaviness.rewritesTable, 'unknown');
+});
+
+test('adding a constraint scans the table unless it says NOT VALID', () => {
+    const build = (suffix: string): string => `
+        const Table = 'ai_agent';
+        export async function up(knex) {
+            await knex.raw(
+                \`ALTER TABLE \${Table} ADD CONSTRAINT c CHECK (h IS NULL)${suffix}\`,
+            );
+        }
+    `;
+    const validated = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260810000010_check.ts',
+        build(''),
+    );
+    assert.strictEqual(validated.complete, true);
+    assert.strictEqual(validated.migration.heaviness.scansTable, true);
+
+    const deferred = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260810000011_check_deferred.ts',
+        build(' NOT VALID'),
+    );
+    assert.strictEqual(deferred.complete, true);
+    assert.strictEqual(deferred.migration.heaviness.scansTable, false);
+});
+
 test('an unresolvable interpolation still degrades', () => {
     for (const body of [
         'await knex.raw(`DROP INDEX ${buildName()}`);',
