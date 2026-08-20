@@ -1,3 +1,21 @@
+# [1.221.0](https://github.com/lightdash/lightdash/compare/1.220.1...1.221.0) (2026-08-20)
+
+
+### Bug Fixes
+
+* **bigquery:** restore partition pruning for non-UTC timezone date filters ([#27752](https://github.com/lightdash/lightdash/issues/27752)) ([ac76bab](https://github.com/lightdash/lightdash/commit/ac76bab3644d06cb9df2bef85a8ebe4e0af90a41))
+* **homepage:** bound recently-viewed to the last 90 days ([#27766](https://github.com/lightdash/lightdash/issues/27766)) ([16ec256](https://github.com/lightdash/lightdash/commit/16ec256100e4c5b2f79ed2263a928f8d31378ed7))
+* **homepage:** cap the recently-viewed query with a statement timeout ([#27764](https://github.com/lightdash/lightdash/issues/27764)) ([e28b74a](https://github.com/lightdash/lightdash/commit/e28b74a29406cc876840378cdc1bc2ff32ea2a7f))
+* **homepage:** make the recently-viewed anti-join index-friendly ([#27763](https://github.com/lightdash/lightdash/issues/27763)) ([8592188](https://github.com/lightdash/lightdash/commit/8592188cc3b359d2c2bb8dc4d72666e124015ae2))
+* **homepage:** read recently-viewed from the viewer's own chart views ([#27768](https://github.com/lightdash/lightdash/issues/27768)) ([9ca50b1](https://github.com/lightdash/lightdash/commit/9ca50b1bf135d02b727fb50cb6d1bc87ebfd3ff4))
+* **pivot:** preserve rows distinguished by hidden dimensions ([#27750](https://github.com/lightdash/lightdash/issues/27750)) ([db2f59d](https://github.com/lightdash/lightdash/commit/db2f59db9e54838707911663492219b42c46c4ef))
+
+
+### Features
+
+* **db:** index analytics_chart_views by user and timestamp ([#27767](https://github.com/lightdash/lightdash/issues/27767)) ([238885a](https://github.com/lightdash/lightdash/commit/238885abd572243eb90e49fc160c34d80fa35c87))
+* **db:** index analytics_dashboard_views by user and timestamp ([#27765](https://github.com/lightdash/lightdash/issues/27765)) ([54c7f4a](https://github.com/lightdash/lightdash/commit/54c7f4a7538b94817de7d9f3bd8fa51b798d1d2e))
+
 ## [1.220.1](https://github.com/lightdash/lightdash/compare/1.220.0...1.220.1) (2026-08-20)
 
 

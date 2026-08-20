@@ -1,18 +1,39 @@
 {
   "schemaVersion": "2",
-  "version": "1.220.1",
-  "previousVersion": "1.220.0",
-  "releaseDate": "2026-08-20T15:12:36.991Z",
+  "version": "1.221.0",
+  "previousVersion": "1.220.1",
+  "releaseDate": "2026-08-20T16:02:41.196Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 2,
+    "coreCount": 2,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20260820151000_index_analytics_dashboard_views_user_uuid_timestamp.ts",
+        "edition": "core",
+        "tables": [],
+        "heaviness": {
+          "locksTable": "unknown",
+          "rewritesTable": "unknown",
+          "scansTable": "unknown"
+        }
+      },
+      {
+        "name": "20260820153000_index_analytics_chart_views_user_uuid_timestamp.ts",
+        "edition": "core",
+        "tables": [],
+        "heaviness": {
+          "locksTable": "unknown",
+          "rewritesTable": "unknown",
+          "scansTable": "unknown"
+        }
+      }
+    ]
   },
   "compatibility": {
-    "rollingUpdateSafe": true,
-    "recommendedStrategy": "RollingUpdate"
+    "rollingUpdateSafe": "unknown",
+    "recommendedStrategy": "Recreate"
   },
   "api": {
     "rest": {
