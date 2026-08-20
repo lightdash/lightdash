@@ -887,8 +887,8 @@ export const AiAgentFormSetup = ({
                             <>
                                 <Divider />
                                 <AgentSettingsSubsection
-                                    title="Conversation retention"
-                                    description={`Delete this agent's conversations after a period of inactivity. Active conversations are never cut off.${
+                                    title="Thread retention"
+                                    description={`Delete this agent's threads after a period of inactivity. Active threads are never cut off.${
                                         aiOrganizationSettings?.threadRetentionHours !=
                                         null
                                             ? ' The organization retention policy caps this setting.'

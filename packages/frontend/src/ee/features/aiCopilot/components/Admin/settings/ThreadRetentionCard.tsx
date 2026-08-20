@@ -36,11 +36,11 @@ export const ThreadRetentionCard = ({
             >
                 <Box maw={620}>
                     <Title order={5} mb={4}>
-                        Conversation retention
+                        Thread retention
                     </Title>
                     <Text c="ldGray.6" fz="xs">
-                        Automatically delete agent conversations after a period
-                        of inactivity. Agents can shorten this window but not
+                        Automatically delete agent threads after a period of
+                        inactivity. Agents can shorten this window but not
                         extend it.
                     </Text>
                 </Box>
@@ -62,7 +62,7 @@ export const ThreadRetentionCard = ({
             <MantineModal
                 opened={pendingRetentionHours !== undefined}
                 onClose={() => setPendingRetentionHours(undefined)}
-                title="Reduce conversation retention?"
+                title="Reduce thread retention?"
                 icon={IconAlertTriangle}
                 role="alertdialog"
                 confirmLabel="Reduce retention"
@@ -77,7 +77,7 @@ export const ThreadRetentionCard = ({
             >
                 <Stack gap="xs">
                     <Text fz="sm">
-                        Conversations inactive for longer than{' '}
+                        Threads inactive for longer than{' '}
                         {pendingRetentionHours !== undefined
                             ? formatRetentionHours(pendingRetentionHours)
                             : ''}{' '}
@@ -89,14 +89,14 @@ export const ThreadRetentionCard = ({
                         <Group gap="xs">
                             <Loader size="xs" />
                             <Text fz="sm" c="dimmed">
-                                Counting affected conversations…
+                                Counting affected threads…
                             </Text>
                         </Group>
                     ) : previewQuery.data &&
                       previewQuery.data.threadCount > 0 ? (
                         <Callout
                             variant="danger"
-                            title={`${previewQuery.data.threadCount} conversation${
+                            title={`${previewQuery.data.threadCount} thread${
                                 previewQuery.data.threadCount === 1 ? '' : 's'
                             } across ${previewQuery.data.agentCount} agent${
                                 previewQuery.data.agentCount === 1 ? '' : 's'

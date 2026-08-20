@@ -36,8 +36,8 @@ export const ThreadRetentionNotice: FC<Props> = ({
         <Group gap={4} wrap="nowrap">
             <MantineIcon icon={IconHourglass} size={14} color="ldGray.6" />
             <Text size="xs" c="ldGray.6">
-                Conversations are deleted after{' '}
-                {formatRetentionHours(effectiveHours)} of inactivity
+                Threads are deleted after {formatRetentionHours(effectiveHours)}{' '}
+                of inactivity
             </Text>
         </Group>
     );
