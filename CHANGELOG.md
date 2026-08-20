@@ -1,3 +1,10 @@
+# [1.223.0](https://github.com/lightdash/lightdash/compare/1.222.0...1.223.0) (2026-08-20)
+
+
+### Features
+
+* **external-sources:** CSV upload entity, ingest pipeline, and explore generation ([#27782](https://github.com/lightdash/lightdash/issues/27782)) ([3fe1e27](https://github.com/lightdash/lightdash/commit/3fe1e2775f6487d560eb559c11bfb33bf362494e))
+
 # [1.222.0](https://github.com/lightdash/lightdash/compare/1.221.2...1.222.0) (2026-08-20)
 
 

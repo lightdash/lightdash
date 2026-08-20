@@ -12072,6 +12072,266 @@
                 ],
                 "type": "object"
             },
+            "Record_string.ResultColumn_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/ResultColumn"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ResultColumns": {
+                "$ref": "#/components/schemas/Record_string.ResultColumn_"
+            },
+            "StagedExternalSourceUpload": {
+                "properties": {
+                    "rowCountEstimate": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "sampleRows": {
+                        "items": {
+                            "$ref": "#/components/schemas/Record_string.unknown_"
+                        },
+                        "type": "array"
+                    },
+                    "inferredColumns": {
+                        "$ref": "#/components/schemas/ResultColumns"
+                    },
+                    "sourceUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "rowCountEstimate",
+                    "sampleRows",
+                    "inferredColumns",
+                    "sourceUuid"
+                ],
+                "type": "object"
+            },
+            "ApiStagedExternalSourceUploadResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/StagedExternalSourceUpload"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ExternalSourceType": {
+                "description": "External data sources: files and third-party apps connected to a project as\nqueryable tables. Each source owns one or more tables; every table is\ningested to a typed parquet file in object storage and generated as an\nexplore (ExploreType.EXTERNAL_SOURCE) executed on the DuckDB compose\nengine. Sources are not warehouses: they plug in above the warehouse\nclient layer.",
+                "enum": ["csv", "google_sheets"],
+                "type": "string"
+            },
+            "ExternalSourceType.CSV": {
+                "enum": ["csv"],
+                "type": "string"
+            },
+            "ExternalSourceCsvConnection": {
+                "properties": {
+                    "originalFilename": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ExternalSourceType.CSV"
+                    }
+                },
+                "required": ["originalFilename", "type"],
+                "type": "object"
+            },
+            "ExternalSourceType.GOOGLE_SHEETS": {
+                "enum": ["google_sheets"],
+                "type": "string"
+            },
+            "ExternalSourceGoogleSheetsConnection": {
+                "properties": {
+                    "tabName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "spreadsheetId": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ExternalSourceType.GOOGLE_SHEETS"
+                    }
+                },
+                "required": ["tabName", "spreadsheetId", "type"],
+                "type": "object"
+            },
+            "ExternalSourceConnection": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/ExternalSourceCsvConnection"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ExternalSourceGoogleSheetsConnection"
+                    }
+                ]
+            },
+            "ExternalSourceStatus": {
+                "enum": ["staged", "syncing", "ready", "error"],
+                "type": "string"
+            },
+            "ExternalSourceTable": {
+                "properties": {
+                    "lastIngestedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "totalBytes": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "rowCount": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "columns": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ResultColumns"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "sourceUuid": {
+                        "type": "string"
+                    },
+                    "tableUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "lastIngestedAt",
+                    "version",
+                    "totalBytes",
+                    "rowCount",
+                    "columns",
+                    "label",
+                    "name",
+                    "sourceUuid",
+                    "tableUuid"
+                ],
+                "type": "object"
+            },
+            "ExternalSource": {
+                "properties": {
+                    "tables": {
+                        "items": {
+                            "$ref": "#/components/schemas/ExternalSourceTable"
+                        },
+                        "type": "array"
+                    },
+                    "lastRefreshedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "errorMessage": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/ExternalSourceStatus"
+                    },
+                    "connection": {
+                        "$ref": "#/components/schemas/ExternalSourceConnection"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ExternalSourceType"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "sourceUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "tables",
+                    "lastRefreshedAt",
+                    "createdByUserUuid",
+                    "errorMessage",
+                    "status",
+                    "connection",
+                    "name",
+                    "type",
+                    "projectUuid",
+                    "sourceUuid"
+                ],
+                "type": "object"
+            },
+            "ApiExternalSourceResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ExternalSource"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "CreateExternalSourceTablePayload": {
+                "properties": {
+                    "label": {
+                        "type": "string"
+                    },
+                    "tableName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["tableName"],
+                "type": "object"
+            },
+            "ApiExternalSourcesResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/ExternalSource"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ExternalConnection": {
                 "properties": {
                     "updatedAt": {
@@ -15314,7 +15574,12 @@
                 "type": "string"
             },
             "ExploreType": {
-                "enum": ["virtual", "default", "pre_aggregate"],
+                "enum": [
+                    "virtual",
+                    "default",
+                    "pre_aggregate",
+                    "external_source"
+                ],
                 "type": "string"
             },
             "Partial_Record_TimeFrames.string__": {
@@ -15505,6 +15770,22 @@
                 "required": ["preAggregateName", "sourceExploreName"],
                 "type": "object"
             },
+            "ExternalSourceRef": {
+                "properties": {
+                    "sourceType": {
+                        "$ref": "#/components/schemas/ExternalSourceType"
+                    },
+                    "tableUuid": {
+                        "type": "string"
+                    },
+                    "sourceUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["sourceType", "tableUuid", "sourceUuid"],
+                "type": "object",
+                "description": "Back-reference stamped on explores generated from an external source table.\nThe source type is denormalized so the sidebar can pick an icon without\nfetching the source list."
+            },
             "Explore": {
                 "properties": {
                     "warnings": {
@@ -15513,6 +15794,10 @@
                         },
                         "type": "array",
                         "description": "Non-fatal compilation or validation warnings (e.g. fields that failed to\ncompile, warehouse-rejected column references). The explore is still usable."
+                    },
+                    "externalSource": {
+                        "$ref": "#/components/schemas/ExternalSourceRef",
+                        "description": "Present ⇒ generated from an external source table (CSV upload, Google Sheet)."
                     },
                     "preAggregateSource": {
                         "$ref": "#/components/schemas/PreAggregateSource"
@@ -26940,17 +27225,6 @@
             "PreAggregateMaterializationStatus": {
                 "type": "string",
                 "enum": ["in_progress", "active", "superseded", "failed"]
-            },
-            "Record_string.ResultColumn_": {
-                "properties": {},
-                "additionalProperties": {
-                    "$ref": "#/components/schemas/ResultColumn"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "ResultColumns": {
-                "$ref": "#/components/schemas/Record_string.ResultColumn_"
             },
             "PreAggregateMaterializationTrigger": {
                 "type": "string",
@@ -40683,6 +40957,7 @@
                     "cleanAiAgentThreads",
                     "publishAnnouncement",
                     "sweepDueAnnouncements",
+                    "ingestExternalSource",
                     "handleScheduledDelivery",
                     "sendSlackNotification",
                     "sendEmailNotification",
@@ -44880,6 +45155,10 @@
                     "preAggregateSource": {
                         "$ref": "#/components/schemas/PreAggregateSource"
                     },
+                    "externalSource": {
+                        "$ref": "#/components/schemas/ExternalSourceRef",
+                        "description": "Present ⇒ generated from an external source table (CSV upload, Google Sheet)."
+                    },
                     "warnings": {
                         "items": {
                             "$ref": "#/components/schemas/InlineError"
@@ -48874,6 +49153,10 @@
                     "preAggregateSource": {
                         "$ref": "#/components/schemas/PreAggregateSource"
                     },
+                    "externalSource": {
+                        "$ref": "#/components/schemas/ExternalSourceRef",
+                        "description": "Present ⇒ generated from an external source table (CSV upload, Google Sheet)."
+                    },
                     "warnings": {
                         "items": {
                             "$ref": "#/components/schemas/InlineError"
@@ -49110,6 +49393,10 @@
                     },
                     "preAggregateSource": {
                         "$ref": "#/components/schemas/PreAggregateSource"
+                    },
+                    "externalSource": {
+                        "$ref": "#/components/schemas/ExternalSourceRef",
+                        "description": "Present ⇒ generated from an external source table (CSV upload, Google Sheet)."
                     },
                     "warnings": {
                         "items": {
@@ -55557,7 +55844,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.222.0",
+        "version": "1.223.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
