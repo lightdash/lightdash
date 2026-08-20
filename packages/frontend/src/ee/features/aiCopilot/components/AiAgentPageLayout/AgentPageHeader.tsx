@@ -3,6 +3,7 @@ import {
     IconNotebook,
     IconSettings,
     IconShare2,
+    IconTrash,
     IconWindowMinimize,
 } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
@@ -15,6 +16,7 @@ type Props = {
     leftSection?: ReactNode;
     onMinimize?: () => void;
     onShare?: () => void;
+    onDeleteThread?: () => void;
     onOpenMemories?: () => void;
     isSharing?: boolean;
     settingsHref?: string;
@@ -24,6 +26,7 @@ export const AgentPageHeader: FC<Props> = ({
     leftSection,
     onMinimize,
     onShare,
+    onDeleteThread,
     onOpenMemories,
     isSharing,
     settingsHref,
@@ -91,6 +94,23 @@ export const AgentPageHeader: FC<Props> = ({
                         >
                             <MantineIcon
                                 icon={IconShare2}
+                                size={16}
+                                stroke={1.8}
+                            />
+                        </ActionIcon>
+                    </Tooltip>
+                )}
+                {onDeleteThread && (
+                    <Tooltip label="Delete thread" position="bottom">
+                        <ActionIcon
+                            variant="subtle"
+                            color="ldGray"
+                            className={styles.threadAction}
+                            onClick={onDeleteThread}
+                            aria-label="Delete thread"
+                        >
+                            <MantineIcon
+                                icon={IconTrash}
                                 size={16}
                                 stroke={1.8}
                             />

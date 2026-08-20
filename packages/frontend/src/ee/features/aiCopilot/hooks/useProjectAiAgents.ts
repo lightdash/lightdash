@@ -562,6 +562,68 @@ export const useInfiniteAiAgentThreads = (
     });
 };
 
+const deleteAgentThread = async (
+    projectUuid: string,
+    agentUuid: string,
+    threadUuid: string,
+) =>
+    lightdashApi<ApiSuccessEmpty>({
+        version: 'v1',
+        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/threads/${threadUuid}`,
+        method: 'DELETE',
+        body: undefined,
+    });
+
+export const useDeleteAiAgentThreadMutation = (
+    projectUuid: string,
+    agentUuid: string,
+) => {
+    const navigate = useNavigate();
+    const queryClient = useQueryClient();
+    const { showToastApiError, showToastSuccess } = useToaster();
+
+    return useMutation<ApiSuccessEmpty, ApiError, string>({
+        mutationFn: (threadUuid) =>
+            deleteAgentThread(projectUuid, agentUuid, threadUuid),
+        onSuccess: async (_result, threadUuid) => {
+            showToastSuccess({ title: 'Thread deleted' });
+            // Leave the thread page before touching the cache, otherwise the
+            // still-mounted thread query refetches the deleted thread and 404s
+            await navigate(
+                `${getAiAgentPageBase(projectUuid)}/${agentUuid}/threads`,
+            );
+            queryClient.removeQueries({
+                queryKey: [
+                    AI_AGENTS_KEY,
+                    projectUuid,
+                    agentUuid,
+                    'threads',
+                    threadUuid,
+                ],
+            });
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey: [AI_AGENTS_KEY, projectUuid, PROJECT_THREADS_KEY],
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: [
+                        AI_AGENTS_KEY,
+                        projectUuid,
+                        agentUuid,
+                        'threads',
+                    ],
+                }),
+            ]);
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to delete thread',
+                apiError: error,
+            });
+        },
+    });
+};
+
 export const useAiAgentThread = (
     projectUuid: string,
     agentUuid: string | undefined,

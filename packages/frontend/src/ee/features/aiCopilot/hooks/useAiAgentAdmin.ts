@@ -358,6 +358,35 @@ export const useDownloadAiAgentAdminThreadDump = () => {
     });
 };
 
+const deleteAiAgentAdminThread = async (threadUuid: string) =>
+    lightdashApi<undefined>({
+        version: 'v1',
+        url: `/aiAgents/admin/threads/${threadUuid}`,
+        method: 'DELETE',
+        body: undefined,
+    });
+
+export const useDeleteAiAgentAdminThread = () => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+
+    return useMutation<undefined, ApiError, string>({
+        mutationFn: deleteAiAgentAdminThread,
+        onSuccess: () => {
+            showToastSuccess({ title: 'Thread deleted' });
+            void queryClient.invalidateQueries({
+                queryKey: ['ai-agent-admin-threads'],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to delete thread',
+                apiError: error,
+            });
+        },
+    });
+};
+
 export const useCreateAiAgentReviewItem = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();

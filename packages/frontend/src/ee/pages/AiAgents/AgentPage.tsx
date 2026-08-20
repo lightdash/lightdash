@@ -29,12 +29,16 @@ import {
     isEmbedAiAgentRoute,
 } from '../../features/aiCopilot/hooks/aiAgentRouting';
 import { useMyAiAgentMemories } from '../../features/aiCopilot/hooks/useAiAgentMemory';
-import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
+import {
+    useAiAgentPermission,
+    useCanManageAiAgentThread,
+} from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentMemoryEnabled } from '../../features/aiCopilot/hooks/useAiOrganizationSettings';
 import {
     useProjectAiAgent as useAiAgent,
     useAiAgentThread,
     useCreateAgentThreadShareMutation,
+    useDeleteAiAgentThreadMutation,
     useProjectAiAgents,
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
 import { store as aiAgentStore } from '../../features/aiCopilot/store';
@@ -168,6 +172,21 @@ const AgentPage = () => {
         ],
     );
 
+    const canManageThread = useCanManageAiAgentThread({
+        projectUuid,
+        threadUserUuid: thread?.user.uuid,
+    });
+    const [isDeleteThreadModalOpen, setIsDeleteThreadModalOpen] =
+        useState(false);
+    const { mutateAsync: deleteThread, isLoading: isDeletingThread } =
+        useDeleteAiAgentThreadMutation(projectUuid!, agentUuid!);
+
+    const handleDeleteThread = useCallback(async () => {
+        if (!threadUuid) return;
+        await deleteThread(threadUuid);
+        setIsDeleteThreadModalOpen(false);
+    }, [deleteThread, threadUuid]);
+
     const closeShareModal = useCallback(() => {
         setIsShareModalOpen(false);
         setShareUrl(null);
@@ -254,6 +273,11 @@ const AgentPage = () => {
                                 : undefined
                         }
                         isSharing={isCreatingShare}
+                        onDeleteThread={
+                            thread && canManageThread
+                                ? () => setIsDeleteThreadModalOpen(true)
+                                : undefined
+                        }
                         onOpenMemories={
                             memoryEnabled
                                 ? () => setIsMemoriesModalOpen(true)
@@ -310,6 +334,16 @@ const AgentPage = () => {
                     </Group>
                 </Stack>
             </MantineModal>
+            <MantineModal
+                opened={isDeleteThreadModalOpen}
+                onClose={() => setIsDeleteThreadModalOpen(false)}
+                title="Delete thread"
+                variant="delete"
+                resourceType="thread"
+                description="The whole conversation and everything derived from it will be permanently deleted. This action cannot be undone."
+                onConfirm={handleDeleteThread}
+                confirmLoading={isDeletingThread}
+            />
             <MyMemoriesModal
                 opened={isMemoriesModalOpen}
                 onClose={() => setIsMemoriesModalOpen(false)}

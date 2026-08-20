@@ -799,6 +799,49 @@ export class AiAgentAdminService extends BaseService {
         };
     }
 
+    /**
+     * On-demand deletion of a single thread with the same cascade as
+     * retention cleanup. Scoped like the admin threads view: org-wide for
+     * `manage:OrganizationAiAgent`, otherwise the thread's project must be
+     * one where the principal holds `manage:AiAgent`.
+     */
+    async deleteThread(user: SessionUser, threadUuid: string): Promise<void> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        const scope = await this.resolveReadScope(user, organizationUuid);
+        const thread = await this.aiAgentModel.findThreadOwnership({
+            organizationUuid,
+            threadUuid,
+        });
+        if (!thread) {
+            throw new NotFoundError('Thread not found');
+        }
+        AiAgentAdminService.assertProjectInScope(scope, thread.projectUuid);
+
+        const result = await this.aiAgentModel.deleteThread({
+            organizationUuid,
+            threadUuid,
+        });
+        if (!result) {
+            throw new NotFoundError('Thread not found');
+        }
+
+        this.analytics.track({
+            event: 'ai_agent.thread_deleted',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: thread.projectUuid,
+                agentId: thread.agentUuid,
+                threadId: threadUuid,
+                memoriesDeleted: result.deletedMemoriesCount,
+                deletedVia: 'admin',
+            },
+        });
+    }
+
     async getAllEvals(
         user: SessionUser,
         paginateArgs?: KnexPaginateArgs,

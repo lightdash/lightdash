@@ -3036,6 +3036,77 @@ export class AiAgentService extends BaseService {
         return { decision };
     }
 
+    /**
+     * On-demand deletion of a thread with the same cascade as retention
+     * cleanup. Owners can delete their own threads (`manage:AiAgentThread`
+     * conditioned on their user uuid); agent admins can delete any thread.
+     * Deliberately not gated on copilot being enabled so conversations remain
+     * deletable after the feature is turned off.
+     */
+    async deleteAgentThread(
+        user: SessionUser,
+        agentUuid: string,
+        threadUuid: string,
+    ): Promise<void> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('AiAgentThread', {
+                    organizationUuid,
+                    projectUuid: agent.projectUuid,
+                    userUuid: thread.user.uuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Insufficient permissions to delete this thread',
+            );
+        }
+
+        const result = await this.aiAgentModel.deleteThread({
+            organizationUuid,
+            threadUuid,
+        });
+        if (!result) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+
+        this.analytics.track({
+            event: 'ai_agent.thread_deleted',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: agent.projectUuid,
+                agentId: agentUuid,
+                threadId: threadUuid,
+                memoriesDeleted: result.deletedMemoriesCount,
+                deletedVia: 'owner',
+            },
+        });
+    }
+
     async createAgentThread(
         user: SessionUser,
         agentUuid: string,
