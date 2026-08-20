@@ -1,3 +1,10 @@
+# [1.218.0](https://github.com/lightdash/lightdash/compare/1.217.1...1.218.0) (2026-08-20)
+
+
+### Features
+
+* **ai:** track Deep Research failure stages ([#27749](https://github.com/lightdash/lightdash/issues/27749)) ([c6e16bf](https://github.com/lightdash/lightdash/commit/c6e16bf4f82b9a9ebce3b1235974040878247ebc)), closes [#27748](https://github.com/lightdash/lightdash/issues/27748)
+
 ## [1.217.1](https://github.com/lightdash/lightdash/compare/1.217.0...1.217.1) (2026-08-20)
 
 
