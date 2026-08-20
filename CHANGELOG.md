@@ -1,3 +1,10 @@
+## [1.228.2](https://github.com/lightdash/lightdash/compare/1.228.1...1.228.2) (2026-08-20)
+
+
+### Bug Fixes
+
+* **tests:** cover the Explore externalSource field for virtual views ([#27811](https://github.com/lightdash/lightdash/issues/27811)) ([e5e4c90](https://github.com/lightdash/lightdash/commit/e5e4c9043ec7788b4a59a794cc7237cb12d87e74))
+
 ## [1.228.1](https://github.com/lightdash/lightdash/compare/1.228.0...1.228.1) (2026-08-20)
 
 
