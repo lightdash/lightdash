@@ -194,6 +194,7 @@ run_version_comparison_test() {
     local expected_reason=$5
     local expect_issue_create=$6
     local test_name=$7
+    local deploy_conclusion=${8:-success}
     local scenario_dir
     scenario_dir=$(mktemp -d)
     mkdir -p "$scenario_dir/bin"
@@ -284,7 +285,7 @@ EOF
         VERIFY_WINDOW=60s \
         FREEZE_LABEL=upgrade-freeze \
         DEPLOY_RUN_URL=https://example.test/run/1 \
-        DEPLOY_CONCLUSION=success \
+        DEPLOY_CONCLUSION="$deploy_conclusion" \
         DEPLOYED_SHA=0000000000000000000000000000000000000000 \
         GH_TOKEN=test-token \
         "$root/examples/upgrade-automation/scripts/verify.sh" 2>&1)
@@ -327,6 +328,12 @@ EOF
 run_version_comparison_test 1.2.4 1.2.3 0 superseded superseded:1.2.4 false 'newer version supersession'
 run_version_comparison_test 1.2.2 1.2.3 1 failure version_mismatch:1.2.2 true 'older version mismatch'
 run_version_comparison_test 1.2.4-beta.1 1.2.3 1 failure version_mismatch:1.2.4-beta.1 true 'prerelease version mismatch'
+
+# A push to the default branch cancels the deployment run already in flight.
+# The replacement run carries the same commit and verifies the same version, so
+# a cancellation must not freeze every future upgrade.
+run_version_comparison_test 1.2.3 1.2.3 0 superseded deploy_workflow_cancelled false 'cancelled deployment run' cancelled
+run_version_comparison_test 1.2.3 1.2.3 1 failure deploy_workflow_failure true 'failed deployment run' failure
 
 run_freeze_cleanup_test() {
     local issue_kind=$1

@@ -159,6 +159,14 @@ if [[ "$DEPLOY_CONCLUSION" == "success" ]]; then
         fi
         sleep 20
     done
+elif [[ "$DEPLOY_CONCLUSION" == "cancelled" ]]; then
+    # A push to the default branch cancels the deployment run already in
+    # flight. That is routine on a busy branch and says nothing about this
+    # pin: the run that replaced it carries the same commit, and its own
+    # verification covers the same version. Freezing here would stop every
+    # future upgrade over a deployment that never actually failed.
+    last_reason=deploy_workflow_cancelled
+    superseded=true
 else
     last_reason="deploy_workflow_$DEPLOY_CONCLUSION"
 fi
