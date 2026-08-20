@@ -2727,7 +2727,7 @@ export class AsyncQueryService extends ProjectService {
                     onboardingFlow,
                     queryTags,
                     queryCreatedAt,
-                    errorMessage: `Pre-aggregate execution failed, and execution fallback is disabled for this project. [See docs](https://docs.lightdash.com/semantic-layer/lightdash-config-yml#defaults-configuration)\nCause: ${getErrorMessage(
+                    errorMessage: `Pre-aggregate execution failed, and execution fallback is disabled for this project ('pre_aggregate_execution_fallback' under 'defaults' in lightdash.config.yml).\nCause: ${getErrorMessage(
                         preAggregateError,
                     )}`,
                     executionSource:

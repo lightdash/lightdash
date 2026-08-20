@@ -12,7 +12,6 @@ import { SectionName } from '../../../types/Events';
 import { EmptyState } from '../../common/EmptyState';
 import EmptyStateLoader from '../../common/EmptyStateLoader';
 import MantineIcon from '../../common/MantineIcon';
-import { TextWithInlineLinks } from '../../common/TextWithInlineLinks';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import { RefreshButton } from '../../RefreshButton';
 import classes from './ExplorerResultsNonIdealStates.module.css';
@@ -185,12 +184,8 @@ export const ExploreErrorState = ({
         description={
             <Fragment>
                 <Text style={{ whiteSpace: 'pre-wrap' }}>
-                    <TextWithInlineLinks
-                        text={
-                            errorDetail?.message ||
-                            'There was an error loading the results'
-                        }
-                    />
+                    {errorDetail?.message ||
+                        'There was an error loading the results'}
                 </Text>
                 {errorDetail?.data.documentationUrl && (
                     <Fragment>

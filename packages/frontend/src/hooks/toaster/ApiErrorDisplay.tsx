@@ -17,7 +17,6 @@ import { IconCheck, IconCopy } from '@tabler/icons-react';
 import { defaultContext } from '@tanstack/react-query';
 import { useContext, useLayoutEffect, useRef, useState } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
-import { TextWithInlineLinks } from '../../components/common/TextWithInlineLinks';
 import { SnowflakeFormInput } from '../../components/UserSettings/MyWarehouseConnectionsPanel/WarehouseFormInputs';
 import SupportDrawerContent from '../../providers/SupportDrawer/SupportDrawerContent';
 import { getFromInMemoryStorage } from '../../utils/inMemoryStorage';
@@ -77,7 +76,7 @@ const ErrorMessage = ({
                     isExpanded ? styles.expandedMessage : styles.clampedMessage
                 }
             >
-                <TextWithInlineLinks text={apiError.message} />
+                {apiError.message}
             </Text>
             {(isClamped || isExpanded) && (
                 <Group gap="xs">

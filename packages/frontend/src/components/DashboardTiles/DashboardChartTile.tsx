@@ -160,7 +160,6 @@ import { getConditionalRuleLabelFromItem } from '../common/Filters/FilterInputs/
 import MantineIcon from '../common/MantineIcon';
 import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
-import { TextWithInlineLinks } from '../common/TextWithInlineLinks';
 import LightdashVisualization from '../LightdashVisualization';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
@@ -2288,12 +2287,8 @@ export const GenericDashboardChartTile: FC<
                     icon={IconAlertCircle}
                     title={tileTitle}
                     description={
-                        <TextWithInlineLinks
-                            text={
-                                getDashboardTileErrorMessage(error) ||
-                                'Error running query'
-                            }
-                        />
+                        getDashboardTileErrorMessage(error) ||
+                        'Error running query'
                     }
                 />
             </TileBase>
