@@ -320,6 +320,20 @@ test('a line continuation inside a constant is cooked away', () => {
     assert.strictEqual(result.migration.heaviness.rewritesTable, true);
 });
 
+test('SQL concatenated inline is not read as the whole statement', () => {
+    for (const argument of [
+        "'ALTER TABLE users ' + buildRest()",
+        '`ALTER TABLE users ` + buildRest()',
+    ]) {
+        const result = analyzeMigrationSource(
+            'packages/backend/src/database/migrations/20260810000016_concat.ts',
+            `export async function up(knex) { await knex.raw(${argument}); }`,
+        );
+        assert.strictEqual(result.complete, false);
+        assert.strictEqual(result.migration.heaviness.scansTable, 'unknown');
+    }
+});
+
 test('IO reads the requested ref and represents unreadable paths honestly', () => {
     const existing =
         'packages/backend/src/database/migrations/20250602185100_add_treemap_to_chart_type.ts';

@@ -730,7 +730,14 @@ export function analyzeMigrationSource(
             if (token.value === 'alter') markUnknown('rewritesTable');
 
             if (token.value === 'raw') {
-                const sql = resolveSqlArgument(argument, sqlConstants);
+                // The argument is only the whole argument when the call ends
+                // or a second one follows; anything else builds it at runtime.
+                const argumentEnds = [')', ','].includes(
+                    body[index + 3]?.value ?? '',
+                );
+                const sql = argumentEnds
+                    ? resolveSqlArgument(argument, sqlConstants)
+                    : null;
                 if (sql === null) {
                     markUnknown('locksTable', 'rewritesTable', 'scansTable');
                     continue;
