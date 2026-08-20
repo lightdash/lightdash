@@ -95,6 +95,7 @@ const BASE_ROLE_SCOPES = {
 
         // Enterprise scopes
         'manage:MetricsTree',
+        'manage:ExternalSource',
         'manage:AiAgentThread@self', // User's own threads
         'view:ContentAsCode',
         'create:ContentAsCode',

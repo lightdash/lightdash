@@ -171,6 +171,7 @@ interface ServiceManifest {
     writebackPreviewService: unknown;
     previewDeploySetupService: unknown;
     appGenerateService: unknown;
+    externalSourceService: unknown;
     embedService: unknown;
     aiService: unknown;
     aiAgentCoderService: unknown;
@@ -1509,6 +1510,12 @@ export class ServiceRepository
         AppGenerateServiceImplT,
     >(): AppGenerateServiceImplT {
         return this.getService('appGenerateService');
+    }
+
+    public getExternalSourceService<
+        ExternalSourceServiceImplT,
+    >(): ExternalSourceServiceImplT {
+        return this.getService('externalSourceService');
     }
 
     public getProjectContextService<

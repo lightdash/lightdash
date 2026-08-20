@@ -278,6 +278,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'MetricsTree', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'ExternalSource', {
+            organizationUuid: member.organizationUuid,
+        });
         can('view', 'OrganizationWarehouseCredentials', {
             organizationUuid: member.organizationUuid,
         });

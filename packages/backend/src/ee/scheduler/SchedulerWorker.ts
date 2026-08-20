@@ -32,6 +32,7 @@ import { type AiDeepResearchService } from '../services/AiDeepResearchService/Ai
 import type { AiWritebackService } from '../services/AiWritebackService/AiWritebackService';
 import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
 import type { EmbedService } from '../services/EmbedService/EmbedService';
+import type { ExternalSourceService } from '../services/ExternalSourceService/ExternalSourceService';
 import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgentService';
 import { type OnboardingAgentService } from '../services/OnboardingAgentService/OnboardingAgentService';
 import { ProjectContextService } from '../services/ProjectContextService/ProjectContextService';
@@ -122,6 +123,7 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
         ProjectHomepageService,
         'publishScheduledAnnouncement' | 'sweepDueAnnouncements'
     >;
+    externalSourceService: Pick<ExternalSourceService, 'runIngest'>;
 };
 
 export class CommercialSchedulerWorker extends SchedulerWorker {
@@ -161,6 +163,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     protected readonly projectHomepageService: CommercialSchedulerWorkerArguments['projectHomepageService'];
 
+    protected readonly externalSourceService: CommercialSchedulerWorkerArguments['externalSourceService'];
+
     private readonly cleanupMetrics: PrometheusMetrics | null;
 
     constructor(args: CommercialSchedulerWorkerArguments) {
@@ -186,6 +190,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.openIdIdentityModel = args.openIdIdentityModel;
         this.mcpToolCallModel = args.mcpToolCallModel;
         this.projectHomepageService = args.projectHomepageService;
+        this.externalSourceService = args.externalSourceService;
         this.cleanupMetrics = args.prometheusMetrics ?? null;
     }
 
@@ -709,6 +714,9 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                         await this.aiDeepResearchService.executeRun(payload);
                     },
                 );
+            },
+            [EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE]: async (payload) => {
+                await this.externalSourceService.runIngest(payload);
             },
             [EE_SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE]: async (
                 payload,

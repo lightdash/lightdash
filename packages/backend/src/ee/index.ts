@@ -43,6 +43,7 @@ import { CommercialFeatureFlagModel } from './models/CommercialFeatureFlagModel'
 import { CommercialSlackAuthenticationModel } from './models/CommercialSlackAuthenticationModel';
 import { EmbedModel } from './models/EmbedModel';
 import { ExternalConnectionModel } from './models/ExternalConnectionModel';
+import { ExternalSourceModel } from './models/ExternalSourceModel';
 import { HomepageRecommendedActionSkipsModel } from './models/HomepageRecommendedActionSkipsModel';
 import { ManagedAgentModel } from './models/ManagedAgentModel';
 import { McpToolCallModel } from './models/McpToolCallModel';
@@ -86,6 +87,7 @@ import { EmbedService } from './services/EmbedService/EmbedService';
 import { ExternalConnectionCoderService } from './services/ExternalConnectionCoderService/ExternalConnectionCoderService';
 import { ExternalConnectionService } from './services/ExternalConnectionService/ExternalConnectionService';
 import { GoogleServiceAccountTokenProvider } from './services/ExternalConnectionService/GoogleServiceAccountTokenProvider';
+import { ExternalSourceService } from './services/ExternalSourceService/ExternalSourceService';
 import { HomepageRecommendedActionSkipsService } from './services/HomepageRecommendedActionSkipsService';
 import { EnterpriseLicenseService } from './services/LicenseService/LicenseService';
 import { ManagedAgentService } from './services/ManagedAgentService/ManagedAgentService';
@@ -349,6 +351,18 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         getInstallationToken,
                         getPullRequest,
                     },
+                }),
+            externalSourceService: ({ context, models, clients }) =>
+                new ExternalSourceService({
+                    lightdashConfig: context.lightdashConfig,
+                    externalSourceModel:
+                        models.getExternalSourceModel<ExternalSourceModel>(),
+                    projectModel: models.getProjectModel(),
+                    featureFlagModel: models.getFeatureFlagModel(),
+                    schedulerClient:
+                        clients.getSchedulerClient() as CommercialSchedulerClient,
+                    storageClient:
+                        clients.getPreAggregateResultsFileStorageClient(),
                 }),
             appGenerateService: ({ context, models, clients, repository }) =>
                 new AppGenerateService({
@@ -1120,6 +1134,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
         },
         modelProviders: {
+            externalSourceModel: ({ database }) =>
+                new ExternalSourceModel({ database }),
             projectHomepageModel: ({ database }) =>
                 new ProjectHomepageModel({ database }),
             homepageRecommendedActionSkipsModel: ({ database }) =>
@@ -1269,6 +1285,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     context.models.getMcpToolCallModel<McpToolCallModel>(),
                 projectHomepageService:
                     context.serviceRepository.getProjectHomepageService<ProjectHomepageService>(),
+                externalSourceService:
+                    context.serviceRepository.getExternalSourceService<ExternalSourceService>(),
                 prometheusMetrics: context.prometheusMetrics,
             }),
         clientProviders: {

@@ -629,6 +629,10 @@ export type PublishAnnouncementPayload = TraceTaskBase & {
     announcementUuid: string;
 };
 
+export type IngestExternalSourceJobPayload = TraceTaskBase & {
+    sourceUuid: string;
+};
+
 export type ManagedAgentHeartbeatTriggeredBy = 'cron' | 'manual' | 'on_enable';
 
 export type ManagedAgentHeartbeatPayload = TraceTaskBase & {

@@ -231,6 +231,9 @@ export const projectMemberAbilities: Record<
         can('manage', 'MetricsTree', {
             projectUuid: member.projectUuid,
         });
+        can('manage', 'ExternalSource', {
+            projectUuid: member.projectUuid,
+        });
 
         can('manage', 'AiAgentThread', {
             projectUuid: member.projectUuid,

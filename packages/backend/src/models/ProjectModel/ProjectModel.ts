@@ -22,6 +22,7 @@ import {
     GroupType,
     IdContentMapping,
     isExploreError,
+    isUserManagedExplore,
     normalizeWarehouseCredentials,
     NotFoundError,
     OrganizationMemberRole,
@@ -53,6 +54,7 @@ import {
     UpdateQueryTimezoneSettings,
     UpdateSchedulerSettings,
     UpdateVirtualViewPayload,
+    USER_MANAGED_EXPLORE_TYPES,
     WarehouseClient,
     WarehouseCredentials,
     WarehouseTypes,
@@ -78,6 +80,10 @@ import {
     DbDashboard,
     DbDashboardTabs,
 } from '../../database/entities/dashboards';
+import {
+    ExternalSourcesTableName,
+    ExternalSourceTablesTableName,
+} from '../../database/entities/externalSources';
 import { GroupMembershipTableName } from '../../database/entities/groupMemberships';
 import { GroupTableName } from '../../database/entities/groups';
 import { OrganizationMembershipCustomRolesTableName } from '../../database/entities/organizationMembershipCustomRoles';
@@ -1685,22 +1691,24 @@ export class ProjectModel {
                         )
                         .where('project_uuid', projectUuid);
                     if (complete) {
-                        cachedExploresQuery.whereRaw("explore->>'type' = ?", [
-                            ExploreType.VIRTUAL,
-                        ]);
+                        cachedExploresQuery.whereRaw(
+                            "explore->>'type' = ANY(?)",
+                            [[...USER_MANAGED_EXPLORE_TYPES]],
+                        );
                     }
                     const cachedExplores = await cachedExploresQuery;
-                    const virtualViews = cachedExplores.filter(
-                        ({ explore }) => explore.type === ExploreType.VIRTUAL,
+                    const userManagedExplores = cachedExplores.filter(
+                        ({ explore }) => isUserManagedExplore(explore),
                     );
-                    const virtualViewsByName = new Map(
-                        virtualViews.map(({ explore }) => [
+                    const userManagedExploresByName = new Map(
+                        userManagedExplores.map(({ explore }) => [
                             explore.name,
                             explore,
                         ]),
                     );
 
-                    // NOTE: virtual views with the same name as explores will override the explore.
+                    // NOTE: user-managed explores (virtual views, external source tables)
+                    // with the same name as explores will override the explore.
                     // This isn't new behavior, but it's still a bit of a bug. However, it's
                     // not clear what a better approach would be at the moment.
                     const exploresMap = new Map(
@@ -1714,7 +1722,7 @@ export class ProjectModel {
                     explores.forEach((explore) =>
                         exploresMap.set(explore.name, explore),
                     );
-                    virtualViews.forEach((e) =>
+                    userManagedExplores.forEach((e) =>
                         exploresMap.set(e.explore.name, e.explore),
                     );
                     const uniqueExplores = Array.from(exploresMap.values());
@@ -1734,7 +1742,7 @@ export class ProjectModel {
                               ).values(),
                           ).map(
                               (explore) =>
-                                  virtualViewsByName.get(explore.name) ??
+                                  userManagedExploresByName.get(explore.name) ??
                                   explore,
                           );
 
@@ -3113,6 +3121,98 @@ export class ProjectModel {
                 );
             }
 
+            const externalSourceExplores = await trx(CachedExploreTableName)
+                .where('project_uuid', projectUuid)
+                .andWhereJsonPath(
+                    'explore',
+                    '$.type',
+                    '=',
+                    ExploreType.EXTERNAL_SOURCE,
+                );
+
+            if (externalSourceExplores.length > 0) {
+                Logger.info(
+                    `Copying ${externalSourceExplores.length} external source tables into ${previewProjectUuid}`,
+                );
+
+                // Copy the source rows with fresh uuids so locator resolution
+                // works inside the preview. Ingested files are shared by URI,
+                // not duplicated.
+                const sources = await trx(ExternalSourcesTableName).where(
+                    'project_uuid',
+                    projectUuid,
+                );
+                const sourceTables = await trx(
+                    ExternalSourceTablesTableName,
+                ).where('project_uuid', projectUuid);
+                const sourceUuidMap = new Map(
+                    sources.map((s) => [s.external_source_uuid, uuidv4()]),
+                );
+                const tableUuidMap = new Map(
+                    sourceTables.map((t) => [
+                        t.external_source_table_uuid,
+                        uuidv4(),
+                    ]),
+                );
+                if (sources.length > 0) {
+                    await trx(ExternalSourcesTableName).insert(
+                        sources.map(
+                            ({ created_at, updated_at, ...source }) => ({
+                                ...source,
+                                external_source_uuid: sourceUuidMap.get(
+                                    source.external_source_uuid,
+                                )!,
+                                project_uuid: previewProjectUuid,
+                            }),
+                        ),
+                    );
+                }
+                if (sourceTables.length > 0) {
+                    await trx(ExternalSourceTablesTableName).insert(
+                        sourceTables.map(
+                            ({ created_at, updated_at, ...table }) => ({
+                                ...table,
+                                external_source_table_uuid: tableUuidMap.get(
+                                    table.external_source_table_uuid,
+                                )!,
+                                external_source_uuid: sourceUuidMap.get(
+                                    table.external_source_uuid,
+                                )!,
+                                project_uuid: previewProjectUuid,
+                            }),
+                        ),
+                    );
+                }
+
+                await trx(CachedExploreTableName).insert(
+                    externalSourceExplores.map((v) => ({
+                        ...v,
+                        project_uuid: previewProjectUuid,
+                        cached_explore_uuid: undefined,
+                        explore: {
+                            ...v.explore,
+                            externalSource: v.explore.externalSource
+                                ? {
+                                      ...v.explore.externalSource,
+                                      sourceUuid:
+                                          sourceUuidMap.get(
+                                              v.explore.externalSource
+                                                  .sourceUuid,
+                                          ) ??
+                                          v.explore.externalSource.sourceUuid,
+                                      tableUuid:
+                                          tableUuidMap.get(
+                                              v.explore.externalSource
+                                                  .tableUuid,
+                                          ) ??
+                                          v.explore.externalSource.tableUuid,
+                                  }
+                                : undefined,
+                        },
+                    })),
+                );
+            }
+
             // .dP"Y8    db    Yb    dP 888888 8888b.      .dP"Y8  dP"Yb  88
             // `Ybo."   dPYb    Yb  dP  88__    8I  Yb     `Ybo." dP   Yb 88
             // o.`Y8b  dP__Yb    YbdP   88""    8I  dY     o.`Y8b Yb b dP 88  .o
@@ -4211,6 +4311,78 @@ export class ProjectModel {
             await trx(CachedExploreTableName)
                 .where('project_uuid', projectUuid)
                 .whereRaw("explore->>'type' = ?", [ExploreType.VIRTUAL])
+                .andWhere('name', name)
+                .delete();
+            await ProjectModel.rebuildCachedExplores(trx, projectUuid);
+        });
+    }
+
+    async createExternalSourceExplore(
+        projectUuid: string,
+        explore: Explore,
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await ProjectModel.lockAndEnsureCachedExplores(trx, projectUuid);
+            const existing = await trx(CachedExploreTableName)
+                .select('name')
+                .where('project_uuid', projectUuid)
+                .andWhere('name', explore.name)
+                .first();
+            if (existing) {
+                throw new AlreadyExistsError(
+                    `Explore "${explore.name}" already exists`,
+                );
+            }
+            await trx(CachedExploreTableName).insert({
+                project_uuid: projectUuid,
+                name: explore.name,
+                table_names: Object.keys(explore.tables || {}),
+                explore,
+            });
+            await ProjectModel.rebuildCachedExplores(trx, projectUuid);
+        });
+    }
+
+    async updateExternalSourceExplore(
+        projectUuid: string,
+        exploreName: string,
+        explore: Explore,
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await ProjectModel.lockAndEnsureCachedExplores(trx, projectUuid);
+            const existing = await trx(CachedExploreTableName)
+                .select<{ explore: Explore | ExploreError }[]>('explore')
+                .where('project_uuid', projectUuid)
+                .andWhere('name', exploreName)
+                .first();
+            if (
+                !existing ||
+                existing.explore.type !== ExploreType.EXTERNAL_SOURCE
+            ) {
+                throw new NotFoundError(
+                    `External source table "${exploreName}" does not exist`,
+                );
+            }
+            await trx(CachedExploreTableName)
+                .update({
+                    table_names: Object.keys(explore.tables || {}),
+                    explore,
+                })
+                .where('project_uuid', projectUuid)
+                .andWhere('name', exploreName);
+            await ProjectModel.rebuildCachedExplores(trx, projectUuid);
+        });
+    }
+
+    async deleteExternalSourceExplore(
+        projectUuid: string,
+        name: string,
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await ProjectModel.lockAndEnsureCachedExplores(trx, projectUuid);
+            await trx(CachedExploreTableName)
+                .where('project_uuid', projectUuid)
+                .whereRaw("explore->>'type' = ?", [ExploreType.EXTERNAL_SOURCE])
                 .andWhere('name', name)
                 .delete();
             await ProjectModel.rebuildCachedExplores(trx, projectUuid);
