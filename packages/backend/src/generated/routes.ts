@@ -7727,6 +7727,14 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
+                    dashboardSlug: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                     colorPalette: {
                         dataType: 'array',
                         array: { dataType: 'string' },
@@ -13371,6 +13379,13 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: { dataType: 'string' },
                     required: true,
+                },
+                dashboardSlug: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
                 },
                 dashboardName: {
                     dataType: 'union',
@@ -26008,6 +26023,14 @@ const models: TsoaRoute.Models = {
                 missCount: { dataType: 'double', required: true },
                 hitCount: { dataType: 'double', required: true },
                 queryContext: { dataType: 'string', required: true },
+                dashboardSlug: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 dashboardName: {
                     dataType: 'union',
                     subSchemas: [
@@ -36521,6 +36544,7 @@ const models: TsoaRoute.Models = {
                         tableName: { dataType: 'string' },
                         fieldName: { dataType: 'string' },
                         chartName: { dataType: 'string' },
+                        dashboardSlug: { dataType: 'string' },
                         dashboardUuid: {
                             dataType: 'union',
                             subSchemas: [
@@ -38475,11 +38499,12 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ActivityViews: {
+    DashboardActivityViews: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                slug: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
                 uuid: { dataType: 'string', required: true },
                 count: { dataType: 'double', required: true },
@@ -38521,6 +38546,10 @@ const models: TsoaRoute.Models = {
                             {
                                 dataType: 'nestedObjectLiteral',
                                 nestedProperties: {
+                                    dashboardSlug: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
                                     dashboardUuid: {
                                         dataType: 'string',
                                         required: true,
@@ -38537,7 +38566,10 @@ const models: TsoaRoute.Models = {
                 },
                 dashboardViews: {
                     dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'ActivityViews' },
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'DashboardActivityViews',
+                    },
                     required: true,
                 },
                 chartWeeklyAverageQueries: {
@@ -39474,7 +39506,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid-or-dashboardUuid-or-dashboardName-or-slug_':
+    'Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid-or-dashboardUuid-or-dashboardName-or-dashboardSlug-or-slug_':
         {
             dataType: 'refAlias',
             type: {
@@ -39518,6 +39550,14 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
+                    dashboardSlug: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                 },
                 validators: {},
             },
@@ -39551,7 +39591,7 @@ const models: TsoaRoute.Models = {
             dataType: 'intersection',
             subSchemas: [
                 {
-                    ref: 'Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid-or-dashboardUuid-or-dashboardName-or-slug_',
+                    ref: 'Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid-or-dashboardUuid-or-dashboardName-or-dashboardSlug-or-slug_',
                 },
                 {
                     dataType: 'nestedObjectLiteral',
@@ -39689,7 +39729,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Dashboard.uuid-or-name-or-description-or-updatedAt-or-projectUuid-or-updatedByUser-or-organizationUuid-or-spaceUuid-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder_':
+    'Pick_Dashboard.uuid-or-slug-or-name-or-description-or-updatedAt-or-projectUuid-or-updatedByUser-or-organizationUuid-or-spaceUuid-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder_':
         {
             dataType: 'refAlias',
             type: {
@@ -39703,6 +39743,7 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
+                    slug: { dataType: 'string', required: true },
                     uuid: { dataType: 'string', required: true },
                     organizationUuid: { dataType: 'string', required: true },
                     projectUuid: { dataType: 'string', required: true },
@@ -39752,7 +39793,7 @@ const models: TsoaRoute.Models = {
             dataType: 'intersection',
             subSchemas: [
                 {
-                    ref: 'Pick_Dashboard.uuid-or-name-or-description-or-updatedAt-or-projectUuid-or-updatedByUser-or-organizationUuid-or-spaceUuid-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder_',
+                    ref: 'Pick_Dashboard.uuid-or-slug-or-name-or-description-or-updatedAt-or-projectUuid-or-updatedByUser-or-organizationUuid-or-spaceUuid-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder_',
                 },
                 {
                     dataType: 'nestedObjectLiteral',
@@ -44233,6 +44274,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        slug: { dataType: 'string', required: true },
                         contentType: {
                             ref: 'ContentType.DASHBOARD',
                             required: true,
@@ -44726,7 +44768,7 @@ const models: TsoaRoute.Models = {
         enums: ['dashboard'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_DashboardBasicDetails.uuid-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification_':
+    'Pick_DashboardBasicDetails.uuid-or-slug-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification_':
         {
             dataType: 'refAlias',
             type: {
@@ -44740,6 +44782,7 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
+                    slug: { dataType: 'string', required: true },
                     uuid: { dataType: 'string', required: true },
                     pinnedListUuid: {
                         dataType: 'union',
@@ -44820,7 +44863,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 category: { ref: 'ResourceItemCategory' },
                 data: {
-                    ref: 'Pick_DashboardBasicDetails.uuid-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification_',
+                    ref: 'Pick_DashboardBasicDetails.uuid-or-slug-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification_',
                     required: true,
                 },
                 type: { ref: 'ResourceViewItemType.DASHBOARD', required: true },

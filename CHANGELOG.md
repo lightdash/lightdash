@@ -1,3 +1,17 @@
+# [1.213.0](https://github.com/lightdash/lightdash/compare/1.212.3...1.213.0) (2026-08-20)
+
+
+### Bug Fixes
+
+* **backend:** filter data app scheduler list by creator ([#27731](https://github.com/lightdash/lightdash/issues/27731)) ([019736e](https://github.com/lightdash/lightdash/commit/019736e2c27deee078ea787ea9849e67d4892066))
+* **frontend:** gate SQL chart Google Sheets Sync by delivery permissions ([#27733](https://github.com/lightdash/lightdash/issues/27733)) ([576a583](https://github.com/lightdash/lightdash/commit/576a583bb533b5ee729e88eba3586682efce3809))
+* **upgrade-automation:** build the pin commit from the base it commits against ([#27735](https://github.com/lightdash/lightdash/issues/27735)) ([3b6af6d](https://github.com/lightdash/lightdash/commit/3b6af6de33792c119436956866c056dd402b2e0c))
+
+
+### Features
+
+* use dashboard slugs in frontend navigation ([#27645](https://github.com/lightdash/lightdash/issues/27645)) ([99f6158](https://github.com/lightdash/lightdash/commit/99f61589be4c6cecf980dc2fe8e25ac0c92a5b47))
+
 ## [1.212.3](https://github.com/lightdash/lightdash/compare/1.212.2...1.212.3) (2026-08-20)
 
 

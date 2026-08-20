@@ -8207,6 +8207,10 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "dashboardSlug": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "colorPalette": {
                         "items": {
                             "type": "string"
@@ -14344,6 +14348,10 @@
                         },
                         "type": "array",
                         "deprecated": true
+                    },
+                    "dashboardSlug": {
+                        "type": "string",
+                        "nullable": true
                     },
                     "dashboardName": {
                         "type": "string",
@@ -26495,6 +26503,10 @@
                     "queryContext": {
                         "type": "string"
                     },
+                    "dashboardSlug": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "dashboardName": {
                         "type": "string",
                         "nullable": true
@@ -26526,6 +26538,7 @@
                     "missCount",
                     "hitCount",
                     "queryContext",
+                    "dashboardSlug",
                     "dashboardName",
                     "dashboardUuid",
                     "chartName",
@@ -36563,6 +36576,9 @@
                             "chartName": {
                                 "type": "string"
                             },
+                            "dashboardSlug": {
+                                "type": "string"
+                            },
                             "dashboardUuid": {
                                 "type": "string"
                             }
@@ -38474,8 +38490,11 @@
                 "required": ["lastName", "firstName", "userUuid"],
                 "type": "object"
             },
-            "ActivityViews": {
+            "DashboardActivityViews": {
                 "properties": {
+                    "slug": {
+                        "type": "string"
+                    },
                     "name": {
                         "type": "string"
                     },
@@ -38487,7 +38506,7 @@
                         "format": "double"
                     }
                 },
-                "required": ["name", "uuid", "count"],
+                "required": ["slug", "name", "uuid", "count"],
                 "type": "object"
             },
             "ChartActivityViews": {
@@ -38525,6 +38544,9 @@
                                 },
                                 {
                                     "properties": {
+                                        "dashboardSlug": {
+                                            "type": "string"
+                                        },
                                         "dashboardUuid": {
                                             "type": "string"
                                         },
@@ -38533,6 +38555,7 @@
                                         }
                                     },
                                     "required": [
+                                        "dashboardSlug",
                                         "dashboardUuid",
                                         "dashboardName"
                                     ],
@@ -38544,7 +38567,7 @@
                     },
                     "dashboardViews": {
                         "items": {
-                            "$ref": "#/components/schemas/ActivityViews"
+                            "$ref": "#/components/schemas/DashboardActivityViews"
                         },
                         "type": "array"
                     },
@@ -39492,7 +39515,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid-or-dashboardUuid-or-dashboardName-or-slug_": {
+            "Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid-or-dashboardUuid-or-dashboardName-or-dashboardSlug-or-slug_": {
                 "properties": {
                     "name": {
                         "type": "string",
@@ -39530,6 +39553,10 @@
                         "nullable": true
                     },
                     "dashboardName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "dashboardSlug": {
                         "type": "string",
                         "nullable": true
                     }
@@ -39572,7 +39599,7 @@
             "ChartSummary": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid-or-dashboardUuid-or-dashboardName-or-slug_"
+                        "$ref": "#/components/schemas/Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid-or-dashboardUuid-or-dashboardName-or-dashboardSlug-or-slug_"
                     },
                     {
                         "properties": {
@@ -39696,12 +39723,15 @@
                     }
                 ]
             },
-            "Pick_Dashboard.uuid-or-name-or-description-or-updatedAt-or-projectUuid-or-updatedByUser-or-organizationUuid-or-spaceUuid-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder_": {
+            "Pick_Dashboard.uuid-or-slug-or-name-or-description-or-updatedAt-or-projectUuid-or-updatedByUser-or-organizationUuid-or-spaceUuid-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder_": {
                 "properties": {
                     "name": {
                         "type": "string"
                     },
                     "description": {
+                        "type": "string"
+                    },
+                    "slug": {
                         "type": "string"
                     },
                     "uuid": {
@@ -39751,6 +39781,7 @@
                 },
                 "required": [
                     "name",
+                    "slug",
                     "uuid",
                     "organizationUuid",
                     "projectUuid",
@@ -39767,7 +39798,7 @@
             "DashboardBasicDetails": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_Dashboard.uuid-or-name-or-description-or-updatedAt-or-projectUuid-or-updatedByUser-or-organizationUuid-or-spaceUuid-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder_"
+                        "$ref": "#/components/schemas/Pick_Dashboard.uuid-or-slug-or-name-or-description-or-updatedAt-or-projectUuid-or-updatedByUser-or-organizationUuid-or-spaceUuid-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder_"
                     },
                     {
                         "properties": {
@@ -44581,11 +44612,14 @@
                     },
                     {
                         "properties": {
+                            "slug": {
+                                "type": "string"
+                            },
                             "contentType": {
                                 "$ref": "#/components/schemas/ContentType.DASHBOARD"
                             }
                         },
-                        "required": ["contentType"],
+                        "required": ["slug", "contentType"],
                         "type": "object"
                     }
                 ]
@@ -44987,12 +45021,15 @@
                 "enum": ["dashboard"],
                 "type": "string"
             },
-            "Pick_DashboardBasicDetails.uuid-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification_": {
+            "Pick_DashboardBasicDetails.uuid-or-slug-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification_": {
                 "properties": {
                     "name": {
                         "type": "string"
                     },
                     "description": {
+                        "type": "string"
+                    },
+                    "slug": {
                         "type": "string"
                     },
                     "uuid": {
@@ -45050,6 +45087,7 @@
                 },
                 "required": [
                     "name",
+                    "slug",
                     "uuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
@@ -45078,7 +45116,7 @@
                         "$ref": "#/components/schemas/ResourceItemCategory"
                     },
                     "data": {
-                        "$ref": "#/components/schemas/Pick_DashboardBasicDetails.uuid-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification_"
+                        "$ref": "#/components/schemas/Pick_DashboardBasicDetails.uuid-or-slug-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification_"
                     },
                     "type": {
                         "$ref": "#/components/schemas/ResourceViewItemType.DASHBOARD"
@@ -55419,7 +55457,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.212.3",
+        "version": "1.213.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
