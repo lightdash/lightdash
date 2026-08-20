@@ -16,9 +16,11 @@ import {
     type Account,
     type CreateExternalSourceTablePayload,
     type ExternalSource,
+    type ExternalSourceTablePreview,
     type IngestExternalSourceJobPayload,
     type ResultColumns,
     type StagedExternalSourceUpload,
+    type UpdateExternalSourcePayload,
 } from '@lightdash/common';
 import {
     DuckdbWarehouseClient,
@@ -395,6 +397,210 @@ export class ExternalSourceService extends BaseService {
     ): Promise<ExternalSource> {
         await this.assertAccess(account, projectUuid);
         return this.externalSourceModel.getSource(projectUuid, sourceUuid);
+    }
+
+    /**
+     * Rename changes the label everywhere (source list, sidebar, explore);
+     * the sql name stays stable so saved charts keep working. The explore is
+     * rebuilt from the stored schema — no re-ingest.
+     */
+    async rename(
+        account: Account,
+        projectUuid: string,
+        sourceUuid: string,
+        payload: UpdateExternalSourcePayload,
+    ): Promise<ExternalSource> {
+        await this.assertAccess(account, projectUuid);
+        const label = payload.label.trim();
+        if (label.length === 0) {
+            throw new ParameterError('Give the table a name');
+        }
+        const { source, tables } =
+            await this.externalSourceModel.getSourceRowsForIngest(
+                projectUuid,
+                sourceUuid,
+            );
+        const table = tables[0];
+        if (!table) {
+            throw new NotFoundError('External source has no table');
+        }
+        await this.externalSourceModel.updateTableLabel(
+            table.external_source_table_uuid,
+            label,
+        );
+        if (table.columns) {
+            const explore = createExternalSourceExplore({
+                name: table.name,
+                label,
+                columns: table.columns,
+                externalSource: {
+                    sourceUuid,
+                    tableUuid: table.external_source_table_uuid,
+                    sourceType: source.type,
+                },
+                warehouseSqlBuilder: warehouseSqlBuilderFromType(
+                    SupportedDbtAdapter.DUCKDB,
+                ),
+            });
+            await this.projectModel.updateExternalSourceExplore(
+                projectUuid,
+                table.name,
+                explore,
+            );
+        }
+        return this.externalSourceModel.getSource(projectUuid, sourceUuid);
+    }
+
+    /**
+     * Replace a CSV source's file: the new raw upload is stored as the next
+     * version and re-ingested by the worker. Charts referencing columns the
+     * new file drops will fail validation.
+     */
+    async replaceCsv(
+        account: Account,
+        projectUuid: string,
+        sourceUuid: string,
+        input: {
+            filename: string;
+            contentType: string;
+            contentLength: number;
+            body: Readable;
+        },
+    ): Promise<ExternalSource> {
+        const { organizationUuid, userUuid } = await this.assertAccess(
+            account,
+            projectUuid,
+        );
+        this.assertEngineAvailable();
+
+        const { source, tables } =
+            await this.externalSourceModel.getSourceRowsForIngest(
+                projectUuid,
+                sourceUuid,
+            );
+        if (source.type !== ExternalSourceType.CSV) {
+            throw new ParameterError(
+                'Only CSV sources can have their file replaced',
+            );
+        }
+        const table = tables[0];
+        if (!table) {
+            throw new NotFoundError('External source has no table');
+        }
+        if (source.status === ExternalSourceStatus.SYNCING) {
+            throw new ParameterError(
+                'This source is already ingesting. Wait for it to finish and try again',
+            );
+        }
+
+        const baseContentType = input.contentType.split(';')[0].trim();
+        if (!ALLOWED_UPLOAD_CONTENT_TYPES.includes(baseContentType)) {
+            throw new ParameterError(
+                'Unsupported file type. Upload a .csv or .tsv file',
+            );
+        }
+        const maxBytes = this.lightdashConfig.externalSources.maxFileSizeBytes;
+        if (input.contentLength > maxBytes) {
+            throw new ParameterError(
+                `File exceeds the ${Math.floor(
+                    maxBytes / (1024 * 1024),
+                )} MB upload limit`,
+            );
+        }
+
+        const rawKey = ExternalSourceService.rawKey(
+            projectUuid,
+            sourceUuid,
+            table.version + 1,
+        );
+        const { writeStream, close } = this.storageClient.createUploadStream(
+            rawKey,
+            { contentType: 'text/csv' },
+        );
+        let totalBytes = 0;
+        try {
+            // eslint-disable-next-line no-restricted-syntax
+            for await (const chunk of input.body) {
+                const buffer = Buffer.isBuffer(chunk)
+                    ? chunk
+                    : Buffer.from(chunk);
+                totalBytes += buffer.length;
+                if (totalBytes > maxBytes) {
+                    throw new ParameterError(
+                        `File exceeds the ${Math.floor(
+                            maxBytes / (1024 * 1024),
+                        )} MB upload limit`,
+                    );
+                }
+                if (!writeStream.write(buffer)) {
+                    await once(writeStream, 'drain');
+                }
+            }
+            if (totalBytes === 0) {
+                throw new ParameterError('Upload body is empty');
+            }
+            await close();
+        } catch (error) {
+            writeStream.destroy();
+            await close().catch(() => {});
+            throw error;
+        }
+
+        // Reject unreadable files before committing to a re-ingest
+        const client = this.createIngestClient();
+        try {
+            await this.describeCsv(client, this.toUri(rawKey));
+        } catch (error) {
+            throw new ParameterError(
+                `Could not read the file as CSV: ${getErrorMessage(error)}`,
+            );
+        }
+
+        await this.externalSourceModel.updateSource(sourceUuid, {
+            status: ExternalSourceStatus.SYNCING,
+            error_message: null,
+            connection: {
+                type: ExternalSourceType.CSV,
+                originalFilename: input.filename,
+            },
+        });
+        await this.schedulerClient.ingestExternalSource({
+            organizationUuid,
+            projectUuid,
+            userUuid,
+            sourceUuid,
+        });
+        return this.externalSourceModel.getSource(projectUuid, sourceUuid);
+    }
+
+    async getTablePreview(
+        account: Account,
+        projectUuid: string,
+        sourceUuid: string,
+        tableUuid: string,
+    ): Promise<ExternalSourceTablePreview> {
+        await this.assertAccess(account, projectUuid);
+        const table = await this.externalSourceModel.findTableByUuid(
+            projectUuid,
+            tableUuid,
+        );
+        if (
+            !table ||
+            table.external_source_uuid !== sourceUuid ||
+            !table.locator ||
+            !table.columns
+        ) {
+            throw new NotFoundError(
+                'The external source table has no ingested data yet',
+            );
+        }
+        const client = this.createIngestClient();
+        const escapedUri = ExternalSourceService.escapeUri(table.locator.uri);
+        const { rows } = await client.runQuery(
+            `SELECT * FROM read_parquet('${escapedUri}') LIMIT 25`,
+            {},
+        );
+        return { columns: table.columns, sampleRows: rows };
     }
 
     async delete(

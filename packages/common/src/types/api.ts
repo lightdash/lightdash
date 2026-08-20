@@ -179,6 +179,7 @@ import {
 } from './explore';
 import {
     type ExternalSource,
+    type ExternalSourceTablePreview,
     type StagedExternalSourceUpload,
 } from './externalSources';
 import { type ApiFavoriteItems, type ApiToggleFavorite } from './favorites';
@@ -1482,6 +1483,7 @@ type ApiResults =
     | ExternalFetchResponse
     | ExternalSource
     | ExternalSource[]
+    | ExternalSourceTablePreview
     | StagedExternalSourceUpload;
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'

@@ -214,6 +214,12 @@ export class ExternalSourceModel {
         });
     }
 
+    async updateTableLabel(tableUuid: string, label: string): Promise<void> {
+        await this.database(ExternalSourceTablesTableName)
+            .where('external_source_table_uuid', tableUuid)
+            .update({ label, updated_at: new Date() });
+    }
+
     async deleteSource(projectUuid: string, sourceUuid: string): Promise<void> {
         await this.database(ExternalSourcesTableName)
             .where('project_uuid', projectUuid)

@@ -17,6 +17,7 @@ import {
 } from 'react-router';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import SettingsEmbed from '../../ee/features/embed/SettingsEmbed';
+import { ExternalSourcesSettingsPanel } from '../../features/externalSources/components/ExternalSourcesSettingsPanel';
 import PullRequestsPage from '../../features/pullRequests/components/PullRequestsPage';
 import RecentlyDeletedPage from '../../features/recentlyDeleted/components/RecentlyDeletedPage';
 import { useOrganization } from '../../hooks/organization/useOrganization';
@@ -109,6 +110,21 @@ const ProjectSettings: FC = () => {
         ) ??
             false);
 
+    const { data: externalSourcesFlag } = useServerFeatureFlag(
+        FeatureFlags.ExternalSources,
+    );
+    const canManageExternalSources =
+        (externalSourcesFlag?.enabled ?? false) &&
+        !!project &&
+        (user.data?.ability.can(
+            'manage',
+            subject('ExternalSource', {
+                organizationUuid: project.organizationUuid,
+                projectUuid: project.projectUuid,
+            }),
+        ) ??
+            false);
+
     const routes = useMemo<RouteObject[]>(() => {
         if (!projectUuid) {
             return [];
@@ -164,6 +180,23 @@ const ProjectSettings: FC = () => {
                     </ProjectSettingsPage>
                 ),
             },
+            ...(canManageExternalSources
+                ? [
+                      {
+                          path: `/externalSources`,
+                          element: (
+                              <ProjectSettingsPage
+                                  title="External sources"
+                                  description="Upload files to query them alongside your warehouse."
+                              >
+                                  <ExternalSourcesSettingsPanel
+                                      projectUuid={projectUuid}
+                                  />
+                              </ProjectSettingsPage>
+                          ),
+                      },
+                  ]
+                : []),
             {
                 path: `/usageAnalytics`,
                 element: (
@@ -434,6 +467,7 @@ const ProjectSettings: FC = () => {
         isGitProject,
         user.data?.ability,
         canManageExternalConnections,
+        canManageExternalSources,
         isAiCopilotEnabledOrTrial,
     ]);
     const routesElements = useRoutes(routes);

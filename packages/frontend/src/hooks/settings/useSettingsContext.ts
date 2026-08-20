@@ -76,6 +76,10 @@ export const useSettingsContext = (): SettingsContext => {
     const dataAppsFlagQuery = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const { data: dataAppsFlag } = dataAppsFlagQuery;
 
+    const { data: externalSourcesFlag } = useServerFeatureFlag(
+        FeatureFlags.ExternalSources,
+    );
+
     const { data: proLimitsFlag } = useServerFeatureFlag(
         FeatureFlags.ProLimits,
     );
@@ -196,6 +200,7 @@ export const useSettingsContext = (): SettingsContext => {
             aiOrganizationSettingsQuery.isInitialLoading,
         dataAppsFlag,
         isDataAppsFlagLoading: dataAppsFlagQuery.isInitialLoading,
+        externalSourcesFlag,
         embeddingEnabled,
         allowPasswordAuthentication,
         hasSocialLogin,
