@@ -210,6 +210,7 @@ export const AiChartVisualization: FC<Props> = ({
                     message={message}
                     projectUuid={projectUuid}
                     agentUuid={agentUuid}
+                    showDownloadResults
                     artifactData={artifactData}
                     saveChartOptions={{
                         name: semanticVizQueryData.metadata.title,

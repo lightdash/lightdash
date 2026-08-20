@@ -19,6 +19,7 @@ import {
     IconEye,
     IconLayoutDashboard,
     IconSend,
+    IconTableExport,
     IconTableShortcut,
     IconTerminal2,
 } from '@tabler/icons-react';
@@ -59,11 +60,13 @@ import {
     canonicalizeAiMerge,
     remapFieldIdsDeep,
 } from '../../utils/canonicalizeAiMerge';
+import { AiChartDownloadModal } from './AiChartDownloadModal';
 import { AiScheduleDeliveryModal } from './AiScheduleDeliveryModal';
 
 type Props = {
     projectUuid: string;
     agentUuid: string;
+    showDownloadResults: boolean;
     saveChartOptions?: {
         name: string | null;
         description: string | null;
@@ -82,6 +85,7 @@ type Props = {
 export const AiChartQuickOptions = ({
     projectUuid,
     agentUuid,
+    showDownloadResults,
     saveChartOptions = { name: '', description: '', linkToMessage: true },
     message,
     compiledSql,
@@ -112,6 +116,10 @@ export const AiChartQuickOptions = ({
     ] = useDisclosure(false);
     const [sqlModalOpened, { open: openSqlModal, close: closeSqlModal }] =
         useDisclosure(false);
+    const [
+        downloadModalOpened,
+        { open: openDownloadModal, close: closeDownloadModal },
+    ] = useDisclosure(false);
 
     const canCreateScheduledDeliveries = user.data?.ability?.can(
         'create',
@@ -130,6 +138,16 @@ export const AiChartQuickOptions = ({
             projectUuid,
         }),
     );
+    const canDownloadResults =
+        showDownloadResults &&
+        !isEmbed &&
+        user.data?.ability?.can(
+            'manage',
+            subject('ExportCsv', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+            }),
+        );
     const {
         visualizationConfig,
         columnOrder,
@@ -470,6 +488,7 @@ export const AiChartQuickOptions = ({
         : !isEmbed || canExploreFromEmbed;
     const hasSqlActions = !!compiledSql;
     const hasQuickActions =
+        canDownloadResults ||
         hasSavedChartAction ||
         hasSaveActions ||
         hasExploreAction ||
@@ -512,6 +531,16 @@ export const AiChartQuickOptions = ({
                     </Menu.Target>
                     <Menu.Dropdown>
                         <Menu.Label>Quick actions</Menu.Label>
+                        {canDownloadResults && (
+                            <Menu.Item
+                                leftSection={
+                                    <MantineIcon icon={IconTableExport} />
+                                }
+                                onClick={openDownloadModal}
+                            >
+                                Download results
+                            </Menu.Item>
+                        )}
                         {message.savedQueryUuid ? (
                             !isEmbed && (
                                 <>
@@ -644,6 +673,15 @@ export const AiChartQuickOptions = ({
                     />
                 )}
             </MantineModal>
+            {canDownloadResults && (
+                <AiChartDownloadModal
+                    opened={downloadModalOpened}
+                    onClose={closeDownloadModal}
+                    projectUuid={projectUuid}
+                    chartName={saveChartOptions.name}
+                    mergeQuery={merge?.query ?? null}
+                />
+            )}
             {!!compiledSql && (
                 <MantineModal
                     opened={sqlModalOpened}

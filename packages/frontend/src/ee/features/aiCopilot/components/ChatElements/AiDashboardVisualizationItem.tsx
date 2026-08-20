@@ -177,6 +177,7 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
                     <AiChartQuickOptions
                         projectUuid={projectUuid}
                         agentUuid={agentUuid}
+                        showDownloadResults={false}
                         saveChartOptions={{
                             name: visualization.title,
                             description: visualization.description ?? null,

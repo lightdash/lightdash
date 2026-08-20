@@ -332,6 +332,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                             message={message}
                             projectUuid={artifact.projectUuid}
                             agentUuid={artifact.agentUuid}
+                            showDownloadResults
                             artifactData={artifactData}
                             saveChartOptions={{
                                 name: title,
