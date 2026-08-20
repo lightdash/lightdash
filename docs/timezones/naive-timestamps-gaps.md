@@ -120,6 +120,8 @@ Filtering the same column to a one-hour window around that visible value returns
 
 **(c) Even when bucketed filters are correct, they full-scan partitioned tables.** Filter parity is achieved by reusing the timezone-wrapped expression as the WHERE LHS — visible in (a)'s compiled SQL — so the partition column is hidden inside a function call and the warehouse cannot prune. Measured on a partitioned BigQuery table: a bare-column predicate processes 176 bytes; the same predicate with the wrapped column processes 32,080 bytes (the full table). This half affects aware and naive columns alike — it is a cost of the wrap-the-column strategy itself, and the same literal-side rewrite that fixes (a) and (b) removes it (half-open ranges on the bare column, see constraint 2).
 
+*Status:* closed for bare-column filters and for day-or-coarser grains on known-aware BigQuery columns, which now compile to `DATE(col, tz)` / `DATE_TRUNC(DATE(col, tz), grain)`; see [Prunable calendar grains on BigQuery](./timestamp-domains-design.md#prunable-calendar-grains-on-bigquery). Sub-day bucketed filters and naive columns still wrap.
+
 **Files:** `packages/common/src/compiler/filtersCompiler.ts` (the TIMESTAMP branch does not thread timezone arguments today), `packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.ts`
 
 ## Gap 2 — Naive types are not rebased at all on Databricks, Spark, Trino, Athena
