@@ -1,3 +1,10 @@
+## [1.227.1](https://github.com/lightdash/lightdash/compare/1.227.0...1.227.1) (2026-08-20)
+
+
+### Bug Fixes
+
+* **external-sources:** project the externalSource ref into explore summaries ([#27794](https://github.com/lightdash/lightdash/issues/27794)) ([4ebba02](https://github.com/lightdash/lightdash/commit/4ebba02077d53846f0a06532a7bc736e486d8622)), closes [#27782](https://github.com/lightdash/lightdash/issues/27782) [#27784](https://github.com/lightdash/lightdash/issues/27784) [#27793](https://github.com/lightdash/lightdash/issues/27793)
+
 # [1.227.0](https://github.com/lightdash/lightdash/compare/1.226.0...1.227.0) (2026-08-20)
 
 
