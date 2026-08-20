@@ -12,7 +12,7 @@
     justify-content: flex-start;
     gap: var(--mantine-spacing-4xl);
     padding: var(--mantine-spacing-4xl);
-    background-color: var(--mantine-color-ldBrandGray-8);
+    background-color: var(--mantine-color-blue-8);
 }
 
 @media (max-width: $mantine-breakpoint-md) {
