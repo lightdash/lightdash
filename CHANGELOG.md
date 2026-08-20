@@ -1,3 +1,10 @@
+## [1.216.1](https://github.com/lightdash/lightdash/compare/1.216.0...1.216.1) (2026-08-20)
+
+
+### Bug Fixes
+
+* **ai-agents:** exclude service-account and eval threads from memory ([#27711](https://github.com/lightdash/lightdash/issues/27711)) ([1eb8959](https://github.com/lightdash/lightdash/commit/1eb8959cd0675d283b4f7c753751a8c353adec57)), closes [#27710](https://github.com/lightdash/lightdash/issues/27710)
+
 # [1.216.0](https://github.com/lightdash/lightdash/compare/1.215.0...1.216.0) (2026-08-20)
 
 
