@@ -234,7 +234,10 @@ import { wrapSentryTransaction } from '../../../utils';
 import { validatePublicHttpUrl } from '../../../utils/ssrfProtection';
 import { type DbAiDeepResearchEvent } from '../../database/entities/aiDeepResearch';
 import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
-import { AiAgentMemoryModel } from '../../models/AiAgentMemoryModel';
+import {
+    AI_AGENT_MEMORY_THREAD_SOURCES,
+    AiAgentMemoryModel,
+} from '../../models/AiAgentMemoryModel';
 import {
     AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_ALLOW,
     AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_DENY,
@@ -8773,7 +8776,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     /**
      * A memory belongs to the owner of the thread it came from, so every memory
      * read in a turn resolves to that owner rather than the current prompter.
-     * Null means the thread has no owner — such a thread sees no memories.
+     * Null means the thread sees no memories: it has no owner, its owner is a
+     * service account, or its source (evals/scheduler) is outside memory.
      */
     private async findThreadMemoryOwnerUuid(args: {
         organizationUuid: string;
@@ -8786,9 +8790,17 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             organizationUuid: args.organizationUuid,
             threadUuid: args.threadUuid,
         });
-        return ownership?.projectUuid === args.projectUuid
-            ? ownership.ownerUserUuid
-            : null;
+        if (
+            !ownership ||
+            ownership.projectUuid !== args.projectUuid ||
+            ownership.ownerIsServiceAccount ||
+            !AI_AGENT_MEMORY_THREAD_SOURCES.some(
+                (createdFrom) => createdFrom === ownership.createdFrom,
+            )
+        ) {
+            return null;
+        }
+        return ownership.ownerUserUuid;
     }
 
     // Memoizes the owner lookup for the life of one agent run.

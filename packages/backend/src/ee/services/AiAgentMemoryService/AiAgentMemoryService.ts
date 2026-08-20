@@ -1754,6 +1754,18 @@ export class AiAgentMemoryService extends BaseService {
             return this.recordSkip(thread.threadUuid, distillUpTo);
         }
 
+        // The memory belongs to the thread's owner (its first prompter),
+        // not whoever happened to prompt last in a shared Slack thread.
+        // Service-account threads are automation, not a user learning — skip
+        // before paying for the LLM call.
+        const ownership = await this.aiAgentModel.findThreadOwnership({
+            organizationUuid: thread.organizationUuid,
+            threadUuid: thread.threadUuid,
+        });
+        if (ownership?.ownerIsServiceAccount) {
+            return this.recordSkip(thread.threadUuid, distillUpTo);
+        }
+
         // A thread whose memory was consolidated away or retired stops feeding
         // memory: the one-active-row index would let a re-distill insert a
         // second active row beside the row that replaced it.
@@ -1806,12 +1818,6 @@ export class AiAgentMemoryService extends BaseService {
             );
             abortSignal?.throwIfAborted();
             failureStage = 'persistence';
-            // The memory belongs to the thread's owner (its first prompter),
-            // not whoever happened to prompt last in a shared Slack thread.
-            const ownership = await this.aiAgentModel.findThreadOwnership({
-                organizationUuid: thread.organizationUuid,
-                threadUuid: thread.threadUuid,
-            });
             // Re-read: the status can flip while the LLM call is in flight, and
             // the upsert would then insert a second active row.
             if (
