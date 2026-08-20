@@ -775,6 +775,27 @@ export class ScimService extends BaseService {
                     organizationUuid,
                     userUuid,
                 );
+            // Deactivation clears the user's roles. Run the demotion (and its
+            // last-admin guard) before touching the user row so a refused
+            // deactivation leaves the account fully untouched.
+            if (user.active === false && dbUser.isActive) {
+                // The model refuses to demote the organization's last active admin.
+                await this.rolesModel.setUserOrgAndProjectRoles(
+                    organizationUuid,
+                    userUuid,
+                    OrganizationMemberRole.MEMBER,
+                    [],
+                    false,
+                );
+                this.logger.info(
+                    'SCIM: Reset organization and project roles for inactive user',
+                    {
+                        userUuid,
+                        organizationUuid,
+                    },
+                );
+            }
+
             // update user
             const updatedUser = await this.userModel.updateUser(
                 dbUser.userUuid,
@@ -838,25 +859,7 @@ export class ScimService extends BaseService {
                 });
             }
 
-            // If setting user to inactive, drop org role to MEMBER and remove project roles.
-            // Deactivating the last active admin would leave the organization unmanageable.
             if (user.active === false) {
-                // The model refuses to demote the organization's last active admin.
-                await this.rolesModel.setUserOrgAndProjectRoles(
-                    organizationUuid,
-                    userUuid,
-                    OrganizationMemberRole.MEMBER,
-                    [],
-                    false,
-                );
-                this.logger.info(
-                    'SCIM: Reset organization and project roles for inactive user',
-                    {
-                        userUuid,
-                        organizationUuid,
-                    },
-                );
-
                 // Remove user from all groups in the organization when deactivated
                 try {
                     const groupsCount =
