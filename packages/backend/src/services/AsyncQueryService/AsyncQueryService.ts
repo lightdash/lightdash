@@ -102,6 +102,7 @@ import {
     UserAccessControls,
     WarehouseClient,
     WarehouseQueryError,
+    WarehouseTypes,
     type ApiCompiledMergeQueryResults,
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
@@ -2704,6 +2705,40 @@ export class AsyncQueryService extends ProjectService {
                     : {}),
             });
         } catch (preAggregateError) {
+            if (
+                !(await this.isPreAggregateExecutionFallbackEnabled(
+                    projectUuid,
+                ))
+            ) {
+                Sentry.getActiveSpan()?.setAttribute(
+                    'lightdash.preAggregate.fallbackDisabled',
+                    true,
+                );
+                this.logger.warn(
+                    `Pre-aggregate execution (${preAggregateExecution}) failed for ${queryUuid} and execution fallback is disabled. Marking query as errored`,
+                );
+                await this.markAsyncQueryErrored({
+                    queryUuid,
+                    projectUuid,
+                    organizationUuid,
+                    userUuid,
+                    isRegisteredUser,
+                    isPreviewProject,
+                    onboardingFlow,
+                    queryTags,
+                    queryCreatedAt,
+                    errorMessage: `Pre-aggregate execution failed, and execution fallback is disabled for this project ('pre_aggregate_execution_fallback' under 'defaults' in lightdash.config.yml).\nCause: ${getErrorMessage(
+                        preAggregateError,
+                    )}`,
+                    executionSource:
+                        preAggregateExecution === 'duckdb'
+                            ? 'pre_aggregate_duckdb'
+                            : 'pre_aggregate_warehouse',
+                    warehouseType: null,
+                });
+                return;
+            }
+
             Sentry.getActiveSpan()?.setAttribute(
                 'lightdash.preAggregate.fallback',
                 true,
@@ -2777,6 +2812,118 @@ export class AsyncQueryService extends ProjectService {
                 displayTimezone,
             });
         }
+    }
+
+    // Availability-safe: any read failure keeps the default fallback behavior
+    private async isPreAggregateExecutionFallbackEnabled(
+        projectUuid: string,
+    ): Promise<boolean> {
+        try {
+            const defaults =
+                await this.projectModel.findProjectDefaults(projectUuid);
+            return defaults?.pre_aggregate_execution_fallback ?? true;
+        } catch (e) {
+            this.logger.error(
+                `Failed to read project defaults for ${projectUuid}, keeping pre-aggregate execution fallback enabled: ${getErrorMessage(
+                    e,
+                )}`,
+            );
+            return true;
+        }
+    }
+
+    // Shared terminal-error path for async queries: analytics, query history
+    // status, and prometheus stay consistent across every errored execution.
+    private async markAsyncQueryErrored({
+        queryUuid,
+        projectUuid,
+        organizationUuid,
+        userUuid,
+        isRegisteredUser,
+        isPreviewProject,
+        onboardingFlow,
+        queryTags,
+        queryCreatedAt,
+        errorMessage,
+        executionSource,
+        warehouseType,
+    }: Pick<
+        RunAsyncWarehouseQueryArgs,
+        | 'queryUuid'
+        | 'projectUuid'
+        | 'organizationUuid'
+        | 'userUuid'
+        | 'isRegisteredUser'
+        | 'isPreviewProject'
+        | 'onboardingFlow'
+        | 'queryTags'
+        | 'queryCreatedAt'
+    > & {
+        errorMessage: string;
+        executionSource:
+            | 'warehouse'
+            | 'pre_aggregate_duckdb'
+            | 'pre_aggregate_warehouse';
+        warehouseType: WarehouseTypes | null;
+    }) {
+        const analyticsIdentity = isRegisteredUser
+            ? { userId: userUuid }
+            : { anonymousId: 'embed' };
+        this.analytics.track({
+            ...analyticsIdentity,
+            event: 'query.error',
+            properties: {
+                queryId: queryUuid,
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                warehouseType: warehouseType ?? undefined,
+                executionSource,
+                ...(isRegisteredUser ? undefined : { externalId: userUuid }),
+            },
+        });
+        this.analytics.track({
+            ...analyticsIdentity,
+            event: 'query.completed',
+            properties: {
+                queryId: queryUuid,
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                isPreviewProject,
+                status: 'error',
+                context: queryTags.query_context,
+                onboardingFlow,
+                exploreName: queryTags.explore_name ?? null,
+                chartId: queryTags.chart_uuid ?? null,
+                dashboardId: queryTags.dashboard_uuid ?? null,
+                cacheHit: false,
+                executionSource,
+                warehouseType,
+                warehouseExecutionTimeMs: null,
+                totalRowCount: null,
+                columnsCount: null,
+                ...(isRegisteredUser ? undefined : { externalId: userUuid }),
+            },
+        });
+
+        await this.queryHistoryModel.updateStatusToError(
+            queryUuid,
+            projectUuid,
+            errorMessage,
+            {
+                isRegisteredUser: () => isRegisteredUser,
+                user: { id: userUuid },
+            },
+        );
+        this.prometheusMetrics?.trackQueryStateTransition(
+            QueryHistoryStatus.EXECUTING,
+            QueryHistoryStatus.ERROR,
+            queryTags.query_context || 'unknown',
+        );
+        this.trackQueryTerminalStatus(
+            QueryHistoryStatus.ERROR,
+            queryCreatedAt,
+            queryTags.query_context || 'unknown',
+        );
     }
 
     public async runAsyncWarehouseQueryFromHistory(
@@ -3319,63 +3466,20 @@ export class AsyncQueryService extends ProjectService {
                 throw e;
             }
 
-            this.analytics.track({
-                ...analyticsIdentity,
-                event: 'query.error',
-                properties: {
-                    queryId: queryUuid,
-                    organizationId: organizationUuid,
-                    projectId: projectUuid,
-                    warehouseType: warehouseCredentialsType,
-                    executionSource,
-                    ...(isRegisteredUser
-                        ? undefined
-                        : { externalId: userUuid }),
-                },
-            });
-            this.analytics.track({
-                ...analyticsIdentity,
-                event: 'query.completed',
-                properties: {
-                    queryId: queryUuid,
-                    organizationId: organizationUuid,
-                    projectId: projectUuid,
-                    isPreviewProject,
-                    status: 'error',
-                    context: queryTags.query_context,
-                    onboardingFlow,
-                    exploreName: queryTags.explore_name ?? null,
-                    chartId: queryTags.chart_uuid ?? null,
-                    dashboardId: queryTags.dashboard_uuid ?? null,
-                    cacheHit: false,
-                    executionSource,
-                    warehouseType: warehouseCredentialsType ?? null,
-                    warehouseExecutionTimeMs: null,
-                    totalRowCount: null,
-                    columnsCount: null,
-                    ...(isRegisteredUser
-                        ? undefined
-                        : { externalId: userUuid }),
-                },
-            });
-            await this.queryHistoryModel.updateStatusToError(
+            await this.markAsyncQueryErrored({
                 queryUuid,
                 projectUuid,
-                getErrorMessage(e),
-                queryHistoryAccount,
-            );
-
-            // Track error query in Prometheus
-            this.prometheusMetrics?.trackQueryStateTransition(
-                QueryHistoryStatus.EXECUTING,
-                QueryHistoryStatus.ERROR,
-                queryTags.query_context || 'unknown',
-            );
-            this.trackQueryTerminalStatus(
-                QueryHistoryStatus.ERROR,
+                organizationUuid,
+                userUuid,
+                isRegisteredUser,
+                isPreviewProject,
+                onboardingFlow,
+                queryTags,
                 queryCreatedAt,
-                queryTags.query_context || 'unknown',
-            );
+                errorMessage: getErrorMessage(e),
+                executionSource,
+                warehouseType: warehouseCredentialsType ?? null,
+            });
         }
 
         try {
