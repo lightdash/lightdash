@@ -1,5 +1,6 @@
 import { Tabs } from '@mantine/core';
 import { memo, type FC } from 'react';
+import ConfigTabsList from '../../common/ChartGallery/ConfigTabsList';
 import { ColumnCellDisplay } from './ColumnCellDisplay';
 import ConditionalFormattingList from './ConditionalFormattingList';
 import GeneralSettings from './GeneralSettings';
@@ -7,7 +8,7 @@ import GeneralSettings from './GeneralSettings';
 export const ConfigTabs: FC = memo(() => {
     return (
         <Tabs defaultValue="general" keepMounted={false}>
-            <Tabs.List mb="sm">
+            <ConfigTabsList mb="sm">
                 <Tabs.Tab px="sm" value="general">
                     General
                 </Tabs.Tab>
@@ -17,7 +18,7 @@ export const ConfigTabs: FC = memo(() => {
                 <Tabs.Tab px="sm" value="cell-display">
                     Cell display
                 </Tabs.Tab>
-            </Tabs.List>
+            </ConfigTabsList>
 
             <Tabs.Panel value="general">
                 <GeneralSettings />

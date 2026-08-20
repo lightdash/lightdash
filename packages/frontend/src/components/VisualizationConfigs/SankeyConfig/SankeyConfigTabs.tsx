@@ -11,6 +11,7 @@ import {
 } from '@lightdash/common';
 import { Stack, Tabs, Text, SegmentedControl } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
+import ConfigTabsList from '../../common/ChartGallery/ConfigTabsList';
 import FieldSelect from '../../common/FieldSelect';
 import { isSankeyVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -89,14 +90,14 @@ export const ConfigTabs: FC = memo(() => {
 
     return (
         <Tabs defaultValue="general" keepMounted={false}>
-            <Tabs.List mb="sm">
+            <ConfigTabsList mb="sm">
                 <Tabs.Tab px="sm" value="general">
                     General
                 </Tabs.Tab>
                 <Tabs.Tab px="sm" value="display">
                     Display
                 </Tabs.Tab>
-            </Tabs.List>
+            </ConfigTabsList>
 
             <Tabs.Panel value="general">
                 <Stack>

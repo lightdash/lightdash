@@ -108,6 +108,12 @@ export enum FeatureFlags {
     EnableDataApps = 'enable-data-apps',
 
     /**
+     * Keep Explorer fields mounted on the left while chart selection and
+     * configuration render in a right sidebar.
+     */
+    ExplorerChartGallery = 'explorer-chart-gallery',
+
+    /**
      * Let embedded dashboard builders create and edit charts in place ("New
      * chart" in the add-tile menu and "Edit chart" on tiles). Resolved with
      * the embed write actor and organization, surfaced via embedWriteContext.

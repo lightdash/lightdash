@@ -1,5 +1,6 @@
 import { Tabs } from '@mantine/core';
 import { memo, type FC } from 'react';
+import ConfigTabsList from '../../common/ChartGallery/ConfigTabsList';
 import { Display } from './PieChartDisplayConfig';
 import { Layout } from './PieChartLayoutConfig';
 import { Series } from './PieChartSeriesConfig';
@@ -7,7 +8,7 @@ import { Series } from './PieChartSeriesConfig';
 export const ConfigTabs: FC = memo(() => {
     return (
         <Tabs defaultValue="layout" keepMounted={false}>
-            <Tabs.List mb="sm">
+            <ConfigTabsList mb="sm">
                 <Tabs.Tab px="sm" value="layout">
                     Layout
                 </Tabs.Tab>
@@ -17,7 +18,7 @@ export const ConfigTabs: FC = memo(() => {
                 <Tabs.Tab px="sm" value="display">
                     Display
                 </Tabs.Tab>
-            </Tabs.List>
+            </ConfigTabsList>
 
             <Tabs.Panel value="layout">
                 <Layout />

@@ -24,6 +24,7 @@ import type * as ReactRouter from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defaultAbility } from '../../../providers/Ability/constants';
 import { renderWithProviders } from '../../../testing/testUtils';
+import { ChartGalleryContext } from '../../common/ChartGallery/ChartGalleryContext';
 import { ConfigTabs } from './DataAppVizConfigTabs';
 
 type PickerProps = {
@@ -391,6 +392,17 @@ describe('DataAppVizConfigTabs', () => {
         expect(
             screen.getByText('Run your query to pick a custom chart type.'),
         ).toBeInTheDocument();
+    });
+
+    it('hides the picker inside the chart gallery', () => {
+        renderWithProviders(
+            <ChartGalleryContext.Provider value={true}>
+                <ConfigTabs />
+            </ChartGalleryContext.Provider>,
+        );
+
+        expect(pickerProps).toHaveLength(0);
+        expect(screen.queryByText('Custom chart type')).not.toBeInTheDocument();
     });
 
     it('points builders at the dedicated builder when nothing is selected', async () => {

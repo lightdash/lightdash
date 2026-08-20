@@ -26,6 +26,10 @@ const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
     FeatureFlags.AiReviewReplayCapture,
     // Security hardening: previews must not accept long-lived GitHub PATs.
     FeatureFlags.AiMcpGithubPat,
+    // The Explorer E2E specs drive the legacy chart type picker, which the
+    // gallery replaces; keep previews on the shipped path until it has its
+    // own coverage. QA can still turn it on with a feature_flag_overrides row.
+    FeatureFlags.ExplorerChartGallery,
     // Derived from instance configuration: left to their config handler so a
     // preview never advertises a feature whose backend isn't configured.
     CommercialFeatureFlags.AiCopilot,
