@@ -205,6 +205,13 @@ function argument(name: string): string | undefined {
     return index >= 0 ? process.argv[index + 1] : undefined;
 }
 
+export function validateGitSha(ref: string): string {
+    if (!/^[0-9a-f]{40}$/.test(ref)) {
+        throw new Error('git ref must be a full 40-character lowercase hex SHA');
+    }
+    return ref;
+}
+
 function escapeCommandData(value: string): string {
     return value
         .replaceAll('%', '%25')
@@ -276,10 +283,11 @@ function changedMigrationFiles(baseSha: string): ChangedSourceFile[] {
 }
 
 function main(): void {
-    const baseSha = argument('base-sha');
+    const baseShaArgument = argument('base-sha');
     const markerPath = argument('marker');
-    if (!baseSha) throw new Error('--base-sha is required');
+    if (!baseShaArgument) throw new Error('--base-sha is required');
     if (!markerPath) throw new Error('--marker is required');
+    const baseSha = validateGitSha(baseShaArgument);
     const marker = JSON.parse(
         fs.readFileSync(markerPath, 'utf8'),
     ) as ReleaseSafetyGateMarker;

@@ -8,6 +8,7 @@ import {
     detectLegacyInlineBreakingDeclarations,
     evaluateReleaseSafetyGate,
     ReleaseSafetyGateMarker,
+    validateGitSha,
 } from './release-safety-pr-gate';
 
 let passed = 0;
@@ -68,6 +69,14 @@ function evaluate(
 
 const migrationPath =
     'packages/backend/src/database/migrations/20260820120000_example.ts';
+
+test('git ref validation rejects option-like input', () => {
+    assert.throws(
+        () => validateGitSha('--not-a-ref'),
+        /full 40-character lowercase hex SHA/,
+    );
+    assert.strictEqual(validateGitSha('a'.repeat(40)), 'a'.repeat(40));
+});
 
 test('dynamic SQL reports the parse failure remedy', () => {
     const diagnostics = detectIncompleteMigrationMetadata([
