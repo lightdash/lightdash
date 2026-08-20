@@ -49,6 +49,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
+  actions: read
   contents: read
   pull-requests: write
 
@@ -130,6 +131,7 @@ jobs:
             watched:
               - 'packages/backend/**'
               - 'packages/common/**'
+              - 'release-safety.declarations.json'
               - 'release-safety.overrides.json'
               - 'scripts/gen-release-safety.ts'
               - 'scripts/ai-migration-review.ts'
@@ -137,6 +139,8 @@ jobs:
               - 'scripts/rest-api-diff.ts'
               - 'scripts/mcp-tools-diff.ts'
               - 'scripts/breaking-change-declarations.ts'
+              - 'scripts/release-safety-declarations.ts'
+              - 'scripts/release-safety-declarations.schema.json'
               - 'scripts/release-safety-pr-gate.ts'
               - 'scripts/upgrade-overrides.ts'
               - 'scripts/release-safety-pr-comment.ts'
@@ -159,24 +163,59 @@ jobs:
         with:
           script: |
             const marker = '<!-- release-safety-marker -->';
-            const comments = await github.paginate(github.rest.issues.listComments, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              per_page: 100,
-            });
-            const existing = comments.find((c) => c.body.includes(marker));
-            // SPK-1017: `gate` is part of the stamp because this check is
-            // required. A job skipped by an `if:` reports SKIPPED, and SKIPPED
-            // satisfies a required check — so reusing a FAILED verdict would
-            // turn a red gate green by editing the PR title. Only a verdict
-            // that passed may be short-circuited.
-            const m = existing?.body.match(
-              /<!-- release-safety-describes head:([0-9a-f]{7,40}) base:([0-9a-f]{7,40}) gate:(pass|fail) -->/,
-            );
-            core.setOutput('head', m ? m[1] : '');
-            core.setOutput('base', m ? m[2] : '');
-            core.setOutput('gate', m ? m[3] : '');
+            core.setOutput('head', '');
+            core.setOutput('base', '');
+            core.setOutput('gate', '');
+
+            try {
+              const { viewer } = await github.graphql(`query { viewer { login } }`);
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                per_page: 100,
+              });
+              const existing = comments.find(
+                (c) => c.user?.login === viewer.login && c.body?.includes(marker),
+              );
+              const stamp = existing?.body?.match(
+                /<!-- release-safety-describes head:([0-9a-f]{7,40}) base:([0-9a-f]{7,40}) gate:(pass|fail) run:([1-9][0-9]*) -->/,
+              );
+              if (!stamp) {
+                core.info('No verified describes-stamp was found.');
+                return;
+              }
+
+              const [{ data: run }, { data: workflow }] = await Promise.all([
+                github.rest.actions.getWorkflowRun({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  run_id: Number(stamp[4]),
+                }),
+                github.rest.actions.getWorkflow({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: 'release-safety-pr.yml',
+                }),
+              ]);
+              const verified =
+                run.workflow_id === workflow.id &&
+                run.status === 'completed' &&
+                run.conclusion === 'success' &&
+                run.event === 'pull_request' &&
+                run.head_sha === stamp[1] &&
+                run.pull_requests.some((pr) => pr.number === context.issue.number);
+              if (!verified) {
+                core.info('The describes-stamp does not name a successful run for this pull request.');
+                return;
+              }
+
+              core.setOutput('head', stamp[1]);
+              core.setOutput('base', stamp[2]);
+              core.setOutput('gate', stamp[3]);
+            } catch (error) {
+              core.warning(`Could not verify the describes-stamp: ${error.message}`);
+            }
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         if: steps.watched.outputs.watched == 'true'
@@ -283,7 +322,10 @@ jobs:
               issue_number: context.issue.number,
               per_page: 100,
             });
-            const existing = comments.find((c) => c.body.includes(marker));
+            const { viewer } = await github.graphql(`query { viewer { login } }`);
+            const existing = comments.find(
+              (c) => c.user?.login === viewer.login && c.body?.includes(marker),
+            );
 
             if (existing) {
               await github.rest.issues.updateComment({
@@ -561,6 +603,7 @@ jobs:
             --base "${{ github.event.pull_request.base.ref }} (${{ needs.changes.outputs.base_short }})" \
             --head-sha "${{ github.event.pull_request.head.sha }}" \
             --base-sha "${{ needs.changes.outputs.base_sha }}" \
+            --run-id "${{ github.run_id }}" \
             --rest-status "${{ steps.rest-result.outputs.status }}" \
             ${{ steps.marker.outputs.draft == 'true' && '--draft' || '' }} \
             ${{ steps.lint.outputs.breaking == 'true' && '--linter-breaking' || '--no-linter-breaking' }} \
@@ -613,7 +656,10 @@ jobs:
               issue_number: context.issue.number,
               per_page: 100,
             });
-            const existing = comments.find((c) => c.body.includes(marker));
+            const { viewer } = await github.graphql(`query { viewer { login } }`);
+            const existing = comments.find(
+              (c) => c.user?.login === viewer.login && c.body?.includes(marker),
+            );
 
             if (existing) {
               await github.rest.issues.updateComment({
@@ -684,7 +730,10 @@ jobs:
               issue_number: context.issue.number,
               per_page: 100,
             });
-            const existing = comments.find((c) => c.body.includes(marker));
+            const { viewer } = await github.graphql(`query { viewer { login } }`);
+            const existing = comments.find(
+              (c) => c.user?.login === viewer.login && c.body?.includes(marker),
+            );
             if (!existing) {
               core.info('No sticky comment to retract.');
               return;

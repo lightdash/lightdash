@@ -777,6 +777,8 @@ export const getAgentTools = (
         `Getting agent tools for agent: ${args.agentSettings.name}`,
     );
 
+    const enableContentTools = args.enableDataAccess && args.enableContentTools;
+
     const grepFields = getGrepFields({
         availableExplores,
         findExplores: dependencies.findExplores,
@@ -794,6 +796,9 @@ export const getAgentTools = (
         findContent: dependencies.findContent,
         siteUrl: args.siteUrl,
         toolDescriptionMaxChars: args.toolDescriptionMaxChars,
+        dashboardDetailsToolName: enableContentTools
+            ? 'readContent'
+            : 'getDashboardCharts',
         trackCoverage: (coverage) => {
             dependencies.trackEvent({
                 event: 'ai_agent.find_content_coverage',
@@ -1079,7 +1084,6 @@ export const getAgentTools = (
               })
             : null;
 
-    const enableContentTools = args.enableDataAccess && args.enableContentTools;
     const mcpTools = Object.fromEntries(
         Object.entries(mcpToolSetup.tools).filter(
             ([toolName]) =>

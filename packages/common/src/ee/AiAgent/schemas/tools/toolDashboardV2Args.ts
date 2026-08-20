@@ -3,6 +3,7 @@ import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 import {
     toolRunQueryArgsSchema,
+    toolRunQueryArgsSchemaPersisted,
     toolRunQueryArgsSchemaTransformed,
 } from './toolRunQueryArgs';
 
@@ -28,32 +29,54 @@ Recommended Dashboard Structure:
 // Dashboard visualization schema - use generateVisualization format for each visualization
 const dashboardV2VisualizationSchema = toolRunQueryArgsSchema;
 
+// Persisted artifacts may carry legacy template table calcs the advertised
+// (formula-only) viz schema no longer accepts; type as the wide persisted shape.
 export type DashboardV2Visualization = z.infer<
-    typeof dashboardV2VisualizationSchema
+    typeof toolRunQueryArgsSchemaPersisted
 >;
 
+const dashboardV2Fields = {
+    title: z.string().describe('A descriptive title for the dashboard'),
+    description: z
+        .string()
+        .describe('A descriptive summary or explanation for the dashboard.'),
+} as const;
+
+const visualizationsDescription =
+    'Array of visualization configurations to generate for this dashboard. Each should contribute to the overall theme and leverage the available chart types (table, bar, horizontal, line, scatter, pie, funnel).';
+
+// Advertised agent contract: formula-only table calcs per visualization.
 export const toolDashboardV2ArgsSchema = createToolSchema()
     .extend({
-        title: z.string().describe('A descriptive title for the dashboard'),
-        description: z
-            .string()
-            .describe(
-                'A descriptive summary or explanation for the dashboard.',
-            ),
+        ...dashboardV2Fields,
         visualizations: z
             .array(dashboardV2VisualizationSchema)
             .min(2)
             .max(15)
-            .describe(
-                'Array of visualization configurations to generate for this dashboard. Each should contribute to the overall theme and leverage the available chart types (table, bar, horizontal, line, scatter, pie, funnel).',
-            ),
+            .describe(visualizationsDescription),
     })
     .build();
 
-export type ToolDashboardV2Args = z.infer<typeof toolDashboardV2ArgsSchema>;
+// Wide variant for parsing persisted artifacts and incoming tool calls; it
+// accepts everything the advertised schema produces plus legacy template
+// table calcs. Tracks toolRunQueryArgsSchemaPersisted (see its invariant).
+export const toolDashboardV2ArgsSchemaPersisted = createToolSchema()
+    .extend({
+        ...dashboardV2Fields,
+        visualizations: z
+            .array(toolRunQueryArgsSchemaPersisted)
+            .min(2)
+            .max(15)
+            .describe(visualizationsDescription),
+    })
+    .build();
+
+export type ToolDashboardV2Args = z.infer<
+    typeof toolDashboardV2ArgsSchemaPersisted
+>;
 
 export const toolDashboardV2ArgsSchemaTransformed =
-    toolDashboardV2ArgsSchema.transform((data) => ({
+    toolDashboardV2ArgsSchemaPersisted.transform((data) => ({
         ...data,
         visualizations: data.visualizations.map((viz) =>
             toolRunQueryArgsSchemaTransformed.parse(viz),

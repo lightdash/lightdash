@@ -83,7 +83,7 @@ export const selectIsResultsExpanded = createSelector(
 
 export const selectIsVisualizationConfigOpen = createSelector(
     [selectExplorerState],
-    (explorer) => explorer.isVisualizationConfigOpen,
+    (explorer) => explorer.isVisualizationConfigOpen === true,
 );
 
 // FiltersCard specific selectors

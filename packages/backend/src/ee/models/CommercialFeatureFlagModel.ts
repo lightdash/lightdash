@@ -16,35 +16,7 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
                 this.getAiCopilotFlag.bind(this),
             [CommercialFeatureFlags.HomepageBuilder]:
                 this.getHomepageBuilderFlag.bind(this),
-            [CommercialFeatureFlags.MultipleRoles]:
-                this.getMultipleRolesFlag.bind(this),
         };
-    }
-
-    // Default-off; enabled per-org via DB-backed overrides, and only when
-    // custom roles are available (env config or the CustomRoles flag).
-    // Gates management surfaces only — persisted extra roles are always
-    // effective at runtime, mirroring custom roles.
-    private async getMultipleRolesFlag({
-        featureFlagId,
-        user,
-    }: FeatureFlagLogicArgs) {
-        if (!user) {
-            return { id: featureFlagId, enabled: false };
-        }
-        const dbResult = await this.tryGetFromDatabase({ user, featureFlagId });
-        if (!dbResult?.enabled) {
-            return { id: featureFlagId, enabled: false };
-        }
-        const customRolesEnabled =
-            this.lightdashConfig.customRoles.enabled ||
-            (
-                await this.get(
-                    { user, featureFlagId: CommercialFeatureFlags.CustomRoles },
-                    { recordCheck: false },
-                )
-            ).enabled;
-        return { id: featureFlagId, enabled: customRolesEnabled };
     }
 
     // Default-off; enabled per-org via DB-backed overrides.

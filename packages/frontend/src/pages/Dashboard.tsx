@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     copyDateZoomTileTargets,
+    excludeTilesFromTabScopedFilters,
     getShadowedReservedNames,
     isEmptyDateZoomConfig,
     normalizeDateZoomConfig,
@@ -8,6 +9,7 @@ import {
     removeDateZoomTileTargets,
     ContentType,
     DateGranularity,
+    type DashboardFilterRule,
     type UpdateDashboard,
     type DashboardTile,
     type Dashboard as IDashboard,
@@ -52,7 +54,11 @@ import '../styles/react-grid.css';
 
 const Dashboard: FC = () => {
     const navigate = useNavigate();
-    const { projectUuid, dashboardUuid, mode } = useParams<{
+    const {
+        projectUuid,
+        dashboardUuid: routeDashboardIdentifier,
+        mode,
+    } = useParams<{
         projectUuid: string;
         dashboardUuid: string;
         mode?: string;
@@ -63,6 +69,8 @@ const Dashboard: FC = () => {
 
     const isDashboardLoading = useDashboardContext((c) => c.isDashboardLoading);
     const dashboard = useDashboardContext((c) => c.dashboard);
+    const dashboardUuid = dashboard?.uuid;
+    const dashboardIdentifier = dashboard?.slug ?? routeDashboardIdentifier;
 
     const dashboardError = useDashboardContext((c) => c.dashboardError);
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
@@ -380,18 +388,18 @@ const Dashboard: FC = () => {
             reset();
             if (dashboardTabs.length > 1) {
                 void navigate(
-                    `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${activeTab?.uuid}`,
+                    `/projects/${projectUuid}/dashboards/${dashboardIdentifier}/view/tabs/${activeTab?.uuid}`,
                     { replace: true },
                 );
             } else {
                 void navigate(
-                    `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
+                    `/projects/${projectUuid}/dashboards/${dashboardIdentifier}/view`,
                     { replace: true },
                 );
             }
         }
     }, [
-        dashboardUuid,
+        dashboardIdentifier,
         navigate,
         isSuccess,
         projectUuid,
@@ -467,24 +475,32 @@ const Dashboard: FC = () => {
             // original.
             if (tileUuidMapping && Object.keys(tileUuidMapping).length > 0) {
                 setDashboardFilters((prev) => {
-                    const updatedDimensions = prev.dimensions.map((filter) => {
-                        if (!filter.tileTargets) return filter;
-                        const nextTileTargets = { ...filter.tileTargets };
-                        let changed = false;
-                        for (const [newUuid, oldUuid] of Object.entries(
-                            tileUuidMapping,
-                        )) {
-                            if (oldUuid in nextTileTargets) {
-                                nextTileTargets[newUuid] =
-                                    nextTileTargets[oldUuid];
-                                changed = true;
+                    const remapRules = <T extends DashboardFilterRule>(
+                        rules: T[],
+                    ): T[] =>
+                        rules.map((filter) => {
+                            if (!filter.tileTargets) return filter;
+                            const nextTileTargets = { ...filter.tileTargets };
+                            let changed = false;
+                            for (const [newUuid, oldUuid] of Object.entries(
+                                tileUuidMapping,
+                            )) {
+                                if (oldUuid in nextTileTargets) {
+                                    nextTileTargets[newUuid] =
+                                        nextTileTargets[oldUuid];
+                                    changed = true;
+                                }
                             }
-                        }
-                        return changed
-                            ? { ...filter, tileTargets: nextTileTargets }
-                            : filter;
-                    });
-                    return { ...prev, dimensions: updatedDimensions };
+                            return changed
+                                ? { ...filter, tileTargets: nextTileTargets }
+                                : filter;
+                        });
+                    return {
+                        ...prev,
+                        dimensions: remapRules(prev.dimensions),
+                        metrics: remapRules(prev.metrics),
+                        tableCalculations: remapRules(prev.tableCalculations),
+                    };
                 });
                 setHaveFiltersChanged(true);
 
@@ -503,6 +519,19 @@ const Dashboard: FC = () => {
                 if (nextDateZoomConfig !== dateZoomConfig) {
                     setDateZoomConfig(nextDateZoomConfig);
                 }
+            } else if (dashboardTiles) {
+                // Tab-aware auto-apply: a filter that already excludes every
+                // chart tile on the target tab is scoped away from that tab,
+                // so exclude the newly added tiles from it too.
+                const scopedFilters = excludeTilesFromTabScopedFilters(
+                    dashboardFilters,
+                    newTiles,
+                    dashboardTiles,
+                );
+                if (scopedFilters !== dashboardFilters) {
+                    setDashboardFilters(() => scopedFilters);
+                    setHaveFiltersChanged(true);
+                }
             }
         },
         [
@@ -512,6 +541,8 @@ const Dashboard: FC = () => {
             setDashboardTiles,
             setHaveTilesChanged,
             setHaveTabsChanged,
+            dashboardFilters,
+            dashboardTiles,
             setDashboardFilters,
             setHaveFiltersChanged,
             dateZoomConfig,
@@ -609,18 +640,18 @@ const Dashboard: FC = () => {
 
         if (dashboardTabs.length > 0) {
             void navigate(
-                `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${activeTab?.uuid}`,
+                `/projects/${projectUuid}/dashboards/${dashboardIdentifier}/view/tabs/${activeTab?.uuid}`,
                 { replace: true },
             );
         } else {
             void navigate(
-                `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
+                `/projects/${projectUuid}/dashboards/${dashboardIdentifier}/view`,
                 { replace: true },
             );
         }
     }, [
         dashboard,
-        dashboardUuid,
+        dashboardIdentifier,
         navigate,
         projectUuid,
         setDashboardTiles,
@@ -681,8 +712,12 @@ const Dashboard: FC = () => {
             isEditMode &&
             (haveTilesChanged || haveFiltersChanged || haveTabsChanged) &&
             !nextLocation.pathname.includes(
-                `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
+                `/projects/${projectUuid}/dashboards/${dashboardIdentifier}`,
             ) &&
+            (!dashboardUuid ||
+                !nextLocation.pathname.includes(
+                    `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
+                )) &&
             // Allow user to add a new table
             !sessionStorage.getItem(`unsavedDashboardTiles:${dashboardUuid}`)
         ) {
@@ -702,8 +737,8 @@ const Dashboard: FC = () => {
                 {
                     pathname:
                         dashboardTabs.length > 0
-                            ? `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit/tabs/${activeTab?.uuid}`
-                            : `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
+                            ? `/projects/${projectUuid}/dashboards/${dashboardIdentifier}/edit/tabs/${activeTab?.uuid}`
+                            : `/projects/${projectUuid}/dashboards/${dashboardIdentifier}/edit`,
                     search: '',
                 },
                 { replace: true },
@@ -711,7 +746,7 @@ const Dashboard: FC = () => {
         });
     }, [
         projectUuid,
-        dashboardUuid,
+        dashboardIdentifier,
         resetDashboardFilters,
         refreshDashboardVersion,
         navigate,

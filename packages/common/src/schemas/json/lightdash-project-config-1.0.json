@@ -212,6 +212,10 @@
                     "type": ["object", "null"],
                     "description": "Override the display label of standard granularities (e.g. week: \"Week starting Monday\"). Keyed by standard granularity name.",
                     "additionalProperties": { "type": "string" }
+                },
+                "pre_aggregate_execution_fallback": {
+                    "type": "boolean",
+                    "description": "Whether a matched query whose pre-aggregate execution fails is served from the source warehouse. When false, the query errors instead. Defaults to true."
                 }
             }
         },

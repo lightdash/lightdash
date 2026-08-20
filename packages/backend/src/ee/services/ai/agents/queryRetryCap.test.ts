@@ -5,6 +5,7 @@ import {
     DEEP_RESEARCH_RESOURCE_RECOVERY_ATTEMPTS,
     INVALID_INPUT_CAP,
     QUERY_TOOL_NAMES,
+    REPEATED_QUERY_ERROR_CAP,
     WAREHOUSE_ERROR_CAP,
     WAREHOUSE_SLOW_CAP,
 } from './queryRetryCap';
@@ -101,6 +102,61 @@ describe('query retry cap', () => {
         const override = turn.override();
         expect(override?.activeTools).toEqual([NON_QUERY_TOOL]);
         expect(override?.nudge.toLowerCase()).toContain('do not run it again');
+    });
+
+    it('stops Deep Research after the same runtime query error repeats', () => {
+        const turn = makeTurn();
+        times(REPEATED_QUERY_ERROR_CAP, () =>
+            turn.failure(
+                'generateVisualization',
+                'Error running query. Unknown field orders_is_corrupted',
+            ),
+        );
+
+        const override = turn.override('deep_research');
+
+        expect(override?.activeTools).toEqual([NON_QUERY_TOOL]);
+        expect(override?.nudge).toContain('Unknown field orders_is_corrupted');
+        expect(override?.nudge).toContain('same query error repeated');
+    });
+
+    it('leaves standard runs on the existing aggregate retry cap', () => {
+        const turn = makeTurn();
+        times(REPEATED_QUERY_ERROR_CAP, () =>
+            turn.failure(
+                'generateVisualization',
+                'Error running query. Unknown field orders_is_corrupted',
+            ),
+        );
+
+        expect(turn.override('standard')).toBeNull();
+    });
+
+    it('resets the repeated error count after a successful query', () => {
+        const turn = makeTurn();
+        turn.failure(
+            'generateVisualization',
+            'Error running query. Unknown field orders_is_corrupted',
+        );
+        turn.success('generateVisualization');
+        turn.failure(
+            'generateVisualization',
+            'Error running query. Unknown field orders_is_corrupted',
+        );
+
+        expect(turn.override('deep_research')).toBeNull();
+    });
+
+    it('keeps Deep Research query tools for distinct repair errors', () => {
+        const turn = makeTurn();
+        times(REPEATED_QUERY_ERROR_CAP, () =>
+            turn.failure(
+                'generateVisualization',
+                `Error running query. Unknown field attempt-${crypto.randomUUID()}`,
+            ),
+        );
+
+        expect(turn.override('deep_research')).toBeNull();
     });
 
     it('trips sooner on repeated warehouse timeouts', () => {

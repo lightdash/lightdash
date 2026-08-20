@@ -496,6 +496,72 @@ export const isTileFilterable = (tile: DashboardTile) =>
         DashboardTileTypes.DATA_APP,
     ].includes(tile.type);
 
+const isChartTile = (tile: Pick<DashboardTile, 'type'>): boolean =>
+    tile.type === DashboardTileTypes.SAVED_CHART ||
+    tile.type === DashboardTileTypes.SQL_CHART;
+
+/**
+ * Tab scoping is emulated by excluding (`tileTargets[uuid] = false`) every
+ * chart tile on the other tabs, so a newly added tile — absent from every
+ * tileTargets — auto-applies filters that were scoped away from its tab.
+ * Infer the tab scope instead: when a filter already excludes every chart
+ * tile on the new tile's tab, exclude the new tile too. Tabs with no chart
+ * tiles keep the auto-apply default (there is no configuration to infer from).
+ */
+export const excludeTilesFromTabScopedFilters = (
+    dashboardFilters: DashboardFilters,
+    newTiles: Array<Pick<DashboardTile, 'uuid' | 'type' | 'tabUuid'>>,
+    existingTiles: Array<Pick<DashboardTile, 'uuid' | 'type' | 'tabUuid'>>,
+): DashboardFilters => {
+    const newChartTiles = newTiles.filter(
+        (tile) => isChartTile(tile) && tile.tabUuid,
+    );
+    if (newChartTiles.length === 0) return dashboardFilters;
+
+    const existingChartTileUuidsByTab = existingTiles
+        .filter((tile) => isChartTile(tile) && tile.tabUuid)
+        .reduce<Record<string, string[]>>((acc, tile) => {
+            acc[tile.tabUuid!] = [...(acc[tile.tabUuid!] ?? []), tile.uuid];
+            return acc;
+        }, {});
+
+    let hasChanges = false;
+    const excludeFromRules = (rules: DashboardFilterRule[]) =>
+        rules.map((rule) => {
+            const excludedTiles = newChartTiles.filter((tile) => {
+                const tabTileUuids =
+                    existingChartTileUuidsByTab[tile.tabUuid!] ?? [];
+                return (
+                    tabTileUuids.length > 0 &&
+                    tabTileUuids.every(
+                        (uuid) => rule.tileTargets?.[uuid] === false,
+                    )
+                );
+            });
+            if (excludedTiles.length === 0) return rule;
+            hasChanges = true;
+            return {
+                ...rule,
+                tileTargets: {
+                    ...rule.tileTargets,
+                    ...Object.fromEntries(
+                        excludedTiles.map((tile) => [
+                            tile.uuid,
+                            false as const,
+                        ]),
+                    ),
+                },
+            };
+        });
+
+    const next: DashboardFilters = {
+        dimensions: excludeFromRules(dashboardFilters.dimensions),
+        metrics: excludeFromRules(dashboardFilters.metrics),
+        tableCalculations: excludeFromRules(dashboardFilters.tableCalculations),
+    };
+    return hasChanges ? next : dashboardFilters;
+};
+
 const getDefaultTileTargets = (
     field: FilterableDimension | Metric | Field,
     availableTileFilters: Record<

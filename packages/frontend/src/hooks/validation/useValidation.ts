@@ -176,6 +176,7 @@ const getPaginatedValidation = async (
         sourceTypes?: ValidationSourceType[];
         errorTypes?: ValidationErrorType[];
         tableName?: string;
+        fieldName?: string;
         includeChartConfigWarnings?: boolean;
         fromSettings?: boolean;
     },
@@ -194,6 +195,7 @@ const getPaginatedValidation = async (
     if (options?.errorTypes?.length)
         params.set('errorTypes', options.errorTypes.join(','));
     if (options?.tableName) params.set('tableName', options.tableName);
+    if (options?.fieldName) params.set('fieldName', options.fieldName);
     if (options?.includeChartConfigWarnings != null)
         params.set(
             'includeChartConfigWarnings',
@@ -221,6 +223,7 @@ export const usePaginatedValidation = (
         sourceTypes?: ValidationSourceType[];
         errorTypes?: ValidationErrorType[];
         tableName?: string;
+        fieldName?: string;
         includeChartConfigWarnings?: boolean;
     },
 ) => {
@@ -246,6 +249,7 @@ export const usePaginatedValidation = (
             options?.sourceTypes,
             options?.errorTypes,
             options?.tableName,
+            options?.fieldName,
             options?.includeChartConfigWarnings,
         ],
         queryFn: async ({ pageParam = 1 }) =>
@@ -256,6 +260,7 @@ export const usePaginatedValidation = (
                 sourceTypes: options?.sourceTypes,
                 errorTypes: options?.errorTypes,
                 tableName: options?.tableName,
+                fieldName: options?.fieldName,
                 includeChartConfigWarnings: options?.includeChartConfigWarnings,
                 fromSettings: true,
             }),

@@ -27,6 +27,7 @@ import { DefaultAgentButton } from '../../features/aiCopilot/components/DefaultA
 import { usePendingPrompt } from '../../features/aiCopilot/components/PendingPromptContext/PendingPromptContext';
 import { PinnedContextCard } from '../../features/aiCopilot/components/PinnedContextCard/PinnedContextCard';
 import { SuggestedQuestions } from '../../features/aiCopilot/components/SuggestedQuestions/SuggestedQuestions';
+import { ThreadRetentionNotice } from '../../features/aiCopilot/components/ThreadRetentionNotice';
 import { type StartDeepResearchArgs } from '../../features/aiCopilot/deepResearch/types';
 import { isEmbedAiAgentRoute } from '../../features/aiCopilot/hooks/aiAgentRouting';
 import { emitEmbedAiAgentThreadChange } from '../../features/aiCopilot/hooks/embedAiAgentThreadChange';
@@ -316,6 +317,11 @@ const AiAgentNewThreadPage: FC = () => {
                                 ))}
                             </Group>
                         )}
+                        <ThreadRetentionNotice
+                            agentThreadRetentionHours={
+                                agent.threadRetentionHours ?? null
+                            }
+                        />
                     </Stack>
 
                     {projectUuid && agentUuid && (

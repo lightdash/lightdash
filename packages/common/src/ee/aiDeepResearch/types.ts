@@ -47,6 +47,18 @@ export const AI_DEEP_RESEARCH_TERMINAL_REASONS = [
 export type AiDeepResearchTerminalReason =
     (typeof AI_DEEP_RESEARCH_TERMINAL_REASONS)[number];
 
+export const AI_DEEP_RESEARCH_FAILURE_STAGES = [
+    'enqueue',
+    'authorization',
+    'investigation',
+    'finalization',
+    'persistence',
+    'recovery',
+] as const;
+
+export type AiDeepResearchFailureStage =
+    (typeof AI_DEEP_RESEARCH_FAILURE_STAGES)[number];
+
 export const isAiDeepResearchRunTerminal = (
     status: AiDeepResearchRunStatus,
 ): status is AiDeepResearchTerminalStatus =>

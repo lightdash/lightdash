@@ -181,9 +181,13 @@ pnpm -F backend rollback-last
 `Release-safety preview` is a required check on `main`. It protects self-hosted upgrades: `unknown` means we could not confirm the change is safe, while `breaking` means we know it is incompatible. Both hold the upgrade, for different reasons.
 
 - For migration breaks, follow the detailed [migration release-safety declarations](packages/backend/src/database/migrations/CLAUDE.md#release-safety-declarations).
-- For API or type breaks, changed, non-test TypeScript source under `packages/backend/src` or `packages/common/src` may declare `export const breaking = { reason: '<operator-facing reason>', requiredStop: false }`. It must be a top-level, unannotated object literal with exactly those fields: `reason` is a non-empty string literal, `requiredStop` is a boolean literal, and API-gate reasons must be at least 24 characters, use more than one word, and not be placeholder text.
+- For API or type breaks, add a stable ID to `release-safety.declarations.json` with `reason` and `requiredStop`. The reason must be at least 24 characters, use more than one word, describe what breaks and for whom, and not use placeholder text. Omit `migration` for these entries.
 
-Never declare a break merely to make CI pass. Declaring a break advises every self-hosted customer to use the Recreate strategy. A release that ships as `breaking` or `unknown` stops the internal analytics instance upgrading; every later release inherits the block until someone moves the pin past it by hand.
+A declaration is active only for a Git range that adds its ID. The release generator compares the last release tag with the target ref. The pull request preview compares the merge base with the head. This makes the declaration expire after the release that first contains it. Do not remove it after release.
+
+The registry is append-only. Never edit, remove, rename, or reuse an existing ID. Add a new ID for every new break, even when it affects the same file or has similar reason text. A release may add `releasedIn` for documentation, but that value never controls activation.
+
+Never declare a break merely to make CI pass. Declaring a break advises every self-hosted customer to use the Recreate strategy. A release that ships as `breaking` or `unknown` stops the internal analytics instance upgrading. The declaration does not reactivate in later Git ranges.
 
 ## Merge Freeze — Holding `main` While a Release Is Cut
 

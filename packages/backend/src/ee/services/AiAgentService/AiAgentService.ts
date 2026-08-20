@@ -62,6 +62,7 @@ import {
     derivePivotConfigurationFromChart,
     DownloadFileType,
     EmbedArtifactVersionJobPayload,
+    exceedsRetentionCeiling,
     Explore,
     FeatureFlags,
     ForbiddenError,
@@ -90,7 +91,7 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     LightdashUser,
-    MergeQuery,
+    MetricSourcedMergeQuery,
     NotFoundError,
     NotImplementedError,
     OpenIdIdentity,
@@ -112,7 +113,7 @@ import {
     ToolDashboardArgs,
     toolDashboardArgsSchema,
     ToolDashboardV2Args,
-    toolDashboardV2ArgsSchema,
+    toolDashboardV2ArgsSchemaPersisted,
     UnexpectedServerError,
     UpdateSlackResponse,
     UpdateWebAppResponse,
@@ -163,6 +164,7 @@ import { EventEmitter } from 'events';
 import fs from 'fs/promises';
 import _ from 'lodash';
 import { nanoid as nanoidGenerator } from 'nanoid';
+import pLimit from 'p-limit';
 import slackifyMarkdown from 'slackify-markdown';
 import { Readable } from 'stream';
 import { z } from 'zod';
@@ -183,6 +185,7 @@ import {
     AiAgentSlackChannelLinkedEvent,
     AiAgentSuggestionsGeneratedEvent,
     AiAgentSuggestionSubmitEvent,
+    AiAgentThreadsRetentionCleanedEvent,
     AiAgentToolCallEvent,
     AiAgentUpdatedEvent,
     ContentVerificationEvent,
@@ -235,7 +238,10 @@ import { wrapSentryTransaction } from '../../../utils';
 import { validatePublicHttpUrl } from '../../../utils/ssrfProtection';
 import { type DbAiDeepResearchEvent } from '../../database/entities/aiDeepResearch';
 import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
-import { AiAgentMemoryModel } from '../../models/AiAgentMemoryModel';
+import {
+    AI_AGENT_MEMORY_THREAD_SOURCES,
+    AiAgentMemoryModel,
+} from '../../models/AiAgentMemoryModel';
 import {
     AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_ALLOW,
     AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_DENY,
@@ -2356,7 +2362,7 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         toolArgs: ToolRunQueryArgsTransformed,
-    ): Promise<MergeQuery> {
+    ): Promise<MetricSourcedMergeQuery> {
         const exploreByName = Object.fromEntries(
             await Promise.all(
                 buildAiMergeSourceConfigs(toolArgs).map(
@@ -3206,6 +3212,102 @@ export class AiAgentService extends BaseService {
         });
     }
 
+    async cleanExpiredThreads(batchSize: number): Promise<{
+        threadsDeleted: number;
+        memoriesDeleted: number;
+        hitBatchLimit: boolean;
+    }> {
+        const organizationUuids =
+            await this.aiAgentModel.findOrganizationsWithThreadRetention();
+
+        const flagLimit = pLimit(5);
+        const flags = await Promise.all(
+            organizationUuids.map((organizationUuid) =>
+                flagLimit(async () => ({
+                    organizationUuid,
+                    flag: await this.featureFlagService.get({
+                        user: { userUuid: 'system', organizationUuid },
+                        featureFlagId: FeatureFlags.AiThreadRetention,
+                    }),
+                })),
+            ),
+        );
+        const enabledOrganizationUuids = flags
+            .filter(({ flag }) => flag.enabled)
+            .map(({ organizationUuid }) => organizationUuid);
+
+        // Each deletion is a transaction cascading a full batch of threads, so
+        // keep the concurrency low to bound the load on the database.
+        const deleteLimit = pLimit(3);
+        const results = await Promise.all(
+            enabledOrganizationUuids.map((organizationUuid) =>
+                deleteLimit(async () => {
+                    const { deletedThreadUuids, deletedMemoriesCount } =
+                        await this.aiAgentModel.deleteExpiredThreads(
+                            organizationUuid,
+                            batchSize,
+                        );
+                    if (deletedThreadUuids.length > 0) {
+                        Logger.info(
+                            `AI thread retention: deleted ${deletedThreadUuids.length} threads and ${deletedMemoriesCount} derived memories for organization ${organizationUuid}`,
+                        );
+                        this.analytics.track<AiAgentThreadsRetentionCleanedEvent>(
+                            {
+                                event: 'ai_agent.threads_retention_cleaned',
+                                anonymousId: LightdashAnalytics.anonymousId,
+                                properties: {
+                                    organizationId: organizationUuid,
+                                    threadsDeleted: deletedThreadUuids.length,
+                                    memoriesDeleted: deletedMemoriesCount,
+                                },
+                            },
+                        );
+                    }
+                    return {
+                        threadsDeleted: deletedThreadUuids.length,
+                        memoriesDeleted: deletedMemoriesCount,
+                    };
+                }),
+            ),
+        );
+
+        return {
+            threadsDeleted: results.reduce(
+                (sum, result) => sum + result.threadsDeleted,
+                0,
+            ),
+            memoriesDeleted: results.reduce(
+                (sum, result) => sum + result.memoriesDeleted,
+                0,
+            ),
+            hitBatchLimit: results.some(
+                (result) => result.threadsDeleted >= batchSize,
+            ),
+        };
+    }
+
+    private async validateThreadRetentionUpdate(
+        user: SessionUser,
+        threadRetentionHours: number | null,
+    ): Promise<void> {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        await this.aiOrganizationSettingsService.assertThreadRetentionWriteAllowed(
+            user,
+            threadRetentionHours,
+        );
+        const ceiling =
+            await this.aiOrganizationSettingsService.getThreadRetentionCeiling(
+                user.organizationUuid,
+            );
+        if (exceedsRetentionCeiling(threadRetentionHours, ceiling)) {
+            throw new ParameterError(
+                `Agent thread retention cannot exceed the organization limit of ${ceiling} hours`,
+            );
+        }
+    }
+
     public async createAgent(
         user: SessionUser,
         body: ApiCreateAiAgent,
@@ -3237,6 +3339,13 @@ export class AiAgentService extends BaseService {
             throw new ForbiddenError();
         }
 
+        if (body.threadRetentionHours != null) {
+            await this.validateThreadRetentionUpdate(
+                user,
+                body.threadRetentionHours,
+            );
+        }
+
         const agent = await this.aiAgentModel.createAgent({
             name: body.name,
             description: body.description,
@@ -3261,6 +3370,7 @@ export class AiAgentService extends BaseService {
             adminOnly: body.adminOnly ?? false,
             modelConfig: body.modelConfig ?? null,
             version: body.version,
+            threadRetentionHours: body.threadRetentionHours ?? null,
         });
 
         this.analytics.track<AiAgentCreatedEvent>({
@@ -4858,6 +4968,16 @@ export class AiAgentService extends BaseService {
             nextImageUrlSource = body.imageUrl ? 'url' : null;
         }
 
+        if (
+            body.threadRetentionHours !== undefined &&
+            body.threadRetentionHours !== agent.threadRetentionHours
+        ) {
+            await this.validateThreadRetentionUpdate(
+                user,
+                body.threadRetentionHours,
+            );
+        }
+
         const updatedAgent = await this.aiAgentModel.updateAgent({
             agentUuid,
             name: body.name,
@@ -4885,6 +5005,7 @@ export class AiAgentService extends BaseService {
             adminOnly: body.adminOnly,
             modelConfig: body.modelConfig,
             version: body.version,
+            threadRetentionHours: body.threadRetentionHours,
         });
 
         this.analytics.track<AiAgentUpdatedEvent>({
@@ -6739,10 +6860,12 @@ export class AiAgentService extends BaseService {
         }
 
         // We use base schema here because later we call `parseVizConfig` that uses transformed schem which takes base schema output as input
-        // Try to parse with v2 schema first, then fall back to v1
-        const dashboardConfigV2Parsed = toolDashboardV2ArgsSchema.safeParse(
-            artifact.dashboardConfig,
-        );
+        // Try to parse with v2 schema first, then fall back to v1. The wide
+        // persisted variant accepts legacy template table calcs.
+        const dashboardConfigV2Parsed =
+            toolDashboardV2ArgsSchemaPersisted.safeParse(
+                artifact.dashboardConfig,
+            );
         let dashboardConfig: ToolDashboardArgs | ToolDashboardV2Args;
         if (dashboardConfigV2Parsed.success) {
             dashboardConfig = dashboardConfigV2Parsed.data;
@@ -8785,7 +8908,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     /**
      * A memory belongs to the owner of the thread it came from, so every memory
      * read in a turn resolves to that owner rather than the current prompter.
-     * Null means the thread has no owner — such a thread sees no memories.
+     * Null means the thread sees no memories: it has no owner, its owner is a
+     * service account, or its source (evals/scheduler) is outside memory.
      */
     private async findThreadMemoryOwnerUuid(args: {
         organizationUuid: string;
@@ -8798,9 +8922,17 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             organizationUuid: args.organizationUuid,
             threadUuid: args.threadUuid,
         });
-        return ownership?.projectUuid === args.projectUuid
-            ? ownership.ownerUserUuid
-            : null;
+        if (
+            !ownership ||
+            ownership.projectUuid !== args.projectUuid ||
+            ownership.ownerIsServiceAccount ||
+            !AI_AGENT_MEMORY_THREAD_SOURCES.some(
+                (createdFrom) => createdFrom === ownership.createdFrom,
+            )
+        ) {
+            return null;
+        }
+        return ownership.ownerUserUuid;
     }
 
     // Memoizes the owner lookup for the life of one agent run.

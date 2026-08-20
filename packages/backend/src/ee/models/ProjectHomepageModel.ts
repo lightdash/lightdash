@@ -22,6 +22,8 @@ import {
     type UpdateOrganizationHomepageSettings,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { isStatementTimeout } from '../../database/errors';
+import Logger from '../../logging/logger';
 import { OrganizationHomepageSettingsTableName } from '../database/entities/organizationHomepageSettings';
 import {
     AnnouncementsTableName,
@@ -30,6 +32,9 @@ import {
     type DbAnnouncement,
     type DbProjectHomepage,
 } from '../database/entities/projectHomepages';
+
+const RECENTLY_VIEWED_STATEMENT_TIMEOUT_MS = 10_000;
+const RECENTLY_VIEWED_WINDOW_DAYS = 90;
 
 export class ProjectHomepageModel {
     private readonly database: Knex;
@@ -318,25 +323,37 @@ export class ProjectHomepageModel {
         userUuid: string,
         limit: number = 8,
     ): Promise<HomepageRecentlyViewedItem[]> {
-        const { rows } = await this.database.raw<{
-            rows: Array<{
-                content_type: 'chart' | 'dashboard';
-                content_uuid: string;
-                viewed_at: Date;
-            }>;
-        }>(
-            `
+        try {
+            return await this.database.transaction(async (trx) => {
+                await trx.raw(
+                    `SET LOCAL statement_timeout = ${RECENTLY_VIEWED_STATEMENT_TIMEOUT_MS}`,
+                );
+                const { rows } = await trx.raw<{
+                    rows: Array<{
+                        content_type: 'chart' | 'dashboard';
+                        content_uuid: string;
+                        viewed_at: Date;
+                    }>;
+                }>(
+                    `
+            -- MATERIALIZED keeps the planner from flattening this back into a
+            -- scan of every view on the project's charts.
+            WITH user_chart_views AS MATERIALIZED (
+                SELECT user_uuid, chart_uuid, context, timestamp
+                FROM analytics_chart_views
+                WHERE user_uuid = :userUuid
+                  AND timestamp > now() - make_interval(days => :windowDays)
+            )
             SELECT content_type, content_uuid, max(viewed_at) AS viewed_at
             FROM (
                 SELECT 'chart' AS content_type,
                        acv.chart_uuid AS content_uuid,
                        acv.timestamp AS viewed_at
-                FROM analytics_chart_views acv
+                FROM user_chart_views acv
                 JOIN saved_queries sq ON sq.saved_query_uuid = acv.chart_uuid
                 JOIN spaces s ON s.space_id = sq.space_id
                 JOIN projects p ON p.project_id = s.project_id
-                WHERE acv.user_uuid = :userUuid
-                  AND p.project_uuid = :projectUuid
+                WHERE p.project_uuid = :projectUuid
                   AND sq.deleted_at IS NULL
                   AND s.deleted_at IS NULL
                   -- Opening a dashboard records a view for every tile on it,
@@ -344,13 +361,15 @@ export class ProjectHomepageModel {
                   -- Tiles are tagged where we can, but several code paths
                   -- write untagged rows, so also drop chart views that land
                   -- in the moments around one of this user's dashboard views.
+                  -- Keep the range on tile_dv.timestamp: that is what lets a
+                  -- (user_uuid, timestamp) index serve this lookup.
                   AND (acv.context ->> 'source') IS DISTINCT FROM 'dashboard'
                   AND NOT EXISTS (
                       SELECT 1
                       FROM analytics_dashboard_views tile_dv
                       WHERE tile_dv.user_uuid = acv.user_uuid
-                        AND acv.timestamp BETWEEN tile_dv.timestamp - interval '2 seconds'
-                                              AND tile_dv.timestamp + interval '15 seconds'
+                        AND tile_dv.timestamp BETWEEN acv.timestamp - interval '15 seconds'
+                                                  AND acv.timestamp + interval '2 seconds'
                   )
                 UNION ALL
                 SELECT 'dashboard' AS content_type,
@@ -361,6 +380,7 @@ export class ProjectHomepageModel {
                 JOIN spaces s ON s.space_id = d.space_id
                 JOIN projects p ON p.project_id = s.project_id
                 WHERE adv.user_uuid = :userUuid
+                  AND adv.timestamp > now() - make_interval(days => :windowDays)
                   AND p.project_uuid = :projectUuid
                   AND d.deleted_at IS NULL
                   AND s.deleted_at IS NULL
@@ -369,13 +389,26 @@ export class ProjectHomepageModel {
             ORDER BY viewed_at DESC
             LIMIT :limit
             `,
-            { userUuid, projectUuid, limit },
-        );
-        return rows.map((row) => ({
-            contentType: row.content_type,
-            uuid: row.content_uuid,
-            viewedAt: row.viewed_at,
-        }));
+                    {
+                        userUuid,
+                        projectUuid,
+                        limit,
+                        windowDays: RECENTLY_VIEWED_WINDOW_DAYS,
+                    },
+                );
+                return rows.map((row) => ({
+                    contentType: row.content_type,
+                    uuid: row.content_uuid,
+                    viewedAt: row.viewed_at,
+                }));
+            });
+        } catch (error) {
+            if (!isStatementTimeout(error)) throw error;
+            Logger.warn(
+                `Recently viewed query exceeded ${RECENTLY_VIEWED_STATEMENT_TIMEOUT_MS}ms in project ${projectUuid}; returning no items`,
+            );
+            return [];
+        }
     }
 
     // Publishing to "everyone" promotes the homepage to the project default

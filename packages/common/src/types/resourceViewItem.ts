@@ -47,6 +47,7 @@ export type ResourceViewDashboardItem = {
     data: Pick<
         DashboardBasicDetails,
         | 'uuid'
+        | 'slug'
         | 'spaceUuid'
         | 'description'
         | 'name'

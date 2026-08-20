@@ -96,7 +96,7 @@ Where `<hash>` is a base-36 hash of `<timeDimensionId>|<granularity>|<periodOffs
 
 ### Computing the Hash
 
-Use `generateHashes` with inputs formatted as `<timeDimensionId>|<granularity>|<periodOffset>`:
+Use `generateHashes` (native agent) or `generate_hashes` (MCP) with inputs formatted as `<timeDimensionId>|<granularity>|<periodOffset>`:
 
 ```json
 {

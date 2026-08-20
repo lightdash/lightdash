@@ -1,0 +1,4 @@
+{
+    "$schema": "./scripts/release-safety-declarations.schema.json",
+    "declarations": {}
+}

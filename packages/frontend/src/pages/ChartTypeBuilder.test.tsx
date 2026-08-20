@@ -15,6 +15,8 @@ import { useCanCreateDataApp } from '../features/apps/hooks/useCanCreateDataApp'
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useClarificationRound } from '../features/apps/hooks/useClarificationRound';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
+import { useSdkUpgradeStatus } from '../features/apps/hooks/useSdkUpgradeStatus';
+import { useUpgradeApp } from '../features/apps/hooks/useUpgradeApp';
 import { appVersion } from '../features/apps/testing/appVersionHistory';
 import { useDataAppVisualization } from '../features/chartTypes/hooks/useDataAppVisualization';
 import { useDataAppVizBuild } from '../features/chartTypes/hooks/useDataAppVizBuild';
@@ -36,6 +38,12 @@ vi.mock('../features/apps/hooks/useCanEditDataApp', () => ({
 }));
 vi.mock('../features/apps/hooks/useGetApp', () => ({
     useGetApp: vi.fn(),
+}));
+vi.mock('../features/apps/hooks/useSdkUpgradeStatus', () => ({
+    useSdkUpgradeStatus: vi.fn(),
+}));
+vi.mock('../features/apps/hooks/useUpgradeApp', () => ({
+    useUpgradeApp: vi.fn(),
 }));
 vi.mock('../features/apps/hooks/useAppVersionHistory', () => ({
     useAppVersionHistory: vi.fn(),
@@ -62,8 +70,30 @@ vi.mock('../hooks/appearance/useProjectColorPalette', () => ({
     useProjectColorPalette: () => ({ data: undefined }),
 }));
 vi.mock('../features/apps/components/AppPreview', () => ({
-    default: ({ version }: { version: number }) => (
-        <div data-testid="app-preview">{`preview-v${version}`}</div>
+    default: ({
+        version,
+        onSdkManifest,
+    }: {
+        version: number;
+        onSdkManifest?: (manifest: {
+            sdkVersion: string;
+            features: string[];
+        }) => void;
+    }) => (
+        <div data-testid="app-preview">
+            {`preview-v${version}`}
+            <button
+                type="button"
+                onClick={() =>
+                    onSdkManifest?.({
+                        sdkVersion: '1.68.0',
+                        features: ['query'],
+                    })
+                }
+            >
+                Report SDK manifest
+            </button>
+        </div>
     ),
 }));
 vi.mock('../components/common/PromptComposer/PromptComposer', () => ({
@@ -215,6 +245,28 @@ const mockedClarificationRound = vi.mocked(
     useClarificationRound<VizBuildRequest>,
 );
 
+const staleUpgradeOffer = {
+    status: 'stale' as const,
+    newFeatures: [
+        {
+            key: 'metric-filters',
+            label: 'Metric filters',
+            description: 'Filter grouped results by metric values.',
+            wiring: 'Pass metric filters to the query builder.',
+        },
+    ],
+    candidateFeatures: [
+        {
+            key: 'metric-filters',
+            label: 'Metric filters',
+            description: 'Filter grouped results by metric values.',
+            wiring: 'Pass metric filters to the query builder.',
+        },
+    ],
+    reportedSdkVersion: '1.68.0',
+    reportedFeatures: ['query'],
+};
+
 describe('ChartTypeBuilder', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -228,6 +280,15 @@ describe('ChartTypeBuilder', () => {
         } as ReturnType<typeof useDataAppVisualization>);
         setApp(null);
         vi.mocked(useAppVersionHistory).mockReturnValue(historyStub([], null));
+        vi.mocked(useSdkUpgradeStatus).mockReturnValue({
+            offer: staleUpgradeOffer,
+            renderedManifest: null,
+            onSdkManifest: vi.fn(),
+        });
+        vi.mocked(useUpgradeApp).mockReturnValue({
+            mutate: vi.fn(),
+            isLoading: false,
+        } as unknown as ReturnType<typeof useUpgradeApp>);
     });
 
     it('redirects home when data apps are disabled', () => {
@@ -435,7 +496,15 @@ describe('ChartTypeBuilder', () => {
             `/projects/p1/chart-types/${dataAppVizUuid}${explorerSearch()}`,
         );
 
-        fireEvent.click(screen.getByText('Preview in explorer'));
+        const previewLink = screen.getByRole('link', {
+            name: 'Preview in explorer',
+        });
+        expect(previewLink).toHaveAttribute(
+            'href',
+            expect.stringContaining('/projects/p1/tables/orders?'),
+        );
+
+        fireEvent.click(previewLink);
 
         const destination = new URL(
             screen.getByTestId('location').textContent ?? '',
@@ -471,7 +540,15 @@ describe('ChartTypeBuilder', () => {
             'href',
             '/projects/p1/gallery',
         );
-        fireEvent.click(screen.getByText('Preview in explorer'));
+        const previewLink = screen.getByRole('link', {
+            name: 'Preview in explorer',
+        });
+        expect(previewLink).toHaveAttribute(
+            'href',
+            `/projects/p1/tables?dataAppVizUuid=${dataAppVizUuid}`,
+        );
+
+        fireEvent.click(previewLink);
 
         expect(screen.getByTestId('location')).toHaveTextContent(
             `/projects/p1/tables?dataAppVizUuid=${dataAppVizUuid}`,
@@ -638,6 +715,101 @@ describe('ChartTypeBuilder', () => {
             }),
         ).toBeInTheDocument();
         expect(screen.getByLabelText('View v1')).toBeInTheDocument();
+    });
+
+    it('offers the preview SDK upgrade and opens history after starting it', () => {
+        const onSdkManifest = vi.fn();
+        const mutate = vi.fn((_params, options) =>
+            options?.onSuccess?.({ appUuid: 'viz-1', version: 3 }),
+        );
+        vi.mocked(useSdkUpgradeStatus).mockReturnValue({
+            offer: staleUpgradeOffer,
+            renderedManifest: null,
+            onSdkManifest,
+        });
+        vi.mocked(useUpgradeApp).mockReturnValue({
+            mutate,
+            isLoading: false,
+        } as unknown as ReturnType<typeof useUpgradeApp>);
+        setApp(appMeta());
+        vi.mocked(useAppVersionHistory).mockReturnValue(
+            historyStub([appVersion({ version: 2 })], 2),
+        );
+
+        renderBuilder(
+            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+        );
+
+        fireEvent.click(screen.getByText('Report SDK manifest'));
+        expect(onSdkManifest).toHaveBeenCalledWith({
+            sdkVersion: '1.68.0',
+            features: ['query'],
+        });
+
+        fireEvent.click(
+            screen.getByRole('button', { name: /upgrade available/i }),
+        );
+        expect(screen.getByText('Upgrade chart type')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Start upgrade' }));
+
+        expect(mutate).toHaveBeenCalled();
+        expect(screen.getByLabelText('Version history')).toBeInTheDocument();
+    });
+
+    it('keys the upgrade offer to the latest ready version, not the viewed one', () => {
+        setApp(appMeta());
+        vi.mocked(useAppVersionHistory).mockReturnValue(
+            historyStub(
+                [appVersion({ version: 2 }), appVersion({ version: 1 })],
+                2,
+            ),
+        );
+
+        renderBuilder(
+            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+        );
+
+        const keyedToLatestReady = () =>
+            vi.mocked(useSdkUpgradeStatus).mock.lastCall?.[0];
+
+        expect(keyedToLatestReady()).toEqual({
+            bundleKey: 'viz-1:2',
+            renderedKey: 'viz-1:2',
+            isRendering: true,
+        });
+
+        fireEvent.click(screen.getByText('History'));
+        fireEvent.click(screen.getByLabelText('View v1'));
+
+        // An upgrade always rebuilds from v2, so the offer keeps describing
+        // it; the v1 bundle on screen must not be classified in its place.
+        expect(keyedToLatestReady()).toEqual({
+            bundleKey: 'viz-1:2',
+            renderedKey: 'viz-1:1',
+            isRendering: false,
+        });
+        expect(screen.getByText('preview-v1')).toBeInTheDocument();
+    });
+
+    it('disables SDK upgrades while another version is building', () => {
+        setApp(appMeta());
+        vi.mocked(useAppVersionHistory).mockReturnValue(
+            historyStub(
+                [
+                    appVersion({ version: 3, status: 'generating' }),
+                    appVersion({ version: 2 }),
+                ],
+                2,
+            ),
+        );
+
+        renderBuilder(
+            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+        );
+
+        expect(
+            screen.getByRole('button', { name: /upgrade available/i }),
+        ).toBeDisabled();
     });
 
     it('previews a version picked from history and follows the current one again when the panel closes', () => {

@@ -57,6 +57,7 @@ export { getOrganizationMemberRolePermissions } from './authorization/organizati
 export { projectMemberAbilities } from './authorization/projectMemberAbility';
 export * from './authorization/parseAccount';
 export * from './authorization/roleToScopeMapping';
+export * from './authorization/rolePresets';
 export * from './authorization/scopeAbilityBuilder';
 export * from './authorization/scopes';
 export * from './authorization/serviceAccountAbility';
@@ -130,6 +131,7 @@ export * from './types/errors';
 export * from './types/explore';
 export * from './types/favorites';
 export * from './featureFlags/previewFeatureFlags';
+export * from './types/dataRetention';
 export * from './types/featureFlags';
 export * from './types/impersonationOrganizationSettings';
 export * from './types/previewExpirationProjectSettings';

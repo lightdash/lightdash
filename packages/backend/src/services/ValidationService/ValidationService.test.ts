@@ -1249,7 +1249,7 @@ describe('ValidationService.groupValidationsByRootCause', () => {
         expect(summary.totalAffectedItems).toBe(1);
     });
 
-    it('excludes chart configuration warnings and keeps masked private content in counts', () => {
+    it('excludes chart configuration warnings and keeps content without a uuid in counts', () => {
         const summary = ValidationService.groupValidationsByRootCause([
             chartModelError('chart-1', 'Chart one', 0),
             chartModelError(undefined, 'Private content', 0),
@@ -1381,5 +1381,54 @@ describe('ValidationService.getValidationSummary', () => {
                 'projectUuid',
             ),
         ).rejects.toThrowError(ForbiddenError);
+    });
+
+    it('excludes content in spaces the user cannot see, so chip counts match the table', async () => {
+        const chartError = (
+            chartUuid: string,
+            name: string,
+            spaceUuid: string,
+        ) => ({
+            validationId: null,
+            createdAt: new Date(),
+            projectUuid: 'projectUuid',
+            validationUuid: `validation-${chartUuid}`,
+            source: ValidationSourceType.Chart,
+            name,
+            error: "Model error: the model 'orders' no longer exists",
+            errorType: ValidationErrorType.Model,
+            chartUuid,
+            chartViews: 0,
+            tableName: 'orders',
+            spaceUuid,
+        });
+        (validationModel.get as import('vitest').Mock).mockImplementationOnce(
+            async () => [
+                chartError('chart-public', 'Public chart', 'public-space'),
+                chartError('chart-private', 'Private chart', 'private-space'),
+            ],
+        );
+        spaceModel.find.mockResolvedValueOnce([
+            { uuid: 'public-space' },
+            { uuid: 'private-space' },
+        ] as AnyType);
+        spacePermissionService.getAccessibleSpaceUuids.mockResolvedValueOnce([
+            'public-space',
+        ] as AnyType);
+
+        const summary = await validationService.getValidationSummary(
+            { ...user, role: OrganizationMemberRole.DEVELOPER },
+            'projectUuid',
+        );
+
+        expect(summary.totalErrors).toBe(1);
+        expect(summary.totalAffectedItems).toBe(1);
+        expect(summary.groups[0]).toMatchObject({
+            errorCount: 1,
+            affectedCharts: 1,
+        });
+        expect(
+            summary.groups[0]!.affectedContent.map((content) => content.uuid),
+        ).toEqual(['chart-public']);
     });
 });

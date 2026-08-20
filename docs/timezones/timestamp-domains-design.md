@@ -19,7 +19,7 @@ And which gaps from the gaps doc each layer closes:
 | Gap | Status |
 | --- | --- |
 | Gap 1a and 1b: filters compare in the wrong domain | Closed by the filters layer (GLITCH-616) |
-| Gap 1c: wrapped filters defeat partition pruning | Partially closed: bare-column filters no longer wrap. Sub-day bucketed filters still wrap the column; rewriting them as ranges is a follow-up |
+| Gap 1c: wrapped filters defeat partition pruning | Closed for bare-column filters (no wrap) and for day-or-coarser grains on known-aware BigQuery columns (see [Prunable calendar grains on BigQuery](#prunable-calendar-grains-on-bigquery)). Sub-day bucketed filters still wrap the column; rewriting them as ranges is a follow-up |
 | Gap 2: naive columns never rebased on Databricks, Spark, Trino, Athena | Closed by the conversion layer (GLITCH-460) |
 | Gap 4: MIN/MAX over naive columns misread as UTC | Closed by the conversion layer (GLITCH-460), for both custom and YAML-defined metrics. The conversion wraps the aggregate operand, not the output — the two disagree across DST gaps (see below) |
 | Gap 3: Snowflake opt-out breaks aware columns | Follow-up. This design finally makes a per-column fix possible |
@@ -78,6 +78,11 @@ only on dimensions whose SQL is the bare column: custom `sql:` expressions and
 additional dimensions stay unknown (the expression may change the domain), and
 an additional dimension's interval children inherit its own resolved domain,
 never the parent column's annotation.
+
+This matters for BigQuery partition pruning: the prunable `DATE(col, tz)` form
+for non-UTC day-or-coarser filters is only emitted for known-aware columns, so a
+`sql:`-backed or additional dimension over a partitioned TIMESTAMP needs an
+explicit `timestamp_domain: aware` to prune.
 
 A modeler can always override the catalog in YAML:
 
@@ -223,6 +228,50 @@ inside that zone's DST gap); and when the sub-day round-trip is a no-op
 legacy unwrapped trunc, so the literal stays legacy and byte-matches it —
 known-naive columns never reach that state, since their round trip is never
 a no-op.
+
+### Prunable calendar grains on BigQuery
+
+Day-or-coarser grains also wrap the column, and on BigQuery the wrapped form
+`CAST(DATETIME_TRUNC(DATETIME(TIMESTAMP(col), tz), DAY) AS DATE)` is opaque to
+the partition pruner: a day filter on a day-partitioned table scanned the whole
+table, and `require_partition_filter=TRUE` tables rejected the query. For
+known-aware `TIMESTAMP` columns, day-or-coarser grains now render in the DATE
+domain instead, in SELECT, GROUP BY and WHERE alike:
+
+```sql
+DATE(col, 'Asia/Tokyo')                          -- day
+DATE_TRUNC(DATE(col, 'Asia/Tokyo'), MONTH)       -- week / month / quarter / year
+```
+
+`DATE(ts, tz)` is by definition the civil date of the instant in `tz`, so the
+value is identical to the round-trip; only the shape changes, and the pruner
+sees through it (a Tokyo day on the 33-row fixture reads 72 bytes instead of
+264; `!=` still full-scans, as it must). The hook sits beside the UTC
+optimisation in `timeFrames.ts` and only the BigQuery config defines it, so
+every other warehouse is byte-identical. Naive and unknown columns, sub-day
+grains, DATE bases and UTC projects keep their current SQL. Only known-aware
+columns qualify: a `sql:`-backed or additional dimension over a partitioned
+column needs an explicit `timestamp_domain: aware` to prune.
+
+Why this shape and not the others:
+
+- `TIMESTAMP_TRUNC(col, grain, tz)` is the best-documented pruning function,
+  but returns a TIMESTAMP; day-or-coarser dimensions are DATE-typed, so it
+  cannot be the shared expression and would need a WHERE-only literal path.
+- A redundant `TIMESTAMP_TRUNC` mirror predicate next to the original prunes,
+  but two predicates can drift and the mirror adds no semantic safety.
+- Half-open ranges on the bare column are the most conservative documented
+  form and the only one that also block-prunes clustered columns, at the cost
+  of re-deriving every operator (unaligned bounds, multi-value sets, custom
+  week starts, relative windows) against the raw column. Revisit only if
+  clustered-only layouts become a requirement.
+
+One caveat to keep in mind: BigQuery documents `DATE(col)` and `DATE_TRUNC`
+as prunable with constant arguments, but never spells out the nested,
+timezone-bearing `DATE_TRUNC(DATE(col, tz), grain)`. Its pruning is verified
+behaviour, not a language guarantee; the BigQuery cases in
+`packages/api-tests/tests/queryTimezone.test.ts` and the day-partitioned
+`timezone_test` fixture are the regression gate.
 
 Deliberately unchanged: everything with the flag off, projects with a UTC data
 timezone, RAW dimensions with `convert_timezone: false`, DATE dimensions,

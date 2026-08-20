@@ -1,9 +1,11 @@
 import {
     BinType,
+    ChartType,
     CompiledDimension,
     CustomBinDimension,
     CustomDimensionType,
     defaultNullSafeEqualSql,
+    derivePivotConfigurationFromChart,
     DimensionType,
     FieldType,
     ItemsMap,
@@ -1860,6 +1862,159 @@ describe('PivotQueryBuilder', () => {
         });
     });
 
+    describe('Identifier quoting', () => {
+        test('escapes dynamic identifiers through grouped aggregation and sorting', () => {
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                {
+                    indexColumn: [
+                        {
+                            reference: 'row"dim',
+                            type: VizIndexType.CATEGORY,
+                        },
+                    ],
+                    valuesColumns: [
+                        {
+                            reference: 'amount"value',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'group"dim' }],
+                    sortBy: [
+                        {
+                            reference: 'row"dim',
+                            direction: SortByDirection.ASC,
+                        },
+                    ],
+                },
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = replaceWhitespace(builder.toSql());
+
+            expect(result).toContain(
+                'SELECT "group""dim", "row""dim", sum("amount""value") AS "amount""value_sum"',
+            );
+            expect(result).toContain(
+                'DENSE_RANK() OVER (ORDER BY g."row""dim" ASC)',
+            );
+            expect(result).not.toContain('g."row"dim" ASC');
+        });
+
+        test('quotes a custom-bin _order identifier after composing its name', () => {
+            const reference = 'amount"bin';
+            const binDimension: CustomBinDimension = {
+                id: reference,
+                name: reference,
+                table: 'orders',
+                type: CustomDimensionType.BIN,
+                dimensionId: 'orders_amount',
+                binType: BinType.FIXED_WIDTH,
+                binWidth: 10,
+            };
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                {
+                    indexColumn: [{ reference, type: VizIndexType.CATEGORY }],
+                    valuesColumns: [
+                        {
+                            reference: 'revenue',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'event_type' }],
+                    sortBy: [{ reference, direction: SortByDirection.ASC }],
+                },
+                mockWarehouseSqlBuilder,
+                500,
+                { [reference]: binDimension },
+            );
+
+            const result = replaceWhitespace(builder.toSql());
+
+            expect(result).toContain('"amount""bin_order"');
+            expect(result).toContain(
+                'DENSE_RANK() OVER (ORDER BY g."amount""bin_order" ASC)',
+            );
+            expect(result).not.toContain('"amount""bin"_order');
+        });
+
+        test('quotes table-calculation _any aliases after composing their names', () => {
+            const calculationName = 'calc"name';
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                {
+                    indexColumn: [
+                        { reference: 'date', type: VizIndexType.TIME },
+                    ],
+                    valuesColumns: [
+                        {
+                            reference: 'metric1',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                        {
+                            reference: calculationName,
+                            aggregation: VizAggregationOptions.ANY,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'category' }],
+                    sortBy: [
+                        {
+                            reference: 'date',
+                            direction: SortByDirection.ASC,
+                        },
+                    ],
+                },
+                mockWarehouseSqlBuilder,
+                500,
+                {
+                    [calculationName]: {
+                        name: calculationName,
+                        table: 'table1',
+                        tableLabel: 'Table 1',
+                        type: TableCalculationType.NUMBER,
+                        displayName: 'Calculated name',
+                        sql: 'pivot_offset(${table1.metric1}, 0)',
+                    },
+                },
+            );
+
+            const result = builder.toSql();
+
+            expect(result).toContain('AS "calc""name_any"');
+            expect(result).not.toContain('AS "calc"name_any"');
+        });
+
+        test('uses BigQuery backtick and backslash escaping at pivot boundaries', () => {
+            const reference = 'row`dim\\path';
+            const bigQuerySqlBuilder = {
+                ...mockWarehouseSqlBuilder,
+                getFieldQuoteChar: () => '`',
+                getAdapterType: () => SupportedDbtAdapter.BIGQUERY,
+            } as unknown as WarehouseSqlBuilder;
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                {
+                    indexColumn: [{ reference, type: VizIndexType.CATEGORY }],
+                    valuesColumns: [
+                        {
+                            reference: 'revenue',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                    ],
+                    groupByColumns: undefined,
+                    sortBy: [{ reference, direction: SortByDirection.ASC }],
+                },
+                bigQuerySqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            expect(result).toContain('`row\\`dim\\\\path`');
+            expect(result).not.toContain('`row`dim\\path`');
+        });
+    });
+
     describe('SQL sanitization', () => {
         test('Should remove trailing semicolon from input SQL', () => {
             const pivotConfiguration = {
@@ -2967,6 +3122,56 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(result).toContain(
                 '"orders_month_name" = \'January\' THEN 1',
             );
+        });
+
+        test('Should preserve escaped field IDs in chronological sort expressions', () => {
+            const quotedNameDimensions: CompiledDimension[] = [
+                {
+                    ...monthNameDimension,
+                    name: 'month"name',
+                },
+                {
+                    ...dayNameDimension,
+                    name: 'month"name',
+                },
+                {
+                    ...quarterNameDimension,
+                    name: 'month"name',
+                },
+            ];
+            const markers = ['January', 'Sunday', 'Q1'];
+
+            quotedNameDimensions.forEach((dimension, index) => {
+                const reference = 'orders_month"name';
+                const builder = new PivotQueryBuilder(
+                    baseSql,
+                    {
+                        indexColumn: [
+                            { reference, type: VizIndexType.CATEGORY },
+                        ],
+                        valuesColumns: [
+                            {
+                                reference: 'revenue',
+                                aggregation: VizAggregationOptions.SUM,
+                            },
+                        ],
+                        groupByColumns: undefined,
+                        sortBy: [
+                            {
+                                reference,
+                                direction: SortByDirection.ASC,
+                            },
+                        ],
+                    },
+                    mockWarehouseSqlBuilder,
+                    500,
+                    { [reference]: dimension },
+                );
+
+                expect(builder.toSql()).toContain(
+                    `WHEN "orders_month""name" = '${markers[index]}'`,
+                );
+            });
         });
 
         test('Should sort MONTH_NAME in pivot query with groupBy columns', () => {
@@ -6016,6 +6221,121 @@ SELECT * FROM group_by_query LIMIT 50`);
             // Sanity check: the folded anchors use the short _ca/_ra suffixes.
             expect(result).toContain(`AS "${longRef}_ca_value"`);
             expect(result).toContain(`AS "${longRef}_ra_value"`);
+        });
+
+        test('Hidden row dimension stays in GROUP BY and row_index ranking (PROD-10392)', () => {
+            // https://github.com/lightdash/lightdash/issues/27739
+            // Repro: table pivoted on order_month with row dims
+            // [company_name, company_id], company_id hidden via
+            // columnProperties, sorted DESC by the metric. Two records share
+            // the same company_name and differ only by company_id.
+            // Bug: the derived config dropped the hidden dim from indexColumn,
+            // so group_by_query collapsed both records into one row whose
+            // metric came from an arbitrary record (ANY aggregation).
+            // Expectation: the hidden dim stays a structural index column all
+            // the way into the SQL — grouped, anchored, and ranked — with
+            // hiding left to the renderer.
+            const fields: ItemsMap = {
+                orders_company_name: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    name: 'company_name',
+                    table: 'orders',
+                    label: 'Company name',
+                    tableLabel: 'Orders',
+                    sql: '${TABLE}.company_name',
+                    hidden: false,
+                },
+                orders_company_id: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    name: 'company_id',
+                    table: 'orders',
+                    label: 'Company ID',
+                    tableLabel: 'Orders',
+                    sql: '${TABLE}.company_id',
+                    hidden: false,
+                },
+                orders_order_month: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.DATE,
+                    name: 'order_month',
+                    table: 'orders',
+                    label: 'Order month',
+                    tableLabel: 'Orders',
+                    sql: '${TABLE}.order_month',
+                    hidden: false,
+                },
+                payments_total_revenue: {
+                    fieldType: FieldType.METRIC,
+                    type: MetricType.SUM,
+                    name: 'total_revenue',
+                    table: 'payments',
+                    label: 'Total revenue',
+                    tableLabel: 'Payments',
+                    sql: '${TABLE}.amount',
+                    hidden: false,
+                },
+            } as unknown as ItemsMap;
+
+            const pivotConfiguration = derivePivotConfigurationFromChart(
+                {
+                    chartConfig: {
+                        type: ChartType.TABLE,
+                        config: {
+                            columns: {
+                                orders_company_id: { visible: false },
+                            },
+                            showSubtotals: false,
+                        },
+                    },
+                    pivotConfig: { columns: ['orders_order_month'] },
+                },
+                {
+                    exploreName: 'orders',
+                    dimensions: [
+                        'orders_company_name',
+                        'orders_company_id',
+                        'orders_order_month',
+                    ],
+                    metrics: ['payments_total_revenue'],
+                    filters: {},
+                    sorts: [
+                        { fieldId: 'payments_total_revenue', descending: true },
+                    ],
+                    limit: 500,
+                    tableCalculations: [],
+                },
+                fields,
+            );
+
+            expect(pivotConfiguration).toBeDefined();
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration!,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = replaceWhitespace(builder.toSql());
+
+            // group_by_query groups by the hidden dim too → the two records
+            // stay distinct rows.
+            expect(result).toContain(
+                'group by "orders_order_month", "orders_company_name", "orders_company_id"',
+            );
+
+            // The row anchor is computed per (company_name, company_id), so
+            // the metric sort ranks each underlying record by its own value.
+            expect(result).toContain(
+                'GROUP BY q."orders_company_name", q."orders_company_id"',
+            );
+
+            // row_index dense_rank includes the hidden dim as a tiebreaker →
+            // both records get their own row_index.
+            expect(result).toContain(
+                'DENSE_RANK() OVER (ORDER BY g."payments_total_revenue_ra_value" DESC, g."orders_company_name" ASC, g."orders_company_id" ASC) AS "row_index"',
+            );
         });
     });
 

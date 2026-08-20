@@ -1,13 +1,17 @@
-import type { MergeQuery } from '@lightdash/common';
+import { isMergeMetricSource, type MergeQuery } from '@lightdash/common';
 
 export const getMergeOutputColumnCount = (mergeQuery: MergeQuery): number =>
     mergeQuery.joinKey.length +
     mergeQuery.tableCalculations.length +
     mergeQuery.sources.reduce(
         (count, source) =>
-            count +
-            source.metricQuery.metrics.length +
-            source.metricQuery.tableCalculations.length,
+            // A result source's column count lives in stored metadata; the
+            // compiler's cell-cap clamp still applies to the merged limit.
+            isMergeMetricSource(source)
+                ? count +
+                  source.metricQuery.metrics.length +
+                  source.metricQuery.tableCalculations.length
+                : count,
         0,
     );
 

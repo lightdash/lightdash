@@ -39,6 +39,7 @@ import {
 import { useDataAppModelSelection } from '../features/apps/hooks/useDataAppModelSelection';
 import { useElapsedClock } from '../features/apps/hooks/useElapsedClock';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
+import { useSdkUpgradeStatus } from '../features/apps/hooks/useSdkUpgradeStatus';
 import { getVersionNarration } from '../features/apps/utils/versionNarration';
 import BuilderCanvas from '../features/chartTypes/builder/BuilderCanvas';
 import BuilderPromptBar, {
@@ -244,6 +245,20 @@ const ChartTypeBuilder: FC = () => {
     }, [pin, activeVizUuid, history.latestReadyVersion, history.versions]);
 
     const previewVersion = effectiveViewedVersion ?? history.latestReadyVersion;
+    const { offer: sdkUpgradeOffer, onSdkManifest: handleSdkManifest } =
+        useSdkUpgradeStatus({
+            bundleKey:
+                activeVizUuid && history.latestReadyVersion !== null
+                    ? `${activeVizUuid}:${history.latestReadyVersion}`
+                    : null,
+            renderedKey:
+                activeVizUuid && previewVersion !== null
+                    ? `${activeVizUuid}:${previewVersion}`
+                    : null,
+            isRendering:
+                previewVersion !== null &&
+                previewVersion === history.latestReadyVersion,
+        });
 
     // The schema follows the preview: the options beside a version are the ones
     // that version declares, and the sample data is built from its fields.
@@ -318,18 +333,14 @@ const ChartTypeBuilder: FC = () => {
             false,
         );
     }, [activeVizUuid, explorerChart, projectUuid]);
-    const handlePreviewInExplorer = useCallback(() => {
-        if (!activeVizUuid) return;
+    const previewInExplorerLink = useMemo(() => {
+        if (!activeVizUuid) return null;
 
-        if (explorerDestination) {
-            void navigate(explorerDestination);
-            return;
-        }
-
-        void navigate(
-            `/projects/${projectUuid}/tables?dataAppVizUuid=${activeVizUuid}`,
+        return (
+            explorerDestination ??
+            `/projects/${projectUuid}/tables?dataAppVizUuid=${activeVizUuid}`
         );
-    }, [activeVizUuid, explorerDestination, navigate, projectUuid]);
+    }, [activeVizUuid, explorerDestination, projectUuid]);
 
     const canEdit = useCanEditDataApp(projectUuid, {
         spaceUuid: appMeta?.spaceUuid ?? null,
@@ -454,12 +465,18 @@ const ChartTypeBuilder: FC = () => {
                 hasOrigin={history.hasOrigin}
                 hasHistory={hasHistory}
                 isHistoryOpen={isHistoryOpen}
+                upgrade={
+                    activeVizUuid && history.latestReadyVersion !== null
+                        ? { ...sdkUpgradeOffer, disabled: isBuilding }
+                        : null
+                }
+                onUpgradeStarted={() => setIsHistoryOpen(true)}
                 onToggleHistory={() =>
                     isHistoryOpen
                         ? handleCloseHistory()
                         : setIsHistoryOpen(true)
                 }
-                onPreviewInExplorer={handlePreviewInExplorer}
+                previewInExplorerLink={previewInExplorerLink}
             />
             <PanelGroup direction="horizontal" className={classes.main}>
                 <Panel id="chart-type-builder-canvas" order={1} minSize={50}>
@@ -480,6 +497,7 @@ const ChartTypeBuilder: FC = () => {
                             onPickExample={
                                 isPromptBarMounted ? handlePickExample : null
                             }
+                            onSdkManifest={handleSdkManifest}
                         />
                         {isPromptBarMounted && (
                             <BuilderPromptBar

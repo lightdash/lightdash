@@ -62,6 +62,20 @@ const useDataAppVizVisualizationConfig = (
         };
     }, []);
 
+    // A viz switched from outside this hook (the chart gallery goes through
+    // the store) arrives as a new initial config while the hook stays mounted.
+    const externalDataAppVizUuid = initialChartConfig?.dataAppVizUuid ?? '';
+    useLayoutEffect(() => {
+        if (externalDataAppVizUuid === configRef.current.dataAppVizUuid) return;
+        const next = {
+            dataAppVizUuid: externalDataAppVizUuid,
+            fieldMapping: initialChartConfig?.fieldMapping ?? {},
+            optionValues: initialChartConfig?.optionValues ?? {},
+        };
+        configRef.current = next;
+        setConfigState(next);
+    }, [externalDataAppVizUuid, initialChartConfig]);
+
     const commit = useCallback((next: Required<DataAppVizChart>) => {
         configRef.current = next;
         setConfigState(next);

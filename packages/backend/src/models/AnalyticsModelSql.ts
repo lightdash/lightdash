@@ -207,13 +207,14 @@ export const chartViewsSql = (projectUuid: string) => `
 SELECT
   count(chart_uuid) as count,
   chart_uuid as uuid,
+  sq.slug,
   sq.name
 FROM public.analytics_chart_views
   left join ${SavedChartsTableName} sq on sq.saved_query_uuid  = chart_uuid AND sq.deleted_at IS NULL
   left join ${SpaceTableName} s on s.space_id  = sq.space_id
   left join projects on projects.project_id = s.project_id
 where projects.project_uuid = '${projectUuid}'
-group by chart_uuid, sq.name
+group by chart_uuid, sq.slug, sq.name
 order by count(chart_uuid) desc
 limit 20
 `;
@@ -222,13 +223,14 @@ export const dashboardViewsSql = (projectUuid: string) => `
 SELECT
   count(dv.dashboard_uuid) as count,
   dv.dashboard_uuid as uuid,
+  d.slug,
   d.name
 FROM public.analytics_dashboard_views dv
   left join ${DashboardsTableName} d  on d.dashboard_uuid  = dv.dashboard_uuid AND d.deleted_at IS NULL
   left join ${SpaceTableName} s on s.space_id  = d.space_id
   left join projects on projects.project_id = s.project_id
 where projects.project_uuid = '${projectUuid}'
-group by dv.dashboard_uuid, d.name
+group by dv.dashboard_uuid, d.slug, d.name
 order by count(dv.dashboard_uuid) desc
 limit 20
 `;
@@ -240,6 +242,7 @@ WITH RankedResults AS (
       u.first_name,
       u.last_name,
       d.dashboard_uuid,
+      d.slug AS dashboard_slug,
       d."name" AS dashboard_name,
       COUNT(dv.dashboard_uuid) AS dashboard_count,
       ROW_NUMBER() OVER (PARTITION BY u.first_name ORDER BY COUNT(dv.dashboard_uuid) DESC) AS rank
@@ -250,13 +253,14 @@ WITH RankedResults AS (
   left join projects on projects.project_id = s.project_id
   WHERE projects.project_uuid = '${projectUuid}'
     AND u.user_uuid IS NOT NULL
-  GROUP BY u.user_uuid, u.first_name, u.last_name, d.dashboard_uuid, d."name"
+  GROUP BY u.user_uuid, u.first_name, u.last_name, d.dashboard_uuid, d.slug, d."name"
 )
 SELECT
   user_uuid,
   first_name,
   last_name,
   dashboard_uuid,
+  dashboard_slug,
   dashboard_name,
   dashboard_count as count
 FROM RankedResults

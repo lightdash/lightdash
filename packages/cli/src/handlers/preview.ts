@@ -624,11 +624,16 @@ export const startPreviewHandler = async (
         const url = await projectUrl(project);
 
         if (!hasContentCopy) {
-            console.error(
-                styles.warning(
-                    `\n\nDeveloper preview deployed without any copied content!\n`,
-                ),
-            );
+            let errorMessage = `\n\nDeveloper preview deployed without any copied content!`;
+            if (results?.contentCopyError) {
+                errorMessage += `\nError: ${results.contentCopyError}`;
+            } else if (options.skipCopyContent) {
+                errorMessage += `\nReason: --skip-copy-content flag was used`;
+            } else if (!config.context?.project) {
+                errorMessage += `\nReason: No upstream project configured`;
+            }
+            errorMessage += '\n';
+            console.error(styles.warning(errorMessage));
         }
 
         console.error(`New project created on ${url}`);

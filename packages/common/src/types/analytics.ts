@@ -9,6 +9,18 @@ export type ActivityViews = {
     uuid: string;
     name: string;
 };
+export type ChartActivityViews = {
+    count: number;
+    uuid: string;
+    name: string;
+    slug: string;
+};
+export type DashboardActivityViews = {
+    count: number;
+    uuid: string;
+    name: string;
+    slug: string;
+};
 export type UserActivity = {
     numberUsers: number;
     numberViewers: number;
@@ -29,12 +41,13 @@ export type UserActivity = {
         date: Date;
         average_number_of_weekly_queries_per_user: string;
     }[];
-    dashboardViews: ActivityViews[];
+    dashboardViews: DashboardActivityViews[];
     userMostViewedDashboards: (UserWithCount & {
         dashboardName: string;
         dashboardUuid: string;
+        dashboardSlug: string;
     })[];
-    chartViews: ActivityViews[];
+    chartViews: ChartActivityViews[];
 };
 
 export type ApiUserActivity = {

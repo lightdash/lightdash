@@ -10,9 +10,10 @@ import MantineIcon from '../common/MantineIcon';
 
 type Props = LinkMenuItemProps & {
     tile: DashboardChartTile;
+    chartSlug?: string;
 };
 
-const EditChartMenuItem: FC<Props> = ({ tile, ...props }) => {
+const EditChartMenuItem: FC<Props> = ({ tile, chartSlug, ...props }) => {
     const { user } = useApp();
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const filtersFromContext = useDashboardContext((c) => c.dashboardFilters);
@@ -24,9 +25,8 @@ const EditChartMenuItem: FC<Props> = ({ tile, ...props }) => {
 
     const { storeDashboard } = useDashboardStorage();
 
-    const { projectUuid, dashboardUuid } = useParams<{
+    const { projectUuid } = useParams<{
         projectUuid: string;
-        dashboardUuid: string;
     }>();
 
     const userCanManageExplore = user.data?.ability?.can('manage', 'Explore');
@@ -47,10 +47,11 @@ const EditChartMenuItem: FC<Props> = ({ tile, ...props }) => {
                         dashboard?.name,
                         activeTab?.uuid,
                         dashboardTabs,
+                        dashboard?.slug,
                     );
                 }
             }}
-            href={`/projects/${projectUuid}/saved/${tile.properties.savedChartUuid}/edit?fromDashboard=${dashboardUuid}`}
+            href={`/projects/${projectUuid}/saved/${chartSlug ?? tile.properties.savedChartUuid}/edit?fromDashboard=${dashboard?.uuid}`}
             {...props}
         >
             Edit chart

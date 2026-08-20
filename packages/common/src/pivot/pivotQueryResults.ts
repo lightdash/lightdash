@@ -1058,8 +1058,8 @@ export const convertSqlPivotedRowsToPivotData = ({
               })
             : undefined;
 
-    // Passthrough dims — hidden non-sort pivot dims whose raw values are
-    // carried on each row so cross-field richText / image templates can
+    // Passthrough dims — hidden dimensions whose raw values are carried on
+    // each row so cross-field richText / image templates can
     // resolve `row.<table>.<field>.raw` even though the dim has no rendered
     // column. Backend AsyncQueryService writes these values onto each row
     // under the field's natural reference.
@@ -1067,12 +1067,10 @@ export const convertSqlPivotedRowsToPivotData = ({
     // Two sources:
     //   1. `pivotDetails.passthroughDimensions` — set by the backend when the
     //      query was built with the field already in `passthroughDimensions`.
-    //   2. `hiddenDimensionFieldIds` ∩ row keys — handles the "user just hid
-    //      a previously-visible dim and the cached results haven't refetched
-    //      yet" case: the row data still carries the value from when the dim
-    //      was visible, so we can opt it into passthrough on the fly. This
-    //      makes the image stay rendered immediately on hide without
-    //      requiring a re-run of the query.
+    //   2. `hiddenDimensionFieldIds` ∩ row keys — hidden index dims remain in
+    //      the SQL row shape to preserve row identity, while cached results
+    //      can also still carry a dimension that was just hidden. Opt both
+    //      cases into passthrough so templates retain the hidden value.
     //
     // Note: we don't add them to allCombinedData / pivotColumnInfo here —
     // combinedRetrofit (below) rebuilds both, so additions here would be
@@ -1084,21 +1082,6 @@ export const convertSqlPivotedRowsToPivotData = ({
     const groupByRefs = new Set(
         (pivotDetails.groupByColumns ?? []).map((c) => c.reference),
     );
-    // Use the RAW `pivotDetails.indexColumn` (pre-filter), not the local
-    // `indexColumns` array which already has hidden refs removed via
-    // `isDimVisibleInPivot`. We're trying to detect "this field is
-    // structurally an indexColumn in the cached pivot shape", and the
-    // filtered list would always say "not present" for hidden fields.
-    const indexColumnRefs = new Set<string>();
-    if (pivotDetails.indexColumn) {
-        if (Array.isArray(pivotDetails.indexColumn)) {
-            for (const col of pivotDetails.indexColumn) {
-                indexColumnRefs.add(col.reference);
-            }
-        } else {
-            indexColumnRefs.add(pivotDetails.indexColumn.reference);
-        }
-    }
     const firstRow = rows[0];
     const inferredPassthroughs: typeof declaredPassthroughs = firstRow
         ? hiddenDimensionFieldIds
@@ -1106,7 +1089,6 @@ export const convertSqlPivotedRowsToPivotData = ({
                   (fieldId) =>
                       !declaredPassthroughRefs.has(fieldId) &&
                       !groupByRefs.has(fieldId) &&
-                      !indexColumnRefs.has(fieldId) &&
                       firstRow[fieldId] !== undefined,
               )
               .map((fieldId) => ({ reference: fieldId }))

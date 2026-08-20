@@ -17,6 +17,7 @@ import {
 } from '@lightdash/common';
 import { AiDeepResearchActiveRunError } from '../../models/AiDeepResearchRunModel';
 import {
+    AiDeepResearchExecutorStageError,
     AiDeepResearchService,
     getAiDeepResearchRunBudget,
 } from './AiDeepResearchService';
@@ -205,7 +206,10 @@ const runRow = (overrides: Record<string, unknown> = {}) => ({
     prompt_uuid: 'prompt-1',
     tool_call_id: null,
     prompt: 'Investigate revenue',
+    resume_from_run_uuid: null,
     status: 'queued',
+    terminal_reason: null,
+    failure_stage: null,
     entry_point: 'ask_ai',
     result_markdown: null,
     report_expires_at: null,
@@ -888,6 +892,7 @@ describe('AiDeepResearchService', () => {
                 'run-1',
                 'Deep Research could not finish. Please try again.',
                 'internal_error',
+                'enqueue',
             );
             expect(model.deleteUnstartedFailedRun).toHaveBeenCalledWith(
                 'run-1',
@@ -1306,6 +1311,7 @@ describe('AiDeepResearchService', () => {
                 properties: expect.objectContaining({
                     status: 'completed',
                     terminalReason: null,
+                    failureStage: null,
                     inputTokens: 150,
                     outputTokens: 100,
                     cacheReadTokens: 200,
@@ -1334,33 +1340,44 @@ describe('AiDeepResearchService', () => {
             {
                 status: 'partially_completed' as const,
                 terminalReason: 'tool_limit' as const,
+                failureStage: 'investigation' as const,
                 executorResult: {
                     status: 'partially_completed' as const,
                     report,
                     warehouseQueryUuids: [],
                     terminalReason: 'tool_limit' as const,
+                    failureStage: 'investigation' as const,
                 },
             },
             {
                 status: 'failed' as const,
                 terminalReason: 'provider_error' as const,
+                failureStage: 'finalization' as const,
                 executorResult: {
                     status: 'failed' as const,
                     errorMessage: 'provider unavailable',
                     terminalReason: 'provider_error' as const,
+                    failureStage: 'finalization' as const,
                 },
             },
             {
                 status: 'cancelled' as const,
                 terminalReason: 'user_cancellation' as const,
+                failureStage: 'investigation' as const,
                 executorResult: {
                     status: 'cancelled' as const,
                     terminalReason: 'user_cancellation' as const,
+                    failureStage: 'investigation' as const,
                 },
             },
         ])(
             'emits one $status terminal event with its stable reason',
-            async ({ status, terminalReason, executorResult }) => {
+            async ({
+                status,
+                terminalReason,
+                failureStage,
+                executorResult,
+            }) => {
                 const { service, analytics } = buildService({
                     executor: vi.fn().mockResolvedValue(executorResult),
                     model: {
@@ -1377,6 +1394,7 @@ describe('AiDeepResearchService', () => {
                                     status === 'partially_completed'
                                         ? reportMarkdown
                                         : null,
+                                failure_stage: failureStage,
                                 ...persistedMetrics,
                             }),
                         ),
@@ -1417,6 +1435,7 @@ describe('AiDeepResearchService', () => {
                         properties: expect.objectContaining({
                             status,
                             terminalReason,
+                            failureStage,
                             durationMs: 5_000,
                             completionClass,
                             reportOutcome:
@@ -1543,6 +1562,25 @@ describe('AiDeepResearchService', () => {
             expect(model.markCompleted).toHaveBeenCalledWith(
                 'run-1',
                 chartReportMarkdown,
+            );
+        });
+
+        it('records persistence when preparing a verified report fails', async () => {
+            const error = new Error('provenance unavailable');
+            const { service, model } = buildService();
+            vi.spyOn(
+                service as AnyType,
+                'persistAndPrepareEvidenceReport',
+            ).mockRejectedValue(error);
+
+            await expect(
+                service.executeRun({ aiDeepResearchRunUuid: 'run-1' }),
+            ).rejects.toBe(error);
+            expect(model.markFailed).toHaveBeenCalledWith(
+                'run-1',
+                'Deep Research could not finish. Please try again.',
+                'internal_error',
+                'persistence',
             );
         });
 
@@ -1813,7 +1851,10 @@ describe('AiDeepResearchService', () => {
 
             await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
 
-            expect(model.markCancelled).toHaveBeenCalledWith('run-1');
+            expect(model.markCancelled).toHaveBeenCalledWith(
+                'run-1',
+                'persistence',
+            );
         });
 
         it('persists executor failures and keeps the job failed', async () => {
@@ -1829,6 +1870,27 @@ describe('AiDeepResearchService', () => {
                 'run-1',
                 'Deep Research could not finish. Please try again.',
                 'internal_error',
+                'investigation',
+            );
+        });
+
+        it('persists the stage attached to an executor infrastructure error', async () => {
+            const error = new AiDeepResearchExecutorStageError(
+                'authorization',
+                new Error('account lookup failed'),
+            );
+            const { service, model } = buildService({
+                executor: vi.fn().mockRejectedValue(error),
+            });
+
+            await expect(
+                service.executeRun({ aiDeepResearchRunUuid: 'run-1' }),
+            ).rejects.toBe(error);
+            expect(model.markFailed).toHaveBeenCalledWith(
+                'run-1',
+                'Deep Research could not finish. Please try again.',
+                'internal_error',
+                'authorization',
             );
         });
 
@@ -1839,6 +1901,7 @@ describe('AiDeepResearchService', () => {
                     errorMessage:
                         'Deep Research could not find relevant data for this question.',
                     terminalReason: 'no_relevant_data',
+                    failureStage: 'finalization',
                 }),
             });
 
@@ -1848,6 +1911,7 @@ describe('AiDeepResearchService', () => {
                 'run-1',
                 'Deep Research could not find relevant data for this question.',
                 'no_relevant_data',
+                'finalization',
             );
         });
 

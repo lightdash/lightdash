@@ -60,6 +60,7 @@ export interface RenderOpts {
      */
     headSha?: string;
     baseSha?: string;
+    runId?: string;
     /**
      * Whether the release-safety gates failed for this revision. The stamp
      * carries it because the check is required: a skipped job reports SKIPPED,
@@ -70,6 +71,34 @@ export interface RenderOpts {
 }
 
 const SAFE_HEADLINE = '✅ **Safe to upgrade normally.** No downtime needed.';
+
+function escapeMarkdownTableCell(value: string): string {
+    return value
+        .replace(/\r/g, '')
+        .replace(/\n/g, '<br/>')
+        .replace(/\|/g, '\\|');
+}
+
+function renderDeclaredBreaksCell(marker: Marker): string {
+    if (marker.declaredBreaks.length === 0) return 'none';
+
+    const rendered = marker.declaredBreaks.map((declaredBreak, index) => {
+        const reason = escapeMarkdownTableCell(declaredBreak.reason);
+        const suffix = declaredBreak.requiredStop ? ' (required stop)' : '';
+        return `${index + 1}) ${reason}${suffix}`;
+    });
+
+    return `${rendered.length} declared breaking change${rendered.length === 1 ? '' : 's'}: ${rendered.join('; ')}`;
+}
+
+function renderDeclaredBreakReasons(marker: Marker): string {
+    return marker.declaredBreaks
+        .map((declaredBreak, index) => {
+            const required = declaredBreak.requiredStop ? ' (required stop)' : '';
+            return `${index + 1}) ${escapeMarkdownTableCell(declaredBreak.reason)}${required}`;
+        })
+        .join('; ');
+}
 
 /**
  * PURE. Render the sticky PR comment for a marker, in plain language aimed at the
@@ -91,6 +120,10 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
     const clearedAsSafeDrop = lintFlagged && rollingUpdateSafe === true;
     // The risk comes from an API change (no DB migration) rather than the schema.
     const apiDriven = (restBreaking || mcpBreaking) && migrationsPresent !== true;
+    const declarationDriven =
+        migrationsPresent !== true &&
+        !apiDriven &&
+        marker.declaredBreaks.length > 0;
     // Any failed gate needs remediation text, or the downgraded headline below
     // names a problem the comment never explains.
     const needsUnblock =
@@ -108,11 +141,16 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
     }
     if (rollingUpdateSafe === false) {
         head.push("⚠️ **Needs care on upgrade.** A normal (zero-downtime) upgrade would briefly break customers' running app.");
-        head.push(
-            apiDriven
-                ? 'This changes the API in a way the already-running version can’t handle. During an upgrade both the old and new versions are live for a moment, so requests would hit errors until it finishes.'
-                : 'When customers upgrade, the old version keeps serving traffic until the new one is fully live. This changes the database in a way the old version can’t handle, so its app would start erroring during that window.',
-        );
+        if (declarationDriven) {
+            const reasons = renderDeclaredBreakReasons(marker);
+            head.push(`This was declared as a breaking change: ${reasons}`);
+        } else {
+            head.push(
+                apiDriven
+                    ? 'This changes the API in a way the already-running version can’t handle. During an upgrade both the old and new versions are live for a moment, so requests would hit errors until it finishes.'
+                    : 'When customers upgrade, the old version keeps serving traffic until the new one is fully live. This changes the database in a way the old version can’t handle, so its app would start erroring during that window.',
+            );
+        }
     } else if (rollingUpdateSafe === 'unknown') {
         head.push('❓ **Couldn’t confirm it’s safe.** Treat it as needing care on upgrade until checked.');
         // Name what actually drove the verdict. An API break with no migration
@@ -210,6 +248,7 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
         `| REST API | ${apiResult(marker.api.rest, restUncheckedReason)} |`,
         `| MCP tools | ${apiResult(marker.api.mcp)} |`,
         `| Config / environment | ${configResult} |`,
+        `| Declared breaking changes | ${renderDeclaredBreaksCell(marker)} |`,
         `| Upgrade notes | ${notesResult} |`,
     ].join('\n');
 
@@ -253,11 +292,11 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
     const baseLine = opts.baseLabel ? `> Comparing against \`${opts.baseLabel}\`.\n` : '';
     const rawJson = JSON.stringify(marker, null, 2);
     const describes =
-        opts.headSha && opts.baseSha
+        opts.headSha && opts.baseSha && opts.runId
             ? [
                   `<!-- release-safety-describes head:${opts.headSha} base:${opts.baseSha} gate:${
                       opts.gateFailed ? 'fail' : 'pass'
-                  } -->`,
+                  } run:${opts.runId} -->`,
               ]
             : [];
 
@@ -307,6 +346,7 @@ function main(): void {
         declarationGateFailed: process.argv.includes('--declaration-gate-failed'),
         headSha: arg('head-sha'),
         baseSha: arg('base-sha'),
+        runId: arg('run-id'),
         gateFailed: process.argv.includes('--gate-failed'),
         draft: process.argv.includes('--draft'),
         linterBreaking: process.argv.includes('--linter-breaking')

@@ -37,6 +37,7 @@ import {
     type AiAgentReviewItemWritebackStrategy,
     type AiAgentRootCause,
     type AiDeepResearchEntryPoint,
+    type AiDeepResearchFailureStage,
     type AiDeepResearchTerminalReason,
     type AiDeepResearchTerminalStatus,
     type AiRouterDecisionConfidence,
@@ -2222,6 +2223,7 @@ export type AiDeepResearchRunCompletedEvent = BaseTrack & {
             | 'empty_failure'
             | 'cancelled';
         terminalReason: AiDeepResearchTerminalReason | null;
+        failureStage: AiDeepResearchFailureStage | null;
         durationMs: number | null;
         inputTokens: number | null;
         outputTokens: number | null;
@@ -2596,6 +2598,16 @@ export type AiAgentCreatedEvent = BaseTrack & {
         tagsCount: number;
         integrationsCount: number;
         autoProvisioned?: boolean;
+    };
+};
+
+export type AiAgentThreadsRetentionCleanedEvent = BaseTrack & {
+    event: 'ai_agent.threads_retention_cleaned';
+    anonymousId: string;
+    properties: {
+        organizationId: string;
+        threadsDeleted: number;
+        memoriesDeleted: number;
     };
 };
 
@@ -3434,6 +3446,7 @@ type TypedEvent =
     | SubtotalQueryEvent
     | DeprecatedRouteCalled
     | AiAgentCreatedEvent
+    | AiAgentThreadsRetentionCleanedEvent
     | AiAgentProvisioningFailedEvent
     | AiAgentGithubMcpConnectedEvent
     | AiAgentDeletedEvent

@@ -755,6 +755,7 @@ export class SearchModel {
                 { uuid: `${DashboardTabsTableName}.uuid` },
                 { name: `${DashboardTabsTableName}.name` },
                 { dashboardUuid: `${DashboardsTableName}.dashboard_uuid` },
+                { dashboardSlug: `${DashboardsTableName}.slug` },
                 { dashboardName: `${DashboardsTableName}.name` },
                 { spaceUuid: `${SpaceTableName}.space_uuid` },
             )
@@ -998,6 +999,7 @@ export class SearchModel {
             )
             .column(
                 { uuid: 'saved_query_uuid' },
+                `${SavedChartsTableName}.slug`,
                 `${SavedChartsTableName}.name`,
                 `${SavedChartsTableName}.description`,
                 {

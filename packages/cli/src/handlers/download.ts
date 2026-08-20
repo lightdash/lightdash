@@ -1531,6 +1531,10 @@ const upsertAiAgents = async (
         throw error;
     }
 
+    (results.warnings ?? []).forEach((warning) =>
+        GlobalState.log(styles.warning(`  ⚠ ${warning}`)),
+    );
+
     const counts = {
         'AI agents created': results.created.length,
         'AI agents updated': results.updated.length,

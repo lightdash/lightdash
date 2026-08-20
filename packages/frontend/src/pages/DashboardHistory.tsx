@@ -37,7 +37,7 @@ import DashboardVersionComparison from './DashboardVersionComparison';
 
 const DashboardHistory = () => {
     const navigate = useNavigate();
-    const { dashboardUuid, projectUuid } = useParams<{
+    const { dashboardUuid: routeDashboardIdentifier, projectUuid } = useParams<{
         dashboardUuid: string;
         projectUuid: string;
     }>();
@@ -45,9 +45,12 @@ const DashboardHistory = () => {
     const [selectedVersionUuid, setSelectedVersionUuid] = useState<string>();
 
     const dashboardQuery = useDashboardQuery({
-        uuidOrSlug: dashboardUuid,
+        uuidOrSlug: routeDashboardIdentifier,
         projectUuid,
     });
+    const dashboardUuid = dashboardQuery.data?.uuid;
+    const dashboardIdentifier =
+        dashboardQuery.data?.slug ?? routeDashboardIdentifier;
     const historyQuery = useDashboardHistory(dashboardUuid);
 
     const rollbackMutation = useDashboardVersionRollbackMutation(dashboardUuid);
@@ -86,7 +89,7 @@ const DashboardHistory = () => {
                             items={[
                                 {
                                     title: 'Dashboard',
-                                    to: `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
+                                    to: `/projects/${projectUuid}/dashboards/${dashboardIdentifier}`,
                                 },
                                 { title: 'Version history', active: true },
                             ]}
@@ -193,6 +196,7 @@ const DashboardHistory = () => {
         >
             {selectedVersionUuid ? (
                 <DashboardVersionComparison
+                    dashboard={dashboardQuery.data}
                     dashboardUuid={dashboardUuid}
                     projectUuid={projectUuid}
                     versionUuid={selectedVersionUuid}
@@ -220,7 +224,7 @@ const DashboardHistory = () => {
                                     onSuccess: () => {
                                         setIsRollbackModalOpen(false);
                                         void navigate(
-                                            `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
+                                            `/projects/${projectUuid}/dashboards/${dashboardIdentifier}`,
                                         );
                                     },
                                 });

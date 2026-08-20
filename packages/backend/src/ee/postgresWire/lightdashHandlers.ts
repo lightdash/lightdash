@@ -348,6 +348,51 @@ export const createLightdashPgWireHandlers = (
         return fromApiKey(sessionUser, 'pgwire');
     };
 
+    const runStatement = async (
+        session: LightdashPgWireSession,
+        sql: string,
+    ): Promise<PgWireQueryResult> => {
+        const resolved = resolveStatement(session, sql);
+        if (resolved.kind === 'result') {
+            return resolved.result;
+        }
+        const { compiled } = resolved;
+        if (compiled.alwaysEmpty) {
+            // schema probes (WHERE 1=0, LIMIT 0) never reach the warehouse
+            return {
+                type: 'rows',
+                fields: fieldsOf(compiled),
+                rows: [],
+                commandTag: 'SELECT 0',
+            };
+        }
+
+        const results = await serviceRepository
+            .getProjectService()
+            .runExploreQuery(
+                session.account,
+                compiled.metricQuery,
+                session.projectUuid,
+                compiled.metricQuery.exploreName,
+                undefined, // csvLimit: undefined = respect metricQuery.limit
+                undefined,
+                QueryExecutionContext.API,
+            );
+
+        const fields = fieldsOf(compiled);
+        const rows = results.rows.map((row: ResultRow) =>
+            compiled.columns.map((column) =>
+                toTextValue(row[column.source]?.value?.raw, column.type),
+            ),
+        );
+        return {
+            type: 'rows',
+            fields,
+            rows,
+            commandTag: `SELECT ${rows.length}`,
+        };
+    };
+
     return {
         authenticate: async ({ user, database, password }) => {
             if (!password) {
@@ -431,36 +476,16 @@ export const createLightdashPgWireHandlers = (
             Logger.debug(
                 `pgwire: ${session.account.user?.email ?? 'service account'} query: ${redactLiterals(sql).slice(0, 500)}`,
             );
-            const resolved = resolveStatement(session, sql);
-            if (resolved.kind === 'result') {
-                return resolved.result;
-            }
-            const { compiled } = resolved;
-
-            const results = await serviceRepository
-                .getProjectService()
-                .runExploreQuery(
-                    session.account,
-                    compiled.metricQuery,
-                    session.projectUuid,
-                    compiled.metricQuery.exploreName,
-                    undefined, // csvLimit: undefined = respect metricQuery.limit
-                    undefined,
-                    QueryExecutionContext.API,
+            try {
+                return await runStatement(session, sql);
+            } catch (e) {
+                // failures are otherwise only visible to the client; log the
+                // shape (literals redacted) so production issues are diagnosable
+                Logger.warn(
+                    `pgwire: query failed (${e instanceof PgWireServerError ? e.code : 'unexpected'}: ${e instanceof Error ? e.message.slice(0, 200) : e}) sql: ${redactLiterals(sql).slice(0, 300)}`,
                 );
-
-            const fields = fieldsOf(compiled);
-            const rows = results.rows.map((row: ResultRow) =>
-                compiled.columns.map((column) =>
-                    toTextValue(row[column.source]?.value?.raw, column.type),
-                ),
-            );
-            return {
-                type: 'rows',
-                fields,
-                rows,
-                commandTag: `SELECT ${rows.length}`,
-            };
+                throw e;
+            }
         },
     };
 };

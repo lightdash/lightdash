@@ -29,12 +29,14 @@ type VerifiedContentListItemBase = {
 
 export type VerifiedChartListItem = VerifiedContentListItemBase & {
     contentType: ContentType.CHART;
+    slug: string;
     chartKind: ChartKind;
     exploreName: string | null;
 };
 
 export type VerifiedDashboardListItem = VerifiedContentListItemBase & {
     contentType: ContentType.DASHBOARD;
+    slug: string;
 };
 
 export type VerifiedContentListItem =

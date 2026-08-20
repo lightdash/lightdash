@@ -102,6 +102,7 @@ import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
 import type { PivotValuesColumn } from '../visualizations/types';
 import {
     type ApiUserActivityDownloadCsv,
+    type QueryExecutionContext,
     type UserActivity,
     type ViewStatistics,
 } from './analytics';
@@ -205,6 +206,7 @@ import { type ApiImpersonationOrganizationSettingsResponse } from './impersonati
 import {
     type ApiCompiledMergeQueryResults,
     type MergeFieldOrigins,
+    type MergeQuery,
     type MergeQueryError,
 } from './mergeQuery';
 import { type MetricQuery, type QueryWarning } from './metricQuery';
@@ -927,6 +929,21 @@ export type ApiExecuteAsyncMergeQueryRequest = Omit<
     ExecuteAsyncMergeQueryRequestParams,
     'pivotConfiguration' | 'usePreAggregateCache'
 > & {
+    mode?: MergeQueryExecutionMode;
+    chart?: MergeQueryChart;
+};
+
+/**
+ * Merge execution request for the compose endpoint, which accepts the full
+ * MergeQuerySource union (including references to existing query results).
+ * A separate endpoint keeps the original merge-query contract untouched for
+ * existing clients while compose-only capabilities evolve on their own path.
+ */
+export type ApiExecuteAsyncComposeMergeQueryRequest = {
+    context?: QueryExecutionContext;
+    invalidateCache?: boolean;
+    parameters?: ParametersValuesMap;
+    mergeQuery: MergeQuery;
     mode?: MergeQueryExecutionMode;
     chart?: MergeQueryChart;
 };

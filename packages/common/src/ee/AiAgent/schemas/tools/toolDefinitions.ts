@@ -139,6 +139,7 @@ import {
     toolFindFieldsOutputSchema,
 } from './toolFindFieldsArgs';
 import {
+    mcpGenerateHashesStructuredOutputSchema,
     TOOL_GENERATE_HASHES_DESCRIPTION,
     toolGenerateHashesArgsSchema,
     toolGenerateHashesOutputSchema,
@@ -322,11 +323,6 @@ import {
     toolVerticalBarArgsSchemaTransformed,
     toolVerticalBarOutputSchema,
 } from './toolVerticalBarArgs';
-
-export const breaking = {
-    reason: 'MCP clients must replace find_explores and find_fields with grep_fields and get_metadata.',
-    requiredStop: false,
-};
 
 const readOnlyAnnotations: McpToolAnnotations = {
     readOnlyHint: true,
@@ -758,18 +754,23 @@ export const generateUuidsToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolGenerateUuidsOutputSchema },
 });
 
-export const generateHashesToolDefinition: ToolDefinitionWithoutMcpOutput<
+export const generateHashesToolDefinition: ToolDefinitionWithMcpOutput<
     'generateHashes',
     typeof toolGenerateHashesArgsSchema,
     typeof toolGenerateHashesArgsSchema,
-    typeof toolGenerateHashesOutputSchema
+    typeof toolGenerateHashesOutputSchema,
+    typeof mcpGenerateHashesStructuredOutputSchema
 > = defineTool({
     name: 'generateHashes',
     title: 'Generate hashes',
     description: TOOL_GENERATE_HASHES_DESCRIPTION,
-    availability: ['agent'],
+    availability: ['agent', 'mcp'],
     inputSchema: toolGenerateHashesArgsSchema,
     agent: { outputSchema: toolGenerateHashesOutputSchema },
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpGenerateHashesStructuredOutputSchema,
+    },
 });
 
 export const getDashboardChartsToolDefinition: ToolDefinitionWithoutMcpOutput<
@@ -1821,6 +1822,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     getCurrentAgentToolDefinition,
     listVerifiedContentToolDefinition,
     runAiWritebackToolDefinition,
+    getAiWritebackStatusToolDefinition,
 ] as const;
 
 export type BuiltInToolDefinition = ToolDefinitionInstance;

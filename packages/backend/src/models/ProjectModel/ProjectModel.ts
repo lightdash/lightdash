@@ -712,6 +712,15 @@ export class ProjectModel {
             .where('project_uuid', projectUuid);
     }
 
+    async findProjectDefaults(
+        projectUuid: string,
+    ): Promise<ProjectDefaults | null> {
+        const [row] = await this.database(ProjectTableName)
+            .select('project_defaults')
+            .where('project_uuid', projectUuid);
+        return row?.project_defaults ?? null;
+    }
+
     async getTableGroups(
         projectUuid: string,
     ): Promise<Record<string, GroupType>> {
@@ -3557,7 +3566,13 @@ export class ProjectModel {
             await copyChartVersionContent(
                 'saved_queries_version_additional_metrics',
                 ['saved_queries_version_additional_metric_id', 'uuid'],
-                { filters: (value: AnyType) => JSON.stringify(value) },
+                {
+                    filters: (value: AnyType) => JSON.stringify(value),
+                    // jsonb array — without stringify pg serializes it as a
+                    // postgres array literal, which is invalid json
+                    distinct_keys: (value: AnyType) =>
+                        value == null ? null : JSON.stringify(value),
+                },
             );
 
             // 8888b.     db    .dP"Y8 88  88 88""Yb  dP"Yb     db    88""Yb 8888b.  .dP"Y8

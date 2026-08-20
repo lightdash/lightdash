@@ -31,7 +31,7 @@ export const getSearchItemMap = (
         item: item,
         searchRank: item.search_rank,
         location: {
-            pathname: `/projects/${projectUuid}/dashboards/${item.uuid}`,
+            pathname: `/projects/${projectUuid}/dashboards/${item.slug}`,
         },
     }));
 
@@ -41,7 +41,7 @@ export const getSearchItemMap = (
         description: `Dashboard: ${item.dashboardName}`,
         item: item,
         location: {
-            pathname: `/projects/${projectUuid}/dashboards/${item.dashboardUuid}/view/tabs/${item.uuid}`,
+            pathname: `/projects/${projectUuid}/dashboards/${item.dashboardSlug}/view/tabs/${item.uuid}`,
         },
     }));
 
@@ -52,7 +52,7 @@ export const getSearchItemMap = (
         item: item,
         searchRank: item.search_rank,
         location: {
-            pathname: `/projects/${projectUuid}/saved/${item.uuid}`,
+            pathname: `/projects/${projectUuid}/saved/${item.slug}`,
         },
     }));
 

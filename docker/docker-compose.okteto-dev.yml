@@ -73,7 +73,7 @@ services:
 
             DBT_DEMO_DIR: /usr/app/examples/full-jaffle-shop-demo
             # Must match the snapshot builder (docker-compose.db-snapshot.yml)
-            LIGHTDASH_SEED_DBT_VERSION: v1.11
+            LIGHTDASH_SEED_DBT_VERSION: v1.12
             SCHEDULER_ENABLED: true
             GROUPS_ENABLED: true
             EXTENDED_USAGE_ANALYTICS: true

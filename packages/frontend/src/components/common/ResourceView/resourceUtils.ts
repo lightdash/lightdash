@@ -68,7 +68,7 @@ const getChartResourceUrl = (
             return `/projects/${projectUuid}/sql-runner/${item.data.slug}`;
         case ChartSourceType.DBT_EXPLORE:
         case undefined:
-            return `/projects/${projectUuid}/saved/${item.data.uuid}`;
+            return `/projects/${projectUuid}/saved/${item.data.slug}`;
         default:
             return assertUnreachable(
                 item.data.source,
@@ -81,7 +81,7 @@ export const getResourceUrl = (projectUuid: string, item: ResourceViewItem) => {
     const itemType = item.type;
     switch (item.type) {
         case ResourceViewItemType.DASHBOARD:
-            return `/projects/${projectUuid}/dashboards/${item.data.uuid}/view`;
+            return `/projects/${projectUuid}/dashboards/${item.data.slug}/view`;
         case ResourceViewItemType.CHART:
             return getChartResourceUrl(projectUuid, item);
         case ResourceViewItemType.SPACE:

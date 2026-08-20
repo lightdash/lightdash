@@ -29,6 +29,7 @@ import {
     type ItemsMap,
     type MetricQuery,
     type ParameterDefinitions,
+    type ProjectDefaults,
     type UserAccessControls,
 } from '@lightdash/common';
 import type { SshTunnel } from '@lightdash/warehouses';
@@ -223,6 +224,9 @@ const projectModel = {
         runQuery: vi.fn(async () => resultsWith1Row),
     })),
     findExploreByTableName: vi.fn(async () => validExplore),
+    findProjectDefaults: vi.fn(
+        async (): Promise<ProjectDefaults | null> => null,
+    ),
 };
 const onboardingModel = {
     getByOrganizationUuid: vi.fn(async () => ({
@@ -2538,6 +2542,79 @@ describe('AsyncQueryService', () => {
                 expect.anything(),
             );
             expect(mockStrategy.recordExecutionFallback).not.toHaveBeenCalled();
+        });
+
+        test('errors instead of falling back when the project disables execution fallback', async () => {
+            const mockStrategy = makeMockStrategy({
+                resolved: true,
+                query: 'SELECT * FROM duckdb_preagg',
+                execution: 'duckdb',
+            });
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            (service as AnyType).preAggregateStrategy = mockStrategy;
+            projectModel.findProjectDefaults.mockResolvedValueOnce({
+                pre_aggregate_execution_fallback: false,
+            });
+
+            const runAsyncWarehouseSpy = vi
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockRejectedValueOnce(new Error('HTTP 404: missing parquet'));
+
+            await service.runAsyncPreAggregateQuery(buildArgs());
+
+            expect(runAsyncWarehouseSpy).toHaveBeenCalledTimes(1);
+            expect(
+                service.queryHistoryModel.updateStatusToError,
+            ).toHaveBeenCalledWith(
+                'test-query-uuid',
+                projectUuid,
+                expect.stringContaining('execution fallback is disabled'),
+                expect.objectContaining({
+                    user: { id: sessionAccount.user.id },
+                }),
+            );
+            expect(
+                service.queryHistoryModel.updateStatusToError,
+            ).toHaveBeenCalledWith(
+                'test-query-uuid',
+                projectUuid,
+                expect.stringContaining('HTTP 404: missing parquet'),
+                expect.anything(),
+            );
+            expect(mockStrategy.recordExecutionFallback).not.toHaveBeenCalled();
+            expect(service.queryHistoryModel.update).not.toHaveBeenCalledWith(
+                'test-query-uuid',
+                projectUuid,
+                expect.objectContaining({
+                    pre_aggregate_fallback_reason: expect.anything(),
+                }),
+                expect.anything(),
+            );
+        });
+
+        test('still falls back when reading project defaults fails', async () => {
+            const mockStrategy = makeMockStrategy({
+                resolved: true,
+                query: 'SELECT * FROM duckdb_preagg',
+                execution: 'duckdb',
+            });
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            (service as AnyType).preAggregateStrategy = mockStrategy;
+            projectModel.findProjectDefaults.mockRejectedValueOnce(
+                new Error('db unavailable'),
+            );
+
+            const runAsyncWarehouseSpy = vi
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockRejectedValueOnce(new Error('HTTP 404: missing parquet'))
+                .mockResolvedValueOnce(undefined);
+
+            await service.runAsyncPreAggregateQuery(buildArgs());
+
+            expect(runAsyncWarehouseSpy).toHaveBeenCalledTimes(2);
+            expect(runAsyncWarehouseSpy.mock.calls[1][0]).toMatchObject({
+                query: 'SELECT * FROM warehouse',
+            });
         });
 
         test('still falls back to the warehouse when the fallback write fails', async () => {

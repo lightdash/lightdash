@@ -155,6 +155,7 @@ const getDashboards = async (
             'pinned_list.pinned_list_uuid',
             `${SpaceTableName}.space_uuid`,
             'pinned_dashboard.dashboard_uuid',
+            `${DashboardsTableName}.slug`,
             'users.user_uuid as updated_by_user_uuid',
             'pinned_dashboard.order',
         )
@@ -168,13 +169,14 @@ const getDashboards = async (
             updated_by_user_last_name: 'users.last_name',
         })
         .orderBy('pinned_dashboard.order', 'asc')
-        .groupBy(1, 2, 3, 4, 5, 6)) as Record<string, AnyType>[];
+        .groupBy(1, 2, 3, 4, 5, 6, 7)) as Record<string, AnyType>[];
     const resourceType: ResourceViewItemType.DASHBOARD =
         ResourceViewItemType.DASHBOARD;
     const items = rows.map((row) => ({
         type: resourceType,
         data: {
             uuid: row.dashboard_uuid,
+            slug: row.slug,
             spaceUuid: row.space_uuid,
             description: row.description,
             name: row.name,

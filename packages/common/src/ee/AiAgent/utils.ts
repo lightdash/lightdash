@@ -11,7 +11,7 @@ import {
     metricQueryTimeSeriesViz,
     metricQueryVerticalBarViz,
     parsePersistedRunQueryArgs,
-    toolRunQueryArgsSchemaV3,
+    toolRunQueryArgsSchemaPersisted,
     toolTableVizArgsSchemaTransformed,
     toolTimeSeriesArgsSchemaTransformed,
     toolVerticalBarArgsSchemaTransformed,
@@ -163,7 +163,7 @@ export const parseAiArtifactChartConfig = (
         config.schemaVersion === 1 &&
         'config' in config
     ) {
-        const parsed = toolRunQueryArgsSchemaV3.safeParse(config.config);
+        const parsed = toolRunQueryArgsSchemaPersisted.safeParse(config.config);
         if (parsed.success && parsed.data.mergeConfig) {
             return {
                 source: 'merge',

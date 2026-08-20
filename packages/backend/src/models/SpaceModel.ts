@@ -1381,6 +1381,7 @@ export class SpaceModel {
                 })[]
             >([
                 `${DashboardsTableName}.dashboard_uuid`,
+                `${DashboardsTableName}.slug`,
                 `${DashboardsTableName}.name`,
                 `${DashboardsTableName}.description`,
                 `${ProjectTableName}.project_uuid`,
@@ -1440,6 +1441,7 @@ export class SpaceModel {
                 name,
                 description,
                 dashboard_uuid,
+                slug,
                 created_at,
                 project_uuid,
                 user_uuid,
@@ -1457,6 +1459,7 @@ export class SpaceModel {
                 name,
                 description,
                 uuid: dashboard_uuid,
+                slug,
                 projectUuid: project_uuid,
                 updatedAt: created_at,
                 updatedByUser: {

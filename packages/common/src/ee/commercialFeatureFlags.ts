@@ -5,7 +5,5 @@ export enum CommercialFeatureFlags {
     ServiceAccounts = 'service-accounts',
     OrganizationWarehouseCredentials = 'organization-warehouse-credentials',
     CustomRoles = 'custom-roles',
-    /** Multiple roles per organization/project (requires CustomRoles). Gates management surfaces only. */
-    MultipleRoles = 'multiple-roles',
     HomepageBuilder = 'homepage-builder',
 }

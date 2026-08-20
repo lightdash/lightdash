@@ -63,7 +63,9 @@ import {
     isExploreError,
     isField,
     isJwtUser,
+    isMergeResultSource,
     isMetric,
+    isMetricSourcedMergeQuery,
     isValidTimezone,
     isVizTableConfig,
     ItemsMap,
@@ -71,6 +73,7 @@ import {
     KnexPaginatedData,
     LightdashError,
     MergeQuery,
+    MergeQueryErrorKind,
     MetricQuery,
     MissingConfigError,
     normalizeIndexColumns,
@@ -99,6 +102,7 @@ import {
     UserAccessControls,
     WarehouseClient,
     WarehouseQueryError,
+    WarehouseTypes,
     type ApiCompiledMergeQueryResults,
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
@@ -113,6 +117,7 @@ import {
     type CompiledCustomSqlDimension,
     type CompiledMetric,
     type CustomDimension,
+    type ExecuteAsyncComposeMergeQueryRequestParams,
     type ExecuteAsyncComposeSqlQueryRequestParams,
     type ExecuteAsyncDashboardChartRequestParams,
     type ExecuteAsyncFieldValueSearchRequestParams,
@@ -135,6 +140,7 @@ import {
     type RunQueryTags,
     type SessionUser,
     type SpaceSummaryBase,
+    type UserAttributeValueMap,
     type WarehouseExecuteAsyncQuery,
     type WarehousePhaseTimings,
     type WarehouseResults,
@@ -186,6 +192,7 @@ import {
     processFieldsForExport,
     streamJsonlData,
 } from '../../utils/FileDownloadUtils/FileDownloadUtils';
+import { buildComposeMergeSql } from '../../utils/QueryBuilder/composeMergeSql';
 import { updateExploreWithDateZoom } from '../../utils/QueryBuilder/dateZoom';
 import {
     buildMergeResultMetricQuery,
@@ -281,6 +288,23 @@ const isRunnableCompiledMergeQuery = (
     compiled.coreSql !== null &&
     compiled.typedColumns !== null &&
     compiled.terminalWrapper !== null;
+
+/**
+ * A compiled merge the compose engine can run: no errors and full metadata.
+ * Unlike the warehouse-runnable narrowing it needs no statement — the
+ * compose path builds its own join over the sources' materialized results.
+ */
+type ComposableCompiledMergeQuery = ApiCompiledMergeQueryResults & {
+    typedColumns: NonNullable<ApiCompiledMergeQueryResults['typedColumns']>;
+    columns: NonNullable<ApiCompiledMergeQueryResults['columns']>;
+};
+
+const isComposableCompiledMergeQuery = (
+    compiled: ApiCompiledMergeQueryResults,
+): compiled is ComposableCompiledMergeQuery =>
+    compiled.errors.length === 0 &&
+    compiled.typedColumns !== null &&
+    compiled.columns !== null;
 
 type ExecuteCompiledAsyncMergeQueryArgs = Omit<
     ExecuteAsyncMergeQueryArgs,
@@ -2681,6 +2705,40 @@ export class AsyncQueryService extends ProjectService {
                     : {}),
             });
         } catch (preAggregateError) {
+            if (
+                !(await this.isPreAggregateExecutionFallbackEnabled(
+                    projectUuid,
+                ))
+            ) {
+                Sentry.getActiveSpan()?.setAttribute(
+                    'lightdash.preAggregate.fallbackDisabled',
+                    true,
+                );
+                this.logger.warn(
+                    `Pre-aggregate execution (${preAggregateExecution}) failed for ${queryUuid} and execution fallback is disabled. Marking query as errored`,
+                );
+                await this.markAsyncQueryErrored({
+                    queryUuid,
+                    projectUuid,
+                    organizationUuid,
+                    userUuid,
+                    isRegisteredUser,
+                    isPreviewProject,
+                    onboardingFlow,
+                    queryTags,
+                    queryCreatedAt,
+                    errorMessage: `Pre-aggregate execution failed, and execution fallback is disabled for this project ('pre_aggregate_execution_fallback' under 'defaults' in lightdash.config.yml).\nCause: ${getErrorMessage(
+                        preAggregateError,
+                    )}`,
+                    executionSource:
+                        preAggregateExecution === 'duckdb'
+                            ? 'pre_aggregate_duckdb'
+                            : 'pre_aggregate_warehouse',
+                    warehouseType: null,
+                });
+                return;
+            }
+
             Sentry.getActiveSpan()?.setAttribute(
                 'lightdash.preAggregate.fallback',
                 true,
@@ -2754,6 +2812,118 @@ export class AsyncQueryService extends ProjectService {
                 displayTimezone,
             });
         }
+    }
+
+    // Availability-safe: any read failure keeps the default fallback behavior
+    private async isPreAggregateExecutionFallbackEnabled(
+        projectUuid: string,
+    ): Promise<boolean> {
+        try {
+            const defaults =
+                await this.projectModel.findProjectDefaults(projectUuid);
+            return defaults?.pre_aggregate_execution_fallback ?? true;
+        } catch (e) {
+            this.logger.error(
+                `Failed to read project defaults for ${projectUuid}, keeping pre-aggregate execution fallback enabled: ${getErrorMessage(
+                    e,
+                )}`,
+            );
+            return true;
+        }
+    }
+
+    // Shared terminal-error path for async queries: analytics, query history
+    // status, and prometheus stay consistent across every errored execution.
+    private async markAsyncQueryErrored({
+        queryUuid,
+        projectUuid,
+        organizationUuid,
+        userUuid,
+        isRegisteredUser,
+        isPreviewProject,
+        onboardingFlow,
+        queryTags,
+        queryCreatedAt,
+        errorMessage,
+        executionSource,
+        warehouseType,
+    }: Pick<
+        RunAsyncWarehouseQueryArgs,
+        | 'queryUuid'
+        | 'projectUuid'
+        | 'organizationUuid'
+        | 'userUuid'
+        | 'isRegisteredUser'
+        | 'isPreviewProject'
+        | 'onboardingFlow'
+        | 'queryTags'
+        | 'queryCreatedAt'
+    > & {
+        errorMessage: string;
+        executionSource:
+            | 'warehouse'
+            | 'pre_aggregate_duckdb'
+            | 'pre_aggregate_warehouse';
+        warehouseType: WarehouseTypes | null;
+    }) {
+        const analyticsIdentity = isRegisteredUser
+            ? { userId: userUuid }
+            : { anonymousId: 'embed' };
+        this.analytics.track({
+            ...analyticsIdentity,
+            event: 'query.error',
+            properties: {
+                queryId: queryUuid,
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                warehouseType: warehouseType ?? undefined,
+                executionSource,
+                ...(isRegisteredUser ? undefined : { externalId: userUuid }),
+            },
+        });
+        this.analytics.track({
+            ...analyticsIdentity,
+            event: 'query.completed',
+            properties: {
+                queryId: queryUuid,
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                isPreviewProject,
+                status: 'error',
+                context: queryTags.query_context,
+                onboardingFlow,
+                exploreName: queryTags.explore_name ?? null,
+                chartId: queryTags.chart_uuid ?? null,
+                dashboardId: queryTags.dashboard_uuid ?? null,
+                cacheHit: false,
+                executionSource,
+                warehouseType,
+                warehouseExecutionTimeMs: null,
+                totalRowCount: null,
+                columnsCount: null,
+                ...(isRegisteredUser ? undefined : { externalId: userUuid }),
+            },
+        });
+
+        await this.queryHistoryModel.updateStatusToError(
+            queryUuid,
+            projectUuid,
+            errorMessage,
+            {
+                isRegisteredUser: () => isRegisteredUser,
+                user: { id: userUuid },
+            },
+        );
+        this.prometheusMetrics?.trackQueryStateTransition(
+            QueryHistoryStatus.EXECUTING,
+            QueryHistoryStatus.ERROR,
+            queryTags.query_context || 'unknown',
+        );
+        this.trackQueryTerminalStatus(
+            QueryHistoryStatus.ERROR,
+            queryCreatedAt,
+            queryTags.query_context || 'unknown',
+        );
     }
 
     public async runAsyncWarehouseQueryFromHistory(
@@ -3296,63 +3466,20 @@ export class AsyncQueryService extends ProjectService {
                 throw e;
             }
 
-            this.analytics.track({
-                ...analyticsIdentity,
-                event: 'query.error',
-                properties: {
-                    queryId: queryUuid,
-                    organizationId: organizationUuid,
-                    projectId: projectUuid,
-                    warehouseType: warehouseCredentialsType,
-                    executionSource,
-                    ...(isRegisteredUser
-                        ? undefined
-                        : { externalId: userUuid }),
-                },
-            });
-            this.analytics.track({
-                ...analyticsIdentity,
-                event: 'query.completed',
-                properties: {
-                    queryId: queryUuid,
-                    organizationId: organizationUuid,
-                    projectId: projectUuid,
-                    isPreviewProject,
-                    status: 'error',
-                    context: queryTags.query_context,
-                    onboardingFlow,
-                    exploreName: queryTags.explore_name ?? null,
-                    chartId: queryTags.chart_uuid ?? null,
-                    dashboardId: queryTags.dashboard_uuid ?? null,
-                    cacheHit: false,
-                    executionSource,
-                    warehouseType: warehouseCredentialsType ?? null,
-                    warehouseExecutionTimeMs: null,
-                    totalRowCount: null,
-                    columnsCount: null,
-                    ...(isRegisteredUser
-                        ? undefined
-                        : { externalId: userUuid }),
-                },
-            });
-            await this.queryHistoryModel.updateStatusToError(
+            await this.markAsyncQueryErrored({
                 queryUuid,
                 projectUuid,
-                getErrorMessage(e),
-                queryHistoryAccount,
-            );
-
-            // Track error query in Prometheus
-            this.prometheusMetrics?.trackQueryStateTransition(
-                QueryHistoryStatus.EXECUTING,
-                QueryHistoryStatus.ERROR,
-                queryTags.query_context || 'unknown',
-            );
-            this.trackQueryTerminalStatus(
-                QueryHistoryStatus.ERROR,
+                organizationUuid,
+                userUuid,
+                isRegisteredUser,
+                isPreviewProject,
+                onboardingFlow,
+                queryTags,
                 queryCreatedAt,
-                queryTags.query_context || 'unknown',
-            );
+                errorMessage: getErrorMessage(e),
+                executionSource,
+                warehouseType: warehouseCredentialsType ?? null,
+            });
         }
 
         try {
@@ -6852,6 +6979,18 @@ export class AsyncQueryService extends ProjectService {
     /** How long a compose query waits for a referenced query's results. */
     private static readonly REFERENCE_WAIT_TIMEOUT_MS = 15 * 60 * 1000;
 
+    /** The wrap keeps reference CTEs valid for SQL that starts with its own WITH chain. */
+    private static wrapSqlWithReferenceCtes(
+        sql: string,
+        referenceCtes: string[],
+    ): string {
+        return referenceCtes.length > 0
+            ? `WITH ${referenceCtes.join(
+                  ',\n',
+              )}\nSELECT * FROM (\n${sql}\n) AS lightdash_user_query`
+            : sql;
+    }
+
     /**
      * Background phase of a compose query: wait for referenced results (the
      * whole of pipeline orchestration), build the reference CTEs, discover
@@ -6899,14 +7038,10 @@ export class AsyncQueryService extends ProjectService {
                   })
                 : [];
 
-            // The wrap keeps the reference CTEs valid for user SQL that
-            // starts with its own WITH chain.
-            const resolvedSql =
-                referenceCtes.length > 0
-                    ? `WITH ${referenceCtes.join(
-                          ',\n',
-                      )}\nSELECT * FROM (\n${sql}\n) AS lightdash_user_query`
-                    : sql;
+            const resolvedSql = AsyncQueryService.wrapSqlWithReferenceCtes(
+                sql,
+                referenceCtes,
+            );
 
             // Column discovery (LIMIT 1) also validates the SQL
             const columns: { name: string; type: DimensionType }[] = [];
@@ -7130,7 +7265,7 @@ export class AsyncQueryService extends ProjectService {
             parameters,
             userAttributeOverrides,
         });
-        if (!isRunnableCompiledMergeQuery(compiledMerge)) {
+        if (!isComposableCompiledMergeQuery(compiledMerge)) {
             return {
                 outcome: 'refused',
                 errors: compiledMerge.errors,
@@ -7157,6 +7292,54 @@ export class AsyncQueryService extends ProjectService {
             }
             return undefined;
         })();
+
+        const composeQuery = await this.tryExecuteComposeMergeQuery({
+            account,
+            projectUuid,
+            organizationUuid,
+            mergeQuery: effectiveMergeQuery,
+            context,
+            invalidateCache,
+            parameters,
+            userAttributeOverrides,
+            pivotConfiguration,
+            compiledMerge,
+        });
+        if (composeQuery !== null) {
+            return {
+                outcome: 'started',
+                query: composeQuery,
+                parameterReferences: compiledMerge.parameterReferences,
+                fieldOrigins: compiledMerge.fieldOrigins,
+            };
+        }
+
+        // Result sources have no warehouse statement to fall back to
+        if (compiledMerge.requiresCompose) {
+            return {
+                outcome: 'refused',
+                errors: [
+                    {
+                        kind: MergeQueryErrorKind.COMPOSE_REQUIRED,
+                        sourceId: null,
+                        fieldIds: [],
+                        message:
+                            'This merge reads existing query results, which need the compose engine. It is not enabled or not available on this instance.',
+                    },
+                ],
+                parameterReferences: compiledMerge.parameterReferences,
+                fieldOrigins: compiledMerge.fieldOrigins,
+            };
+        }
+
+        if (!isRunnableCompiledMergeQuery(compiledMerge)) {
+            return {
+                outcome: 'refused',
+                errors: compiledMerge.errors,
+                parameterReferences: compiledMerge.parameterReferences,
+                fieldOrigins: compiledMerge.fieldOrigins,
+            };
+        }
 
         const query = await this.executeCompiledAsyncMergeQuery({
             account,
@@ -7253,6 +7436,13 @@ export class AsyncQueryService extends ProjectService {
                   }
                 : userAccessControls,
         );
+        // Routing guarantees this: merges with result sources never reach
+        // the warehouse path (they require the compose engine)
+        if (!isMetricSourcedMergeQuery(mergeQuery)) {
+            throw new UnexpectedServerError(
+                'A merge with result sources cannot run as a warehouse statement',
+            );
+        }
         const requestParameters: ExecuteAsyncMergeQueryRequestParams = {
             context,
             invalidateCache,
@@ -7285,6 +7475,398 @@ export class AsyncQueryService extends ProjectService {
             usedParametersValues: composer.getUsedParameters(),
             resolvedTimezone: composer.getDisplayTimezone(),
         };
+    }
+
+    /**
+     * Runs a merge as composition when the merge-on-compose flag is on and
+     * the compose engine is available; returns null to fall back to the
+     * single-statement warehouse merge otherwise.
+     *
+     * Each source executes as its own metric query — inheriting that query's
+     * access rules and the metric-query result cache — and the DuckDB
+     * compose engine joins the materialized results. The join is the same
+     * MergeQueryBuilder assembly as the warehouse statement, in the DuckDB
+     * dialect over reference tables, so join semantics are shared by
+     * construction. Submission never blocks on the legs: the background
+     * phase waits for their results through the standard reference wait.
+     */
+    private async tryExecuteComposeMergeQuery({
+        account,
+        projectUuid,
+        organizationUuid,
+        mergeQuery,
+        context,
+        invalidateCache,
+        parameters,
+        userAttributeOverrides,
+        pivotConfiguration,
+        compiledMerge,
+    }: {
+        account: Account;
+        projectUuid: string;
+        organizationUuid: string;
+        mergeQuery: MergeQuery;
+        context: QueryExecutionContext;
+        invalidateCache: boolean | undefined;
+        parameters: ParametersValuesMap | undefined;
+        userAttributeOverrides: UserAttributeValueMap | undefined;
+        pivotConfiguration: PivotConfiguration | undefined;
+        compiledMerge: ComposableCompiledMergeQuery;
+    }): Promise<ApiExecuteAsyncMetricQueryResults | null> {
+        assertIsAccountWithOrg(account);
+
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+            },
+            featureFlagId: FeatureFlags.MergeOnCompose,
+        });
+        if (!enabled) return null;
+
+        let warehouseClient: WarehouseClient;
+        try {
+            warehouseClient =
+                this.preAggregateStrategy.createExecutionWarehouseClient();
+        } catch (e) {
+            this.logger.debug(
+                `Merge-on-compose unavailable, using the warehouse merge: ${getErrorMessage(
+                    e,
+                )}`,
+            );
+            return null;
+        }
+
+        const projectSummary = await this.projectModel.getSummary(projectUuid);
+        const sourceRowCap = this.lightdashConfig.query.maxLimit;
+
+        // Metric sources run whole (the merged statement sorts and limits,
+        // and a side is never silently truncated below the source row cap);
+        // result sources are already materialized and join as they are —
+        // referencing them costs no warehouse query at all.
+        const legs = await Promise.all(
+            mergeQuery.sources.map(async (source) => {
+                if (isMergeResultSource(source)) {
+                    return [source.id, source.queryUuid] as const;
+                }
+                const leg = await this.executeAsyncMetricQuery({
+                    account,
+                    projectUuid,
+                    context,
+                    invalidateCache,
+                    parameters,
+                    userAttributeOverrides,
+                    metricQuery: {
+                        ...source.metricQuery,
+                        sorts: [],
+                        limit: sourceRowCap,
+                    },
+                });
+                return [source.id, leg.queryUuid] as const;
+            }),
+        );
+        const legQueryUuidBySourceId = Object.fromEntries(legs);
+
+        const fieldTypes = await this.getMergeFieldTypesForQuery(
+            account,
+            projectUuid,
+            mergeQuery,
+        );
+        const columnOrder = Object.values(compiledMerge.fieldIdByColumn);
+        const { coreSql, terminalWrapper, referenceTableBySourceId } =
+            buildComposeMergeSql({
+                sources: mergeQuery.sources.map((source) => ({
+                    id: source.id,
+                    valueColumns: Object.keys(
+                        compiledMerge.columns.valueColumnBySourceColumn[
+                            source.id
+                        ] ?? {},
+                    ),
+                })),
+                joinKey: mergeQuery.joinKey,
+                joinType: mergeQuery.joinType,
+                tableCalculations: mergeQuery.tableCalculations,
+                fieldTypes,
+                outputAliasByColumn: compiledMerge.fieldIdByColumn,
+                limit: Math.min(mergeQuery.limit, sourceRowCap),
+                sourceRowCap,
+            });
+
+        // The same composer as the warehouse merge, with the compose engine
+        // as the dialect: the pivot stage and terminal wrapper compile for
+        // DuckDB through the one shared seam
+        const composer = new MergeQueryComposer({
+            coreSql,
+            terminalWrapper,
+            itemsMap: compiledMerge.itemsMap,
+            typedColumns: compiledMerge.typedColumns,
+            columnOrder,
+            limit: mergeQuery.limit,
+            parameterReferences: compiledMerge.parameterReferences,
+            usedParametersValues: compiledMerge.usedParametersValues,
+            warehouseClient,
+            pivotConfiguration,
+        });
+        const sql = composer.getSql({
+            columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
+        });
+        const fieldsMap = composer.getFields();
+
+        // Merge table calculations carry user-authored SQL into the DuckDB
+        // statement, so the same file-access block as raw compose SQL applies
+        try {
+            DuckdbWarehouseClient.validateUserSqlFileAccess(sql);
+        } catch (e) {
+            throw new ParameterError(getErrorMessage(e));
+        }
+
+        const references = Object.fromEntries(
+            Object.entries(referenceTableBySourceId).map(
+                ([sourceId, tableName]) => [
+                    tableName,
+                    legQueryUuidBySourceId[sourceId],
+                ],
+            ),
+        );
+        await this.authorizeQueryReferences({
+            account,
+            projectUuid,
+            organizationUuid,
+            references,
+        });
+
+        const originalColumns: ResultColumns = Object.fromEntries(
+            compiledMerge.typedColumns.map((column) => [
+                column.reference,
+                { reference: column.reference, type: column.type },
+            ]),
+        );
+
+        const queryTags: RunQueryTags = {
+            ...this.getUserQueryTags(account),
+            ...AsyncQueryService.getSchedulerQueryTags(),
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            query_context: context,
+        };
+
+        // Keyed to the user: legs compile under per-user attributes, so the
+        // merged result is per-user too
+        const cacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
+            sql: JSON.stringify({ mergeSql: sql, references }),
+            userUuid: account.user.id,
+        });
+
+        const requestParameters: ExecuteAsyncComposeMergeQueryRequestParams = {
+            context,
+            invalidateCache,
+            mergeQuery,
+            parameters,
+            pivotConfiguration,
+        };
+
+        const queryCreatedAt = new Date();
+        const { queryUuid } = await this.queryHistoryModel.create(account, {
+            projectUuid,
+            organizationUuid,
+            context,
+            fields: fieldsMap,
+            compiledSql: sql,
+            requestParameters,
+            metricQuery: composer.getMetricQuery(),
+            cacheKey,
+            pivotConfiguration: pivotConfiguration ?? null,
+            originalColumns,
+        });
+        this.prometheusMetrics?.trackQueryStateTransition(
+            'new',
+            QueryHistoryStatus.PENDING,
+            context,
+        );
+
+        const onboardingFlow = await this.getOnboardingFlow({
+            userUuid: account.user.id,
+            organizationUuid,
+        });
+
+        void this.runComposeMergeQuery({
+            account,
+            projectUuid,
+            organizationUuid,
+            isPreviewProject:
+                projectSummary.type === ProjectType.PREVIEW ||
+                projectSummary.provisioningSource === 'playground',
+            onboardingFlow,
+            queryUuid,
+            sql,
+            references,
+            warehouseClient,
+            queryTags,
+            queryCreatedAt,
+            cacheKey,
+            context,
+            fieldsMap,
+            pivotConfiguration,
+            originalColumns,
+        }).catch((e) => {
+            this.logger.error(
+                `Async compose merge query ${queryUuid} failed: ${getErrorMessage(
+                    e,
+                )}`,
+            );
+        });
+
+        return {
+            queryUuid,
+            cacheMetadata: { cacheHit: false },
+            metricQuery: composer.getMetricQuery(),
+            fields: fieldsMap,
+            warnings: composer.getWarnings(),
+            parameterReferences: composer.getParameterReferences(),
+            usedParametersValues: composer.getUsedParameters(),
+            resolvedTimezone: composer.getDisplayTimezone(),
+        };
+    }
+
+    /**
+     * Result sources resolve from the caller's own query history: creator-
+     * scoped lookup, READY with unexpired results, and stored field metadata
+     * to validate and type the merge against. Failures phrase as fragments —
+     * the compiler prefixes them with the source at fault.
+     */
+    protected async getMergeResultSourceMetadata(
+        account: Account,
+        projectUuid: string,
+        queryUuid: string,
+    ): Promise<{ metricQuery: MetricQuery; fields: ItemsMap }> {
+        const queryHistory = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            account,
+        );
+        if (queryHistory.status !== QueryHistoryStatus.READY) {
+            throw new ParameterError(
+                `its results are not ready (status: ${queryHistory.status}).`,
+            );
+        }
+        if (
+            queryHistory.resultsExpiresAt &&
+            queryHistory.resultsExpiresAt < new Date()
+        ) {
+            throw new ParameterError(
+                'its results have expired. Re-run the query and merge the new result.',
+            );
+        }
+        if (Object.keys(queryHistory.fields).length === 0) {
+            throw new ParameterError(
+                'its results carry no field metadata to merge on.',
+            );
+        }
+        return {
+            metricQuery: queryHistory.metricQuery,
+            fields: queryHistory.fields,
+        };
+    }
+
+    /**
+     * Background phase of a compose-mode merge: wait for the legs' results
+     * (the standard reference wait), bind them as reference CTEs, then run
+     * the join on the compose engine through the standard async pipeline.
+     * The merge fields and columns are known at submit time, so unlike raw
+     * compose SQL there is no column discovery and no metadata overwrite.
+     */
+    private async runComposeMergeQuery({
+        account,
+        projectUuid,
+        organizationUuid,
+        isPreviewProject,
+        onboardingFlow,
+        queryUuid,
+        sql,
+        references,
+        warehouseClient,
+        queryTags,
+        queryCreatedAt,
+        cacheKey,
+        context,
+        fieldsMap,
+        pivotConfiguration,
+        originalColumns,
+    }: {
+        account: Account;
+        projectUuid: string;
+        organizationUuid: string;
+        isPreviewProject: boolean;
+        onboardingFlow: OnboardingFlow;
+        queryUuid: string;
+        sql: string;
+        references: Record<string, string>;
+        warehouseClient: WarehouseClient;
+        queryTags: RunQueryTags;
+        queryCreatedAt: Date;
+        cacheKey: string;
+        context: QueryExecutionContext;
+        fieldsMap: ItemsMap;
+        pivotConfiguration: PivotConfiguration | undefined;
+        originalColumns: ResultColumns;
+    }): Promise<void> {
+        try {
+            const referenceCtes = await this.buildQueryReferenceCtes({
+                account,
+                projectUuid,
+                references,
+            });
+            const query = AsyncQueryService.wrapSqlWithReferenceCtes(
+                sql,
+                referenceCtes,
+            );
+            await this.queryHistoryModel.update(
+                queryUuid,
+                projectUuid,
+                { compiled_sql: query },
+                account,
+            );
+
+            this.prometheusMetrics?.trackQueryStateTransition(
+                QueryHistoryStatus.PENDING,
+                QueryHistoryStatus.EXECUTING,
+                context,
+            );
+            this.prometheusMetrics?.observeQueueWaitDuration(0, context);
+
+            await this.runAsyncWarehouseQuery({
+                userUuid: account.user.id,
+                organizationUuid,
+                isPreviewProject,
+                isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
+                onboardingFlow,
+                projectUuid,
+                queryUuid,
+                queryTags,
+                query,
+                fieldsMap,
+                cacheKey,
+                pivotConfiguration,
+                originalColumns,
+                queryCreatedAt,
+                displayTimezone: null,
+                warehouseClientOverride: warehouseClient,
+                warehouseCredentialsTypeOverride:
+                    warehouseClient.credentials.type,
+            });
+        } catch (e) {
+            await this.queryHistoryModel.update(
+                queryUuid,
+                projectUuid,
+                {
+                    status: QueryHistoryStatus.ERROR,
+                    error: getErrorMessage(e),
+                    errored_at: new Date(),
+                },
+                account,
+            );
+        }
     }
 
     private async prepareSqlChartAsyncQueryArgs({

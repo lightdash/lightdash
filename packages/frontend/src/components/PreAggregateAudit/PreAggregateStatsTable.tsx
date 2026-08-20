@@ -205,7 +205,7 @@ const PreAggregateStatsTable: FC<Props> = ({
                 Cell: ({ row }) =>
                     row.original.dashboardUuid ? (
                         <Anchor
-                            href={`/projects/${projectUuid}/dashboards/${row.original.dashboardUuid}`}
+                            href={`/projects/${projectUuid}/dashboards/${row.original.dashboardSlug ?? row.original.dashboardUuid}`}
                             target="_blank"
                             size="xs"
                         >

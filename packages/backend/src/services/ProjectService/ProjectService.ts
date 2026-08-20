@@ -118,6 +118,8 @@ import {
     isField,
     isFilterableDimension,
     isJwtUser,
+    isMergeMetricSource,
+    isMergeResultSource,
     isMetric,
     isNotNull,
     isReservedParameterName,
@@ -146,7 +148,7 @@ import {
     MergeQueryError,
     MergeQueryErrorKind,
     MergeQueryField,
-    MergeQuerySource,
+    MergeQueryMetricSource,
     mergeWarehouseCredentials,
     MetricQuery,
     MetricType,
@@ -320,7 +322,7 @@ import { omitDbtEnvironment } from '../../utils/dbtProjectConfig';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     applyMergeTerminalWrapper,
-    getMergeNullPlaceholder,
+    getMergeJoinKeySqlOptions,
     MergeQueryBuilder,
 } from '../../utils/QueryBuilder/MergeQueryBuilder';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
@@ -5256,13 +5258,71 @@ export class ProjectService extends BaseService {
     }
 
     /**
+     * Metadata backing a merge result source: the stored fields and the
+     * metric query that produced them. The base service has no query-history
+     * access, so merges over existing results are only compilable through
+     * services that override this (AsyncQueryService).
+     */
+    // eslint-disable-next-line class-methods-use-this
+    protected async getMergeResultSourceMetadata(
+        _account: Account,
+        _projectUuid: string,
+        _queryUuid: string,
+    ): Promise<{ metricQuery: MetricQuery; fields: ItemsMap }> {
+        throw new ParameterError(
+            'Merging existing query results is not available on this endpoint',
+        );
+    }
+
+    /**
+     * Join-key field metadata straight from a merge query, for callers that
+     * need the key types without the full compile (the compose execution
+     * path derives dialect-specific null placeholders from them).
+     */
+    protected async getMergeFieldTypesForQuery(
+        account: Account,
+        projectUuid: string,
+        mergeQuery: MergeQuery,
+    ): Promise<MergeFieldTypes> {
+        const itemMapBySourceId = Object.fromEntries(
+            await Promise.all(
+                mergeQuery.sources.map(async (source) => {
+                    if (isMergeResultSource(source)) {
+                        const stored = await this.getMergeResultSourceMetadata(
+                            account,
+                            projectUuid,
+                            source.queryUuid,
+                        );
+                        return [source.id, stored.fields] as const;
+                    }
+                    const explore = await this.getExplore(
+                        account,
+                        projectUuid,
+                        source.metricQuery.exploreName,
+                    );
+                    return [
+                        source.id,
+                        getItemMap(
+                            explore,
+                            source.metricQuery.additionalMetrics,
+                            source.metricQuery.tableCalculations,
+                            source.metricQuery.customDimensions,
+                        ),
+                    ] as const;
+                }),
+            ),
+        );
+        return this.getMergeJoinFieldTypes(mergeQuery, itemMapBySourceId);
+    }
+
+    /**
      * Table calculations whose value depends on the query's whole row set.
      * Merging changes that row set, so they cannot be carried across it: a
      * running total would be frozen at its pre-merge value and a pivot-function
      * calc compiles to a literal null column.
      */
     private static getUnsupportedTableCalculations(
-        source: MergeQuerySource,
+        source: MergeQueryMetricSource,
     ): string[] {
         return source.metricQuery.tableCalculations
             .filter((calculation) => {
@@ -5303,58 +5363,125 @@ export class ProjectService extends BaseService {
             userAttributeOverrides,
         } = args;
 
-        // One metadata load feeds validation, output typing and display labels.
-        // Query-defined fields belong in the same item map as explore fields,
-        // so custom dimensions and metrics follow the canonical lookup path.
+        const requiresCompose = mergeQuery.sources.some(isMergeResultSource);
+
+        // One metadata load feeds validation, output typing and display
+        // labels. Metric sources resolve through their explore (query-defined
+        // fields join the same item map, so custom dimensions and metrics
+        // follow the canonical lookup path); result sources resolve structure
+        // and fields from the stored query metadata, after which validation
+        // and typing treat both alike.
+        const resolutionErrors: MergeQueryError[] = [];
+        const maybeResolvedSources = await Promise.all(
+            mergeQuery.sources.map(async (source) => {
+                if (isMergeResultSource(source)) {
+                    try {
+                        const stored = await this.getMergeResultSourceMetadata(
+                            account,
+                            projectUuid,
+                            source.queryUuid,
+                        );
+                        return {
+                            id: source.id,
+                            metricQuery: stored.metricQuery,
+                            itemMap: stored.fields,
+                            explore: null,
+                        };
+                    } catch (e) {
+                        resolutionErrors.push({
+                            kind: MergeQueryErrorKind.RESULT_SOURCE_UNAVAILABLE,
+                            sourceId: source.id,
+                            fieldIds: [],
+                            message: `Query "${source.id}" cannot back a merge: ${getErrorMessage(
+                                e,
+                            )}`,
+                        });
+                        return null;
+                    }
+                }
+                const explore = await this.getExplore(
+                    account,
+                    projectUuid,
+                    source.metricQuery.exploreName,
+                );
+                return {
+                    id: source.id,
+                    metricQuery: source.metricQuery,
+                    itemMap: getItemMap(
+                        explore,
+                        source.metricQuery.additionalMetrics,
+                        source.metricQuery.tableCalculations,
+                        source.metricQuery.customDimensions,
+                    ),
+                    explore,
+                };
+            }),
+        );
+        if (resolutionErrors.length > 0) {
+            return {
+                sql: null,
+                coreSql: null,
+                typedColumns: null,
+                terminalWrapper: null,
+                columns: null,
+                fields: [],
+                itemsMap: {},
+                fieldOrigins: {},
+                parameterReferences: [],
+                usedParametersValues: {},
+                fieldIdByColumn: {},
+                requiresCompose,
+                errors: resolutionErrors,
+            };
+        }
+        const resolvedSources = maybeResolvedSources.filter(
+            (source): source is NonNullable<typeof source> => source !== null,
+        );
+        const resolvedMetricQueryBySourceId = Object.fromEntries(
+            resolvedSources.map((source) => [source.id, source.metricQuery]),
+        );
         const exploreBySourceId = Object.fromEntries(
-            await Promise.all(
-                mergeQuery.sources.map(
-                    async (source) =>
-                        [
-                            source.id,
-                            await this.getExplore(
-                                account,
-                                projectUuid,
-                                source.metricQuery.exploreName,
-                            ),
-                        ] as const,
-                ),
-            ),
+            resolvedSources.map((source) => [source.id, source.explore]),
         );
         const itemMapBySourceId = Object.fromEntries(
-            mergeQuery.sources.map((source) => [
-                source.id,
-                getItemMap(
-                    exploreBySourceId[source.id],
-                    source.metricQuery.additionalMetrics,
-                    source.metricQuery.tableCalculations,
-                    source.metricQuery.customDimensions,
-                ),
-            ]),
+            resolvedSources.map((source) => [source.id, source.itemMap]),
         );
+        // The resolved form: every source metric-query-shaped, so the checks
+        // a result source defers from the shared validator run here.
+        const resolvedMergeQuery: MergeQuery = {
+            ...mergeQuery,
+            sources: resolvedSources.map(({ id, metricQuery }) => ({
+                id,
+                metricQuery,
+            })),
+        };
         const fieldTypes = this.getMergeJoinFieldTypes(
-            mergeQuery,
+            resolvedMergeQuery,
             itemMapBySourceId,
         );
 
         const errors = [
-            ...validateMergeQuery(mergeQuery, fieldTypes),
-            ...mergeQuery.sources.flatMap((source) => {
-                const unsupported =
-                    ProjectService.getUnsupportedTableCalculations(source);
-                return unsupported.length === 0
-                    ? []
-                    : [
-                          {
-                              kind: MergeQueryErrorKind.UNSUPPORTED_TABLE_CALCULATION,
-                              sourceId: source.id,
-                              fieldIds: unsupported,
-                              message: `Query "${source.id}" uses ${unsupported.join(
-                                  ', ',
-                              )}, which depend on the rows of that query alone. Merging changes those rows, so the value cannot be carried across the join.`,
-                          },
-                      ];
-            }),
+            ...validateMergeQuery(resolvedMergeQuery, fieldTypes),
+            // Result sources are exempt: their calculations already ran, so
+            // the merged row carries materialized values, not re-compiled SQL.
+            ...mergeQuery.sources
+                .filter(isMergeMetricSource)
+                .flatMap((source) => {
+                    const unsupported =
+                        ProjectService.getUnsupportedTableCalculations(source);
+                    return unsupported.length === 0
+                        ? []
+                        : [
+                              {
+                                  kind: MergeQueryErrorKind.UNSUPPORTED_TABLE_CALCULATION,
+                                  sourceId: source.id,
+                                  fieldIds: unsupported,
+                                  message: `Query "${source.id}" uses ${unsupported.join(
+                                      ', ',
+                                  )}, which depend on the rows of that query alone. Merging changes those rows, so the value cannot be carried across the join.`,
+                              },
+                          ];
+                }),
         ];
         if (errors.length > 0) {
             return {
@@ -5369,6 +5496,7 @@ export class ProjectService extends BaseService {
                 parameterReferences: [],
                 usedParametersValues: {},
                 fieldIdByColumn: {},
+                requiresCompose,
                 errors,
             };
         }
@@ -5384,8 +5512,42 @@ export class ProjectService extends BaseService {
 
         const sources = await Promise.all(
             mergeQuery.sources.map(async (source) => {
-                // Each source compiles exactly as it would on its own, so a
-                // merged query inherits the same access rules, required
+                const resolvedMetricQuery =
+                    resolvedMetricQueryBySourceId[source.id];
+                const joinKeyColumnByName = Object.fromEntries(
+                    mergeQuery.joinKey.map((part) => [
+                        part.name,
+                        part.fieldIdBySourceId[source.id],
+                    ]),
+                );
+                const valueColumns = [
+                    ...resolvedMetricQuery.metrics,
+                    ...resolvedMetricQuery.tableCalculations.map(
+                        (calculation) => calculation.name,
+                    ),
+                ];
+                const originBySourceColumn = Object.fromEntries(
+                    valueColumns.map((column) => [column, { fieldId: column }]),
+                );
+
+                // A result source is already materialized: it contributes
+                // columns and rows, never SQL — only the compose engine can
+                // join it, which `requiresCompose` reports.
+                if (isMergeResultSource(source)) {
+                    return {
+                        id: source.id,
+                        sql: '',
+                        joinKeyColumnByName,
+                        valueColumns,
+                        missingParameters: [],
+                        parameterReferences: [],
+                        usedParametersValues: {},
+                        originBySourceColumn,
+                    };
+                }
+
+                // Each metric source compiles exactly as it would on its own,
+                // so a merged query inherits the same access rules, required
                 // filters and parameter handling as the query it was built
                 // from.
                 const compiled = await this.compileQuery({
@@ -5406,50 +5568,26 @@ export class ProjectService extends BaseService {
                     // limits once for the whole result.
                     asCteBody: true,
                 });
-                const sourceSql = compiled.query;
                 // The single-query path refuses to run with an unvalued
                 // parameter; the compile-for-embedding path only warns.
                 // Carry the gap so the merge refuses the same way instead
                 // of shipping a literal placeholder to the warehouse.
-                const missingParameters = Array.from(
-                    compiled.missingParameterReferences,
-                );
-                const parameterReferences = Array.from(
-                    compiled.parameterReferences,
-                );
-
-                const joinKeyColumnByName = Object.fromEntries(
-                    mergeQuery.joinKey.map((part) => [
-                        part.name,
-                        part.fieldIdBySourceId[source.id],
-                    ]),
-                );
-
                 // A compiled metric query aliases every output column by field
-                // id, so the field ids are the column names. Custom dimensions
-                // and custom metrics need no special case: their ids appear in
-                // dimensions/metrics like any other field.
-                const valueColumns = [
-                    ...source.metricQuery.metrics,
-                    ...source.metricQuery.tableCalculations.map(
-                        (calculation) => calculation.name,
-                    ),
-                ];
-
+                // id, so the field ids are the column names — value columns
+                // need no special case for custom dimensions or metrics.
                 return {
                     id: source.id,
-                    sql: sourceSql,
+                    sql: compiled.query,
                     joinKeyColumnByName,
                     valueColumns,
-                    missingParameters,
-                    parameterReferences,
-                    usedParametersValues: compiled.usedParameters,
-                    originBySourceColumn: Object.fromEntries(
-                        valueColumns.map((column) => [
-                            column,
-                            { fieldId: column },
-                        ]),
+                    missingParameters: Array.from(
+                        compiled.missingParameterReferences,
                     ),
+                    parameterReferences: Array.from(
+                        compiled.parameterReferences,
+                    ),
+                    usedParametersValues: compiled.usedParameters,
+                    originBySourceColumn,
                 };
             }),
         );
@@ -5488,6 +5626,7 @@ export class ProjectService extends BaseService {
                 parameterReferences,
                 usedParametersValues,
                 fieldIdByColumn: {},
+                requiresCompose,
                 errors: parameterErrors,
             };
         }
@@ -5496,23 +5635,12 @@ export class ProjectService extends BaseService {
         // landing as two unmatched rows. Safe because the join also compares
         // null-ness: a real value equal to the placeholder can never pair with
         // a null.
-        const nullPlaceholderByKeyName = Object.fromEntries(
-            mergeQuery.joinKey.flatMap((part) => {
-                const meta = Object.entries(part.fieldIdBySourceId)
-                    .map(
-                        ([sourceId, fieldId]) =>
-                            fieldTypes[sourceId]?.[fieldId],
-                    )
-                    .find((candidate) => candidate !== undefined);
-                if (meta === undefined) return [];
-                return [
-                    [
-                        part.name,
-                        getMergeNullPlaceholder(meta, warehouseSqlBuilder),
-                    ],
-                ];
-            }),
-        );
+        const { nullPlaceholderByKeyName, stringJoinKeyNames } =
+            getMergeJoinKeySqlOptions(
+                mergeQuery.joinKey,
+                fieldTypes,
+                warehouseSqlBuilder,
+            );
 
         const mergeQueryBuilder = new MergeQueryBuilder({
             sources,
@@ -5528,15 +5656,7 @@ export class ProjectService extends BaseService {
             ),
             tableCalculations: mergeQuery.tableCalculations,
             nullPlaceholderByKeyName,
-            stringJoinKeyNames: mergeQuery.joinKey.flatMap((part) => {
-                const meta = Object.entries(part.fieldIdBySourceId)
-                    .map(
-                        ([sourceId, fieldId]) =>
-                            fieldTypes[sourceId]?.[fieldId],
-                    )
-                    .find((candidate) => candidate !== undefined);
-                return meta?.type === DimensionType.STRING ? [part.name] : [];
-            }),
+            stringJoinKeyNames,
             // Each query is bounded, but reaching the bound is reported rather
             // than trimmed: a join over a trimmed side returns numbers that
             // look complete and are not.
@@ -5596,6 +5716,7 @@ export class ProjectService extends BaseService {
                 parameterReferences,
                 usedParametersValues,
                 fieldIdByColumn: {},
+                requiresCompose,
                 errors: referenceErrors,
             };
         }
@@ -5604,9 +5725,7 @@ export class ProjectService extends BaseService {
         // formatted. Labels come from the field each column originated in;
         // a widened column also carries the value it holds, since one metric
         // becomes several columns and the name alone cannot say which is which.
-        const metricQueryBySourceId = Object.fromEntries(
-            mergeQuery.sources.map((source) => [source.id, source.metricQuery]),
-        );
+        const metricQueryBySourceId = resolvedMetricQueryBySourceId;
 
         // Custom dimensions and additional metrics are defined on the query
         // rather than the explore, so a lookup that only walks the explore
@@ -5785,7 +5904,7 @@ export class ProjectService extends BaseService {
         const exploreLabels = mergeQuery.sources.map(
             (source) =>
                 exploreBySourceId[source.id]?.label ??
-                source.metricQuery.exploreName,
+                resolvedMetricQueryBySourceId[source.id].exploreName,
         );
         const labelsCollide =
             new Set(exploreLabels).size < exploreLabels.length;
@@ -5935,18 +6054,27 @@ export class ProjectService extends BaseService {
                 parameterReferences,
                 usedParametersValues,
                 fieldIdByColumn: {},
+                requiresCompose,
                 errors: typeErrors,
             };
         }
 
         // Named by field id, so results are keyed by the same ids the
-        // items map is keyed by and every lookup downstream resolves.
-        const coreSql = mergeQueryBuilder.toCoreSql(fieldIdByColumn);
-        const terminalWrapper =
-            mergeQueryBuilder.buildTerminalWrapper(fieldIdByColumn);
+        // items map is keyed by and every lookup downstream resolves. A merge
+        // over result sources has no warehouse statement: the compose path
+        // builds its own join over the referenced results.
+        const coreSql = requiresCompose
+            ? null
+            : mergeQueryBuilder.toCoreSql(fieldIdByColumn);
+        const terminalWrapper = requiresCompose
+            ? null
+            : mergeQueryBuilder.buildTerminalWrapper(fieldIdByColumn);
 
         return {
-            sql: applyMergeTerminalWrapper(coreSql, terminalWrapper),
+            sql:
+                coreSql !== null && terminalWrapper !== null
+                    ? applyMergeTerminalWrapper(coreSql, terminalWrapper)
+                    : null,
             coreSql,
             typedColumns,
             terminalWrapper,
@@ -5959,6 +6087,7 @@ export class ProjectService extends BaseService {
             parameterReferences,
             usedParametersValues,
             fieldIdByColumn,
+            requiresCompose,
             errors: [],
         };
     }

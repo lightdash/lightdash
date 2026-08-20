@@ -1,9 +1,14 @@
-import { DbtProjectType, SupportedDbtVersions } from '@lightdash/common';
+import {
+    DbtProjectType,
+    NotFoundError,
+    SupportedDbtVersions,
+} from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import {
     createBranch,
     createPullRequest,
     getFileContent,
+    getLastCommit,
     updateFile,
 } from '../../clients/github/Github';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
@@ -220,6 +225,32 @@ describe('GitIntegrationService', () => {
                 }),
             ).rejects.toThrow(
                 'Explore write-back cannot determine which dbt source owns this model on a project with multiple git-backed dbt sources: "Project dbt connection", "Additional source"',
+            );
+
+            expect(createBranch).not.toHaveBeenCalled();
+            expect(getFileContent).not.toHaveBeenCalled();
+            expect(updateFile).not.toHaveBeenCalled();
+            expect(createPullRequest).not.toHaveBeenCalled();
+        });
+
+        it('explains a missing project branch instead of a generic server error', async () => {
+            vi.mocked(getLastCommit).mockRejectedValueOnce(
+                new NotFoundError('Branch "main" not found in owner/repo'),
+            );
+
+            const promise = service.createPullRequest(
+                writebackUser,
+                'projectUuid',
+                "'",
+                { type: 'customMetrics', fields: [CUSTOM_METRIC] },
+            );
+
+            await expect(promise).rejects.toBeInstanceOf(NotFoundError);
+            await expect(promise).rejects.toThrow(
+                'Branch "main" not found in owner/repo',
+            );
+            await expect(promise).rejects.toThrow(
+                "Check the branch configured in the project's dbt connection settings.",
             );
 
             expect(createBranch).not.toHaveBeenCalled();

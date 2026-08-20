@@ -1,6 +1,8 @@
 import {
     AgentToolOutput,
+    AI_DEEP_RESEARCH_TERMINAL_STATUSES,
     AI_WRITEBACK_PENDING_GRACE_MS,
+    AI_WRITEBACK_RUN_TERMINAL_STATUSES,
     AiAgentAdminConversationsSummary,
     AiAgentAdminEvalFilters,
     AiAgentAdminEvalPrompt,
@@ -119,6 +121,7 @@ import {
     AiAgentToolCallErrorTableName,
     AiAgentToolCallTableName,
     AiAgentToolResultTableName,
+    AiOrganizationSettingsTableName,
     AiPromptContextEntityType,
     AiPromptContextTableName,
     AiPromptInterruptTableName,
@@ -174,6 +177,7 @@ import {
     DbAiMcpServerCredential,
     DbAiMcpServerTool,
 } from '../database/entities/aiAgent';
+import { AiAgentMemoryTableName } from '../database/entities/aiAgentMemory';
 import { AiAgentUserPreferencesTableName } from '../database/entities/aiAgentUserPreferences';
 import {
     AiArtifactsTable,
@@ -185,6 +189,7 @@ import {
     DbAiArtifact,
     DbAiArtifactVersion,
 } from '../database/entities/aiArtifacts';
+import { AiDeepResearchRunsTableName } from '../database/entities/aiDeepResearch';
 import {
     AiEvalPromptTableName,
     AiEvalRunResultAssessmentTableName,
@@ -197,6 +202,7 @@ import {
     DbAiEvalRunResult,
     DbAiEvalRunResultAssessment,
 } from '../database/entities/aiEvals';
+import { ServiceAccountsTableName } from '../database/entities/serviceAccounts';
 import { type SqlApprovalDecision } from '../services/ai/tools/sqlApprovals';
 import { AiAgentReviewClassifierModel } from './AiAgentReviewClassifierModel';
 import { claimAiPromptExecutionMode } from './claimAiPromptExecutionMode';
@@ -632,6 +638,7 @@ export class AiAgentModel {
                 adminOnly: `${AiAgentTableName}.admin_only`,
                 modelConfig: `${AiAgentTableName}.model_config`,
                 version: `${AiAgentTableName}.version`,
+                threadRetentionHours: `${AiAgentTableName}.thread_retention_hours`,
                 groupAccess: this.database.raw(`
                     COALESCE(
                         (SELECT json_agg(group_uuid)
@@ -771,6 +778,7 @@ export class AiAgentModel {
                 adminOnly: `${AiAgentTableName}.admin_only`,
                 modelConfig: `${AiAgentTableName}.model_config`,
                 version: `${AiAgentTableName}.version`,
+                threadRetentionHours: `${AiAgentTableName}.thread_retention_hours`,
                 groupAccess: this.database.raw(`
                     COALESCE(
                         (SELECT json_agg(group_uuid)
@@ -854,6 +862,7 @@ export class AiAgentModel {
                 | 'enableContentTools'
                 | 'enableUserContext'
                 | 'enableSqlMode'
+                | 'threadRetentionHours'
                 | 'modelConfig'
                 | 'updatedAt'
             > & { uuid: string }
@@ -885,6 +894,7 @@ export class AiAgentModel {
                 enableContentTools: `${AiAgentTableName}.enable_content_tools`,
                 enableUserContext: `${AiAgentTableName}.enable_user_context`,
                 enableSqlMode: `${AiAgentTableName}.enable_sql_mode`,
+                threadRetentionHours: `${AiAgentTableName}.thread_retention_hours`,
                 modelConfig: `${AiAgentTableName}.model_config`,
                 updatedAt: `${AiAgentTableName}.updated_at`,
                 instruction: this.database.raw(`
@@ -2050,6 +2060,7 @@ export class AiAgentModel {
             | 'modelConfig'
             | 'version'
             | 'mcpServerUuids'
+            | 'threadRetentionHours'
         > & {
             organizationUuid: string;
             isSystem?: boolean;
@@ -2085,6 +2096,7 @@ export class AiAgentModel {
                     model_config: args.modelConfig ?? null,
                     version: args.version,
                     is_system: args.isSystem ?? false,
+                    thread_retention_hours: args.threadRetentionHours ?? null,
                 })
                 .returning('*');
 
@@ -2189,6 +2201,7 @@ export class AiAgentModel {
                 adminOnly: agent.admin_only,
                 modelConfig: agent.model_config,
                 version: agent.version,
+                threadRetentionHours: agent.thread_retention_hours,
             };
         });
     }
@@ -2317,6 +2330,9 @@ export class AiAgentModel {
                         : {}),
                     ...(args.version !== undefined
                         ? { version: args.version }
+                        : {}),
+                    ...(args.threadRetentionHours !== undefined
+                        ? { thread_retention_hours: args.threadRetentionHours }
                         : {}),
                 })
                 .returning('*');
@@ -2487,6 +2503,7 @@ export class AiAgentModel {
                 adminOnly: agent.admin_only,
                 modelConfig: agent.model_config,
                 version: agent.version,
+                threadRetentionHours: agent.thread_retention_hours,
             };
         });
     }
@@ -3016,6 +3033,8 @@ export class AiAgentModel {
               projectUuid: string;
               agentUuid: string | null;
               ownerUserUuid: string | null;
+              createdFrom: AiThreadCreatedFrom;
+              ownerIsServiceAccount: boolean;
           }
         | undefined
     > {
@@ -3042,13 +3061,23 @@ export class AiAgentModel {
                     project_uuid: string;
                     agent_uuid: string | null;
                     owner_user_uuid: string | null;
+                    created_from: AiThreadCreatedFrom;
+                    owner_is_service_account: boolean;
                 }[]
             >(
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiThreadTableName}.project_uuid`,
                 `${AiThreadTableName}.agent_uuid`,
+                `${AiThreadTableName}.created_from`,
                 this.database.raw(
                     `COALESCE(first_prompt.created_by_user_uuid, ${AiWebAppThreadTableName}.user_uuid) as owner_user_uuid`,
+                ),
+                this.database.raw(
+                    `EXISTS (
+                        select 1 from ${ServiceAccountsTableName}
+                        where ${ServiceAccountsTableName}.service_account_user_uuid =
+                            COALESCE(first_prompt.created_by_user_uuid, ${AiWebAppThreadTableName}.user_uuid)
+                    ) as owner_is_service_account`,
                 ),
             )
             .first();
@@ -3059,6 +3088,8 @@ export class AiAgentModel {
             projectUuid: row.project_uuid,
             agentUuid: row.agent_uuid,
             ownerUserUuid: row.owner_user_uuid,
+            createdFrom: row.created_from,
+            ownerIsServiceAccount: row.owner_is_service_account,
         };
     }
 
@@ -5680,6 +5711,7 @@ export class AiAgentModel {
                     .ref(`${SavedChartsTableName}.saved_query_uuid`)
                     .as('content_uuid'),
                 `${SavedChartsTableName}.name`,
+                `${SavedChartsTableName}.slug`,
                 `${SavedChartsTableName}.description`,
                 `${SavedChartsTableName}.views_count`,
                 `${SavedChartsTableName}.last_version_chart_kind`,
@@ -5745,6 +5777,7 @@ export class AiAgentModel {
                     .ref(`${DashboardsTableName}.dashboard_uuid`)
                     .as('content_uuid'),
                 `${DashboardsTableName}.name`,
+                `${DashboardsTableName}.slug`,
                 `${DashboardsTableName}.description`,
                 `${DashboardsTableName}.views_count`,
                 this.database(DashboardVersionsTableName)
@@ -5796,6 +5829,7 @@ export class AiAgentModel {
         const charts: VerifiedContentListItem[] = chartRows.map((row) => ({
             ...toBaseItem(row),
             contentType: ContentType.CHART,
+            slug: row.slug,
             chartKind: row.last_version_chart_kind,
             exploreName: row.explore_name ?? null,
         }));
@@ -5804,6 +5838,7 @@ export class AiAgentModel {
             (row) => ({
                 ...toBaseItem(row),
                 contentType: ContentType.DASHBOARD,
+                slug: row.slug,
             }),
         );
 
@@ -9415,6 +9450,206 @@ export class AiAgentModel {
             // TODO: copy AI reasoning for shared clones when the UI supports it.
 
             return newThreadUuid;
+        });
+    }
+
+    async findOrganizationsWithThreadRetention(): Promise<string[]> {
+        const rows = await this.database
+            .select<{ organization_uuid: string }[]>('organization_uuid')
+            .from(AiOrganizationSettingsTableName)
+            .whereNotNull('thread_retention_hours')
+            .union((builder) =>
+                builder
+                    .select('organization_uuid')
+                    .from(AiAgentTableName)
+                    .whereNotNull('thread_retention_hours'),
+            );
+        return rows.map((row) => row.organization_uuid);
+    }
+
+    /**
+     * Shared predicate for retention sweeps: the effective window (LEAST of
+     * agent/org values — nulls ignored, so agentless threads inherit the org
+     * value) must have elapsed since the last activity, and nothing may be
+     * in flight: an unanswered prompt under 24h old, a runSql call awaiting
+     * human approval at any age, or a non-terminal deep research/writeback
+     * run (their stale-run sweepers guarantee eventual termination).
+     */
+    private static expiredThreadsFilterSql(
+        retentionJoinSql: string,
+        orgRetentionSql: string,
+    ): string {
+        return `
+            FROM ${AiThreadTableName} t
+            LEFT JOIN ${AiAgentTableName} a
+                ON a.ai_agent_uuid = t.agent_uuid
+            ${retentionJoinSql}
+            WHERE t.organization_uuid = :organizationUuid
+                AND LEAST(
+                    a.thread_retention_hours,
+                    ${orgRetentionSql}
+                ) IS NOT NULL
+                AND GREATEST(
+                    t.created_at,
+                    COALESCE(t.updated_at, t.created_at),
+                    COALESCE((
+                        SELECT max(p.created_at)
+                        FROM ${AiPromptTableName} p
+                        WHERE p.ai_thread_uuid = t.ai_thread_uuid
+                    ), t.created_at)
+                ) < now() - make_interval(hours => LEAST(
+                    a.thread_retention_hours,
+                    ${orgRetentionSql}
+                ))
+                AND NOT EXISTS (
+                    SELECT 1 FROM ${AiPromptTableName} p
+                    WHERE p.ai_thread_uuid = t.ai_thread_uuid
+                        AND p.response IS NULL
+                        AND p.error_message IS NULL
+                        AND p.created_at > now() - interval '24 hours'
+                )
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM ${AiPromptTableName} p
+                    JOIN ${AiAgentToolCallTableName} tc
+                        ON tc.ai_prompt_uuid = p.ai_prompt_uuid
+                    LEFT JOIN ${AiAgentToolResultTableName} tr
+                        ON tr.tool_call_id = tc.tool_call_id
+                    LEFT JOIN ${AiSqlApprovalTableName} ap
+                        ON ap.tool_call_id = tc.tool_call_id
+                    WHERE p.ai_thread_uuid = t.ai_thread_uuid
+                        AND t.sql_auto_approved_at IS NULL
+                        AND tc.tool_name = 'runSql'
+                        AND tr.ai_agent_tool_result_uuid IS NULL
+                        AND ap.tool_call_id IS NULL
+                )
+                AND NOT EXISTS (
+                    SELECT 1 FROM ${AiDeepResearchRunsTableName} r
+                    WHERE r.ai_thread_uuid = t.ai_thread_uuid
+                        AND NOT (r.status = ANY(:deepResearchTerminalStatuses))
+                )
+                AND NOT EXISTS (
+                    SELECT 1 FROM ${AiWritebackRunTableName} w
+                    WHERE w.ai_thread_uuid = t.ai_thread_uuid
+                        AND NOT (w.status = ANY(:writebackTerminalStatuses))
+                )
+        `;
+    }
+
+    private static inFlightGuardBindings() {
+        return {
+            deepResearchTerminalStatuses: [
+                ...AI_DEEP_RESEARCH_TERMINAL_STATUSES,
+            ],
+            writebackTerminalStatuses: [...AI_WRITEBACK_RUN_TERMINAL_STATUSES],
+        };
+    }
+
+    /**
+     * Preview for the org settings confirmation dialog: how many threads (and
+     * across how many agents) an org-level window of `orgRetentionHours`
+     * would delete on the next cleanup run.
+     */
+    async countThreadsExpiredByOrgRetention(
+        organizationUuid: string,
+        orgRetentionHours: number,
+    ): Promise<{ threadCount: number; agentCount: number }> {
+        const filterSql = AiAgentModel.expiredThreadsFilterSql(
+            '',
+            'CAST(:orgRetentionHours AS integer)',
+        );
+        const {
+            rows: [row],
+        } = await this.database.raw<{
+            rows: { thread_count: string; agent_count: string }[];
+        }>(
+            `SELECT
+                count(*) AS thread_count,
+                count(DISTINCT t.agent_uuid) AS agent_count
+            ${filterSql}`,
+            {
+                organizationUuid,
+                orgRetentionHours,
+                ...AiAgentModel.inFlightGuardBindings(),
+            },
+        );
+        return {
+            threadCount: Number(row?.thread_count ?? 0),
+            agentCount: Number(row?.agent_count ?? 0),
+        };
+    }
+
+    /**
+     * Deletes one batch of expired threads plus the derived rows the FK
+     * graph does not cascade: memories distilled from a thread, runSql
+     * approval decisions (keyed by tool call id), and pinned-context
+     * references. Everything else is covered by ON DELETE CASCADE.
+     */
+    async deleteExpiredThreads(
+        organizationUuid: string,
+        batchSize: number,
+    ): Promise<{
+        deletedThreadUuids: string[];
+        deletedMemoriesCount: number;
+    }> {
+        const filterSql = AiAgentModel.expiredThreadsFilterSql(
+            `LEFT JOIN ${AiOrganizationSettingsTableName} s
+                ON s.organization_uuid = t.organization_uuid`,
+            's.thread_retention_hours',
+        );
+
+        return this.database.transaction(async (trx) => {
+            const { rows: candidates } = await trx.raw<{
+                rows: { ai_thread_uuid: string }[];
+            }>(
+                `SELECT t.ai_thread_uuid
+                ${filterSql}
+                LIMIT :batchSize
+                FOR UPDATE OF t SKIP LOCKED`,
+                {
+                    organizationUuid,
+                    batchSize,
+                    ...AiAgentModel.inFlightGuardBindings(),
+                },
+            );
+            const deletedThreadUuids = candidates.map(
+                (row) => row.ai_thread_uuid,
+            );
+            if (deletedThreadUuids.length === 0) {
+                return { deletedThreadUuids, deletedMemoriesCount: 0 };
+            }
+
+            await trx(AiSqlApprovalTableName)
+                .whereIn('tool_call_id', (builder) =>
+                    builder
+                        .select(`${AiAgentToolCallTableName}.tool_call_id`)
+                        .from(AiAgentToolCallTableName)
+                        .join(
+                            AiPromptTableName,
+                            `${AiPromptTableName}.ai_prompt_uuid`,
+                            `${AiAgentToolCallTableName}.ai_prompt_uuid`,
+                        )
+                        .whereIn(
+                            `${AiPromptTableName}.ai_thread_uuid`,
+                            deletedThreadUuids,
+                        ),
+                )
+                .delete();
+
+            await trx(AiPromptContextTableName)
+                .where('entity_type', 'thread')
+                .whereIn('entity_uuid', deletedThreadUuids)
+                .delete();
+
+            const deletedMemoriesCount = await trx(AiAgentMemoryTableName)
+                .whereIn('source_thread_uuid', deletedThreadUuids)
+                .delete();
+
+            await trx(AiThreadTableName)
+                .whereIn('ai_thread_uuid', deletedThreadUuids)
+                .delete();
+
+            return { deletedThreadUuids, deletedMemoriesCount };
         });
     }
 }

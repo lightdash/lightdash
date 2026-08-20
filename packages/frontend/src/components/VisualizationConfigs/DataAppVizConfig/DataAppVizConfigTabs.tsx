@@ -16,6 +16,7 @@ import {
     reconcileDataAppVizFieldMapping,
 } from '../../../features/chartTypes/utils/autoMapDataAppVizFields';
 import { getDataAppVizFieldItems } from '../../../features/chartTypes/utils/getDataAppVizFieldItems';
+import { useIsInsideChartGallery } from '../../common/ChartGallery/ChartGalleryContext';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { ColorPaletteSection } from '../common/ColorPaletteSection';
@@ -59,6 +60,9 @@ export const ConfigTabs: FC = memo(() => {
     );
 
     const canCreateApp = useCanCreateDataApp(projectUuid);
+    // The gallery sidebar already shows the picked type, so the picker and
+    // the type card are redundant there.
+    const isInsideChartGallery = useIsInsideChartGallery();
     const canEditSelectedType = useCanEditDataApp(projectUuid, {
         spaceUuid: dataAppViz?.spaceUuid ?? null,
         createdByUserUuid: dataAppViz?.createdByUserUuid ?? null,
@@ -125,7 +129,7 @@ export const ConfigTabs: FC = memo(() => {
                 fieldMapping={effectiveMapping}
                 onFieldChange={handleFieldChange}
             />
-            {dataAppViz && (
+            {dataAppViz && !isInsideChartGallery && (
                 <Box className={classes.typeCard}>
                     <Text fz="xs" fw={500}>
                         {getAppDisplayName(
@@ -159,38 +163,46 @@ export const ConfigTabs: FC = memo(() => {
     return (
         <Box className={classes.panel}>
             <Stack>
-                <CustomChartTypeSection
-                    projectUuid={projectUuid ?? ''}
-                    selected={selectedOption}
-                    selectedDataAppViz={dataAppViz ?? null}
-                    hasColumns={hasColumns}
-                    onSelectVega={() => setChartType(ChartType.CUSTOM)}
-                    onSelectProjectType={(picked) => {
-                        const pickedFields = picked.schema?.fields ?? [];
-                        const pickedMapping = autoMapDataAppVizFields(
-                            pickedFields,
-                            itemsMap ?? NO_COLUMNS,
-                        );
-                        setDataAppVizUuid(picked.dataAppVizUuid, pickedMapping);
-                        setMappingPivotDimensions(pickedFields, pickedMapping);
-                    }}
-                    onClear={() => {
-                        setDataAppVizUuid('', {});
-                        setPivotDimensions(undefined);
-                    }}
-                    onCreateNew={
-                        canCreateApp
-                            ? () =>
-                                  void navigate({
-                                      pathname: `/projects/${projectUuid}/chart-types/new`,
-                                      search: location.search,
-                                  })
-                            : null
-                    }
-                    onBrowseGallery={() =>
-                        void navigate(`/projects/${projectUuid}/gallery`)
-                    }
-                />
+                {!isInsideChartGallery && (
+                    <CustomChartTypeSection
+                        projectUuid={projectUuid ?? ''}
+                        selected={selectedOption}
+                        selectedDataAppViz={dataAppViz ?? null}
+                        hasColumns={hasColumns}
+                        onSelectVega={() => setChartType(ChartType.CUSTOM)}
+                        onSelectProjectType={(picked) => {
+                            const pickedFields = picked.schema?.fields ?? [];
+                            const pickedMapping = autoMapDataAppVizFields(
+                                pickedFields,
+                                itemsMap ?? NO_COLUMNS,
+                            );
+                            setDataAppVizUuid(
+                                picked.dataAppVizUuid,
+                                pickedMapping,
+                            );
+                            setMappingPivotDimensions(
+                                pickedFields,
+                                pickedMapping,
+                            );
+                        }}
+                        onClear={() => {
+                            setDataAppVizUuid('', {});
+                            setPivotDimensions(undefined);
+                        }}
+                        onCreateNew={
+                            canCreateApp
+                                ? () =>
+                                      void navigate({
+                                          pathname: `/projects/${projectUuid}/chart-types/new`,
+                                          search: location.search,
+                                      })
+                                : null
+                        }
+                        onBrowseGallery={() =>
+                            void navigate(`/projects/${projectUuid}/gallery`)
+                        }
+                    />
+                )}
 
                 {/* With nothing selected the tabs would only be an empty row. */}
                 {dataAppVizUuid ? (

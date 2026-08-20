@@ -1,8 +1,9 @@
 import { ChartType } from '@lightdash/common';
-import { act, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import type * as ReactRouter from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
+import { ChartGalleryContext } from '../../../common/ChartGallery/ChartGalleryContext';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { ConfigTabs } from './CustomVisConfig';
 
@@ -10,11 +11,14 @@ type CustomChartTypeSectionProps = {
     onCreateNew: (() => void) | null;
 };
 
-const { locationSearch, navigate, sectionProps } = vi.hoisted(() => ({
-    locationSearch: { current: '' },
-    navigate: vi.fn(),
-    sectionProps: [] as CustomChartTypeSectionProps[],
-}));
+const { locationSearch, navigate, sectionProps, enabledFlags } = vi.hoisted(
+    () => ({
+        locationSearch: { current: '' },
+        navigate: vi.fn(),
+        sectionProps: [] as CustomChartTypeSectionProps[],
+        enabledFlags: new Set<string>(['enable-data-apps']),
+    }),
+);
 
 vi.mock('react-router', async (importOriginal) => ({
     ...(await importOriginal<typeof ReactRouter>()),
@@ -27,7 +31,7 @@ vi.mock('../../../../features/apps/hooks/useCanCreateDataApp', () => ({
 }));
 vi.mock('../../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: (featureFlag: string) => ({
-        data: { enabled: featureFlag === 'enable-data-apps' },
+        data: { enabled: enabledFlags.has(featureFlag) },
     }),
 }));
 vi.mock('../../../LightdashVisualization/useVisualizationContext', () => ({
@@ -55,6 +59,8 @@ describe('CustomVisConfig', () => {
         locationSearch.current = '';
         navigate.mockClear();
         sectionProps.length = 0;
+        enabledFlags.clear();
+        enabledFlags.add('enable-data-apps');
         vi.mocked(useVisualizationContext).mockReturnValue({
             itemsMap: {},
             visualizationConfig: {
@@ -83,5 +89,24 @@ describe('CustomVisConfig', () => {
             pathname: '/projects/project-1/chart-types/new',
             search: locationSearch.current,
         });
+    });
+
+    it('hides the chart type section inside the chart gallery', async () => {
+        renderWithProviders(
+            <ChartGalleryContext.Provider value={true}>
+                <ConfigTabs />
+            </ChartGalleryContext.Provider>,
+        );
+
+        await waitFor(() =>
+            expect(screen.queryByText('Vega-Lite JSON')).toBeInTheDocument(),
+        );
+        expect(sectionProps).toHaveLength(0);
+    });
+
+    it('shows the chart type section outside the gallery when data apps are enabled', async () => {
+        renderWithProviders(<ConfigTabs />);
+
+        await waitFor(() => expect(sectionProps.length).toBeGreaterThan(0));
     });
 });

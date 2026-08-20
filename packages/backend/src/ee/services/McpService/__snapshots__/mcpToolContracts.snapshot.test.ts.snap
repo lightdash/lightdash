@@ -16,6 +16,8 @@ exports[`MCP tool contracts > matches the current MCP tool and prompt contract s
 
 ## Query Building Workflow
 
+For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL is requested without enough warehouse schema, ask for the missing table or column identifiers; \`grep_fields\` and \`get_metadata\` only discover modeled Lightdash Explores.
+
 0. **Get started with context**: Call \`get_context\` first, select the relevant project, and pass its \`projectUuid\` to every project-scoped tool. When agent-specific scope is useful, call \`route_agent\` with that project UUID and pass its returned \`agentUuid\` to subsequent scoped tools. If routing is unavailable or full project scope is desired, omit \`agentUuid\`; use \`set_agent\` to select an agent manually
 1. **Search fields first**: Use \`grep_fields\` with 1–5 high-signal keyword patterns to discover the relevant explore and field IDs
    - Search with business terms and synonyms, not long natural-language phrases
@@ -29,7 +31,7 @@ exports[`MCP tool contracts > matches the current MCP tool and prompt contract s
 3. **Search field values**: Use \`search_field_values\` to discover valid filter values for a dimension
 4. **Run queries**: Use \`run_metric_query\` for semantic-layer metric queries, or \`run_sql\` for custom SQL
 5. **Poll long-running queries**: If a query returns \`status: "running"\`, call \`get_query_result\` with the \`queryUuid\` until it returns done/error/cancelled/expired
-6. **Render charts**: If the user wants a chart, call \`render_chart\` after \`run_metric_query\` or \`get_query_result\` returns done with a \`queryUuid\`
+6. **Render charts**: If the user wants a chart, call \`render_chart\` with the \`queryUuid\` returned when \`run_metric_query\` completes, or with the \`queryUuid\` returned by \`get_query_result\` after polling that metric query to completion
 7. **Browse content**: Use \`list_content\` to browse accessible spaces and direct content inside a space
 8. **Find content**: Use \`find_content\` to search for existing dashboards and charts
 
@@ -68,10 +70,11 @@ exports[`MCP tool contracts > matches the current MCP tool and prompt contract s
 - Always provide axis labels
 
 ### Table Calculations
-Use table calculations for:
-- Aggregating already-aggregated metrics (e.g., average of monthly totals)
-- Row comparisons: % of total, period-over-period change, rankings, running totals
-- "Top N per group" patterns: create \`row_number\` with \`partitionBy\`, then filter
+Author table calculations as type \`formula\` (the field's schema documents the syntax). Use them for:
+- Arithmetic across metrics: \`metric_a + metric_b\`, ratios \`metric_a / metric_b\`
+- Aggregating already-aggregated metrics (e.g., average of monthly totals): \`AVG(metric)\`
+- Row comparisons: % of total \`m / SUM(m)\`, period-over-period \`(m - LAG(m, ORDER BY date)) / LAG(m, ORDER BY date)\`, rankings \`RANK(...)\`, running totals \`RUNNING_TOTAL(m, ORDER BY date)\`, trailing 3-period average \`MOVING_AVG(m, 2, ORDER BY date)\`
+- "Top N per group" patterns: \`ROW_NUMBER(PARTITION BY group, ORDER BY m DESC)\`, then filter
 
 ### Custom Metrics
 - Use when the explore lacks a needed aggregation
@@ -99,6 +102,55 @@ Use table calculations for:
       },
       "name": "get_lightdash_version",
       "title": "Get Lightdash version",
+    },
+    {
+      "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+      },
+      "description": "Generate deterministic base-36 hashes for input strings.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "inputs": {
+            "description": "Input strings to hash.",
+            "items": {
+              "type": "string",
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "type": "array",
+          },
+        },
+        "required": [
+          "inputs",
+        ],
+        "type": "object",
+      },
+      "name": "generate_hashes",
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "hashes": {
+            "description": "Base-36 hashes in the same order as the input strings.",
+            "items": {
+              "pattern": "^[0-9a-z]{6}$",
+              "type": "string",
+            },
+            "type": "array",
+          },
+        },
+        "required": [
+          "hashes",
+        ],
+        "type": "object",
+      },
+      "title": "Generate hashes",
     },
     {
       "agentName": null,
@@ -1081,7 +1133,7 @@ Usage tips:
 - If results aren't relevant, retry with the full user query or more specific terms.
 - Dashboards with validation errors will be deprioritized.
 - Returns space breadcrumb/path metadata and chart/dashboard URLs when available.
-- Dashboards show a preview of the first 5 charts and the total chart count. Use "getDashboardCharts" to see all charts for a specific dashboard.
+- Dashboards show a preview of the first 5 charts and the total chart count. Use "read_content" to see all charts for a specific dashboard.
 - It doesn't provide summaries for dashboards yet, so don't suggest this capability.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -5318,9 +5370,7 @@ Example B — "Revenue by month with year-over-year comparison"
                 "description": "
 Table calculations perform row-by-row calculations on query results without collapsing rows. Similar to SQL window functions.
 
-**Available Types:**
-- Simple calculations: percent_change_from_previous, percent_of_previous_value, percent_of_column_total, rank_in_column, running_total
-- Advanced window_function: Supports row_number, percent_rank, sum, avg, count, min, max with optional partitioning, ordering, and frame clauses
+**Prefer type "formula"** — it expresses arithmetic across fields, ratios, comparisons, conditionals, and partitioned window calculations. The other types are legacy single-field templates kept for backwards compatibility.
 
 **Technical Requirements:**
 - Appear as additional columns in query results
@@ -5330,6 +5380,60 @@ Table calculations perform row-by-row calculations on query results without coll
 , ",
                 "items": {
                   "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "displayName": {
+                          "description": "Display name for the table calculation, e.g. "MoM revenue change"",
+                          "type": "string",
+                        },
+                        "format": {
+                          "description": "Display format. Use "percent" for ratios/shares/percent changes (value 0.12 renders as 12%). null defaults to "number"., ",
+                          "enum": [
+                            "number",
+                            "percent",
+                          ],
+                          "type": "string",
+                        },
+                        "formula": {
+                          "description": "Spreadsheet-like formula evaluated row-by-row over the query results (after aggregation).
+Reference fields by their field id directly, e.g. \`orders_total_revenue / orders_order_count\`. No prefix, no braces, no leading \`=\`.
+Any selected dimension, metric, custom metric (\`<table>_<name>\`), or another table calculation name can be referenced.
+Operators: + - * / % ^, comparisons = < > <= >= <>, boolean AND/OR/NOT, string literals in double quotes, parentheses for grouping.
+Functions include IF, COALESCE, ROUND, ABS, CONCAT, date functions (YEAR, DATE_TRUNC, DATE_DIFF, DATE_ADD), aggregates over the whole result (SUM, AVG, MIN, MAX, COUNT, SUMIF), and window functions (RUNNING_TOTAL, MOVING_SUM, MOVING_AVG, LAG, LEAD, RANK, DENSE_RANK, ROW_NUMBER, FIRST, LAST).
+Window functions accept optional PARTITION BY / ORDER BY clauses as trailing arguments, e.g. \`LAG(orders_total_revenue, PARTITION BY orders_status, ORDER BY orders_order_date)\`.
+MOVING_SUM and MOVING_AVG take the count of preceding rows as second argument; the current row is always included, so a trailing 3-period average is \`MOVING_AVG(orders_total_revenue, 2, ORDER BY orders_order_month)\`.
+All branches of an IF must return the same type.",
+                          "type": "string",
+                        },
+                        "name": {
+                          "description": "Unique name for the table calculation, e.g. "percent_change_from_previous"",
+                          "type": "string",
+                        },
+                        "resultType": {
+                          "description": "Data type the formula evaluates to. null defaults to "number"., ",
+                          "enum": [
+                            "number",
+                            "string",
+                            "date",
+                            "timestamp",
+                            "boolean",
+                          ],
+                          "type": "string",
+                        },
+                        "type": {
+                          "const": "formula",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "name",
+                        "displayName",
+                        "type",
+                        "formula",
+                      ],
+                      "type": "object",
+                    },
                     {
                       "additionalProperties": false,
                       "properties": {
@@ -8982,6 +9086,7 @@ exports[`MCP tool contracts > matches the shared MCP tool definition names snaps
   "render_chart",
   "grep_fields",
   "get_metadata",
+  "generate_hashes",
   "read_content",
   "resolve_url",
   "edit_content",
@@ -9004,5 +9109,6 @@ exports[`MCP tool contracts > matches the shared MCP tool definition names snaps
   "get_current_agent",
   "list_verified_content",
   "run_ai_writeback",
+  "get_ai_writeback_status",
 ]
 `;

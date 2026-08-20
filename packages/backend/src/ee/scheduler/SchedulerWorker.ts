@@ -39,6 +39,7 @@ import type { ProjectHomepageService } from '../services/ProjectHomepageService'
 import { sendReviewNotification } from './tasks/sendReviewNotification';
 
 const MCP_TOOL_CALL_RETENTION_DAYS = 90;
+const AI_THREAD_RETENTION_CLEANUP_BATCH_SIZE = 500;
 export const AI_DEEP_RESEARCH_REPORT_CLEANUP_BATCH_SIZE = 100;
 const AI_AGENT_EVAL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 const AI_AGENT_REVIEW_REMEDIATION_RUN_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
@@ -257,6 +258,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     maxAttempts: 3,
                 },
             },
+            {
+                task: EE_SCHEDULER_TASKS.CLEAN_AI_AGENT_THREADS,
+                pattern: '17 * * * *',
+                options: {
+                    backfillPeriod: 2 * 60 * 60 * 1000,
+                    maxAttempts: 3,
+                },
+            },
         ];
     }
 
@@ -297,6 +306,25 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     cleanupMetrics: this.cleanupMetrics,
                     addJob: helpers.addJob,
                 }),
+            [EE_SCHEDULER_TASKS.CLEAN_AI_AGENT_THREADS]: async (
+                _payload,
+                helpers,
+            ) => {
+                Logger.info('Starting AI thread retention cleanup job');
+                const result = await this.aiAgentService.cleanExpiredThreads(
+                    AI_THREAD_RETENTION_CLEANUP_BATCH_SIZE,
+                );
+                Logger.info(
+                    `AI thread retention cleanup completed. Threads deleted: ${result.threadsDeleted}; derived memories deleted: ${result.memoriesDeleted}`,
+                );
+                if (result.hitBatchLimit) {
+                    await helpers.addJob(
+                        EE_SCHEDULER_TASKS.CLEAN_AI_AGENT_THREADS,
+                        {},
+                        { maxAttempts: 3 },
+                    );
+                }
+            },
             [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_PREVIEW]: async (
                 payload,
                 _helpers,
@@ -817,6 +845,9 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                         helpers.job.run_at,
                         payload,
                         async () => {
+                            // Retire first, so the curator selects from the
+                            // cleaned corpus.
+                            await this.aiAgentMemoryService.sweepUnresolvedObjectMemories();
                             await this.aiAgentMemoryService.sweepConsolidationPartitions();
                         },
                     ),

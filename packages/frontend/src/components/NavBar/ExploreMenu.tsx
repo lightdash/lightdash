@@ -189,7 +189,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                     onClose={() => setIsCreateDashboardOpen(false)}
                     onConfirm={(dashboard) => {
                         void navigate(
-                            `/projects/${projectUuid}/dashboards/${dashboard.uuid}/edit`,
+                            `/projects/${projectUuid}/dashboards/${dashboard.slug}/edit`,
                         );
 
                         setIsCreateDashboardOpen(false);

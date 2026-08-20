@@ -156,11 +156,12 @@ const DashboardHeader = memo(
         );
         const { search, pathname } = useLocation();
         const navigate = useNavigate();
-        const { projectUuid, dashboardUuid } = useParams<{
+        const { projectUuid } = useParams<{
             projectUuid: string;
-            dashboardUuid: string;
             organizationUuid: string;
         }>();
+        const dashboardUuid = dashboard.uuid;
+        const dashboardIdentifier = dashboard.slug;
 
         const { data: project } = useProject(projectUuid);
 
@@ -886,7 +887,7 @@ const DashboardHeader = memo(
                                                 }
                                                 onClick={() =>
                                                     navigate(
-                                                        `/projects/${projectUuid}/dashboards/${dashboardUuid}/history`,
+                                                        `/projects/${projectUuid}/dashboards/${dashboardIdentifier}/history`,
                                                     )
                                                 }
                                             >

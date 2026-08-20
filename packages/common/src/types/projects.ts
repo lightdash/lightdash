@@ -900,9 +900,7 @@ export const DBT_VERSION_SUPPORTED_WAREHOUSES: Record<
     [SupportedDbtVersions.V1_9]: dbtWarehousesExcept(),
     [SupportedDbtVersions.V1_10]: dbtWarehousesExcept(),
     [SupportedDbtVersions.V1_11]: dbtWarehousesExcept(),
-    [SupportedDbtVersions.V1_12]: dbtWarehousesExcept(
-        WarehouseTypes.DATABRICKS,
-    ),
+    [SupportedDbtVersions.V1_12]: dbtWarehousesExcept(),
 };
 
 export const getDbtVersionSupportedWarehouses = (
@@ -915,7 +913,7 @@ export const isWarehouseSupportedByDbtVersion = (
 ): boolean => DBT_VERSION_SUPPORTED_WAREHOUSES[version].includes(warehouseType);
 
 export const LATEST_SUPPORTED_DBT_VERSION: SupportedDbtVersions =
-    SupportedDbtVersions.V1_11;
+    SupportedDbtVersions.V1_12;
 
 export const getLatestSupportDbtVersion = (): SupportedDbtVersions =>
     LATEST_SUPPORTED_DBT_VERSION;

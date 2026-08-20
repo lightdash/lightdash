@@ -20,6 +20,12 @@ export type AiAgentThreadDistillOutcome =
     | 'skipped'
     | 'failed';
 
+/** Which path retired the row; null while the row is not retired. */
+export type AiAgentMemoryRetiredReason =
+    | 'owner'
+    | 'consolidation'
+    | 'unresolved_objects';
+
 export type DbAiAgentMemory = {
     ai_agent_memory_uuid: string;
     organization_uuid: string;
@@ -36,6 +42,7 @@ export type DbAiAgentMemory = {
     unresolved_objects: AiProjectContextTypedObjectRef[];
     status: AiAgentMemoryStatus;
     scope: AiAgentMemoryScope;
+    retired_reason: AiAgentMemoryRetiredReason | null;
     superseded_by_uuid: string | null;
     generated_at: Date;
     cited_count: number;
@@ -59,6 +66,7 @@ export type AiAgentMemoryTable = Knex.CompositeTableType<
         | keyof AiAgentMemoryJsonbWrite
         | 'ai_agent_memory_uuid'
         | 'status'
+        | 'retired_reason'
         | 'superseded_by_uuid'
         | 'cited_count'
         | 'last_cited_at'
@@ -72,6 +80,7 @@ export type AiAgentMemoryTable = Knex.CompositeTableType<
             Pick<
                 DbAiAgentMemory,
                 | 'status'
+                | 'retired_reason'
                 | 'superseded_by_uuid'
                 | 'cited_count'
                 | 'last_cited_at'

@@ -178,6 +178,7 @@ const AddTileButton: FC<Props> = ({
                                         dashboard?.name,
                                         activeTabUuid,
                                         dashboardTabs,
+                                        dashboard?.slug,
                                     );
                                     void navigate(
                                         `/projects/${projectUuid}/tables`,

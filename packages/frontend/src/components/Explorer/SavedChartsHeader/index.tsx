@@ -124,6 +124,17 @@ import SaveChartButton, {
 } from '../SaveChartButton';
 import { TitleBreadCrumbs } from './TitleBreadcrumbs';
 
+const isChartPath = (
+    pathname: string,
+    projectUuid: string | undefined,
+    chartIdentifier: string | undefined,
+) => {
+    if (!projectUuid || !chartIdentifier) return false;
+
+    const chartPath = `/projects/${projectUuid}/saved/${chartIdentifier}`;
+    return pathname.endsWith(chartPath) || pathname.includes(`${chartPath}/`);
+};
+
 const SavedChartsHeader: FC = () => {
     const { data: changeChartExploreFlag } = useServerFeatureFlag(
         FeatureFlags.ChangeChartExplore,
@@ -153,6 +164,7 @@ const SavedChartsHeader: FC = () => {
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
 
     const savedChart = useExplorerSelector(selectSavedChart);
+    const dashboardIdentifier = savedChart?.dashboardSlug ?? dashboardUuid;
 
     const hasUnsavedChanges = useExplorerSelector(selectHasUnsavedChanges);
 
@@ -315,11 +327,21 @@ const SavedChartsHeader: FC = () => {
             hasUnsavedChanges &&
             isEditMode &&
             !isSaveModalOpen &&
-            !nextLocation.pathname.includes(
-                `/projects/${projectUuid}/saved/${savedChart?.uuid}`,
+            !isChartPath(
+                nextLocation.pathname,
+                projectUuid,
+                savedChart?.slug,
+            ) &&
+            !isChartPath(
+                nextLocation.pathname,
+                projectUuid,
+                savedChart?.uuid,
             ) &&
             !nextLocation.pathname.includes(
                 `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
+            ) &&
+            !nextLocation.pathname.includes(
+                `/projects/${projectUuid}/dashboards/${dashboardIdentifier}`,
             )
         ) {
             return true; //blocks navigation
@@ -416,7 +438,7 @@ const SavedChartsHeader: FC = () => {
 
     const handleGoBackClick = () => {
         void navigate({
-            pathname: `/projects/${savedChart?.projectUuid}/dashboards/${dashboardUuid}`,
+            pathname: `/projects/${savedChart?.projectUuid}/dashboards/${dashboardIdentifier}`,
         });
     };
 
@@ -448,7 +470,7 @@ const SavedChartsHeader: FC = () => {
 
         if (!isFromDashboard)
             void navigate({
-                pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/view`,
+                pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.slug}/view`,
             });
     }, [dispatch, isEditMode, savedChart, isFromDashboard, navigate]);
 
@@ -501,6 +523,7 @@ const SavedChartsHeader: FC = () => {
                                         spaceUuid={savedChart.spaceUuid}
                                         spaceName={savedChart.spaceName}
                                         dashboardUuid={savedChart.dashboardUuid}
+                                        dashboardSlug={savedChart.dashboardSlug}
                                         dashboardName={savedChart.dashboardName}
                                     />
                                 )}
@@ -619,7 +642,7 @@ const SavedChartsHeader: FC = () => {
                                                 }
                                                 onClick={() =>
                                                     navigate({
-                                                        pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/edit`,
+                                                        pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.slug}/edit`,
                                                     })
                                                 }
                                             >
@@ -826,7 +849,7 @@ const SavedChartsHeader: FC = () => {
                                         }
                                         onClick={() =>
                                             navigate({
-                                                pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/history`,
+                                                pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.slug}/history`,
                                             })
                                         }
                                     >
@@ -953,8 +976,7 @@ const SavedChartsHeader: FC = () => {
                                         Alerts
                                     </Menu.Item>
                                 )}
-                                {userCanManageChart &&
-                                    hasGoogleDriveEnabled &&
+                                {hasGoogleDriveEnabled &&
                                     userCanCreateDeliveriesAndAlerts && (
                                         <Can
                                             I="manage"
@@ -1035,7 +1057,7 @@ const SavedChartsHeader: FC = () => {
                     onConfirm={() => {
                         if (dashboardUuid) {
                             void navigate(
-                                `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
+                                `/projects/${projectUuid}/dashboards/${dashboardIdentifier}`,
                             );
                         } else {
                             void navigate(`/`);
@@ -1085,7 +1107,7 @@ const SavedChartsHeader: FC = () => {
                     onConfirm={() => {
                         clearDashboardStorage();
                         void navigate(
-                            `/projects/${projectUuid}/saved/${savedChart.uuid}/edit`,
+                            `/projects/${projectUuid}/saved/${savedChart.slug}/edit`,
                         );
                     }}
                 />

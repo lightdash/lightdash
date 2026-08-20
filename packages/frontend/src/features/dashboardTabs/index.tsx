@@ -313,8 +313,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
 
     const { search } = useLocation();
     const navigate = useNavigate();
-
-    const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
+    const dashboard = useDashboardContext((c) => c.dashboard);
+    const dashboardUuid = dashboard?.uuid;
+    const dashboardIdentifier = dashboard?.slug;
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const setHaveTabsChanged = useDashboardContext((c) => c.setHaveTabsChanged);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
@@ -669,8 +670,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             void navigate(
                 {
                     pathname: isEditMode
-                        ? `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit/tabs/${tab?.uuid}`
-                        : `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tab?.uuid}`,
+                        ? `/projects/${projectUuid}/dashboards/${dashboardIdentifier}/edit/tabs/${tab?.uuid}`
+                        : `/projects/${projectUuid}/dashboards/${dashboardIdentifier}/view/tabs/${tab?.uuid}`,
                     search: newParams.toString(),
                 },
                 { replace: true },
@@ -775,7 +776,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             // If this is the last tab, navigate to the non-tab URL.
             // See `const = sortedTabs` for more context.
             void navigate(
-                `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
+                `/projects/${projectUuid}/dashboards/${dashboardIdentifier}/edit`,
                 { replace: true },
             );
 

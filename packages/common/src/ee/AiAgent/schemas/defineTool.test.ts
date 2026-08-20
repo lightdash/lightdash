@@ -3,6 +3,7 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 import { defineTool } from './defineTool';
 import {
     agentToolNames,
+    findContentToolDefinition,
     generateVisualizationToolDefinition,
     mcpToolDefinitions,
     runQueryToolDefinition,
@@ -18,6 +19,21 @@ describe('defineTool', () => {
         expect(mcpView.name).toBe('run_metric_query');
         expect(mcpView.canonicalName).toBe('runQuery');
         expect(mcpView.outputSchema).toBeDefined();
+    });
+
+    it('uses runtime-available dashboard detail tools', () => {
+        expect(findContentToolDefinition.for('agent').description).toContain(
+            'readContent',
+        );
+        expect(
+            findContentToolDefinition.for('agent').description,
+        ).not.toContain('getDashboardCharts');
+        expect(findContentToolDefinition.for('mcp').description).toContain(
+            'read_content',
+        );
+        expect(findContentToolDefinition.for('mcp').description).not.toContain(
+            'getDashboardCharts',
+        );
     });
 
     it('builds spreadable agent views with output schemas', () => {
@@ -185,6 +201,8 @@ describe('defineTool', () => {
             .sort();
 
         expect(structuredMcpToolNames).toEqual([
+            'generate_hashes',
+            'get_ai_writeback_status',
             'get_context',
             'get_metadata',
             'get_query_result',

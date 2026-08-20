@@ -151,19 +151,26 @@ const convertFilterAutocomplete = (
         ({ value }, index, allValues) =>
             allValues.findIndex((item) => item.value === value) === index,
     );
-    const warnings =
-        duplicateValues && duplicateValues.length > 0
-            ? [
-                  {
-                      type: InlineErrorType.FIELD_ERROR,
-                      message: `Duplicate filter autocomplete values found for dimension "${dimensionName}" in dbt model "${modelName}": ${[
-                          ...new Set(duplicateValues),
-                      ].join(
-                          ', ',
-                      )}. Keeping the first value and ignoring duplicates.`,
-                  },
-              ]
-            : [];
+    const warnings: InlineError[] = [];
+    if (duplicateValues && duplicateValues.length > 0) {
+        warnings.push({
+            type: InlineErrorType.FIELD_ERROR,
+            message: `Duplicate filter autocomplete values found for dimension "${dimensionName}" in dbt model "${modelName}": ${[
+                ...new Set(duplicateValues),
+            ].join(', ')}. Keeping the first value and ignoring duplicates.`,
+        });
+    }
+
+    const optionsFromDimension = filterAutocomplete.options_from_dimension;
+    if (
+        optionsFromDimension &&
+        filterAutocomplete.fetch_from_warehouse === false
+    ) {
+        warnings.push({
+            type: InlineErrorType.FIELD_ERROR,
+            message: `Dimension "${dimensionName}" in dbt model "${modelName}" sets both "options_from_dimension" and "fetch_from_warehouse: false". Curated values are used and "options_from_dimension" is ignored.`,
+        });
+    }
 
     return {
         filterAutocomplete: {
@@ -171,6 +178,20 @@ const convertFilterAutocomplete = (
             fetchFromWarehouse: filterAutocomplete.fetch_from_warehouse ?? true,
             ...(filterAutocomplete.label_dimension
                 ? { labelDimension: filterAutocomplete.label_dimension }
+                : {}),
+            ...(optionsFromDimension
+                ? {
+                      optionsFromDimension: {
+                          model: optionsFromDimension.model,
+                          dimension: optionsFromDimension.dimension,
+                          ...(optionsFromDimension.label_dimension
+                              ? {
+                                    labelDimension:
+                                        optionsFromDimension.label_dimension,
+                                }
+                              : {}),
+                      },
+                  }
                 : {}),
         },
         warnings,

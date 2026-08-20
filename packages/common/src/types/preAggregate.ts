@@ -343,6 +343,7 @@ export type PreAggregateDailyStatResult = {
     chartName: string | null;
     dashboardUuid: string | null;
     dashboardName: string | null;
+    dashboardSlug: string | null;
     queryContext: string;
     hitCount: number;
     missCount: number;

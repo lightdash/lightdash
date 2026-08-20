@@ -168,6 +168,7 @@ export class ContentVerificationModel {
                 `${ContentVerificationTableName}.content_type`,
                 `${ContentVerificationTableName}.content_uuid`,
                 `${SavedChartsTableName}.name`,
+                `${SavedChartsTableName}.slug`,
                 `${SavedChartsTableName}.description`,
                 `${SavedChartsTableName}.views_count`,
                 `${SavedChartsTableName}.last_version_chart_kind`,
@@ -218,6 +219,7 @@ export class ContentVerificationModel {
                 `${ContentVerificationTableName}.content_type`,
                 `${ContentVerificationTableName}.content_uuid`,
                 `${DashboardsTableName}.name`,
+                `${DashboardsTableName}.slug`,
                 `${DashboardsTableName}.description`,
                 `${DashboardsTableName}.views_count`,
                 this.database(DashboardVersionsTableName)
@@ -269,6 +271,7 @@ export class ContentVerificationModel {
         const charts: VerifiedContentListItem[] = chartRows.map((row) => ({
             ...toBaseItem(row),
             contentType: ContentType.CHART,
+            slug: row.slug,
             chartKind: row.last_version_chart_kind,
             exploreName: row.explore_name ?? null,
         }));
@@ -277,6 +280,7 @@ export class ContentVerificationModel {
             (row) => ({
                 ...toBaseItem(row),
                 contentType: ContentType.DASHBOARD,
+                slug: row.slug,
             }),
         );
 

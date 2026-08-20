@@ -35,6 +35,7 @@ export * from './filters';
 export * from './McpSchemaCompatLayer';
 export * from './outputMetadata';
 export * from './sortField';
+export * from './tableCalcs/tableCalcFormula';
 export * from './tableCalcs/tableCalcs';
 export * from './tools';
 export * from './visualizations';

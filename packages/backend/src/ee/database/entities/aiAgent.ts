@@ -35,6 +35,7 @@ export type DbAiAgent = {
      */
     is_system: boolean;
     version: number;
+    thread_retention_hours: number | null;
     created_at: Date;
     updated_at: Date;
 };

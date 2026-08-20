@@ -1,0 +1,44 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://lightdash.com/schemas/release-safety-declarations/v1.json",
+    "title": "Lightdash release-safety breaking change declarations",
+    "description": "Append-only breaking change declarations. A declaration is active only in a Git range that adds its stable ID.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["declarations"],
+    "properties": {
+        "$schema": { "type": "string" },
+        "declarations": {
+            "type": "object",
+            "additionalProperties": { "$ref": "#/definitions/declaration" }
+        }
+    },
+    "definitions": {
+        "declaration": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["reason", "requiredStop"],
+            "properties": {
+                "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Operator-facing explanation of what breaks and for whom."
+                },
+                "requiredStop": {
+                    "type": "boolean",
+                    "description": "True when operators must land on the release that consumes this declaration."
+                },
+                "migration": {
+                    "type": "string",
+                    "pattern": "^packages/backend/src/(ee/)?database/migrations/[0-9]{14}[^/]*\\.ts$",
+                    "description": "Migration path that this declaration acknowledges. Omit for API and type breaks."
+                },
+                "releasedIn": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Optional documentation stamp. Activation never depends on this value."
+                }
+            }
+        }
+    }
+}

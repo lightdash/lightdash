@@ -342,7 +342,7 @@ export const useUpdateMutation = (
                               icon: IconArrowRight,
                               onClick: () =>
                                   navigate(
-                                      `/projects/${data.projectUuid}/dashboards/${dashboardUuid}`,
+                                      `/projects/${data.projectUuid}/dashboards/${data.dashboardSlug ?? dashboardUuid}`,
                                   ),
                           }
                         : undefined,
@@ -382,7 +382,7 @@ export const useCreateMutation = ({
         {
             mutationKey: ['saved_query_create', projectUuid],
             onSuccess: (data) => {
-                const navigateUrl = `/projects/${projectUuid}/saved/${data.uuid}/view`;
+                const navigateUrl = `/projects/${projectUuid}/saved/${data.slug}/view`;
                 queryClient.setQueryData(
                     ['saved_query', data.uuid, data.projectUuid],
                     data,
@@ -466,7 +466,7 @@ export const useDuplicateChartMutation = (
                     options?.autoRedirect !== false
                 ) {
                     void navigate(
-                        `/projects/${projectUuid}/saved/${data.uuid}`,
+                        `/projects/${projectUuid}/saved/${data.slug}`,
                     );
                 }
 
@@ -480,7 +480,7 @@ export const useDuplicateChartMutation = (
                               icon: IconArrowRight,
                               onClick: () => {
                                   void navigate(
-                                      `/projects/${projectUuid}/saved/${data.uuid}`,
+                                      `/projects/${projectUuid}/saved/${data.slug}`,
                                   );
                               },
                           }
@@ -556,7 +556,7 @@ export const useAddVersionMutation = (options?: {
                         icon: IconArrowRight,
                         onClick: () =>
                             navigate(
-                                `/projects/${data.projectUuid}/dashboards/${dashboardUuid}`,
+                                `/projects/${data.projectUuid}/dashboards/${data.dashboardSlug ?? dashboardUuid}`,
                             ),
                     },
                 });
@@ -566,7 +566,7 @@ export const useAddVersionMutation = (options?: {
                 });
                 if (redirectOnSuccess) {
                     void navigate(
-                        `/projects/${data.projectUuid}/saved/${data.uuid}/view`,
+                        `/projects/${data.projectUuid}/saved/${data.slug}/view`,
                     );
                 }
             }

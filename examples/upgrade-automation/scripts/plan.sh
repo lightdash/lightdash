@@ -90,10 +90,11 @@ current_mapped=$(read_bump_value)
 current_public=$(public_version "$current_mapped" "${TAG_SUFFIX:-}")
 index_file=$(mktemp)
 gate_error=$(mktemp)
+merge_error=$(mktemp)
 body_file=$(mktemp)
 summary_file=$(mktemp)
-bump_file_before=$(mktemp)
-trap 'rm -f "$index_file" "$gate_error" "$body_file" "$summary_file" "$bump_file_before"' EXIT
+fresh_file=$(mktemp ./plan-fresh.XXXXXX)
+trap 'rm -f "$index_file" "$gate_error" "$merge_error" "$body_file" "$summary_file" "$fresh_file"' EXIT
 
 curl --connect-timeout 10 --max-time 60 --fail --silent --show-error "$RELEASE_INDEX_URL" --output "$index_file"
 jq -e '.schemaVersion == "1" and (.entries | type == "array")' "$index_file" >/dev/null
@@ -261,33 +262,64 @@ fi
 default_branch=$(gh api "repos/$GITHUB_REPOSITORY" --jq '.default_branch')
 upgrade_branch="${branch_prefix}-$(safe_branch_version "$mapped_version")"
 bump_file=${BUMP_TARGET%%#*}
-
-cp "$bump_file" "$bump_file_before"
-write_bump_value "$mapped_version"
-if cmp -s "$bump_file_before" "$bump_file"; then
-    echo "$bump_file already pins $mapped_version; nothing to commit"
-    exit 0
+bump_path=${BUMP_TARGET#*#}
+bump_filename=${bump_file##*/}
+bump_extension=${bump_filename##*.}
+if [[ "${bump_filename#.}" == *.* && -n "$bump_extension" ]]; then
+    mv "$fresh_file" "$fresh_file.$bump_extension"
+    fresh_file="$fresh_file.$bump_extension"
 fi
-
-base_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$default_branch" --jq '.object.sha')
-if gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$upgrade_branch" >/dev/null 2>&1; then
-    gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/heads/$upgrade_branch" \
-        -f sha="$base_sha" \
-        -F force=true >/dev/null
-else
-    gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
-        -f ref="refs/heads/$upgrade_branch" \
-        -f sha="$base_sha" >/dev/null
-fi
-
-file_contents=$(base64_file "$bump_file")
 commit_message="chore: upgrade Lightdash to $mapped_version"
-if ! commit_response=$(create_commit "$base_sha" "$bump_file" "$file_contents" "$commit_message"); then
-    branch_head=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$upgrade_branch" --jq '.object.sha')
-    if [[ "$branch_head" == "$base_sha" ]]; then
-        exit 1
+commit_response=
+committed=false
+
+for attempt in 1 2 3; do
+    base_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$default_branch" --jq '.object.sha')
+    gh api "repos/$GITHUB_REPOSITORY/contents/$bump_file?ref=$base_sha" --jq '.content' \
+        | tr -d '\n' \
+        | base64 --decode >"$fresh_file"
+
+    fresh_mapped=$(python3 "$ACTION_ROOT/scripts/bump-target.py" read "$fresh_file#$bump_path")
+    if [[ "$fresh_mapped" == "$mapped_version" ]]; then
+        echo "$bump_file already pins $mapped_version at $base_sha; nothing to commit"
+        exit 0
     fi
-    commit_response=$(create_commit "$branch_head" "$bump_file" "$file_contents" "$commit_message")
+    fresh_public=$(public_version "$fresh_mapped" "${TAG_SUFFIX:-}")
+    if version_gt "$fresh_public" "$selected_version"; then
+        echo "$bump_file already pins newer version $fresh_mapped at $base_sha; not lowering it to $mapped_version"
+        exit 0
+    fi
+    if [[ "$fresh_mapped" != "$current_mapped" ]]; then
+        echo "$bump_file moved from $current_mapped to $fresh_mapped at $base_sha; a replan is required"
+        exit 0
+    fi
+    if [[ "$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label "$FREEZE_LABEL" --limit 1 --json number --jq 'length')" != "0" ]]; then
+        echo "an open $FREEZE_LABEL issue is disarming the planner; nothing to do"
+        exit 0
+    fi
+
+    if gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$upgrade_branch" >/dev/null 2>&1; then
+        gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/heads/$upgrade_branch" \
+            -f sha="$base_sha" \
+            -F force=true >/dev/null
+    else
+        gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+            -f ref="refs/heads/$upgrade_branch" \
+            -f sha="$base_sha" >/dev/null
+    fi
+
+    python3 "$ACTION_ROOT/scripts/bump-target.py" write "$fresh_file#$bump_path" "$mapped_version"
+    file_contents=$(base64_file "$fresh_file")
+    if commit_response=$(create_commit "$base_sha" "$bump_file" "$file_contents" "$commit_message"); then
+        committed=true
+        break
+    fi
+    echo "commit attempt $attempt lost the race; retrying from the latest $default_branch" >&2
+done
+
+if [[ "$committed" != "true" ]]; then
+    echo "failed to commit $bump_file after 3 attempts" >&2
+    exit 1
 fi
 jq -e '.data.createCommitOnBranch.commit.oid | type == "string" and length > 0' <<<"$commit_response" >/dev/null
 
@@ -375,7 +407,17 @@ if [[ "$pr_created" == "true" ]]; then
 fi
 
 if [[ "$selected_green" == "true" && "${AUTO_MERGE:-false}" == "true" ]]; then
-    gh pr merge "$pr_url" --auto --squash
+    if [[ "$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label "$FREEZE_LABEL" --limit 1 --json number --jq 'length')" != "0" ]]; then
+        echo "an open $FREEZE_LABEL issue is disarming auto-merge; leaving $pr_url open"
+    elif ! gh pr merge "$pr_url" --auto --squash 2>"$merge_error"; then
+        merge_state=$(gh pr view "$pr_url" --json mergeStateStatus --jq '.mergeStateStatus' || true)
+        if [[ "$merge_state" == "CLEAN" ]]; then
+            gh pr merge "$pr_url" --squash
+        else
+            cat "$merge_error" >&2
+            exit 1
+        fi
+    fi
 elif [[ "$selected_green" != "true" && "$pr_created" == "true" ]]; then
     stops=$(jq -r '.requiredStops | if length == 0 then "none" else join(", ") end' <<<"$selected_json")
     post_slack "[upgrade-hold] $pr_url | $current_public -> $selected_version | gate: $hold_reason | required stops: $stops | $plain_reason"

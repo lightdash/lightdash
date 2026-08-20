@@ -27,6 +27,7 @@ import {
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
     type ApiDownloadAsyncQueryResultsAsXlsx,
+    type ApiExecuteAsyncComposeMergeQueryRequest,
     type ApiExecuteAsyncMergeQueryRequest,
     type ApiExecuteAsyncMergeQueryResults,
     type ApiExecuteAsyncMetricQueryResults,
@@ -258,6 +259,40 @@ export class QueryController extends BaseController {
     @OperationId('executeAsyncMergeQuery')
     async executeAsyncMergeQuery(
         @Body() body: ApiExecuteAsyncMergeQueryRequest,
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<ApiExecuteAsyncMergeQueryResults>> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.services
+            .getAsyncQueryService()
+            .executeAsyncMergeQuery({
+                account: req.account,
+                projectUuid,
+                mergeQuery: body.mergeQuery,
+                context:
+                    body.context ??
+                    getContextFromHeader(req) ??
+                    QueryExecutionContext.API,
+                invalidateCache: body.invalidateCache,
+                parameters: body.parameters,
+                mode: body.mode ?? { type: 'interactive' },
+                chart: body.chart,
+            });
+
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Validates and executes a merge on the compose engine as one asynchronous query request. Unlike Execute merge query, sources may reference existing query results by queryUuid; each referenced query is authorized with the same access checks as fetching its results. Requires the merge-on-compose feature flag.
+     * @summary Execute compose merge query
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/compose-merge-query')
+    @OperationId('executeAsyncComposeMergeQuery')
+    async executeAsyncComposeMergeQuery(
+        @Body() body: ApiExecuteAsyncComposeMergeQueryRequest,
         @Path() projectUuid: UUID,
         @Request() req: express.Request,
     ): Promise<ApiSuccess<ApiExecuteAsyncMergeQueryResults>> {

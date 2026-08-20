@@ -1,4 +1,4 @@
-import { type RoleLevel } from '@lightdash/common';
+import { rolePresets, type RoleLevel } from '@lightdash/common';
 import { Stack } from '@mantine/core';
 import { useNavigate } from 'react-router';
 import PageBreadcrumbs from '../../../components/common/PageBreadcrumbs';
@@ -51,6 +51,7 @@ export const CustomRoleCreate = () => {
                 onSubmit={handleCreateRole}
                 isWorking={createRole.isLoading}
                 mode="create"
+                presets={rolePresets}
             />
         </Stack>
     );

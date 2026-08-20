@@ -14,6 +14,7 @@ import { useLocation, useNavigate, useParams } from 'react-router';
 import { useDeepCompareEffect } from 'react-use';
 import { useCanCreateDataApp } from '../../../../features/apps/hooks/useCanCreateDataApp';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
+import { useIsInsideChartGallery } from '../../../common/ChartGallery/ChartGalleryContext';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
 import { isCustomVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
@@ -212,6 +213,8 @@ export const ConfigTabs: React.FC = memo(() => {
     const dataAppsEnabled =
         useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
         true;
+    // With the chart gallery, the user already picked a chart type there.
+    const isInsideChartGallery = useIsInsideChartGallery();
     const canCreateApp = useCanCreateDataApp(projectUuid);
     const selectProjectChartType = useSelectProjectChartType();
     const createProjectChartType = useCreateProjectChartType();
@@ -250,7 +253,7 @@ export const ConfigTabs: React.FC = memo(() => {
     return (
         <>
             <Stack>
-                {dataAppsEnabled && (
+                {dataAppsEnabled && !isInsideChartGallery && (
                     <CustomChartTypeSection
                         projectUuid={projectUuid ?? ''}
                         selected={{ kind: 'builtInVega' }}
