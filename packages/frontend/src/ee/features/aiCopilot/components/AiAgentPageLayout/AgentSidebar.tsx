@@ -55,10 +55,12 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
 }) => {
     const threadTitle = (thread.title || thread.firstMessage.message).trim();
     const hasTitle = threadTitle.length > 0;
-    const canDelete = useCanManageAiAgentThread({
+    const canManageThread = useCanManageAiAgentThread({
         projectUuid,
         threadUserUuid: thread.user.uuid,
     });
+    // Deleting a Slack thread here would not remove it from Slack itself
+    const canDelete = canManageThread && thread.createdFrom !== 'slack';
 
     return (
         <NavLink

@@ -3085,6 +3085,15 @@ export class AiAgentService extends BaseService {
             );
         }
 
+        // Deleting here would not remove the conversation from Slack itself,
+        // which reads as a broken promise; admins can still remove the
+        // Lightdash copy from the admin threads view.
+        if (thread.createdFrom === 'slack') {
+            throw new ForbiddenError(
+                'Threads created in Slack cannot be deleted from here',
+            );
+        }
+
         const result = await this.aiAgentModel.deleteThread({
             organizationUuid,
             threadUuid,
