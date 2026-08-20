@@ -1,3 +1,10 @@
+## [1.221.2](https://github.com/lightdash/lightdash/compare/1.221.1...1.221.2) (2026-08-20)
+
+
+### Bug Fixes
+
+* allow explorer preview to open in new tab ([#27789](https://github.com/lightdash/lightdash/issues/27789)) ([bf27da0](https://github.com/lightdash/lightdash/commit/bf27da0ad1ee407d70639468f82feadf0e4c4265))
+
 ## [1.221.1](https://github.com/lightdash/lightdash/compare/1.221.0...1.221.1) (2026-08-20)
 
 
