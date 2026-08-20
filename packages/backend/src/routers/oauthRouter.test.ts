@@ -12,7 +12,10 @@ vi.mock('../logging/logger', () => ({
     },
 }));
 
-type OAuthServiceStub = Pick<OAuthService, 'authorize' | 'validateRedirectUri'>;
+type OAuthServiceStub = Pick<
+    OAuthService,
+    'authorize' | 'getClientAuthorizationDetails' | 'validateRedirectUri'
+>;
 
 const getRedirectUrl = (body: string): string => {
     const match = /<meta http-equiv="refresh" content="0;url=([^"]+)" \/>/.exec(
@@ -32,13 +35,69 @@ const getRedirectUrl = (body: string): string => {
 
 const createOAuthService = () => ({
     authorize: vi.fn<OAuthServiceStub['authorize']>(),
+    getClientAuthorizationDetails:
+        vi.fn<OAuthServiceStub['getClientAuthorizationDetails']>(),
     validateRedirectUri: vi.fn<OAuthServiceStub['validateRedirectUri']>(),
 });
 
 const authenticatedUser = {
+    email: 'test@example.com',
+    firstName: 'Test',
+    lastName: 'User',
+    organizationName: 'Test organization',
     userId: 1,
     organizationUuid: 'organization-uuid',
 } as Express.User;
+
+const requestConsent = async ({
+    oauthService,
+    redirectUri,
+}: {
+    oauthService: ReturnType<typeof createOAuthService>;
+    redirectUri: string;
+}): Promise<{ body: string; status: number }> => {
+    const app = express();
+    app.use((request, _response, next) => {
+        request.user = authenticatedUser;
+        request.services = {
+            getOauthService: () => oauthService as unknown as OAuthService,
+        } as Express.Request['services'];
+        next();
+    });
+    app.use('/api/v1/oauth', oauthRouter);
+
+    const server = app.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+
+    try {
+        return await new Promise((resolve, reject) => {
+            const request = httpRequest(
+                {
+                    hostname: '127.0.0.1',
+                    method: 'GET',
+                    path: `/api/v1/oauth/authorize?client_id=mcp-client&redirect_uri=${encodeURIComponent(redirectUri)}&scope=mcp%3Aread`,
+                    port: (server.address() as AddressInfo).port,
+                },
+                (response) => {
+                    const chunks: Buffer[] = [];
+                    response.on('data', (chunk: Buffer) => chunks.push(chunk));
+                    response.on('end', () =>
+                        resolve({
+                            body: Buffer.concat(chunks).toString('utf8'),
+                            status: response.statusCode ?? 0,
+                        }),
+                    );
+                },
+            );
+            request.on('error', reject);
+            request.end();
+        });
+    } finally {
+        await new Promise<void>((resolve, reject) => {
+            server.close((error) => (error ? reject(error) : resolve()));
+        });
+    }
+};
 
 const requestAuthorize = async ({
     body,
@@ -100,6 +159,48 @@ const requestAuthorize = async ({
 };
 
 describe('OAuth authorize redirects', () => {
+    it('shows the redirect origin and warning for a self-registered client', async () => {
+        const oauthService = createOAuthService();
+        vi.mocked(oauthService.getClientAuthorizationDetails).mockResolvedValue(
+            {
+                clientName: 'Self-registered client',
+                isSelfRegistered: true,
+            },
+        );
+
+        const response = await requestConsent({
+            oauthService,
+            redirectUri: 'http://localhost:3210/callback',
+        });
+
+        expect(response.status).toBe(200);
+        expect(response.body).toContain(
+            'This application is self-registered and has not been verified by your organisation.',
+        );
+        expect(response.body).toContain('http://localhost:3210');
+    });
+
+    it('does not show the self-registration warning for an organisation client', async () => {
+        const oauthService = createOAuthService();
+        vi.mocked(oauthService.getClientAuthorizationDetails).mockResolvedValue(
+            {
+                clientName: 'Organisation client',
+                isSelfRegistered: false,
+            },
+        );
+
+        const response = await requestConsent({
+            oauthService,
+            redirectUri: 'https://example.com/callback',
+        });
+
+        expect(response.status).toBe(200);
+        expect(response.body).not.toContain('self-registered');
+        expect(response.body).not.toContain(
+            'The authorization code will be sent to',
+        );
+    });
+
     it.each([
         'https://unregistered.example/callback',
         'urn:example:unregistered-callback',

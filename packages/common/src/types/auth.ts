@@ -56,6 +56,7 @@ export type OauthAuth = {
     source: string; // The oauth token
     token: string;
     clientId: string;
+    clientOrganizationUuid?: string | null;
     scopes: string[];
     expiresAt?: number;
     resource?: URL;
@@ -81,6 +82,14 @@ export type Authentication =
     | ServiceAccountAuth
     | PersonalAccessTokenAuth
     | OauthAuth;
+
+export const isSelfRegisteredOAuthAuthentication = (
+    authentication: Authentication,
+): boolean =>
+    authentication.type === 'oauth' &&
+    (authentication.clientOrganizationUuid === null ||
+        (authentication.clientOrganizationUuid === undefined &&
+            authentication.clientId.startsWith('mcp-')));
 
 export type UserAccessControls = {
     userAttributes: UserAttributeValueMap;

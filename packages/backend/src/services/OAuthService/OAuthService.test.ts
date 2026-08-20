@@ -2,7 +2,10 @@
 import { AnyType } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
 import { LightdashConfig } from '../../config/parseConfig';
-import { OAuth2Model } from '../../models/OAuth2Model';
+import {
+    OAuth2Model,
+    type LightdashOAuthClient,
+} from '../../models/OAuth2Model';
 import { UserModel } from '../../models/UserModel';
 import { OAuthService } from './OAuthService';
 
@@ -24,6 +27,7 @@ describe('OAuthService edge cases', () => {
             getSessionUserFromCacheOrDB: vi.fn(),
         } as AnyType;
         mockOAuthModel = {
+            createClient: vi.fn(),
             getAccessToken: vi.fn(),
             getClient: vi.fn(),
             revokeToken: vi.fn(),
@@ -122,10 +126,12 @@ describe('OAuthService edge cases', () => {
     });
 
     describe('validateRedirectUri', () => {
-        const client: OAuth2Server.Client = {
+        const client: LightdashOAuthClient = {
             id: 'client-id',
             redirectUris: ['https://example.com/callback'],
             grants: ['authorization_code'],
+            clientName: 'Test client',
+            organizationUuid: 'organization-uuid',
         };
 
         it('returns false when the client cannot be resolved', async () => {
@@ -156,6 +162,61 @@ describe('OAuthService edge cases', () => {
                 'https://example.com/callback',
                 client,
             );
+        });
+    });
+
+    describe('registerClient', () => {
+        const registeredClient = {
+            clientId: 'mcp-client-id',
+            clientSecret: 'client-secret',
+            clientName: 'Test client',
+            redirectUris: ['https://example.com/callback'],
+            grantTypes: ['authorization_code'],
+            scopes: [],
+            createdAt: new Date('2026-08-20T00:00:00.000Z'),
+        };
+
+        beforeEach(() => {
+            vi.mocked(mockOAuthModel.createClient).mockResolvedValue(
+                registeredClient,
+            );
+        });
+
+        it.each([
+            'https://example.com/*',
+            'http://example.com/callback',
+            ['java', 'script:alert(1)'].join(''),
+            'data:text/plain,callback',
+            'file:///tmp/callback',
+        ])('rejects the redirect URI %s', async (redirectUri) => {
+            await expect(
+                oauthService.registerClient({
+                    clientName: 'Test client',
+                    redirectUris: [redirectUri],
+                }),
+            ).rejects.toThrow('Invalid redirect URI');
+            expect(mockOAuthModel.createClient).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            'http://localhost:3210/callback',
+            'http://127.0.0.1:3210/callback',
+            'http://[::1]:3210/callback',
+            'https://example.com/callback',
+            'com.example.app:/callback',
+        ])('registers the redirect URI %s', async (redirectUri) => {
+            await expect(
+                oauthService.registerClient({
+                    clientName: 'Test client',
+                    redirectUris: [redirectUri],
+                }),
+            ).resolves.toEqual(registeredClient);
+            expect(mockOAuthModel.createClient).toHaveBeenCalledWith({
+                clientName: 'Test client',
+                redirectUris: [redirectUri],
+                grantTypes: undefined,
+                scopes: undefined,
+            });
         });
     });
 });
