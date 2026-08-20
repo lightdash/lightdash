@@ -646,7 +646,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
         const { totalResults, metadata } = resultsData;
         const performance = metadata?.performance;
 
-        const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
+        const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
         const projectUuid = useProjectUuid();
         const { canViewExplore, canViewUnderlyingData, canDrillInto } =
             useContextMenuPermissions({ minimal: false });

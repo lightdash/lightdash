@@ -8,6 +8,7 @@ import {
     isDashboardLoomTileType,
     isDashboardMarkdownTileType,
     isDashboardSqlChartTile,
+    type Dashboard,
     type DashboardFilterRule,
     type DashboardFilters,
 } from '@lightdash/common';
@@ -43,13 +44,11 @@ import {
 import { EmptyState } from '../components/common/EmptyState';
 import { getConditionalRuleLabel } from '../components/common/Filters/FilterInputs/utils';
 import MantineIcon from '../components/common/MantineIcon';
-import {
-    useDashboardQuery,
-    useDashboardVersion,
-} from '../hooks/dashboard/useDashboard';
+import { useDashboardVersion } from '../hooks/dashboard/useDashboard';
 import NoTableIcon from '../svgs/emptystate-no-table.svg?react';
 
 interface DashboardVersionComparisonProps {
+    dashboard: Dashboard | undefined;
     dashboardUuid: string | undefined;
     projectUuid: string | undefined;
     versionUuid: string | undefined;
@@ -804,23 +803,19 @@ const FiltersTable = ({ data }: { data: any[] }) => {
 };
 
 const DashboardVersionComparison = ({
+    dashboard,
     dashboardUuid,
     projectUuid,
     versionUuid,
 }: DashboardVersionComparisonProps) => {
-    const dashboardQuery = useDashboardQuery({
-        uuidOrSlug: dashboardUuid,
-        projectUuid,
-    });
-
     const versionQuery = useDashboardVersion(dashboardUuid, versionUuid);
 
     const comparison = useMemo(() => {
-        if (!dashboardQuery.data || !versionQuery.data?.dashboard) {
+        if (!dashboard || !versionQuery.data?.dashboard) {
             return null;
         }
 
-        const current = dashboardQuery.data;
+        const current = dashboard;
         const version = versionQuery.data.dashboard;
 
         // Count tiles - diff should be version - current (to show what the selected version has)
@@ -955,7 +950,7 @@ const DashboardVersionComparison = ({
                 if (!versionDiff && currentChart) {
                     currentVersionData = {
                         chartUuid: uuid,
-                        versionUuid: dashboardQuery.data?.versionUuid || '',
+                        versionUuid: dashboard.versionUuid || '',
                         createdAt: new Date(),
                         createdBy: null,
                     };
@@ -1086,7 +1081,7 @@ const DashboardVersionComparison = ({
             alignedCharts,
             tilesData,
         };
-    }, [dashboardQuery.data, versionQuery.data]);
+    }, [dashboard, versionQuery.data]);
 
     if (!versionUuid) {
         return null;
@@ -1117,9 +1112,8 @@ const DashboardVersionComparison = ({
 
     // Check if the selected version is the current version
     // The versionUuid from versionQuery.data is the selected version
-    // The versionUuid from dashboardQuery.data is the current/latest version
-    const isCurrentVersionSelected =
-        versionUuid === dashboardQuery.data?.versionUuid;
+    // The versionUuid from the loaded dashboard is the current/latest version
+    const isCurrentVersionSelected = versionUuid === dashboard?.versionUuid;
 
     if (isCurrentVersionSelected) {
         return (

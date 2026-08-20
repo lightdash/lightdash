@@ -25,9 +25,8 @@ const EditChartMenuItem: FC<Props> = ({ tile, chartSlug, ...props }) => {
 
     const { storeDashboard } = useDashboardStorage();
 
-    const { projectUuid, dashboardUuid } = useParams<{
+    const { projectUuid } = useParams<{
         projectUuid: string;
-        dashboardUuid: string;
     }>();
 
     const userCanManageExplore = user.data?.ability?.can('manage', 'Explore');
@@ -51,7 +50,7 @@ const EditChartMenuItem: FC<Props> = ({ tile, chartSlug, ...props }) => {
                     );
                 }
             }}
-            href={`/projects/${projectUuid}/saved/${chartSlug ?? tile.properties.savedChartUuid}/edit?fromDashboard=${dashboardUuid}`}
+            href={`/projects/${projectUuid}/saved/${chartSlug ?? tile.properties.savedChartUuid}/edit?fromDashboard=${dashboard?.uuid}`}
             {...props}
         >
             Edit chart

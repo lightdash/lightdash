@@ -162,7 +162,7 @@ export const useDashboardQuery = ({
  * @returns The latest dashboard or null if the dashboard is up to date
  */
 export const useDashboardVersionRefresh = (
-    dashboardUuid: string,
+    dashboardUuid: string | undefined,
     projectUuid?: string,
 ) => {
     const queryClient = useQueryClient();
@@ -173,6 +173,9 @@ export const useDashboardVersionRefresh = (
             try {
                 if (!currentDashboard) {
                     throw new Error('Current dashboard is undefined');
+                }
+                if (!dashboardUuid) {
+                    throw new Error('Dashboard UUID is undefined');
                 }
                 if (!projectUuid) {
                     throw new Error('Project UUID is undefined');
