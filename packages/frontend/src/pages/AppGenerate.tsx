@@ -1155,14 +1155,26 @@ const AppGenerate: FC = () => {
         return { appUuid: activeAppUuid, version: latestReadyVersion.version };
     }, [activeAppUuid, effectivePinnedVersion, latestReadyVersion]);
 
-    // Upgrade offer for the header menu, derived from the previewed bundle's
-    // SDK manifest. Keyed per app+version so rollbacks/deploys re-classify.
-    const { offer: sdkUpgradeOffer, onSdkManifest: handleSdkManifest } =
-        useSdkUpgradeStatus({
-            resetKey: previewApp
-                ? `${previewApp.appUuid}:${previewApp.version}`
+    // Upgrade offer for the header menu. Keyed to the latest ready bundle —
+    // the one an upgrade would rebuild from — not to whatever version the
+    // user has pinned the preview to.
+    const {
+        offer: sdkUpgradeOffer,
+        renderedManifest: renderedSdkManifest,
+        onSdkManifest: handleSdkManifest,
+    } = useSdkUpgradeStatus({
+        bundleKey:
+            activeAppUuid && latestReadyVersion !== null
+                ? `${activeAppUuid}:${latestReadyVersion.version}`
                 : null,
-        });
+        renderedKey: previewApp
+            ? `${previewApp.appUuid}:${previewApp.version}`
+            : null,
+        isRendering:
+            previewApp !== null &&
+            latestReadyVersion !== null &&
+            previewApp.version === latestReadyVersion.version,
+    });
 
     // Pin the preview to a specific version. Captures the current latest as
     // the "pinned-at" snapshot so the derived state can decide later when
@@ -3202,7 +3214,7 @@ const AppGenerate: FC = () => {
                                         lineageEnabled={lineageEnabled}
                                         lineageAvailable={lineageAvailable}
                                         lineageSupportedBySdk={
-                                            sdkUpgradeOffer.reportedFeatures?.includes(
+                                            renderedSdkManifest?.features.includes(
                                                 'lineage',
                                             ) ?? false
                                         }

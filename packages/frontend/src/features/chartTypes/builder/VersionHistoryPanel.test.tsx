@@ -1,3 +1,4 @@
+import { APP_UPGRADE_PROMPT_LABEL } from '@lightdash/common';
 import { fireEvent, screen } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -212,6 +213,30 @@ describe('VersionHistoryPanel', () => {
         );
 
         expect(screen.queryByText('Build details')).not.toBeInTheDocument();
+    });
+
+    it('shows the durable summary for a completed SDK upgrade', () => {
+        renderWithProviders(
+            <VersionHistoryPanel
+                {...defaultProps}
+                versions={[
+                    appVersion({
+                        version: 3,
+                        prompt: APP_UPGRADE_PROMPT_LABEL,
+                        statusMessage:
+                            'Upgraded to the latest chart SDK.\n\nNewly available — ask me to add this in the prompt bar:\n\n- **Metric filters** — Filter grouped results.',
+                    }),
+                    ...twoVersions,
+                ]}
+                latestReadyVersion={3}
+            />,
+        );
+
+        expect(screen.getByText('Upgrade summary')).toBeInTheDocument();
+        expect(screen.getByText('Metric filters')).toBeInTheDocument();
+        expect(
+            screen.getByText(/ask me to add this in the prompt bar/i),
+        ).toBeInTheDocument();
     });
 
     it('loads earlier versions on demand', () => {

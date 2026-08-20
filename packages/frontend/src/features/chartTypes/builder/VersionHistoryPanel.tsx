@@ -1,4 +1,5 @@
 import {
+    APP_UPGRADE_PROMPT_LABEL,
     isAppVersionInProgress,
     type ApiAppVersionSummary,
 } from '@lightdash/common';
@@ -15,6 +16,7 @@ import { IconChevronRight, IconX } from '@tabler/icons-react';
 import { format } from 'date-fns';
 import { useState, type FC } from 'react';
 import { LightdashUserAvatar } from '../../../components/Avatar';
+import { AiMarkdown } from '../../../components/common/AiMarkdown';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import AppVersionNarration from '../../apps/components/AppVersionNarration';
@@ -150,6 +152,7 @@ const VersionHistoryPanel: FC<Props> = ({
         const isCurrent = version.version === latestReadyVersion;
         const isActive = version.version === activeVersion;
         const label = `v${version.version}`;
+        const isUpgrade = version.prompt === APP_UPGRADE_PROMPT_LABEL;
 
         return (
             <Box
@@ -225,6 +228,17 @@ const VersionHistoryPanel: FC<Props> = ({
                 )}
 
                 {!isBuilding && <VersionBuildDetails version={version} />}
+
+                {isReady && isUpgrade && version.statusMessage && (
+                    <Box className={classes.upgradeSummary}>
+                        <Text fz={11} fw={600} c="blue.8" mb={4}>
+                            Upgrade summary
+                        </Text>
+                        <AiMarkdown className={classes.upgradeSummaryMarkdown}>
+                            {version.statusMessage}
+                        </AiMarkdown>
+                    </Box>
+                )}
 
                 <Box className={classes.row}>
                     <AuthorLine version={version} />

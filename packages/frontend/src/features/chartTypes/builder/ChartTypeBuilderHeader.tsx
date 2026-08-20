@@ -16,11 +16,14 @@ import {
     IconHistory,
     IconInfoCircle,
     IconPencil,
+    IconSparkles,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Link, type To } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import AppUpdateModal from '../../../components/common/modal/AppUpdateModal';
+import AppUpgradeModal from '../../apps/components/AppUpgradeModal';
+import { type SdkUpgradeOffer } from '../../apps/hooks/useSdkUpgradeStatus';
 import { getVersionAuthorName } from '../../apps/utils/versionsToChatMessages';
 import classes from './ChartTypeBuilderHeader.module.css';
 import VersionProvenance from './VersionProvenance';
@@ -41,6 +44,8 @@ type Props = {
     /** False while the visualization has no versions to look back through. */
     hasHistory: boolean;
     isHistoryOpen: boolean;
+    upgrade: (SdkUpgradeOffer & { disabled: boolean }) | null;
+    onUpgradeStarted: () => void;
     onToggleHistory: () => void;
     onPreviewInExplorer: () => void;
 };
@@ -54,10 +59,15 @@ const ChartTypeBuilderHeader: FC<Props> = ({
     hasOrigin,
     hasHistory,
     isHistoryOpen,
+    upgrade,
+    onUpgradeStarted,
     onToggleHistory,
     onPreviewInExplorer,
 }) => {
     const [isEditingDetails, setIsEditingDetails] = useState(false);
+    const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+    const upgradeAvailable =
+        upgrade?.status === 'stale' || upgrade?.status === 'legacy';
 
     return (
         <Box className={classes.header} component="header">
@@ -129,6 +139,20 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                 )}
             </Box>
             <Group gap="xs" wrap="nowrap">
+                {upgradeAvailable && (
+                    <Button
+                        size="xs"
+                        variant="light"
+                        color="blue"
+                        leftSection={
+                            <MantineIcon icon={IconSparkles} size={15} />
+                        }
+                        disabled={upgrade.disabled}
+                        onClick={() => setIsUpgradeModalOpen(true)}
+                    >
+                        Upgrade available
+                    </Button>
+                )}
                 {hasHistory && (
                     <Button
                         size="xs"
@@ -159,6 +183,17 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                     initialDescription={app.description}
                     resourceLabel="Chart Type"
                     icon={IconPencil}
+                />
+            )}
+            {app && upgrade && isUpgradeModalOpen && (
+                <AppUpgradeModal
+                    opened
+                    onClose={() => setIsUpgradeModalOpen(false)}
+                    projectUuid={projectUuid}
+                    appUuid={app.appUuid}
+                    offer={upgrade}
+                    resource="chartType"
+                    onStarted={onUpgradeStarted}
                 />
             )}
         </Box>
