@@ -1,16 +1,24 @@
+import { NotFoundError, UnexpectedGitError } from '@lightdash/common';
 import { Octokit } from '@octokit/rest';
-import { getRepoTree, isGithubRateLimitError, searchRepoCode } from './Github';
+import {
+    getLastCommit,
+    getRepoTree,
+    isGithubRateLimitError,
+    searchRepoCode,
+} from './Github';
 
 vi.mock('@octokit/rest');
 
 const mockGetTree = vi.fn();
 const mockSearchCode = vi.fn();
+const mockListCommits = vi.fn();
 (Octokit as unknown as import('vitest').Mock).mockImplementation(
     // eslint-disable-next-line prefer-arrow-callback
     function MockOctokit() {
         return {
             rest: {
                 git: { getTree: mockGetTree },
+                repos: { listCommits: mockListCommits },
                 search: { code: mockSearchCode },
             },
             hook: { after: vi.fn(), error: vi.fn() },
@@ -178,5 +186,61 @@ describe('searchRepoCode', () => {
                 fragments: ['match in models/orders.sql'],
             },
         ]);
+    });
+});
+
+describe('getLastCommit', () => {
+    beforeEach(() => {
+        mockListCommits.mockReset();
+    });
+
+    const args = {
+        owner: 'acme',
+        repo: 'jaffle',
+        branch: 'feature/old-branch',
+        token: 't',
+    };
+
+    it('returns the head commit of the branch', async () => {
+        mockListCommits.mockResolvedValue({ data: [{ sha: 'abc123' }] });
+
+        await expect(getLastCommit(args)).resolves.toEqual({ sha: 'abc123' });
+        expect(mockListCommits).toHaveBeenCalledWith(
+            expect.objectContaining({
+                owner: 'acme',
+                repo: 'jaffle',
+                sha: 'feature/old-branch',
+            }),
+        );
+    });
+
+    it('maps a GitHub 404 to a NotFoundError that names the branch and repo', async () => {
+        mockListCommits.mockRejectedValue(
+            octokitError(
+                404,
+                {},
+                'Not Found - https://docs.github.com/rest/commits/commits#list-commits',
+            ),
+        );
+
+        const promise = getLastCommit(args);
+        await expect(promise).rejects.toBeInstanceOf(NotFoundError);
+        await expect(promise).rejects.toThrow(
+            'Branch "feature/old-branch" not found in acme/jaffle',
+        );
+    });
+
+    it('reports a branch with no commits as NotFoundError', async () => {
+        mockListCommits.mockResolvedValue({ data: [] });
+
+        await expect(getLastCommit(args)).rejects.toBeInstanceOf(NotFoundError);
+    });
+
+    it('wraps other GitHub failures in UnexpectedGitError', async () => {
+        mockListCommits.mockRejectedValue(octokitError(502, {}, 'Bad gateway'));
+
+        const promise = getLastCommit(args);
+        await expect(promise).rejects.toBeInstanceOf(UnexpectedGitError);
+        await expect(promise).rejects.toThrow('Bad gateway');
     });
 });

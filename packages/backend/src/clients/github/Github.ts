@@ -249,32 +249,6 @@ export const getOrRefreshToken = async (
     };
 };
 
-export const getLastCommit = async ({
-    owner,
-    repo,
-    branch,
-    installationId,
-    token,
-}: {
-    owner: string;
-    repo: string;
-    branch: string;
-    installationId?: string;
-    token?: string;
-}) => {
-    const { octokit, headers } = getOctokit(installationId, token);
-    // GitHub API uses `sha` param to filter by branch
-    // @see https://docs.github.com/en/rest/commits/commits#list-commits
-    const response = await octokit.rest.repos.listCommits({
-        owner,
-        repo,
-        sha: branch,
-        headers,
-    });
-
-    return response.data[0];
-};
-
 /**
  * True when a thrown octokit error is a rate-limit response. GitHub signals it
  * two ways: a primary limit (403 with `x-ratelimit-remaining: 0`) and a
@@ -322,6 +296,54 @@ const logGithubRateLimit = (error: unknown, context: string): void => {
             reset: responseHeaders['x-ratelimit-reset'],
         },
     );
+};
+
+export const getLastCommit = async ({
+    owner,
+    repo,
+    branch,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    branch: string;
+    installationId?: string;
+    token?: string;
+}) => {
+    const { octokit, headers } = getOctokit(installationId, token);
+    try {
+        // GitHub API uses `sha` param to filter by branch
+        // @see https://docs.github.com/en/rest/commits/commits#list-commits
+        const response = await octokit.rest.repos.listCommits({
+            owner,
+            repo,
+            sha: branch,
+            headers,
+        });
+        const [lastCommit] = response.data;
+        if (!lastCommit) {
+            throw new NotFoundError(
+                `No commits found on branch "${branch}" in ${owner}/${repo}`,
+            );
+        }
+        return lastCommit;
+    } catch (error) {
+        if (error instanceof LightdashError) {
+            throw error;
+        }
+        if (
+            error instanceof Error &&
+            `status` in error &&
+            error.status === 404
+        ) {
+            throw new NotFoundError(
+                `Branch "${branch}" not found in ${owner}/${repo}. It may have been deleted or renamed, or the GitHub integration may not have access to this repository.`,
+            );
+        }
+        logGithubRateLimit(error, `listCommits ${owner}/${repo}@${branch}`);
+        throw new UnexpectedGitError(getErrorMessage(error));
+    }
 };
 
 export const getFileContent = async ({
