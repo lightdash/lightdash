@@ -7,7 +7,12 @@ import {
     type VizTableConfig,
 } from '@lightdash/common';
 import { ActionIcon, Center, Loader, Menu, Paper, Stack } from '@mantine/core';
-import { IconDeviceFloppy, IconDots, IconTerminal2 } from '@tabler/icons-react';
+import {
+    IconDeviceFloppy,
+    IconDots,
+    IconDownload,
+    IconTerminal2,
+} from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -18,6 +23,7 @@ import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults'
 import useCreateInAnySpaceAccess from '../../../../../hooks/user/useCreateInAnySpaceAccess';
 import useApp from '../../../../../providers/App/useApp';
 import { useUpdateArtifactVersionSavedSql } from '../../hooks/useProjectAiAgents';
+import { AiSqlArtifactDownloadModal } from './AiSqlArtifactDownloadModal';
 
 const unwrapRows = (rows: ResultRow[]): RawResultRow[] =>
     rows.map((row) =>
@@ -63,6 +69,8 @@ type ActionsProps = {
     savedSqlUuid: string | null;
     sql: string;
     limit: number;
+    queryUuid: string;
+    totalResults: number;
     title: string;
     description: string | null;
     columns: ResultColumn[];
@@ -76,12 +84,15 @@ export const AiSqlArtifactActions: FC<ActionsProps> = ({
     savedSqlUuid,
     sql,
     limit,
+    queryUuid,
+    totalResults,
     title,
     description,
     columns,
 }) => {
     const { user } = useApp();
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+    const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
     const { mutateAsync: linkSavedSql } = useUpdateArtifactVersionSavedSql(
         projectUuid,
         agentUuid,
@@ -117,6 +128,12 @@ export const AiSqlArtifactActions: FC<ActionsProps> = ({
                 <Menu.Dropdown>
                     <Menu.Label>Quick actions</Menu.Label>
                     <Menu.Item
+                        onClick={() => setIsDownloadModalOpen(true)}
+                        leftSection={<MantineIcon icon={IconDownload} />}
+                    >
+                        Download results
+                    </Menu.Item>
+                    <Menu.Item
                         component={Link}
                         to={{
                             pathname: `/projects/${projectUuid}/sql-runner`,
@@ -135,6 +152,16 @@ export const AiSqlArtifactActions: FC<ActionsProps> = ({
                     </Menu.Item>
                 </Menu.Dropdown>
             </Menu>
+            <AiSqlArtifactDownloadModal
+                opened={isDownloadModalOpen}
+                onClose={() => setIsDownloadModalOpen(false)}
+                projectUuid={projectUuid}
+                queryUuid={queryUuid}
+                sql={sql}
+                chartName={title}
+                totalResults={totalResults}
+                columnOrder={columns.map((column) => column.reference)}
+            />
             <SaveSqlChartModalContent
                 key={`${isSaveModalOpen}-saveSqlArtifact`}
                 opened={isSaveModalOpen}

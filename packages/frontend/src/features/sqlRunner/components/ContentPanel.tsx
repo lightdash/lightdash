@@ -4,7 +4,6 @@ import {
     getParameterReferences,
     isVizBigNumberConfig,
     isVizTableConfig,
-    MAX_SAFE_INTEGER,
     type VizTableConfig,
     type VizTableHeaderSortConfig,
     formatSql,
@@ -60,7 +59,6 @@ import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
 import useApp from '../../../providers/App/useApp';
 import { Parameters, useParameters } from '../../parameters';
-import { executeSqlQuery } from '../../queryRunner/executeQuery';
 import { DEFAULT_SQL_LIMIT } from '../constants';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
@@ -85,6 +83,7 @@ import {
     updateParameterValue,
 } from '../store/sqlRunnerSlice';
 import { prepareAndFetchChartData, runSqlQuery } from '../store/thunks';
+import { executeSqlDownloadQuery } from '../utils/executeSqlDownloadQuery';
 import { ChartDownload } from './Download/ChartDownload';
 import ResultsDownloadButton from './Download/ResultsDownloadButton';
 import styles from './ResizeHandle.module.css';
@@ -411,16 +410,12 @@ export const ContentPanel: FC = () => {
             // 2. limit is different from current query
             // 3. there is no fallback query uuid (in theory, never happens)
             if (!queryUuid || limit === null || limit !== downloadLimit) {
-                const newQuery = await executeSqlQuery(
+                return executeSqlDownloadQuery({
                     projectUuid,
                     sql,
-                    downloadLimit === null
-                        ? MAX_SAFE_INTEGER
-                        : (downloadLimit ?? limit),
+                    limit: downloadLimit,
                     parameterValues,
-                    true,
-                );
-                return newQuery.queryUuid;
+                });
             }
             return queryUuid;
         },

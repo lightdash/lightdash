@@ -166,6 +166,11 @@ export const AiChartVisualization: FC<Props> = ({
                         savedSqlUuid={artifactData.savedSqlUuid}
                         sql={sqlVizQueryData.sql}
                         limit={sqlVizQueryData.limit}
+                        queryUuid={sqlVizQueryData.query.queryUuid}
+                        totalResults={
+                            queryResults.totalResults ??
+                            queryResults.rows.length
+                        }
                         title={sqlVizQueryData.metadata.title ?? 'SQL results'}
                         description={sqlVizQueryData.metadata.description}
                         columns={Object.values(queryResults.columns ?? {})}
