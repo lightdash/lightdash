@@ -46,8 +46,20 @@ export interface MigrationDetail {
     heaviness: MigrationHeaviness;
 }
 
+export type MigrationOperation =
+    | 'create-index-concurrently'
+    | 'create-unique-index-concurrently'
+    | 'drop-index-concurrently-if-exists'
+    | 'set-statement-timeout'
+    | 'reset-statement-timeout'
+    | 'set-lock-timeout'
+    | 'reset-lock-timeout'
+    | 'select-invalid-index'
+    | 'unknown';
+
 export interface MigrationSourceAnalysis {
     migration: MigrationDetail;
+    operations: MigrationOperation[];
     complete: boolean;
     incompleteReasons: MigrationIncompleteReason[];
 }
@@ -65,6 +77,7 @@ export interface ReadMigrationMetadataOptions {
 
 export interface MigrationMetadata {
     migrations: MigrationDetail[];
+    operations: MigrationOperation[];
     complete: boolean;
 }
 
@@ -598,7 +611,59 @@ const rawSqlTables = (sql: string): string[] => {
 const SQL_COMMENTS = /--[^\n]*|\/\*[\s\S]*?\*\//g;
 
 const sqlStatements = (sql: string): string[] =>
-    sql.replace(SQL_COMMENTS, ' ').split(';');
+    sql
+        .replace(SQL_COMMENTS, ' ')
+        .split(';')
+        .map((statement) => statement.trim())
+        .filter(Boolean);
+
+const classifySqlStatement = (statement: string): MigrationOperation => {
+    const normalized = statement.replace(/\s+/g, ' ').trim();
+    if (
+        /^create index concurrently(?: if not exists)?\s+(?:\?\?|(?:["`]?[a-z_][\w$]*["`]?\.)?["`]?[a-z_][\w$]*["`]?)\s+on\s+(?:\?\?|(?:["`]?[a-z_][\w$]*["`]?\.)?["`]?[a-z_][\w$]*["`]?)\s*\(.+\)(?:\s+where\s+.+)?$/i.test(
+            normalized,
+        )
+    ) {
+        return 'create-index-concurrently';
+    }
+    if (/^create unique index concurrently\b/i.test(normalized)) {
+        return 'create-unique-index-concurrently';
+    }
+    if (
+        /^drop index concurrently if exists\s+(?:\?\?|(?:["`]?[a-z_][\w$]*["`]?\.)?["`]?[a-z_][\w$]*["`]?)$/i.test(
+            normalized,
+        )
+    ) {
+        return 'drop-index-concurrently-if-exists';
+    }
+    const setTimeout = normalized.match(
+        /^set(?: local| session)? (statement_timeout|lock_timeout)\s*(?:=|to)\s*(?:default|0|\d+(?:\.\d+)?|['"][^'"]+['"])$/i,
+    );
+    if (setTimeout) {
+        return setTimeout[1].toLowerCase() === 'statement_timeout'
+            ? 'set-statement-timeout'
+            : 'set-lock-timeout';
+    }
+    const resetTimeout = normalized.match(
+        /^reset (statement_timeout|lock_timeout)$/i,
+    );
+    if (resetTimeout) {
+        return resetTimeout[1].toLowerCase() === 'statement_timeout'
+            ? 'reset-statement-timeout'
+            : 'reset-lock-timeout';
+    }
+    if (
+        /^select 1 from pg_class join pg_index on pg_index\.indexrelid = pg_class\.oid where pg_class\.relname = \? and pg_index\.indrelid = \?::regclass and not pg_index\.indisvalid$/i.test(
+            normalized,
+        ) ||
+        /^select 1 from pg_index i join pg_class c on c\.oid = i\.indexrelid where c\.relname = (?:\?|['"][^'"]+['"]) and not i\.indisvalid$/i.test(
+            normalized,
+        )
+    ) {
+        return 'select-invalid-index';
+    }
+    return 'unknown';
+};
 
 const addsValidatedConstraint = (statement: string): boolean =>
     /\badd\s+constraint\b/i.test(statement) &&
@@ -619,6 +684,7 @@ export function analyzeMigrationSource(
         'number',
     ]);
     const tables = new Set<string>();
+    const operations = new Set<MigrationOperation>();
     const heaviness: MigrationHeaviness = {
         locksTable: false,
         rewritesTable: false,
@@ -653,17 +719,52 @@ export function analyzeMigrationSource(
 
     if (body === null) {
         Object.assign(heaviness, UNKNOWN_HEAVINESS);
+        operations.add('unknown');
     } else {
         for (let index = 0; index < body.length; index += 1) {
             const token = body[index];
             const previous = body[index - 1];
             const next = body[index + 1];
-            const argument = body[index + 2];
+            const rawCallBoundaryIndex =
+                token.kind === 'identifier' &&
+                token.value === 'raw' &&
+                previous?.kind === 'punctuation' &&
+                previous.value === '.' &&
+                ((next?.kind === 'punctuation' && next.value === '(') ||
+                    (next?.kind === 'operator' && next.value === '<'))
+                    ? body.findIndex(
+                          (candidate, candidateIndex) =>
+                              candidateIndex > index &&
+                              candidate.depth === token.depth &&
+                              candidate.kind === 'punctuation' &&
+                              ['(', ';', ','].includes(candidate.value),
+                      )
+                    : -1;
+            const rawCallOpeningIndex =
+                rawCallBoundaryIndex >= 0 &&
+                body[rawCallBoundaryIndex].value === '('
+                    ? rawCallBoundaryIndex
+                    : -1;
             const isMethod =
                 previous?.kind === 'punctuation' &&
                 previous.value === '.' &&
-                next?.kind === 'punctuation' &&
-                next.value === '(';
+                ((next?.kind === 'punctuation' && next.value === '(') ||
+                    rawCallOpeningIndex >= 0);
+            const argumentIndex =
+                token.kind === 'identifier' && token.value === 'raw'
+                    ? rawCallOpeningIndex + 1
+                    : index + 2;
+            const argument = body[argumentIndex];
+
+            if (
+                token.kind === 'identifier' &&
+                token.value === 'raw' &&
+                previous?.kind === 'punctuation' &&
+                previous.value === '.' &&
+                rawCallOpeningIndex < 0
+            ) {
+                operations.add('unknown');
+            }
 
             if (
                 token.kind === 'identifier' &&
@@ -672,6 +773,18 @@ export function analyzeMigrationSource(
                 next.value === '('
             ) {
                 addTable(argument);
+                operations.add('unknown');
+            } else if (
+                token.kind === 'identifier' &&
+                ['knex', 'trx'].includes(token.value) &&
+                !(
+                    next?.kind === 'punctuation' &&
+                    next.value === '.' &&
+                    body[index + 2]?.kind === 'identifier' &&
+                    body[index + 2]?.value === 'raw'
+                )
+            ) {
+                operations.add('unknown');
             }
 
             if (!isMethod || token.kind !== 'identifier') continue;
@@ -749,12 +862,13 @@ export function analyzeMigrationSource(
                 // The argument is only the whole argument when the call ends
                 // or a second one follows; anything else builds it at runtime.
                 const argumentEnds = [')', ','].includes(
-                    body[index + 3]?.value ?? '',
+                    body[argumentIndex + 1]?.value ?? '',
                 );
                 const sql = argumentEnds
                     ? resolveSqlArgument(argument, sqlConstants)
                     : null;
                 if (sql === null) {
+                    operations.add('unknown');
                     markUnknown(
                         'parse-failure',
                         'locksTable',
@@ -762,6 +876,11 @@ export function analyzeMigrationSource(
                         'scansTable',
                     );
                     continue;
+                }
+                const statements = sqlStatements(sql);
+                if (statements.length === 0) operations.add('unknown');
+                for (const statement of statements) {
+                    operations.add(classifySqlStatement(statement));
                 }
                 for (const table of rawSqlTables(sql)) tables.add(table);
                 if (/\b(?:alter|drop|rename|truncate)\s+table\b/i.test(sql)) {
@@ -799,6 +918,7 @@ export function analyzeMigrationSource(
     if (!tokenized.valid) {
         complete = false;
         incompleteReasons.add('parse-failure');
+        operations.add('unknown');
         for (const key of Object.keys(heaviness) as HeavinessKey[]) {
             if (heaviness[key] !== true) heaviness[key] = 'unknown';
         }
@@ -811,6 +931,7 @@ export function analyzeMigrationSource(
             tables: [...tables].sort(),
             heaviness,
         },
+        operations: [...operations].sort(),
         complete,
         incompleteReasons: [...incompleteReasons],
     };
@@ -828,6 +949,7 @@ export function readMigrationMetadata(
 ): MigrationMetadata {
     const log = options.log ?? (() => undefined);
     const migrations: MigrationDetail[] = [];
+    const operations = new Set<MigrationOperation>();
     let complete = true;
 
     for (const migrationPath of [...options.paths].sort()) {
@@ -846,12 +968,14 @@ export function readMigrationMetadata(
             const message = error instanceof Error ? error.message : String(error);
             log(`could not read ${options.ref}:${migrationPath}: ${message}`);
             migrations.push(unreadableMigration(migrationPath));
+            operations.add('unknown');
             complete = false;
             continue;
         }
 
         const analysis = analyzeMigrationSource(migrationPath, source);
         migrations.push(analysis.migration);
+        for (const operation of analysis.operations) operations.add(operation);
         const classification = parseChangeDeclarations(
             source,
             migrationPath,
@@ -862,5 +986,5 @@ export function readMigrationMetadata(
         }
     }
 
-    return { migrations, complete };
+    return { migrations, operations: [...operations].sort(), complete };
 }
