@@ -11,10 +11,12 @@ import {
     getUserAbilityBuilder,
     InviteLinkPurpose,
     LightdashUser,
+    LocalIssuerTypes,
     NotFoundError,
     OpenIdIdentityIssuerType,
     OrganizationMemberProfile,
     OrganizationMemberRole,
+    OrganizationSsoProvider,
     ParameterError,
     PasswordResetLink,
     PossibleAbilities,
@@ -179,8 +181,12 @@ const projectModel = {
 };
 
 const organizationSsoModel = {
-    findEnabledMethodsForEmailDomain: vi.fn(async () => []),
-    findGoogleMethodsForEmailDomain: vi.fn(async () => []),
+    findEnabledMethodsForEmailDomain: vi.fn<
+        OrganizationSsoModel['findEnabledMethodsForEmailDomain']
+    >(async () => []),
+    findGoogleMethodsForEmailDomain: vi.fn<
+        OrganizationSsoModel['findGoogleMethodsForEmailDomain']
+    >(async () => []),
 };
 
 const organizationSettingsModel = {
@@ -2664,6 +2670,275 @@ describe('UserService', () => {
         });
     });
 
+    describe('per-organization password policy enforcement', () => {
+        type MatchingMethod = Awaited<
+            ReturnType<OrganizationSsoModel['findEnabledMethodsForEmailDomain']>
+        >[number];
+        type UserOrganization = Awaited<
+            ReturnType<UserModel['getOrganizationsForUser']>
+        >[number];
+
+        const createMatchingMethod = (
+            organizationUuid: string,
+            allowPassword: boolean,
+        ): MatchingMethod => ({
+            organizationUuid,
+            provider: OrganizationSsoProvider.AZUREAD,
+            config: {
+                oauth2ClientId: 'client-id',
+                oauth2ClientSecret: 'client-secret',
+                oauth2TenantId: 'tenant-id',
+            },
+            enabled: true,
+            overrideEmailDomains: false,
+            emailDomains: [],
+            allowPassword,
+        });
+        const createUserOrganization = (
+            organizationUuid: string,
+        ): UserOrganization => ({
+            organizationUuid,
+            organizationName: organizationUuid,
+            organizationCreatedAt: new Date('2026-01-01T00:00:00.000Z'),
+        });
+
+        test('refuses email and email OTP when every matching member organization requires SSO', async () => {
+            const method = createMatchingMethod('organization-1', false);
+            const organization = createUserOrganization('organization-1');
+            vi.mocked(organizationSsoModel.findEnabledMethodsForEmailDomain)
+                .mockResolvedValueOnce([method])
+                .mockResolvedValueOnce([method]);
+            vi.mocked(userModel.findUserByEmail)
+                .mockResolvedValueOnce(sessionUser)
+                .mockResolvedValueOnce(sessionUser);
+            vi.mocked(userModel.getOrganizationsForUser)
+                .mockResolvedValueOnce([organization])
+                .mockResolvedValueOnce([organization]);
+
+            await expect(
+                userService.isLoginMethodAllowed(
+                    'user@example.com',
+                    LocalIssuerTypes.EMAIL,
+                ),
+            ).resolves.toBe(false);
+            await expect(
+                userService.isLoginMethodAllowed(
+                    'user@example.com',
+                    LocalIssuerTypes.EMAIL_OTP,
+                ),
+            ).resolves.toBe(false);
+        });
+
+        test('surfaces the organization SSO message from password login', async () => {
+            const method = createMatchingMethod('organization-1', false);
+            vi.mocked(
+                organizationSsoModel.findEnabledMethodsForEmailDomain,
+            ).mockResolvedValueOnce([method]);
+            vi.mocked(userModel.findUserByEmail).mockResolvedValueOnce(
+                sessionUser,
+            );
+            vi.mocked(userModel.getOrganizationsForUser).mockResolvedValueOnce([
+                createUserOrganization('organization-1'),
+            ]);
+
+            await expect(
+                userService.loginWithPassword('user@example.com', 'password'),
+            ).rejects.toThrow(
+                new ForbiddenError('Your organisation requires SSO sign-in'),
+            );
+        });
+
+        test('surfaces the organization SSO message from email OTP login using one policy result', async () => {
+            const method = createMatchingMethod('organization-1', false);
+            vi.mocked(
+                organizationSsoModel.findEnabledMethodsForEmailDomain,
+            ).mockResolvedValueOnce([method]);
+            vi.mocked(userModel.findUserByEmail)
+                .mockResolvedValueOnce(sessionUser)
+                .mockResolvedValueOnce(sessionUser);
+            vi.mocked(userModel.getOrganizationsForUser).mockResolvedValueOnce([
+                createUserOrganization('organization-1'),
+            ]);
+
+            await expect(
+                userService.loginWithEmailOtp('user@example.com', '123456'),
+            ).rejects.toThrow(
+                new ForbiddenError('Your organisation requires SSO sign-in'),
+            );
+            expect(
+                organizationSsoModel.findEnabledMethodsForEmailDomain,
+            ).toHaveBeenCalledTimes(1);
+        });
+
+        test('surfaces the organization SSO message from password recovery', async () => {
+            const method = createMatchingMethod('organization-1', false);
+            vi.mocked(
+                organizationSsoModel.findEnabledMethodsForEmailDomain,
+            ).mockResolvedValueOnce([method]);
+            vi.mocked(userModel.findUserByEmail)
+                .mockResolvedValueOnce(sessionUser)
+                .mockResolvedValueOnce(sessionUser);
+            vi.mocked(userModel.getOrganizationsForUser).mockResolvedValueOnce([
+                createUserOrganization('organization-1'),
+            ]);
+
+            await expect(
+                userService.recoverPassword({ email: 'user@example.com' }),
+            ).rejects.toThrow(
+                new ForbiddenError('Your organisation requires SSO sign-in'),
+            );
+        });
+
+        test('keeps password recovery as a no-op when no account exists', async () => {
+            vi.mocked(userModel.findUserByEmail).mockResolvedValueOnce(
+                undefined,
+            );
+
+            await expect(
+                userService.recoverPassword({ email: 'new@example.com' }),
+            ).resolves.toBeUndefined();
+            expect(
+                organizationSsoModel.findEnabledMethodsForEmailDomain,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('allows email and email OTP when the matching method allows password', async () => {
+            const method = createMatchingMethod('organization-1', true);
+            const organization = createUserOrganization('organization-1');
+            vi.mocked(organizationSsoModel.findEnabledMethodsForEmailDomain)
+                .mockResolvedValueOnce([method])
+                .mockResolvedValueOnce([method]);
+            vi.mocked(userModel.findUserByEmail)
+                .mockResolvedValueOnce(sessionUser)
+                .mockResolvedValueOnce(sessionUser);
+            vi.mocked(userModel.getOrganizationsForUser)
+                .mockResolvedValueOnce([organization])
+                .mockResolvedValueOnce([organization]);
+
+            await expect(
+                userService.isLoginMethodAllowed(
+                    'user@example.com',
+                    LocalIssuerTypes.EMAIL,
+                ),
+            ).resolves.toBe(true);
+            await expect(
+                userService.isLoginMethodAllowed(
+                    'user@example.com',
+                    LocalIssuerTypes.EMAIL_OTP,
+                ),
+            ).resolves.toBe(true);
+        });
+
+        test('allows password when one of two matching member organizations allows it', async () => {
+            const firstOrganization = createUserOrganization('organization-1');
+            const secondOrganization = createUserOrganization('organization-2');
+            vi.mocked(
+                organizationSsoModel.findEnabledMethodsForEmailDomain,
+            ).mockResolvedValueOnce([
+                createMatchingMethod('organization-1', false),
+                createMatchingMethod('organization-2', true),
+            ]);
+            vi.mocked(userModel.findUserByEmail).mockResolvedValueOnce(
+                sessionUser,
+            );
+            vi.mocked(userModel.getOrganizationsForUser).mockResolvedValueOnce([
+                firstOrganization,
+                secondOrganization,
+            ]);
+
+            await expect(
+                userService.isLoginMethodAllowed(
+                    'user@example.com',
+                    LocalIssuerTypes.EMAIL,
+                ),
+            ).resolves.toBe(true);
+        });
+
+        test('allows email when an SSO-only domain match belongs to another organization', async () => {
+            vi.mocked(
+                organizationSsoModel.findEnabledMethodsForEmailDomain,
+            ).mockResolvedValueOnce([
+                createMatchingMethod('other-organization', false),
+            ]);
+            vi.mocked(userModel.findUserByEmail).mockResolvedValueOnce(
+                sessionUser,
+            );
+            vi.mocked(userModel.getOrganizationsForUser).mockResolvedValueOnce([
+                createUserOrganization('member-organization'),
+            ]);
+
+            await expect(
+                userService.isLoginMethodAllowed(
+                    'user@example.com',
+                    LocalIssuerTypes.EMAIL,
+                ),
+            ).resolves.toBe(true);
+        });
+
+        test('keeps matching SSO signup available for a brand-new user', async () => {
+            vi.mocked(
+                organizationSsoModel.findEnabledMethodsForEmailDomain,
+            ).mockResolvedValueOnce([
+                createMatchingMethod('organization-1', false),
+            ]);
+            vi.mocked(userModel.findUserByEmail).mockResolvedValueOnce(
+                undefined,
+            );
+            vi.mocked(userModel.hasPasswordByEmail).mockResolvedValueOnce(
+                false,
+            );
+            const service = createUserService({
+                ...lightdashConfigMock,
+                auth: {
+                    ...lightdashConfigMock.auth,
+                    azuread: {
+                        ...lightdashConfigMock.auth.azuread,
+                        loginPath: '/login/azuread',
+                    },
+                },
+            });
+
+            await expect(
+                service.getLoginOptions('new@example.com'),
+            ).resolves.toEqual({
+                forceRedirect: true,
+                redirectUri:
+                    'https://test.lightdash.cloud/api/v1/login/azuread?login_hint=new%40example.com',
+                showOptions: [OpenIdIdentityIssuerType.AZUREAD],
+            });
+        });
+
+        test('keeps instance-level password disablement enforced with its generic message', async () => {
+            const service = createUserService({
+                ...lightdashConfigMock,
+                auth: {
+                    ...lightdashConfigMock.auth,
+                    disablePasswordAuthentication: true,
+                },
+            });
+
+            await expect(
+                service.loginWithPassword('user@example.com', 'password'),
+            ).rejects.toThrow(
+                new ForbiddenError('Password credentials are not allowed'),
+            );
+            vi.mocked(userModel.findUserByEmail).mockResolvedValueOnce(
+                sessionUser,
+            );
+            await expect(
+                service.recoverPassword({ email: 'user@example.com' }),
+            ).rejects.toThrow(
+                new ForbiddenError('Password credentials are not allowed'),
+            );
+            await expect(
+                service.isLoginMethodAllowed(
+                    'user@example.com',
+                    LocalIssuerTypes.EMAIL_OTP,
+                ),
+            ).resolves.toBe(false);
+        });
+    });
+
     describe('isLoginMethodAllowed Google per-org opt-out', () => {
         test('allows Google when the domain has no per-org policy', async () => {
             (
@@ -3150,11 +3425,8 @@ describe('UserService', () => {
                 personalAccessTokenModel: {} as PersonalAccessTokenModel,
                 organizationAllowedEmailDomainsModel:
                     {} as OrganizationAllowedEmailDomainsModel,
-                organizationSsoModel: {
-                    findOrganizationUuidByProviderAndEmailDomain: vi.fn(
-                        async () => undefined,
-                    ),
-                } as unknown as OrganizationSsoModel,
+                organizationSsoModel:
+                    organizationSsoModel as unknown as OrganizationSsoModel,
                 organizationSettingsModel: {
                     get: vi.fn(async () => ({
                         oidcLinkingEnabled: null,
@@ -3231,11 +3503,8 @@ describe('UserService', () => {
                 personalAccessTokenModel: {} as PersonalAccessTokenModel,
                 organizationAllowedEmailDomainsModel:
                     {} as OrganizationAllowedEmailDomainsModel,
-                organizationSsoModel: {
-                    findOrganizationUuidByProviderAndEmailDomain: vi.fn(
-                        async () => undefined,
-                    ),
-                } as unknown as OrganizationSsoModel,
+                organizationSsoModel:
+                    organizationSsoModel as unknown as OrganizationSsoModel,
                 organizationSettingsModel: {
                     get: vi.fn(async () => ({
                         oidcLinkingEnabled: null,
