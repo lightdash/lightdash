@@ -4,6 +4,11 @@ import {
     type QuerySourceDefinition,
     type QuerySourceType,
 } from '@lightdash/common';
+import type { AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
+import type { ProjectService } from '../ProjectService/ProjectService';
+import { DuckdbQuerySource } from './sources/DuckdbQuerySource';
+import { SemanticLayerQuerySource } from './sources/SemanticLayerQuerySource';
+import { SqlQuerySource } from './sources/SqlQuerySource';
 import type { QuerySourceClient } from './types';
 
 /**
@@ -14,6 +19,34 @@ import type { QuerySourceClient } from './types';
 export class QuerySourceRegistry {
     private readonly sources: Map<QuerySourceType, QuerySourceClient> =
         new Map();
+
+    /**
+     * A registry with the built-in sources registered. Extension points
+     * (enterprise edition) call this and register their sources on top.
+     */
+    static withBuiltInSources({
+        asyncQueryService,
+        projectService,
+    }: {
+        asyncQueryService: AsyncQueryService;
+        projectService: ProjectService;
+    }): QuerySourceRegistry {
+        const registry = new QuerySourceRegistry();
+        registry.register(
+            new SemanticLayerQuerySource({
+                asyncQueryService,
+                projectService,
+            }),
+        );
+        registry.register(
+            new SqlQuerySource({
+                asyncQueryService,
+                projectService,
+            }),
+        );
+        registry.register(new DuckdbQuerySource({ asyncQueryService }));
+        return registry;
+    }
 
     register(source: QuerySourceClient): void {
         const { sourceType } = source.definition;

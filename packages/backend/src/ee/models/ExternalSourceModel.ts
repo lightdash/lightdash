@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
 import { Knex } from 'knex';
+import { validate as validateUuid } from 'uuid';
 import {
     ExternalSourceCredentialsTableName,
     ExternalSourceIngestAttemptsTableName,
@@ -863,7 +864,14 @@ export class ExternalSourceModel {
             .first();
     }
 
-    async findTableForQuery(projectUuid: string, tableUuid: string) {
+    /**
+     * Table names cannot contain hyphens, so a uuid-shaped reference is
+     * always a uuid and the two lookups never shadow each other.
+     */
+    async findTableByUuidOrName(
+        projectUuid: string,
+        tableUuidOrName: string,
+    ) {
         const row = await this.database(ExternalSourceTablesTableName)
             .innerJoin(
                 ExternalSourcesTableName,
@@ -877,14 +885,26 @@ export class ExternalSourceModel {
             .where(`${ExternalSourceTablesTableName}.project_uuid`, projectUuid)
             .andWhere(`${ExternalSourcesTableName}.project_uuid`, projectUuid)
             .andWhere(
-                `${ExternalSourceTablesTableName}.external_source_table_uuid`,
-                tableUuid,
+                validateUuid(tableUuidOrName)
+                    ? `${ExternalSourceTablesTableName}.external_source_table_uuid`
+                    : `${ExternalSourceTablesTableName}.name`,
+                tableUuidOrName,
             )
             .first();
         return row as
             | (DbExternalSourceTable & {
                   external_source_status: ExternalSourceStatus;
               })
-            | undefined;
+              | undefined;
+    }
+
+    async listReadyTables(
+        projectUuid: string,
+    ): Promise<DbExternalSourceTable[]> {
+        return this.database(ExternalSourceTablesTableName)
+            .where('project_uuid', projectUuid)
+            .whereNotNull('locator')
+            .whereNotNull('columns')
+            .orderBy('name');
     }
 }

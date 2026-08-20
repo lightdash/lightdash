@@ -34,6 +34,13 @@ export enum QuerySourceType {
      * step of a multi-source pipeline.
      */
     DUCKDB = 'duckdb',
+    /**
+     * DuckDB SQL over a project's external source tables (uploaded CSVs,
+     * connected Google Sheets). Tables are durable ingested files, not query
+     * results, so external queries have no upstream dependencies; join them
+     * with other results via a duckdb query. Enterprise only.
+     */
+    EXTERNAL = 'external',
 }
 
 /**
@@ -139,6 +146,33 @@ export type DuckdbSourceQuery = {
 };
 
 /**
+ * A reference to an external source table: the table's sql name or its
+ * external_source_table_uuid. Names never look like uuids (they cannot
+ * contain hyphens), so the two forms are unambiguous.
+ * @pattern ^[a-zA-Z0-9_][a-zA-Z0-9_-]{0,63}$
+ */
+export type ExternalSourceTableReference = string;
+
+/**
+ * A DuckDB SQL query over a project's external source tables. Tables expose
+ * ingested files as named tables the SQL can select from; a table's column
+ * names are its ingested columns (normalized CSV headers), not explore field
+ * ids. Shorthand array: table names, each exposed as a table of the same
+ * name — ["monthly_targets"] lets the SQL run SELECT * FROM monthly_targets.
+ * Map form for aliasing or uuid references: {tableName: tableNameOrUuid}.
+ */
+export type ExternalSourceQuery = {
+    sourceType: QuerySourceType.EXTERNAL;
+    /** Names this query so other queries in the same submission can reference its results. */
+    nodeId?: QueryNodeId;
+    sql: string;
+    limit?: number;
+    tables:
+        | ExternalSourceTableReference[]
+        | Record<QuerySourceTableName, ExternalSourceTableReference>;
+};
+
+/**
  * The tagged union every submit endpoint takes: one shape per source,
  * discriminated by sourceType. New sources add a member here — this union is
  * the extension point, not new WarehouseTypes values.
@@ -146,7 +180,8 @@ export type DuckdbSourceQuery = {
 export type SourceQuery =
     | SemanticLayerSourceQuery
     | SqlSourceQuery
-    | DuckdbSourceQuery;
+    | DuckdbSourceQuery
+    | ExternalSourceQuery;
 
 /** A column in a source schema, aligned with ResultColumns' {reference, type}. */
 export type QuerySourceSchemaColumn = {

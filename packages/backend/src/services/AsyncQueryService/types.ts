@@ -181,6 +181,13 @@ export type ExecuteAsyncComposeSqlQueryArgs = CommonAsyncQueryArgs & {
     references?: Record<string, UUID>;
 };
 
+export type ExecuteAsyncExternalSqlQueryArgs = CommonAsyncQueryArgs & {
+    sql: string;
+    limit?: number;
+    /** Table name -> external source table (name or uuid) to expose as that table. */
+    tables: Record<string, string>;
+};
+
 export type ExecuteAsyncMergeQueryArgs = CommonAsyncQueryArgs & {
     mergeQuery: MergeQuery;
     mode: MergeQueryExecutionMode;
