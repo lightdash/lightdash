@@ -12,6 +12,7 @@ Conventions for every PR body in this repo. Applies regardless of whether the PR
 
 ## Rules
 
+0. **PR titles must be conventional commits** — `<type>[optional scope]: <description>`, with a type from build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test (e.g. `fix(dashboards): remove infinite loop during login`). The `Validate PR Title` check blocks merging otherwise, and the title becomes the squash-merge commit that drives semantic-release — use `feat`/`fix` only for user-facing value.
 1. **Never mention client/customer names or their data examples** anywhere in the PR title, description, or commit messages. Redact to generic terms ("a customer", "an org", "example values") even when a Linear ticket or issue references the customer by name.
 2. **Never quote, summarize, or attribute Slack messages or other internal-communication content** anywhere in the PR title, description, or commit messages — even when Slack/internal chatter was used as an investigation or evidence source. Cite only that the signal was checked and what it showed, in generic terms (no channel names, no quoted text, no who-said-what).
 3. **Always close or reference a Linear ticket.** Every PR links to a Linear ticket — `Closes: PROD-XXXX` to close it, or `Relates: PROD-XXXX` if it shouldn't auto-close. **If no ticket is provided, do not fabricate one and do not silently omit it** — flag it to the developer and ask for the ticket. Only open the PR without a ticket once they explicitly confirm there isn't one.
@@ -36,6 +37,7 @@ Relates: #22801
 
 ## Checklist Before Opening
 
+- [ ] The PR title is a valid conventional commit (`type(scope): description`)
 - [ ] No client/customer name or their data anywhere in the title, body, or commits
 - [ ] No quoted/summarized Slack or internal-communication content anywhere in the title, body, or commits
 - [ ] A `Closes:`/`Relates:` line for a Linear ticket is present, OR the developer explicitly confirmed there's no ticket

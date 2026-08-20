@@ -1,0 +1,37 @@
+#!/bin/sh
+
+# Enforce conventional commit messages locally, mirroring the "Validate PR
+# Title" CI check (.github/workflows/validate-pr-title.yml). Catching this at
+# commit time avoids PRs that are green except for the semantic title check:
+# GitHub pre-fills the PR title from the commit message, and single-commit PRs
+# have their commit message validated directly (validateSingleCommit: true).
+
+MSG_FILE="$1"
+HEADER="$(head -n 1 "$MSG_FILE")"
+
+# Skip messages git generates or that never reach main (we squash & merge)
+case "$HEADER" in
+  "Merge "*|"Revert \""*|"fixup! "*|"squash! "*|"amend! "*) exit 0 ;;
+esac
+
+# Same types as the CI check (conventional-commit-types defaults)
+TYPES="build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test"
+
+if printf '%s' "$HEADER" | grep -Eq "^($TYPES)(\([^)]*\))?!?: .+$"; then
+  exit 0
+fi
+
+echo "\033[1;31mInvalid commit message:\033[0m $HEADER"
+echo ""
+echo "Commit messages must follow the conventional commit format:"
+echo ""
+echo "    <type>[optional scope][!]: <description>"
+echo ""
+echo "    e.g. feat: add table calculations"
+echo "         fix(dashboards): remove infinite loop during login"
+echo ""
+echo "Valid types: build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test"
+echo ""
+echo "This mirrors the 'Validate PR Title' check on PRs. See"
+echo ".github/CONTRIBUTING.md (Commit & Pull Request Naming Conventions)."
+exit 1

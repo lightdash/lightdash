@@ -164,6 +164,11 @@ other part of the system, please use the appropriate tag to avoid the extra over
 You can see all
 the [supported types here](https://github.com/commitizen/conventional-commit-types/blob/v3.0.0/index.json).
 
+This format is enforced in two places:
+
+-   Locally, the `commit-msg` hook (`.husky/commit-msg`) rejects non-conventional commit messages at commit time.
+-   On GitHub, the `Validate PR Title` check validates the PR title (and, for single-commit PRs, the commit message) as soon as the PR is opened or the title is edited. The PR title matters because we squash & merge: it becomes the commit on `main` that semantic-release reads.
+
 #### Merge Strategy
 
 We use `squash & merge` to keep the main branch history clean.
