@@ -730,6 +730,7 @@ describe('UserModel', () => {
                 userUuid,
                 organizationUuid,
                 isSetupComplete: true,
+                isEmailVerified: true,
             } as SessionUser;
             const findSessionUser = vi
                 .spyOn(model, 'findSessionUserAndOrgByUuid')
@@ -757,6 +758,7 @@ describe('UserModel', () => {
                 userUuid,
                 organizationUuid,
                 isSetupComplete: false,
+                isEmailVerified: true,
             } as SessionUser;
             const sessionUser = {
                 ...incompleteUser,
@@ -791,6 +793,32 @@ describe('UserModel', () => {
                 userUuid,
                 organizationUuid,
                 isSetupComplete: false,
+                isEmailVerified: true,
+            } as SessionUser;
+            const findSessionUser = vi
+                .spyOn(model, 'findSessionUserAndOrgByUuid')
+                .mockResolvedValue(sessionUser);
+
+            await model.getSessionUserFromCacheOrDB(userUuid, organizationUuid);
+            await model.getSessionUserFromCacheOrDB(userUuid, organizationUuid);
+
+            expect(findSessionUser).toHaveBeenCalledTimes(2);
+            expect(sessionUserCache.set).not.toHaveBeenCalled();
+        });
+
+        it('does not cache an unverified user', async () => {
+            const { CachedUserModel, sessionUserCache } =
+                await loadUserModelWithSessionUserCache();
+            const model = new CachedUserModel({
+                database: vi.fn() as unknown as Knex,
+                lightdashConfig,
+                featureFlagModel,
+            });
+            const sessionUser = {
+                userUuid,
+                organizationUuid,
+                isSetupComplete: true,
+                isEmailVerified: false,
             } as SessionUser;
             const findSessionUser = vi
                 .spyOn(model, 'findSessionUserAndOrgByUuid')
