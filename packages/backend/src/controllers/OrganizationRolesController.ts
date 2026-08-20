@@ -169,7 +169,7 @@ export class OrganizationRolesController extends BaseController {
 
     /**
      * Get the complete role set (system role plus custom roles) a user holds in the organization.
-     * Requires the `multiple-roles` feature.
+     * Requires custom roles (Enterprise).
      * @summary Get organization role set for user
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -193,7 +193,7 @@ export class OrganizationRolesController extends BaseController {
     /**
      * Atomically replace the complete role set a user holds in the organization.
      * At most one system role plus any number of custom roles; the set must not be empty.
-     * Requires the `multiple-roles` feature.
+     * Requires custom roles (Enterprise).
      * @summary Replace organization role set for user
      */
     @Middlewares([

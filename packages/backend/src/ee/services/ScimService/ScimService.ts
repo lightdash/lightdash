@@ -962,18 +962,21 @@ export class ScimService extends BaseService {
      * Update user organization and project roles
      */
     /**
-     * Multi-role SCIM payloads are accepted only when the multiple-roles flag is
-     * on for the organization. SCIM has no acting user, so resolution is keyed on
-     * the organization (org-level override / default); `userUuid` only matters
-     * for a per-user override on an existing member.
+     * Multi-role SCIM payloads are accepted whenever custom roles are enabled
+     * (config or the custom-roles flag). SCIM has no acting user, so resolution
+     * is keyed on the organization (org-level override / default); `userUuid`
+     * only matters for a per-user override on an existing member.
      */
     private async isMultipleRolesEnabled(
         organizationUuid: string,
         userUuid: string = organizationUuid,
     ): Promise<boolean> {
+        if (this.lightdashConfig.customRoles.enabled) {
+            return true;
+        }
         const flag = await this.commercialFeatureFlagModel.get({
             user: { userUuid, organizationUuid },
-            featureFlagId: CommercialFeatureFlags.MultipleRoles,
+            featureFlagId: CommercialFeatureFlags.CustomRoles,
         });
         return flag.enabled;
     }
