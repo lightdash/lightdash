@@ -25,6 +25,7 @@ import {
 } from '@tabler/icons-react';
 import { Fragment, useCallback, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
+import { CHART_TYPES_WITHOUT_IMAGE_EXPORT } from '../../../../../components/common/ChartDownload/chartDownloadUtils';
 import CodeBlock from '../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
@@ -61,6 +62,10 @@ import {
     remapFieldIdsDeep,
 } from '../../utils/canonicalizeAiMerge';
 import { AiChartDownloadModal } from './AiChartDownloadModal';
+import {
+    AiChartImageExportMenuItem,
+    AiChartImageExportModal,
+} from './AiChartImageExport';
 import { AiScheduleDeliveryModal } from './AiScheduleDeliveryModal';
 
 type Props = {
@@ -117,6 +122,10 @@ export const AiChartQuickOptions = ({
     const [sqlModalOpened, { open: openSqlModal, close: closeSqlModal }] =
         useDisclosure(false);
     const [
+        exportImageModalOpened,
+        { open: openExportImageModal, close: closeExportImageModal },
+    ] = useDisclosure(false);
+    const [
         downloadModalOpened,
         { open: openDownloadModal, close: closeDownloadModal },
     ] = useDisclosure(false);
@@ -138,22 +147,21 @@ export const AiChartQuickOptions = ({
             projectUuid,
         }),
     );
-    const canDownloadResults =
-        showDownloadResults &&
-        !isEmbed &&
-        user.data?.ability?.can(
-            'manage',
-            subject('ExportCsv', {
-                organizationUuid: user.data?.organizationUuid,
-                projectUuid,
-            }),
-        );
+    const canExportData = user.data?.ability?.can(
+        'manage',
+        subject('ExportCsv', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+    const canDownloadResults = showDownloadResults && !isEmbed && canExportData;
     const {
         visualizationConfig,
         columnOrder,
         resultsData,
         chartConfig,
         pivotDimensions,
+        chartRef,
     } = useVisualizationContext();
     const { mutate: savePromptQuery } = useSavePromptQuery(
         projectUuid,
@@ -175,6 +183,12 @@ export const AiChartQuickOptions = ({
     const isVerified = artifactData?.verifiedByUserUuid !== null;
 
     const isDisabled = !metricQuery || !type || !visualizationConfig;
+    const canExportImage =
+        artifactData?.artifactType === 'chart' &&
+        !isEmbed &&
+        !!type &&
+        !CHART_TYPES_WITHOUT_IMAGE_EXPORT.includes(type) &&
+        canExportData;
 
     // Renamed to the merge editor's conventions so the saved chart and the
     // explore link are indistinguishable from a merge built by hand.
@@ -492,7 +506,8 @@ export const AiChartQuickOptions = ({
         hasSavedChartAction ||
         hasSaveActions ||
         hasExploreAction ||
-        hasSqlActions;
+        hasSqlActions ||
+        canExportImage;
 
     return (
         <Fragment>
@@ -531,6 +546,11 @@ export const AiChartQuickOptions = ({
                     </Menu.Target>
                     <Menu.Dropdown>
                         <Menu.Label>Quick actions</Menu.Label>
+                        {canExportImage && (
+                            <AiChartImageExportMenuItem
+                                onClick={openExportImageModal}
+                            />
+                        )}
                         {canDownloadResults && (
                             <Menu.Item
                                 leftSection={
@@ -682,6 +702,12 @@ export const AiChartQuickOptions = ({
                     mergeQuery={merge?.query ?? null}
                 />
             )}
+            <AiChartImageExportModal
+                chartRef={chartRef}
+                chartName={saveChartOptions.name ?? 'Untitled chart'}
+                opened={exportImageModalOpened}
+                onClose={closeExportImageModal}
+            />
             {!!compiledSql && (
                 <MantineModal
                     opened={sqlModalOpened}
