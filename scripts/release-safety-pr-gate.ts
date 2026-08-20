@@ -10,8 +10,15 @@ import {
     collectBreakingChangeDeclarationsBetweenRefs,
     DEFAULT_DECLARATIONS_PATH,
 } from './release-safety-declarations';
-import type { BreakingChangeDeclarationDiff } from './release-safety-declarations';
-import { isMigrationPath } from './release-safety-migrations';
+import type {
+    BreakingChangeDeclaration,
+    BreakingChangeDeclarationDiff,
+} from './release-safety-declarations';
+import {
+    analyzeMigrationSource,
+    isMigrationPath,
+} from './release-safety-migrations';
+import type { MigrationIncompleteReason } from './release-safety-migrations';
 
 interface ApiSurface {
     checked: boolean;
@@ -38,6 +45,7 @@ export interface EvaluateReleaseSafetyGateInput {
     markerPath: string;
     declarationChanges: BreakingChangeDeclarationDiff;
     inlineDeclarationDiagnostics?: readonly GateDiagnostic[];
+    migrationDiagnostics?: readonly GateDiagnostic[];
 }
 
 export interface ChangedSourceFile {
@@ -82,6 +90,51 @@ export function detectLegacyInlineBreakingDeclarations(
     return diagnostics;
 }
 
+const INCOMPLETE_MIGRATION_MESSAGES: Record<
+    MigrationIncompleteReason,
+    string
+> = {
+    'parse-failure':
+        'release-safety cannot read this migration; write the name inline, or use a module constant',
+    'column-alter':
+        'release-safety cannot judge a column .alter(); declare whether this rewrites the table with export const classification with kind and reason',
+    'unresolved-table-name':
+        'release-safety cannot resolve the table name; name the table with a literal or a module constant',
+};
+
+export function detectIncompleteMigrationMetadata(
+    sources: readonly ChangedSourceFile[],
+    migrationDeclarations: readonly BreakingChangeDeclaration[] = [],
+): GateDiagnostic[] {
+    const declaredMigrations = new Set(
+        migrationDeclarations.flatMap((declaration) =>
+            declaration.migration === undefined ? [] : [declaration.migration],
+        ),
+    );
+    const diagnostics: GateDiagnostic[] = [];
+    for (const source of sources) {
+        if (!isMigrationPath(source.file)) continue;
+        const analysis = analyzeMigrationSource(source.file, source.source);
+        if (analysis.complete) continue;
+        const classification = parseChangeDeclarations(
+            source.source,
+            source.file,
+        ).classification;
+        if (classification !== null || declaredMigrations.has(source.file)) {
+            continue;
+        }
+        for (const reason of analysis.incompleteReasons) {
+            diagnostics.push({
+                level: 'error',
+                file: source.file,
+                line: 1,
+                message: INCOMPLETE_MIGRATION_MESSAGES[reason],
+            });
+        }
+    }
+    return diagnostics;
+}
+
 export function evaluateReleaseSafetyGate(
     input: EvaluateReleaseSafetyGateInput,
 ): GateDiagnostic[] {
@@ -93,6 +146,7 @@ export function evaluateReleaseSafetyGate(
             message: diagnostic.message,
         }));
     diagnostics.push(...(input.inlineDeclarationDiagnostics ?? []));
+    diagnostics.push(...(input.migrationDiagnostics ?? []));
     const breakingSurfaces = [
         input.marker.api.rest.checked && input.marker.api.rest.breaking === true
             ? 'REST'
@@ -195,6 +249,32 @@ function changedSourceFiles(baseSha: string): ChangedSourceFile[] {
     }));
 }
 
+function changedMigrationFiles(baseSha: string): ChangedSourceFile[] {
+    const paths = execFileSync(
+        'git',
+        [
+            'diff',
+            '--name-only',
+            '--diff-filter=ACMR',
+            '-z',
+            baseSha,
+            'HEAD',
+            '--',
+            'packages/backend/src/database/migrations',
+            'packages/backend/src/ee/database/migrations',
+        ],
+        { encoding: 'utf8' },
+    )
+        .split('\0')
+        .filter(Boolean)
+        .filter(isMigrationPath)
+        .filter((file) => fs.existsSync(file));
+    return paths.map((file) => ({
+        file,
+        source: fs.readFileSync(file, 'utf8'),
+    }));
+}
+
 function main(): void {
     const baseSha = argument('base-sha');
     const markerPath = argument('marker');
@@ -203,15 +283,20 @@ function main(): void {
     const marker = JSON.parse(
         fs.readFileSync(markerPath, 'utf8'),
     ) as ReleaseSafetyGateMarker;
+    const declarationChanges = collectBreakingChangeDeclarationsBetweenRefs(
+        baseSha,
+        'HEAD',
+    );
     const diagnostics = evaluateReleaseSafetyGate({
         marker,
         markerPath,
-        declarationChanges: collectBreakingChangeDeclarationsBetweenRefs(
-            baseSha,
-            'HEAD',
-        ),
+        declarationChanges,
         inlineDeclarationDiagnostics: detectLegacyInlineBreakingDeclarations(
             changedSourceFiles(baseSha),
+        ),
+        migrationDiagnostics: detectIncompleteMigrationMetadata(
+            changedMigrationFiles(baseSha),
+            declarationChanges.added,
         ),
     });
     diagnostics.forEach(emit);

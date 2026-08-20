@@ -80,6 +80,7 @@ test('analyzer reads core tables and forward heaviness only', () => {
             },
         },
         complete: true,
+        incompleteReasons: [],
     });
 });
 
@@ -117,6 +118,39 @@ test('dynamic raw SQL degrades unknown dimensions and completeness', () => {
         scansTable: 'unknown',
     });
     assert.strictEqual(result.complete, false);
+    assert.deepStrictEqual(result.incompleteReasons, ['parse-failure']);
+});
+
+test('column alter reports that rewrite safety needs a declaration', () => {
+    const result = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260810000017_alter.ts',
+        `
+            export async function up(knex) {
+                await knex.schema.alterTable('users', (table) => {
+                    table.string('name', 100).alter();
+                });
+            }
+        `,
+    );
+    assert.strictEqual(result.complete, false);
+    assert.deepStrictEqual(result.incompleteReasons, ['column-alter']);
+});
+
+test('dynamic table arguments report an unresolved table name', () => {
+    const result = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260810000018_table.ts',
+        `
+            export async function up(knex) {
+                await knex.schema.createTable(getTableName(), (table) => {
+                    table.uuid('user_uuid');
+                });
+            }
+        `,
+    );
+    assert.strictEqual(result.complete, false);
+    assert.deepStrictEqual(result.incompleteReasons, [
+        'unresolved-table-name',
+    ]);
 });
 
 test('raw SQL built from a local constant reads as fully as a literal', () => {
