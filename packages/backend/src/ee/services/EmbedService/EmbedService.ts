@@ -806,18 +806,27 @@ export class EmbedService extends BaseService {
         }
 
         const exploreCacheKeys: Record<string, boolean> = {};
-        const exploreCache: Record<string, Explore | ExploreError> = {};
+        const exploreCache: Record<string, Explore | ExploreError | undefined> =
+            {};
 
         const explorePromises = savedCharts.reduce<
-            Promise<{ key: string; explore: Explore | ExploreError }>[]
+            Promise<{
+                key: string;
+                explore: Explore | ExploreError | undefined;
+            }>[]
         >((acc, chart) => {
             const key = chart.tableName;
             if (!exploreCacheKeys[key]) {
                 const exploreId = chart.tableName;
-                const cachedExplore = this.projectModel.getExploreFromCache(
-                    projectUuid,
-                    exploreId,
-                );
+                const cachedExplore = this.projectModel
+                    .getExploreFromCache(projectUuid, exploreId)
+                    // A chart pointing at a deleted/renamed explore must not
+                    // fail the whole request; it contributes no filters, same
+                    // as the direct-app path (ProjectService.findExplores).
+                    .catch((e) => {
+                        if (e instanceof NotFoundError) return undefined;
+                        throw e;
+                    });
                 acc.push(cachedExplore.then((explore) => ({ key, explore })));
                 exploreCacheKeys[key] = true;
             }
@@ -834,7 +843,7 @@ export class EmbedService extends BaseService {
 
         const filterPromises = savedCharts.map(async (savedChart) => {
             const explore = exploreCache[savedChart.tableName];
-            if (isExploreError(explore))
+            if (!explore || isExploreError(explore))
                 return { uuid: savedChart.uuid, filters: [] };
             const filters = getDimensions(explore).filter(
                 (field) => isFilterableDimension(field) && !field.hidden,
