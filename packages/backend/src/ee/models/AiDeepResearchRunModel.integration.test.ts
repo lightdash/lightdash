@@ -1,4 +1,5 @@
 import {
+    AI_DEEP_RESEARCH_EVENT_TYPES,
     AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
     SEED_ORG_1,
     SEED_ORG_1_ADMIN,
@@ -246,6 +247,23 @@ describe('AiDeepResearchRunModel integration', () => {
                 : eventType,
         );
     };
+
+    it('accepts every canonical Deep Research event type', async () => {
+        const run = await createRun();
+
+        await expect(
+            database(AiDeepResearchEventsTableName)
+                .insert(
+                    AI_DEEP_RESEARCH_EVENT_TYPES.map((eventType) => ({
+                        ai_deep_research_run_uuid:
+                            run.ai_deep_research_run_uuid,
+                        event_type: eventType,
+                        payload: {},
+                    })),
+                )
+                .returning('event_type'),
+        ).resolves.toHaveLength(AI_DEEP_RESEARCH_EVENT_TYPES.length);
+    });
 
     it('rejects research after standard execution claims the prompt', async () => {
         const standardPromptUuid = await createAdditionalPrompt();
