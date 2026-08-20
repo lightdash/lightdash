@@ -124,6 +124,7 @@ import {
     isNotNull,
     isReservedParameterName,
     isSqlTableCalculation,
+    isUserManagedExplore,
     isUserWithOrg,
     isValidTimezone,
     ItemsMap,
@@ -8709,7 +8710,7 @@ export class ProjectService extends BaseService {
                 return visibleExploreSummaries.filter(
                     (explore) =>
                         hasIntersection(explore.tags || [], value || []) ||
-                        explore.type === ExploreType.VIRTUAL || // Custom explores/Virtual views are included by default
+                        isUserManagedExplore(explore) || // User-managed explores (virtual views, external source tables) are included by default
                         (shouldIncludePreAggregateExplores &&
                             explore.type === ExploreType.PRE_AGGREGATE),
                 );
@@ -8718,7 +8719,7 @@ export class ProjectService extends BaseService {
                 return visibleExploreSummaries.filter(
                     (explore) =>
                         (value || []).includes(explore.name) ||
-                        explore.type === ExploreType.VIRTUAL || // Custom explores/Virtual views are included by default
+                        isUserManagedExplore(explore) || // User-managed explores (virtual views, external source tables) are included by default
                         (shouldIncludePreAggregateExplores &&
                             explore.type === ExploreType.PRE_AGGREGATE),
                 );
@@ -10454,7 +10455,7 @@ export class ProjectService extends BaseService {
 
         const validExplores = allExplores?.filter(
             (explore) =>
-                explore.type !== ExploreType.VIRTUAL &&
+                !isUserManagedExplore(explore) &&
                 explore.type !== ExploreType.PRE_AGGREGATE,
         );
 

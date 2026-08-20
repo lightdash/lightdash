@@ -35,6 +35,7 @@ import {
     type GoogleChatBatchNotificationPayload,
     type GoogleChatNotificationPayload,
     type GsheetsNotificationPayload,
+    type IngestExternalSourceJobPayload,
     type ManagedAgentHeartbeatPayload,
     type MaterializePreAggregatePayload,
     type MsTeamsBatchNotificationPayload,
@@ -182,6 +183,7 @@ export const EE_SCHEDULER_TASKS = {
     CLEAN_AI_AGENT_THREADS: 'cleanAiAgentThreads',
     PUBLISH_ANNOUNCEMENT: 'publishAnnouncement',
     SWEEP_DUE_ANNOUNCEMENTS: 'sweepDueAnnouncements',
+    INGEST_EXTERNAL_SOURCE: 'ingestExternalSource',
 } as const;
 
 export const SCHEDULER_TASKS = {
@@ -295,6 +297,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.CLEAN_AI_AGENT_THREADS]: TraceTaskBase;
     [SCHEDULER_TASKS.PUBLISH_ANNOUNCEMENT]: PublishAnnouncementPayload;
     [SCHEDULER_TASKS.SWEEP_DUE_ANNOUNCEMENTS]: TraceTaskBase;
+    [SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE]: IngestExternalSourceJobPayload;
     [SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: AiWritebackPipelineJobPayload;
     [SCHEDULER_TASKS.AI_DEEP_RESEARCH]: AiDeepResearchPipelineJobPayload;
     [SCHEDULER_TASKS.AGENT_ONBOARDING_RUN]: AgentOnboardingPipelineJobPayload;
@@ -330,6 +333,7 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.AI_DEEP_RESEARCH]: AiDeepResearchPipelineJobPayload;
     [EE_SCHEDULER_TASKS.AGENT_ONBOARDING_RUN]: AgentOnboardingPipelineJobPayload;
     [EE_SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE]: AiAgentEditDbtProjectPipelineJobPayload;
+    [EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE]: IngestExternalSourceJobPayload;
 }
 
 export type SchedulerTaskName =

@@ -390,6 +390,9 @@ export const lightdashConfigMock: LightdashConfig = {
     dashboardComments: {
         enabled: true,
     },
+    externalSources: {
+        maxFileSizeBytes: 100 * 1024 * 1024,
+    },
     preAggregates: {
         enabled: false,
         parquetEnabled: false,

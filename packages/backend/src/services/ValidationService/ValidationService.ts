@@ -29,6 +29,7 @@ import {
     isSqlTableCalculation,
     isTableValidationError,
     isTemplateTableCalculation,
+    isUserManagedExplore,
     isValidationTargetValid,
     KnexPaginateArgs,
     KnexPaginatedData,
@@ -310,13 +311,13 @@ export class ValidationService extends BaseService {
                                         tag,
                                     ),
                                 )) ||
-                            explore.type === ExploreType.VIRTUAL, // Custom explores/Virtual views are included by default
+                            isUserManagedExplore(explore), // User-managed explores (virtual views, external source tables) are included by default
                     );
                     const exploreIsSelectedWithTags = explore.tags?.some(
                         (tag) =>
                             tablesConfiguration.tableSelection.value?.includes(
                                 tag,
-                            ) || explore.type === ExploreType.VIRTUAL, // Custom explores/Virtual views are included by default
+                            ) || isUserManagedExplore(explore), // User-managed explores (virtual views, external source tables) are included by default
                     );
                     return (
                         hasSelectedJoinedExploredWithTags ||
@@ -332,12 +333,12 @@ export class ValidationService extends BaseService {
                                 tablesConfiguration.tableSelection.value?.includes(
                                     e.name,
                                 )) ||
-                            explore.type === ExploreType.VIRTUAL, // Custom explores/Virtual views are included by default
+                            isUserManagedExplore(explore), // User-managed explores (virtual views, external source tables) are included by default
                     );
                     const exploreIsSelected =
                         tablesConfiguration.tableSelection.value?.includes(
                             explore.name,
-                        ) || explore.type === ExploreType.VIRTUAL; // Custom explores/Virtual views are included by default
+                        ) || isUserManagedExplore(explore); // User-managed explores (virtual views, external source tables) are included by default
 
                     return hasSelectedJoinedExplored || exploreIsSelected;
                 default:

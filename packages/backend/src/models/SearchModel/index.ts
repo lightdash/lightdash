@@ -13,6 +13,7 @@ import {
     hasIntersection,
     isDimension,
     isExploreError,
+    isUserManagedExplore,
     NotFoundError,
     SavedChartSearchResult,
     SearchFilters,
@@ -1527,14 +1528,14 @@ export class SearchModel {
                             hasIntersection(
                                 explore.tags || [],
                                 tableSelection.value || [],
-                            ) || explore.type === ExploreType.VIRTUAL
+                            ) || isUserManagedExplore(explore)
                         );
                     }
                     if (tableSelection.type === TableSelectionType.WITH_NAMES) {
                         return (
                             (tableSelection.value || []).includes(
                                 explore.name,
-                            ) || explore.type === ExploreType.VIRTUAL
+                            ) || isUserManagedExplore(explore)
                         );
                     }
                     return true;

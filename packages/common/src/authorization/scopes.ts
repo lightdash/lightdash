@@ -1177,6 +1177,15 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'manage:ExternalSource',
+        description:
+            'Upload and manage external data sources (CSV files, Google Sheets)',
+        isEnterprise: true,
+        group: ScopeGroup.DATA,
+        dependencies: [{ name: 'view:Project' }],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'manage:PreAggregation',
         description: 'View and query pre-aggregates in explore',
         isEnterprise: true,

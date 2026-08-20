@@ -42,6 +42,7 @@ export type CaslSubjectNames =
     | 'DeletedContent'
     | 'Explore'
     | 'ExternalConnection'
+    | 'ExternalSource'
     | 'ExportCsv'
     | 'GitIntegration'
     | 'GoogleSheets'

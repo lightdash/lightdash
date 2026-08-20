@@ -23,6 +23,7 @@ import {
     ProjectMemberRole,
     ServiceAccountScope,
     SpaceMemberRole,
+    USER_MANAGED_EXPLORE_TYPES,
     WarehouseTypes,
 } from '@lightdash/common';
 import { MotherduckInstanceCache } from '@lightdash/warehouses';
@@ -514,7 +515,10 @@ describe('ProjectModel', () => {
             expect(tracker.history.select).toEqual(
                 expect.arrayContaining([
                     expect.objectContaining({
-                        bindings: [projectUuid, ExploreType.VIRTUAL],
+                        bindings: [
+                            projectUuid,
+                            [...USER_MANAGED_EXPLORE_TYPES],
+                        ],
                     }),
                 ]),
             );

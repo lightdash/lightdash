@@ -1708,6 +1708,10 @@ export type LightdashConfig = {
         duckdbQueryMemoryLimit: string | null;
         s3?: Omit<S3Config, 'expirationTime'>;
     };
+    externalSources: {
+        /** Upload cap for external source files (CSV). Stored in the pre-aggregates bucket. */
+        maxFileSizeBytes: number;
+    };
     motherduckInstanceCache: {
         enabled: boolean;
         projectUuids: string[];
@@ -3359,6 +3363,12 @@ export const parseConfig = (): LightdashConfig => {
             duckdbQueryMemoryLimit:
                 process.env.PRE_AGGREGATE_DUCKDB_QUERY_MEMORY_LIMIT ?? null,
             s3: preAggregatesS3,
+        },
+        externalSources: {
+            maxFileSizeBytes:
+                getIntegerFromEnvironmentVariable(
+                    'EXTERNAL_SOURCES_MAX_FILE_SIZE_BYTES',
+                ) ?? 100 * 1024 * 1024,
         },
         motherduckInstanceCache,
         usageEvents: {

@@ -16,6 +16,7 @@ import {
     EE_SCHEDULER_TASKS,
     EmbedArtifactVersionJobPayload,
     GenerateArtifactQuestionJobPayload,
+    IngestExternalSourceJobPayload,
     JobPriority,
     PublishAnnouncementPayload,
     SlackPromptJobPayload,
@@ -329,6 +330,24 @@ export class CommercialSchedulerClient extends SchedulerClient {
                 runAt: new Date(),
                 maxAttempts: 1,
                 jobKey: `ai-deep-research:${payload.aiDeepResearchRunUuid}`,
+            },
+        );
+        return { jobId };
+    }
+
+    /**
+     * One in-flight ingest per source: the stable jobKey replaces any queued
+     * ingest, so a refresh during a pending ingest coalesces.
+     */
+    async ingestExternalSource(payload: IngestExternalSourceJobPayload) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE,
+            payload,
+            {
+                runAt: new Date(),
+                maxAttempts: 1,
+                jobKey: `external-source-ingest:${payload.sourceUuid}`,
             },
         );
         return { jobId };
