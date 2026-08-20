@@ -322,7 +322,7 @@ const Settings: FC = () => {
                         </SettingsGridCard>
 
                         <SettingsGridCard>
-                            <div>
+                            <Box>
                                 <Title order={5}>Danger zone</Title>
                                 <Text c="ldGray.6" fz="xs">
                                     {
@@ -335,7 +335,7 @@ const Settings: FC = () => {
                                         'Deleting the organization removes the whole workspace and all its content, including users. '}
                                     These actions are not reversible.
                                 </Text>
-                            </div>
+                            </Box>
                             <Stack gap="sm" align="flex-end">
                                 <LeaveOrganizationPanel />
                                 {user.ability?.can(
