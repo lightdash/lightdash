@@ -34,6 +34,7 @@ import {
 } from '../database/entities/projectHomepages';
 
 const RECENTLY_VIEWED_STATEMENT_TIMEOUT_MS = 10_000;
+const RECENTLY_VIEWED_WINDOW_DAYS = 90;
 
 export class ProjectHomepageModel {
     private readonly database: Knex;
@@ -345,6 +346,7 @@ export class ProjectHomepageModel {
                 JOIN spaces s ON s.space_id = sq.space_id
                 JOIN projects p ON p.project_id = s.project_id
                 WHERE acv.user_uuid = :userUuid
+                  AND acv.timestamp > now() - make_interval(days => :windowDays)
                   AND p.project_uuid = :projectUuid
                   AND sq.deleted_at IS NULL
                   AND s.deleted_at IS NULL
@@ -372,6 +374,7 @@ export class ProjectHomepageModel {
                 JOIN spaces s ON s.space_id = d.space_id
                 JOIN projects p ON p.project_id = s.project_id
                 WHERE adv.user_uuid = :userUuid
+                  AND adv.timestamp > now() - make_interval(days => :windowDays)
                   AND p.project_uuid = :projectUuid
                   AND d.deleted_at IS NULL
                   AND s.deleted_at IS NULL
@@ -380,7 +383,12 @@ export class ProjectHomepageModel {
             ORDER BY viewed_at DESC
             LIMIT :limit
             `,
-                    { userUuid, projectUuid, limit },
+                    {
+                        userUuid,
+                        projectUuid,
+                        limit,
+                        windowDays: RECENTLY_VIEWED_WINDOW_DAYS,
+                    },
                 );
                 return rows.map((row) => ({
                     contentType: row.content_type,
