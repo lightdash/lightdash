@@ -922,10 +922,10 @@ describe('ScimService', () => {
             afterEach(() => {
                 vi.mocked(
                     ScimServiceArgumentsMock.commercialFeatureFlagModel.get,
-                ).mockResolvedValue({ id: 'multiple-roles', enabled: false });
+                ).mockResolvedValue({ id: 'custom-roles', enabled: false });
             });
 
-            test('rejects multiple roles per level when the multiple-roles flag is off', async () => {
+            test('rejects multiple roles per level when custom roles are disabled', async () => {
                 const { rolesModel } = ScimServiceArgumentsMock;
                 await expect(
                     service.updateUser({
@@ -947,7 +947,7 @@ describe('ScimService', () => {
                 const { rolesModel, commercialFeatureFlagModel } =
                     ScimServiceArgumentsMock;
                 vi.mocked(commercialFeatureFlagModel.get).mockResolvedValue({
-                    id: 'multiple-roles',
+                    id: 'custom-roles',
                     enabled: true,
                 });
 
@@ -986,7 +986,7 @@ describe('ScimService', () => {
             test('rejects two system organization roles even when the flag is on', async () => {
                 const { commercialFeatureFlagModel } = ScimServiceArgumentsMock;
                 vi.mocked(commercialFeatureFlagModel.get).mockResolvedValue({
-                    id: 'multiple-roles',
+                    id: 'custom-roles',
                     enabled: true,
                 });
                 await expect(

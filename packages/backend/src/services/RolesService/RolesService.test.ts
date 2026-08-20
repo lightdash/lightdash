@@ -73,7 +73,9 @@ const limitedOrganizationManagerAccount = () => {
 describe('RolesService', () => {
     const buildService = (licenseValid = true) =>
         new RolesService({
-            lightdashConfig: {} as LightdashConfig,
+            lightdashConfig: {
+                customRoles: { enabled: false },
+            } as LightdashConfig,
             licenseService: {
                 getLicenseStatus: () => ({
                     hasLicenseKey: licenseValid,
@@ -845,7 +847,7 @@ describe('RolesService', () => {
 
         beforeEach(() => {
             mockFeatureFlagModel.get.mockResolvedValue({
-                id: 'multiple-roles',
+                id: 'custom-roles',
                 enabled: true,
             });
             mockRolesModel.getOrganizationUserRoleSet.mockResolvedValue({
@@ -875,9 +877,9 @@ describe('RolesService', () => {
             );
         });
 
-        it('rejects role-set writes when the multiple-roles flag is off', async () => {
+        it('rejects role-set writes when custom roles are disabled', async () => {
             mockFeatureFlagModel.get.mockResolvedValue({
-                id: 'multiple-roles',
+                id: 'custom-roles',
                 enabled: false,
             });
             await expect(
