@@ -1,3 +1,10 @@
+# [1.214.0](https://github.com/lightdash/lightdash/compare/1.213.0...1.214.0) (2026-08-20)
+
+
+### Features
+
+* **PROD-10365:** support proxy licence validation ([#27737](https://github.com/lightdash/lightdash/issues/27737)) ([3bc0fae](https://github.com/lightdash/lightdash/commit/3bc0fae0527202256f5c155e35a309628104beea))
+
 # [1.213.0](https://github.com/lightdash/lightdash/compare/1.212.3...1.213.0) (2026-08-20)
 
 
