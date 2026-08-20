@@ -50,7 +50,7 @@ const metricFiltersSchema = z.array(metricFilterRuleSchema).nullable();
 // Aggregation custom metric — defines a NEW metric by applying an aggregation
 // (SUM / AVG / COUNT / …) to a base dimension.
 // --------------------------------------------------------------------------
-const aggregationCustomMetricSchema = z.object({
+export const aggregationCustomMetricSchema = z.object({
     kind: z
         .literal('aggregation')
         .describe(
@@ -110,7 +110,7 @@ const popGranularityEnum = z.enum(
     validPeriodOverPeriodGranularities as [TimeFrames, ...TimeFrames[]],
 );
 
-const periodComparisonCustomMetricSchema = z.object({
+export const periodComparisonCustomMetricSchema = z.object({
     kind: z
         .literal('periodComparison')
         .describe(

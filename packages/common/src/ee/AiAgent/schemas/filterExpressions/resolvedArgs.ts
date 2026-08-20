@@ -1,0 +1,207 @@
+import { v4 as uuid } from 'uuid';
+import { z } from 'zod';
+import type { FilterGroup, Filters } from '../../../../types/filter';
+import assertUnreachable from '../../../../utils/assertUnreachable';
+import {
+    customMetricsSchema,
+    customMetricsSchemaTransformed,
+} from '../customMetrics';
+import {
+    filterRuleSchema,
+    filterRuleSchemaTransformed,
+    filtersSchemaTransformed,
+    filtersSchemaV2,
+    numberFilterSchema,
+} from '../filters';
+import { tableCalcsSchema } from '../tableCalcs/tableCalcs';
+import {
+    chartConfigSchema,
+    mergeConfigSchema,
+    queryConfigBaseSchema,
+} from '../tools/toolRunQueryArgs';
+import { createToolSchema } from '../toolSchemaBuilder';
+import visualizationMetadataSchema from '../visualizationMetadata';
+
+// Persistence-only schemas for the server-resolved data of filter-expression
+// queries. Each query category (dimensions, metrics, tableCalculations) owns
+// an independent FilterGroup, so categories may resolve to different
+// connectors — which the legacy shared-connector filters object
+// (filtersSchemaV2's single `type`) cannot represent. The V1 shape below
+// carries one connector per category. Resolved data emitted before this shape
+// existed (and resolved data whose categories agree) uses the legacy object,
+// so parsers accept both. None of this is advertised to models; the model
+// contract stays the flat expression strings in expressionSchemas.
+
+const resolvedConnectorSchema = z.union([z.literal('and'), z.literal('or')]);
+
+const resolvedFilterGroupSchema = z
+    .object({
+        connector: resolvedConnectorSchema,
+        rules: z.array(filterRuleSchema).min(1),
+    })
+    .strict();
+
+const resolvedNumberFilterGroupSchema = z
+    .object({
+        connector: resolvedConnectorSchema,
+        rules: z.array(numberFilterSchema).min(1),
+    })
+    .strict();
+
+// Discriminated from the legacy filters object by `schemaVersion` (the legacy
+// shape has a required `type` and no schemaVersion).
+export const filterExpressionResolvedFiltersSchemaV1 = z
+    .object({
+        schemaVersion: z.literal(1),
+        dimensions: resolvedFilterGroupSchema.nullable(),
+        metrics: resolvedFilterGroupSchema.nullable(),
+        tableCalculations: resolvedNumberFilterGroupSchema.nullable(),
+    })
+    .strict();
+
+export const filterExpressionResolvedFiltersSchema = z.union([
+    filterExpressionResolvedFiltersSchemaV1,
+    filtersSchemaV2,
+]);
+
+export type FilterExpressionResolvedFiltersV1 = z.infer<
+    typeof filterExpressionResolvedFiltersSchemaV1
+>;
+export type FilterExpressionResolvedFilters = z.infer<
+    typeof filterExpressionResolvedFiltersSchema
+>;
+
+const resolvedFilterGroupTransformed = z
+    .object({
+        connector: resolvedConnectorSchema,
+        rules: z.array(filterRuleSchemaTransformed).min(1),
+    })
+    .strict();
+
+type ResolvedFilterGroupTransformed = z.infer<
+    typeof resolvedFilterGroupTransformed
+>;
+
+const toFilterGroup = (
+    group: ResolvedFilterGroupTransformed | null,
+): FilterGroup => {
+    if (group === null) return { id: uuid(), and: [] };
+    switch (group.connector) {
+        case 'and':
+            return { id: uuid(), and: group.rules };
+        case 'or':
+            return { id: uuid(), or: group.rules };
+        default:
+            return assertUnreachable(
+                group.connector,
+                'Invalid resolved filter connector',
+            );
+    }
+};
+
+const filterExpressionResolvedFiltersSchemaV1Transformed = z
+    .object({
+        schemaVersion: z.literal(1),
+        dimensions: resolvedFilterGroupTransformed.nullable(),
+        metrics: resolvedFilterGroupTransformed.nullable(),
+        tableCalculations: resolvedFilterGroupTransformed.nullable(),
+    })
+    .strict()
+    .transform(
+        (data): Filters => ({
+            dimensions: toFilterGroup(data.dimensions),
+            metrics: toFilterGroup(data.metrics),
+            tableCalculations: toFilterGroup(data.tableCalculations),
+        }),
+    );
+
+// Accepts the V1 per-category shape, the legacy shared-connector object, and
+// null; always normalizes to domain Filters. Replay needs neither the Explore
+// nor the feature flag.
+export const filterExpressionResolvedFiltersSchemaTransformed = z.union([
+    filterExpressionResolvedFiltersSchemaV1Transformed,
+    filtersSchemaTransformed,
+]);
+
+const resolvedQueryConfigSchema = queryConfigBaseSchema.extend({
+    customMetrics: customMetricsSchema,
+    tableCalculations: tableCalcsSchema,
+    filters: filterExpressionResolvedFiltersSchema.nullable(),
+});
+
+const resolvedMergeSourceQueryConfigSchema = resolvedQueryConfigSchema.omit({
+    limit: true,
+    parameters: true,
+    tableCalculations: true,
+});
+
+const resolvedMergeConfigSchema = mergeConfigSchema.unwrap().extend({
+    additionalSources: z
+        .array(
+            z.object({
+                id: z.string().min(1),
+                queryConfig: resolvedMergeSourceQueryConfigSchema,
+            }),
+        )
+        .length(1),
+});
+
+// Superset of toolRunQueryArgsSchemaPersisted (V3): identical except filters
+// additionally accept the V1 per-category shape, so every previously
+// persisted resolved payload keeps parsing unchanged.
+export const toolRunQueryExpressionResolvedArgsSchema = createToolSchema()
+    .extend({
+        ...visualizationMetadataSchema.shape,
+        queryConfig: resolvedQueryConfigSchema,
+        chartConfig: chartConfigSchema,
+        mergeConfig: resolvedMergeConfigSchema.nullable().default(null),
+    })
+    .build();
+
+export type ToolRunQueryExpressionResolvedArgs = z.infer<
+    typeof toolRunQueryExpressionResolvedArgsSchema
+>;
+
+const resolvedQueryConfigInternalSchema = queryConfigBaseSchema.extend({
+    customMetrics: customMetricsSchemaTransformed,
+    tableCalculations: tableCalcsSchema,
+    filters: filterExpressionResolvedFiltersSchemaTransformed,
+});
+
+const resolvedMergeSourceQueryConfigInternalSchema =
+    resolvedQueryConfigInternalSchema.omit({
+        limit: true,
+        parameters: true,
+        tableCalculations: true,
+    });
+
+const resolvedMergeConfigInternalSchema = mergeConfigSchema.unwrap().extend({
+    additionalSources: z
+        .array(
+            z.object({
+                id: z.string().min(1),
+                queryConfig: resolvedMergeSourceQueryConfigInternalSchema,
+            }),
+        )
+        .length(1),
+});
+
+const runQueryResolvedInternalSchema = z.object({
+    ...visualizationMetadataSchema.shape,
+    queryConfig: resolvedQueryConfigInternalSchema,
+    chartConfig: chartConfigSchema.default(null),
+    mergeConfig: resolvedMergeConfigInternalSchema.nullable().default(null),
+});
+
+// Same internal output shape as toolRunQueryArgsSchemaTransformed, with
+// per-category connectors preserved in the domain Filters.
+export const toolRunQueryExpressionResolvedArgsSchemaTransformed: z.ZodPipeline<
+    typeof toolRunQueryExpressionResolvedArgsSchema,
+    typeof runQueryResolvedInternalSchema
+> = toolRunQueryExpressionResolvedArgsSchema.pipe(
+    runQueryResolvedInternalSchema,
+);
+
+export type ToolRunQueryExpressionResolvedArgsTransformed = z.infer<
+    typeof toolRunQueryExpressionResolvedArgsSchemaTransformed
+>;

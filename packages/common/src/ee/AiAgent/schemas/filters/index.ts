@@ -24,7 +24,7 @@ const filterAndOrSchema = z
     .union([z.literal('and'), z.literal('or')])
     .describe('Type of filter group operation');
 
-const filterRuleSchema = z.union([
+export const filterRuleSchema = z.union([
     booleanFilterSchema,
     stringFilterSchema,
     numberFilterSchema,
@@ -36,7 +36,7 @@ export type AiFilterRule = FilterRule<
     { fieldId: string; fieldFilterType: FilterType }
 >;
 
-const filterRuleSchemaTransformed = filterRuleSchema.transform(
+export const filterRuleSchemaTransformed = filterRuleSchema.transform(
     (data): AiFilterRule => ({
         id: uuid(),
         target: {
