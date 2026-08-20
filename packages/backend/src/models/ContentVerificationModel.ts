@@ -168,6 +168,7 @@ export class ContentVerificationModel {
                 `${ContentVerificationTableName}.content_type`,
                 `${ContentVerificationTableName}.content_uuid`,
                 `${SavedChartsTableName}.name`,
+                `${SavedChartsTableName}.slug`,
                 `${SavedChartsTableName}.description`,
                 `${SavedChartsTableName}.views_count`,
                 `${SavedChartsTableName}.last_version_chart_kind`,
@@ -269,6 +270,7 @@ export class ContentVerificationModel {
         const charts: VerifiedContentListItem[] = chartRows.map((row) => ({
             ...toBaseItem(row),
             contentType: ContentType.CHART,
+            slug: row.slug,
             chartKind: row.last_version_chart_kind,
             exploreName: row.explore_name ?? null,
         }));

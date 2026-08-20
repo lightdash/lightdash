@@ -84,7 +84,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                     const { contentType, contentUuid, name } = row.original;
                     const href =
                         contentType === ContentType.CHART
-                            ? `/projects/${projectUuid}/saved/${contentUuid}`
+                            ? `/projects/${projectUuid}/saved/${row.original.slug}`
                             : `/projects/${projectUuid}/dashboards/${contentUuid}`;
                     return (
                         <Anchor

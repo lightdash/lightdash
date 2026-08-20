@@ -5680,6 +5680,7 @@ export class AiAgentModel {
                     .ref(`${SavedChartsTableName}.saved_query_uuid`)
                     .as('content_uuid'),
                 `${SavedChartsTableName}.name`,
+                `${SavedChartsTableName}.slug`,
                 `${SavedChartsTableName}.description`,
                 `${SavedChartsTableName}.views_count`,
                 `${SavedChartsTableName}.last_version_chart_kind`,
@@ -5796,6 +5797,7 @@ export class AiAgentModel {
         const charts: VerifiedContentListItem[] = chartRows.map((row) => ({
             ...toBaseItem(row),
             contentType: ContentType.CHART,
+            slug: row.slug,
             chartKind: row.last_version_chart_kind,
             exploreName: row.explore_name ?? null,
         }));

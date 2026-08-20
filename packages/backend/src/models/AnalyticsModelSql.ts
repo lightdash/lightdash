@@ -207,13 +207,14 @@ export const chartViewsSql = (projectUuid: string) => `
 SELECT
   count(chart_uuid) as count,
   chart_uuid as uuid,
+  sq.slug,
   sq.name
 FROM public.analytics_chart_views
   left join ${SavedChartsTableName} sq on sq.saved_query_uuid  = chart_uuid AND sq.deleted_at IS NULL
   left join ${SpaceTableName} s on s.space_id  = sq.space_id
   left join projects on projects.project_id = s.project_id
 where projects.project_uuid = '${projectUuid}'
-group by chart_uuid, sq.name
+group by chart_uuid, sq.slug, sq.name
 order by count(chart_uuid) desc
 limit 20
 `;

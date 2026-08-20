@@ -867,6 +867,7 @@ export class CatalogService<
             (chart) => ({
                 name: chart.name,
                 uuid: chart.uuid,
+                slug: chart.slug,
                 description: chart.description,
                 spaceUuid: chart.spaceUuid,
                 spaceName: chart.spaceName,
@@ -909,6 +910,7 @@ export class CatalogService<
             chartSummaries.map((chart) => ({
                 name: chart.name,
                 uuid: chart.uuid,
+                slug: chart.slug,
                 description: chart.description,
                 spaceUuid: chart.spaceUuid,
                 spaceName: chart.spaceName,
