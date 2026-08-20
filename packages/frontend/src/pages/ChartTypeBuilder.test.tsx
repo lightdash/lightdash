@@ -496,7 +496,15 @@ describe('ChartTypeBuilder', () => {
             `/projects/p1/chart-types/${dataAppVizUuid}${explorerSearch()}`,
         );
 
-        fireEvent.click(screen.getByText('Preview in explorer'));
+        const previewLink = screen.getByRole('link', {
+            name: 'Preview in explorer',
+        });
+        expect(previewLink).toHaveAttribute(
+            'href',
+            expect.stringContaining('/projects/p1/tables/orders?'),
+        );
+
+        fireEvent.click(previewLink);
 
         const destination = new URL(
             screen.getByTestId('location').textContent ?? '',
@@ -532,7 +540,15 @@ describe('ChartTypeBuilder', () => {
             'href',
             '/projects/p1/gallery',
         );
-        fireEvent.click(screen.getByText('Preview in explorer'));
+        const previewLink = screen.getByRole('link', {
+            name: 'Preview in explorer',
+        });
+        expect(previewLink).toHaveAttribute(
+            'href',
+            `/projects/p1/tables?dataAppVizUuid=${dataAppVizUuid}`,
+        );
+
+        fireEvent.click(previewLink);
 
         expect(screen.getByTestId('location')).toHaveTextContent(
             `/projects/p1/tables?dataAppVizUuid=${dataAppVizUuid}`,

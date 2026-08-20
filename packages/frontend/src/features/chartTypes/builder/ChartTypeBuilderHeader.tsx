@@ -47,7 +47,7 @@ type Props = {
     upgrade: (SdkUpgradeOffer & { disabled: boolean }) | null;
     onUpgradeStarted: () => void;
     onToggleHistory: () => void;
-    onPreviewInExplorer: () => void;
+    previewInExplorerLink: To | null;
 };
 
 const ChartTypeBuilderHeader: FC<Props> = ({
@@ -62,7 +62,7 @@ const ChartTypeBuilderHeader: FC<Props> = ({
     upgrade,
     onUpgradeStarted,
     onToggleHistory,
-    onPreviewInExplorer,
+    previewInExplorerLink,
 }) => {
     const [isEditingDetails, setIsEditingDetails] = useState(false);
     const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
@@ -166,8 +166,12 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                         History
                     </Button>
                 )}
-                {latestReadyVersion !== null && (
-                    <Button size="xs" onClick={onPreviewInExplorer}>
+                {latestReadyVersion !== null && previewInExplorerLink && (
+                    <Button
+                        size="xs"
+                        component={Link}
+                        to={previewInExplorerLink}
+                    >
                         Preview in explorer
                     </Button>
                 )}
