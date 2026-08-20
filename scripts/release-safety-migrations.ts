@@ -113,8 +113,18 @@ const matchingOpening = (delimiter: ClosingDelimiter): OpeningDelimiter => {
 
 const decodeEscaped = (value: string): string =>
     value.replace(
-        /\\(?:u\{([\da-fA-F]+)\}|u([\da-fA-F]{4})|x([\da-fA-F]{2})|([0btnvfr'"`\\]))/g,
-        (_match, codePoint, unicode, hex, escaped: string | undefined) => {
+        /\\(?:u\{([\da-fA-F]+)\}|u([\da-fA-F]{4})|x([\da-fA-F]{2})|([0btnvfr'"`\\])|(\r\n|[\n\r\u2028\u2029]))/g,
+        (
+            _match,
+            codePoint,
+            unicode,
+            hex,
+            escaped: string | undefined,
+            lineContinuation: string | undefined,
+        ) => {
+            // A line continuation evaluates to nothing, so keeping it would
+            // hide the keyword it splits.
+            if (lineContinuation !== undefined) return '';
             if (codePoint !== undefined) {
                 return String.fromCodePoint(Number.parseInt(codePoint, 16));
             }
@@ -339,48 +349,17 @@ const migrationEdition = (migrationPath: string): 'core' | 'ee' =>
         ? 'ee'
         : 'core';
 
-const DECLARATION_KEYWORDS = ['const', 'let', 'var'];
-
 /**
- * PURE. How many times each name is declared anywhere in the file, at any
- * depth.
- *
- * A name declared twice cannot be resolved by scanning alone: the binding in
- * force at a `knex.raw()` call depends on lexical scope this tokenizer does
- * not model. Counting lets the caller drop those names instead of resolving
- * the wrong one.
- */
-const countDeclarations = (tokens: Token[]): Map<string, number> => {
-    const counts = new Map<string, number>();
-    for (let index = 0; index + 1 < tokens.length; index += 1) {
-        if (
-            tokens[index].kind === 'identifier' &&
-            DECLARATION_KEYWORDS.includes(tokens[index].value) &&
-            tokens[index + 1].kind === 'identifier'
-        ) {
-            const name = tokens[index + 1].value;
-            counts.set(name, (counts.get(name) ?? 0) + 1);
-        }
-    }
-    return counts;
-};
-
-/**
- * PURE. Module-scope constants whose value is a complete literal.
- *
- * Three conditions keep this honest, because callers treat a hit as fact:
- * the declaration sits at depth 0, so no enclosing block can rebind it; the
- * name is declared exactly once, so no inner scope shadows it; and the literal
- * is the whole initializer, so `'ALTER TABLE ' + build()` is rejected rather
- * than recorded as its prefix. Anything else is left out, which costs only an
- * unknown verdict.
+ * PURE. Module-scope constants whose value is a complete literal, bound exactly
+ * once. Callers treat a hit as fact, so anything shadowed or partly dynamic is
+ * left out; that costs only an unknown verdict.
  */
 const collectStringConstants = (
     tokens: Token[],
     kinds: readonly TokenKind[] = ['string', 'template'],
 ): Map<string, string> => {
     const constants = new Map<string, string>();
-    const declarationCounts = countDeclarations(tokens);
+    const bindingSites = collectBindingSites(tokens);
     for (let index = 0; index + 3 < tokens.length; index += 1) {
         const terminator = tokens[index + 4];
         if (
@@ -388,7 +367,7 @@ const collectStringConstants = (
             tokens[index].value === 'const' &&
             tokens[index].depth === 0 &&
             tokens[index + 1].kind === 'identifier' &&
-            declarationCounts.get(tokens[index + 1].value) === 1 &&
+            bindingSites.get(tokens[index + 1].value)?.size === 1 &&
             tokens[index + 2].kind === 'operator' &&
             tokens[index + 2].value === '=' &&
             kinds.includes(tokens[index + 3].kind) &&
@@ -425,6 +404,82 @@ const findMatching = (
         if (depth === 0) return index;
     }
     return null;
+};
+
+const BINDING_KEYWORDS = ['const', 'let', 'var', 'function', 'class', 'catch'];
+
+const CLOSING_FOR: Record<OpeningDelimiter, ClosingDelimiter> = {
+    '(': ')',
+    '[': ']',
+    '{': '}',
+};
+
+/**
+ * PURE. Every token index that binds a name, keyed by name. Indices not counts,
+ * because one declaration is reached by several of the rules below.
+ */
+const collectBindingSites = (tokens: Token[]): Map<string, Set<number>> => {
+    const sites = new Map<string, Set<number>>();
+    const bind = (name: string, index: number): void => {
+        const seen = sites.get(name) ?? new Set<number>();
+        seen.add(index);
+        sites.set(name, seen);
+    };
+    const closingIndexOf = (openerIndex: number): number | null => {
+        const opening = tokens[openerIndex]?.value as OpeningDelimiter;
+        const closing = CLOSING_FOR[opening];
+        return closing === undefined
+            ? null
+            : findMatching(tokens, openerIndex, opening, closing);
+    };
+    const bindEnclosed = (openerIndex: number): void => {
+        const end = closingIndexOf(openerIndex);
+        if (end === null) return;
+        for (let index = openerIndex + 1; index < end; index += 1) {
+            if (tokens[index].kind !== 'identifier') continue;
+            // A member name is a property, not a binding.
+            if (tokens[index - 1]?.value === '.') continue;
+            bind(tokens[index].value, index);
+        }
+    };
+
+    for (let index = 0; index < tokens.length; index += 1) {
+        const token = tokens[index];
+        const next = tokens[index + 1];
+        if (next === undefined) continue;
+
+        // An assignment target or a parameter default rebinds the name.
+        if (
+            token.kind === 'identifier' &&
+            next.kind === 'operator' &&
+            next.value === '='
+        ) {
+            bind(token.value, index);
+        }
+
+        // An arrow parameter list binds every name it lists.
+        if (token.kind === 'punctuation' && token.value === '(') {
+            const end = closingIndexOf(index);
+            if (end !== null && tokens[end + 1]?.value === '=>') {
+                bindEnclosed(index);
+            }
+        }
+
+        if (token.kind !== 'identifier') continue;
+        if (!BINDING_KEYWORDS.includes(token.value)) continue;
+
+        if (next.kind === 'identifier') {
+            bind(next.value, index + 1);
+            // A function declaration also binds its parameters.
+            if (tokens[index + 2]?.value === '(') bindEnclosed(index + 2);
+            continue;
+        }
+        // Destructuring, and a catch or parameter list.
+        if (next.kind === 'punctuation' && ['{', '[', '('].includes(next.value)) {
+            bindEnclosed(index + 1);
+        }
+    }
+    return sites;
 };
 
 const findUpBody = (tokens: Token[]): Token[] | null => {
@@ -492,22 +547,9 @@ const resolveTable = (
 const TEMPLATE_PLACEHOLDER = /\$\{([^}]*)\}/g;
 
 /**
- * PURE. The SQL a `knex.raw()` argument stands for, or null when the argument
- * cannot be read statically.
- *
- * A template holding `${...}` reaches here as a `dynamicTemplate`. Substituting
- * the local constants it names recovers the real statement, which is how
- * migrations normally keep a `CREATE INDEX` and its matching `DROP INDEX` in
- * step. A placeholder naming anything else stays unreadable and returns null,
- * so the caller keeps degrading the verdict rather than guessing.
- *
- * The tokenizer flags a template dynamic on sight of `${` but does not track
- * nesting, so a nested template ends the token mid-placeholder and leaves a
- * fragment this regex cannot match. Returning that fragment would read as
- * clean SQL and report heaviness the statement never had, so any `${` left
- * after substitution means the argument was not understood. Refusing is the
- * only safe answer: a wrong `false` claims a migration is light, while an
- * unknown merely asks a person to look.
+ * PURE. The SQL a `knex.raw()` argument stands for, or null when it cannot be
+ * read statically. Any `${` surviving substitution means the argument was not
+ * understood, so refuse rather than report heaviness the statement never had.
  */
 const resolveSqlArgument = (
     token: Token | undefined,
@@ -545,6 +587,15 @@ const rawSqlTables = (sql: string): string[] => {
     }
     return [...tables];
 };
+
+const SQL_COMMENTS = /--[^\n]*|\/\*[\s\S]*?\*\//g;
+
+const sqlStatements = (sql: string): string[] =>
+    sql.replace(SQL_COMMENTS, ' ').split(';');
+
+const addsValidatedConstraint = (statement: string): boolean =>
+    /\badd\s+constraint\b/i.test(statement) &&
+    !/\bnot\s+valid\b/i.test(statement);
 
 export function analyzeMigrationSource(
     migrationPath: string,
@@ -701,13 +752,10 @@ export function analyzeMigrationSource(
                 ) {
                     mark('scansTable');
                 }
-                // Postgres validates a new CHECK or FOREIGN KEY constraint
-                // against every existing row unless the statement says NOT
-                // VALID, so the add is a full scan in all but that one form.
-                if (
-                    /\badd\s+constraint\b/i.test(sql) &&
-                    !/\bnot\s+valid\b/i.test(sql)
-                ) {
+                // Adding a constraint validates every existing row unless
+                // the statement says NOT VALID. Checked per statement so one
+                // deferred add cannot vouch for a validated one beside it.
+                if (sqlStatements(sql).some(addsValidatedConstraint)) {
                     mark('scansTable');
                 }
                 if (

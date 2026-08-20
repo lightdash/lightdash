@@ -164,14 +164,10 @@ test('numeric constants substitute as readily as string ones', () => {
     assert.strictEqual(result.complete, true);
 });
 
-// The four cases below are the fail-safe direction. Each one used to reach
-// `complete: false` with every heaviness value unknown, and a reader that
-// guesses instead would publish a confident wrong answer. A false `false`
-// tells the upgrade gate a migration is light when it is not.
+// The cases below pin the fail-safe direction: a reader that guesses would
+// tell the upgrade gate a migration is light when it is not.
 test('a nested template refuses rather than reading a fragment', () => {
-    // The tokenizer ends the outer token at the inner backtick, so the value
-    // is the fragment `${` and no placeholder matches. The real statement is
-    // an UPDATE, which rewrites and scans.
+    // The outer token ends at the inner backtick, leaving the fragment `${`.
     const result = analyzeMigrationSource(
         'packages/backend/src/database/migrations/20260810000007_nested.ts',
         'const A = `users`;\n' +
@@ -265,6 +261,63 @@ test('one unresolvable placeholder degrades the whole statement', () => {
         `,
     );
     assert.strictEqual(result.complete, false);
+});
+
+test('a deferred constraint elsewhere does not vouch for a validated one', () => {
+    const result = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260810000012_two_adds.ts',
+        `
+            const T = 'users';
+            export async function up(knex) {
+                await knex.raw(
+                    \`ALTER TABLE \${T} ADD CONSTRAINT a CHECK (x > 0); ALTER TABLE events ADD CONSTRAINT b CHECK (y > 0) NOT VALID\`,
+                );
+            }
+        `,
+    );
+    assert.strictEqual(result.migration.heaviness.scansTable, true);
+});
+
+test('a comment cannot defer a constraint', () => {
+    const result = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260810000013_commented.ts',
+        `
+            const T = 'users';
+            export async function up(knex) {
+                await knex.raw(\`-- not valid\\nALTER TABLE \${T} ADD CONSTRAINT a CHECK (x > 0)\`);
+            }
+        `,
+    );
+    assert.strictEqual(result.migration.heaviness.scansTable, true);
+});
+
+test('a parameter or pattern shadowing a constant blocks resolution', () => {
+    const bodies = [
+        "await (async (SQL = 'UPDATE users SET x = 1') => knex.raw(\`\${SQL}\`))();",
+        'await (async (SQL) => knex.raw(\`\${SQL}\`))(buildSql());',
+        'const { SQL } = opts; await knex.raw(\`\${SQL}\`);',
+    ];
+    for (const body of bodies) {
+        const result = analyzeMigrationSource(
+            'packages/backend/src/database/migrations/20260810000014_shadow.ts',
+            `
+                const SQL = 'SELECT 1';
+                export async function up(knex) { ${body} }
+            `,
+        );
+        assert.strictEqual(result.complete, false);
+        assert.strictEqual(result.migration.heaviness.rewritesTable, 'unknown');
+    }
+});
+
+test('a line continuation inside a constant is cooked away', () => {
+    const result = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260810000015_continued.ts',
+        "const SQL = 'UPD\\\nATE users SET x = 1';\n" +
+            'export async function up(knex) { await knex.raw(`${SQL}`); }',
+    );
+    assert.strictEqual(result.complete, true);
+    assert.strictEqual(result.migration.heaviness.rewritesTable, true);
 });
 
 test('IO reads the requested ref and represents unreadable paths honestly', () => {
