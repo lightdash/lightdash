@@ -1,3 +1,10 @@
+## [1.221.1](https://github.com/lightdash/lightdash/compare/1.221.0...1.221.1) (2026-08-20)
+
+
+### Bug Fixes
+
+* use thread terminology in AI thread retention copy ([#27791](https://github.com/lightdash/lightdash/issues/27791)) ([0566e4c](https://github.com/lightdash/lightdash/commit/0566e4c66190e0f039dcc331aff3842389f64288))
+
 # [1.221.0](https://github.com/lightdash/lightdash/compare/1.220.1...1.221.0) (2026-08-20)
 
 
