@@ -15,9 +15,9 @@ import { createToolSchema } from '../toolSchemaBuilder';
 export const DEFAULT_COMPOSER_QUERY_LIMIT = 500;
 export const DEFAULT_COMPOSER_QUERY_MAX_LIMIT = 5000;
 
-export const TOOL_COMPOSER_QUERIES_DESCRIPTION = `Execute a composer query: a multi-source pipeline of one or more queries submitted together, where DuckDB queries can join and transform the results of the other queries. Results are stored as a chart artifact that renders the terminal node's results table in the thread.
+export const TOOL_COMPOSER_QUERIES_DESCRIPTION = `Execute a composer query: a pipeline of one or more queries submitted together, where DuckDB queries can join and transform the results of the other queries. Results are stored as a chart artifact that renders the terminal node's results table in the thread.
 
-Use this tool when a single source cannot answer the question — e.g. joining a semantic layer metric query with raw warehouse SQL, or post-processing prior results with SQL.
+Use this tool when a single source cannot answer the question — e.g. joining a semantic layer metric query with raw warehouse SQL, or post-processing prior results with SQL. A pipeline may also be a single node: a lone "sql" node is how raw warehouse SQL runs when no standalone runSql tool is available.
 
 How to build a pipeline:
 - Every query is a node. Name each node with "nodeId" (letters, digits, underscores; starting with a letter or underscore).

@@ -9940,7 +9940,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             });
         // Composer queries (multi-source pipelines): the MultiSourceQuery flag
         // gates the whole feature (the service re-checks it at execution);
-        // v0 surface is web chat only, so Slack prompts never get the tool.
+        // v0 surface is standard web chat only, so Slack prompts never get the
+        // tool, and neither do deep-research runs — composer supersedes the
+        // standalone runSql tool, but the deep-research worker/coordinator
+        // toolsets still rely on runSql.
         const { enabled: multiSourceQueryEnabled } =
             await this.featureFlagService.get({
                 user,
@@ -9949,7 +9952,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const enableComposerQueries =
             multiSourceQueryEnabled &&
             agentSettings.enableDataAccess &&
-            !isSlackPrompt(prompt);
+            !isSlackPrompt(prompt) &&
+            responseExecution.mode !== 'deep_research';
         let aiWritebackEnabled = hasTrustedPromptUserIdentity;
         if (!aiWritebackEnabled) {
             this.logger.info(

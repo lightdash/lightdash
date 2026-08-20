@@ -69,6 +69,51 @@ describe('getSystemPromptV2 merge queries', () => {
     });
 });
 
+describe('getSystemPromptV2 composer queries', () => {
+    test('directs cross-explore questions to runComposerQueries when enabled', () => {
+        const content = promptText({
+            availableExplores: [],
+            canRunSql: true,
+            enableMergeQueries: false,
+            enableComposerQueries: true,
+        });
+
+        expect(content).toContain(
+            'one semanticLayer node per explore plus a duckdb node',
+        );
+        expect(content).not.toContain(
+            'use the runSql tool to write raw SQL across those tables',
+        );
+    });
+
+    test('teaches raw SQL through composer sql nodes instead of a runSql tool', () => {
+        const content = promptText({
+            availableExplores: [],
+            canRunSql: true,
+            enableComposerQueries: true,
+        });
+
+        expect(content).toContain('There is NO standalone runSql tool');
+        expect(content).toContain('sql` nodes inside runComposerQueries');
+        expect(content).not.toContain('You have access to a runSql tool');
+        // No-explores guidance points at composer, not runSql.
+        expect(content).toContain(
+            'answer questions with runComposerQueries using a sql node',
+        );
+    });
+
+    test('keeps the standalone runSql wording when composer queries are off', () => {
+        const content = promptText({
+            availableExplores: [],
+            canRunSql: true,
+            enableComposerQueries: false,
+        });
+
+        expect(content).toContain('You have access to a runSql tool');
+        expect(content).not.toContain('There is NO standalone runSql tool');
+    });
+});
+
 describe('getSystemPromptV2 memories', () => {
     test('includes the memory section when enabled', () => {
         const content = promptText({
