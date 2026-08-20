@@ -1,3 +1,15 @@
+# [1.216.0](https://github.com/lightdash/lightdash/compare/1.215.0...1.216.0) (2026-08-20)
+
+
+### Bug Fixes
+
+* preserve chart schema during SDK upgrades ([#27682](https://github.com/lightdash/lightdash/issues/27682)) ([f5496b6](https://github.com/lightdash/lightdash/commit/f5496b6fd1001614e4a8e745f18baf36095b9b38))
+
+
+### Features
+
+* expose SDK upgrades in chart builder ([#27683](https://github.com/lightdash/lightdash/issues/27683)) ([f6833dc](https://github.com/lightdash/lightdash/commit/f6833dc3a8bc07de96fdd194f58a653a1ef2ec2a))
+
 # [1.215.0](https://github.com/lightdash/lightdash/compare/1.214.0...1.215.0) (2026-08-20)
 
 
