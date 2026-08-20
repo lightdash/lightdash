@@ -845,6 +845,9 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                         helpers.job.run_at,
                         payload,
                         async () => {
+                            // Retire first, so the curator selects from the
+                            // cleaned corpus.
+                            await this.aiAgentMemoryService.sweepUnresolvedObjectMemories();
                             await this.aiAgentMemoryService.sweepConsolidationPartitions();
                         },
                     ),

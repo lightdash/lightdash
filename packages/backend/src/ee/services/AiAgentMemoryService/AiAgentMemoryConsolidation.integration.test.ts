@@ -2047,4 +2047,85 @@ describe('AI agent memory consolidation integration', () => {
         // A partition that was never consolidated renders exactly as before.
         expect(await renderFor(otherOwnerUuid)).toEqual(beforeOther);
     });
+
+    describe('unresolved-object sweep', () => {
+        it('retires a one-memory partition whose only object left the catalog, with a recorded reason', async () => {
+            const renamedFieldObject = {
+                type: 'field' as const,
+                explore: resolvableExploreName,
+                fieldId: `${resolvableExploreName}_renamed_away`,
+            };
+            const [slug] = await seedPartition({
+                userUuid: ownerUuid,
+                count: 1,
+                prefix: 'objectsweep',
+                objects: [renamedFieldObject],
+            });
+
+            await buildService(cannedCall([])).sweepUnresolvedObjectMemories();
+
+            expect(await memoryBySlug(slug!)).toMatchObject({
+                status: 'retired',
+                retired_reason: 'unresolved_objects',
+                unresolved_objects: [renamedFieldObject],
+                superseded_by_uuid: null,
+            });
+            // Pull selection filters on active status, so the memory is gone
+            // from recall the moment the sweep commits.
+            const pulled = await model.findActiveForProject({
+                projectUuid: SEED_PROJECT.project_uuid,
+                userUuid: ownerUuid,
+            });
+            expect(pulled.map((row) => row.slug)).not.toContain(slug);
+        });
+
+        it('keeps memories with a resolving object or no objects at all', async () => {
+            const [partiallyStale] = await seedPartition({
+                userUuid: ownerUuid,
+                count: 1,
+                prefix: 'objectsweep-partial',
+                objects: [
+                    { type: 'explore', name: resolvableExploreName },
+                    {
+                        type: 'field',
+                        explore: resolvableExploreName,
+                        fieldId: `${resolvableExploreName}_renamed_away`,
+                    },
+                ],
+            });
+            const [objectless] = await seedPartition({
+                userUuid: ownerUuid,
+                count: 1,
+                prefix: 'objectsweep-none',
+            });
+
+            await buildService(cannedCall([])).sweepUnresolvedObjectMemories();
+
+            expect(await memoryBySlug(partiallyStale!)).toMatchObject({
+                status: 'active',
+                retired_reason: null,
+            });
+            expect(await memoryBySlug(objectless!)).toMatchObject({
+                status: 'active',
+                retired_reason: null,
+            });
+        });
+
+        it('never sweeps an organization with memory disabled', async () => {
+            const [slug] = await seedPartition({
+                userUuid: ownerUuid,
+                count: 1,
+                prefix: 'objectsweep-off',
+                objects: [{ type: 'explore', name: 'deleted_explore' }],
+            });
+            await setOrgMemoryEnabled(false);
+
+            await buildService(cannedCall([])).sweepUnresolvedObjectMemories();
+
+            expect(await memoryBySlug(slug!)).toMatchObject({
+                status: 'active',
+                retired_reason: null,
+            });
+        });
+    });
 });
