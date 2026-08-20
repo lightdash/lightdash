@@ -5257,9 +5257,56 @@
                                 "type": "array"
                             },
                             "tableCalculations": {
-                                "description": "\nTable calculations perform row-by-row calculations on query results without collapsing rows. Similar to SQL window functions.\n\n**Available Types:**\n- Simple calculations: percent_change_from_previous, percent_of_previous_value, percent_of_column_total, rank_in_column, running_total\n- Advanced window_function: Supports row_number, percent_rank, sum, avg, count, min, max with optional partitioning, ordering, and frame clauses\n\n**Technical Requirements:**\n- Appear as additional columns in query results\n- Can be used in sorts and filters alongside dimensions/metrics\n- Multiple calculations can be combined in a single query\n- All fields referenced must exist in the query (dimensions, metrics, or other table calculations)\n, ",
+                                "description": "\nTable calculations perform row-by-row calculations on query results without collapsing rows. Similar to SQL window functions.\n\n**Prefer type \"formula\"** — it expresses arithmetic across fields, ratios, comparisons, conditionals, and partitioned window calculations. The other types are legacy single-field templates kept for backwards compatibility.\n\n**Technical Requirements:**\n- Appear as additional columns in query results\n- Can be used in sorts and filters alongside dimensions/metrics\n- Multiple calculations can be combined in a single query\n- All fields referenced must exist in the query (dimensions, metrics, or other table calculations)\n, ",
                                 "items": {
                                     "anyOf": [
+                                        {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                                "displayName": {
+                                                    "description": "Display name for the table calculation, e.g. \"MoM revenue change\"",
+                                                    "type": "string"
+                                                },
+                                                "format": {
+                                                    "description": "Display format. Use \"percent\" for ratios/shares/percent changes (value 0.12 renders as 12%). null defaults to \"number\"., ",
+                                                    "enum": [
+                                                        "number",
+                                                        "percent"
+                                                    ],
+                                                    "type": "string"
+                                                },
+                                                "formula": {
+                                                    "description": "Spreadsheet-like formula evaluated row-by-row over the query results (after aggregation).\nReference fields by their field id directly, e.g. `orders_total_revenue / orders_order_count`. No prefix, no braces, no leading `=`.\nAny selected dimension, metric, custom metric (`<table>_<name>`), or another table calculation name can be referenced.\nOperators: + - * / % ^, comparisons = < > <= >= <>, boolean AND/OR/NOT, string literals in double quotes, parentheses for grouping.\nFunctions include IF, COALESCE, ROUND, ABS, CONCAT, date functions (YEAR, DATE_TRUNC, DATE_DIFF, DATE_ADD), aggregates over the whole result (SUM, AVG, MIN, MAX, COUNT, SUMIF), and window functions (RUNNING_TOTAL, MOVING_SUM, MOVING_AVG, LAG, LEAD, RANK, DENSE_RANK, ROW_NUMBER, FIRST, LAST).\nWindow functions accept optional PARTITION BY / ORDER BY clauses as trailing arguments, e.g. `LAG(orders_total_revenue, PARTITION BY orders_status, ORDER BY orders_order_date)`.\nMOVING_SUM and MOVING_AVG take the count of preceding rows as second argument; the current row is always included, so a trailing 3-period average is `MOVING_AVG(orders_total_revenue, 2, ORDER BY orders_order_month)`.\nAll branches of an IF must return the same type.",
+                                                    "type": "string"
+                                                },
+                                                "name": {
+                                                    "description": "Unique name for the table calculation, e.g. \"percent_change_from_previous\"",
+                                                    "type": "string"
+                                                },
+                                                "resultType": {
+                                                    "description": "Data type the formula evaluates to. null defaults to \"number\"., ",
+                                                    "enum": [
+                                                        "number",
+                                                        "string",
+                                                        "date",
+                                                        "timestamp",
+                                                        "boolean"
+                                                    ],
+                                                    "type": "string"
+                                                },
+                                                "type": {
+                                                    "const": "formula",
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "name",
+                                                "displayName",
+                                                "type",
+                                                "formula"
+                                            ],
+                                            "type": "object"
+                                        },
                                         {
                                             "additionalProperties": false,
                                             "properties": {

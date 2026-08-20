@@ -2972,444 +2972,74 @@ Example B — "Revenue by month with year-over-year comparison"
                     "anyOf": [
                       {
                         "items": {
-                          "anyOf": [
-                            {
-                              "additionalProperties": false,
-                              "properties": {
-                                "displayName": {
-                                  "description": "Display name for the table calculation, e.g. "MoM revenue change"",
-                                  "type": "string",
-                                },
-                                "fieldId": {
-                                  "description": "Field whose values you want to compare "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                                  "type": "string",
-                                },
-                                "name": {
-                                  "description": "Unique name for the table calculation, e.g. "percent_change_from_previous"",
-                                  "type": "string",
-                                },
-                                "orderBy": {
-                                  "description": "Specifies the order in which rows are processed by the table calculation.
-For time-series: typically order by date/time ascending.
-For rankings: order by the metric you want to rank, descending for highest-first.",
-                                  "items": {
-                                    "additionalProperties": false,
-                                    "properties": {
-                                      "fieldId": {
-                                        "description": "Field to order by "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                                        "type": "string",
-                                      },
-                                      "order": {
-                                        "anyOf": [
-                                          {
-                                            "enum": [
-                                              "asc",
-                                              "desc",
-                                            ],
-                                            "type": "string",
-                                          },
-                                          {
-                                            "type": "null",
-                                          },
-                                        ],
-                                      },
-                                    },
-                                    "required": [
-                                      "fieldId",
-                                      "order",
-                                    ],
-                                    "type": "object",
-                                  },
-                                  "minItems": 1,
-                                  "type": "array",
-                                },
-                                "partitionBy": {
-                                  "anyOf": [
-                                    {
-                                      "items": {
-                                        "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                                        "type": "string",
-                                      },
-                                      "type": "array",
-                                    },
-                                    {
-                                      "type": "null",
-                                    },
-                                  ],
-                                  "description": "Fields to PARTITION BY - divides result set into independent groups.
-Each partition calculates independently (rankings restart, percentages sum to 100% per partition).
-Empty array or null: single partition (calculations across all rows).",
-                                },
-                                "type": {
-                                  "const": "percent_change_from_previous",
-                                  "type": "string",
-                                },
-                              },
-                              "required": [
-                                "name",
-                                "displayName",
-                                "type",
-                                "fieldId",
-                                "orderBy",
-                                "partitionBy",
-                              ],
-                              "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "displayName": {
+                              "description": "Display name for the table calculation, e.g. "MoM revenue change"",
+                              "type": "string",
                             },
-                            {
-                              "additionalProperties": false,
-                              "properties": {
-                                "displayName": {
-                                  "$ref": "#/properties/visualizations/items/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/displayName",
-                                },
-                                "fieldId": {
-                                  "description": "Field whose values you want to compare "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                                  "type": "string",
-                                },
-                                "name": {
-                                  "$ref": "#/properties/visualizations/items/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/name",
-                                },
-                                "orderBy": {
-                                  "description": "Specifies the order in which rows are processed by the table calculation.
-For time-series: typically order by date/time ascending.
-For rankings: order by the metric you want to rank, descending for highest-first.",
-                                  "items": {
-                                    "$ref": "#/properties/visualizations/items/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/orderBy/items",
-                                  },
-                                  "minItems": 1,
-                                  "type": "array",
-                                },
-                                "partitionBy": {
-                                  "anyOf": [
-                                    {
-                                      "items": {
-                                        "$ref": "#/properties/visualizations/items/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/partitionBy/anyOf/0/items",
-                                      },
-                                      "type": "array",
-                                    },
-                                    {
-                                      "type": "null",
-                                    },
-                                  ],
-                                  "description": "Fields to PARTITION BY - divides result set into independent groups.
-Each partition calculates independently (rankings restart, percentages sum to 100% per partition).
-Empty array or null: single partition (calculations across all rows).",
-                                },
-                                "type": {
-                                  "const": "percent_of_previous_value",
-                                  "type": "string",
-                                },
-                              },
-                              "required": [
-                                "name",
-                                "displayName",
-                                "type",
-                                "fieldId",
-                                "orderBy",
-                                "partitionBy",
-                              ],
-                              "type": "object",
-                            },
-                            {
-                              "additionalProperties": false,
-                              "properties": {
-                                "displayName": {
-                                  "$ref": "#/properties/visualizations/items/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/displayName",
-                                },
-                                "fieldId": {
-                                  "description": "Field to calculate percentage of column total "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                                  "type": "string",
-                                },
-                                "name": {
-                                  "$ref": "#/properties/visualizations/items/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/name",
-                                },
-                                "partitionBy": {
-                                  "anyOf": [
-                                    {
-                                      "items": {
-                                        "$ref": "#/properties/visualizations/items/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/partitionBy/anyOf/0/items",
-                                      },
-                                      "type": "array",
-                                    },
-                                    {
-                                      "type": "null",
-                                    },
-                                  ],
-                                  "description": "Fields to PARTITION BY - divides result set into independent groups.
-Each partition calculates independently (rankings restart, percentages sum to 100% per partition).
-Empty array or null: single partition (calculations across all rows).",
-                                },
-                                "type": {
-                                  "const": "percent_of_column_total",
-                                  "type": "string",
-                                },
-                              },
-                              "required": [
-                                "name",
-                                "displayName",
-                                "type",
-                                "fieldId",
-                                "partitionBy",
-                              ],
-                              "type": "object",
-                            },
-                            {
-                              "additionalProperties": false,
-                              "properties": {
-                                "displayName": {
-                                  "$ref": "#/properties/visualizations/items/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/displayName",
-                                },
-                                "fieldId": {
-                                  "description": "Field to rank by "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                                  "type": "string",
-                                },
-                                "name": {
-                                  "$ref": "#/properties/visualizations/items/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/name",
-                                },
-                                "type": {
-                                  "const": "rank_in_column",
-                                  "type": "string",
-                                },
-                              },
-                              "required": [
-                                "name",
-                                "displayName",
-                                "type",
-                                "fieldId",
-                              ],
-                              "type": "object",
-                            },
-                            {
-                              "additionalProperties": false,
-                              "properties": {
-                                "displayName": {
-                                  "$ref": "#/properties/visualizations/items/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/displayName",
-                                },
-                                "fieldId": {
-                                  "description": "Field to calculate running total of "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                                  "type": "string",
-                                },
-                                "name": {
-                                  "$ref": "#/properties/visualizations/items/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/name",
-                                },
-                                "type": {
-                                  "const": "running_total",
-                                  "type": "string",
-                                },
-                              },
-                              "required": [
-                                "name",
-                                "displayName",
-                                "type",
-                                "fieldId",
-                              ],
-                              "type": "object",
-                            },
-                            {
-                              "additionalProperties": false,
-                              "properties": {
-                                "displayName": {
-                                  "$ref": "#/properties/visualizations/items/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/displayName",
-                                },
-                                "fieldId": {
-                                  "description": "Field to aggregate (required for sum/avg/count/min/max, not used for row_number/percent_rank/cume_dist/rank) "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                                  "type": [
-                                    "string",
-                                    "null",
-                                  ],
-                                },
-                                "frame": {
-                                  "anyOf": [
-                                    {
-                                      "additionalProperties": false,
-                                      "properties": {
-                                        "end": {
-                                          "additionalProperties": false,
-                                          "description": "End boundary (required)",
-                                          "properties": {
-                                            "offset": {
-                                              "anyOf": [
-                                                {
-                                                  "exclusiveMinimum": 0,
-                                                  "type": "integer",
-                                                },
-                                                {
-                                                  "type": "null",
-                                                },
-                                              ],
-                                              "description": "Number of rows for PRECEDING/FOLLOWING",
-                                            },
-                                            "type": {
-                                              "enum": [
-                                                "unbounded_preceding",
-                                                "preceding",
-                                                "current_row",
-                                                "following",
-                                                "unbounded_following",
-                                              ],
-                                              "type": "string",
-                                            },
-                                          },
-                                          "required": [
-                                            "type",
-                                            "offset",
-                                          ],
-                                          "type": "object",
-                                        },
-                                        "frameType": {
-                                          "description": "Frame type:
-- rows: Physical row count
-- range: Logical value-based (includes peer rows with same ORDER BY value)",
-                                          "enum": [
-                                            "rows",
-                                            "range",
-                                          ],
-                                          "type": "string",
-                                        },
-                                        "start": {
-                                          "anyOf": [
-                                            {
-                                              "additionalProperties": false,
-                                              "properties": {
-                                                "offset": {
-                                                  "anyOf": [
-                                                    {
-                                                      "exclusiveMinimum": 0,
-                                                      "type": "integer",
-                                                    },
-                                                    {
-                                                      "type": "null",
-                                                    },
-                                                  ],
-                                                  "description": "Number of rows for PRECEDING/FOLLOWING (e.g., 6 for "6 PRECEDING")",
-                                                },
-                                                "type": {
-                                                  "enum": [
-                                                    "unbounded_preceding",
-                                                    "preceding",
-                                                    "current_row",
-                                                    "following",
-                                                    "unbounded_following",
-                                                  ],
-                                                  "type": "string",
-                                                },
-                                              },
-                                              "required": [
-                                                "type",
-                                                "offset",
-                                              ],
-                                              "type": "object",
-                                            },
-                                            {
-                                              "type": "null",
-                                            },
-                                          ],
-                                          "description": "Start boundary. Null for single-boundary syntax.",
-                                        },
-                                      },
-                                      "required": [
-                                        "frameType",
-                                        "start",
-                                        "end",
-                                      ],
-                                      "type": "object",
-                                    },
-                                    {
-                                      "type": "null",
-                                    },
-                                  ],
-                                  "description": "Defines which rows to include in calculation. Null uses database defaults.
-
-**Common patterns:**
-- Moving average (N periods): {frameType: "rows", start: {type: "preceding", offset: N-1}, end: {type: "current_row"}}
-- Running total: {frameType: "rows", start: {type: "unbounded_preceding"}, end: {type: "current_row"}}
-- Centered window: {frameType: "rows", start: {type: "preceding", offset: 1}, end: {type: "following", offset: 1}}
-
-**Default when null:**
-- Aggregates WITH ORDER BY: RANGE UNBOUNDED PRECEDING AND CURRENT ROW (cumulative)
-- Aggregates WITHOUT ORDER BY: Entire partition (all rows)
-- Ranking functions: Always use entire partition (frame clause has no effect)",
-                                },
-                                "name": {
-                                  "$ref": "#/properties/visualizations/items/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/name",
-                                },
-                                "orderBy": {
-                                  "anyOf": [
-                                    {
-                                      "items": {
-                                        "$ref": "#/properties/visualizations/items/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/orderBy/items",
-                                      },
-                                      "type": "array",
-                                    },
-                                    {
-                                      "type": "null",
-                                    },
-                                  ],
-                                  "description": "Specifies the order in which rows are processed by the table calculation.
-For time-series: typically order by date/time ascending.
-For rankings: order by the metric you want to rank, descending for highest-first.",
-                                },
-                                "partitionBy": {
-                                  "anyOf": [
-                                    {
-                                      "items": {
-                                        "$ref": "#/properties/visualizations/items/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/partitionBy/anyOf/0/items",
-                                      },
-                                      "type": "array",
-                                    },
-                                    {
-                                      "type": "null",
-                                    },
-                                  ],
-                                  "description": "Fields to PARTITION BY - divides result set into independent groups.
-Each partition calculates independently (rankings restart, percentages sum to 100% per partition).
-Empty array or null: single partition (calculations across all rows).",
-                                },
-                                "type": {
-                                  "const": "window_function",
-                                  "type": "string",
-                                },
-                                "windowFunction": {
-                                  "description": "Type of window function to apply.
-
-**Ranking functions** (fieldId optional, ignored if provided):
-- row_number: Sequential numbering (1, 2, 3...)
-- percent_rank: Relative rank as percentage (0.0-1.0)
-- cume_dist: Cumulative distribution as percentage (0.0-1.0)
-- rank: Positional rank (1, 2, 3...) with ties
-
-**Aggregate functions** (fieldId required):
-- sum: Sum values within frame
-- avg: Average values within frame
-- count: Count values within frame
-- min: Minimum value within frame
-- max: Maximum value within frame",
+                            "format": {
+                              "anyOf": [
+                                {
                                   "enum": [
-                                    "row_number",
-                                    "percent_rank",
-                                    "cume_dist",
-                                    "rank",
-                                    "sum",
-                                    "avg",
-                                    "count",
-                                    "min",
-                                    "max",
+                                    "number",
+                                    "percent",
                                   ],
                                   "type": "string",
                                 },
-                              },
-                              "required": [
-                                "name",
-                                "displayName",
-                                "type",
-                                "windowFunction",
-                                "fieldId",
-                                "orderBy",
-                                "partitionBy",
-                                "frame",
+                                {
+                                  "type": "null",
+                                },
                               ],
-                              "type": "object",
+                              "description": "Display format. Use "percent" for ratios/shares/percent changes (value 0.12 renders as 12%). null defaults to "number".",
                             },
+                            "formula": {
+                              "description": "Spreadsheet-like formula evaluated row-by-row over the query results (after aggregation).
+Reference fields by their field id directly, e.g. \`orders_total_revenue / orders_order_count\`. No prefix, no braces, no leading \`=\`.
+Any selected dimension, metric, custom metric (\`<table>_<name>\`), or another table calculation name can be referenced.
+Operators: + - * / % ^, comparisons = < > <= >= <>, boolean AND/OR/NOT, string literals in double quotes, parentheses for grouping.
+Functions include IF, COALESCE, ROUND, ABS, CONCAT, date functions (YEAR, DATE_TRUNC, DATE_DIFF, DATE_ADD), aggregates over the whole result (SUM, AVG, MIN, MAX, COUNT, SUMIF), and window functions (RUNNING_TOTAL, MOVING_SUM, MOVING_AVG, LAG, LEAD, RANK, DENSE_RANK, ROW_NUMBER, FIRST, LAST).
+Window functions accept optional PARTITION BY / ORDER BY clauses as trailing arguments, e.g. \`LAG(orders_total_revenue, PARTITION BY orders_status, ORDER BY orders_order_date)\`.
+MOVING_SUM and MOVING_AVG take the count of preceding rows as second argument; the current row is always included, so a trailing 3-period average is \`MOVING_AVG(orders_total_revenue, 2, ORDER BY orders_order_month)\`.
+All branches of an IF must return the same type.",
+                              "type": "string",
+                            },
+                            "name": {
+                              "description": "Unique name for the table calculation, e.g. "percent_change_from_previous"",
+                              "type": "string",
+                            },
+                            "resultType": {
+                              "anyOf": [
+                                {
+                                  "enum": [
+                                    "number",
+                                    "string",
+                                    "date",
+                                    "timestamp",
+                                    "boolean",
+                                  ],
+                                  "type": "string",
+                                },
+                                {
+                                  "type": "null",
+                                },
+                              ],
+                              "description": "Data type the formula evaluates to. null defaults to "number".",
+                            },
+                            "type": {
+                              "const": "formula",
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "name",
+                            "displayName",
+                            "type",
+                            "formula",
+                            "format",
+                            "resultType",
                           ],
+                          "type": "object",
                         },
                         "type": "array",
                       },
@@ -3418,17 +3048,15 @@ Empty array or null: single partition (calculations across all rows).",
                       },
                     ],
                     "description": "
-Table calculations perform row-by-row calculations on query results without collapsing rows. Similar to SQL window functions.
+Table calculations perform row-by-row calculations on query results without collapsing rows, using spreadsheet-like formulas.
 
-**Available Types:**
-- Simple calculations: percent_change_from_previous, percent_of_previous_value, percent_of_column_total, rank_in_column, running_total
-- Advanced window_function: Supports row_number, percent_rank, sum, avg, count, min, max with optional partitioning, ordering, and frame clauses
+Use them whenever the question needs math the metric query alone can't express: arithmetic across metrics (\`metric_a + metric_b\`), ratios, percent of total, period-over-period change, running totals, moving averages, ranking, row-level comparisons, or aggregating already-aggregated metrics.
 
 **Technical Requirements:**
 - Appear as additional columns in query results
 - Can be used in sorts and filters alongside dimensions/metrics
-- Multiple calculations can be combined in a single query
-- All fields referenced must exist in the query (dimensions, metrics, or other table calculations)
+- Multiple calculations can be combined in a single query; a formula can reference another table calculation by name
+- All fields referenced must be selected in the query (dimensions, metrics, custom metrics, or other table calculations)
 ",
                   },
                 },
@@ -6723,444 +6351,74 @@ Example B — "Revenue by month with year-over-year comparison"
               "anyOf": [
                 {
                   "items": {
-                    "anyOf": [
-                      {
-                        "additionalProperties": false,
-                        "properties": {
-                          "displayName": {
-                            "description": "Display name for the table calculation, e.g. "MoM revenue change"",
-                            "type": "string",
-                          },
-                          "fieldId": {
-                            "description": "Field whose values you want to compare "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                            "type": "string",
-                          },
-                          "name": {
-                            "description": "Unique name for the table calculation, e.g. "percent_change_from_previous"",
-                            "type": "string",
-                          },
-                          "orderBy": {
-                            "description": "Specifies the order in which rows are processed by the table calculation.
-For time-series: typically order by date/time ascending.
-For rankings: order by the metric you want to rank, descending for highest-first.",
-                            "items": {
-                              "additionalProperties": false,
-                              "properties": {
-                                "fieldId": {
-                                  "description": "Field to order by "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                                  "type": "string",
-                                },
-                                "order": {
-                                  "anyOf": [
-                                    {
-                                      "enum": [
-                                        "asc",
-                                        "desc",
-                                      ],
-                                      "type": "string",
-                                    },
-                                    {
-                                      "type": "null",
-                                    },
-                                  ],
-                                },
-                              },
-                              "required": [
-                                "fieldId",
-                                "order",
-                              ],
-                              "type": "object",
-                            },
-                            "minItems": 1,
-                            "type": "array",
-                          },
-                          "partitionBy": {
-                            "anyOf": [
-                              {
-                                "items": {
-                                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                                  "type": "string",
-                                },
-                                "type": "array",
-                              },
-                              {
-                                "type": "null",
-                              },
-                            ],
-                            "description": "Fields to PARTITION BY - divides result set into independent groups.
-Each partition calculates independently (rankings restart, percentages sum to 100% per partition).
-Empty array or null: single partition (calculations across all rows).",
-                          },
-                          "type": {
-                            "const": "percent_change_from_previous",
-                            "type": "string",
-                          },
-                        },
-                        "required": [
-                          "name",
-                          "displayName",
-                          "type",
-                          "fieldId",
-                          "orderBy",
-                          "partitionBy",
-                        ],
-                        "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "displayName": {
+                        "description": "Display name for the table calculation, e.g. "MoM revenue change"",
+                        "type": "string",
                       },
-                      {
-                        "additionalProperties": false,
-                        "properties": {
-                          "displayName": {
-                            "$ref": "#/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/displayName",
-                          },
-                          "fieldId": {
-                            "description": "Field whose values you want to compare "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                            "type": "string",
-                          },
-                          "name": {
-                            "$ref": "#/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/name",
-                          },
-                          "orderBy": {
-                            "description": "Specifies the order in which rows are processed by the table calculation.
-For time-series: typically order by date/time ascending.
-For rankings: order by the metric you want to rank, descending for highest-first.",
-                            "items": {
-                              "$ref": "#/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/orderBy/items",
-                            },
-                            "minItems": 1,
-                            "type": "array",
-                          },
-                          "partitionBy": {
-                            "anyOf": [
-                              {
-                                "items": {
-                                  "$ref": "#/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/partitionBy/anyOf/0/items",
-                                },
-                                "type": "array",
-                              },
-                              {
-                                "type": "null",
-                              },
-                            ],
-                            "description": "Fields to PARTITION BY - divides result set into independent groups.
-Each partition calculates independently (rankings restart, percentages sum to 100% per partition).
-Empty array or null: single partition (calculations across all rows).",
-                          },
-                          "type": {
-                            "const": "percent_of_previous_value",
-                            "type": "string",
-                          },
-                        },
-                        "required": [
-                          "name",
-                          "displayName",
-                          "type",
-                          "fieldId",
-                          "orderBy",
-                          "partitionBy",
-                        ],
-                        "type": "object",
-                      },
-                      {
-                        "additionalProperties": false,
-                        "properties": {
-                          "displayName": {
-                            "$ref": "#/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/displayName",
-                          },
-                          "fieldId": {
-                            "description": "Field to calculate percentage of column total "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                            "type": "string",
-                          },
-                          "name": {
-                            "$ref": "#/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/name",
-                          },
-                          "partitionBy": {
-                            "anyOf": [
-                              {
-                                "items": {
-                                  "$ref": "#/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/partitionBy/anyOf/0/items",
-                                },
-                                "type": "array",
-                              },
-                              {
-                                "type": "null",
-                              },
-                            ],
-                            "description": "Fields to PARTITION BY - divides result set into independent groups.
-Each partition calculates independently (rankings restart, percentages sum to 100% per partition).
-Empty array or null: single partition (calculations across all rows).",
-                          },
-                          "type": {
-                            "const": "percent_of_column_total",
-                            "type": "string",
-                          },
-                        },
-                        "required": [
-                          "name",
-                          "displayName",
-                          "type",
-                          "fieldId",
-                          "partitionBy",
-                        ],
-                        "type": "object",
-                      },
-                      {
-                        "additionalProperties": false,
-                        "properties": {
-                          "displayName": {
-                            "$ref": "#/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/displayName",
-                          },
-                          "fieldId": {
-                            "description": "Field to rank by "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                            "type": "string",
-                          },
-                          "name": {
-                            "$ref": "#/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/name",
-                          },
-                          "type": {
-                            "const": "rank_in_column",
-                            "type": "string",
-                          },
-                        },
-                        "required": [
-                          "name",
-                          "displayName",
-                          "type",
-                          "fieldId",
-                        ],
-                        "type": "object",
-                      },
-                      {
-                        "additionalProperties": false,
-                        "properties": {
-                          "displayName": {
-                            "$ref": "#/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/displayName",
-                          },
-                          "fieldId": {
-                            "description": "Field to calculate running total of "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                            "type": "string",
-                          },
-                          "name": {
-                            "$ref": "#/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/name",
-                          },
-                          "type": {
-                            "const": "running_total",
-                            "type": "string",
-                          },
-                        },
-                        "required": [
-                          "name",
-                          "displayName",
-                          "type",
-                          "fieldId",
-                        ],
-                        "type": "object",
-                      },
-                      {
-                        "additionalProperties": false,
-                        "properties": {
-                          "displayName": {
-                            "$ref": "#/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/displayName",
-                          },
-                          "fieldId": {
-                            "description": "Field to aggregate (required for sum/avg/count/min/max, not used for row_number/percent_rank/cume_dist/rank) "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                            "type": [
-                              "string",
-                              "null",
-                            ],
-                          },
-                          "frame": {
-                            "anyOf": [
-                              {
-                                "additionalProperties": false,
-                                "properties": {
-                                  "end": {
-                                    "additionalProperties": false,
-                                    "description": "End boundary (required)",
-                                    "properties": {
-                                      "offset": {
-                                        "anyOf": [
-                                          {
-                                            "exclusiveMinimum": 0,
-                                            "type": "integer",
-                                          },
-                                          {
-                                            "type": "null",
-                                          },
-                                        ],
-                                        "description": "Number of rows for PRECEDING/FOLLOWING",
-                                      },
-                                      "type": {
-                                        "enum": [
-                                          "unbounded_preceding",
-                                          "preceding",
-                                          "current_row",
-                                          "following",
-                                          "unbounded_following",
-                                        ],
-                                        "type": "string",
-                                      },
-                                    },
-                                    "required": [
-                                      "type",
-                                      "offset",
-                                    ],
-                                    "type": "object",
-                                  },
-                                  "frameType": {
-                                    "description": "Frame type:
-- rows: Physical row count
-- range: Logical value-based (includes peer rows with same ORDER BY value)",
-                                    "enum": [
-                                      "rows",
-                                      "range",
-                                    ],
-                                    "type": "string",
-                                  },
-                                  "start": {
-                                    "anyOf": [
-                                      {
-                                        "additionalProperties": false,
-                                        "properties": {
-                                          "offset": {
-                                            "anyOf": [
-                                              {
-                                                "exclusiveMinimum": 0,
-                                                "type": "integer",
-                                              },
-                                              {
-                                                "type": "null",
-                                              },
-                                            ],
-                                            "description": "Number of rows for PRECEDING/FOLLOWING (e.g., 6 for "6 PRECEDING")",
-                                          },
-                                          "type": {
-                                            "enum": [
-                                              "unbounded_preceding",
-                                              "preceding",
-                                              "current_row",
-                                              "following",
-                                              "unbounded_following",
-                                            ],
-                                            "type": "string",
-                                          },
-                                        },
-                                        "required": [
-                                          "type",
-                                          "offset",
-                                        ],
-                                        "type": "object",
-                                      },
-                                      {
-                                        "type": "null",
-                                      },
-                                    ],
-                                    "description": "Start boundary. Null for single-boundary syntax.",
-                                  },
-                                },
-                                "required": [
-                                  "frameType",
-                                  "start",
-                                  "end",
-                                ],
-                                "type": "object",
-                              },
-                              {
-                                "type": "null",
-                              },
-                            ],
-                            "description": "Defines which rows to include in calculation. Null uses database defaults.
-
-**Common patterns:**
-- Moving average (N periods): {frameType: "rows", start: {type: "preceding", offset: N-1}, end: {type: "current_row"}}
-- Running total: {frameType: "rows", start: {type: "unbounded_preceding"}, end: {type: "current_row"}}
-- Centered window: {frameType: "rows", start: {type: "preceding", offset: 1}, end: {type: "following", offset: 1}}
-
-**Default when null:**
-- Aggregates WITH ORDER BY: RANGE UNBOUNDED PRECEDING AND CURRENT ROW (cumulative)
-- Aggregates WITHOUT ORDER BY: Entire partition (all rows)
-- Ranking functions: Always use entire partition (frame clause has no effect)",
-                          },
-                          "name": {
-                            "$ref": "#/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/name",
-                          },
-                          "orderBy": {
-                            "anyOf": [
-                              {
-                                "items": {
-                                  "$ref": "#/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/orderBy/items",
-                                },
-                                "type": "array",
-                              },
-                              {
-                                "type": "null",
-                              },
-                            ],
-                            "description": "Specifies the order in which rows are processed by the table calculation.
-For time-series: typically order by date/time ascending.
-For rankings: order by the metric you want to rank, descending for highest-first.",
-                          },
-                          "partitionBy": {
-                            "anyOf": [
-                              {
-                                "items": {
-                                  "$ref": "#/properties/queryConfig/properties/tableCalculations/anyOf/0/items/anyOf/0/properties/partitionBy/anyOf/0/items",
-                                },
-                                "type": "array",
-                              },
-                              {
-                                "type": "null",
-                              },
-                            ],
-                            "description": "Fields to PARTITION BY - divides result set into independent groups.
-Each partition calculates independently (rankings restart, percentages sum to 100% per partition).
-Empty array or null: single partition (calculations across all rows).",
-                          },
-                          "type": {
-                            "const": "window_function",
-                            "type": "string",
-                          },
-                          "windowFunction": {
-                            "description": "Type of window function to apply.
-
-**Ranking functions** (fieldId optional, ignored if provided):
-- row_number: Sequential numbering (1, 2, 3...)
-- percent_rank: Relative rank as percentage (0.0-1.0)
-- cume_dist: Cumulative distribution as percentage (0.0-1.0)
-- rank: Positional rank (1, 2, 3...) with ties
-
-**Aggregate functions** (fieldId required):
-- sum: Sum values within frame
-- avg: Average values within frame
-- count: Count values within frame
-- min: Minimum value within frame
-- max: Maximum value within frame",
+                      "format": {
+                        "anyOf": [
+                          {
                             "enum": [
-                              "row_number",
-                              "percent_rank",
-                              "cume_dist",
-                              "rank",
-                              "sum",
-                              "avg",
-                              "count",
-                              "min",
-                              "max",
+                              "number",
+                              "percent",
                             ],
                             "type": "string",
                           },
-                        },
-                        "required": [
-                          "name",
-                          "displayName",
-                          "type",
-                          "windowFunction",
-                          "fieldId",
-                          "orderBy",
-                          "partitionBy",
-                          "frame",
+                          {
+                            "type": "null",
+                          },
                         ],
-                        "type": "object",
+                        "description": "Display format. Use "percent" for ratios/shares/percent changes (value 0.12 renders as 12%). null defaults to "number".",
                       },
+                      "formula": {
+                        "description": "Spreadsheet-like formula evaluated row-by-row over the query results (after aggregation).
+Reference fields by their field id directly, e.g. \`orders_total_revenue / orders_order_count\`. No prefix, no braces, no leading \`=\`.
+Any selected dimension, metric, custom metric (\`<table>_<name>\`), or another table calculation name can be referenced.
+Operators: + - * / % ^, comparisons = < > <= >= <>, boolean AND/OR/NOT, string literals in double quotes, parentheses for grouping.
+Functions include IF, COALESCE, ROUND, ABS, CONCAT, date functions (YEAR, DATE_TRUNC, DATE_DIFF, DATE_ADD), aggregates over the whole result (SUM, AVG, MIN, MAX, COUNT, SUMIF), and window functions (RUNNING_TOTAL, MOVING_SUM, MOVING_AVG, LAG, LEAD, RANK, DENSE_RANK, ROW_NUMBER, FIRST, LAST).
+Window functions accept optional PARTITION BY / ORDER BY clauses as trailing arguments, e.g. \`LAG(orders_total_revenue, PARTITION BY orders_status, ORDER BY orders_order_date)\`.
+MOVING_SUM and MOVING_AVG take the count of preceding rows as second argument; the current row is always included, so a trailing 3-period average is \`MOVING_AVG(orders_total_revenue, 2, ORDER BY orders_order_month)\`.
+All branches of an IF must return the same type.",
+                        "type": "string",
+                      },
+                      "name": {
+                        "description": "Unique name for the table calculation, e.g. "percent_change_from_previous"",
+                        "type": "string",
+                      },
+                      "resultType": {
+                        "anyOf": [
+                          {
+                            "enum": [
+                              "number",
+                              "string",
+                              "date",
+                              "timestamp",
+                              "boolean",
+                            ],
+                            "type": "string",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                        "description": "Data type the formula evaluates to. null defaults to "number".",
+                      },
+                      "type": {
+                        "const": "formula",
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "name",
+                      "displayName",
+                      "type",
+                      "formula",
+                      "format",
+                      "resultType",
                     ],
+                    "type": "object",
                   },
                   "type": "array",
                 },
@@ -7169,17 +6427,15 @@ Empty array or null: single partition (calculations across all rows).",
                 },
               ],
               "description": "
-Table calculations perform row-by-row calculations on query results without collapsing rows. Similar to SQL window functions.
+Table calculations perform row-by-row calculations on query results without collapsing rows, using spreadsheet-like formulas.
 
-**Available Types:**
-- Simple calculations: percent_change_from_previous, percent_of_previous_value, percent_of_column_total, rank_in_column, running_total
-- Advanced window_function: Supports row_number, percent_rank, sum, avg, count, min, max with optional partitioning, ordering, and frame clauses
+Use them whenever the question needs math the metric query alone can't express: arithmetic across metrics (\`metric_a + metric_b\`), ratios, percent of total, period-over-period change, running totals, moving averages, ranking, row-level comparisons, or aggregating already-aggregated metrics.
 
 **Technical Requirements:**
 - Appear as additional columns in query results
 - Can be used in sorts and filters alongside dimensions/metrics
-- Multiple calculations can be combined in a single query
-- All fields referenced must exist in the query (dimensions, metrics, or other table calculations)
+- Multiple calculations can be combined in a single query; a formula can reference another table calculation by name
+- All fields referenced must be selected in the query (dimensions, metrics, custom metrics, or other table calculations)
 ",
             },
           },

@@ -8,7 +8,10 @@ import { getFieldIdSchema } from '../fieldId';
 import { filtersSchemaTransformed, filtersSchemaV2 } from '../filters';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import sortFieldSchema from '../sortField';
-import { tableCalcsSchema } from '../tableCalcs/tableCalcs';
+import {
+    formulaTableCalcsSchema,
+    tableCalcsSchema,
+} from '../tableCalcs/tableCalcs';
 import { createToolSchema } from '../toolSchemaBuilder';
 import visualizationMetadataSchema from '../visualizationMetadata';
 import {
@@ -74,6 +77,12 @@ const queryConfigSchemaV2 = queryConfigBaseSchema.extend({
     customMetrics: customMetricsSchema,
     tableCalculations: tableCalcsSchema,
     filters: filtersSchemaV2.nullable(),
+});
+
+// V4 narrows the advertised tableCalculations contract to formula-only.
+// V1–V3 keep the wide union (templates + formula) for parsing persisted args.
+const queryConfigSchemaV4 = queryConfigSchemaV2.extend({
+    tableCalculations: formulaTableCalcsSchema,
 });
 
 const mergeSourceQueryConfigSchema = queryConfigSchemaV2
@@ -267,9 +276,36 @@ export const toolRunQueryArgsSchemaV3 = createToolSchema()
     })
     .build();
 
-// V3 is the current agent contract. MCP runQuery continues to advertise V2.
-// Historical schemas remain available solely for persisted chats/artifacts.
-export const toolRunQueryArgsSchema = toolRunQueryArgsSchemaV3;
+export const toolRunQueryArgsSchemaV4 = createToolSchema()
+    .extend({
+        ...visualizationMetadataSchema.shape,
+        queryConfig: queryConfigSchemaV4,
+        chartConfig: chartConfigSchema,
+        mergeConfig: mergeConfigSchema.default(null),
+    })
+    .build();
+
+// V4 is the current agent contract (formula-only table calcs). MCP runQuery
+// continues to advertise V2. Historical schemas remain available solely for
+// persisted chats/artifacts — parse those with V1–V3, never with V4.
+export const toolRunQueryArgsSchema = toolRunQueryArgsSchemaV4;
+
+// Wide contract for parsing persisted args and incoming tool calls — call
+// sites use this alias, never a versioned schema. Invariant: it accepts the
+// output of every advertised version ever shipped (the wide table-calc union
+// covers templates and formulas).
+//
+// Evolving the contract:
+// - Additive field: no version bump. Add `.nullish().default(null)` to the
+//   CURRENT schema (providers accept optional keys now) — old payloads and
+//   models that omit it both parse, and this alias needs no change as long
+//   as it carries the field too (add it here if the bases diverge; Zod
+//   silently strips unknown keys).
+// - Restructure or narrowing (fields moved, union members dropped from the
+//   advertised contract): add V(N), point toolRunQueryArgsSchema at it, and
+//   keep this alias wide enough to parse everything ever persisted. Never
+//   narrow it — old threads must keep parsing.
+export const toolRunQueryArgsSchemaPersisted = toolRunQueryArgsSchemaV3;
 
 // V2 for runtimes where merge queries are disabled: a merge-shaped payload
 // must fail validation, not have Zod strip mergeConfig and run only the
@@ -298,6 +334,9 @@ export const toolRunQueryArgsSchemaV2RejectingMerge = z.preprocess(
 export type ToolRunQueryArgsV1 = z.infer<typeof toolRunQueryArgsSchemaV1>;
 export type ToolRunQueryArgsV2 = z.infer<typeof toolRunQueryArgsSchemaV2>;
 export type ToolRunQueryArgsV3 = z.infer<typeof toolRunQueryArgsSchemaV3>;
+export type ToolRunQueryArgsV4 = z.infer<typeof toolRunQueryArgsSchemaV4>;
+// Deliberately wide (no V4): handlers receive V3-parsed data, which can carry
+// legacy template table calcs the advertised V4 contract no longer accepts.
 export type ToolRunQueryArgs = ToolRunQueryArgsV2 | ToolRunQueryArgsV3;
 
 // Converts the raw V2 args into the internal domain shape: customMetrics and

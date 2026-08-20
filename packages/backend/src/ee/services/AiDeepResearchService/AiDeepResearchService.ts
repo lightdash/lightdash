@@ -22,7 +22,7 @@ import {
     QueryExecutionContext,
     QueryHistoryStatus,
     sleep,
-    toolRunQueryArgsSchema,
+    toolRunQueryArgsSchemaPersisted,
     UnexpectedServerError,
     type Account,
     type AiAgentToolResult,
@@ -1757,7 +1757,9 @@ export class AiDeepResearchService extends BaseService {
                 };
             }
 
-            const parsedArgs = toolRunQueryArgsSchema.safeParse(toolArgs);
+            // Persisted args may predate the current advertised contract.
+            const parsedArgs =
+                toolRunQueryArgsSchemaPersisted.safeParse(toolArgs);
             const resolvedChart = resolveDeepResearchWarehouseChart(
                 toolArgs,
                 queryUuid,
