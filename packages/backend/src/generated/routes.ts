@@ -51529,7 +51529,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     QuerySourceType: {
         dataType: 'refEnum',
-        enums: ['semanticLayer', 'sql', 'duckdb'],
+        enums: ['semanticLayer', 'sql', 'duckdb', 'external'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     QuerySourceDefinition: {
@@ -51848,6 +51848,61 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'QuerySourceType.EXTERNAL': {
+        dataType: 'refEnum',
+        enums: ['external'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExternalSourceTableReference: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'string',
+            validators: {
+                pattern: { value: '^[a-zA-Z0-9_][a-zA-Z0-9_-]{0,63}$' },
+            },
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_QuerySourceTableName.ExternalSourceTableReference_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { dataType: 'string' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExternalSourceQuery: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                tables: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'ExternalSourceTableReference',
+                            },
+                        },
+                        {
+                            ref: 'Record_QuerySourceTableName.ExternalSourceTableReference_',
+                        },
+                    ],
+                    required: true,
+                },
+                limit: { dataType: 'double' },
+                sql: { dataType: 'string', required: true },
+                nodeId: { ref: 'QueryNodeId' },
+                sourceType: { ref: 'QuerySourceType.EXTERNAL', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SourceQuery: {
         dataType: 'refAlias',
         type: {
@@ -51856,6 +51911,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'SemanticLayerSourceQuery' },
                 { ref: 'SqlSourceQuery' },
                 { ref: 'DuckdbSourceQuery' },
+                { ref: 'ExternalSourceQuery' },
             ],
             validators: {},
         },

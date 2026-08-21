@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "1.228.3",
-  "previousVersion": "1.228.2",
-  "releaseDate": "2026-08-20T22:39:49.980Z",
+  "version": "1.229.0",
+  "previousVersion": "1.228.3",
+  "releaseDate": "2026-08-21T03:43:57.975Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -20,8 +20,12 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [],
-      "advisoryCount": 0
+      "advisories": [
+        "GET /api/v2/projects/{projectUuid}/query-sources — added the new `external` enum value to the `results/sources/items/sourceType` response property for the response status `200`",
+        "POST /api/v2/projects/{projectUuid}/query-sources/queries — added the new `external` enum value to the `results/queries/items/sourceType` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/query-sources/{sourceType}/schema — added the new `external` enum value to the `results/sourceType` response property for the response status `200`"
+      ],
+      "advisoryCount": 3
     },
     "mcp": {
       "checked": true,

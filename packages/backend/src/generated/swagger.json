@@ -51755,7 +51755,7 @@
             },
             "QuerySourceType": {
                 "description": "Discriminator for every query source a project can execute queries against.\nA query source is anything that can scan a schema and run a query returning\nthe standard table format (ResultColumns + rows behind a queryUuid): the\nproject warehouse, the semantic layer, the DuckDB compose engine, and —\nlater — CSV uploads, HTTP APIs, Google Sheets, etc.\n\nDeliberately NOT WarehouseTypes: sources are not warehouses, they plug in\nabove the warehouse client layer.",
-                "enum": ["semanticLayer", "sql", "duckdb"],
+                "enum": ["semanticLayer", "sql", "duckdb", "external"],
                 "type": "string"
             },
             "QuerySourceDefinition": {
@@ -52089,6 +52089,57 @@
                 "type": "object",
                 "description": "A DuckDB compose query as a source query. References expose other queries'\nresults as named tables the SQL can select from; a referenced result's\ncolumn names are those of the upstream query's result (field ids for\nsemanticLayer queries, SELECT output names for sql queries).\n\nReferences that name queries still running are waited on: this query\nexecutes once every referenced result is ready, and fails if any\nreferenced query fails."
             },
+            "QuerySourceType.EXTERNAL": {
+                "enum": ["external"],
+                "type": "string"
+            },
+            "ExternalSourceTableReference": {
+                "type": "string",
+                "description": "External table SQL name or UUID.",
+                "pattern": "^[a-zA-Z0-9_][a-zA-Z0-9_-]{0,63}$"
+            },
+            "Record_QuerySourceTableName.ExternalSourceTableReference_": {
+                "properties": {},
+                "additionalProperties": {
+                    "type": "string"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ExternalSourceQuery": {
+                "properties": {
+                    "tables": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/ExternalSourceTableReference"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Record_QuerySourceTableName.ExternalSourceTableReference_"
+                            }
+                        ]
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "nodeId": {
+                        "$ref": "#/components/schemas/QueryNodeId",
+                        "description": "Names this query so other queries in the same submission can reference its results."
+                    },
+                    "sourceType": {
+                        "$ref": "#/components/schemas/QuerySourceType.EXTERNAL"
+                    }
+                },
+                "required": ["tables", "sql", "sourceType"],
+                "type": "object",
+                "description": "DuckDB SQL over named durable external tables."
+            },
             "SourceQuery": {
                 "anyOf": [
                     {
@@ -52099,6 +52150,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/DuckdbSourceQuery"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ExternalSourceQuery"
                     }
                 ],
                 "description": "The tagged union every submit endpoint takes: one shape per source,\ndiscriminated by sourceType. New sources add a member here — this union is\nthe extension point, not new WarehouseTypes values."
@@ -55904,7 +55958,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.228.3",
+        "version": "1.229.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

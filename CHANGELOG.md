@@ -1,3 +1,10 @@
+# [1.229.0](https://github.com/lightdash/lightdash/compare/1.228.3...1.229.0) (2026-08-21)
+
+
+### Features
+
+* **external-sources:** register external tables as a query source ([a954260](https://github.com/lightdash/lightdash/commit/a95426097a123b8fc4de97f15d7b956c57e66cd0))
+
 ## [1.228.3](https://github.com/lightdash/lightdash/compare/1.228.2...1.228.3) (2026-08-20)
 
 
