@@ -17,6 +17,7 @@ export const CachedWarehouseTableName = 'cached_warehouse';
 export type DbProject = {
     project_id: number;
     project_uuid: string;
+    slug: string;
     name: string;
     project_type: ProjectType;
     created_at: Date;
@@ -58,6 +59,7 @@ type CreateDbProject = Pick<
     | 'created_by_user_uuid'
     | 'organization_warehouse_credentials_uuid'
 > & {
+    slug?: string;
     scheduler_timezone?: string; // On create it will default to 'UTC' as per migration
     query_timezone?: string | null;
     use_project_timezone_in_filters?: boolean; // On create it will default to false as per migration

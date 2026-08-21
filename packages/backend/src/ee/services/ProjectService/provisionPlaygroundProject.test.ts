@@ -43,6 +43,7 @@ const user = {
 
 const project = (source: string | null = null): OrganizationProject => ({
     projectUuid,
+    slug: 'project',
     name: 'Project',
     type: ProjectType.DEFAULT,
     provisioningSource: source,

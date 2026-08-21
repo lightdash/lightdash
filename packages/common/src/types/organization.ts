@@ -81,6 +81,7 @@ export type OrganizationProject = {
      * @format uuid
      */
     projectUuid: string;
+    slug?: string;
     name: string;
     type: ProjectType;
     createdByUserUuid: string | null;

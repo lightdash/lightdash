@@ -2,11 +2,15 @@ import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { AppsTableName } from '../database/entities/apps';
 import { DashboardsTableName } from '../database/entities/dashboards';
+import { ProjectTableName } from '../database/entities/projects';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
 import { SavedChartSlugMappingsTableName } from '../database/entities/savedChartSlugMappings';
 import { SavedSqlTableName } from '../database/entities/savedSql';
 import { SpaceTableName } from '../database/entities/spaces';
-import { generateUniqueSlugScopedToProject } from './SlugUtils';
+import {
+    generateUniqueProjectSlug,
+    generateUniqueSlugScopedToProject,
+} from './SlugUtils';
 
 describe('generateUniqueSlugScopedToProject', () => {
     const database = knex({ client: MockClient, dialect: 'pg' });
@@ -208,5 +212,64 @@ describe('generateUniqueSlugScopedToProject', () => {
         );
 
         expect(slug).toHaveLength(255);
+    });
+
+    describe('generateUniqueProjectSlug', () => {
+        it('generates a slug scoped to the organization', async () => {
+            tracker.on.select(ProjectTableName).responseOnce([]);
+
+            const slug = await generateUniqueProjectSlug(
+                database,
+                42,
+                'Jaffle Shop',
+            );
+
+            expect(slug).toBe('jaffle-shop');
+            const projectQuery = tracker.history.select.find(({ sql }) =>
+                sql.includes(ProjectTableName),
+            );
+            expect(projectQuery?.bindings).toEqual(
+                expect.arrayContaining([42, 'jaffle-shop']),
+            );
+            const lockQuery = tracker.history.select.find(({ sql }) =>
+                sql.includes('pg_advisory_xact_lock'),
+            );
+            expect(lockQuery?.bindings).toContain('42:jaffle-shop');
+        });
+
+        it('adds a suffix when the organization already owns the slug', async () => {
+            tracker.on
+                .select(ProjectTableName)
+                .responseOnce([{ slug: 'jaffle-shop' }]);
+            tracker.on.select(ProjectTableName).responseOnce([]);
+
+            const slug = await generateUniqueProjectSlug(
+                database,
+                42,
+                'Jaffle Shop',
+            );
+
+            expect(slug).toBe('jaffle-shop-1');
+        });
+
+        it('uses the same generated slug format as other resources', async () => {
+            tracker.on.select(ProjectTableName).responseOnce([]);
+
+            const slug = await generateUniqueProjectSlug(
+                database,
+                42,
+                '22222222-2222-4222-8222-222222222222',
+            );
+
+            expect(slug).toBe('22222222-2222-4222-8222-222222222222');
+        });
+
+        it('generates a valid slug when the name has no slug characters', async () => {
+            tracker.on.select(ProjectTableName).responseOnce([]);
+
+            const slug = await generateUniqueProjectSlug(database, 42, '🚀');
+
+            expect(slug).toMatch(/^[a-z0-9]+$/);
+        });
     });
 });

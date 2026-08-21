@@ -149,6 +149,7 @@ import {
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     acquireProjectSlugLock,
+    generateUniqueProjectSlug,
     generateUniqueSlugScopedToProject,
 } from '../../utils/SlugUtils';
 import { clearProjectExtraRoles } from '../roleSetUtils';
@@ -454,6 +455,7 @@ export class ProjectModel {
             )
             .select(
                 'projects.project_uuid',
+                'projects.slug',
                 'projects.name',
                 'projects.project_type',
                 'projects.created_at',
@@ -495,6 +497,7 @@ export class ProjectModel {
             ({
                 name,
                 project_uuid,
+                slug,
                 project_type,
                 created_at,
                 created_by_user_uuid,
@@ -506,6 +509,7 @@ export class ProjectModel {
             }) => ({
                 name,
                 projectUuid: project_uuid,
+                slug,
                 type: project_type,
                 createdByUserUuid: created_by_user_uuid,
                 createdByUserName: created_by_user_name ?? null,
@@ -618,6 +622,11 @@ export class ProjectModel {
             throw new NotFoundError('Cannot find organization');
         }
         return this.database.transaction(async (trx) => {
+            const projectSlug = await generateUniqueProjectSlug(
+                trx,
+                orgs[0].organization_id,
+                data.name,
+            );
             let encryptedCredentials: Buffer;
             try {
                 encryptedCredentials = this.encryptionUtil.encrypt(
@@ -636,6 +645,7 @@ export class ProjectModel {
             const [project] = await trx('projects')
                 .insert({
                     name: data.name,
+                    slug: projectSlug,
                     project_type: data.type,
                     organization_id: orgs[0].organization_id,
                     dbt_connection_type: data.dbtConnection.type,
@@ -942,6 +952,7 @@ export class ProjectModel {
         type QueryResult = (
             | {
                   name: string;
+                  slug: string;
                   project_type: ProjectType;
                   dbt_connection: Buffer | null;
                   encrypted_credentials: null;
@@ -967,6 +978,7 @@ export class ProjectModel {
               }
             | {
                   name: string;
+                  slug: string;
                   project_type: ProjectType;
                   dbt_connection: Buffer | null;
                   encrypted_credentials: Buffer;
@@ -1013,6 +1025,7 @@ export class ProjectModel {
                     )
                     .column([
                         this.database.ref('name').withSchema(ProjectTableName),
+                        this.database.ref('slug').withSchema(ProjectTableName),
                         this.database
                             .ref('project_type')
                             .withSchema(ProjectTableName),
@@ -1107,6 +1120,7 @@ export class ProjectModel {
                 const result: Omit<Project, 'warehouseConnection'> = {
                     organizationUuid: project.organization_uuid,
                     projectUuid,
+                    slug: project.slug,
                     name: project.name,
                     type: project.project_type,
                     dbtConnection: dbtSensitiveCredentials,
@@ -1186,6 +1200,7 @@ export class ProjectModel {
                     DbProject,
                     | 'name'
                     | 'project_uuid'
+                    | 'slug'
                     | 'project_type'
                     | 'copied_from_project_uuid'
                     | 'created_by_user_uuid'
@@ -1195,6 +1210,7 @@ export class ProjectModel {
             >([
                 `${ProjectTableName}.name`,
                 `${ProjectTableName}.project_uuid`,
+                `${ProjectTableName}.slug`,
                 `${OrganizationTableName}.organization_uuid`,
                 `${ProjectTableName}.copied_from_project_uuid`,
                 `${ProjectTableName}.project_type`,
@@ -1211,6 +1227,7 @@ export class ProjectModel {
         return {
             organizationUuid: project.organization_uuid,
             projectUuid: project.project_uuid,
+            slug: project.slug,
             name: project.name,
             type: project.project_type,
             upstreamProjectUuid: project.copied_from_project_uuid || undefined,
@@ -1342,6 +1359,7 @@ export class ProjectModel {
         return {
             organizationUuid: project.organizationUuid,
             projectUuid,
+            slug: project.slug,
             name: project.name,
             type: project.type,
             dbtConnection: nonSensitiveDbtCredentials,
