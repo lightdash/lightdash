@@ -1,3 +1,10 @@
+# [1.230.0](https://github.com/lightdash/lightdash/compare/1.229.0...1.230.0) (2026-08-21)
+
+
+### Features
+
+* **ai-agents:** run and render composer queries ([3e306b2](https://github.com/lightdash/lightdash/commit/3e306b231aa18c909609fe4547906e7251b31c71))
+
 # [1.229.0](https://github.com/lightdash/lightdash/compare/1.228.3...1.229.0) (2026-08-21)
 
 
