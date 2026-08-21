@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import { Button, Menu } from '@mantine/core';
 import { IconHash } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
@@ -19,6 +20,18 @@ export const MetricsLink: FC<Props> = ({ projectUuid, asMenu }) => {
     const { data: project } = useProject(projectUuid);
     const { track } = useTracking();
 
+    const metricsSubject = subject('MetricsTree', {
+        organizationUuid: user.data?.organizationUuid,
+        projectUuid,
+    });
+    const spotlightSubject = subject('SpotlightTableConfig', {
+        organizationUuid: user.data?.organizationUuid,
+        projectUuid,
+    });
+    const canViewMetrics =
+        user.data?.ability.can('view', metricsSubject) ||
+        user.data?.ability.can('view', spotlightSubject);
+
     const trackMetricsCatalogClick = useCallback(() => {
         if (project) {
             track({
@@ -36,6 +49,8 @@ export const MetricsLink: FC<Props> = ({ projectUuid, asMenu }) => {
         trackMetricsCatalogClick();
         void navigate(`/projects/${projectUuid}/metrics`);
     }, [trackMetricsCatalogClick, navigate, projectUuid]);
+
+    if (!canViewMetrics) return null;
 
     if (asMenu) {
         return (
