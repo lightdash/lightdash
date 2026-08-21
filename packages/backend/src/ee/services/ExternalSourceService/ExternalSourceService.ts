@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     AlreadyExistsError,
     createExternalSourceExplore,
+    ExternalSourceScope,
     ExternalSourceStatus,
     ExternalSourceType,
     FeatureFlags,
@@ -54,8 +55,21 @@ import { type ExternalSourceModel } from '../../models/ExternalSourceModel';
 import { type CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 
 const INGEST_RESOURCE_LIMITS = { memoryLimit: '512MB', threads: 2 };
+const INGEST_CAPACITY_RETRY_MS = 5_000;
 const ERROR_MESSAGE_MAX_LENGTH = 500;
 const TABLE_NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
+
+export const shouldPublishExternalSourceExplore = (
+    scope: ExternalSourceScope | null,
+): boolean =>
+    (scope ?? ExternalSourceScope.CATALOG) === ExternalSourceScope.CATALOG;
+
+const externalSourceScope = (
+    scope: ExternalSourceScope | null,
+): ExternalSourceScope => scope ?? ExternalSourceScope.CATALOG;
+
+export const getAttachmentTableName = (sourceUuid: UUID): string =>
+    `attachment_${sourceUuid.replaceAll('-', '_')}`;
 
 const ALLOWED_UPLOAD_CONTENT_TYPES = [
     'text/csv',
@@ -70,7 +84,10 @@ type ExternalSourceServiceArguments = {
     externalSourceModel: ExternalSourceModel;
     projectModel: ProjectModel;
     featureFlagModel: FeatureFlagModel;
-    schedulerClient: Pick<CommercialSchedulerClient, 'ingestExternalSource'>;
+    schedulerClient: Pick<
+        CommercialSchedulerClient,
+        'ingestExternalSource' | 'ingestExternalSourceAttachment'
+    >;
     storageClient: S3ResultsFileStorageClient;
     googleDriveClient: GoogleDriveClient;
     userOAuthGrantsModel: Pick<UserOAuthGrantsModel, 'getRefreshToken'>;
@@ -298,6 +315,38 @@ export class ExternalSourceService extends BaseService {
         return { organizationUuid, userUuid };
     }
 
+    private async assertAttachmentFeaturesEnabled(user: {
+        userUuid: UUID;
+        organizationUuid: UUID;
+    }): Promise<void> {
+        const [multiSourceQuery, composeSqlRunner] = await Promise.all([
+            this.featureFlagModel.get({
+                user,
+                featureFlagId: FeatureFlags.MultiSourceQuery,
+            }),
+            this.featureFlagModel.get({
+                user,
+                featureFlagId: FeatureFlags.ComposeSqlRunner,
+            }),
+        ]);
+        if (!multiSourceQuery.enabled || !composeSqlRunner.enabled) {
+            throw new ForbiddenError('AI data attachments are not enabled');
+        }
+    }
+
+    private assertAttachmentOwner(
+        account: RegisteredAccount,
+        scope: ExternalSourceScope | null,
+        createdByUserUuid: UUID | null,
+    ): void {
+        if (
+            scope === ExternalSourceScope.ATTACHMENT &&
+            createdByUserUuid !== account.user.id
+        ) {
+            throw new ForbiddenError('This attachment belongs to another user');
+        }
+    }
+
     private static escapeUri(uri: string): string {
         return uri.replace(/'/g, "''");
     }
@@ -328,17 +377,25 @@ export class ExternalSourceService extends BaseService {
         account: RegisteredAccount,
         projectUuid: UUID,
         input: ExternalSourceUploadInput,
+        scope: ExternalSourceScope = ExternalSourceScope.CATALOG,
     ): Promise<StagedExternalSourceUpload> {
         const { organizationUuid, userUuid } = await this.assertAccess(
             account,
             projectUuid,
         );
+        if (scope === ExternalSourceScope.ATTACHMENT) {
+            await this.assertAttachmentFeaturesEnabled({
+                organizationUuid,
+                userUuid,
+            });
+        }
         this.assertEngineAvailable();
         this.assertValidUpload(input);
 
         const source = await this.externalSourceModel.createSource({
             projectUuid,
             type: ExternalSourceType.CSV,
+            scope,
             name: `_staged_${Date.now()}_${Math.random()
                 .toString(36)
                 .slice(2, 8)}`,
@@ -443,9 +500,16 @@ export class ExternalSourceService extends BaseService {
 
     private async enqueueIngest(
         payload: IngestExternalSourceJobPayload,
+        scope: ExternalSourceScope,
     ): Promise<void> {
         try {
-            await this.schedulerClient.ingestExternalSource(payload);
+            if (scope === ExternalSourceScope.ATTACHMENT) {
+                await this.schedulerClient.ingestExternalSourceAttachment(
+                    payload,
+                );
+            } else {
+                await this.schedulerClient.ingestExternalSource(payload);
+            }
         } catch (error) {
             // The durable queued attempt is recovered by maintain(); do not
             // turn a transient scheduler outage into a broken source.
@@ -460,6 +524,7 @@ export class ExternalSourceService extends BaseService {
         projectUuid: UUID;
         userUuid: UUID;
         sourceUuid: UUID;
+        scope: ExternalSourceScope;
         tableUuid: UUID;
         targetVersion: number;
         rawObjectKey?: string;
@@ -473,13 +538,16 @@ export class ExternalSourceService extends BaseService {
             targetVersion: data.targetVersion,
             rawObjectKey: data.rawObjectKey,
         });
-        await this.enqueueIngest({
-            organizationUuid: data.organizationUuid,
-            projectUuid: data.projectUuid,
-            userUuid: data.userUuid,
-            sourceUuid: data.sourceUuid,
-            attemptUuid: attempt.external_source_ingest_attempt_uuid,
-        });
+        await this.enqueueIngest(
+            {
+                organizationUuid: data.organizationUuid,
+                projectUuid: data.projectUuid,
+                userUuid: data.userUuid,
+                sourceUuid: data.sourceUuid,
+                attemptUuid: attempt.external_source_ingest_attempt_uuid,
+            },
+            data.scope,
+        );
     }
 
     async createGoogleSheetsSource(
@@ -524,6 +592,7 @@ export class ExternalSourceService extends BaseService {
         const source = await this.externalSourceModel.createSource({
             projectUuid,
             type: ExternalSourceType.GOOGLE_SHEETS,
+            scope: ExternalSourceScope.CATALOG,
             name: tableName,
             status: ExternalSourceStatus.STAGED,
             connection: {
@@ -549,6 +618,7 @@ export class ExternalSourceService extends BaseService {
             projectUuid,
             userUuid,
             sourceUuid: source.sourceUuid,
+            scope: externalSourceScope(source.scope),
             tableUuid: table.tableUuid,
             targetVersion: table.version + 1,
         });
@@ -573,6 +643,11 @@ export class ExternalSourceService extends BaseService {
             projectUuid,
             sourceUuid,
         );
+        this.assertAttachmentOwner(
+            account,
+            source.scope,
+            source.createdByUserUuid,
+        );
         if (source.type !== ExternalSourceType.GOOGLE_SHEETS) {
             throw new ParameterError(
                 'Only Google Sheets sources can be refreshed. Replace the file instead',
@@ -592,6 +667,7 @@ export class ExternalSourceService extends BaseService {
             projectUuid,
             userUuid,
             sourceUuid,
+            scope: externalSourceScope(source.scope),
             tableUuid: table.tableUuid,
             targetVersion: table.version + 1,
         });
@@ -611,6 +687,11 @@ export class ExternalSourceService extends BaseService {
         const source = await this.externalSourceModel.getSource(
             projectUuid,
             sourceUuid,
+        );
+        this.assertAttachmentOwner(
+            account,
+            source.scope,
+            source.createdByUserUuid,
         );
         if (
             source.type !== ExternalSourceType.GOOGLE_SHEETS ||
@@ -638,6 +719,7 @@ export class ExternalSourceService extends BaseService {
             projectUuid,
             userUuid,
             sourceUuid,
+            scope: externalSourceScope(source.scope),
             tableUuid: table.tableUuid,
             targetVersion: table.version + 1,
         });
@@ -659,15 +741,41 @@ export class ExternalSourceService extends BaseService {
             projectUuid,
             sourceUuid,
         );
+        this.assertAttachmentOwner(
+            account,
+            source.scope,
+            source.createdByUserUuid,
+        );
         if (source.status !== ExternalSourceStatus.STAGED) {
             throw new ParameterError('This upload has already been committed');
         }
 
-        const tableName = await this.validateNewTableName(
-            projectUuid,
-            payload.tableName,
-        );
-        const label = payload.label?.trim() || friendlyName(tableName);
+        const requestedTableName = payload.tableName?.trim();
+        const filenameWithoutExtension =
+            source.connection.type === ExternalSourceType.CSV
+                ? source.connection.originalFilename.replace(/\.[^.]+$/, '')
+                : 'upload';
+        let tableName: string;
+        if (!shouldPublishExternalSourceExplore(source.scope)) {
+            tableName = getAttachmentTableName(sourceUuid);
+        } else {
+            if (!requestedTableName) {
+                throw new ParameterError(
+                    'Table name is required for catalog sources',
+                );
+            }
+            tableName = await this.validateNewTableName(
+                projectUuid,
+                requestedTableName,
+            );
+        }
+        const label =
+            payload.label?.trim() ||
+            friendlyName(
+                shouldPublishExternalSourceExplore(source.scope)
+                    ? tableName
+                    : filenameWithoutExtension,
+            );
         await this.externalSourceModel.updateSource(sourceUuid, {
             name: tableName,
             error_message: null,
@@ -684,6 +792,7 @@ export class ExternalSourceService extends BaseService {
             projectUuid,
             userUuid,
             sourceUuid,
+            scope: externalSourceScope(source.scope),
             tableUuid: table.tableUuid,
             targetVersion: table.version + 1,
             rawObjectKey: ExternalSourceService.rawKey(
@@ -701,7 +810,10 @@ export class ExternalSourceService extends BaseService {
         projectUuid: UUID,
     ): Promise<ExternalSource[]> {
         await this.assertAccess(account, projectUuid);
-        const sources = await this.externalSourceModel.listSources(projectUuid);
+        const sources = await this.externalSourceModel.listSources(
+            projectUuid,
+            ExternalSourceScope.CATALOG,
+        );
         return sources.filter(
             (source) => source.status !== ExternalSourceStatus.STAGED,
         );
@@ -713,7 +825,16 @@ export class ExternalSourceService extends BaseService {
         sourceUuid: UUID,
     ): Promise<ExternalSource> {
         await this.assertAccess(account, projectUuid);
-        return this.externalSourceModel.getSource(projectUuid, sourceUuid);
+        const source = await this.externalSourceModel.getSource(
+            projectUuid,
+            sourceUuid,
+        );
+        this.assertAttachmentOwner(
+            account,
+            source.scope,
+            source.createdByUserUuid,
+        );
+        return source;
     }
 
     /**
@@ -737,6 +858,11 @@ export class ExternalSourceService extends BaseService {
                 projectUuid,
                 sourceUuid,
             );
+        this.assertAttachmentOwner(
+            account,
+            source.scope,
+            source.created_by_user_uuid,
+        );
         const table = tables[0];
         if (!table) {
             throw new NotFoundError('External source has no table');
@@ -745,7 +871,7 @@ export class ExternalSourceService extends BaseService {
             table.external_source_table_uuid,
             label,
         );
-        if (table.columns) {
+        if (shouldPublishExternalSourceExplore(source.scope) && table.columns) {
             const explore = createExternalSourceExplore({
                 name: table.name,
                 label,
@@ -789,6 +915,11 @@ export class ExternalSourceService extends BaseService {
                 projectUuid,
                 sourceUuid,
             );
+        this.assertAttachmentOwner(
+            account,
+            source.scope,
+            source.created_by_user_uuid,
+        );
         if (source.type !== ExternalSourceType.CSV) {
             throw new ParameterError(
                 'Only CSV sources can have their file replaced',
@@ -846,6 +977,7 @@ export class ExternalSourceService extends BaseService {
             projectUuid,
             userUuid,
             sourceUuid,
+            scope: externalSourceScope(source.scope),
             tableUuid: table.external_source_table_uuid,
             targetVersion: table.version + 1,
             rawObjectKey: rawKey,
@@ -860,6 +992,15 @@ export class ExternalSourceService extends BaseService {
         tableUuid: UUID,
     ): Promise<ExternalSourceTablePreview> {
         await this.assertAccess(account, projectUuid);
+        const source = await this.externalSourceModel.getSource(
+            projectUuid,
+            sourceUuid,
+        );
+        this.assertAttachmentOwner(
+            account,
+            source.scope,
+            source.createdByUserUuid,
+        );
         const table = await this.externalSourceModel.findTableByUuid(
             projectUuid,
             tableUuid,
@@ -894,6 +1035,11 @@ export class ExternalSourceService extends BaseService {
                 projectUuid,
                 sourceUuid,
             );
+        this.assertAttachmentOwner(
+            account,
+            source.scope,
+            source.created_by_user_uuid,
+        );
         await this.projectModel.deleteExternalSourceExplores(
             projectUuid,
             tables.map((table) => table.name),
@@ -977,14 +1123,32 @@ export class ExternalSourceService extends BaseService {
      * source row as an error status.
      */
     async runIngest(payload: IngestExternalSourceJobPayload): Promise<void> {
-        const claimed = await this.externalSourceModel.claimIngestAttempt({
+        const claim = await this.externalSourceModel.claimIngestAttempt({
             attemptUuid: payload.attemptUuid,
             leaseMs: this.lightdashConfig.externalSources.ingestLeaseMs,
             maxConcurrentPerOrganization:
                 this.lightdashConfig.externalSources
                     .maxConcurrentIngestsPerOrganization,
         });
-        if (!claimed) return;
+        if (claim.state === 'capacity') {
+            const options = {
+                runAt: new Date(Date.now() + INGEST_CAPACITY_RETRY_MS),
+            };
+            if (claim.attachment) {
+                await this.schedulerClient.ingestExternalSourceAttachment(
+                    payload,
+                    options,
+                );
+            } else {
+                await this.schedulerClient.ingestExternalSource(
+                    payload,
+                    options,
+                );
+            }
+            return;
+        }
+        if (claim.state === 'unavailable') return;
+        const { attempt: claimed } = claim;
         const sourceUuid = claimed.external_source_uuid;
         const projectUuid = claimed.project_uuid;
         const executionUuid = claimed.execution_uuid;
@@ -1025,6 +1189,13 @@ export class ExternalSourceService extends BaseService {
             }
 
             if (claimed.columns && claimed.locator) {
+                if (!shouldPublishExternalSourceExplore(source.scope)) {
+                    await this.externalSourceModel.publishIngestAttempt({
+                        attemptUuid: payload.attemptUuid,
+                        executionUuid,
+                    });
+                    return;
+                }
                 const explore = createExternalSourceExplore({
                     name: table.name,
                     label: table.label,
@@ -1160,20 +1331,6 @@ export class ExternalSourceService extends BaseService {
                 this.lightdashConfig.externalSources.maxOrganizationBytes,
             );
 
-            const explore = createExternalSourceExplore({
-                name: table.name,
-                label: table.label,
-                columns,
-                externalSource: {
-                    sourceUuid,
-                    tableUuid: table.external_source_table_uuid,
-                    sourceType: source.type,
-                },
-                warehouseSqlBuilder: warehouseSqlBuilderFromType(
-                    SupportedDbtAdapter.DUCKDB,
-                ),
-            });
-
             const locator: PreAggregateDuckdbLocator =
                 getPreAggregateDuckdbLocator({
                     uri: parquetUri,
@@ -1188,10 +1345,25 @@ export class ExternalSourceService extends BaseService {
                 totalBytes,
             });
             if (!recorded) return;
-            await this.projectModel.saveExternalSourceExplore(
-                projectUuid,
-                explore,
-            );
+            if (shouldPublishExternalSourceExplore(source.scope)) {
+                const explore = createExternalSourceExplore({
+                    name: table.name,
+                    label: table.label,
+                    columns,
+                    externalSource: {
+                        sourceUuid,
+                        tableUuid: table.external_source_table_uuid,
+                        sourceType: source.type,
+                    },
+                    warehouseSqlBuilder: warehouseSqlBuilderFromType(
+                        SupportedDbtAdapter.DUCKDB,
+                    ),
+                });
+                await this.projectModel.saveExternalSourceExplore(
+                    projectUuid,
+                    explore,
+                );
+            }
             await this.externalSourceModel.publishIngestAttempt({
                 attemptUuid: payload.attemptUuid,
                 executionUuid,
@@ -1216,18 +1388,47 @@ export class ExternalSourceService extends BaseService {
                 this.lightdashConfig.externalSources.garbageCollectionBatchSize,
             );
         await Promise.allSettled(
-            recoverable.map((attempt) =>
-                this.schedulerClient.ingestExternalSource({
-                    organizationUuid: attempt.organization_uuid,
-                    projectUuid: attempt.project_uuid,
-                    userUuid: attempt.requested_by_user_uuid ?? 'system',
-                    sourceUuid: attempt.external_source_uuid,
-                    attemptUuid: attempt.external_source_ingest_attempt_uuid,
-                }),
-            ),
+            recoverable.map(async (attempt) => {
+                const source = await this.externalSourceModel.getSource(
+                    attempt.project_uuid,
+                    attempt.external_source_uuid,
+                );
+                await this.enqueueIngest(
+                    {
+                        organizationUuid: attempt.organization_uuid,
+                        projectUuid: attempt.project_uuid,
+                        userUuid: attempt.requested_by_user_uuid ?? 'system',
+                        sourceUuid: attempt.external_source_uuid,
+                        attemptUuid:
+                            attempt.external_source_ingest_attempt_uuid,
+                    },
+                    externalSourceScope(source.scope),
+                );
+            }),
         );
 
         const now = Date.now();
+        const expiredAttachments =
+            await this.externalSourceModel.listExpiredUnreferencedAttachments(
+                new Date(
+                    now -
+                        this.lightdashConfig.externalSources
+                            .stagedUploadTtlHours *
+                            60 *
+                            60 *
+                            1000,
+                ),
+                this.lightdashConfig.externalSources.garbageCollectionBatchSize,
+            );
+        await Promise.allSettled(
+            expiredAttachments.map((source) =>
+                this.externalSourceModel.deleteSource(
+                    source.project_uuid,
+                    source.external_source_uuid,
+                ),
+            ),
+        );
+
         const objects = await this.externalSourceModel.prepareGarbageCollection(
             {
                 stagedBefore: new Date(

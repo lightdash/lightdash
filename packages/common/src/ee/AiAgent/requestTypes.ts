@@ -1,4 +1,5 @@
 import { type DateZoom } from '../../types/api/paginatedQuery';
+import { type ExternalSourceType } from '../../types/externalSources';
 import {
     type DashboardFilterRule,
     type DashboardFilters,
@@ -209,6 +210,11 @@ export type AiPromptContextItemInput =
           fullName: string;
       }
     | {
+          // The server snapshots this source's tables at pin time.
+          type: 'external_source';
+          sourceUuid: string;
+      }
+    | {
           // The review-remediation pull request applying the proposed change.
           type: 'pull_request';
           prUrl: string;
@@ -236,6 +242,17 @@ export type AiPromptContextInput = AiPromptContextItemInput[];
 export type AiPromptProposedChangePayload =
     | { changeKind: 'project_context'; entry: AiAgentJudgeProjectContextEntry }
     | { changeKind: 'semantic_layer'; recommendation: AiAgentRecommendation };
+
+export type AiPromptExternalSourceTable = {
+    tableUuid: string;
+    tableName: string;
+    displayName: string;
+};
+
+export type AiPromptExternalSourceSnapshot = {
+    sourceType: ExternalSourceType;
+    tables: AiPromptExternalSourceTable[];
+};
 
 export type AiPromptContextItem =
     | {
@@ -271,6 +288,13 @@ export type AiPromptContextItem =
           // Resolved repository reference — a passthrough of the input.
           type: 'repository';
           fullName: string;
+      }
+    | {
+          type: 'external_source';
+          sourceUuid: string;
+          displayName: string;
+          sourceType: ExternalSourceType | null;
+          tables: AiPromptExternalSourceTable[];
       }
     | {
           type: 'pull_request';

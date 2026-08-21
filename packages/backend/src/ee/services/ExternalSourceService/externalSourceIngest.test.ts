@@ -4,6 +4,7 @@ import {
     DimensionType,
     ExploreType,
     EXTERNAL_SOURCE_ROW_COUNT_METRIC,
+    ExternalSourceScope,
     ExternalSourceType,
     MetricType,
     SupportedDbtAdapter,
@@ -13,7 +14,13 @@ import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { duckdbTypeToDimensionType } from '../../../utils/duckdb/duckdbTypeToDimensionType';
+import {
+    ExternalSourceService,
+    getAttachmentTableName,
+    shouldPublishExternalSourceExplore,
+} from './ExternalSourceService';
 
 /**
  * Pins the ingest SQL contract on a real in-memory DuckDB: schema discovery
@@ -154,5 +161,70 @@ describe('external source ingest SQL contract', () => {
         // Boolean/string columns get no sum/avg
         expect(table.metrics.active_sum).toBeUndefined();
         expect(table.metrics.account_name_sum).toBeUndefined();
+    });
+});
+
+describe('external source catalog publishing', () => {
+    it('publishes catalog sources but keeps AI attachments out of explores', () => {
+        expect(
+            shouldPublishExternalSourceExplore(ExternalSourceScope.CATALOG),
+        ).toBe(true);
+        expect(
+            shouldPublishExternalSourceExplore(ExternalSourceScope.ATTACHMENT),
+        ).toBe(false);
+    });
+
+    it('gives attachments a private SQL name unrelated to the filename', () => {
+        expect(
+            getAttachmentTableName('2b5624c2-249c-474b-9681-820460a9bf08'),
+        ).toBe('attachment_2b5624c2_249c_474b_9681_820460a9bf08');
+    });
+});
+
+describe('external source ingest capacity', () => {
+    it('defers an attachment when organization capacity is full', async () => {
+        const schedulerClient = {
+            ingestExternalSource: vi.fn(),
+            ingestExternalSourceAttachment: vi.fn().mockResolvedValue({
+                jobId: 'job-uuid',
+            }),
+        };
+        const externalSourceModel = {
+            claimIngestAttempt: vi.fn().mockResolvedValue({
+                state: 'capacity',
+                attachment: true,
+            }),
+        };
+        const service = new ExternalSourceService({
+            lightdashConfig: lightdashConfigMock,
+            externalSourceModel,
+            schedulerClient,
+        } as never);
+
+        const payload = { attemptUuid: 'attempt-uuid' } as never;
+        await expect(service.runIngest(payload)).resolves.toBeUndefined();
+        expect(
+            schedulerClient.ingestExternalSourceAttachment,
+        ).toHaveBeenCalledWith(
+            payload,
+            expect.objectContaining({ runAt: expect.any(Date) }),
+        );
+        expect(schedulerClient.ingestExternalSource).not.toHaveBeenCalled();
+    });
+
+    it('finishes a duplicate job whose attempt is already running', async () => {
+        const externalSourceModel = {
+            claimIngestAttempt: vi
+                .fn()
+                .mockResolvedValue({ state: 'unavailable' }),
+        };
+        const service = new ExternalSourceService({
+            lightdashConfig: lightdashConfigMock,
+            externalSourceModel,
+        } as never);
+
+        await expect(
+            service.runIngest({ attemptUuid: 'attempt-uuid' } as never),
+        ).resolves.toBeUndefined();
     });
 });

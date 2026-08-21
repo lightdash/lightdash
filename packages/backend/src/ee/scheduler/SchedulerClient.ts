@@ -335,15 +335,35 @@ export class CommercialSchedulerClient extends SchedulerClient {
         return { jobId };
     }
 
-    async ingestExternalSource(payload: IngestExternalSourceJobPayload) {
+    async ingestExternalSource(
+        payload: IngestExternalSourceJobPayload,
+        options: { runAt?: Date } = {},
+    ) {
         const graphileClient = await this.graphileUtils;
         const { id: jobId } = await graphileClient.addJob(
             EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE,
             payload,
             {
-                runAt: new Date(),
+                runAt: options.runAt ?? new Date(),
                 maxAttempts: 5,
                 jobKey: `external-source-ingest:${payload.attemptUuid}`,
+            },
+        );
+        return { jobId };
+    }
+
+    async ingestExternalSourceAttachment(
+        payload: IngestExternalSourceJobPayload,
+        options: { runAt?: Date } = {},
+    ) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE_ATTACHMENT,
+            payload,
+            {
+                runAt: options.runAt ?? new Date(),
+                maxAttempts: 5,
+                jobKey: `external-source-attachment-ingest:${payload.attemptUuid}`,
             },
         );
         return { jobId };

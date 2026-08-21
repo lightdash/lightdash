@@ -1,12 +1,28 @@
+import { subject } from '@casl/ability';
 import {
+    FeatureFlags,
+    getExternalSourceDisplayName,
     type AgentSuggestion,
     type AiPromptContextInput,
     type AiPromptContextItem,
+    type AiPromptContextItemInput,
     type AiModelOption,
+    type ExternalSource,
 } from '@lightdash/common';
-import { ActionIcon, Box, Group, Paper, Text, Tooltip } from '@mantine/core';
+import {
+    ActionIcon,
+    Box,
+    FileButton,
+    Group,
+    Loader,
+    Paper,
+    Pill,
+    Text,
+    Tooltip,
+} from '@mantine/core';
 import {
     IconArrowUp,
+    IconPaperclip,
     IconPlayerStop,
     IconTerminal2,
 } from '@tabler/icons-react';
@@ -21,6 +37,8 @@ import {
     PromptComposer,
 } from '../../../../../components/common/PromptComposer';
 import useUser from '../../../../../hooks/user/useUser';
+import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
+import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { subscribeToDeepResearchComposerPrompt } from '../../deepResearch/deepResearchRegistry';
@@ -33,6 +51,7 @@ import {
 import { type StartDeepResearchArgs } from '../../deepResearch/types';
 import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
 import { useAgentSuggestions } from '../../hooks/useAgentSuggestions';
+import { useCsvSourceAttachment } from '../../hooks/useCsvSourceAttachment';
 import { useHasActiveDeepResearchRun } from '../../hooks/useDeepResearch';
 import { useDeepResearchComposer } from '../../hooks/useDeepResearchComposer';
 import {
@@ -87,6 +106,11 @@ type SubmitArgs = {
     context?: AiPromptContextInput;
     optimisticContext?: AiPromptContextItem[];
 };
+
+type ExternalSourceAttachment = Extract<
+    AiPromptContextItem,
+    { type: 'external_source' }
+>;
 
 interface AgentChatInputProps {
     onSubmit: (args: SubmitArgs) => void;
@@ -169,7 +193,49 @@ export const AgentChatInput = ({
     showDeepResearchBelowComposer = false,
 }: AgentChatInputProps) => {
     const user = useUser(true);
+    const app = useApp();
     const [value, setValueState] = useState(defaultValue ?? '');
+    const [externalSourceAttachments, setExternalSourceAttachments] = useState<
+        ExternalSourceAttachment[]
+    >([]);
+    const resetCsvFileInputRef = useRef<() => void>(null);
+    const { data: externalSourcesFlag } = useServerFeatureFlag(
+        FeatureFlags.ExternalSources,
+    );
+    const { data: multiSourceQueryFlag } = useServerFeatureFlag(
+        FeatureFlags.MultiSourceQuery,
+    );
+    const { data: composeSqlRunnerFlag } = useServerFeatureFlag(
+        FeatureFlags.ComposeSqlRunner,
+    );
+    const handleExternalSourceReady = useCallback((source: ExternalSource) => {
+        setExternalSourceAttachments((attachments) => [
+            ...attachments.filter(
+                (attachment) => attachment.sourceUuid !== source.sourceUuid,
+            ),
+            {
+                type: 'external_source',
+                sourceUuid: source.sourceUuid,
+                displayName: getExternalSourceDisplayName(source),
+                sourceType: source.type,
+                tables: source.tables.map((table) => ({
+                    tableUuid: table.tableUuid,
+                    tableName: table.name,
+                    displayName: table.label,
+                })),
+            },
+        ]);
+    }, []);
+    const {
+        attachFiles: attachCsvFiles,
+        discardSource: discardCsvSource,
+        isPreparing: isPreparingCsv,
+        pendingFiles: pendingCsvFiles,
+        retainSources: retainCsvSources,
+    } = useCsvSourceAttachment({
+        projectUuid,
+        onReady: handleExternalSourceReady,
+    });
     const [hasClickedInput, setHasClickedInput] = useState(
         !revealControlsOnFocus,
     );
@@ -398,14 +464,30 @@ export const AgentChatInput = ({
                 return;
             }
 
-            if (loadingRef.current || disabledRef.current) return;
+            if (loadingRef.current || disabledRef.current || isPreparingCsv)
+                return;
+            retainCsvSources(
+                externalSourceAttachments.map(({ sourceUuid }) => sourceUuid),
+            );
             onSubmitRef.current({
                 message: chip.label,
                 toolHints: [chip.tool],
+                ...(externalSourceAttachments.length > 0
+                    ? {
+                          context: externalSourceAttachments.map(
+                              ({ sourceUuid }) => ({
+                                  type: 'external_source' as const,
+                                  sourceUuid,
+                              }),
+                          ),
+                          optimisticContext: externalSourceAttachments,
+                      }
+                    : {}),
             });
             if (clearOnSubmitRef.current) {
                 editor?.commands.clearContent();
                 setValueState('');
+                setExternalSourceAttachments([]);
             }
             trackClick();
         },
@@ -419,6 +501,9 @@ export const AgentChatInput = ({
             track,
             emptyStateMode,
             navigate,
+            externalSourceAttachments,
+            isPreparingCsv,
+            retainCsvSources,
         ],
     );
 
@@ -469,6 +554,27 @@ export const AgentChatInput = ({
         activeMessageUuid,
     );
     const canSteer = canInterrupt && !disabled && !hasRequestedInterrupt;
+    const canAttachExternalSource = Boolean(
+        projectUuid &&
+        externalSourcesFlag?.enabled &&
+        multiSourceQueryFlag?.enabled &&
+        composeSqlRunnerFlag?.enabled &&
+        !isEmbedAiAgentRoute() &&
+        app.user.data?.ability.can(
+            'manage',
+            subject('ExternalSource', {
+                organizationUuid: app.user.data.organizationUuid,
+                projectUuid,
+            }),
+        ) &&
+        app.user.data?.ability.can(
+            'manage',
+            subject('Explore', {
+                organizationUuid: app.user.data.organizationUuid,
+                projectUuid,
+            }),
+        ),
+    );
 
     const handleStartDeepResearch = async () => {
         const ed = editorRef.current;
@@ -494,7 +600,7 @@ export const AgentChatInput = ({
         const ed = editorRef.current;
         if (!ed) return;
         const text = ed.getText().trim();
-        if (!text || disabled) return;
+        if (!text || disabled || isPreparingCsv) return;
         if (composerMode === 'deep_research' && canStartDeepResearch) {
             void handleStartDeepResearch();
             return;
@@ -511,14 +617,34 @@ export const AgentChatInput = ({
             dismissDeepResearchNudgeForSession();
             setNudgeState('done');
         }
+        const mentionContext = extractContentMentionContext(ed);
+        const context = [
+            ...(mentionContext.context ?? []),
+            ...externalSourceAttachments.map(
+                ({ sourceUuid }) =>
+                    ({
+                        type: 'external_source',
+                        sourceUuid,
+                    }) satisfies AiPromptContextItemInput,
+            ),
+        ];
+        const optimisticContext = [
+            ...(mentionContext.optimisticContext ?? []),
+            ...externalSourceAttachments,
+        ];
+        retainCsvSources(
+            externalSourceAttachments.map(({ sourceUuid }) => sourceUuid),
+        );
         onSubmitRef.current({
             message: text,
             toolHints: extractToolHints(ed),
-            ...extractContentMentionContext(ed),
+            ...(context.length > 0 ? { context } : {}),
+            ...(optimisticContext.length > 0 ? { optimisticContext } : {}),
         });
         if (clearOnSubmitRef.current) {
             ed.commands.clearContent();
             setValueState('');
+            setExternalSourceAttachments([]);
         }
     };
 
@@ -691,6 +817,95 @@ export const AgentChatInput = ({
         );
     };
 
+    const renderAttachDataControl = ({
+        actionSize,
+        iconSize,
+    }: {
+        actionSize: number | 'sm' | 'md';
+        iconSize: number;
+    }) => {
+        if (
+            !canAttachExternalSource ||
+            disabled ||
+            canSteer ||
+            composerMode !== 'ask'
+        ) {
+            return null;
+        }
+        return (
+            <FileButton
+                accept=".csv,.tsv,text/csv,text/tab-separated-values"
+                multiple
+                resetRef={resetCsvFileInputRef}
+                onChange={(files) => {
+                    resetCsvFileInputRef.current?.();
+                    if (files.length > 0) {
+                        void attachCsvFiles(files);
+                    }
+                }}
+            >
+                {(fileButtonProps) => (
+                    <Tooltip
+                        label="Attach a CSV for the agent to query"
+                        withArrow
+                    >
+                        <ActionIcon
+                            {...fileButtonProps}
+                            variant="subtle"
+                            color="ldGray.6"
+                            size={actionSize}
+                            aria-label="Attach CSV"
+                            disabled={isPreparingCsv}
+                        >
+                            <MantineIcon
+                                icon={IconPaperclip}
+                                size={iconSize}
+                                color="ldGray.6"
+                            />
+                        </ActionIcon>
+                    </Tooltip>
+                )}
+            </FileButton>
+        );
+    };
+
+    const renderedAttachments =
+        externalSourceAttachments.length > 0 || pendingCsvFiles.length > 0 ? (
+            <Pill.Group>
+                {externalSourceAttachments.map((attachment) => (
+                    <Pill
+                        key={attachment.sourceUuid}
+                        withRemoveButton
+                        onRemove={() => {
+                            setExternalSourceAttachments((attachments) =>
+                                attachments.filter(
+                                    ({ sourceUuid }) =>
+                                        sourceUuid !== attachment.sourceUuid,
+                                ),
+                            );
+                            void discardCsvSource(attachment.sourceUuid);
+                        }}
+                    >
+                        {attachment.displayName}
+                        {attachment.tables.length > 1
+                            ? ` · ${attachment.tables.length} tables`
+                            : ''}
+                    </Pill>
+                ))}
+                {pendingCsvFiles.map((file) => (
+                    <Pill key={file.id}>
+                        <Group gap={6} wrap="nowrap">
+                            {file.status === 'preparing' && (
+                                <Loader size={10} />
+                            )}
+                            {file.status === 'queued' ? 'Queued' : 'Preparing'}{' '}
+                            {file.filename}
+                        </Group>
+                    </Pill>
+                ))}
+            </Pill.Group>
+        ) : undefined;
+
     const renderExternalModeControls = ({
         actionSize,
         iconSize,
@@ -753,6 +968,7 @@ export const AgentChatInput = ({
                     disabled ||
                     !hasValue ||
                     loading ||
+                    isPreparingCsv ||
                     (isDeepResearch && isStartingDeepResearch)
                 }
                 loading={isDeepResearch ? isStartingDeepResearch : loading}
@@ -766,7 +982,7 @@ export const AgentChatInput = ({
         defaultValue,
         autoFocus: true,
         disabled,
-        submitDisabled: disabled || (loading && !canSteer),
+        submitDisabled: disabled || isPreparingCsv || (loading && !canSteer),
         extensions: composerExtensions,
         onEditorReady: setEditor,
         onValueChange: handleComposerValueChange,
@@ -788,8 +1004,13 @@ export const AgentChatInput = ({
                     <PromptComposer
                         {...composerCommonProps}
                         variant="inline"
+                        attachments={renderedAttachments}
                         toolbarRight={
                             <Group gap={4} align="center" wrap="nowrap">
+                                {renderAttachDataControl({
+                                    actionSize: 'sm',
+                                    iconSize: 14,
+                                })}
                                 {deepResearchControl}
                                 {renderComposerAction('sm')}
                             </Group>
@@ -842,12 +1063,19 @@ export const AgentChatInput = ({
                 size={dense ? 'sm' : 'lg'}
                 className={styles.agentComposer}
                 onMouseDown={handleInputCardMouseDown}
+                attachments={renderedAttachments}
                 toolbarLeft={
-                    !shouldShowDeepResearchBelowComposer &&
-                    renderSqlModeControl({
-                        actionSize: 30,
-                        iconSize: 15,
-                    })
+                    <Group gap="xs" align="center" wrap="nowrap">
+                        {renderAttachDataControl({
+                            actionSize: 30,
+                            iconSize: 15,
+                        })}
+                        {!shouldShowDeepResearchBelowComposer &&
+                            renderSqlModeControl({
+                                actionSize: 30,
+                                iconSize: 15,
+                            })}
+                    </Group>
                 }
                 toolbarRight={
                     <Group gap="xs" align="center" wrap="nowrap">

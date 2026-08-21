@@ -8,6 +8,7 @@ import {
     DownloadFileType,
     ExecuteAsyncQueryRequestParams,
     ExploreType,
+    ExternalSourceScope,
     FeatureFlags,
     FieldType,
     FilterOperator,
@@ -415,6 +416,74 @@ type JwtDashboardQueryContextTestService = {
 };
 
 describe('AsyncQueryService', () => {
+    describe('executeAsyncExternalSqlQuery', () => {
+        const execute = (featureFlags: Record<string, boolean>) => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(
+                        async ({
+                            featureFlagId,
+                        }: {
+                            featureFlagId: string;
+                        }) => ({
+                            id: featureFlagId,
+                            enabled: featureFlags[featureFlagId] ?? false,
+                        }),
+                    ),
+                } as unknown as FeatureFlagModel,
+            } as never);
+
+            return service.executeAsyncExternalSqlQuery({
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.AI,
+                sql: 'SELECT * FROM attachment',
+                tables: { attachment: 'table-uuid' },
+            });
+        };
+
+        test('requires the external sources flag', async () => {
+            await expect(
+                execute({
+                    [FeatureFlags.ComposeSqlRunner]: true,
+                }),
+            ).rejects.toThrow('External sources are not enabled');
+        });
+
+        test('requires the compose SQL runner flag', async () => {
+            await expect(
+                execute({
+                    [FeatureFlags.ExternalSources]: true,
+                }),
+            ).rejects.toThrow('Compose SQL queries are not enabled');
+        });
+
+        test('rejects attachments created by another user', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: true,
+                    })),
+                } as unknown as FeatureFlagModel,
+                externalSourceTableResolver: vi.fn(async () => ({
+                    external_source_scope: ExternalSourceScope.ATTACHMENT,
+                    external_source_created_by_user_uuid: 'another-user',
+                })),
+            } as never);
+
+            await expect(
+                service.executeAsyncExternalSqlQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    context: QueryExecutionContext.AI,
+                    sql: 'SELECT * FROM attachment',
+                    tables: { attachment: 'table-uuid' },
+                }),
+            ).rejects.toThrow('This attachment belongs to another user');
+        });
+    });
+
     describe('executeAsyncMergeQuery', () => {
         const mergeQuery = {
             sources: [],

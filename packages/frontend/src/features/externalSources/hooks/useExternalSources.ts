@@ -1,5 +1,6 @@
 import {
     ExternalSourceStatus,
+    ExternalSourceScope,
     type ApiError,
     type CreateExternalSourceTablePayload,
     type CreateGoogleSheetsSourcePayload,
@@ -22,7 +23,10 @@ const listExternalSourcesApi = async (projectUuid: string) =>
         body: undefined,
     });
 
-const getExternalSourceApi = async (projectUuid: string, sourceUuid: string) =>
+export const getExternalSourceApi = async (
+    projectUuid: string,
+    sourceUuid: string,
+) =>
     lightdashApi<ExternalSource>({
         url: `${EXTERNAL_SOURCES_BASE(projectUuid)}/${sourceUuid}`,
         method: 'GET',
@@ -31,8 +35,15 @@ const getExternalSourceApi = async (projectUuid: string, sourceUuid: string) =>
 
 // Raw body + filename in query params (matches the backend controller —
 // mirrors the design-file upload precedent, NOT multipart/form-data).
-const uploadCsvApi = async (args: { projectUuid: string; file: File }) => {
-    const search = new URLSearchParams({ filename: args.file.name });
+const uploadCsvApi = async (args: {
+    projectUuid: string;
+    file: File;
+    scope: ExternalSourceScope;
+}) => {
+    const search = new URLSearchParams({
+        filename: args.file.name,
+        scope: args.scope,
+    });
     return lightdashApi<StagedExternalSourceUpload>({
         url: `${EXTERNAL_SOURCES_BASE(
             args.projectUuid,
@@ -77,10 +88,14 @@ export const useExternalSource = (
             : false,
     });
 
-export const useUploadCsv = (projectUuid: string | undefined) => {
+export const useUploadCsv = (
+    projectUuid: string | undefined,
+    scope: ExternalSourceScope = ExternalSourceScope.CATALOG,
+) => {
     const { showToastApiError } = useToaster();
     return useMutation<StagedExternalSourceUpload, ApiError, File>({
-        mutationFn: (file) => uploadCsvApi({ projectUuid: projectUuid!, file }),
+        mutationFn: (file) =>
+            uploadCsvApi({ projectUuid: projectUuid!, file, scope }),
         onError: ({ error }) => {
             showToastApiError({
                 title: 'Could not upload the file',
@@ -320,7 +335,7 @@ export const useReplaceCsvFile = (projectUuid: string | undefined) => {
     });
 };
 
-const deleteExternalSourceApi = async (args: {
+export const deleteExternalSourceApi = async (args: {
     projectUuid: string;
     sourceUuid: string;
 }) =>

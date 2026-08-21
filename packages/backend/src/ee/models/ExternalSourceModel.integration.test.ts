@@ -1,6 +1,7 @@
 import {
     DbtProjectType,
     DimensionType,
+    ExternalSourceScope,
     ExternalSourceStatus,
     ExternalSourceType,
     ProjectType,
@@ -13,7 +14,22 @@ import {
     ExternalSourcesTableName,
 } from '../../database/entities/externalSources';
 import { getTestContext } from '../../vitest.setup.integration';
-import { ExternalSourceModel } from './ExternalSourceModel';
+import {
+    AiPromptContextTableName,
+    AiPromptTableName,
+    AiThreadTableName,
+} from '../database/entities/ai';
+import {
+    ExternalSourceModel,
+    type ClaimExternalSourceIngestAttemptResult,
+} from './ExternalSourceModel';
+
+const getClaimedAttempt = (result: ClaimExternalSourceIngestAttemptResult) => {
+    if (result.state !== 'claimed') {
+        throw new Error(`Expected a claimed attempt, got ${result.state}`);
+    }
+    return result.attempt;
+};
 
 describe('ExternalSourceModel lifecycle integration', () => {
     let transaction: Knex.Transaction;
@@ -64,10 +80,14 @@ describe('ExternalSourceModel lifecycle integration', () => {
 
     afterEach(async () => transaction.rollback());
 
-    const createSourceAndTable = async (suffix: string) => {
+    const createSourceAndTable = async (
+        suffix: string,
+        scope = ExternalSourceScope.CATALOG,
+    ) => {
         const source = await model.createSource({
             projectUuid,
             type: ExternalSourceType.CSV,
+            scope,
             name: `lifecycle_${suffix}`,
             status: ExternalSourceStatus.STAGED,
             connection: {
@@ -101,28 +121,30 @@ describe('ExternalSourceModel lifecycle integration', () => {
             (await model.getSource(projectUuid, source.sourceUuid)).status,
         ).toBe(ExternalSourceStatus.SYNCING);
 
-        const firstLease = await model.claimIngestAttempt({
-            attemptUuid: attempt.external_source_ingest_attempt_uuid,
-            leaseMs: 60_000,
-            maxConcurrentPerOrganization: 1,
-        });
-        expect(firstLease?.execution_uuid).toBeTruthy();
+        const firstLease = getClaimedAttempt(
+            await model.claimIngestAttempt({
+                attemptUuid: attempt.external_source_ingest_attempt_uuid,
+                leaseMs: 60_000,
+                maxConcurrentPerOrganization: 1,
+            }),
+        );
+        expect(firstLease.execution_uuid).toBeTruthy();
         await model.failIngestAttempt(
             attempt.external_source_ingest_attempt_uuid,
             'retry me',
         );
-        const secondLease = await model.claimIngestAttempt({
-            attemptUuid: attempt.external_source_ingest_attempt_uuid,
-            leaseMs: 60_000,
-            maxConcurrentPerOrganization: 1,
-        });
-        expect(secondLease?.execution_uuid).not.toBe(
-            firstLease?.execution_uuid,
+        const secondLease = getClaimedAttempt(
+            await model.claimIngestAttempt({
+                attemptUuid: attempt.external_source_ingest_attempt_uuid,
+                leaseMs: 60_000,
+                maxConcurrentPerOrganization: 1,
+            }),
         );
+        expect(secondLease.execution_uuid).not.toBe(firstLease.execution_uuid);
 
         const recorded = await model.recordIngestOutput({
             attemptUuid: attempt.external_source_ingest_attempt_uuid,
-            executionUuid: secondLease!.execution_uuid!,
+            executionUuid: secondLease.execution_uuid!,
             columns: {
                 id: { reference: 'id', type: DimensionType.NUMBER },
             },
@@ -148,6 +170,187 @@ describe('ExternalSourceModel lifecycle integration', () => {
         expect(published.tables[0].rowCount).toBe(2);
     });
 
+    test('lists catalog sources without hiding directly addressable attachments', async () => {
+        const catalog = await createSourceAndTable(crypto.randomUUID());
+        const attachment = await model.createSource({
+            projectUuid,
+            type: ExternalSourceType.CSV,
+            scope: ExternalSourceScope.ATTACHMENT,
+            name: `attachment_${crypto.randomUUID()}`,
+            status: ExternalSourceStatus.STAGED,
+            connection: {
+                type: ExternalSourceType.CSV,
+                originalFilename: 'attachment.csv',
+            },
+            createdByUserUuid: userUuid,
+        });
+
+        expect(
+            await model.listSources(projectUuid, ExternalSourceScope.CATALOG),
+        ).toEqual([
+            expect.objectContaining({ sourceUuid: catalog.source.sourceUuid }),
+        ]);
+        expect(
+            await model.getSource(projectUuid, attachment.sourceUuid),
+        ).toEqual(
+            expect.objectContaining({
+                sourceUuid: attachment.sourceUuid,
+                scope: ExternalSourceScope.ATTACHMENT,
+            }),
+        );
+    });
+
+    test('keeps attachment attempts invisible to legacy scheduler recovery', async () => {
+        const { source, table } = await createSourceAndTable(
+            crypto.randomUUID(),
+            ExternalSourceScope.ATTACHMENT,
+        );
+        const attempt = await model.requestIngest({
+            organizationUuid,
+            projectUuid,
+            sourceUuid: source.sourceUuid,
+            tableUuid: table.tableUuid,
+            requestedByUserUuid: userUuid,
+            targetVersion: 1,
+        });
+
+        const legacyRecoveryLookup = () =>
+            transaction(ExternalSourceIngestAttemptsTableName)
+                .where(
+                    'external_source_ingest_attempt_uuid',
+                    attempt.external_source_ingest_attempt_uuid,
+                )
+                .whereIn('status', [
+                    'queued',
+                    'running',
+                    'publishing',
+                    'failed',
+                ])
+                .first();
+
+        expect(attempt.status).toBe('attachment_queued');
+        expect(await legacyRecoveryLookup()).toBeUndefined();
+        expect(await model.listRecoverableAttempts(10)).toContainEqual(
+            expect.objectContaining({
+                external_source_ingest_attempt_uuid:
+                    attempt.external_source_ingest_attempt_uuid,
+            }),
+        );
+
+        const claimed = getClaimedAttempt(
+            await model.claimIngestAttempt({
+                attemptUuid: attempt.external_source_ingest_attempt_uuid,
+                leaseMs: 60_000,
+                maxConcurrentPerOrganization: 1,
+            }),
+        );
+        expect(claimed.status).toBe('attachment_running');
+        expect(await legacyRecoveryLookup()).toBeUndefined();
+
+        await model.failIngestAttempt(
+            attempt.external_source_ingest_attempt_uuid,
+            'retry safely',
+        );
+        expect(
+            (
+                await model.getAttempt(
+                    attempt.external_source_ingest_attempt_uuid,
+                )
+            )?.status,
+        ).toBe('attachment_failed');
+        expect(await legacyRecoveryLookup()).toBeUndefined();
+
+        const retry = getClaimedAttempt(
+            await model.claimIngestAttempt({
+                attemptUuid: attempt.external_source_ingest_attempt_uuid,
+                leaseMs: 60_000,
+                maxConcurrentPerOrganization: 1,
+            }),
+        );
+        expect(retry.status).toBe('attachment_running');
+        expect(
+            await model.recordIngestOutput({
+                attemptUuid: attempt.external_source_ingest_attempt_uuid,
+                executionUuid: retry.execution_uuid!,
+                columns: {
+                    id: { reference: 'id', type: DimensionType.NUMBER },
+                },
+                locator: {
+                    storage: 's3',
+                    format: 'parquet',
+                    uri: 's3://bucket/external-sources/attachment.parquet',
+                },
+                rowCount: 1,
+                totalBytes: 64,
+            }),
+        ).toBe(true);
+        expect(
+            (
+                await model.getAttempt(
+                    attempt.external_source_ingest_attempt_uuid,
+                )
+            )?.status,
+        ).toBe('attachment_publishing');
+        expect(
+            await model.publishIngestAttempt({
+                attemptUuid: attempt.external_source_ingest_attempt_uuid,
+                executionUuid: retry!.execution_uuid!,
+            }),
+        ).toBe(true);
+        expect(
+            (
+                await model.getAttempt(
+                    attempt.external_source_ingest_attempt_uuid,
+                )
+            )?.status,
+        ).toBe('attachment_succeeded');
+        expect(await legacyRecoveryLookup()).toBeUndefined();
+    });
+
+    test('preserves attachments referenced by a prompt during cleanup', async () => {
+        const unreferencedAttachment = await createSourceAndTable(
+            crypto.randomUUID(),
+            ExternalSourceScope.ATTACHMENT,
+        );
+        const referencedAttachment = await createSourceAndTable(
+            crypto.randomUUID(),
+            ExternalSourceScope.ATTACHMENT,
+        );
+        await createSourceAndTable(crypto.randomUUID());
+        const [thread] = await transaction(AiThreadTableName)
+            .insert({
+                agent_uuid: null,
+                organization_uuid: organizationUuid,
+                project_uuid: projectUuid,
+                created_from: 'web_app',
+            })
+            .returning('ai_thread_uuid');
+        const [prompt] = await transaction(AiPromptTableName)
+            .insert({
+                ai_thread_uuid: thread.ai_thread_uuid,
+                created_by_user_uuid: userUuid,
+                prompt: 'Analyze this attachment',
+            })
+            .returning('ai_prompt_uuid');
+        await transaction(AiPromptContextTableName).insert({
+            ai_prompt_uuid: prompt.ai_prompt_uuid,
+            entity_type: 'external_source',
+            entity_uuid: referencedAttachment.source.sourceUuid,
+        });
+
+        expect(
+            await model.listExpiredUnreferencedAttachments(
+                new Date(Date.now() + 1_000),
+                10,
+            ),
+        ).toEqual([
+            {
+                project_uuid: projectUuid,
+                external_source_uuid: unreferencedAttachment.source.sourceUuid,
+            },
+        ]);
+    });
+
     test('enforces organization concurrency and retains manifests after deletion', async () => {
         const first = await createSourceAndTable(crypto.randomUUID());
         const second = await createSourceAndTable(crypto.randomUUID());
@@ -169,26 +372,29 @@ describe('ExternalSourceModel lifecycle integration', () => {
             leaseMs: 60_000,
             maxConcurrentPerOrganization: 1,
         });
-        expect(firstLease).not.toBeNull();
+        expect(firstLease.state).toBe('claimed');
         await model.failIngestAttempt(
             firstAttempt.external_source_ingest_attempt_uuid,
             'worker timed out',
             true,
         );
         expect(
-            await model.claimIngestAttempt({
-                attemptUuid: firstAttempt.external_source_ingest_attempt_uuid,
-                leaseMs: 60_000,
-                maxConcurrentPerOrganization: 1,
-            }),
-        ).toBeNull();
+            (
+                await model.claimIngestAttempt({
+                    attemptUuid:
+                        firstAttempt.external_source_ingest_attempt_uuid,
+                    leaseMs: 60_000,
+                    maxConcurrentPerOrganization: 1,
+                })
+            ).state,
+        ).toBe('unavailable');
         expect(
             await model.claimIngestAttempt({
                 attemptUuid: secondAttempt.external_source_ingest_attempt_uuid,
                 leaseMs: 60_000,
                 maxConcurrentPerOrganization: 1,
             }),
-        ).toBeNull();
+        ).toEqual({ state: 'capacity', attachment: false });
 
         const object = await model.registerObject({
             organizationUuid,

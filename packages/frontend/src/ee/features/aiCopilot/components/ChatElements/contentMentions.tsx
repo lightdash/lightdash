@@ -273,6 +273,8 @@ const getContextKey = (item: AiPromptContextInput[number]) => {
             return `file:${item.path}`;
         case 'repository':
             return `repository:${item.fullName}`;
+        case 'external_source':
+            return `external_source:${item.sourceUuid}`;
         case 'pull_request':
             return `pull_request:${item.prUrl}`;
         case 'proposed_change':

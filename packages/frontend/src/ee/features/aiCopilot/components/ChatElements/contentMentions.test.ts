@@ -117,6 +117,30 @@ describe('contentMentions', () => {
         ]);
     });
 
+    it('dedupes attached external sources by source uuid', () => {
+        expect(
+            mergeAiPromptContextInput(
+                [
+                    {
+                        type: 'external_source',
+                        sourceUuid: 'source-1',
+                    },
+                ],
+                [
+                    {
+                        type: 'external_source',
+                        sourceUuid: 'source-1',
+                    },
+                ],
+            ),
+        ).toEqual([
+            {
+                type: 'external_source',
+                sourceUuid: 'source-1',
+            },
+        ]);
+    });
+
     it('merges mention suggestions deduping charts by uuid, first wins', () => {
         const threadChart: ContentMentionSuggestionItem = {
             id: 'thread:chart:chart-1',

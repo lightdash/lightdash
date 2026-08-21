@@ -64,6 +64,8 @@ import {
     EmbedArtifactVersionJobPayload,
     exceedsRetentionCeiling,
     Explore,
+    ExternalSourceScope,
+    ExternalSourceStatus,
     FeatureFlags,
     ForbiddenError,
     formatMergeQueryRefusal,
@@ -259,6 +261,7 @@ import {
     type AiDeepResearchRunContextRow,
 } from '../../models/AiDeepResearchRunModel';
 import { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
+import { ExternalSourceModel } from '../../models/ExternalSourceModel';
 import { ProjectContextModel } from '../../models/ProjectContextModel';
 import {
     aiAgentMemoryDistillEventRunAt,
@@ -528,6 +531,7 @@ type AiAgentServiceDependencies = {
     aiAgentModel: AiAgentModel;
     aiAgentMemoryModel: AiAgentMemoryModel;
     aiAgentDocumentModel: AiAgentDocumentModel;
+    externalSourceModel: Pick<ExternalSourceModel, 'getSource'>;
     aiDeepResearchRunModel: Pick<
         AiDeepResearchRunModel,
         | 'findAgentContextByThreadScoped'
@@ -818,6 +822,11 @@ export class AiAgentService extends BaseService {
 
     private readonly aiAgentDocumentModel: AiAgentDocumentModel;
 
+    private readonly externalSourceModel: Pick<
+        ExternalSourceModel,
+        'getSource'
+    >;
+
     private readonly aiDeepResearchRunModel: Pick<
         AiDeepResearchRunModel,
         | 'findAgentContextByThreadScoped'
@@ -980,6 +989,9 @@ export class AiAgentService extends BaseService {
                 case 'repository':
                     key = `repository:${item.fullName}`;
                     break;
+                case 'external_source':
+                    key = `external_source:${item.sourceUuid}`;
+                    break;
                 case 'pull_request':
                     key = `pull_request:${item.prUrl}`;
                     break;
@@ -1073,6 +1085,48 @@ export class AiAgentService extends BaseService {
                     return;
                 }
 
+                if (item.type === 'external_source') {
+                    if (allowedSpaces) {
+                        throw new ForbiddenError(
+                            'External tables are not available in embedded AI',
+                        );
+                    }
+                    if (
+                        this.createAuditedAbility(user).cannot(
+                            'manage',
+                            subject('ExternalSource', {
+                                organizationUuid: agent.organizationUuid,
+                                projectUuid: agent.projectUuid,
+                            }),
+                        )
+                    ) {
+                        throw new ForbiddenError(
+                            'You do not have permission to attach external sources',
+                        );
+                    }
+                    const source = await this.externalSourceModel.getSource(
+                        agent.projectUuid,
+                        item.sourceUuid,
+                    );
+                    if (
+                        source.scope === ExternalSourceScope.ATTACHMENT &&
+                        source.createdByUserUuid !== user.userUuid
+                    ) {
+                        throw new ForbiddenError(
+                            'This attachment belongs to another user',
+                        );
+                    }
+                    if (
+                        source.status !== ExternalSourceStatus.READY ||
+                        source.tables.length === 0
+                    ) {
+                        throw new ParameterError(
+                            'The external source is not ready to query yet',
+                        );
+                    }
+                    return;
+                }
+
                 // review_finding / proposed_change carry a finding fingerprint
                 // and are only ever seeded by the remediation flow — a user
                 // @-mention of one (this is the user path) is rejected.
@@ -1159,6 +1213,7 @@ export class AiAgentService extends BaseService {
         this.aiAgentModel = dependencies.aiAgentModel;
         this.aiAgentMemoryModel = dependencies.aiAgentMemoryModel;
         this.aiAgentDocumentModel = dependencies.aiAgentDocumentModel;
+        this.externalSourceModel = dependencies.externalSourceModel;
         this.aiDeepResearchRunModel = dependencies.aiDeepResearchRunModel;
         this.projectContextModel = dependencies.projectContextModel;
         this.analytics = dependencies.analytics;
@@ -8104,6 +8159,21 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     return `- File \`/dbt/${item.path}\` — a source file in this project's dbt repository. Read it with the exploreRepo tool.`;
                 case 'repository':
                     return `- Repository \`${item.fullName}\` (mounted at \`/${item.fullName}\`) — explore it with the exploreRepo tool.`;
+                case 'external_source': {
+                    const tables = item.tables
+                        .map(
+                            (table) =>
+                                `"${table.displayName}" (tableName: ${table.tableName}, tableUuid: ${table.tableUuid})`,
+                        )
+                        .join(', ');
+                    const tableMap = Object.fromEntries(
+                        item.tables.map((table) => [
+                            table.tableName,
+                            table.tableUuid,
+                        ]),
+                    );
+                    return `- External source "${item.displayName}" (sourceUuid: ${item.sourceUuid}) exposes ${item.tables.length} queryable table${item.tables.length === 1 ? '' : 's'}: ${tables}. Query any subset with runComposerQueries using an \`external\` node and the corresponding entries from \`tables: ${JSON.stringify(tableMap)}\`. One external node may read multiple tables from this source; use a downstream \`duckdb\` node to join its result with semantic-layer, warehouse, or other external-source results.`;
+                }
                 case 'pull_request': {
                     const number = item.prNumber ? ` #${item.prNumber}` : '';
                     const title = item.title ? ` "${item.title}"` : '';
@@ -10070,8 +10140,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 user,
                 featureFlagId: FeatureFlags.MergeQueries,
             });
-        // Composer is web-chat only and requires both orchestration and DuckDB
-        // compose; Slack and deep research retain their existing SQL tools.
+        // Web-chat composer requires both orchestration and execution flags.
         const [
             { enabled: multiSourceQueryEnabled },
             { enabled: composeSqlRunnerEnabled },

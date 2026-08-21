@@ -43,6 +43,7 @@ import {
     AiPromptContext,
     AiPromptContextInput,
     AiPromptContextItem,
+    AiPromptExternalSourceSnapshot,
     AiPromptProposedChangePayload,
     AiPromptSteer,
     AiResultType,
@@ -66,6 +67,7 @@ import {
     CreateWebAppPrompt,
     CreateWebAppThread,
     generateSlug,
+    getExternalSourceDisplayName,
     isAiAgentMcpToolName,
     isAiAgentToolName,
     isAiWritebackRunInProgress,
@@ -104,6 +106,12 @@ import {
     DashboardVersionsTableName,
 } from '../../database/entities/dashboards';
 import { DbEmail, EmailTableName } from '../../database/entities/emails';
+import {
+    DbExternalSource,
+    DbExternalSourceTable,
+    ExternalSourcesTableName,
+    ExternalSourceTablesTableName,
+} from '../../database/entities/externalSources';
 import { DbProject, ProjectTableName } from '../../database/entities/projects';
 import {
     SavedChartsTableName,
@@ -6307,6 +6315,30 @@ export class AiAgentModel {
             ).map((r) => [r.ai_thread_uuid, r] as const),
         );
 
+        const externalSourceUuids = context.flatMap((item) =>
+            item.type === 'external_source' ? [item.sourceUuid] : [],
+        );
+        const externalSources = await trx(ExternalSourcesTableName)
+            .whereIn('external_source_uuid', externalSourceUuids)
+            .select<DbExternalSource[]>('*');
+        const externalSourceTables = await trx(ExternalSourceTablesTableName)
+            .whereIn('external_source_uuid', externalSourceUuids)
+            .orderBy('name')
+            .select<DbExternalSourceTable[]>('*');
+        const externalSourceLookup = new Map(
+            externalSources.map((source) => [
+                source.external_source_uuid,
+                {
+                    source,
+                    tables: externalSourceTables.filter(
+                        (table) =>
+                            table.external_source_uuid ===
+                            source.external_source_uuid,
+                    ),
+                },
+            ]),
+        );
+
         const rows = context.map((ctx) => {
             switch (ctx.type) {
                 case 'chart': {
@@ -6363,6 +6395,35 @@ export class AiAgentModel {
                         entity_ref: ctx.fullName,
                         display_name: ctx.fullName,
                     };
+                case 'external_source': {
+                    const externalSource = externalSourceLookup.get(
+                        ctx.sourceUuid,
+                    );
+                    if (!externalSource) {
+                        throw new NotFoundError(
+                            `External source ${ctx.sourceUuid} not found`,
+                        );
+                    }
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type:
+                            'external_source' as AiPromptContextEntityType,
+                        entity_uuid: ctx.sourceUuid,
+                        entity_ref: null,
+                        pinned_version_uuid: null,
+                        display_name: getExternalSourceDisplayName(
+                            externalSource.source,
+                        ),
+                        runtime_overrides: {
+                            sourceType: externalSource.source.type,
+                            tables: externalSource.tables.map((table) => ({
+                                tableUuid: table.external_source_table_uuid,
+                                tableName: table.name,
+                                displayName: table.label,
+                            })),
+                        } satisfies AiPromptExternalSourceSnapshot,
+                    };
+                }
                 // Review-remediation references store their natural key
                 // (PR url / finding fingerprint) in entity_ref and resolve the
                 // live data at read time. preview_environment keys off a real
@@ -6667,6 +6728,17 @@ export class AiAgentModel {
                 return { type: 'file', path: row.entity_ref ?? '' };
             case 'repository':
                 return { type: 'repository', fullName: row.entity_ref ?? '' };
+            case 'external_source': {
+                const snapshot =
+                    row.runtime_overrides as AiPromptExternalSourceSnapshot | null;
+                return {
+                    type: 'external_source',
+                    sourceUuid: requireEntityUuid(),
+                    displayName: row.display_name ?? 'External source',
+                    sourceType: snapshot?.sourceType ?? null,
+                    tables: snapshot?.tables ?? [],
+                };
+            }
             case 'pull_request': {
                 const prUrl = row.entity_ref ?? '';
                 return {
