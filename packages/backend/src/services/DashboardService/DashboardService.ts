@@ -13,6 +13,7 @@ import {
     DashboardTab,
     DashboardTileTypes,
     DashboardVersionedFields,
+    DetailedViewStatistics,
     ExploreType,
     ExportContentPayload,
     ExportContentRequest,
@@ -663,6 +664,44 @@ export class DashboardService
         });
 
         return dashboard;
+    }
+
+    async getViewStats(
+        user: SessionUser,
+        dashboardUuidOrSlug: UuidOrSlug,
+        options?: { projectUuid?: string },
+    ): Promise<DetailedViewStatistics> {
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuidOrSlug,
+            { projectUuid: options?.projectUuid },
+        );
+        const { inheritsFromOrgOrProject, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                dashboard.spaceUuid,
+            );
+        const auditedAbility = this.createAuditedAbility(user);
+
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Dashboard', {
+                    ...dashboard,
+                    inheritsFromOrgOrProject,
+                    access,
+                    metadata: {
+                        dashboardUuid: dashboard.uuid,
+                        dashboardName: dashboard.name,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
+        }
+
+        return this.analyticsModel.getDashboardViewStats(dashboard.uuid);
     }
 
     async getDashboardCharts(

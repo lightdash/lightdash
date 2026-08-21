@@ -30,6 +30,7 @@ import { Link } from 'react-router';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import MantineIcon from '../MantineIcon';
 import InfoRow from '../PageHeader/InfoRow';
+import ViewsCountPopover from '../ViewsCountPopover';
 import { DashboardList } from './DashboardList';
 import styles from './ResourceInfoPopup.module.css';
 
@@ -51,6 +52,9 @@ export type ResourceInfoPopupProps = {
     spaceUuid?: string | null;
     projectUuid: string;
     viewStats?: number;
+    uniqueViewerCount?: number;
+    anonymousViewCount?: number;
+    viewStatsResourceType?: 'chart' | 'dashboard';
     firstViewedAt?: Date | string | null;
     latestVersion?: { number: number; status: AppVersionStatus } | null;
 };
@@ -85,6 +89,9 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
     spaceUuid,
     projectUuid,
     viewStats,
+    uniqueViewerCount,
+    anonymousViewCount,
+    viewStatsResourceType,
     firstViewedAt,
     withChartData = false,
     latestVersion,
@@ -147,13 +154,30 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
 
                 {viewStats !== undefined ? (
                     <InfoRow icon={IconEye} label="Views">
-                        <Tooltip
-                            position="top-start"
-                            label={label}
-                            disabled={!viewStats || !firstViewedAt}
+                        <ViewsCountPopover
+                            resourceType={viewStatsResourceType}
+                            resourceUuid={resourceUuid}
+                            projectUuid={projectUuid}
+                            viewStats={
+                                uniqueViewerCount !== undefined &&
+                                anonymousViewCount !== undefined
+                                    ? {
+                                          views: viewStats,
+                                          firstViewedAt: firstViewedAt ?? null,
+                                          uniqueViewerCount,
+                                          anonymousViewCount,
+                                      }
+                                    : undefined
+                            }
                         >
-                            <span>{viewStats.toLocaleString()}</span>
-                        </Tooltip>
+                            <Tooltip
+                                position="top-start"
+                                label={label}
+                                disabled={!viewStats || !firstViewedAt}
+                            >
+                                <span>{viewStats.toLocaleString()}</span>
+                            </Tooltip>
+                        </ViewsCountPopover>
                     </InfoRow>
                 ) : null}
 
