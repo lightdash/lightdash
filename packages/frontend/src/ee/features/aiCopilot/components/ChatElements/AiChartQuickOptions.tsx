@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    ChartType,
     type AiAgentMessageAssistant,
     type AiArtifact,
     type ApiError,
@@ -32,11 +33,12 @@ import MantineModal from '../../../../../components/common/MantineModal';
 import { SaveToSpaceOrDashboard } from '../../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
 import { useVisualizationContext } from '../../../../../components/LightdashVisualization/useVisualizationContext';
 import useEmbed from '../../../../../ee/providers/Embed/useEmbed';
+import { useChartVersionPreview } from '../../../../../features/apps/ChartVersionPreview/useChartVersionPreview';
+import { useDataAppVizRenderMetadata } from '../../../../../features/chartTypes/hooks/useDataAppVizRender';
 import {
     MERGE_URL_PARAM,
     serializeMergeState,
 } from '../../../../../features/mergeQuery/context/mergeUrlState';
-import { toSavedMerge } from '../../../../../features/mergeQuery/hooks/useSavedMerge';
 import useToaster from '../../../../../hooks/toaster/useToaster';
 import useCreateInAnySpaceAccess from '../../../../../hooks/user/useCreateInAnySpaceAccess';
 import { useCreateShareMutation } from '../../../../../hooks/useShare';
@@ -57,6 +59,7 @@ import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
+import { buildAiSavedChartData } from '../../utils/aiSavedChartData';
 import {
     canonicalizeAiMerge,
     remapFieldIdsDeep,
@@ -99,7 +102,7 @@ export const AiChartQuickOptions = ({
 }: Props) => {
     const { track } = useTracking();
     const { user } = useApp();
-    const { content, writeActions } = useEmbed();
+    const { content, writeActions, embedToken } = useEmbed();
     const isEmbed = isEmbedAiAgentRoute();
     const location = useLocation();
     const navigate = useNavigate();
@@ -162,6 +165,7 @@ export const AiChartQuickOptions = ({
         chartConfig,
         pivotDimensions,
         chartRef,
+        savedChartUuid,
     } = useVisualizationContext();
     const { mutate: savePromptQuery } = useSavePromptQuery(
         projectUuid,
@@ -197,53 +201,44 @@ export const AiChartQuickOptions = ({
         [merge],
     );
 
-    const savedData = useMemo(() => {
-        if (!metricQuery) return undefined;
-        // A merged result's own metricQuery is synthetic; the chart persists
-        // the primary source's query (always first) plus the stored merge.
-        if (merge) {
-            if (!canonicalMerge) return undefined;
-            const { fieldIdByAiFieldId } = canonicalMerge;
-            const [primary] = canonicalMerge.mergeQuery.sources;
-            return {
-                metricQuery: primary.metricQuery,
-                tableName: primary.metricQuery.exploreName,
-                chartConfig: remapFieldIdsDeep(chartConfig, fieldIdByAiFieldId),
-                tableConfig: {
-                    columnOrder: remapFieldIdsDeep(
-                        columnOrder,
-                        fieldIdByAiFieldId,
-                    ),
-                },
-                pivotConfig: pivotDimensions?.length
-                    ? {
-                          columns: remapFieldIdsDeep(
-                              pivotDimensions,
-                              fieldIdByAiFieldId,
-                          ),
-                      }
-                    : undefined,
-                merge: toSavedMerge(canonicalMerge.mergeQuery),
-                parameters: merge.parameters,
-            };
-        }
-        return {
+    // Custom-chart-type answers derive their saved pivot from the type's
+    // schema, fetched with the same query key as the thread renderer.
+    const customChartTypeConfig =
+        chartConfig.type === ChartType.DATA_APP_VIZ
+            ? chartConfig.config
+            : undefined;
+    const chartVersionUuid = useChartVersionPreview();
+    const customChartTypeRenderTarget = useMemo(
+        () => ({ isEmbedded: !!embedToken, savedChartUuid, chartVersionUuid }),
+        [embedToken, savedChartUuid, chartVersionUuid],
+    );
+    const { data: customChartTypeMetadata } = useDataAppVizRenderMetadata(
+        projectUuid,
+        customChartTypeConfig?.dataAppVizUuid,
+        customChartTypeRenderTarget,
+    );
+
+    const savedData = useMemo(
+        () =>
+            buildAiSavedChartData({
+                metricQuery,
+                chartConfig,
+                columnOrder,
+                pivotDimensions,
+                merge,
+                canonicalMerge,
+                customChartTypeMetadata,
+            }),
+        [
             metricQuery,
-            tableName: metricQuery.exploreName,
             chartConfig,
-            tableConfig: { columnOrder },
-            pivotConfig: pivotDimensions?.length
-                ? { columns: pivotDimensions }
-                : undefined,
-        };
-    }, [
-        metricQuery,
-        chartConfig,
-        columnOrder,
-        pivotDimensions,
-        merge,
-        canonicalMerge,
-    ]);
+            columnOrder,
+            pivotDimensions,
+            merge,
+            canonicalMerge,
+            customChartTypeMetadata,
+        ],
+    );
 
     const trackChartCreated = useCallback(() => {
         if (
@@ -386,7 +381,11 @@ export const AiChartQuickOptions = ({
             projectUuid,
             columnOrder,
             chartConfig,
-            pivotColumns: pivotDimensions,
+            // Custom-chart-type answers carry the schema-derived pivot so the
+            // explorer opens pivoted exactly like the thread render.
+            pivotColumns: customChartTypeConfig
+                ? savedData?.pivotConfig?.columns
+                : pivotDimensions,
         });
     }, [
         isDisabled,
@@ -397,6 +396,8 @@ export const AiChartQuickOptions = ({
         columnOrder,
         chartConfig,
         pivotDimensions,
+        customChartTypeConfig,
+        savedData?.pivotConfig?.columns,
     ]);
 
     const { mutateAsync: createShareUrl } = useCreateShareMutation();
@@ -596,7 +597,9 @@ export const AiChartQuickOptions = ({
                                             void handleSaveToCurrentDashboard()
                                         }
                                         disabled={
-                                            isDisabled || isSavingToDashboard
+                                            isDisabled ||
+                                            !savedData ||
+                                            isSavingToDashboard
                                         }
                                         leftSection={
                                             <MantineIcon
@@ -610,6 +613,7 @@ export const AiChartQuickOptions = ({
                                 {canSaveChart && (
                                     <Menu.Item
                                         onClick={() => open()}
+                                        disabled={isDisabled || !savedData}
                                         leftSection={
                                             <MantineIcon
                                                 icon={IconDeviceFloppy}
