@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { parseChangeDeclarations } from './breaking-change-declarations';
 
 /** Knex migration files are timestamped: YYYYMMDDHHMMSS_description.ts */
 const MIGRATION_FILENAME_RE = /^\d{14}_.+\.(ts|js)$/;
@@ -48,7 +49,13 @@ export interface MigrationDetail {
 export interface MigrationSourceAnalysis {
     migration: MigrationDetail;
     complete: boolean;
+    incompleteReasons: MigrationIncompleteReason[];
 }
+
+export type MigrationIncompleteReason =
+    | 'parse-failure'
+    | 'column-alter'
+    | 'unresolved-table-name';
 
 export interface ReadMigrationMetadataOptions {
     paths: string[];
@@ -618,20 +625,27 @@ export function analyzeMigrationSource(
         scansTable: false,
     };
     let complete = tokenized.valid && body !== null;
+    const incompleteReasons = new Set<MigrationIncompleteReason>();
+    if (!complete) incompleteReasons.add('parse-failure');
 
     const mark = (...keys: HeavinessKey[]): void => {
         for (const key of keys) heaviness[key] = true;
     };
-    const markUnknown = (...keys: HeavinessKey[]): void => {
+    const markUnknown = (
+        reason: MigrationIncompleteReason,
+        ...keys: HeavinessKey[]
+    ): void => {
         for (const key of keys) {
             if (heaviness[key] !== true) heaviness[key] = 'unknown';
         }
         complete = false;
+        incompleteReasons.add(reason);
     };
     const addTable = (token: Token | undefined): void => {
         const table = resolveTable(token, constants);
         if (table === null) {
             complete = false;
+            incompleteReasons.add('unresolved-table-name');
         } else {
             tables.add(table.split('.').at(-1) ?? table);
         }
@@ -727,7 +741,9 @@ export function analyzeMigrationSource(
             ) {
                 mark('locksTable');
             }
-            if (token.value === 'alter') markUnknown('rewritesTable');
+            if (token.value === 'alter') {
+                markUnknown('column-alter', 'rewritesTable');
+            }
 
             if (token.value === 'raw') {
                 // The argument is only the whole argument when the call ends
@@ -739,7 +755,12 @@ export function analyzeMigrationSource(
                     ? resolveSqlArgument(argument, sqlConstants)
                     : null;
                 if (sql === null) {
-                    markUnknown('locksTable', 'rewritesTable', 'scansTable');
+                    markUnknown(
+                        'parse-failure',
+                        'locksTable',
+                        'rewritesTable',
+                        'scansTable',
+                    );
                     continue;
                 }
                 for (const table of rawSqlTables(sql)) tables.add(table);
@@ -777,6 +798,7 @@ export function analyzeMigrationSource(
 
     if (!tokenized.valid) {
         complete = false;
+        incompleteReasons.add('parse-failure');
         for (const key of Object.keys(heaviness) as HeavinessKey[]) {
             if (heaviness[key] !== true) heaviness[key] = 'unknown';
         }
@@ -790,6 +812,7 @@ export function analyzeMigrationSource(
             heaviness,
         },
         complete,
+        incompleteReasons: [...incompleteReasons],
     };
 }
 
@@ -829,7 +852,11 @@ export function readMigrationMetadata(
 
         const analysis = analyzeMigrationSource(migrationPath, source);
         migrations.push(analysis.migration);
-        if (!analysis.complete) {
+        const classification = parseChangeDeclarations(
+            source,
+            migrationPath,
+        ).classification;
+        if (!analysis.complete && classification === null) {
             log(`metadata extraction incomplete for ${options.ref}:${migrationPath}`);
             complete = false;
         }

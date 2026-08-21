@@ -4,9 +4,11 @@ import type {
     BreakingChangeDeclarationDiff,
 } from './release-safety-declarations';
 import {
+    detectIncompleteMigrationMetadata,
     detectLegacyInlineBreakingDeclarations,
     evaluateReleaseSafetyGate,
     ReleaseSafetyGateMarker,
+    validateGitSha,
 } from './release-safety-pr-gate';
 
 let passed = 0;
@@ -52,14 +54,118 @@ function evaluate(
     inlineDeclarationDiagnostics: ReturnType<
         typeof detectLegacyInlineBreakingDeclarations
     > = [],
+    migrationDiagnostics: ReturnType<
+        typeof detectIncompleteMigrationMetadata
+    > = [],
 ) {
     return evaluateReleaseSafetyGate({
         marker: releaseMarker,
         markerPath,
         declarationChanges,
         inlineDeclarationDiagnostics,
+        migrationDiagnostics,
     });
 }
+
+const migrationPath =
+    'packages/backend/src/database/migrations/20260820120000_example.ts';
+
+test('git ref validation rejects option-like input', () => {
+    assert.throws(
+        () => validateGitSha('--not-a-ref'),
+        /full 40-character lowercase hex SHA/,
+    );
+    assert.strictEqual(validateGitSha('a'.repeat(40)), 'a'.repeat(40));
+});
+
+test('dynamic SQL reports the parse failure remedy', () => {
+    const diagnostics = detectIncompleteMigrationMetadata([
+        {
+            file: migrationPath,
+            source: `export async function up(knex) { await knex.raw(buildSql()); }`,
+        },
+    ]);
+    assert.ok(
+        diagnostics.some(({ message }) =>
+            message.includes('write the name inline, or use a module constant'),
+        ),
+    );
+    assert.deepStrictEqual(
+        evaluate(marker(false, false), changes(), [], diagnostics),
+        diagnostics,
+    );
+});
+
+test('column alter reports the rewrite declaration remedy', () => {
+    const diagnostics = detectIncompleteMigrationMetadata([
+        {
+            file: migrationPath,
+            source: `export async function up(knex) {
+                await knex.schema.alterTable('users', (table) => {
+                    table.string('name', 100).alter();
+                });
+            }`,
+        },
+    ]);
+    assert.ok(
+        diagnostics.some(({ message }) =>
+            message.includes('declare whether this rewrites the table'),
+        ),
+    );
+    assert.ok(
+        diagnostics.every(
+            ({ message }) => !message.includes('write the name inline'),
+        ),
+    );
+});
+
+test('dynamic table argument reports the table-name remedy', () => {
+    const diagnostics = detectIncompleteMigrationMetadata([
+        {
+            file: migrationPath,
+            source: `export async function up(knex) {
+                await knex.schema.createTable(getTableName(), () => undefined);
+            }`,
+        },
+    ]);
+    assert.ok(
+        diagnostics.some(({ message }) =>
+            message.includes(
+                'name the table with a literal or a module constant',
+            ),
+        ),
+    );
+});
+
+test('an explicit migration classification satisfies incomplete metadata', () => {
+    const diagnostics = detectIncompleteMigrationMetadata([
+        {
+            file: migrationPath,
+            source: `
+                export const classification = { kind: 'safe', reason: 'The type widening does not rewrite existing rows.' };
+                export async function up(knex) {
+                    await knex.schema.alterTable('users', (table) => {
+                        table.string('name', 100).alter();
+                    });
+                }
+            `,
+        },
+    ]);
+    assert.deepStrictEqual(diagnostics, []);
+});
+
+test('a matching migration declaration satisfies incomplete metadata', () => {
+    const diagnostics = detectIncompleteMigrationMetadata(
+        [
+            {
+                file: migrationPath,
+                source: `export async function up(knex) { await knex.raw(buildSql()); }`,
+            },
+        ],
+        [{ ...declaration, migration: migrationPath }],
+    );
+    assert.deepStrictEqual(diagnostics, []);
+});
 
 test('breaking REST without a new declaration fails', () => {
     const diagnostics = evaluate(marker(true, false));

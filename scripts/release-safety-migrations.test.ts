@@ -1,6 +1,12 @@
 import * as assert from 'node:assert';
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+    copyFileSync,
+    mkdirSync,
+    mkdtempSync,
+    rmSync,
+    writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -80,6 +86,7 @@ test('analyzer reads core tables and forward heaviness only', () => {
             },
         },
         complete: true,
+        incompleteReasons: [],
     });
 });
 
@@ -117,6 +124,39 @@ test('dynamic raw SQL degrades unknown dimensions and completeness', () => {
         scansTable: 'unknown',
     });
     assert.strictEqual(result.complete, false);
+    assert.deepStrictEqual(result.incompleteReasons, ['parse-failure']);
+});
+
+test('column alter reports that rewrite safety needs a declaration', () => {
+    const result = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260810000017_alter.ts',
+        `
+            export async function up(knex) {
+                await knex.schema.alterTable('users', (table) => {
+                    table.string('name', 100).alter();
+                });
+            }
+        `,
+    );
+    assert.strictEqual(result.complete, false);
+    assert.deepStrictEqual(result.incompleteReasons, ['column-alter']);
+});
+
+test('dynamic table arguments report an unresolved table name', () => {
+    const result = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260810000018_table.ts',
+        `
+            export async function up(knex) {
+                await knex.schema.createTable(getTableName(), (table) => {
+                    table.uuid('user_uuid');
+                });
+            }
+        `,
+    );
+    assert.strictEqual(result.complete, false);
+    assert.deepStrictEqual(result.incompleteReasons, [
+        'unresolved-table-name',
+    ]);
 });
 
 test('raw SQL built from a local constant reads as fully as a literal', () => {
@@ -366,12 +406,71 @@ test('IO reads the requested ref and represents unreadable paths honestly', () =
     assert.ok(logs.some((message) => message.includes('could not read HEAD:')));
 });
 
+test('IO accepts safe and breaking classifications for incomplete metadata', () => {
+    for (const kind of ['safe', 'breaking'] as const) {
+        const directory = mkdtempSync(
+            join(tmpdir(), 'release-safety-classified-'),
+        );
+        const migration = `${core}/20260810000019_classified_${kind}.ts`;
+        try {
+            mkdirSync(join(directory, core), { recursive: true });
+            writeFileSync(
+                join(directory, migration),
+                `
+                    export const classification = { kind: '${kind}', reason: 'The author classified the type widening.' };
+                    export async function up(knex) {
+                        await knex.schema.alterTable('users', (table) => {
+                            table.string('name', 100).alter();
+                        });
+                    }
+                `,
+            );
+            execFileSync('git', ['init'], { cwd: directory });
+            execFileSync('git', ['add', migration], { cwd: directory });
+            execFileSync(
+                'git',
+                [
+                    '-c',
+                    'user.name=Release Safety Test',
+                    '-c',
+                    'user.email=release-safety@example.com',
+                    'commit',
+                    '-m',
+                    'test fixture',
+                ],
+                { cwd: directory },
+            );
+            const previousDirectory = process.cwd();
+            process.chdir(directory);
+            try {
+                const result = readMigrationMetadata({
+                    paths: [migration],
+                    ref: 'HEAD',
+                });
+                assert.strictEqual(result.complete, true);
+                assert.strictEqual(
+                    result.migrations[0].heaviness.rewritesTable,
+                    'unknown',
+                );
+            } finally {
+                process.chdir(previousDirectory);
+            }
+        } finally {
+            rmSync(directory, { force: true, recursive: true });
+        }
+    }
+});
+
 test('loads and runs without repository dependency resolution', () => {
     const directory = mkdtempSync(join(tmpdir(), 'release-safety-migration-'));
     try {
         copyFileSync(
             join(process.cwd(), 'scripts/release-safety-migrations.ts'),
             join(directory, 'analyzer.ts'),
+        );
+        copyFileSync(
+            join(process.cwd(), 'scripts/breaking-change-declarations.ts'),
+            join(directory, 'breaking-change-declarations.ts'),
         );
         writeFileSync(
             join(directory, 'run.ts'),
