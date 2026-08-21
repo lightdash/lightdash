@@ -171,7 +171,7 @@ const stripDatabaseQualifier = (sql: string, databaseName: string): string => {
         ? `|\\b${escapeRegex(databaseName)}\\b`
         : '';
     const qualifier = new RegExp(
-        `(?:${quoted}${bare})\\.(?=(?:"[^"]+"|[A-Za-z_][\\w$]*)\\.)`,
+        `(?:${quoted}${bare})\\.(?=(?:"(?:[^"]|"")+"|[A-Za-z_][\\w$]*)\\.)`,
         'g',
     );
     return sql.replace(qualifier, '');

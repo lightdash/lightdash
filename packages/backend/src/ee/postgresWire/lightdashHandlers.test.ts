@@ -199,6 +199,17 @@ describe('lightdash pgwire handlers: describe vs query', () => {
         await expect(
             handlers.query(session, `select '"project-uuid"."a"."b"' as s`),
         ).resolves.toMatchObject({ rows: [['"project-uuid"."a"."b"']] });
+        // identifiers with escaped quotes still get the qualifier stripped
+        await expect(
+            handlers.query(
+                session,
+                'SELECT x FROM "project-uuid"."public"."weird""name"',
+            ),
+        ).rejects.toMatchObject({
+            message: expect.stringMatching(
+                /Table "weird""name" does not exist/,
+            ),
+        });
         // a different database's qualifier still fails like Postgres
         await expect(
             handlers.query(
