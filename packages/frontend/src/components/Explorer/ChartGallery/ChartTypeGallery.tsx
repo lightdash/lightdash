@@ -1,8 +1,4 @@
-import {
-    FeatureFlags,
-    getAppDisplayName,
-    type DataAppViz,
-} from '@lightdash/common';
+import { FeatureFlags, type DataAppViz } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -15,12 +11,7 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import {
-    IconChevronRight,
-    IconPlus,
-    IconPuzzle,
-    IconSearch,
-} from '@tabler/icons-react';
+import { IconChevronRight, IconPlus, IconSearch } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
@@ -31,6 +22,7 @@ import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/ty
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { useSelectProjectChartType } from '../../VisualizationConfigs/CustomChartType/useSelectProjectChartType';
 import {
+    projectChartTypeItem,
     useChartTypeOptions,
     type ChartTypeOption,
 } from '../VisualizationCardOptions/useChartTypeOptions';
@@ -257,24 +249,25 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
             },
         }));
     const projectItems = projectTypes.map(
-        (dataAppViz: DataAppViz): ChartTypeGalleryItem => ({
-            key: dataAppViz.dataAppVizUuid,
-            label: getAppDisplayName(
-                dataAppViz.name,
-                dataAppViz.dataAppVizUuid,
-            ),
-            description:
-                dataAppViz.description ||
-                `${dataAppViz.schema?.fields.length ?? 0} fields`,
-            icon: IconPuzzle,
-            rotatedIcon: false,
-            selected: selectedProjectUuid === dataAppViz.dataAppVizUuid,
-            disabled,
-            select: () => {
-                selectProjectChartType(dataAppViz, itemsMap ?? {});
-                onSelected();
-            },
-        }),
+        (dataAppViz: DataAppViz): ChartTypeGalleryItem => {
+            const { label, icon, rotatedIcon } =
+                projectChartTypeItem(dataAppViz);
+            return {
+                key: dataAppViz.dataAppVizUuid,
+                label,
+                description:
+                    dataAppViz.description ||
+                    `${dataAppViz.schema?.fields.length ?? 0} fields`,
+                icon,
+                rotatedIcon,
+                selected: selectedProjectUuid === dataAppViz.dataAppVizUuid,
+                disabled,
+                select: () => {
+                    selectProjectChartType(dataAppViz, itemsMap ?? {});
+                    onSelected();
+                },
+            };
+        },
     );
 
     const sections: ChartTypeGallerySection[] = [

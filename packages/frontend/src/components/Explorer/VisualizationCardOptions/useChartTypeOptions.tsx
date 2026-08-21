@@ -2,7 +2,9 @@ import {
     CartesianSeriesType,
     ChartKind,
     ChartType,
+    getAppDisplayName,
     isSeriesWithMixedChartTypes,
+    type DataAppViz,
 } from '@lightdash/common';
 import {
     IconChartArea,
@@ -17,6 +19,7 @@ import {
     IconGauge,
     IconGitMerge,
     IconMap,
+    IconPuzzle,
     IconSquareNumber1,
     IconTable,
     type Icon as TablerIcon,
@@ -64,6 +67,18 @@ const CUSTOM_CHART_TYPE: SelectedChartType = {
     icon: IconCode,
     rotatedIcon: false,
 };
+
+/** Pass `null` while the project chart type is still loading. */
+export const projectChartTypeItem = (
+    dataAppViz: DataAppViz | null,
+): SelectedChartType => ({
+    id: ChartKind.DATA_APP_VIZ,
+    label: dataAppViz
+        ? getAppDisplayName(dataAppViz.name, dataAppViz.dataAppVizUuid)
+        : 'Project chart type',
+    icon: IconPuzzle,
+    rotatedIcon: false,
+});
 
 export const useChartTypeOptions = () => {
     const {
@@ -287,8 +302,22 @@ export const useChartTypeOptions = () => {
         ? CUSTOM_CHART_TYPE
         : (options.find((option) => option.selected) ?? MIXED_CHART_TYPE);
 
+    // The picker collapses Vega and project chart types into a single "Custom"
+    // entry, so callers showing the active type resolve it by chart type.
+    const getSelectedChartTypeItem = (
+        chartType: ChartType,
+        dataAppViz: DataAppViz | null,
+    ): SelectedChartType => {
+        if (chartType === ChartType.DATA_APP_VIZ) {
+            return projectChartTypeItem(dataAppViz);
+        }
+        if (chartType === ChartType.CUSTOM) return vegaOption;
+        return selectedChartType;
+    };
+
     return {
         disabled,
+        getSelectedChartTypeItem,
         isCustomChart,
         options,
         resetCartesianState,
