@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     DbtProjectType,
+    DEFAULT_PROJECT_DBT_SOURCE_NAME,
     FeatureFlags,
     ForbiddenError,
     getErrorMessage,
@@ -2789,20 +2790,20 @@ export class AiWritebackService extends BaseService {
         projectUuid: string,
         project: { projectUuid: string; dbtConnection: DbtProjectConfig },
     ): Promise<DbtTargetCandidate[]> {
+        const [identity, additional] = await Promise.all([
+            this.projectModel.getDbtSourceIdentity(projectUuid),
+            this.projectDbtSourcesModel.getSources(projectUuid),
+        ]);
         const primary: DbtTargetCandidate | null =
             AiWritebackService.isWritebackTargetable(project.dbtConnection.type)
                 ? {
                       sourceUuid: null,
-                      // The primary's client-facing id is the project uuid — the
-                      // same id the project's dbt-sources list synthesises for it.
-                      optionUuid: project.projectUuid,
-                      name: 'Project dbt connection',
+                      optionUuid: identity.dbtSourceUuid,
+                      name: identity.dbtSourceName,
                       isPrimary: true,
                       connection: project.dbtConnection,
                   }
                 : null;
-        const additional =
-            await this.projectDbtSourcesModel.getSources(projectUuid);
         const extra = additional.flatMap<DbtTargetCandidate>((dbtSource) =>
             dbtSource.dbtConnection &&
             AiWritebackService.isWritebackTargetable(
@@ -2985,8 +2986,10 @@ export class AiWritebackService extends BaseService {
                 needles.push(repoName.toLowerCase());
             }
         }
-        // Skip the synthesised primary's generic name — it names nothing useful.
-        if (!candidate.isPrimary && candidate.name.trim().length >= 3) {
+        if (
+            candidate.name !== DEFAULT_PROJECT_DBT_SOURCE_NAME &&
+            candidate.name.trim().length >= 3
+        ) {
             needles.push(candidate.name.toLowerCase());
         }
         return needles

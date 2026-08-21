@@ -182,6 +182,7 @@ export {
     buildSafeDbtEnvironmentVariables,
     DatabricksAuthenticationType,
     DBT_VERSION_SUPPORTED_WAREHOUSES,
+    DEFAULT_PROJECT_DBT_SOURCE_NAME,
     DbtProjectType,
     DbtVersionOptionLatest,
     DefaultSupportedDbtVersion,
