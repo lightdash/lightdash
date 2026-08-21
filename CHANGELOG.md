@@ -1,3 +1,10 @@
+## [1.232.1](https://github.com/lightdash/lightdash/compare/1.232.0...1.232.1) (2026-08-21)
+
+
+### Bug Fixes
+
+* upgrade js-yaml 4.3.0→4.3.1 (security) ([#27082](https://github.com/lightdash/lightdash/issues/27082)) ([4121e19](https://github.com/lightdash/lightdash/commit/4121e1917e0a0535d42ee9b47942114b963a81b9))
+
 # [1.232.0](https://github.com/lightdash/lightdash/compare/1.231.1...1.232.0) (2026-08-21)
 
 
