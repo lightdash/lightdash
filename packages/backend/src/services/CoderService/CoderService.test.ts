@@ -1644,4 +1644,140 @@ describe('CoderService', () => {
             ]);
         });
     });
+
+    describe('withDataAppVizSlugs', () => {
+        const { withDataAppVizSlugs } = CoderService as unknown as {
+            withDataAppVizSlugs: (
+                charts: AnyType[],
+                slugByUuid: Map<string, string>,
+            ) => AnyType[];
+        };
+
+        it('stamps the viz slug into DATA_APP_VIZ chart configs', () => {
+            const charts = [
+                {
+                    slug: 'viz-chart',
+                    chartConfig: {
+                        type: ChartType.DATA_APP_VIZ,
+                        config: {
+                            dataAppVizUuid: 'viz-uuid',
+                            fieldMapping: {},
+                        },
+                    },
+                },
+                {
+                    slug: 'bar-chart',
+                    chartConfig: { type: ChartType.CARTESIAN, config: {} },
+                },
+            ];
+            const result = withDataAppVizSlugs(
+                charts,
+                new Map([['viz-uuid', 'my-chart-type']]),
+            );
+            expect(result[0].chartConfig.config.dataAppVizSlug).toBe(
+                'my-chart-type',
+            );
+            expect(result[1]).toBe(charts[1]);
+        });
+
+        it('leaves the config untouched when the viz uuid is unknown', () => {
+            const charts = [
+                {
+                    slug: 'viz-chart',
+                    chartConfig: {
+                        type: ChartType.DATA_APP_VIZ,
+                        config: {
+                            dataAppVizUuid: 'gone-uuid',
+                            fieldMapping: {},
+                        },
+                    },
+                },
+            ];
+            const result = withDataAppVizSlugs(charts, new Map());
+            expect(result[0]).toBe(charts[0]);
+        });
+    });
+
+    describe('resolveDataAppVizBinding', () => {
+        const buildResolver = (
+            findAppsBySlugs:
+                | ReturnType<typeof vi.fn>
+                | ((...args: AnyType[]) => AnyType),
+        ) => {
+            const warn = vi.fn();
+            const service = {
+                appModel: { findAppsBySlugs },
+                logger: { warn },
+                resolveDataAppVizBinding: (CoderService.prototype as AnyType)
+                    .resolveDataAppVizBinding,
+            } as AnyType;
+            return { service, warn };
+        };
+
+        it('resolves the slug to this project uuid and strips it', async () => {
+            const { service } = buildResolver(
+                vi
+                    .fn()
+                    .mockResolvedValue([
+                        { app_id: 'target-viz-uuid', slug: 'my-chart-type' },
+                    ]),
+            );
+            const result = await service.resolveDataAppVizBinding('proj', {
+                type: ChartType.DATA_APP_VIZ,
+                config: {
+                    dataAppVizUuid: 'source-viz-uuid',
+                    dataAppVizSlug: 'my-chart-type',
+                    fieldMapping: { x: 'field_x' },
+                },
+            });
+            expect(result.config).toEqual({
+                dataAppVizUuid: 'target-viz-uuid',
+                fieldMapping: { x: 'field_x' },
+            });
+            expect(service.appModel.findAppsBySlugs).toHaveBeenCalledWith(
+                'proj',
+                ['my-chart-type'],
+                { dataAppVizsFilter: 'only' },
+            );
+        });
+
+        it('keeps the original uuid (slug stripped) when the slug is missing in the project', async () => {
+            const { service, warn } = buildResolver(
+                vi.fn().mockResolvedValue([]),
+            );
+            const result = await service.resolveDataAppVizBinding('proj', {
+                type: ChartType.DATA_APP_VIZ,
+                config: {
+                    dataAppVizUuid: 'source-viz-uuid',
+                    dataAppVizSlug: 'gone-chart-type',
+                    fieldMapping: {},
+                },
+            });
+            expect(result.config).toEqual({
+                dataAppVizUuid: 'source-viz-uuid',
+                fieldMapping: {},
+            });
+            expect(warn).toHaveBeenCalled();
+        });
+
+        it('passes non-viz and slug-less configs through untouched', async () => {
+            const findAppsBySlugs = vi.fn();
+            const { service } = buildResolver(findAppsBySlugs);
+            const cartesian = {
+                type: ChartType.CARTESIAN,
+                config: {},
+            };
+            expect(
+                await service.resolveDataAppVizBinding('proj', cartesian),
+            ).toBe(cartesian);
+            const legacyViz = {
+                type: ChartType.DATA_APP_VIZ,
+                config: { dataAppVizUuid: 'viz-uuid', fieldMapping: {} },
+            };
+            expect(
+                await service.resolveDataAppVizBinding('proj', legacyViz),
+            ).toBe(legacyViz);
+            expect(findAppsBySlugs).not.toHaveBeenCalled();
+        });
+    });
 });

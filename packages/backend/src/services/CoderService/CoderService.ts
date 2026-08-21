@@ -21,6 +21,7 @@ import {
     ChartGoogleSheetsSyncAsCode,
     ChartScheduledDeliveryAsCode,
     ChartSummary,
+    ChartType,
     ContentAsCodeType,
     ContentSlugRenameRequest,
     ContentType,
@@ -2127,6 +2128,75 @@ export class CoderService extends BaseService {
         };
     }
 
+    /** Stamp each DATA_APP_VIZ chart's config with its viz's portable slug. */
+    private static withDataAppVizSlugs(
+        charts: ChartAsCode[],
+        dataAppVizSlugByUuid: ReadonlyMap<string, string>,
+    ): ChartAsCode[] {
+        return charts.map((chart) => {
+            if (
+                chart.chartConfig.type !== ChartType.DATA_APP_VIZ ||
+                chart.chartConfig.config === undefined
+            ) {
+                return chart;
+            }
+            const dataAppVizSlug = dataAppVizSlugByUuid.get(
+                chart.chartConfig.config.dataAppVizUuid,
+            );
+            if (dataAppVizSlug === undefined) {
+                return chart;
+            }
+            return {
+                ...chart,
+                chartConfig: {
+                    ...chart.chartConfig,
+                    config: {
+                        ...chart.chartConfig.config,
+                        dataAppVizSlug,
+                    },
+                },
+            };
+        });
+    }
+
+    /**
+     * Charts on a custom chart type carry a portable dataAppVizSlug in YAML;
+     * resolve it against the target project's chart types and rewrite the
+     * config with the resolved uuid, stripping the slug (it is content-as-code
+     * identity only, never persisted). Unresolvable references upload as-is —
+     * the chart renders the viz-not-found state until the chart type arrives.
+     */
+    private async resolveDataAppVizBinding(
+        projectUuid: string,
+        chartConfig: ChartAsCode['chartConfig'],
+    ): Promise<ChartAsCode['chartConfig']> {
+        if (
+            chartConfig.type !== ChartType.DATA_APP_VIZ ||
+            chartConfig.config === undefined
+        ) {
+            return chartConfig;
+        }
+        const { dataAppVizSlug, ...configWithoutSlug } = chartConfig.config;
+        if (dataAppVizSlug === undefined) {
+            return chartConfig;
+        }
+        const [vizRow] = await this.appModel.findAppsBySlugs(
+            projectUuid,
+            [dataAppVizSlug],
+            { dataAppVizsFilter: 'only' },
+        );
+        if (vizRow === undefined) {
+            this.logger.warn(
+                `Chart type "${dataAppVizSlug}" was not found in project ${projectUuid}; keeping the chart's existing dataAppVizUuid reference.`,
+            );
+            return { ...chartConfig, config: configWithoutSlug };
+        }
+        return {
+            ...chartConfig,
+            config: { ...configWithoutSlug, dataAppVizUuid: vizRow.app_id },
+        };
+    }
+
     async getCharts(
         user: SessionUser,
         projectUuid: string,
@@ -2219,13 +2289,37 @@ export class CoderService extends BaseService {
             this.savedChartModel.getSlugAliasesForUuids(chartUuids),
         ]);
 
-        const transformedCharts = charts.map((chart) =>
-            CoderService.transformChart(
-                chart,
-                spaces,
-                dashboards,
-                chartVerificationMap,
+        // Charts on a custom chart type reference it by uuid at runtime;
+        // stamp the viz's project-scoped slug into the YAML so the binding
+        // stays portable across projects.
+        const dataAppVizUuids = charts.reduce<string[]>((acc, chart) => {
+            if (
+                chart.chartConfig.type === ChartType.DATA_APP_VIZ &&
+                chart.chartConfig.config?.dataAppVizUuid
+            ) {
+                acc.push(chart.chartConfig.config.dataAppVizUuid);
+            }
+            return acc;
+        }, []);
+        const dataAppVizRows = await this.appModel.findAppsByUuids(
+            projectUuid,
+            [...new Set(dataAppVizUuids)],
+            { dataAppVizsFilter: 'only' },
+        );
+        const dataAppVizSlugByUuid = new Map(
+            dataAppVizRows.map((row) => [row.app_id, row.slug]),
+        );
+
+        const transformedCharts = CoderService.withDataAppVizSlugs(
+            charts.map((chart) =>
+                CoderService.transformChart(
+                    chart,
+                    spaces,
+                    dashboards,
+                    chartVerificationMap,
+                ),
             ),
+            dataAppVizSlugByUuid,
         );
 
         const missingIds = CoderService.getMissingIds(
@@ -2657,6 +2751,11 @@ export class CoderService extends BaseService {
             ...chartAsCode,
             updatedAt: chartAsCode.updatedAt ?? new Date(),
             tableConfig: chartAsCode.tableConfig ?? { columnOrder: [] },
+            // Portable chart-type slug → this project's viz uuid (slug stripped)
+            chartConfig: await this.resolveDataAppVizBinding(
+                projectUuid,
+                chartAsCode.chartConfig,
+            ),
             metricQuery: {
                 ...chartAsCode.metricQuery,
                 filters: normalizeFilterIds(chartAsCode.metricQuery.filters),
