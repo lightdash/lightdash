@@ -1,3 +1,10 @@
+# [1.235.0](https://github.com/lightdash/lightdash/compare/1.234.1...1.235.0) (2026-08-21)
+
+
+### Features
+
+* **pgwire:** support count(*) row counts ([#27851](https://github.com/lightdash/lightdash/issues/27851)) ([a6ec494](https://github.com/lightdash/lightdash/commit/a6ec494f40c6fa99698d0aea3675a74be4bb2825)), closes [#27624](https://github.com/lightdash/lightdash/issues/27624)
+
 ## [1.234.1](https://github.com/lightdash/lightdash/compare/1.234.0...1.234.1) (2026-08-21)
 
 
