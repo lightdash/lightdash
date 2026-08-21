@@ -791,6 +791,7 @@ const TableCalculationModal: FC<Props> = ({
                         isTemplateTableCalculation(tableCalculation) ? (
                             <TemplateViewer
                                 template={editedTemplate ?? template}
+                                excludedFieldId={tableCalculation.name}
                                 readOnly={false}
                                 onTemplateChange={handleTemplateChange}
                             />

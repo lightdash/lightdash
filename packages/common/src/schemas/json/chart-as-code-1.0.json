@@ -3181,6 +3181,23 @@
                             "description": "Field ID to apply the template to",
                             "type": "string"
                         },
+                        "orderBy": {
+                            "description": "Fields to order by for the running total",
+                            "items": {
+                                "properties": {
+                                    "fieldId": {
+                                        "type": "string"
+                                    },
+                                    "order": {
+                                        "enum": ["asc", "desc", null],
+                                        "type": ["string", "null"]
+                                    }
+                                },
+                                "required": ["order", "fieldId"],
+                                "type": "object"
+                            },
+                            "type": "array"
+                        },
                         "type": {
                             "$ref": "#/$defs/TableCalculationTemplateType.RUNNING_TOTAL",
                             "description": "Type of template calculation"

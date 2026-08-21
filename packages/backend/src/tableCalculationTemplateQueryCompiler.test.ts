@@ -479,8 +479,29 @@ describe('compileTableCalculationFromTemplate - Frame Clauses', () => {
         );
     });
 
-    describe('RUNNING_TOTAL sort fields', () => {
-        it('Should compile RUNNING_TOTAL with single ascending sort field', () => {
+    describe('RUNNING_TOTAL orderBy', () => {
+        it('Should compile RUNNING_TOTAL with its configured sort fields', () => {
+            const template: TableCalculationTemplate = {
+                type: TableCalculationTemplateType.RUNNING_TOTAL,
+                fieldId: 'table_revenue',
+                orderBy: [
+                    { fieldId: 'table_year', order: 'asc' },
+                    { fieldId: 'table_month', order: 'desc' },
+                ],
+            };
+
+            const result = compileTableCalculationFromTemplate(
+                template,
+                warehouseClientMock,
+                [{ fieldId: 'other_field', descending: false }],
+            );
+
+            expect(result).toBe(
+                'SUM("table_revenue") OVER (ORDER BY "table_year" ASC, "table_month" DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)',
+            );
+        });
+
+        it('Should preserve result sorts for legacy RUNNING_TOTAL templates', () => {
             const template: TableCalculationTemplate = {
                 type: TableCalculationTemplateType.RUNNING_TOTAL,
                 fieldId: 'table_revenue',
@@ -497,54 +518,17 @@ describe('compileTableCalculationFromTemplate - Frame Clauses', () => {
             );
         });
 
-        it('Should compile RUNNING_TOTAL with single descending sort field', () => {
+        it('Should ignore result sorts when configured with an empty order', () => {
             const template: TableCalculationTemplate = {
                 type: TableCalculationTemplateType.RUNNING_TOTAL,
                 fieldId: 'table_revenue',
+                orderBy: [],
             };
 
             const result = compileTableCalculationFromTemplate(
                 template,
                 warehouseClientMock,
-                [{ fieldId: 'table_date', descending: true }],
-            );
-
-            expect(result).toBe(
-                'SUM("table_revenue") OVER (ORDER BY "table_date" DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)',
-            );
-        });
-
-        it('Should compile RUNNING_TOTAL with multiple sort fields', () => {
-            const template: TableCalculationTemplate = {
-                type: TableCalculationTemplateType.RUNNING_TOTAL,
-                fieldId: 'table_revenue',
-            };
-
-            const result = compileTableCalculationFromTemplate(
-                template,
-                warehouseClientMock,
-                [
-                    { fieldId: 'table_year', descending: false },
-                    { fieldId: 'table_month', descending: false },
-                    { fieldId: 'table_day', descending: true },
-                ],
-            );
-
-            expect(result).toBe(
-                'SUM("table_revenue") OVER (ORDER BY "table_year" ASC, "table_month" ASC, "table_day" DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)',
-            );
-        });
-
-        it('Should compile RUNNING_TOTAL without sort fields (empty array)', () => {
-            const template: TableCalculationTemplate = {
-                type: TableCalculationTemplateType.RUNNING_TOTAL,
-                fieldId: 'table_revenue',
-            };
-
-            const result = compileTableCalculationFromTemplate(
-                template,
-                warehouseClientMock,
-                [],
+                [{ fieldId: 'table_date', descending: false }],
             );
 
             expect(result).toBe(
@@ -552,36 +536,17 @@ describe('compileTableCalculationFromTemplate - Frame Clauses', () => {
             );
         });
 
-        it('Should compile RUNNING_TOTAL with mixed ascending and descending sort fields', () => {
+        it('Should use _order for custom bin sort fields', () => {
             const template: TableCalculationTemplate = {
                 type: TableCalculationTemplateType.RUNNING_TOTAL,
                 fieldId: 'table_sales',
+                orderBy: [{ fieldId: 'age_range', order: 'asc' }],
             };
 
             const result = compileTableCalculationFromTemplate(
                 template,
                 warehouseClientMock,
-                [
-                    { fieldId: 'table_region', descending: false },
-                    { fieldId: 'table_date', descending: true },
-                ],
-            );
-
-            expect(result).toBe(
-                'SUM("table_sales") OVER (ORDER BY "table_region" ASC, "table_date" DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)',
-            );
-        });
-
-        it('Should compile RUNNING_TOTAL using _order for custom bin sort fields', () => {
-            const template: TableCalculationTemplate = {
-                type: TableCalculationTemplateType.RUNNING_TOTAL,
-                fieldId: 'table_sales',
-            };
-
-            const result = compileTableCalculationFromTemplate(
-                template,
-                warehouseClientMock,
-                [{ fieldId: 'age_range', descending: false }],
+                [],
                 new Set(['age_range']),
             );
 
