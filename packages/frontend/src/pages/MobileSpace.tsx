@@ -39,6 +39,9 @@ const MobileSpace: FC = () => {
             projectUuids: projectUuid ? [projectUuid] : [],
             spaceUuids: spaceUuid ? [spaceUuid] : [],
             contentTypes: [ContentType.DATA_APP],
+            // Vizs are spaceless today, but declare the exclusion rather
+            // than rely on that invariant.
+            dataAppVizsFilter: 'exclude',
             pageSize: 100,
         },
         { enabled: !!projectUuid && !!spaceUuid },
