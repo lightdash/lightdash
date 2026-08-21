@@ -9,6 +9,7 @@ import {
     type Account,
     type ResultRow,
 } from '@lightdash/common';
+import { parse } from 'pgsql-ast-parser';
 import { fromApiKey, fromServiceAccount } from '../../auth/account/account';
 import Logger from '../../logging/logger';
 import type { ServiceRepository } from '../../services/ServiceRepository';
@@ -145,6 +146,45 @@ const tryHandleSessionStatement = (sql: string): PgWireQueryResult | null => {
 const redactLiterals = (sql: string): string =>
     sql.replace(/'(?:[^']|'')*'/g, "'?'");
 
+const parses = (sql: string): boolean => {
+    try {
+        parse(sql);
+        return true;
+    } catch {
+        return false;
+    }
+};
+
+const escapeRegex = (text: string): string =>
+    text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * Postgres accepts fully qualified `database.schema.table` names when the
+ * database is the current one, but the SQL parser used here only understands
+ * two parts. Connectors (e.g. Domo previews) fully qualify, so when a
+ * statement only parses after removing the session database qualifier, use
+ * the stripped form.
+ */
+const stripDatabaseQualifier = (sql: string, databaseName: string): string => {
+    const quoted = `"${escapeRegex(databaseName)}"`;
+    const bare = /^[a-z_][a-z0-9_]*$/.test(databaseName)
+        ? `|\\b${escapeRegex(databaseName)}\\b`
+        : '';
+    const qualifier = new RegExp(
+        `(?:${quoted}${bare})\\.(?=(?:"(?:[^"]|"")+"|[A-Za-z_][\\w$]*)\\.)`,
+        'g',
+    );
+    return sql.replace(qualifier, '');
+};
+
+const normalizeSql = (session: LightdashPgWireSession, sql: string): string => {
+    if (!sql.includes(session.databaseName) || parses(sql)) {
+        return sql;
+    }
+    const stripped = stripDatabaseQualifier(sql, session.databaseName);
+    return stripped !== sql && parses(stripped) ? stripped : sql;
+};
+
 const UUID_PATTERN =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -159,8 +199,9 @@ type ResolvedStatement =
 
 const resolveStatement = (
     session: LightdashPgWireSession,
-    sql: string,
+    rawSql: string,
 ): ResolvedStatement => {
+    const sql = normalizeSql(session, rawSql);
     const sessionResult = tryHandleSessionStatement(sql);
     if (sessionResult) {
         return { kind: 'result', result: sessionResult };
