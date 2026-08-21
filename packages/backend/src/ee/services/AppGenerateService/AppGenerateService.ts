@@ -7732,6 +7732,13 @@ export class AppGenerateService extends BaseService {
             previewProjectUuid,
             mappings,
         );
+        // Same for charts on a custom chart type — their copied chart_config
+        // still references the upstream viz uuid, which is invisible to the
+        // preview's project-scoped viz render endpoints.
+        await this.appModel.remapPreviewChartVizBindings(
+            previewProjectUuid,
+            mappings,
+        );
 
         this.logger.info(
             `Preview duplication: copied ${mappings.length}/${sourceApps.length} data app(s) from project ${sourceProjectUuid} into preview ${previewProjectUuid}`,

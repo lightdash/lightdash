@@ -1,6 +1,7 @@
 import {
     AlreadyExistsError,
     APP_VERSION_CANCELLED_BY_USER,
+    ChartType,
     DATA_APP_VIZ_TEMPLATE,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
     generateSlug,
@@ -9,6 +10,7 @@ import {
     type AppVersionDependencies,
     type AppVersionResources,
     type AppVersionStatusHistoryEntryKind,
+    type ChartConfig,
     type DataAppActivityFilters,
     type DataAppGenerationUsage,
     type DataAppVizSchema,
@@ -39,6 +41,10 @@ import {
 import { OrganizationTableName } from '../database/entities/organizations';
 import { PinnedAppTableName } from '../database/entities/pinnedList';
 import { ProjectTableName } from '../database/entities/projects';
+import {
+    SavedChartsTableName,
+    SavedChartVersionsTableName,
+} from '../database/entities/savedCharts';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
@@ -1131,6 +1137,76 @@ export class AppModel {
                 .where('app_uuid', sourceAppUuid)
                 .whereIn('dashboard_version_id', previewVersionIds.clone())
                 .update({ app_uuid: previewAppUuid });
+        }
+        /* eslint-enable no-await-in-loop */
+    }
+
+    /**
+     * Repoint a preview project's DATA_APP_VIZ chart configs from the source
+     * (upstream) chart types they were copied with onto the preview's own
+     * duplicated ones. Covers both space charts and dashboard-scoped charts;
+     * scoped to the preview project so upstream charts — which carry the same
+     * dataAppVizUuid — are never touched.
+     */
+    async remapPreviewChartVizBindings(
+        previewProjectUuid: string,
+        mappings: { sourceAppUuid: string; previewAppUuid: string }[],
+    ): Promise<void> {
+        if (mappings.length === 0) {
+            return;
+        }
+        const spaceChartIds = this.database(SavedChartsTableName)
+            .innerJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${SavedChartsTableName}.space_id`,
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, previewProjectUuid)
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
+            .select(`${SavedChartsTableName}.saved_query_id`);
+        const dashboardChartIds = this.database(SavedChartsTableName)
+            .innerJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SavedChartsTableName}.dashboard_uuid`,
+            )
+            .innerJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${DashboardsTableName}.space_id`,
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, previewProjectUuid)
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
+            .select(`${SavedChartsTableName}.saved_query_id`);
+
+        /* eslint-disable no-await-in-loop */
+        for (const { sourceAppUuid, previewAppUuid } of mappings) {
+            await this.database(SavedChartVersionsTableName)
+                .where('chart_type', ChartType.DATA_APP_VIZ)
+                .whereRaw(`chart_config->>'dataAppVizUuid' = ?`, [
+                    sourceAppUuid,
+                ])
+                .where((chartScope) => {
+                    void chartScope
+                        .whereIn('saved_query_id', spaceChartIds.clone())
+                        .orWhereIn('saved_query_id', dashboardChartIds.clone());
+                })
+                .update({
+                    chart_config: this.database.raw(
+                        `jsonb_set(chart_config, '{dataAppVizUuid}', to_jsonb(?::text))`,
+                        [previewAppUuid],
+                    ) as unknown as ChartConfig['config'],
+                });
         }
         /* eslint-enable no-await-in-loop */
     }
