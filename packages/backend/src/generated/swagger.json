@@ -56043,7 +56043,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.233.0",
+        "version": "1.234.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -63414,6 +63414,60 @@
                         }
                     }
                 ]
+            },
+            "delete": {
+                "operationId": "deleteAgentThread",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Permanently delete an AI agent thread and everything derived from it.\nAvailable to the thread owner and to agent admins.",
+                "summary": "Delete AI agent thread",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/pull-request": {
@@ -68748,6 +68802,46 @@
                 },
                 "description": "Download a sanitized debug dump of an AI agent thread for troubleshooting.\nRequires AI_COPILOT_THREAD_DUMP_ENABLED on the instance.",
                 "summary": "Get AI agent thread dump",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/aiAgents/admin/threads/{threadUuid}": {
+            "delete": {
+                "operationId": "deleteAdminAiAgentThread",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Permanently delete an AI agent thread and everything derived from it.",
+                "summary": "Delete AI agent thread",
                 "security": [],
                 "parameters": [
                     {

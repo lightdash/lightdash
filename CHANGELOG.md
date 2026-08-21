@@ -1,3 +1,10 @@
+# [1.234.0](https://github.com/lightdash/lightdash/compare/1.233.0...1.234.0) (2026-08-21)
+
+
+### Features
+
+* **ai:** on-demand deletion of AI agent threads ([#27762](https://github.com/lightdash/lightdash/issues/27762)) ([af08518](https://github.com/lightdash/lightdash/commit/af08518e9521a09a7befe7864b9965c1b032fcf2))
+
 # [1.233.0](https://github.com/lightdash/lightdash/compare/1.232.2...1.233.0) (2026-08-21)
 
 
