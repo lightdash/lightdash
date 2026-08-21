@@ -124,19 +124,13 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
         );
     }
 
+    // Both positions collapse with a negative inline-start margin. A right
+    // sidebar closed with a negative margin-right keeps its box hanging past
+    // the page edge for the length of the animation, which shows a horizontal
+    // scrollbar on every toggle.
     const transition: MantineTransition = {
-        in: {
-            opacity: 1,
-            ...(position === SidebarPosition.LEFT
-                ? { marginLeft: 0 }
-                : { marginRight: 0 }),
-        },
-        out: {
-            opacity: 0,
-            ...(position === SidebarPosition.LEFT
-                ? { marginLeft: -sidebarWidth }
-                : { marginRight: -sidebarWidth }),
-        },
+        in: { opacity: 1, marginLeft: 0 },
+        out: { opacity: 0, marginLeft: -sidebarWidth },
         transitionProperty: isResizing
             ? 'opacity, margin'
             : 'opacity, margin, width',
