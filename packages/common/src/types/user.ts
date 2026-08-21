@@ -107,6 +107,7 @@ export interface LightdashUser {
 
 export interface LightdashSessionUser extends AccountUser {
     type: 'registered';
+    isEmailVerified?: boolean;
     // The current effective primary key for users. It duplicates user.id.
     userUuid: string;
     // The old sequential primary key for users
@@ -148,6 +149,7 @@ export interface LightdashUserWithAbilityRules extends LightdashUser {
 
 export interface SessionUser extends LightdashUserWithAbilityRules {
     ability: MemberAbility;
+    isEmailVerified?: boolean;
     /**
      * Per-request metadata (IP, user agent, request id) populated by the auth
      * middleware. Used by the audit log; intentionally not persisted in the
