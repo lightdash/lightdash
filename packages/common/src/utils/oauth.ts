@@ -105,6 +105,30 @@ const OAUTH_RESPONSE_TEMPLATE = `
 </html>
 `;
 
+// OAuth redirect page template. This intentionally uses a meta refresh instead
+// of an HTTP redirect: Chromium applies the authorize page's form-action CSP to
+// HTTP redirects after the consent form POST, which blocks OAuth loopback URIs.
+// Handlebars escapes redirectUrl in the refresh attribute context.
+const OAUTH_REDIRECT_TEMPLATE = `
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta http-equiv="refresh" content="0;url={{redirectUrl}}" />
+        <title>Redirecting...</title>
+        <style>{{{styles}}}</style>
+    </head>
+    <body>
+        <div class="stack">
+            <div class="container">
+                {{{logo}}}
+                <h1>Redirecting...</h1>
+                <p>{{message}}</p>
+            </div>
+        </div>
+    </body>
+</html>
+`;
+
 // OAuth authorization page template
 const OAUTH_AUTHORIZE_TEMPLATE = `
 <html>
@@ -382,6 +406,7 @@ const OAUTH_ICONS = {
 
 // Compile the templates once with proper type safety
 const compiledResponseTemplate = compile(OAUTH_RESPONSE_TEMPLATE);
+const compiledRedirectTemplate = compile(OAUTH_REDIRECT_TEMPLATE);
 const compiledAuthorizeTemplate = compile(OAUTH_AUTHORIZE_TEMPLATE);
 
 export type OAuthResponseStatus = 'success' | 'error';
@@ -415,6 +440,11 @@ export interface OAuthAuthorizeParams {
     /** Where "Switch account" sends the user after logging out */
     loginUrl: string;
     hiddenInputs: OAuthHiddenInput[];
+}
+
+export interface OAuthRedirectParams {
+    redirectUrl: string;
+    message: string;
 }
 
 // Scope descriptions mapping
@@ -509,6 +539,18 @@ export const generateOAuthErrorResponse = (
         [...messages, 'You can close this window and try again.'],
         iconType,
     );
+
+/**
+ * Generates a script-free redirect page for a previously validated OAuth URI.
+ */
+export const generateOAuthRedirectPage = (
+    params: OAuthRedirectParams,
+): string =>
+    compiledRedirectTemplate({
+        styles: oauthPageStyles,
+        logo: LIGHTDASH_LOGO_SVG,
+        ...params,
+    });
 
 const getUserInitials = (user: OAuthUser): string => {
     const initials =

@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import {
     generateOAuthAuthorizePage,
+    generateOAuthRedirectPage,
     getErrorMessage,
     OAuthIntrospectResponse,
     parseScopeString,
@@ -56,6 +57,20 @@ const sendInvalidRedirectResponse = (res: express.Response) =>
         error: 'invalid_request',
         error_description: 'Invalid client_id or redirect_uri',
     });
+
+const sendOAuthRedirectResponse = (
+    res: express.Response,
+    redirectUrl: URL,
+    message: string,
+) => {
+    res.set('Content-Type', 'text/html');
+    return res.send(
+        generateOAuthRedirectPage({
+            redirectUrl: redirectUrl.toString(),
+            message,
+        }),
+    );
+};
 
 // Get authorization - use OAuth2Server
 oauthRouter.get('/authorize', async (req, res, next) => {
@@ -151,7 +166,11 @@ oauthRouter.post('/authorize', async (req, res) => {
         if (req.body.state) {
             redirectUrl.searchParams.set('state', req.body.state);
         }
-        return res.redirect(302, redirectUrl.toString());
+        return sendOAuthRedirectResponse(
+            res,
+            redirectUrl,
+            'Access denied. Redirecting you back to your application...',
+        );
     }
 
     // Normalize scope parameter directly on the request object
@@ -182,7 +201,11 @@ oauthRouter.post('/authorize', async (req, res) => {
             redirectUrl.searchParams.set('state', req.body.state);
         }
 
-        return res.redirect(302, redirectUrl.toString());
+        return sendOAuthRedirectResponse(
+            res,
+            redirectUrl,
+            'Redirecting you back to your application...',
+        );
     } catch (error) {
         Logger.error(`Authorization error: ${error}`);
         const errorUrl = new URL(req.body.redirect_uri);
@@ -190,7 +213,11 @@ oauthRouter.post('/authorize', async (req, res) => {
         if (req.body.state) {
             errorUrl.searchParams.set('state', req.body.state);
         }
-        return res.redirect(302, errorUrl.toString());
+        return sendOAuthRedirectResponse(
+            res,
+            errorUrl,
+            'An error occurred. Redirecting you back to your application...',
+        );
     }
 });
 
