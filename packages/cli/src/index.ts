@@ -954,6 +954,25 @@ const downloadCommand = program
         false,
     )
     .option(
+        '--chart-types <chartTypeReferences...>',
+        'Download only the specified custom chart types, by slug, URL, or UUID (enterprise).',
+    )
+    .option(
+        '--include-chart-types',
+        "Include all of the project's custom chart types (enterprise), capped at --chart-types-limit (default: 50)",
+        false,
+    )
+    .option(
+        '--chart-types-limit <number>',
+        'Maximum number of custom chart types downloaded by --include-chart-types or --include-all (default: 50)',
+        undefined,
+    )
+    .option(
+        '--chart-types-only',
+        "Download only custom chart types (implies --skip-charts --skip-dashboards --skip-spaces). Bare --chart-types-only downloads all the project's chart types; pass --chart-types <chartTypeReferences...> to select.",
+        false,
+    )
+    .option(
         '--organization',
         'download all organization-scoped resources, including Data App themes, without selecting a project',
         false,
