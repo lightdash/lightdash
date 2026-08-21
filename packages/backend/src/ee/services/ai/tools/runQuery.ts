@@ -3,10 +3,12 @@ import {
     AiResultType,
     convertAiTableCalcsSchemaToTableCalcs,
     filterAggregationCustomMetrics,
+    generateVisualizationFilterExpressionToolDefinition,
     generateVisualizationToolDefinition,
     getItemId,
     getReferencedExploreParameterDefinitions,
     getRunQueryAgentViewRejectingMerge,
+    getRunQueryFilterExpressionAgentViewRejectingMerge,
     getSlackAiEchartsConfig,
     getTotalFilterRules,
     getValidAiQueryLimit,
@@ -14,14 +16,20 @@ import {
     isSlackPrompt,
     MERGE_TABLE_NAME,
     toolRunQueryArgsSchemaTransformed,
+    toolRunQueryExpressionArgsSchema,
+    toolRunQueryExpressionArgsSchemaV2RejectingMerge,
+    type AiFilterExpressionArtifactConfigV1,
     type Explore,
     type ItemsMap,
     type ParameterDefinitions,
     type ParametersValuesMap,
     type SlackPrompt,
+    type ToolRunQueryArgs,
     type ToolRunQueryArgsTransformed,
+    type ToolRunQueryExpressionArgs,
+    type ToolRunQueryExpressionArgsV2,
 } from '@lightdash/common';
-import { tool } from 'ai';
+import { tool, type Schema } from 'ai';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type {
     CreateOrUpdateArtifactFn,
@@ -37,6 +45,10 @@ import {
     buildAiMergeSourceConfigs,
 } from '../utils/buildAiMergeQuery';
 import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
+import {
+    formatFilterExpressionError,
+    resolveFilterExpressionArgs,
+} from '../utils/filterExpressions';
 import { getPivotedResults } from '../utils/getPivotedResults';
 import {
     expandMetricsWithPopAdditionalMetrics,
@@ -65,6 +77,11 @@ import {
     validateTableCalculations,
 } from '../utils/validators';
 
+type RunQueryToolInput =
+    | ToolRunQueryArgs
+    | ToolRunQueryExpressionArgs
+    | ToolRunQueryExpressionArgsV2;
+
 type Dependencies = {
     updateProgress: UpdateProgressFn;
     runAsyncQuery: RunAsyncQueryFn;
@@ -79,6 +96,7 @@ type Dependencies = {
     // Project-level parameter definitions; model-level ones come from the explore.
     projectParameterDefinitions: ParameterDefinitions;
     enableMergeQueries: boolean;
+    enableFilterExpressions?: boolean;
     runAsyncMergeQuery: RunAsyncMergeQueryFn;
 };
 
@@ -289,19 +307,67 @@ export const getRunQuery = ({
     enableDataAccess,
     projectParameterDefinitions,
     enableMergeQueries,
+    enableFilterExpressions = false,
     runAsyncMergeQuery,
-}: Dependencies) =>
-    tool({
-        ...(enableMergeQueries
+}: Dependencies) => {
+    const toolView = (() => {
+        if (enableFilterExpressions) {
+            return enableMergeQueries
+                ? generateVisualizationFilterExpressionToolDefinition.for(
+                      'agent',
+                  )
+                : getRunQueryFilterExpressionAgentViewRejectingMerge();
+        }
+        return enableMergeQueries
             ? generateVisualizationToolDefinition.for('agent')
-            : getRunQueryAgentViewRejectingMerge()),
+            : getRunQueryAgentViewRejectingMerge();
+    })();
+    const inputSchema: Schema<RunQueryToolInput> = toolView.inputSchema;
+
+    return tool({
+        ...toolView,
+        inputSchema,
         execute: async (toolArgs, { experimental_context: context }) => {
             try {
                 await updateProgress('Running your query...');
 
-                const queryTool =
-                    toolRunQueryArgsSchemaTransformed.parse(toolArgs);
                 const ctx = AgentContext.from(context);
+                let queryTool: ToolRunQueryArgsTransformed;
+                let filterExpressionArtifact: AiFilterExpressionArtifactConfigV1 | null =
+                    null;
+
+                if (enableFilterExpressions) {
+                    const expressionToolArgs = enableMergeQueries
+                        ? toolRunQueryExpressionArgsSchema.parse(toolArgs)
+                        : toolRunQueryExpressionArgsSchemaV2RejectingMerge.parse(
+                              toolArgs,
+                          );
+                    const resolution = await resolveFilterExpressionArgs({
+                        toolArgs: expressionToolArgs,
+                        getExplore: (exploreName) =>
+                            ctx.getExplore(exploreName),
+                    });
+                    if (!resolution.success) {
+                        return {
+                            result: formatFilterExpressionError(
+                                resolution.error,
+                            ),
+                            metadata: { status: 'error' as const },
+                        };
+                    }
+
+                    queryTool = resolution.data.transformed;
+                    filterExpressionArtifact = {
+                        source: 'filterExpression',
+                        schemaVersion: 1,
+                        expressionArgs: expressionToolArgs,
+                        resolvedArgs: resolution.data.rawArgs,
+                    };
+                } else {
+                    queryTool =
+                        toolRunQueryArgsSchemaTransformed.parse(toolArgs);
+                }
+
                 const explore = ctx.getExplore(
                     queryTool.queryConfig.exploreName,
                 );
@@ -402,7 +468,7 @@ export const getRunQuery = ({
                             artifactType: 'chart',
                             title: toolArgs.title,
                             description: toolArgs.description,
-                            vizConfig: {
+                            vizConfig: filterExpressionArtifact ?? {
                                 source: 'merge',
                                 schemaVersion: 1,
                                 config: toolArgs,
@@ -501,6 +567,45 @@ export const getRunQuery = ({
                           }
                         : toolArgs;
 
+                const expandedFilterExpressionArtifact =
+                    filterExpressionArtifact &&
+                    expandedMetrics.length >
+                        queryTool.queryConfig.metrics.length &&
+                    filterExpressionArtifact.expressionArgs.chartConfig &&
+                    filterExpressionArtifact.resolvedArgs.chartConfig
+                        ? {
+                              ...filterExpressionArtifact,
+                              expressionArgs: {
+                                  ...filterExpressionArtifact.expressionArgs,
+                                  chartConfig: {
+                                      ...filterExpressionArtifact.expressionArgs
+                                          .chartConfig,
+                                      yAxisMetrics:
+                                          expandMetricsWithPopAdditionalMetrics(
+                                              filterExpressionArtifact
+                                                  .expressionArgs.chartConfig
+                                                  .yAxisMetrics,
+                                              populatedCustomMetrics,
+                                          ),
+                                  },
+                              },
+                              resolvedArgs: {
+                                  ...filterExpressionArtifact.resolvedArgs,
+                                  chartConfig: {
+                                      ...filterExpressionArtifact.resolvedArgs
+                                          .chartConfig,
+                                      yAxisMetrics:
+                                          expandMetricsWithPopAdditionalMetrics(
+                                              filterExpressionArtifact
+                                                  .resolvedArgs.chartConfig
+                                                  .yAxisMetrics,
+                                              populatedCustomMetrics,
+                                          ),
+                                  },
+                              },
+                          }
+                        : filterExpressionArtifact;
+
                 const createOrUpdateArtifactHook = () =>
                     createOrUpdateArtifact({
                         threadUuid: prompt.threadUuid,
@@ -508,7 +613,7 @@ export const getRunQuery = ({
                         artifactType: 'chart',
                         title: toolArgs.title,
                         description: toolArgs.description,
-                        vizConfig: {
+                        vizConfig: expandedFilterExpressionArtifact ?? {
                             source: 'semantic',
                             config: expandedToolArgs,
                         },
@@ -637,3 +742,4 @@ export const getRunQuery = ({
         },
         toModelOutput: ({ output }) => toModelOutput(output),
     });
+};

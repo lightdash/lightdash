@@ -3,6 +3,8 @@ import {
     isAiAgentMcpToolName,
     toolDashboardV2ArgsSchemaPersisted,
     toolRunQueryArgsSchemaPersisted,
+    toolRunQueryExpressionArgsSchema,
+    toolRunQueryExpressionArgsSchemaV2,
     type ToolDefinition,
     type ToolName,
 } from '@lightdash/common';
@@ -16,7 +18,9 @@ type McpStreamToolName = `mcp_${string}`;
 // resuming old threads may echo legacy template table calcs the backend still
 // executes. Parse those tools with the wide persisted schemas so they render.
 const wideInputSchemaOverrides = {
-    generateVisualization: toolRunQueryArgsSchemaPersisted,
+    generateVisualization: toolRunQueryArgsSchemaPersisted
+        .or(toolRunQueryExpressionArgsSchema)
+        .or(toolRunQueryExpressionArgsSchemaV2),
     generateDashboard: toolDashboardV2ArgsSchemaPersisted,
 } as const;
 

@@ -68,7 +68,7 @@ const sharedAgentToolDefinitionNames = agentToolDefinitions.map(
     (toolDefinition) => toolDefinition.for('agent').name,
 );
 
-const makeAgentTools = () => {
+const makeAgentTools = (enableFilterExpressions = false) => {
     const noop = vi.fn();
     const noopAsync = vi.fn().mockResolvedValue(undefined);
 
@@ -164,6 +164,7 @@ const makeAgentTools = () => {
             createOrUpdateArtifact: noop,
             enableDataAccess: true,
             enableMergeQueries: true,
+            enableFilterExpressions,
             getPrompt: noop,
             maxLimit: 500,
             projectParameterDefinitions: {},
@@ -226,6 +227,14 @@ describe('AI agent tool contracts', () => {
             Object.entries(agentTools).map(([name, definition]) =>
                 agentToolSnapshot(name, definition as SnapshotTool),
             ),
+        ).toMatchSnapshot();
+    });
+
+    it('matches the filter-expression visualization contract snapshot', () => {
+        const { generateVisualization } = makeAgentTools(true);
+
+        expect(
+            agentToolSnapshot('generateVisualization', generateVisualization),
         ).toMatchSnapshot();
     });
 

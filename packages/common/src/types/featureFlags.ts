@@ -310,6 +310,13 @@ export enum FeatureFlags {
      */
     EmailWhitelabel = 'email-whitelabel',
 
+    /**
+     * Advertise compact filter expressions to AI agent and MCP metric-query
+     * tools, resolving them to the existing filter model at the tool boundary.
+     * Off by default while the public contract is rolled out per organization.
+     */
+    AiFilterExpressions = 'ai-filter-expressions',
+
     /* Merge two or more queries into one warehouse statement from the
        explorer. Gated because it compiles novel SQL shapes (multi-CTE joins,
        conditional-aggregation widening) that no other path exercises. */
