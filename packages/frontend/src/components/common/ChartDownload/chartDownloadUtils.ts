@@ -7,6 +7,8 @@ export const CHART_TYPES_WITHOUT_IMAGE_EXPORT = [
     ChartType.BIG_NUMBER,
     ChartType.TABLE,
     ChartType.MAP,
+    // Sandboxed iframe — the echarts capture path can't reach it.
+    ChartType.DATA_APP_VIZ,
 ];
 
 export const CHART_TYPES_WITHOUT_DATA_EXPORT: ChartType[] = Object.values(
