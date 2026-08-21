@@ -264,14 +264,14 @@ test('incomplete migration metadata blocks deterministic safety', () => {
 });
 
 test('existing deterministic false verdicts cannot be loosened', () => {
-    const inputs = [
-        {
-            sqlLint: {
-                ran: true,
-                breaking: true,
-                findings: ['unsupported SQL'],
-            },
+    const linterFinding = {
+        sqlLint: {
+            ran: true,
+            breaking: true,
+            findings: ['unsupported SQL'],
         },
+    };
+    const deterministicBreakInputs = [
         {
             config: {
                 checked: true,
@@ -289,7 +289,7 @@ test('existing deterministic false verdicts cannot be loosened', () => {
             ],
         },
     ];
-    for (const override of inputs) {
+    for (const override of [linterFinding, ...deterministicBreakInputs]) {
         const input = {
             ...base,
             migrations: migration,
@@ -305,6 +305,76 @@ test('existing deterministic false verdicts cannot be loosened', () => {
             buildMarker(input).compatibility.rollingUpdateSafe,
             false,
         );
+    }
+    for (const override of deterministicBreakInputs) {
+        const input = {
+            ...base,
+            migrations: migration,
+            migrationDetails,
+            migrationOperations: compatibleOperations,
+            migrationMetadataComplete: true,
+            declarationMetadataComplete: true,
+            ...checkedSurfaces,
+            ...override,
+        };
+        assert.strictEqual(
+            buildMarker({
+                ...input,
+                aiReview: {
+                    rollingUpdateSafe: true,
+                    recommendedStrategy: 'RollingUpdate',
+                    summary: 'verified',
+                },
+            }).compatibility.rollingUpdateSafe,
+            false,
+        );
+    }
+});
+
+test('a definitive AI verdict clears a linter finding and publishes its floor', () => {
+    const marker = buildMarker({
+        ...base,
+        migrations: migration,
+        migrationDetails,
+        ...checkedSurfaces,
+        sqlLint: {
+            ran: true,
+            breaking: true,
+            findings: ['drop-column'],
+        },
+        aiReview: {
+            rollingUpdateSafe: true,
+            recommendedStrategy: 'RollingUpdate',
+            summary: 'cleared',
+        },
+        expandContractFloor: '1.100.0',
+    });
+    assert.strictEqual(marker.compatibility.rollingUpdateSafe, true);
+    assert.strictEqual(marker.upgrade.minPreviousVersion, '1.100.0');
+});
+
+test('a linter finding stays unsafe without a definitive AI verdict', () => {
+    for (const aiReview of [
+        undefined,
+        {
+            rollingUpdateSafe: 'unknown' as const,
+            recommendedStrategy: 'unknown' as const,
+            summary: 'unknown',
+        },
+    ]) {
+        const marker = buildMarker({
+            ...base,
+            migrations: migration,
+            migrationDetails,
+            ...checkedSurfaces,
+            sqlLint: {
+                ran: true,
+                breaking: true,
+                findings: ['drop-column'],
+            },
+            aiReview,
+        });
+        assert.strictEqual(marker.compatibility.rollingUpdateSafe, false);
     }
 });
 
@@ -378,7 +448,7 @@ test('definitive AI review can prove a migration safe', () => {
     assert.strictEqual(marker.compatibility.rollingUpdateSafe, true);
 });
 
-test('incomplete declaration metadata stays unknown after a definitive AI verdict', () => {
+test('a definitive AI verdict stands when declaration metadata is incomplete', () => {
     const marker = buildMarker({
         ...base,
         migrations: migration,
@@ -391,7 +461,39 @@ test('incomplete declaration metadata stays unknown after a definitive AI verdic
             summary: 'verified',
         },
     });
-    assert.strictEqual(marker.compatibility.rollingUpdateSafe, 'unknown');
+    assert.strictEqual(marker.compatibility.rollingUpdateSafe, true);
+});
+
+test('a definitive AI verdict stands when migration metadata is incomplete', () => {
+    const marker = buildMarker({
+        ...base,
+        migrations: migration,
+        migrationDetails,
+        ...checkedSurfaces,
+        migrationMetadataComplete: false,
+        aiReview: {
+            rollingUpdateSafe: true,
+            recommendedStrategy: 'RollingUpdate',
+            summary: 'verified',
+        },
+    });
+    assert.strictEqual(marker.compatibility.rollingUpdateSafe, true);
+});
+
+test('a definitive AI false stands when metadata is incomplete', () => {
+    const marker = buildMarker({
+        ...base,
+        migrations: migration,
+        migrationDetails,
+        ...checkedSurfaces,
+        migrationMetadataComplete: false,
+        aiReview: {
+            rollingUpdateSafe: false,
+            recommendedStrategy: 'Recreate',
+            summary: 'unsafe',
+        },
+    });
+    assert.strictEqual(marker.compatibility.rollingUpdateSafe, false);
 });
 
 test('a declared break stays unsafe when declaration metadata is incomplete', () => {
@@ -451,6 +553,22 @@ test('declared break uses the frozen shape and contributes a required stop', () 
     });
     assert.strictEqual(marker.compatibility.rollingUpdateSafe, false);
     assert.deepStrictEqual(marker.upgrade.requiredStops, ['1.115.0']);
+});
+
+test('a carried required stop for this version cannot be loosened', () => {
+    const marker = buildMarker({
+        ...base,
+        migrations: migration,
+        migrationDetails,
+        ...checkedSurfaces,
+        requiredStops: [base.version],
+        aiReview: {
+            rollingUpdateSafe: true,
+            recommendedStrategy: 'RollingUpdate',
+            summary: 'verified',
+        },
+    });
+    assert.strictEqual(marker.compatibility.rollingUpdateSafe, false);
 });
 
 test('a spent required stop is not pinned again by a later marker', () => {
