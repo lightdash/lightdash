@@ -1,3 +1,11 @@
+## [1.232.2](https://github.com/lightdash/lightdash/compare/1.232.1...1.232.2) (2026-08-21)
+
+
+### Bug Fixes
+
+* **pgwire:** accept database-qualified table names ([#27822](https://github.com/lightdash/lightdash/issues/27822)) ([4aa8cf4](https://github.com/lightdash/lightdash/commit/4aa8cf4a05655d3d52ea77fc1853b3f7d8b0fade)), closes [#27624](https://github.com/lightdash/lightdash/issues/27624)
+* pin thread retention notice below the agent chat input ([#27795](https://github.com/lightdash/lightdash/issues/27795)) ([c7e7714](https://github.com/lightdash/lightdash/commit/c7e77140772d3baba5f0ef537fd38ceca7365e39))
+
 ## [1.232.1](https://github.com/lightdash/lightdash/compare/1.232.0...1.232.1) (2026-08-21)
 
 
