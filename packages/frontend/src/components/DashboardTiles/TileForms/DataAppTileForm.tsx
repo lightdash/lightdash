@@ -23,7 +23,7 @@ const fetchDataAppContent = (projectUuid: string, search: string) => {
     const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
     return lightdashApi<ApiContentResponse['results']>({
         version: 'v2',
-        url: `/content?projectUuids=${projectUuid}&contentTypes=${ContentType.DATA_APP}&pageSize=${DATA_APP_PICKER_PAGE_SIZE}&page=1${searchParam}`,
+        url: `/content?projectUuids=${projectUuid}&contentTypes=${ContentType.DATA_APP}&dataAppVizsFilter=exclude&pageSize=${DATA_APP_PICKER_PAGE_SIZE}&page=1${searchParam}`,
         method: 'GET',
         body: undefined,
     });
