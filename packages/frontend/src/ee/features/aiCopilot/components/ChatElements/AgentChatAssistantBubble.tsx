@@ -161,6 +161,10 @@ const segmentStreamParts = (
         if (
             part.toolName === 'runComposerQueries' &&
             !part.toolResult &&
+            // Never build an approval card from partially-streamed args —
+            // the SQL may be cut off mid-statement and the tool hasn't
+            // started waiting for a decision yet.
+            part.isArgsPartial !== true &&
             !decidedToolCallIds.includes(part.toolCallId)
         ) {
             const approvalSql = getComposerApprovalSql(part.toolArgs);

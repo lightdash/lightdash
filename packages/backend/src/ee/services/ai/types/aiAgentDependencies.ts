@@ -518,14 +518,29 @@ export type RunSqlJobFn = (args: { sql: string; limit: number }) => Promise<{
 }>;
 
 /**
+ * Per-node lifecycle event emitted while a composer pipeline executes, so the
+ * UI can show each node's status live. Best-effort: emission failures must
+ * never affect query execution.
+ */
+export type ComposerNodeStatusUpdate = {
+    nodeId: string;
+    queryUuid: string;
+    status: 'running' | 'success' | 'error';
+    errorMessage: string | null;
+};
+
+/**
  * Submits a composer query (multi-source pipeline) and waits for the terminal
  * node's results. Submissions carry the pinned nodeId → queryUuid mapping for
  * every node; the terminal snapshot is the first page of the terminal node's
- * results, capped at that node's limit.
+ * results, capped at that node's limit. `onNodeStatus` receives per-node
+ * lifecycle transitions (running on submission, then success/error) while the
+ * pipeline executes.
  */
 export type RunComposerQueriesFn = (args: {
     queries: SourceQuery[];
     terminalNodeId: string;
+    onNodeStatus?: (update: ComposerNodeStatusUpdate) => void;
 }) => Promise<{
     submissions: SourceQuerySubmission[];
     terminal: {

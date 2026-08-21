@@ -158,6 +158,7 @@ describe('getRunComposerQueries', () => {
                 expect.objectContaining({ nodeId: 'joined' }),
             ],
             terminalNodeId: 'joined',
+            onNodeStatus: expect.any(Function),
         });
         expect(dependencies.createOrUpdateArtifact).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -273,6 +274,7 @@ describe('getRunComposerQueries', () => {
                 },
             ],
             terminalNodeId: 'targets',
+            onNodeStatus: expect.any(Function),
         });
         expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
         expect(output.metadata?.status).toBe('success');
@@ -300,6 +302,7 @@ describe('getRunComposerQueries', () => {
                 composedNode,
             ],
             terminalNodeId: 'joined',
+            onNodeStatus: expect.any(Function),
         });
         expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
         expect(output.metadata?.status).toBe('success');
@@ -361,6 +364,77 @@ describe('getRunComposerQueries', () => {
         expect(output.metadata?.status).toBe('error');
         expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
         expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
+    });
+
+    it('forwards per-node status updates as attributed step-progress events', async () => {
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        dependencies.runComposerQueries.mockImplementation(
+            async ({
+                onNodeStatus,
+            }: {
+                onNodeStatus?: (update: {
+                    nodeId: string;
+                    queryUuid: string;
+                    status: 'running' | 'success' | 'error';
+                    errorMessage: string | null;
+                }) => void;
+            }) => {
+                onNodeStatus?.({
+                    nodeId: 'revenue',
+                    queryUuid: 'query-1',
+                    status: 'running',
+                    errorMessage: null,
+                });
+                onNodeStatus?.({
+                    nodeId: 'revenue',
+                    queryUuid: 'query-1',
+                    status: 'success',
+                    errorMessage: null,
+                });
+                onNodeStatus?.({
+                    nodeId: 'joined',
+                    queryUuid: 'query-3',
+                    status: 'error',
+                    errorMessage: 'column not found',
+                });
+                return {
+                    submissions: [
+                        {
+                            nodeId: 'revenue',
+                            sourceType: QuerySourceType.SEMANTIC_LAYER,
+                            queryUuid: 'query-1',
+                        },
+                    ],
+                    terminal: {
+                        queryUuid: 'query-1',
+                        columns: {},
+                        rows: [],
+                        rowCount: 0,
+                    },
+                };
+            },
+        );
+
+        await executeTool(tool, makeArgs());
+
+        expect(dependencies.updateProgress).toHaveBeenCalledWith(
+            'Running query "revenue"...',
+            'runComposerQueries',
+            'tool-call-1:revenue',
+            'in_progress',
+        );
+        expect(dependencies.updateProgress).toHaveBeenCalledWith(
+            'Query "revenue" complete',
+            'runComposerQueries',
+            'tool-call-1:revenue',
+            'complete',
+        );
+        expect(dependencies.updateProgress).toHaveBeenCalledWith(
+            'Query "joined" failed: column not found',
+            'runComposerQueries',
+            'tool-call-1:joined',
+            'error',
+        );
     });
 
     it('returns only a summary when data access is disabled', async () => {

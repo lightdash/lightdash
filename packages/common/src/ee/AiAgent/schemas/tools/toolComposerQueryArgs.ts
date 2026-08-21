@@ -249,6 +249,111 @@ export const toolComposerQueryNodeToSourceQuery = (
     }
 };
 
+const asStringArray = (value: unknown): string[] =>
+    Array.isArray(value)
+        ? value.filter((item): item is string => typeof item === 'string')
+        : [];
+
+const asReferenceMapOrArray = (
+    value: unknown,
+): string[] | Record<string, string> => {
+    if (Array.isArray(value)) return asStringArray(value);
+    if (value && typeof value === 'object') {
+        return Object.fromEntries(
+            Object.entries(value).filter(
+                (entry): entry is [string, string] =>
+                    typeof entry[1] === 'string',
+            ),
+        );
+    }
+    return [];
+};
+
+/**
+ * Lenient parse of partially-streamed composer args so the pipeline renders
+ * while the model is still writing it. Nodes are kept as soon as they have a
+ * nodeId and a known sourceType; every other field falls back to an empty
+ * default (e.g. a half-written SQL string renders as-is and grows with the
+ * stream). Returns null when nothing is renderable yet. Never use the result
+ * for execution — only the strict schema validates a runnable pipeline.
+ */
+export const parsePartialToolComposerQueriesArgs = (
+    input: unknown,
+): ToolComposerQueriesArgs | null => {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) {
+        return null;
+    }
+    const raw = input as Record<string, unknown>;
+    const rawQueries = Array.isArray(raw.queries) ? raw.queries : [];
+    const queries = rawQueries.flatMap<ToolComposerQueryNode>((rawNode) => {
+        if (!rawNode || typeof rawNode !== 'object' || Array.isArray(rawNode)) {
+            return [];
+        }
+        const node = rawNode as Record<string, unknown>;
+        const { nodeId } = node;
+        if (typeof nodeId !== 'string' || nodeId.length === 0) return [];
+        const sql = typeof node.sql === 'string' ? node.sql : '';
+        switch (node.sourceType) {
+            case QuerySourceType.SEMANTIC_LAYER:
+                return [
+                    {
+                        sourceType: QuerySourceType.SEMANTIC_LAYER,
+                        nodeId,
+                        exploreName:
+                            typeof node.exploreName === 'string'
+                                ? node.exploreName
+                                : '',
+                        dimensions: asStringArray(node.dimensions),
+                        metrics: asStringArray(node.metrics),
+                        filters: null,
+                        sorts: null,
+                        limit: DEFAULT_COMPOSER_QUERY_LIMIT,
+                    },
+                ];
+            case QuerySourceType.SQL:
+                return [
+                    {
+                        sourceType: QuerySourceType.SQL,
+                        nodeId,
+                        sql,
+                        limit: DEFAULT_COMPOSER_QUERY_LIMIT,
+                    },
+                ];
+            case QuerySourceType.DUCKDB:
+                return [
+                    {
+                        sourceType: QuerySourceType.DUCKDB,
+                        nodeId,
+                        sql,
+                        references: asReferenceMapOrArray(node.references),
+                        limit: DEFAULT_COMPOSER_QUERY_LIMIT,
+                    },
+                ];
+            case QuerySourceType.EXTERNAL:
+                return [
+                    {
+                        sourceType: QuerySourceType.EXTERNAL,
+                        nodeId,
+                        sql,
+                        tables: asReferenceMapOrArray(node.tables),
+                        limit: DEFAULT_COMPOSER_QUERY_LIMIT,
+                    },
+                ];
+            default:
+                return [];
+        }
+    });
+    if (queries.length === 0) return null;
+    return {
+        title: typeof raw.title === 'string' ? raw.title : null,
+        description:
+            typeof raw.description === 'string' ? raw.description : null,
+        queries,
+        terminalNodeId:
+            typeof raw.terminalNodeId === 'string' ? raw.terminalNodeId : null,
+    };
+};
+
 export const toolComposerQueriesOutputSchema = z.object({
     result: z.string(),
     metadata: z.object({
