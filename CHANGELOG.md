@@ -1,3 +1,10 @@
+## [1.231.1](https://github.com/lightdash/lightdash/compare/1.231.0...1.231.1) (2026-08-21)
+
+
+### Bug Fixes
+
+* **release-safety:** warn when migration metadata is incomplete ([#27812](https://github.com/lightdash/lightdash/issues/27812)) ([6e72c31](https://github.com/lightdash/lightdash/commit/6e72c3174724b9524d8d0c540cb83ee66e6da29c))
+
 # [1.231.0](https://github.com/lightdash/lightdash/compare/1.230.0...1.231.0) (2026-08-21)
 
 
