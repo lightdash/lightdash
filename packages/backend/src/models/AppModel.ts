@@ -45,6 +45,7 @@ import {
     acquireProjectSlugLock,
     generateUniqueSlugScopedToProject,
 } from '../utils/SlugUtils';
+import { getFullTextSearchFilterSql } from './SearchModel/utils/search';
 
 type AppModelArguments = {
     database: Knex;
@@ -983,7 +984,13 @@ export class AppModel {
             )
             .orderBy(`${AppsTableName}.created_at`, 'desc');
         if (search) {
-            void query.whereILike(`${AppsTableName}.name`, `%${search}%`);
+            void query.whereRaw(
+                getFullTextSearchFilterSql({
+                    database: this.database,
+                    searchVectorColumn: `${AppsTableName}.search_vector`,
+                    searchQuery: search,
+                }),
+            );
         }
         return KnexPaginate.paginate(query, paginateArgs);
     }

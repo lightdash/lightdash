@@ -151,12 +151,11 @@ describe('CustomChartTypePicker', () => {
         try {
             setData([]);
             render();
-            // The project search is served by the endpoint; the built-in entry
-            // is filtered here, so a non-matching term must drop it from the
-            // list once the shared debounce settles.
+            // Project search is served by the endpoint; the built-in entry is
+            // filtered here.
             fireEvent.change(
                 screen.getByPlaceholderText('Search custom chart types…'),
-                { target: { value: 'cohort' } },
+                { target: { value: 'rank' } },
             );
             act(() => {
                 vi.advanceTimersByTime(500);
@@ -165,7 +164,7 @@ describe('CustomChartTypePicker', () => {
             expect(screen.queryByText('Vega (JSON editor)')).toBeNull();
             expect(mockedUseDataAppVisualizations).toHaveBeenLastCalledWith(
                 'project-1',
-                'cohort',
+                'rank',
             );
         } finally {
             vi.useRealTimers();

@@ -260,18 +260,28 @@ describe('ChartTypeGallery', () => {
             screen.getByText(/Chart types are custom visualizations/),
         ).toBeInTheDocument();
         expect(
-            screen.queryByPlaceholderText('Search by name'),
+            screen.queryByPlaceholderText('Search by name or description'),
         ).not.toBeInTheDocument();
     });
 
-    it('shows a no-results message when a search matches nothing', async () => {
+    it('shows a no-results message for an empty searched page', async () => {
         setData([makeDataAppViz({})]);
         renderPage();
 
-        fireEvent.change(screen.getByPlaceholderText('Search by name'), {
-            target: { value: 'nonexistent' },
-        });
+        fireEvent.change(
+            screen.getByPlaceholderText('Search by name or description'),
+            {
+                target: { value: 'prog' },
+            },
+        );
         setData([]);
+
+        await waitFor(() =>
+            expect(mockedUseDataAppVisualizations).toHaveBeenLastCalledWith(
+                'project-1',
+                'prog',
+            ),
+        );
 
         await waitFor(() =>
             expect(
