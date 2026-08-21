@@ -116,7 +116,7 @@ const ChartTypeGallery = () => {
                                 <TextInput
                                     size="xs"
                                     w={220}
-                                    placeholder="Search by name"
+                                    placeholder="Search by name or description"
                                     leftSection={
                                         <MantineIcon
                                             icon={IconSearch}
