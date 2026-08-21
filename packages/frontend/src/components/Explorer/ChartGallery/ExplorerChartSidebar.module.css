@@ -9,7 +9,7 @@
     flex: 0 0 auto;
     padding-bottom: var(--mantine-spacing-md);
     border-bottom: 1px solid
-        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-dark-5));
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-ldDark-5));
 }
 
 .body {

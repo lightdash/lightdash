@@ -167,7 +167,11 @@ describe('ExplorePanel chart configuration placement', () => {
         expect(
             document.getElementById('visualization-config-portal'),
         ).not.toBeNull();
-        expect(screen.getByTestId('explore-tree')).not.toBeVisible();
+        // The hidden state is applied via a CSS module class (`[data-hidden='true']`),
+        // which jsdom doesn't resolve, so assert the attribute directly.
+        expect(
+            screen.getByTestId('explore-tree').closest('[data-hidden]'),
+        ).toHaveAttribute('data-hidden', 'true');
     });
 
     it('keeps fields mounted and leaves the portal to the right rail when enabled', () => {
@@ -178,7 +182,9 @@ describe('ExplorePanel chart configuration placement', () => {
         expect(
             document.getElementById('visualization-config-portal'),
         ).toBeNull();
-        expect(screen.getByTestId('explore-tree')).toBeVisible();
+        expect(
+            screen.getByTestId('explore-tree').closest('[data-hidden]'),
+        ).toHaveAttribute('data-hidden', 'false');
     });
 });
 
