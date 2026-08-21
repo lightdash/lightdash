@@ -11508,6 +11508,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExternalSourceScope: {
+        dataType: 'refEnum',
+        enums: ['catalog', 'attachment'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExternalSourceType: {
         dataType: 'refEnum',
         enums: ['csv', 'google_sheets'],
@@ -11659,6 +11664,7 @@ const models: TsoaRoute.Models = {
                 status: { ref: 'ExternalSourceStatus', required: true },
                 connection: { ref: 'ExternalSourceConnection', required: true },
                 name: { dataType: 'string', required: true },
+                scope: { ref: 'ExternalSourceScope', required: true },
                 type: { ref: 'ExternalSourceType', required: true },
                 projectUuid: { dataType: 'string', required: true },
                 sourceUuid: { dataType: 'string', required: true },
@@ -11685,7 +11691,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 label: { dataType: 'string' },
-                tableName: { dataType: 'string', required: true },
+                tableName: { dataType: 'string' },
             },
             validators: {},
         },
@@ -21401,6 +21407,19 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiPromptExternalSourceTable: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                displayName: { dataType: 'string', required: true },
+                tableName: { dataType: 'string', required: true },
+                tableUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     PullRequestProvider: {
         dataType: 'refEnum',
         enums: ['github', 'gitlab'],
@@ -21996,6 +22015,34 @@ const models: TsoaRoute.Models = {
                         type: {
                             dataType: 'enum',
                             enums: ['repository'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        tables: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'AiPromptExternalSourceTable',
+                            },
+                            required: true,
+                        },
+                        sourceType: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'ExternalSourceType' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        displayName: { dataType: 'string', required: true },
+                        sourceUuid: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['external_source'],
                             required: true,
                         },
                     },
@@ -24982,6 +25029,17 @@ const models: TsoaRoute.Models = {
                         type: {
                             dataType: 'enum',
                             enums: ['repository'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        sourceUuid: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['external_source'],
                             required: true,
                         },
                     },
@@ -40957,6 +41015,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['publishAnnouncement'] },
                 { dataType: 'enum', enums: ['sweepDueAnnouncements'] },
                 { dataType: 'enum', enums: ['ingestExternalSource'] },
+                { dataType: 'enum', enums: ['ingestExternalSourceAttachment'] },
                 { dataType: 'enum', enums: ['maintainExternalSources'] },
                 { dataType: 'enum', enums: ['handleScheduledDelivery'] },
                 { dataType: 'enum', enums: ['sendSlackNotification'] },
@@ -62481,6 +62540,7 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'string',
         },
+        scope: { in: 'query', name: 'scope', ref: 'ExternalSourceScope' },
     };
     app.post(
         '/api/v1/ee/projects/:projectUuid/external-sources/upload',

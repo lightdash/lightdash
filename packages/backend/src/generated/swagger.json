@@ -12125,8 +12125,13 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ExternalSourceScope": {
+                "description": "Controls whether a source is published into the project's Explore catalog.",
+                "enum": ["catalog", "attachment"],
+                "type": "string"
+            },
             "ExternalSourceType": {
-                "description": "External data sources: files and third-party apps connected to a project as\nqueryable tables. Each source owns one or more tables; every table is\ningested to a typed parquet file in object storage and generated as an\nexplore (ExploreType.EXTERNAL_SOURCE) executed on the DuckDB compose\nengine. Sources are not warehouses: they plug in above the warehouse\nclient layer.",
+                "description": "Typed parquet sources; catalog scope publishes explores, attachment scope does not.",
                 "enum": ["csv", "google_sheets"],
                 "type": "string"
             },
@@ -12265,6 +12270,9 @@
                     "name": {
                         "type": "string"
                     },
+                    "scope": {
+                        "$ref": "#/components/schemas/ExternalSourceScope"
+                    },
                     "type": {
                         "$ref": "#/components/schemas/ExternalSourceType"
                     },
@@ -12283,6 +12291,7 @@
                     "status",
                     "connection",
                     "name",
+                    "scope",
                     "type",
                     "projectUuid",
                     "sourceUuid"
@@ -12309,10 +12318,10 @@
                         "type": "string"
                     },
                     "tableName": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Required for catalog sources; attachments receive a private name."
                     }
                 },
-                "required": ["tableName"],
                 "type": "object"
             },
             "ApiExternalSourcesResponse": {
@@ -23022,6 +23031,21 @@
                 },
                 "type": "object"
             },
+            "AiPromptExternalSourceTable": {
+                "properties": {
+                    "displayName": {
+                        "type": "string"
+                    },
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "tableUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["displayName", "tableName", "tableUuid"],
+                "type": "object"
+            },
             "PullRequestProvider": {
                 "enum": ["github", "gitlab"],
                 "type": "string"
@@ -23611,6 +23635,43 @@
                             }
                         },
                         "required": ["fullName", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "tables": {
+                                "items": {
+                                    "$ref": "#/components/schemas/AiPromptExternalSourceTable"
+                                },
+                                "type": "array"
+                            },
+                            "sourceType": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ExternalSourceType"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "displayName": {
+                                "type": "string"
+                            },
+                            "sourceUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["external_source"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "tables",
+                            "sourceType",
+                            "displayName",
+                            "sourceUuid",
+                            "type"
+                        ],
                         "type": "object"
                     },
                     {
@@ -25488,6 +25549,20 @@
                             }
                         },
                         "required": ["fullName", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "sourceUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["external_source"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["sourceUuid", "type"],
                         "type": "object"
                     },
                     {
@@ -41017,6 +41092,7 @@
                     "publishAnnouncement",
                     "sweepDueAnnouncements",
                     "ingestExternalSource",
+                    "ingestExternalSourceAttachment",
                     "maintainExternalSources",
                     "handleScheduledDelivery",
                     "sendSlackNotification",
@@ -55958,7 +56034,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.230.0",
+        "version": "1.231.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -1,3 +1,10 @@
+# [1.231.0](https://github.com/lightdash/lightdash/compare/1.230.0...1.231.0) (2026-08-21)
+
+
+### Features
+
+* **ai-agents:** attach CSV data sources ([c6f4e78](https://github.com/lightdash/lightdash/commit/c6f4e7812c4cac4f1fae7f780a965fbae14b39d3))
+
 # [1.230.0](https://github.com/lightdash/lightdash/compare/1.229.0...1.230.0) (2026-08-21)
 
 
