@@ -834,6 +834,9 @@ describe('SpaceModel space access as code', () => {
     });
 
     it('serializes interactive direct access writes with as-code replacement', async () => {
+        tracker.on.select(SpaceTableName).responseOnce({
+            space_uuid: 'space-uuid',
+        });
         tracker.on.insert(SpaceUserAccessTableName).responseOnce(1);
 
         await model.addSpaceAccess(
@@ -869,6 +872,9 @@ describe('SpaceModel space access as code', () => {
         });
         expect(tracker.history.update).toHaveLength(1);
         expect(tracker.history.update[0].sql).toContain('set "name" = $1');
+        expect(tracker.history.update[0].sql).toContain(
+            '"is_access_container" = $4',
+        );
         expect(tracker.history.update[0].sql).not.toContain(
             'inherit_parent_permissions',
         );
@@ -892,6 +898,12 @@ describe('SpaceModel space access as code', () => {
                 sql.includes('pg_advisory_xact_lock'),
             ),
         ).toBe(true);
+        const pathIdentityQuery = tracker.history.select.find(({ sql }) =>
+            sql.includes('"path" ='),
+        );
+        expect(pathIdentityQuery?.sql).toContain(
+            `"${SpaceTableName}"."is_access_container" = $1`,
+        );
     });
 
     it('locks the full access chain before taking the target row update lock', async () => {
@@ -946,6 +958,17 @@ describe('SpaceModel space access as code', () => {
         const lastShareLockIndex = tracker.history.select.findLastIndex(
             ({ sql }) => sql.includes('for share'),
         );
+        const lockedSpaceQueries = tracker.history.select.filter(
+            ({ sql }) =>
+                sql.includes(`from "${SpaceTableName}"`) &&
+                sql.includes('for share'),
+        );
+        expect(lockedSpaceQueries).not.toHaveLength(0);
+        expect(
+            lockedSpaceQueries.every(({ sql }) =>
+                sql.includes(`"${SpaceTableName}"."is_access_container" = $1`),
+            ),
+        ).toBe(true);
         const updateLockIndex = tracker.history.select.findIndex(({ sql }) =>
             sql.includes('for update'),
         );

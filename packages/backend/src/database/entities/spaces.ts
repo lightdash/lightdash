@@ -18,6 +18,8 @@ export type DbSpace = {
     deleted_by_user_uuid: string | null;
     is_default_user_space: boolean;
     color_palette_uuid: string | null;
+    is_access_container: boolean;
+    access_container_dashboard_uuid: string | null;
 };
 
 export type CreateDbSpace = Pick<

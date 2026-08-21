@@ -123,7 +123,25 @@ describe('SpacePermissionModel', () => {
             expect(mockRaw).toHaveBeenCalledTimes(1);
             expect(capturedSql).toContain('WITH RECURSIVE');
             expect(capturedSql).toContain('parent_space_uuid');
+            expect(capturedSql).toContain('is_access_container = FALSE');
             expect(capturedSql).not.toContain('@>');
+        });
+
+        it('only resolves hidden containers through the explicit internal mode', async () => {
+            let capturedSql = '';
+            const mockDatabase = {
+                raw: vi.fn(async (sql: string) => {
+                    capturedSql = sql;
+                    return { rows: [] };
+                }),
+            } as unknown as Knex;
+            const model = new SpacePermissionModel(mockDatabase);
+
+            await model.getInheritanceChains(['container-uuid'], {
+                accessContainerMode: 'only',
+            });
+
+            expect(capturedSql).toContain('is_access_container = TRUE');
         });
     });
 

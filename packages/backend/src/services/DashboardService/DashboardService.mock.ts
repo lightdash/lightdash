@@ -63,6 +63,8 @@ export const space: SpaceTable['base'] = {
     project_member_access_role: null,
     is_default_user_space: false,
     color_palette_uuid: null,
+    is_access_container: false,
+    access_container_dashboard_uuid: null,
     deleted_at: null,
     deleted_by_user_uuid: null,
 };
