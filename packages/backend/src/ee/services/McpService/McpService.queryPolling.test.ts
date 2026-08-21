@@ -1299,14 +1299,22 @@ describe('MCP async query polling', () => {
         ).not.toHaveBeenCalled();
     });
 
-    it('returns final SQL rows when get_query_result sees readiness during its wait', async () => {
+    it('returns final SQL rows with the original limit when get_query_result sees readiness during its wait', async () => {
         const { asyncQueryService, shareService } = makeMcpService();
+        const queryHistory = {
+            ...makeQueryHistory(QueryHistoryStatus.QUEUED),
+            requestParameters: {
+                sql: 'select 1',
+                limit: 50_000,
+            },
+        };
         asyncQueryService.getAsyncQueryHistory.mockResolvedValueOnce(
-            makeQueryHistory(QueryHistoryStatus.QUEUED),
+            queryHistory,
         );
-        asyncQueryService.pollQueryHistoryUntilDeadline.mockResolvedValue(
-            makeQueryHistory(QueryHistoryStatus.READY),
-        );
+        asyncQueryService.pollQueryHistoryUntilDeadline.mockResolvedValue({
+            ...queryHistory,
+            status: QueryHistoryStatus.READY,
+        });
         asyncQueryService.getAsyncQueryResults.mockResolvedValue({
             status: QueryHistoryStatus.READY,
             rows: [{ one: { value: { raw: 1, formatted: '1' } } }],
@@ -1335,7 +1343,7 @@ describe('MCP async query polling', () => {
             expect.objectContaining({
                 queryUuid,
                 page: 1,
-                pageSize: undefined,
+                pageSize: 50_000,
             }),
         );
         expect(shareService.createShareUrl).toHaveBeenCalledWith(
