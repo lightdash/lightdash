@@ -13,10 +13,8 @@ import {
     isAiSqlChartArtifactConfig,
     isToolEditDbtProjectResult,
     isToolSetupPreviewDeployResult,
-    parseAiArtifactChartConfig,
     parseVizConfig,
     SlackPrompt,
-    type AiLegacySemanticChartArtifactConfig,
     type ChartConfig,
     type DataAppVizField,
     type Explore,
@@ -541,10 +539,7 @@ export async function getModernArtifactCardBlocks(
     isImageUrlReachable: (url: string) => Promise<boolean>,
     agentUuid?: string,
     artifacts?: Array<
-        Omit<AiArtifact, 'chartConfig' | 'savedSqlUuid'> & {
-            chartConfig:
-                | AiArtifact['chartConfig']
-                | AiLegacySemanticChartArtifactConfig;
+        Omit<AiArtifact, 'savedSqlUuid'> & {
             savedSqlUuid?: string | null;
         }
     >,
@@ -560,7 +555,6 @@ export async function getModernArtifactCardBlocks(
     const normalizedArtifacts: AiArtifact[] = artifacts.map((artifact) => ({
         ...artifact,
         savedSqlUuid: artifact.savedSqlUuid ?? null,
-        chartConfig: parseAiArtifactChartConfig(artifact.chartConfig),
     }));
 
     const chartImageUrls = (toolResults ?? [])

@@ -12,7 +12,6 @@ import type {
     ToolDashboardV2Args,
     ToolName,
     ToolRunQueryArgs,
-    ToolRunQueryArgsV3,
 } from '../..';
 import {
     MAX_RETENTION_WINDOW_HOURS,
@@ -31,6 +30,10 @@ import {
     type AiThreadCreatedFrom,
 } from './requestTypes';
 import { type AgentToolOutput } from './schemas';
+import type {
+    PersistedMergeRunQueryPayload,
+    PersistedRunQueryPayload,
+} from './schemas/persistedRunQueryArgs';
 import { ToolNameSchema } from './schemas/visualizations';
 import { type AiMetricQuery, type AiResultType } from './types';
 
@@ -1041,23 +1044,23 @@ export type AiLegacySemanticChartArtifactConfig = ToolRunQueryArgs;
 
 export type AiSemanticChartArtifactConfig = {
     source: 'semantic';
-    config: AiLegacySemanticChartArtifactConfig;
+    config: PersistedRunQueryPayload;
 };
 
 export type AiMergeChartArtifactConfig = {
     source: 'merge';
     schemaVersion: 1;
-    config: ToolRunQueryArgsV3;
+    config: PersistedMergeRunQueryPayload;
 };
 
-// Custom chart type answer envelope: the model's tool args are stored
-// verbatim (slug chartConfig intact) and everything the server derives —
-// the resolved dataAppVizUuid — sits beside them.
+// Custom chart type answer envelope: the persisted query payload keeps the
+// slug chartConfig intact, while the server-derived dataAppVizUuid sits beside
+// it.
 export type AiCustomChartTypeChartArtifactConfig = {
     source: 'customChartType';
     schemaVersion: 1;
     dataAppVizUuid: string;
-    config: ToolRunQueryArgs;
+    config: PersistedRunQueryPayload;
 };
 
 export type AiChartArtifactConfig =

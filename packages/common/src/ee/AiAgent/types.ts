@@ -1,7 +1,7 @@
 import type { Filters } from '../../types/filter';
 import type { AdditionalMetric, MetricQuery } from '../../types/metricQuery';
 import type { TransformedCustomMetric } from './schemas/customMetrics';
-import type { ToolRunQueryArgs } from './schemas/tools';
+import type { PersistedRunQueryPayload } from './schemas/persistedRunQueryArgs';
 
 export enum AiResultType {
     TIME_SERIES_RESULT = 'time_series_chart',
@@ -36,7 +36,7 @@ export type AiMetricQueryWithFilters = AiMetricQuery & {
 
 export type AiAgentVizConfig = {
     type: 'query_result';
-    config: ToolRunQueryArgs;
+    config: PersistedRunQueryPayload;
 };
 
 export const AGENT_SUGGESTION_TOOLS = [

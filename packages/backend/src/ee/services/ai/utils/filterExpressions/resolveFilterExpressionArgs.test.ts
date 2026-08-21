@@ -112,7 +112,7 @@ const expectLegacyRawFilters = (filters: ResolvedRawFilters) => {
 };
 
 const expectPerCategoryRawFilters = (filters: ResolvedRawFilters) => {
-    if (!filters || !('schemaVersion' in filters)) {
+    if (!filters || 'type' in filters) {
         throw new Error('Expected per-category resolved raw filters');
     }
     return filters;
@@ -195,9 +195,10 @@ describe('resolveFilterExpressionArgs', () => {
         );
 
         expect(
-            toolRunQueryArgsSchemaPersisted.safeParse(data.rawArgs).success,
+            toolRunQueryArgsSchemaPersisted.safeParse(data.persistedArgs)
+                .success,
         ).toBe(true);
-        expect(data.rawArgs.queryConfig.filters).toMatchObject({
+        expect(data.persistedArgs.queryConfig.filters).toMatchObject({
             type: 'and',
             dimensions: [
                 {
@@ -228,29 +229,31 @@ describe('resolveFilterExpressionArgs', () => {
                 },
             ],
         });
-        expect(data.rawArgs.queryConfig.customMetrics?.[0]).toMatchObject({
-            kind: 'aggregation',
-            filters: [
-                {
-                    table: 'orders',
-                    filter: {
-                        fieldId: 'orders_customer_name',
-                        values: ['Acme, Inc.'],
-                    },
-                },
-                {
-                    table: 'orders',
-                    filter: {
-                        fieldId: 'orders_order_date',
-                        values: [30],
-                        settings: {
-                            unitOfTime: 'days',
-                            completed: false,
+        expect(data.persistedArgs.queryConfig.customMetrics?.[0]).toMatchObject(
+            {
+                kind: 'aggregation',
+                filters: [
+                    {
+                        table: 'orders',
+                        filter: {
+                            fieldId: 'orders_customer_name',
+                            values: ['Acme, Inc.'],
                         },
                     },
-                },
-            ],
-        });
+                    {
+                        table: 'orders',
+                        filter: {
+                            fieldId: 'orders_order_date',
+                            values: [30],
+                            settings: {
+                                unitOfTime: 'days',
+                                completed: false,
+                            },
+                        },
+                    },
+                ],
+            },
+        );
         expect(rulesWithoutIds(data.transformed.queryConfig.filters)).toEqual([
             expect.objectContaining({
                 target: {
@@ -303,7 +306,7 @@ describe('resolveFilterExpressionArgs', () => {
         );
 
         const rawFilters = expectLegacyRawFilters(
-            data.rawArgs.queryConfig.filters,
+            data.persistedArgs.queryConfig.filters,
         );
         const rawPresenceRules = [
             ...(rawFilters.dimensions ?? []),
@@ -331,7 +334,8 @@ describe('resolveFilterExpressionArgs', () => {
             values: [],
         });
 
-        const rawCustomMetric = data.rawArgs.queryConfig.customMetrics?.[0];
+        const rawCustomMetric =
+            data.persistedArgs.queryConfig.customMetrics?.[0];
         if (!rawCustomMetric || rawCustomMetric.kind !== 'aggregation') {
             throw new Error('Expected raw aggregation custom metric');
         }
@@ -368,11 +372,14 @@ describe('resolveFilterExpressionArgs', () => {
         // Agreeing connectors keep the legacy shared-connector raw shape, so
         // resolved data stays byte-compatible with previously persisted
         // artifacts and the legacy persisted contract.
+        const persistedFilters = expectLegacyRawFilters(
+            data.persistedArgs.queryConfig.filters,
+        );
+        expect(persistedFilters.type).toBe('or');
+        expect(persistedFilters).not.toHaveProperty('schemaVersion');
         expect(
-            expectLegacyRawFilters(data.rawArgs.queryConfig.filters).type,
-        ).toBe('or');
-        expect(
-            toolRunQueryArgsSchemaPersisted.safeParse(data.rawArgs).success,
+            toolRunQueryArgsSchemaPersisted.safeParse(data.persistedArgs)
+                .success,
         ).toBe(true);
         expect(data.transformed.queryConfig.filters.dimensions).toMatchObject({
             or: [{ target: { fieldId: 'orders_customer_name' } }],
@@ -429,9 +436,9 @@ describe('resolveFilterExpressionArgs', () => {
 
             // Raw resolved data preserves each category connector exactly.
             const rawFilters = expectPerCategoryRawFilters(
-                data.rawArgs.queryConfig.filters,
+                data.persistedArgs.queryConfig.filters,
             );
-            expect(rawFilters.schemaVersion).toBe(1);
+            expect(rawFilters).not.toHaveProperty('schemaVersion');
             expect(rawFilters.dimensions?.connector ?? null).toBe(
                 dimensions === null ? null : dimensions.toLowerCase(),
             );
@@ -481,12 +488,14 @@ describe('resolveFilterExpressionArgs', () => {
             // New-artifact round-trip: the persisted resolved data replays
             // to the exact same domain filters without Explore metadata.
             expect(
-                toolRunQueryExpressionResolvedArgsSchema.parse(data.rawArgs),
-            ).toEqual(data.rawArgs);
+                toolRunQueryExpressionResolvedArgsSchema.parse(
+                    data.persistedArgs,
+                ),
+            ).toEqual(data.persistedArgs);
             expect(
                 withoutGeneratedIds(
                     toolRunQueryExpressionResolvedArgsSchemaTransformed.parse(
-                        data.rawArgs,
+                        data.persistedArgs,
                     ),
                 ),
             ).toEqual(withoutGeneratedIds(data.transformed));
@@ -612,7 +621,7 @@ describe('resolveFilterExpressionArgs', () => {
         );
 
         expect(
-            expectLegacyRawFilters(data.rawArgs.queryConfig.filters)
+            expectLegacyRawFilters(data.persistedArgs.queryConfig.filters)
                 .metrics?.[0],
         ).toMatchObject({
             fieldId: 'orders_completed_revenue',
@@ -714,7 +723,7 @@ describe('resolveFilterExpressionArgs', () => {
             }),
         );
         expect(
-            expectLegacyRawFilters(data.rawArgs.queryConfig.filters).type,
+            expectLegacyRawFilters(data.persistedArgs.queryConfig.filters).type,
         ).toBe('or');
     });
 
@@ -888,7 +897,7 @@ describe('resolveFilterExpressionArgs', () => {
         expect(getExplore).toHaveBeenCalledWith(usersExplore.name);
         expect(
             expectLegacyRawFilters(
-                data.rawArgs.mergeConfig?.additionalSources[0].queryConfig
+                data.persistedArgs.mergeConfig?.additionalSources[0].queryConfig
                     .filters ?? null,
             ).dimensions?.[0],
         ).toMatchObject({
@@ -919,7 +928,7 @@ describe('resolveFilterExpressionArgs', () => {
         // Primary connectors diverge, so its resolved data uses the
         // per-category shape.
         const primaryFilters = expectPerCategoryRawFilters(
-            data.rawArgs.queryConfig.filters,
+            data.persistedArgs.queryConfig.filters,
         );
         expect(primaryFilters.dimensions?.connector).toBe('and');
         expect(primaryFilters.metrics?.connector).toBe('or');
@@ -927,7 +936,7 @@ describe('resolveFilterExpressionArgs', () => {
         // The additional source agrees internally, so it keeps the legacy
         // shape with its own connector, unaffected by the primary query.
         const sourceFilters = expectLegacyRawFilters(
-            data.rawArgs.mergeConfig?.additionalSources[0].queryConfig
+            data.persistedArgs.mergeConfig?.additionalSources[0].queryConfig
                 .filters ?? null,
         );
         expect(sourceFilters.type).toBe('or');
@@ -951,7 +960,7 @@ describe('resolveFilterExpressionArgs', () => {
         expect(
             withoutGeneratedIds(
                 toolRunQueryExpressionResolvedArgsSchemaTransformed.parse(
-                    data.rawArgs,
+                    data.persistedArgs,
                 ),
             ),
         ).toEqual(withoutGeneratedIds(data.transformed));
@@ -982,7 +991,7 @@ describe('strict expression value interpretation', () => {
 
         expect(
             expectLegacyRawFilters(
-                data.rawArgs.queryConfig.filters,
+                data.persistedArgs.queryConfig.filters,
             ).dimensions?.map((rule) =>
                 'values' in rule ? rule.values : undefined,
             ),

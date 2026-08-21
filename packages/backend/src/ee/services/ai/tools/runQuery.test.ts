@@ -1,8 +1,11 @@
 import {
+    MergeJoinType,
+    TimeFrames,
     type AiWebAppPrompt,
     type SlackPrompt,
     type ToolRunQueryCustomChartTypeConfig,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import {
     metricQueryMock,
     validExplore,
@@ -16,7 +19,13 @@ import type {
 } from '../types/aiAgentDependencies';
 import { AgentContext } from '../utils/AgentContext';
 import { renderEcharts } from '../utils/renderEcharts';
+import { mockOrdersExplore } from '../utils/validationExplore.mock';
 import { getRunQuery } from './runQuery';
+
+vi.mock('@sentry/node', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@sentry/node')>();
+    return { ...actual, captureException: vi.fn() };
+});
 
 // The Slack path renders a real chart via echarts + node-canvas. A native
 // render has no place in a unit test — it's slow and fails on runners without
@@ -79,6 +88,47 @@ const toolInput = {
     },
 };
 
+const mergeInput = {
+    ...toolInput,
+    chartConfig: {
+        ...toolInput.chartConfig,
+        xAxisDimension: 'merge_key',
+        yAxisMetrics: ['primary_a_met1', 'comparison_a_met1'],
+    },
+    mergeConfig: {
+        primarySourceId: 'primary',
+        additionalSources: [
+            {
+                id: 'comparison',
+                queryConfig: {
+                    exploreName: validExplore.name,
+                    dimensions: metricQueryMock.dimensions,
+                    metrics: metricQueryMock.metrics,
+                    sorts: [],
+                    customMetrics: null,
+                    filters: null,
+                },
+            },
+        ],
+        joinKey: [
+            {
+                name: 'key',
+                fields: [
+                    {
+                        sourceId: 'primary',
+                        fieldId: metricQueryMock.dimensions[0],
+                    },
+                    {
+                        sourceId: 'comparison',
+                        fieldId: metricQueryMock.dimensions[0],
+                    },
+                ],
+            },
+        ],
+        joinType: MergeJoinType.FULL,
+    },
+};
+
 const executeTool = async (
     runAsyncQuery: RunAsyncQueryFn,
     enableDataAccess = true,
@@ -90,6 +140,7 @@ const executeTool = async (
         runAsyncQuery,
         runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
         enableMergeQueries: false,
+        enableFilterExpressions: false,
         projectParameterDefinitions: {},
         getPrompt: vi.fn().mockResolvedValue(prompt),
         sendFile: vi.fn().mockResolvedValue(undefined),
@@ -131,6 +182,7 @@ describe('getRunQuery', () => {
             runAsyncQuery,
             runAsyncMergeQuery,
             enableMergeQueries: true,
+            enableFilterExpressions: false,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
             sendFile: vi.fn().mockResolvedValue(undefined),
@@ -142,47 +194,6 @@ describe('getRunQuery', () => {
             resolveCustomChartType: vi.fn().mockResolvedValue(null),
             exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
         });
-        const mergeInput = {
-            ...toolInput,
-            chartConfig: {
-                ...toolInput.chartConfig,
-                xAxisDimension: 'merge_key',
-                yAxisMetrics: ['primary_a_met1', 'comparison_a_met1'],
-            },
-            mergeConfig: {
-                primarySourceId: 'primary',
-                additionalSources: [
-                    {
-                        id: 'comparison',
-                        queryConfig: {
-                            exploreName: validExplore.name,
-                            dimensions: metricQueryMock.dimensions,
-                            metrics: metricQueryMock.metrics,
-                            sorts: [],
-                            customMetrics: null,
-                            filters: null,
-                        },
-                    },
-                ],
-                joinKey: [
-                    {
-                        name: 'key',
-                        fields: [
-                            {
-                                sourceId: 'primary',
-                                fieldId: metricQueryMock.dimensions[0],
-                            },
-                            {
-                                sourceId: 'comparison',
-                                fieldId: metricQueryMock.dimensions[0],
-                            },
-                        ],
-                    },
-                ],
-                joinType: 'full' as const,
-            },
-        };
-
         const output = await queryTool.execute!(mergeInput, {
             messages: [],
             toolCallId: 'tool-call-1',
@@ -216,6 +227,395 @@ describe('getRunQuery', () => {
             status: 'success',
             queryUuid: '22222222-2222-4222-8222-222222222222',
         });
+    });
+
+    it('resolves and persists each merge source expression in its explore scope', async () => {
+        const runAsyncMergeQuery: RunAsyncMergeQueryFn = vi
+            .fn()
+            .mockResolvedValue({
+                queryUuid: '22222222-2222-4222-8222-222222222222',
+                rows: [{ merge_key: 'one', primary_a_met1: 1 }],
+                cacheMetadata: { cacheHit: false },
+                fields: {},
+                metricQuery: metricQueryMock,
+            });
+        const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);
+        const queryTool = getRunQuery({
+            updateProgress: vi.fn().mockResolvedValue(undefined),
+            runAsyncQuery: vi.fn() as RunAsyncQueryFn,
+            runAsyncMergeQuery,
+            enableMergeQueries: true,
+            enableFilterExpressions: true,
+            projectParameterDefinitions: {},
+            getPrompt: vi.fn().mockResolvedValue(makePrompt()),
+            sendFile: vi.fn().mockResolvedValue(undefined),
+            createOrUpdateArtifact,
+            maxLimit: 500,
+            maxContextRows: Number.POSITIVE_INFINITY,
+            exposeQueryUuid: false,
+            enableDataAccess: true,
+            resolveCustomChartType: vi.fn().mockResolvedValue(null),
+            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
+        });
+        const expressionMergeInput = {
+            ...mergeInput,
+            queryConfig: {
+                ...mergeInput.queryConfig,
+                filters: {
+                    dimensions: 'a_dim1 equals=primary',
+                    metrics: null,
+                    tableCalculations: null,
+                },
+            },
+            mergeConfig: {
+                ...mergeInput.mergeConfig,
+                additionalSources: mergeInput.mergeConfig.additionalSources.map(
+                    (source) => ({
+                        ...source,
+                        queryConfig: {
+                            ...source.queryConfig,
+                            filters: {
+                                dimensions: 'a_dim1 equals=comparison',
+                                metrics: null,
+                                tableCalculations: null,
+                            },
+                        },
+                    }),
+                ),
+            },
+        };
+
+        const output = await queryTool.execute!(expressionMergeInput, {
+            messages: [],
+            toolCallId: 'tool-call-1',
+            experimental_context: new AgentContext([validExplore]),
+        });
+        if (Symbol.asyncIterator in output) {
+            throw new Error('Expected a non-streaming tool result');
+        }
+
+        expect(output.metadata.status).toBe('success');
+        expect(runAsyncMergeQuery).toHaveBeenCalledOnce();
+        expect(createOrUpdateArtifact).toHaveBeenCalledWith(
+            expect.objectContaining({
+                vizConfig: expect.objectContaining({
+                    source: 'merge',
+                    schemaVersion: 1,
+                    config: expect.objectContaining({
+                        queryConfig: expect.objectContaining({
+                            filters: expect.objectContaining({
+                                dimensions: [
+                                    expect.objectContaining({
+                                        fieldId: 'a_dim1',
+                                        values: ['primary'],
+                                    }),
+                                ],
+                            }),
+                        }),
+                        mergeConfig: expect.objectContaining({
+                            additionalSources: [
+                                expect.objectContaining({
+                                    queryConfig: expect.objectContaining({
+                                        filters: expect.objectContaining({
+                                            dimensions: [
+                                                expect.objectContaining({
+                                                    fieldId: 'a_dim1',
+                                                    values: ['comparison'],
+                                                }),
+                                            ],
+                                        }),
+                                    }),
+                                }),
+                            ],
+                        }),
+                    }),
+                }),
+            }),
+        );
+    });
+
+    it('keeps flag-off semantic artifact writes unchanged', async () => {
+        const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);
+        const runAsyncQuery: RunAsyncQueryFn = vi.fn().mockResolvedValue({
+            queryUuid: '11111111-1111-4111-8111-111111111111',
+            rows: [{ a_dim1: 'one', a_met1: 1 }],
+            cacheMetadata: { cacheHit: false },
+            fields: {},
+        });
+        const queryTool = getRunQuery({
+            updateProgress: vi.fn().mockResolvedValue(undefined),
+            runAsyncQuery,
+            runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
+            enableMergeQueries: false,
+            enableFilterExpressions: false,
+            projectParameterDefinitions: {},
+            getPrompt: vi.fn().mockResolvedValue(makePrompt()),
+            sendFile: vi.fn().mockResolvedValue(undefined),
+            createOrUpdateArtifact,
+            maxLimit: 500,
+            maxContextRows: Number.POSITIVE_INFINITY,
+            exposeQueryUuid: false,
+            enableDataAccess: true,
+            resolveCustomChartType: vi.fn().mockResolvedValue(null),
+            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
+        });
+
+        await queryTool.execute!(toolInput, {
+            messages: [],
+            toolCallId: 'tool-call-1',
+            experimental_context: new AgentContext([validExplore]),
+        });
+
+        expect(createOrUpdateArtifact).toHaveBeenCalledWith(
+            expect.objectContaining({
+                vizConfig: {
+                    source: 'semantic',
+                    config: toolInput,
+                },
+            }),
+        );
+    });
+
+    it('resolves filter expressions before execution and persists replay args', async () => {
+        const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);
+        const runAsyncQuery: RunAsyncQueryFn = vi.fn().mockResolvedValue({
+            queryUuid: '11111111-1111-4111-8111-111111111111',
+            rows: [{ a_dim1: 'one', a_met1: 1 }],
+            cacheMetadata: { cacheHit: false },
+            fields: {},
+        });
+        const queryTool = getRunQuery({
+            updateProgress: vi.fn().mockResolvedValue(undefined),
+            runAsyncQuery,
+            runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
+            enableMergeQueries: false,
+            enableFilterExpressions: true,
+            projectParameterDefinitions: {},
+            getPrompt: vi.fn().mockResolvedValue(makePrompt()),
+            sendFile: vi.fn().mockResolvedValue(undefined),
+            createOrUpdateArtifact,
+            maxLimit: 500,
+            maxContextRows: Number.POSITIVE_INFINITY,
+            exposeQueryUuid: false,
+            enableDataAccess: true,
+            resolveCustomChartType: vi.fn().mockResolvedValue(null),
+            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
+        });
+        const expressionInput = {
+            ...toolInput,
+            queryConfig: {
+                ...toolInput.queryConfig,
+                filters: {
+                    dimensions: 'a_dim1 equals=one',
+                    metrics: null,
+                    tableCalculations: null,
+                },
+            },
+        };
+
+        const output = await queryTool.execute!(expressionInput, {
+            messages: [],
+            toolCallId: 'tool-call-1',
+            experimental_context: new AgentContext([validExplore]),
+        });
+        if (Symbol.asyncIterator in output) {
+            throw new Error('Expected a non-streaming tool result');
+        }
+
+        expect(output.metadata.status).toBe('success');
+        expect(runAsyncQuery).toHaveBeenCalledWith(
+            expect.objectContaining({
+                filters: expect.objectContaining({
+                    dimensions: expect.objectContaining({
+                        and: [
+                            expect.objectContaining({
+                                target: expect.objectContaining({
+                                    fieldId: 'a_dim1',
+                                }),
+                                values: ['one'],
+                            }),
+                        ],
+                    }),
+                }),
+            }),
+            expect.anything(),
+            undefined,
+        );
+        expect(createOrUpdateArtifact).toHaveBeenCalledWith(
+            expect.objectContaining({
+                vizConfig: expect.objectContaining({
+                    source: 'semantic',
+                    config: expect.objectContaining({
+                        queryConfig: expect.objectContaining({
+                            filters: expect.objectContaining({
+                                dimensions: [
+                                    expect.objectContaining({
+                                        fieldId: 'a_dim1',
+                                        values: ['one'],
+                                    }),
+                                ],
+                            }),
+                        }),
+                        mergeConfig: null,
+                    }),
+                }),
+            }),
+        );
+        expect(createOrUpdateArtifact.mock.calls[0]?.[0]).not.toHaveProperty(
+            'vizConfig.inputProvenance',
+        );
+    });
+
+    it('expands period-comparison output in persisted replay args', async () => {
+        const popExplore = {
+            ...mockOrdersExplore,
+            tables: {
+                ...mockOrdersExplore.tables,
+                orders: {
+                    ...mockOrdersExplore.tables.orders,
+                    dimensions: {
+                        ...mockOrdersExplore.tables.orders.dimensions,
+                        order_date: {
+                            ...mockOrdersExplore.tables.orders.dimensions
+                                .order_date,
+                            timeInterval: TimeFrames.MONTH,
+                        },
+                    },
+                },
+            },
+        };
+        const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);
+        const runAsyncQuery: RunAsyncQueryFn = vi.fn().mockResolvedValue({
+            queryUuid: '11111111-1111-4111-8111-111111111111',
+            rows: [{ orders_order_date: '2025-01-01' }],
+            cacheMetadata: { cacheHit: false },
+            fields: {},
+        });
+        const queryTool = getRunQuery({
+            updateProgress: vi.fn().mockResolvedValue(undefined),
+            runAsyncQuery,
+            runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
+            enableMergeQueries: false,
+            enableFilterExpressions: true,
+            projectParameterDefinitions: {},
+            getPrompt: vi.fn().mockResolvedValue(makePrompt()),
+            sendFile: vi.fn().mockResolvedValue(undefined),
+            createOrUpdateArtifact,
+            maxLimit: 500,
+            maxContextRows: Number.POSITIVE_INFINITY,
+            exposeQueryUuid: false,
+            enableDataAccess: true,
+            resolveCustomChartType: vi.fn().mockResolvedValue(null),
+            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
+        });
+        const expressionInput = {
+            title: 'Revenue by month',
+            description: 'Monthly revenue and prior period',
+            queryConfig: {
+                exploreName: popExplore.name,
+                dimensions: ['orders_order_date'],
+                metrics: ['orders_total_revenue'],
+                sorts: [],
+                limit: 500,
+                parameters: null,
+                customMetrics: [
+                    {
+                        kind: 'periodComparison' as const,
+                        baseMetricId: 'orders_total_revenue',
+                        timeDimensionId: 'orders_order_date',
+                        granularity: TimeFrames.MONTH,
+                        periodOffset: 1,
+                    },
+                ],
+                tableCalculations: null,
+                filters: null,
+            },
+            chartConfig: {
+                ...toolInput.chartConfig,
+                xAxisDimension: 'orders_order_date',
+                yAxisMetrics: ['orders_total_revenue'],
+                xAxisType: 'time' as const,
+            },
+        };
+
+        await queryTool.execute!(expressionInput, {
+            messages: [],
+            toolCallId: 'tool-call-1',
+            experimental_context: new AgentContext([popExplore]),
+        });
+
+        expect(createOrUpdateArtifact).toHaveBeenCalledWith(
+            expect.objectContaining({
+                vizConfig: expect.objectContaining({
+                    source: 'semantic',
+                    config: expect.objectContaining({
+                        chartConfig: expect.objectContaining({
+                            yAxisMetrics: [
+                                'orders_total_revenue',
+                                expect.any(String),
+                            ],
+                        }),
+                    }),
+                }),
+            }),
+        );
+    });
+
+    it('returns located filter-expression errors without execution or Sentry capture', async () => {
+        vi.mocked(Sentry.captureException).mockClear();
+        const runAsyncQuery = vi.fn() as RunAsyncQueryFn;
+        const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);
+        const queryTool = getRunQuery({
+            updateProgress: vi.fn().mockResolvedValue(undefined),
+            runAsyncQuery,
+            runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
+            enableMergeQueries: false,
+            enableFilterExpressions: true,
+            projectParameterDefinitions: {},
+            getPrompt: vi.fn().mockResolvedValue(makePrompt()),
+            sendFile: vi.fn().mockResolvedValue(undefined),
+            createOrUpdateArtifact,
+            maxLimit: 500,
+            maxContextRows: Number.POSITIVE_INFINITY,
+            exposeQueryUuid: false,
+            enableDataAccess: true,
+            resolveCustomChartType: vi.fn().mockResolvedValue(null),
+            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
+        });
+
+        const output = await queryTool.execute!(
+            {
+                ...toolInput,
+                queryConfig: {
+                    ...toolInput.queryConfig,
+                    filters: {
+                        dimensions: 'unknown_field equals=one',
+                        metrics: null,
+                        tableCalculations: null,
+                    },
+                },
+            },
+            {
+                messages: [],
+                toolCallId: 'tool-call-1',
+                experimental_context: new AgentContext([validExplore]),
+            },
+        );
+        if (Symbol.asyncIterator in output) {
+            throw new Error('Expected a non-streaming tool result');
+        }
+
+        expect(output).toMatchObject({
+            result: expect.stringContaining(
+                '[FILTER_EXPRESSION_UNKNOWN_FIELD]',
+            ),
+            metadata: { status: 'error' },
+        });
+        expect(output.result).toContain('Problem:');
+        expect(output.result).toContain('How to fix:');
+        expect(runAsyncQuery).not.toHaveBeenCalled();
+        expect(createOrUpdateArtifact).not.toHaveBeenCalled();
+        expect(Sentry.captureException).not.toHaveBeenCalled();
     });
 
     it('returns the query UUID in successful visualization metadata', async () => {
@@ -331,11 +731,13 @@ describe('getRunQuery custom chart types', () => {
             .fn()
             .mockResolvedValue(makeQueryResults()) as RunAsyncQueryFn,
         exportCustomChartTypeImage = vi.fn() as ExportCustomChartTypeImageFn,
+        enableFilterExpressions = false,
     }: {
         chartConfig: ToolRunQueryCustomChartTypeConfig;
         resolveCustomChartType?: ResolveCustomChartTypeFn;
         runAsyncQuery?: RunAsyncQueryFn;
         exportCustomChartTypeImage?: ExportCustomChartTypeImageFn;
+        enableFilterExpressions?: boolean;
     }) => {
         const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);
         const queryTool = getRunQuery({
@@ -343,6 +745,7 @@ describe('getRunQuery custom chart types', () => {
             runAsyncQuery,
             runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
             enableMergeQueries: false,
+            enableFilterExpressions,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
             sendFile: vi.fn().mockResolvedValue(undefined),
@@ -354,7 +757,20 @@ describe('getRunQuery custom chart types', () => {
             resolveCustomChartType,
             exportCustomChartTypeImage,
         });
-        const input = { ...toolInput, chartConfig };
+        const input = {
+            ...toolInput,
+            queryConfig: {
+                ...toolInput.queryConfig,
+                filters: enableFilterExpressions
+                    ? {
+                          dimensions: 'a_dim1 equals=one',
+                          metrics: null,
+                          tableCalculations: null,
+                      }
+                    : null,
+            },
+            chartConfig,
+        };
         const output = await queryTool.execute!(input, {
             messages: [],
             toolCallId: 'tool-call-1',
@@ -387,6 +803,37 @@ describe('getRunQuery custom chart types', () => {
                     // Model output stored unmodified — slug config intact.
                     config: input,
                 },
+            }),
+        );
+    });
+
+    it('persists resolved expression args for custom chart types', async () => {
+        const { output, createOrUpdateArtifact } = await executeCustom({
+            chartConfig: customChartConfig,
+            enableFilterExpressions: true,
+        });
+
+        expect(output.metadata).toMatchObject({ status: 'success' });
+        expect(createOrUpdateArtifact).toHaveBeenCalledWith(
+            expect.objectContaining({
+                vizConfig: expect.objectContaining({
+                    source: 'customChartType',
+                    schemaVersion: 1,
+                    dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+                    config: expect.objectContaining({
+                        queryConfig: expect.objectContaining({
+                            filters: expect.objectContaining({
+                                dimensions: [
+                                    expect.objectContaining({
+                                        fieldId: 'a_dim1',
+                                        values: ['one'],
+                                    }),
+                                ],
+                            }),
+                        }),
+                        chartConfig: customChartConfig,
+                    }),
+                }),
             }),
         );
     });
@@ -492,6 +939,7 @@ describe('getRunQuery custom chart types', () => {
             runAsyncQuery,
             runAsyncMergeQuery,
             enableMergeQueries: true,
+            enableFilterExpressions: false,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
             sendFile: vi.fn().mockResolvedValue(undefined),
@@ -540,7 +988,7 @@ describe('getRunQuery custom chart types', () => {
                         ],
                     },
                 ],
-                joinType: 'full' as const,
+                joinType: MergeJoinType.FULL,
             },
         };
         const output = await queryTool.execute!(mergeCustomInput, {
@@ -602,6 +1050,7 @@ describe('getRunQuery custom chart types', () => {
                     .mockResolvedValue(makeQueryResults()) as RunAsyncQueryFn,
                 runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
                 enableMergeQueries: false,
+                enableFilterExpressions: false,
                 projectParameterDefinitions: {},
                 getPrompt: vi.fn().mockResolvedValue(makeSlackPrompt()),
                 sendFile,
@@ -813,6 +1262,7 @@ describe('getRunQuery parameters', () => {
             runAsyncQuery,
             runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
             enableMergeQueries: false,
+            enableFilterExpressions: false,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
             sendFile: vi.fn().mockResolvedValue(undefined),
@@ -935,6 +1385,7 @@ describe('getRunQuery parameters', () => {
             runAsyncQuery,
             runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
             enableMergeQueries: false,
+            enableFilterExpressions: false,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makePrompt()),
             sendFile: vi.fn().mockResolvedValue(undefined),

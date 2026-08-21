@@ -861,6 +861,7 @@ export const getAgentTools = (
         enableDataAccess: args.enableDataAccess,
         projectParameterDefinitions,
         enableMergeQueries: args.enableMergeQueries,
+        enableFilterExpressions: args.enableFilterExpressions,
         resolveCustomChartType: dependencies.resolveCustomChartType,
         exportCustomChartTypeImage: dependencies.exportCustomChartTypeImage,
     });

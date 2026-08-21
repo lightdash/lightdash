@@ -69,6 +69,120 @@ describe('AiAgentModel prompt activity', () => {
         return row?.updated_at ?? null;
     };
 
+    it('normalizes resolved expression args on every model read path', async () => {
+        const resolvedArgs = {
+            title: 'Orders by status',
+            description: 'Completed orders',
+            queryConfig: {
+                exploreName: 'orders',
+                dimensions: ['orders_status'],
+                metrics: ['orders_count'],
+                sorts: [],
+                limit: 500,
+                customMetrics: null,
+                tableCalculations: null,
+                filters: {
+                    dimensions: {
+                        connector: 'and',
+                        rules: [
+                            {
+                                fieldId: 'orders_status',
+                                fieldType: 'string',
+                                fieldFilterType: 'string',
+                                operator: 'equals',
+                                values: ['complete'],
+                            },
+                        ],
+                    },
+                    metrics: {
+                        connector: 'or',
+                        rules: [
+                            {
+                                fieldId: 'orders_count',
+                                fieldType: 'count',
+                                fieldFilterType: 'number',
+                                operator: 'greaterThan',
+                                values: [10],
+                            },
+                        ],
+                    },
+                    tableCalculations: null,
+                },
+            },
+            chartConfig: null,
+            mergeConfig: null,
+        };
+        const persistedConfig = {
+            source: 'semantic',
+            config: resolvedArgs,
+        };
+        const threadUuid = await createWebAppThread();
+        const promptUuid = await model.createWebAppPrompt({
+            threadUuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            prompt: 'Persist a filter expression',
+        });
+        const created = await model.createArtifact({
+            threadUuid,
+            promptUuid,
+            artifactType: 'chart',
+            title: 'Orders by status',
+            description: 'Completed orders',
+            vizConfig: persistedConfig,
+        });
+        const version = await model.createArtifactVersion({
+            artifactUuid: created.artifactUuid,
+            promptUuid,
+            title: 'Orders by status',
+            description: 'Completed orders',
+            vizConfig: persistedConfig,
+        });
+        const fetched = await model.getArtifact(created.artifactUuid);
+        const byThread = await model.findArtifactsByThreadUuid(
+            threadUuid,
+            'chart',
+        );
+        const byPrompt =
+            await model.findArtifactVersionsByPromptUuid(promptUuid);
+
+        for (const artifact of [
+            created,
+            version,
+            fetched,
+            ...byThread,
+            ...byPrompt,
+        ]) {
+            expect(artifact.chartConfig).toMatchObject({
+                source: 'semantic',
+                config: {
+                    queryConfig: {
+                        filters: {
+                            dimensions: {
+                                connector: 'and',
+                                rules: [
+                                    {
+                                        fieldId: 'orders_status',
+                                        values: ['complete'],
+                                    },
+                                ],
+                            },
+                            metrics: {
+                                connector: 'or',
+                                rules: [
+                                    {
+                                        fieldId: 'orders_count',
+                                        values: [10],
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                    mergeConfig: null,
+                },
+            });
+        }
+    });
+
     it('sets thread updated_at to the inserted web prompt created_at', async () => {
         const threadUuid = await createWebAppThread();
         expect(await getThreadUpdatedAt(threadUuid)).toBeNull();

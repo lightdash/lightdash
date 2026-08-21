@@ -53,7 +53,7 @@ export const filterExpressionsSchema = z
     })
     .strict()
     .describe(
-        'Separate flat expressions for dimensions, metrics, and table calculations. Use null when a category has no filters.',
+        'Separate flat expressions for dimensions, metrics, and table calculations. Each category chooses AND or OR independently. Non-null categories combine implicitly with AND. For example, dimensions "D1 AND D2" and metrics "M1 OR M2" mean "(D1 AND D2) AND (M1 OR M2)", where D1, D2, M1, and M2 are complete filter rules. Use null when a category has no filters.',
     );
 
 export const aggregationCustomMetricExpressionSchema =
