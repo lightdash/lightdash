@@ -1,7 +1,8 @@
 import { parse, type SelectStatement } from 'pgsql-ast-parser';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { type PgWireTable } from '../types';
 import { evaluateCatalogSelect, toCatalogText } from './catalogEvaluator';
+import { MAX_STATEMENT_CPU_MS } from './catalogLimits';
 import { buildCatalogRelations } from './catalogRelations';
 
 const catalog: PgWireTable[] = [
@@ -163,6 +164,42 @@ describe('catalog evaluator: FROM and joins', () => {
                 'select count(*) from generate_series(1, 300) a(x) join generate_series(1, 300) b(y) on a.x - a.x = b.y - b.y',
             ),
         ).toEqual([['90000']]);
+    });
+
+    it('cancels statements that exceed the thread CPU budget', () => {
+        const [statement] = parse('select * from generate_series(1, 3000)');
+        const getThreadCpuUsage = vi
+            .fn()
+            .mockReturnValueOnce({ user: 0, system: 0 })
+            .mockReturnValue({
+                user: MAX_STATEMENT_CPU_MS * 1_000 + 1,
+                system: 0,
+            });
+
+        expect(() =>
+            evaluateCatalogSelect(
+                context,
+                statement as SelectStatement,
+                getThreadCpuUsage,
+            ),
+        ).toThrow(expect.objectContaining({ code: '57014' }));
+    });
+
+    it('does not charge descheduled wall time to the CPU budget', () => {
+        const dateNow = vi
+            .spyOn(Date, 'now')
+            .mockReturnValueOnce(0)
+            .mockReturnValue(10_000);
+
+        const result = (() => {
+            try {
+                return rows('select * from generate_series(1, 3000)');
+            } finally {
+                dateNow.mockRestore();
+            }
+        })();
+
+        expect(result).toHaveLength(3_000);
     });
 
     it('caps value and result sizes and pattern subjects with 54000', () => {

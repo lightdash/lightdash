@@ -10,7 +10,7 @@ import { PgWireServerError } from '../PgWireServerError';
 export const MAX_INTERMEDIATE_TUPLES = 100_000;
 /** Work units: roughly one per row per pass, plus bytes/64 for every string built or keyed */
 export const MAX_WORK_UNITS = 10_000_000;
-export const MAX_STATEMENT_MS = 2_000;
+export const MAX_STATEMENT_CPU_MS = 2_000;
 export const MAX_VALUE_LENGTH = 64 * 1024;
 export const MAX_RESULT_LENGTH = 16 * 1024 * 1024;
 export const MAX_PATTERN_LENGTH = 1_000;
