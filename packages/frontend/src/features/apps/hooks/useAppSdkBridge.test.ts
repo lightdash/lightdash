@@ -1181,6 +1181,7 @@ describe('data-app-viz-context push', () => {
         colorPalette: ['#7162FF', '#1A1B1E'],
         pivotDetails: null,
         underlyingData: { enabled: false },
+        drillDown: { enabled: false },
     };
 
     function renderWithDataAppVizContext(ctx: DataAppVizContext | undefined) {

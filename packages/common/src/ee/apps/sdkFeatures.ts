@@ -122,6 +122,13 @@ export const SDK_FEATURES: SdkFeature[] = [
             'Open the raw result rows behind a clicked data point in a reusable visualization, with CSV/XLSX download.',
         wiring: 'In the viz, keep the untransformed source row on each interactive datum, show a data-point action menu only when useVizContext().underlyingData.enabled and the mark maps to exactly one source row, render underlyingData.get({ row, metric }) in a themed dialog, and wire its Download button to underlyingData.download.',
     },
+    {
+        key: 'viz-drill-down',
+        label: 'Drill into data points',
+        description:
+            'Drill into a clicked data point in a reusable visualization — pick a dimension in Lightdash and open the drilled view in explore.',
+        wiring: 'Show a "Drill into …" item in the data-point action menu only when useVizContext().drillDown.enabled and the mark maps to exactly one source row, and call drillDown.open({ row: datum.sourceRow, metric: "<field name>" }) on selection. The host opens its drill dialog — render no dialog in the viz and never render a disabled item.',
+    },
 ];
 
 export const SDK_FEATURE_KEYS: string[] = SDK_FEATURES.map((f) => f.key);

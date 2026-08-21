@@ -107,6 +107,7 @@ export type {
     VizContextPivotDetails,
     VizContextRow,
     VizUnderlyingData,
+    VizDrillDown,
     DataAppVizContextMessage,
     VizContextRequestMessage,
 } from './vizContext';

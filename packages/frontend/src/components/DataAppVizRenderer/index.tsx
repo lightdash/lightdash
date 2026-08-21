@@ -213,6 +213,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
             colorPalette,
             pivotDetails,
             underlyingData: { enabled: underlyingDataEnabled },
+            drillDown: { enabled: false },
         };
     }, [
         reconciledFieldMapping,

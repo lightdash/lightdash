@@ -142,6 +142,7 @@ export const useDataAppVizTestContext = ({
                 colorPalette,
                 pivotDetails: queryResults.pivotDetails ?? null,
                 underlyingData: { enabled: false },
+                drillDown: { enabled: false },
             });
         }
     }, [
