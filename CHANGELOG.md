@@ -1,3 +1,10 @@
+# [1.237.0](https://github.com/lightdash/lightdash/compare/1.236.2...1.237.0) (2026-08-21)
+
+
+### Features
+
+* add ai-disable-thread-deletion feature flag ([#27862](https://github.com/lightdash/lightdash/issues/27862)) ([24e8fb4](https://github.com/lightdash/lightdash/commit/24e8fb4939ccca07d39007a3bbde52db09f864e2))
+
 ## [1.236.2](https://github.com/lightdash/lightdash/compare/1.236.1...1.236.2) (2026-08-21)
 
 
