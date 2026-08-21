@@ -14,6 +14,22 @@ vi.mock('../logging/logger', () => ({
 
 type OAuthServiceStub = Pick<OAuthService, 'authorize' | 'validateRedirectUri'>;
 
+const getRedirectUrl = (body: string): string => {
+    const match = /<meta http-equiv="refresh" content="0;url=([^"]+)" \/>/.exec(
+        body,
+    );
+    if (!match) {
+        throw new Error('Missing OAuth meta refresh');
+    }
+    return match[1]
+        .replaceAll('&amp;', '&')
+        .replaceAll('&#x3D;', '=')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&#x27;', "'")
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>');
+};
+
 const createOAuthService = () => ({
     authorize: vi.fn<OAuthServiceStub['authorize']>(),
     validateRedirectUri: vi.fn<OAuthServiceStub['validateRedirectUri']>(),
@@ -133,8 +149,9 @@ describe('OAuth authorize redirects', () => {
             oauthService,
         });
 
-        expect(response.status).toBe(302);
-        expect(response.headers.location).toBe(
+        expect(response.status).toBe(200);
+        expect(response.headers.location).toBeUndefined();
+        expect(getRedirectUrl(response.body)).toBe(
             'https://registered.example/callback?existing=1&error=access_denied&state=request-state',
         );
         expect(oauthService.authorize).not.toHaveBeenCalled();
@@ -157,8 +174,9 @@ describe('OAuth authorize redirects', () => {
             oauthService,
         });
 
-        expect(response.status).toBe(302);
-        expect(response.headers.location).toBe(
+        expect(response.status).toBe(200);
+        expect(response.headers.location).toBeUndefined();
+        expect(getRedirectUrl(response.body)).toBe(
             'https://registered.example/callback?code=authorization-code&state=request-state',
         );
     });
@@ -178,8 +196,9 @@ describe('OAuth authorize redirects', () => {
             oauthService,
         });
 
-        expect(response.status).toBe(302);
-        expect(response.headers.location).toBe(
+        expect(response.status).toBe(200);
+        expect(response.headers.location).toBeUndefined();
+        expect(getRedirectUrl(response.body)).toBe(
             'https://registered.example/callback?error=server_error&state=request-state',
         );
     });
@@ -191,7 +210,7 @@ describe('OAuth authorize redirects', () => {
             authorizationCode: 'authorization-code',
         } as OAuth2Server.AuthorizationCode);
         const redirectSpy = vi
-            .spyOn(express.response, 'redirect')
+            .spyOn(express.response, 'send')
             .mockImplementationOnce(() => {
                 throw new Error('redirect failed');
             });
@@ -207,8 +226,8 @@ describe('OAuth authorize redirects', () => {
                 oauthService,
             });
 
-            expect(response.status).toBe(302);
-            const location = new URL(response.headers.location ?? '');
+            expect(response.status).toBe(200);
+            const location = new URL(getRedirectUrl(response.body));
             expect(location.searchParams.get('error')).toBe('server_error');
             expect(location.searchParams.has('code')).toBe(false);
             expect(location.searchParams.get('state')).toBe('request-state');

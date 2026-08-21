@@ -44,14 +44,27 @@ const PKCE_TEST_VALUES = {
 
 const getRedirectLocation = (response: {
     status: number;
+    body: unknown;
     headers: Headers;
 }): string => {
-    expect(response.status).toBe(302);
-    const location = response.headers.get('location');
-    if (!location) {
-        throw new Error('Missing OAuth redirect location');
+    expect(response.status).toBe(200);
+    expect(response.headers.get('location')).toBeNull();
+    if (typeof response.body !== 'string') {
+        throw new Error('Missing OAuth redirect page');
     }
-    return location;
+    const match = /<meta http-equiv="refresh" content="0;url=([^"]+)" \/>/.exec(
+        response.body,
+    );
+    if (!match) {
+        throw new Error('Missing OAuth meta refresh');
+    }
+    return match[1]
+        .replaceAll('&amp;', '&')
+        .replaceAll('&#x3D;', '=')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&#x27;', "'")
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>');
 };
 
 /**
