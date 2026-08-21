@@ -68,7 +68,7 @@ export const getColorFromRange = (
     if (!interpolateColor) return undefined;
 
     const { min, max } = minMaxRange;
-    if (min > max || value < min || value > max) {
+    if (min > max) {
         return undefined;
     }
 
@@ -76,7 +76,10 @@ export const getColorFromRange = (
         return interpolateColor(1).toString({ format: 'hex' });
     }
 
-    const percentage = (value - min) / (max - min);
+    // Clamp values outside the range so out-of-range values saturate to the
+    // start/end colors rather than rendering with no color.
+    const clamped = Math.min(Math.max(value, min), max);
+    const percentage = (clamped - min) / (max - min);
 
     return interpolateColor(percentage).toString({ format: 'hex' });
 };
