@@ -1,6 +1,6 @@
 # GLITCH-452 — Cast day-or-coarser DATE_TRUNCs to DATE at compile time
 
-**Status:** shipped (v2 Phase 2, Done) · **Flag:** `EnableTimezoneSupport` (TimezoneV2), default OFF
+**Status:** shipped (v2 Phase 2, Done) · **Flag:** `EnableTimezoneSupport` (TimezoneV2), default ON since 1.22.0 (#26295)
 **PRs:** #24231 (SQL cast) + #24251 (display / predicate collapse), stacked — ship together · design doc #24208 (merged)
 **Depends on:** GLITCH-450 (merged, #24086) — the consolidated calendar-value predicate this ticket updates.
 **Follow-ups (all resolved):** GLITCH-499 (MIN/MAX), GLITCH-503 (raw-export ISO-midnight), GLITCH-505 (Date Zoom cast consistency), GLITCH-510 (raw-base TIMESTAMP date-zoom), GLITCH-506 (raw-SQL table calcs), GLITCH-508 (per-adapter cast refactor), GLITCH-507 (process-TZ raw value), GLITCH-519 (picker affordance).
@@ -9,7 +9,7 @@
 
 Grouping a TIMESTAMP column by **day / week / month / quarter / year** currently emits a `TIMESTAMP` pinned to project-TZ midnight (a UTC instant). A downstream "format-correction layer" then shifts that instant back into the project timezone and chops the clock off so it *displays* as a calendar date. This ticket makes the warehouse emit a real `DATE` for those grains, so the warehouse type matches the metadata (`DATE`) and the correction layer can be deleted.
 
-Ships behind `EnableTimezoneSupport` (default OFF) — no behavior change for anyone until a project opts in.
+Ships behind `EnableTimezoneSupport` (default ON since 1.22.0; disable with `LIGHTDASH_ENABLE_TIMEZONE_SUPPORT=false` or a per-org override).
 
 ## Implementation status & outcomes
 
@@ -146,7 +146,7 @@ Confirmed by a code walkthrough; both `raw` formats parse identically, so these 
 
 ## Customer-doc alignment
 
-The published draft (`docs/timezones/draft-user-documentation.md` / docs.lightdash.com/timezones-draft) is **consistent but doesn't explicitly document this change**: it says day-or-coarser grouping "buckets data by calendar boundaries," that `DATE` values "never shift," and its custom-SQL example ends in `::date`. It does **not** state that built-in day-grain dimensions change warehouse output type — that explicit statement lives in the internal design doc (`timezones-v2-design.md`, principle 13, `gap-date-grain-output`). No customer-doc change needed for 452.
+The published guide (docs.lightdash.com/guides/developer/timezones) is **consistent but doesn't explicitly document this change**: it says day-or-coarser grouping "buckets data by calendar boundaries," that `DATE` values "never shift," and its custom-SQL example ends in `::date`. It does **not** state that built-in day-grain dimensions change warehouse output type — that explicit statement lives in the internal design doc (`timezones-v2-design.md`, principle 13, `gap-date-grain-output`). No customer-doc change needed for 452.
 
 ## Flag-gating invariant (hard requirement)
 
@@ -158,4 +158,4 @@ Every behavior here is **100% gated behind `EnableTimezoneSupport`**. Flag OFF �
 
 ## Rollout
 
-Behind `EnableTimezoneSupport`, default OFF (v2 Phase 2). **Enable per single user first** (not whole org) until results are confirmed — keeps expectations realistic and makes turning it off quick/low-impact. Phase 3 (later) flips the default org-wide and removes the old path.
+Behind `EnableTimezoneSupport`. Shipped default OFF (v2 Phase 2) with per-user enablement; the default flipped ON in 1.22.0 (#26295). The flag still gates the old path and can be disabled per instance or per org.
