@@ -1,3 +1,10 @@
+## [1.235.6](https://github.com/lightdash/lightdash/compare/1.235.5...1.235.6) (2026-08-21)
+
+
+### Bug Fixes
+
+* **table-calculations:** preserve legacy sort semantics ([#27634](https://github.com/lightdash/lightdash/issues/27634)) ([8a96635](https://github.com/lightdash/lightdash/commit/8a96635755f5adb4eed19ba3a7707c0142f4b9c5))
+
 ## [1.235.5](https://github.com/lightdash/lightdash/compare/1.235.4...1.235.5) (2026-08-21)
 
 
