@@ -26,7 +26,6 @@ import {
     useMantineColorScheme,
 } from '@mantine/core';
 import {
-    IconChartDots3,
     IconChevronDown,
     IconChevronUp,
     IconExclamationCircle,
@@ -230,21 +229,6 @@ export const AiVisualizationRenderer: FC<Props> = ({
         [onExpandedChartConfigChange, selectedChartType],
     );
 
-    // Neutral placeholder until custom chart type rendering lands.
-    if (isCustomChartTypeAnswer) {
-        return (
-            <Center h={300}>
-                <Stack gap="xs" align="center">
-                    <MantineIcon icon={IconChartDots3} color="gray" />
-                    <Text size="sm" c="dimmed" ta="center">
-                        This answer uses a custom chart type — rendering it here
-                        is coming soon
-                    </Text>
-                </Stack>
-            </Center>
-        );
-    }
-
     if (!webAiChartConfig.echartsConfig) {
         return (
             <Center h={300}>
@@ -309,6 +293,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
                 >
                     {headerContent}
                     {webAiChartConfig.type === AiResultType.QUERY_RESULT &&
+                        !isCustomChartTypeAnswer &&
                         onChartTypeChange && (
                             <Group justify="flex-end">
                                 <AgentVisualizationChartTypeSwitcher

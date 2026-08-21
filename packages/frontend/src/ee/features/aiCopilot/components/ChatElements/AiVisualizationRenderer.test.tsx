@@ -86,6 +86,12 @@ vi.mock('../../../../../components/MetricQueryData/DrillDownModal', () => ({
     DrillDownModal: () => <div data-testid="drill-down-modal" />,
 }));
 
+vi.mock('./AgentVisualizationChartTypeSwitcher', () => ({
+    AgentVisualizationChartTypeSwitcher: () => (
+        <div data-testid="chart-type-switcher" />
+    ),
+}));
+
 const metricQuery = {
     exploreName: 'orders',
     dimensions: ['orders_order_month'],
@@ -202,6 +208,64 @@ describe('AiVisualizationRenderer interaction mode', () => {
         expect(screen.getByTestId('series-context-menu')).toBeVisible();
         expect(screen.getByTestId('underlying-data-modal')).toBeVisible();
         expect(screen.getByTestId('drill-down-modal')).toBeVisible();
+    });
+});
+
+describe('AiVisualizationRenderer custom chart type answers', () => {
+    const customChartConfig: ToolRunQueryArgs = {
+        ...chartConfig,
+        chartConfig: {
+            dataAppVizUuid: '22222222-2222-4222-8222-222222222222',
+            fieldMapping: {
+                x: 'orders_order_month',
+                y: 'orders_total_revenue',
+            },
+            optionValues: {},
+        },
+    };
+
+    const renderCustom = () =>
+        renderWithProviders(
+            <AiVisualizationRenderer
+                vizQueryData={vizQueryData}
+                results={results}
+                chartConfig={customChartConfig}
+                selectedChartType={null}
+                onChartTypeChange={() => {}}
+                displayFields={false}
+                displayFilters={false}
+                loadExplore
+            />,
+        );
+
+    it('mounts the visualization provider instead of a placeholder', () => {
+        renderCustom();
+
+        expect(screen.getByTestId('visualization-provider')).toBeVisible();
+        expect(screen.getByTestId('lightdash-visualization')).toBeVisible();
+    });
+
+    it('hides the chart type switcher even when switching is offered', () => {
+        renderCustom();
+
+        expect(screen.queryByTestId('chart-type-switcher')).toBeNull();
+    });
+
+    it('shows the chart type switcher for builtin answers', () => {
+        renderWithProviders(
+            <AiVisualizationRenderer
+                vizQueryData={vizQueryData}
+                results={results}
+                chartConfig={chartConfig}
+                selectedChartType="line"
+                onChartTypeChange={() => {}}
+                displayFields={false}
+                displayFilters={false}
+                loadExplore
+            />,
+        );
+
+        expect(screen.getByTestId('chart-type-switcher')).toBeVisible();
     });
 });
 
