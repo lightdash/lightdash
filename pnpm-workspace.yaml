@@ -94,6 +94,8 @@ minimumReleaseAgeExclude:
   - tar@7.5.21
   # Renovate security update: nanoid@3.3.17
   - nanoid@3.3.17
+  # Renovate security update: echarts@6.1.0
+  - echarts@6.1.0
 
 # pnpm 11 defaults verifyDepsBeforeRun to `install`, which re-verifies (and
 # reinstalls) node_modules before running any package script. The production
