@@ -1,0 +1,7 @@
+.panel {
+    flex-grow: 1;
+}
+
+.panel[data-hidden='true'] {
+    display: none;
+}

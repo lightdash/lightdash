@@ -67,6 +67,7 @@ import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailProvider'
 import VisualizationConfigPortal from '../VisualizationCard/VisualizationConfigPortal';
 import WarningsHoverCardContent from '../WarningsHoverCardContent';
 import { useIsGitProject } from '../WriteBackModal/hooks';
+import classes from './index.module.css';
 
 interface ExplorePanelProps {
     onBack?: () => void;
@@ -271,13 +272,10 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
 
             <Stack
                 h="100%"
-                style={{
-                    flexGrow: 1,
-                    display:
-                        !isChartGalleryEnabled && isVisualizationConfigOpen
-                            ? 'none'
-                            : 'flex',
-                }}
+                className={classes.panel}
+                data-hidden={
+                    !isChartGalleryEnabled && isVisualizationConfigOpen
+                }
             >
                 {merge?.isMerging && merge.readOnly && <MergeJoinBar />}
                 {/* The breadcrumbs, warnings and menu all belong to the

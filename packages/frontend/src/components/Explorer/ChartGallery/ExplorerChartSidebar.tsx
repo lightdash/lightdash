@@ -41,6 +41,9 @@ type Props = {
 
 type Mode = 'choose' | 'configure';
 
+const isMode = (value: string): value is Mode =>
+    value === 'choose' || value === 'configure';
+
 const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
     const [mode, setMode] = useState<Mode>('configure');
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -110,7 +113,9 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                     <SegmentedControl
                         fullWidth
                         value={mode}
-                        onChange={(value) => setMode(value as Mode)}
+                        onChange={(value) => {
+                            if (isMode(value)) setMode(value);
+                        }}
                         data={[
                             { value: 'choose', label: 'Choose type' },
                             { value: 'configure', label: 'Configure' },
