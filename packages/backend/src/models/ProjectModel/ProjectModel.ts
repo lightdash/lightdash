@@ -101,6 +101,7 @@ import {
     DbProjectMembership,
     ProjectMembershipsTableName,
 } from '../../database/entities/projectMemberships';
+import { ProjectMergedManifestsTable } from '../../database/entities/projectMergedManifests';
 import {
     CachedExploresTableName,
     CachedExploreTableName,
@@ -235,6 +236,42 @@ export class ProjectModel {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
         this.encryptionUtil = args.encryptionUtil;
+    }
+
+    async upsertMergedManifest(
+        projectUuid: string,
+        manifest: Buffer,
+    ): Promise<void> {
+        await ProjectMergedManifestsTable(this.database)
+            .insert({
+                project_uuid: projectUuid,
+                manifest,
+                created_at: this.database.fn.now() as unknown as Date,
+            })
+            .onConflict('project_uuid')
+            .merge({
+                manifest,
+                created_at: this.database.fn.now() as unknown as Date,
+            });
+    }
+
+    async getMergedManifest(projectUuid: string): Promise<Buffer> {
+        const artifact = await ProjectMergedManifestsTable(this.database)
+            .select('manifest')
+            .where('project_uuid', projectUuid)
+            .first();
+        if (!artifact) {
+            throw new NotFoundError(
+                'No merged dbt manifest has been persisted for this project',
+            );
+        }
+        return artifact.manifest;
+    }
+
+    async deleteMergedManifest(projectUuid: string): Promise<void> {
+        await ProjectMergedManifestsTable(this.database)
+            .where('project_uuid', projectUuid)
+            .delete();
     }
 
     static mergeMissingDbtConfigSecrets(

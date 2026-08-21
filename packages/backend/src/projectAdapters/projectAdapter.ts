@@ -31,6 +31,7 @@ export const projectAdapterFromConfig = async (
     // project_context.yml from (the multiple-dbt-sources merge passes the
     // primary source's checkout here). Ignored by every other adapter type.
     manifestProjectDir?: string,
+    manifestSelectedModelIds?: string[],
 ): Promise<ProjectAdapter> => {
     Logger.debug(
         `Initialize warehouse client of type ${warehouseCredentials.type}`,
@@ -70,6 +71,7 @@ export const projectAdapterFromConfig = async (
                 analytics,
                 manifest: config.manifest,
                 dbtProjectDir: manifestProjectDir,
+                selectedModelIds: manifestSelectedModelIds,
             });
 
         case DbtProjectType.DBT_CLOUD_IDE:
