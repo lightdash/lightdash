@@ -46,7 +46,7 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { useToggle } from 'react-use';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import DashboardAsCodeModal from '../../../features/contentAsCode/components/DashboardAsCodeModal';
@@ -66,6 +66,8 @@ import {
     useVerifyDashboardMutation,
 } from '../../../hooks/useContentVerification';
 import { useProject } from '../../../hooks/useProject';
+import { useProjectUrlIdentifier } from '../../../hooks/useProjectRoute';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
 import { type TilePreAggregateStatus } from '../../../providers/Dashboard/types';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -156,10 +158,8 @@ const DashboardHeader = memo(
         );
         const { search, pathname } = useLocation();
         const navigate = useNavigate();
-        const { projectUuid } = useParams<{
-            projectUuid: string;
-            organizationUuid: string;
-        }>();
+        const projectUuid = useProjectUuid();
+        const projectUrlIdentifier = useProjectUrlIdentifier();
         const dashboardUuid = dashboard.uuid;
         const dashboardIdentifier = dashboard.slug;
 
@@ -887,7 +887,7 @@ const DashboardHeader = memo(
                                                 }
                                                 onClick={() =>
                                                     navigate(
-                                                        `/projects/${projectUuid}/dashboards/${dashboardIdentifier}/history`,
+                                                        `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/history`,
                                                     )
                                                 }
                                             >

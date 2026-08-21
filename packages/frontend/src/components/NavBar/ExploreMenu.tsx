@@ -12,6 +12,7 @@ import {
 } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
+import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../providers/Ability';
 import useApp from '../../providers/App/useApp';
@@ -23,9 +24,17 @@ import { ActionType } from '../common/SpaceActionModal/types';
 
 type Props = {
     projectUuid: string;
+    projectUrlIdentifier?: string;
 };
 
-const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
+const ExploreMenu: FC<Props> = memo((props) => {
+    const { projectUuid, projectUrlIdentifier: projectUrlIdentifierProp } =
+        props;
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ??
+        projectUrlIdentifierProp ??
+        projectUuid;
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -77,7 +86,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                             component={Link}
                             title="Chart"
                             description="Build queries and save them as charts."
-                            to={`/projects/${projectUuid}/tables`}
+                            to={`/projects/${projectUrlIdentifier}/tables`}
                             icon={IconTable}
                         />
 
@@ -92,18 +101,18 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 component={Link}
                                 title="Query using SQL runner"
                                 description="Access your database to run ad-hoc queries."
-                                to={`/projects/${projectUuid}/sql-runner`}
+                                to={`/projects/${projectUrlIdentifier}/sql-runner`}
                                 onClick={(
                                     event: React.MouseEvent<HTMLAnchorElement>,
                                 ) => {
                                     if (
                                         location.pathname.startsWith(
-                                            `/projects/${projectUuid}/sql-runner`,
+                                            `/projects/${projectUrlIdentifier}/sql-runner`,
                                         )
                                     ) {
                                         event.preventDefault();
                                         window.open(
-                                            `/projects/${projectUuid}/sql-runner`,
+                                            `/projects/${projectUrlIdentifier}/sql-runner`,
                                             '_blank',
                                         );
                                     }
@@ -176,7 +185,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                     onSubmitForm={(space) => {
                         if (space)
                             void navigate(
-                                `/projects/${projectUuid}/spaces/${space.uuid}`,
+                                `/projects/${projectUrlIdentifier}/spaces/${space.uuid}`,
                             );
                     }}
                     parentSpaceUuid={null}
@@ -189,7 +198,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                     onClose={() => setIsCreateDashboardOpen(false)}
                     onConfirm={(dashboard) => {
                         void navigate(
-                            `/projects/${projectUuid}/dashboards/${dashboard.slug}/edit`,
+                            `/projects/${projectUrlIdentifier}/dashboards/${dashboard.slug}/edit`,
                         );
 
                         setIsCreateDashboardOpen(false);

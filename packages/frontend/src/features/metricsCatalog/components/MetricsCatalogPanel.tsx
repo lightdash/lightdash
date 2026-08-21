@@ -20,6 +20,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import RefreshDbtButton from '../../../components/RefreshDbtButton';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import { useProject } from '../../../hooks/useProject';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useAccount } from '../../../hooks/user/useAccount';
 import useSearchParams from '../../../hooks/useSearchParams';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
@@ -212,7 +213,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
     const timeAgo = useTimeAgo(
         lastDbtRefreshAt ?? fallbackLastDbtRefreshAtRef.current,
     );
-    const params = useParams<{ projectUuid: string }>();
+    const routeProjectUuid = useProjectUuid();
     const { data: project } = useProject(projectUuid);
     const { data: account } = useAccount();
     const { embedToken } = useEmbed();
@@ -244,12 +245,12 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
 
     useEffect(() => {
         if (
-            params.projectUuid &&
-            (!projectUuid || projectUuid !== params.projectUuid)
+            routeProjectUuid &&
+            (!projectUuid || projectUuid !== routeProjectUuid)
         ) {
-            dispatch(setProjectUuid(params.projectUuid));
+            dispatch(setProjectUuid(routeProjectUuid));
         }
-    }, [params.projectUuid, dispatch, projectUuid]);
+    }, [routeProjectUuid, dispatch, projectUuid]);
 
     useEffect(() => {
         if (

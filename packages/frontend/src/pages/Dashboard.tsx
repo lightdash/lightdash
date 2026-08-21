@@ -44,6 +44,8 @@ import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import useToaster from '../hooks/toaster/useToaster';
 import { useContentAction } from '../hooks/useContent';
+import { useProjectUrlIdentifier } from '../hooks/useProjectRoute';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import useApp from '../providers/App/useApp';
 import DashboardAiAgentContextBridge from '../providers/Dashboard/DashboardAiAgentContextBridge';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
@@ -54,12 +56,9 @@ import '../styles/react-grid.css';
 
 const Dashboard: FC = () => {
     const navigate = useNavigate();
-    const {
-        projectUuid,
-        dashboardUuid: routeDashboardIdentifier,
-        mode,
-    } = useParams<{
-        projectUuid: string;
+    const projectUuid = useProjectUuid();
+    const projectUrlIdentifier = useProjectUrlIdentifier();
+    const { dashboardUuid: routeDashboardIdentifier, mode } = useParams<{
         dashboardUuid: string;
         mode?: string;
     }>();
@@ -388,12 +387,12 @@ const Dashboard: FC = () => {
             reset();
             if (dashboardTabs.length > 1) {
                 void navigate(
-                    `/projects/${projectUuid}/dashboards/${dashboardIdentifier}/view/tabs/${activeTab?.uuid}`,
+                    `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/view/tabs/${activeTab?.uuid}`,
                     { replace: true },
                 );
             } else {
                 void navigate(
-                    `/projects/${projectUuid}/dashboards/${dashboardIdentifier}/view`,
+                    `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/view`,
                     { replace: true },
                 );
             }
@@ -402,7 +401,7 @@ const Dashboard: FC = () => {
         dashboardIdentifier,
         navigate,
         isSuccess,
-        projectUuid,
+        projectUrlIdentifier,
         reset,
         setDashboardTemporaryFilters,
         setHaveFiltersChanged,
@@ -640,12 +639,12 @@ const Dashboard: FC = () => {
 
         if (dashboardTabs.length > 0) {
             void navigate(
-                `/projects/${projectUuid}/dashboards/${dashboardIdentifier}/view/tabs/${activeTab?.uuid}`,
+                `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/view/tabs/${activeTab?.uuid}`,
                 { replace: true },
             );
         } else {
             void navigate(
-                `/projects/${projectUuid}/dashboards/${dashboardIdentifier}/view`,
+                `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/view`,
                 { replace: true },
             );
         }
@@ -653,7 +652,7 @@ const Dashboard: FC = () => {
         dashboard,
         dashboardIdentifier,
         navigate,
-        projectUuid,
+        projectUrlIdentifier,
         setDashboardTiles,
         setHaveFiltersChanged,
         setDashboardFilters,
@@ -712,11 +711,11 @@ const Dashboard: FC = () => {
             isEditMode &&
             (haveTilesChanged || haveFiltersChanged || haveTabsChanged) &&
             !nextLocation.pathname.includes(
-                `/projects/${projectUuid}/dashboards/${dashboardIdentifier}`,
+                `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}`,
             ) &&
             (!dashboardUuid ||
                 !nextLocation.pathname.includes(
-                    `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
+                    `/projects/${projectUrlIdentifier}/dashboards/${dashboardUuid}`,
                 )) &&
             // Allow user to add a new table
             !sessionStorage.getItem(`unsavedDashboardTiles:${dashboardUuid}`)
@@ -737,15 +736,15 @@ const Dashboard: FC = () => {
                 {
                     pathname:
                         dashboardTabs.length > 0
-                            ? `/projects/${projectUuid}/dashboards/${dashboardIdentifier}/edit/tabs/${activeTab?.uuid}`
-                            : `/projects/${projectUuid}/dashboards/${dashboardIdentifier}/edit`,
+                            ? `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/edit/tabs/${activeTab?.uuid}`
+                            : `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/edit`,
                     search: '',
                 },
                 { replace: true },
             );
         });
     }, [
-        projectUuid,
+        projectUrlIdentifier,
         dashboardIdentifier,
         resetDashboardFilters,
         refreshDashboardVersion,
@@ -1055,7 +1054,7 @@ const Dashboard: FC = () => {
                         onClose={deleteModalHandlers.close}
                         onConfirm={() => {
                             void navigate(
-                                `/projects/${projectUuid}/dashboards`,
+                                `/projects/${projectUrlIdentifier}/dashboards`,
                                 {
                                     replace: true,
                                 },
@@ -1085,8 +1084,8 @@ const Dashboard: FC = () => {
 };
 
 const DashboardPage: FC = () => {
-    const { projectUuid, dashboardUuid } = useParams<{
-        projectUuid: string;
+    const projectUuid = useProjectUuid();
+    const { dashboardUuid } = useParams<{
         dashboardUuid: string;
     }>();
     const { user } = useApp();

@@ -24,6 +24,7 @@ import {
     useExplorerRoute,
     useExplorerUrlState,
 } from '../hooks/useExplorerRoute';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import useApp from '../providers/App/useApp';
 import { defaultState } from '../providers/Explorer/defaultState';
 
@@ -105,10 +106,10 @@ const ExplorerWithUrlParams = memo(() => {
 });
 
 const ExplorerPage = memo(() => {
-    const { projectUuid, tableId } = useParams<{
-        projectUuid: string;
+    const { tableId } = useParams<{
         tableId?: string;
     }>();
+    const projectUuid = useProjectUuid();
 
     const { user } = useApp();
 

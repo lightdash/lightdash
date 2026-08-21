@@ -11,8 +11,8 @@ import { useDebouncedValue } from '@mantine/hooks';
 import { IconEye, IconEyeOff, IconPencil } from '@tabler/icons-react';
 import uniqBy from 'lodash/uniqBy';
 import { useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router';
 import { useChartSummariesV2 } from '../../../hooks/useChartSummariesV2';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import { SelectWithFooter } from '../../common/Select/SelectWithFooter';
@@ -47,7 +47,7 @@ const ChartUpdateModal = ({
             hideTitle,
         },
     });
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 300);
     const selectScrollRef = useRef<HTMLDivElement>(null);

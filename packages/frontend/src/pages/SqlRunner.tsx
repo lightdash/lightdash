@@ -40,6 +40,7 @@ import { HeaderVirtualView } from '../features/virtualView';
 import { type VirtualViewState } from '../features/virtualView/components/HeaderVirtualView';
 import useToaster from '../hooks/toaster/useToaster';
 import { useProject } from '../hooks/useProject';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import useSearchParams from '../hooks/useSearchParams';
 
 const SqlRunner = ({
@@ -56,7 +57,8 @@ const SqlRunner = ({
         (state) => state.sqlRunner.warehouseConnectionType,
     );
 
-    const params = useParams<{ projectUuid: string; slug?: string }>();
+    const routeProjectUuid = useProjectUuid();
+    const params = useParams<{ slug?: string }>();
     const share = useSearchParams('share');
     const shareState = useSqlRunnerShareUrl(share || undefined);
 
@@ -122,10 +124,10 @@ const SqlRunner = ({
     });
 
     useEffect(() => {
-        if (!projectUuid && params.projectUuid) {
-            dispatch(setProjectUuid(params.projectUuid));
+        if (!projectUuid && routeProjectUuid) {
+            dispatch(setProjectUuid(routeProjectUuid));
         }
-    }, [dispatch, params.projectUuid, projectUuid]);
+    }, [dispatch, routeProjectUuid, projectUuid]);
 
     // Use the SQL string from the location state if available
     useEffect(() => {

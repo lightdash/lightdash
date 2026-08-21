@@ -4,6 +4,7 @@ import { IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
+import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import MantineIcon from '../common/MantineIcon';
 
 type Props = {
@@ -11,6 +12,9 @@ type Props = {
 };
 
 export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     const navigate = useNavigate();
     const { savedQueryUuid, mode } = useParams<{
         savedQueryUuid: string;
@@ -71,7 +75,7 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
     }, [action]);
 
     const handleOnCancel = useCallback(() => {
-        if (!projectUuid) {
+        if (!projectUrlIdentifier) {
             return;
         }
         // Cancel the action and navigate back to the dashboard, restoring the existing state (in case there were some unsaved changes)
@@ -79,7 +83,7 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
         // so do not clear the storage here
         setIsCancelling(true);
 
-        let returnUrl = `/projects/${projectUuid}/dashboards/${dashboardSlug ?? dashboardUuid}/${
+        let returnUrl = `/projects/${projectUrlIdentifier}/dashboards/${dashboardSlug ?? dashboardUuid}/${
             savedQueryUuid ? 'view' : 'edit'
         }`;
 
@@ -98,7 +102,7 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
         dashboardUuid,
         activeTabUuid,
         navigate,
-        projectUuid,
+        projectUrlIdentifier,
         savedQueryUuid,
     ]);
 
