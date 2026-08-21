@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { MergeJoinType } from '../../../../types/mergeQuery';
+import { type DataAppVizChart } from '../../../../types/savedCharts';
 import {
     customMetricsSchema,
     customMetricsSchemaTransformed,
@@ -145,83 +146,178 @@ const mergeConfigSchema = z
     );
 
 // Chart-specific configuration for rendering hints
-const chartConfigSchema = z
-    .object({
-        defaultVizType: z
-            .enum([
-                'table',
-                'bar',
-                'horizontal',
-                'line',
-                'scatter',
-                'pie',
-                'funnel',
-            ])
-            .describe('The default visualization type to render'),
+const chartConfigBuiltinSchema = z.object({
+    defaultVizType: z
+        .enum([
+            'table',
+            'bar',
+            'horizontal',
+            'line',
+            'scatter',
+            'pie',
+            'funnel',
+        ])
+        .describe('The default visualization type to render'),
 
-        // Axis field selection
-        xAxisDimension: z
-            .string()
-            .nullable()
-            .describe(
-                'The dimension field ID to use for the x-axis. Must be included in queryConfig.dimensions',
-            ),
-        yAxisMetrics: z
-            .array(getFieldIdSchema({ additionalDescription: null }))
-            .nullable()
-            .describe(
-                'The metric field IDs to display on the y-axis. Must be included in queryConfig.metrics or come from tableCalculations',
-            ),
+    // Axis field selection
+    xAxisDimension: z
+        .string()
+        .nullable()
+        .describe(
+            'The dimension field ID to use for the x-axis. Must be included in queryConfig.dimensions',
+        ),
+    yAxisMetrics: z
+        .array(getFieldIdSchema({ additionalDescription: null }))
+        .nullable()
+        .describe(
+            'The metric field IDs to display on the y-axis. Must be included in queryConfig.metrics or come from tableCalculations',
+        ),
 
-        // Series creation control
-        groupBy: z
-            .array(getFieldIdSchema({ additionalDescription: null }))
-            .nullable()
-            .describe(
-                'Dimensions to split metrics into separate series (e.g., one line per region, one bar per status). IMPORTANT: Do NOT include the x-axis dimension in groupBy - only include dimensions you want to use for breaking down the data into multiple series. Example: dimensions=["order_date", "status"], groupBy=["status"] creates separate series for each status value. Leave null for simple single-series charts.',
-            ),
+    // Series creation control
+    groupBy: z
+        .array(getFieldIdSchema({ additionalDescription: null }))
+        .nullable()
+        .describe(
+            'Dimensions to split metrics into separate series (e.g., one line per region, one bar per status). IMPORTANT: Do NOT include the x-axis dimension in groupBy - only include dimensions you want to use for breaking down the data into multiple series. Example: dimensions=["order_date", "status"], groupBy=["status"] creates separate series for each status value. Leave null for simple single-series charts.',
+        ),
 
-        // Bar and horizontal bar chart specific
-        xAxisType: z
-            .enum(['category', 'time'])
-            .nullable()
-            .describe(
-                'The x-axis type can be categorical for string value or time if the dimension is a date or timestamp. Applies to bar, horizontal, and scatter charts.',
-            ),
-        stackBars: z
-            .boolean()
-            .nullable()
-            .describe(
-                'If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.',
-            ),
+    // Bar and horizontal bar chart specific
+    xAxisType: z
+        .enum(['category', 'time'])
+        .nullable()
+        .describe(
+            'The x-axis type can be categorical for string value or time if the dimension is a date or timestamp. Applies to bar, horizontal, and scatter charts.',
+        ),
+    stackBars: z
+        .boolean()
+        .nullable()
+        .describe(
+            'If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.',
+        ),
 
-        // Line chart specific
-        lineType: z
-            .enum(['line', 'area'])
-            .nullable()
-            .describe(
-                'default line. The type of line to display. If area then the area under the line will be filled in.',
-            ),
+    // Line chart specific
+    lineType: z
+        .enum(['line', 'area'])
+        .nullable()
+        .describe(
+            'default line. The type of line to display. If area then the area under the line will be filled in.',
+        ),
 
-        // Common display properties
-        xAxisLabel: z
-            .string()
-            .describe('A helpful label to explain the x-axis'),
-        yAxisLabel: z
-            .string()
-            .describe('A helpful label to explain the y-axis'),
-        secondaryYAxisMetric: z
-            .string()
-            .nullable()
-            .describe(
-                '(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count).',
-            ),
-        secondaryYAxisLabel: z
-            .string()
-            .nullable()
-            .describe('A helpful label for the secondary y-axis'),
-    })
+    // Common display properties
+    xAxisLabel: z.string().describe('A helpful label to explain the x-axis'),
+    yAxisLabel: z.string().describe('A helpful label to explain the y-axis'),
+    secondaryYAxisMetric: z
+        .string()
+        .nullable()
+        .describe(
+            '(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count).',
+        ),
+    secondaryYAxisLabel: z
+        .string()
+        .nullable()
+        .describe('A helpful label for the secondary y-axis'),
+});
+
+const customChartTypeOptionValueSchema = z.union([
+    z.string(),
+    z.number(),
+    z.boolean(),
+]);
+
+// Custom chart type branch of chartConfig — LLM-authored. Discriminated
+// structurally from the builtin branch by customChartTypeSlug.
+const chartConfigCustomChartTypeSchema = z.object({
+    customChartTypeSlug: z
+        .string()
+        .describe(
+            'Slug of the custom chart type to render this answer through. Must be a slug from availableCustomChartTypes or findCustomChartTypes.',
+        ),
+    fieldMapping: z
+        .record(z.string(), getFieldIdSchema({ additionalDescription: null }))
+        .describe(
+            "Binds the custom chart type's field slots to this query's fields: slot name (from the type's schema) → a field id selected in queryConfig. Every required slot must be bound.",
+        ),
+    options: z
+        .record(z.string(), customChartTypeOptionValueSchema)
+        .nullable()
+        .describe(
+            "Values for the type's config options, keyed by option name from the type's schema. null to use the type's defaults.",
+        ),
+});
+
+// Uuid-enriched shape the server writes into artifacts after resolving the
+// slug (mirrors the saved-chart DataAppVizChart shape). Parse-only — never
+// advertised to the model.
+const chartConfigCustomChartTypePersistedSchema = z.object({
+    dataAppVizUuid: z.string(),
+    fieldMapping: z.record(z.string(), z.string()),
+    optionValues: z
+        .record(z.string(), customChartTypeOptionValueSchema)
+        .optional(),
+});
+
+// Advertised agent contract: builtin viz config | custom chart type.
+const chartConfigAdvertisedSchema = z
+    .union([chartConfigBuiltinSchema, chartConfigCustomChartTypeSchema])
     .nullable();
+
+// Wide union used by the parse/persist schemas: accepts everything ever
+// advertised plus the uuid-enriched artifact shape.
+const chartConfigSchema = z
+    .union([
+        chartConfigBuiltinSchema,
+        chartConfigCustomChartTypeSchema,
+        chartConfigCustomChartTypePersistedSchema,
+    ])
+    .nullable();
+
+// Builtin-only view pinning surfaces that do not support custom chart types
+// (MCP run_metric_query / render_chart, the dashboard tool): their contracts
+// stay byte-identical to before the union existed.
+export const chartConfigBuiltinOnlySchema = chartConfigBuiltinSchema.nullable();
+
+export type ToolRunQueryBuiltinChartConfig = z.infer<
+    typeof chartConfigBuiltinSchema
+>;
+export type ToolRunQueryCustomChartTypeConfig = z.infer<
+    typeof chartConfigCustomChartTypeSchema
+>;
+export type ToolRunQueryCustomChartTypePersistedConfig = z.infer<
+    typeof chartConfigCustomChartTypePersistedSchema
+>;
+export type ToolRunQueryChartConfig = z.infer<typeof chartConfigSchema>;
+
+// Compile-time guard: the persisted branch must stay in lockstep with the
+// saved-chart DataAppVizChart shape (render and save-to-chart share one path).
+type AssertMutuallyAssignable<A, B> = [A] extends [B]
+    ? [B] extends [A]
+        ? true
+        : never
+    : never;
+const persistedCustomChartConfigMatchesSavedChart: AssertMutuallyAssignable<
+    ToolRunQueryCustomChartTypePersistedConfig,
+    DataAppVizChart
+> = true;
+void persistedCustomChartConfigMatchesSavedChart;
+
+export const isCustomChartTypeSlugChartConfig = (
+    chartConfig: ToolRunQueryChartConfig | undefined,
+): chartConfig is ToolRunQueryCustomChartTypeConfig =>
+    !!chartConfig && 'customChartTypeSlug' in chartConfig;
+
+export const isCustomChartTypePersistedChartConfig = (
+    chartConfig: ToolRunQueryChartConfig | undefined,
+): chartConfig is ToolRunQueryCustomChartTypePersistedConfig =>
+    !!chartConfig && 'dataAppVizUuid' in chartConfig;
+
+// Either custom branch — the thread render path treats both the same.
+export const isCustomChartTypeChartConfig = (
+    chartConfig: ToolRunQueryChartConfig | undefined,
+): chartConfig is
+    | ToolRunQueryCustomChartTypeConfig
+    | ToolRunQueryCustomChartTypePersistedConfig =>
+    isCustomChartTypeSlugChartConfig(chartConfig) ||
+    isCustomChartTypePersistedChartConfig(chartConfig);
 
 export const TOOL_RUN_QUERY_DESCRIPTION = `Execute a metric query.
 
@@ -280,10 +376,23 @@ export const toolRunQueryArgsSchemaV4 = createToolSchema()
     .extend({
         ...visualizationMetadataSchema.shape,
         queryConfig: queryConfigSchemaV4,
-        chartConfig: chartConfigSchema,
+        chartConfig: chartConfigAdvertisedSchema,
         mergeConfig: mergeConfigSchema.default(null),
     })
     .build();
+
+// MCP run_metric_query view: custom chart types are agent-only for the PoC,
+// so MCP keeps advertising (and accepting) only the builtin chart config.
+export const toolRunQueryArgsSchemaV2Mcp = toolRunQueryArgsSchemaV2.extend({
+    chartConfig: chartConfigBuiltinOnlySchema,
+});
+
+// Agent view of V2 for merge-disabled runtimes: advertises only the shapes
+// the model may author (builtin | custom slug), not the persisted branch.
+export const toolRunQueryArgsSchemaV2Advertised =
+    toolRunQueryArgsSchemaV2.extend({
+        chartConfig: chartConfigAdvertisedSchema,
+    });
 
 // V4 is the current agent contract (formula-only table calcs). MCP runQuery
 // continues to advertise V2. Historical schemas remain available solely for
@@ -328,7 +437,7 @@ export const toolRunQueryArgsSchemaV2RejectingMerge = z.preprocess(
         }
         return raw;
     },
-    toolRunQueryArgsSchemaV2,
+    toolRunQueryArgsSchemaV2Advertised,
 );
 
 export type ToolRunQueryArgsV1 = z.infer<typeof toolRunQueryArgsSchemaV1>;
@@ -387,6 +496,13 @@ export const toolRunQueryArgsSchemaTransformed: z.ZodPipeline<
 export type ToolRunQueryArgsTransformed = z.infer<
     typeof toolRunQueryArgsSchemaTransformed
 >;
+
+// Narrowed view for the builtin viz builders: dispatchers exclude the custom
+// chart type branches before calling them.
+export type ToolRunQueryArgsTransformedBuiltinChart = Omit<
+    ToolRunQueryArgsTransformed,
+    'chartConfig'
+> & { chartConfig: ToolRunQueryBuiltinChartConfig | null };
 
 // --- Backward compatibility -------------------------------------------------
 // Only for parsing tool args persisted before V2. V1 put filters,
@@ -464,7 +580,7 @@ export const toolRenderChartArgsSchema = createToolSchema()
         queryUuid: mcpAsyncQueryUuidSchema.describe(
             'Completed query UUID returned by run_metric_query (or get_query_result) in this conversation, copied from the `queryUuid: <id>` text block of that response. Do not fabricate, guess, or reuse a UUID from another query. Currently render_chart supports UUIDs from run_metric_query and does not support SQL Runner/run_sql UUIDs.',
         ),
-        chartConfig: chartConfigSchema,
+        chartConfig: chartConfigBuiltinOnlySchema,
         title: z
             .string()
             .optional()
@@ -481,7 +597,7 @@ export const toolRenderChartArgsSchema = createToolSchema()
 
 export const toolRenderChartArgsSchemaTransformed = toolRenderChartArgsSchema
     .extend({
-        chartConfig: chartConfigSchema.default(null),
+        chartConfig: chartConfigBuiltinOnlySchema.default(null),
     })
     .transform((data) => ({
         ...data,

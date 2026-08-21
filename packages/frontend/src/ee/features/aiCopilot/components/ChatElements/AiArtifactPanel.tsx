@@ -5,6 +5,7 @@ import {
     isAiAgentSqlArtifactVizQuery,
     isAiComposerChartArtifactConfig,
     isAiSqlChartArtifactConfig,
+    isCustomChartTypeChartConfig,
     parseVizConfig,
     type AiAgentChartTypeOption,
     type AiAgentMessageAssistant,
@@ -191,8 +192,13 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             selectedChartType,
         ]);
 
+        const isCustomChartTypeAnswer =
+            parsedChartConfig?.type === AiResultType.QUERY_RESULT &&
+            isCustomChartTypeChartConfig(parsedChartConfig.vizTool.chartConfig);
+
         const defaultChartType: AiAgentChartTypeOption =
-            parsedChartConfig?.type === AiResultType.QUERY_RESULT
+            parsedChartConfig?.type === AiResultType.QUERY_RESULT &&
+            !isCustomChartTypeChartConfig(parsedChartConfig.vizTool.chartConfig)
                 ? (parsedChartConfig.vizTool.chartConfig?.defaultVizType ??
                   'table')
                 : 'table';
@@ -203,8 +209,10 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             ? getGroupByDimensions(parsedChartConfig)
             : undefined;
 
+        // No chart type switcher on custom chart type answers (PoC).
         const shouldShowPill =
-            parsedChartConfig?.type === AiResultType.QUERY_RESULT;
+            parsedChartConfig?.type === AiResultType.QUERY_RESULT &&
+            !isCustomChartTypeAnswer;
 
         if (isArtifactLoading || !message) {
             return (

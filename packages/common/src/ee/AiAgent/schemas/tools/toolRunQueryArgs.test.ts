@@ -6,12 +6,17 @@ import {
 } from '../../../../types/filter';
 import { getTotalFilterRules } from '../../../../utils/filters';
 import {
+    isCustomChartTypeChartConfig,
+    isCustomChartTypePersistedChartConfig,
+    isCustomChartTypeSlugChartConfig,
     isRunQueryArgsV1,
     migrateRunQueryArgsV1ToV2,
     parsePersistedRunQueryArgs,
+    toolRunQueryArgsSchema,
     toolRunQueryArgsSchemaTransformed,
     toolRunQueryArgsSchemaV1,
     toolRunQueryArgsSchemaV2,
+    toolRunQueryArgsSchemaV2Mcp,
     toolRunQueryArgsSchemaV2RejectingMerge,
     toolRunQueryArgsSchemaV3,
 } from './toolRunQueryArgs';
@@ -249,6 +254,133 @@ describe('migrateRunQueryArgsV1ToV2', () => {
         );
         expect('filters' in v2).toBe(false);
         expect('customMetrics' in v2).toBe(false);
+    });
+});
+
+const customChartTypeChartConfig = {
+    customChartTypeSlug: 'cohort-waterfall',
+    fieldMapping: {
+        x: 'orders_order_date_month',
+        y: 'orders_revenue',
+    },
+    options: { showLegend: true },
+};
+
+const persistedCustomChartTypeChartConfig = {
+    dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+    fieldMapping: { x: 'orders_order_date_month' },
+    optionValues: { showLegend: true },
+};
+
+describe('chartConfig custom chart type union', () => {
+    it('advertised schema accepts a custom chart type config', () => {
+        const result = toolRunQueryArgsSchema.safeParse({
+            ...buildV2Args(),
+            chartConfig: customChartTypeChartConfig,
+        });
+        expect(result.success).toBe(true);
+    });
+
+    it('advertised schema rejects a custom config missing fieldMapping', () => {
+        const { fieldMapping, ...withoutMapping } = customChartTypeChartConfig;
+        expect(
+            toolRunQueryArgsSchema.safeParse({
+                ...buildV2Args(),
+                chartConfig: withoutMapping,
+            }).success,
+        ).toBe(false);
+    });
+
+    it('advertised schema does not accept the persisted uuid shape', () => {
+        expect(
+            toolRunQueryArgsSchema.safeParse({
+                ...buildV2Args(),
+                chartConfig: persistedCustomChartTypeChartConfig,
+            }).success,
+        ).toBe(false);
+    });
+
+    it('merge-rejecting agent view accepts a custom chart type config', () => {
+        expect(
+            toolRunQueryArgsSchemaV2RejectingMerge.safeParse({
+                ...buildV2Args(),
+                chartConfig: customChartTypeChartConfig,
+            }).success,
+        ).toBe(true);
+    });
+
+    it('MCP view stays pinned to the builtin chart config', () => {
+        expect(
+            toolRunQueryArgsSchemaV2Mcp.safeParse({
+                ...buildV2Args(),
+                chartConfig: customChartTypeChartConfig,
+            }).success,
+        ).toBe(false);
+        expect(
+            toolRunQueryArgsSchemaV2Mcp.safeParse(buildV2Args()).success,
+        ).toBe(true);
+    });
+
+    it('transformed schema parses both custom branches', () => {
+        expect(
+            toolRunQueryArgsSchemaTransformed.parse({
+                ...buildV2Args(),
+                chartConfig: customChartTypeChartConfig,
+            }).chartConfig,
+        ).toEqual(customChartTypeChartConfig);
+        expect(
+            toolRunQueryArgsSchemaTransformed.parse({
+                ...buildV2Args(),
+                chartConfig: persistedCustomChartTypeChartConfig,
+            }).chartConfig,
+        ).toEqual(persistedCustomChartTypeChartConfig);
+    });
+
+    it('parsePersistedRunQueryArgs parses artifacts with the uuid-enriched shape', () => {
+        const parsed = parsePersistedRunQueryArgs({
+            ...buildV2Args(),
+            mergeConfig: null,
+            chartConfig: persistedCustomChartTypeChartConfig,
+        });
+        expect(parsed?.chartConfig).toEqual(
+            persistedCustomChartTypeChartConfig,
+        );
+    });
+
+    it('guards discriminate the branches structurally', () => {
+        const builtin = toolRunQueryArgsSchemaTransformed.parse({
+            ...buildV2Args(),
+            chartConfig: {
+                defaultVizType: 'bar',
+                xAxisDimension: 'orders_order_date_month',
+                yAxisMetrics: ['orders_revenue'],
+                groupBy: null,
+                xAxisType: 'time',
+                stackBars: null,
+                lineType: null,
+                xAxisLabel: 'Month',
+                yAxisLabel: 'Revenue',
+                secondaryYAxisMetric: null,
+                secondaryYAxisLabel: null,
+            },
+        }).chartConfig;
+
+        expect(isCustomChartTypeChartConfig(builtin)).toBe(false);
+        expect(isCustomChartTypeChartConfig(null)).toBe(false);
+        expect(
+            isCustomChartTypeSlugChartConfig(customChartTypeChartConfig),
+        ).toBe(true);
+        expect(
+            isCustomChartTypePersistedChartConfig(
+                persistedCustomChartTypeChartConfig,
+            ),
+        ).toBe(true);
+        expect(isCustomChartTypeChartConfig(customChartTypeChartConfig)).toBe(
+            true,
+        );
+        expect(
+            isCustomChartTypeChartConfig(persistedCustomChartTypeChartConfig),
+        ).toBe(true);
     });
 });
 

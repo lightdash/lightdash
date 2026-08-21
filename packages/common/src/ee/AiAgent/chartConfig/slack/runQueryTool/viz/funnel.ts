@@ -1,14 +1,14 @@
 import { type EChartsOption } from 'echarts';
 import { type ItemsMap } from '../../../../../../types/field';
 import { getItemLabelWithoutTableName } from '../../../../../../utils/item';
-import { type ToolRunQueryArgsTransformed } from '../../../../schemas';
+import { type ToolRunQueryArgsTransformedBuiltinChart } from '../../../../schemas';
 import { getCommonEChartsConfig } from '../../shared/getCommonEChartsConfig';
 
 /**
  * Generates funnel chart echarts config for server-side rendering
  */
 export const getFunnelChartEchartsConfig = (
-    queryTool: ToolRunQueryArgsTransformed,
+    queryTool: ToolRunQueryArgsTransformedBuiltinChart,
     rows: Record<string, unknown>[],
     fieldsMap: ItemsMap,
 ): EChartsOption => {

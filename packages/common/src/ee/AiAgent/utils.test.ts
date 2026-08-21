@@ -45,6 +45,23 @@ describe('parseAiArtifactChartConfig', () => {
         expect(parseAiArtifactChartConfig(config)).toEqual(config);
     });
 
+    it('accepts semantic configs with a custom chart type answer (uuid-enriched shape)', () => {
+        const config = {
+            source: 'semantic',
+            config: {
+                ...semanticConfig,
+                mergeConfig: null,
+                chartConfig: {
+                    dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+                    fieldMapping: { x: 'orders_created_month' },
+                    optionValues: { showLegend: true },
+                },
+            },
+        } as const;
+
+        expect(parseAiArtifactChartConfig(config)).toEqual(config);
+    });
+
     it('drops legacy SQL execution UUIDs', () => {
         expect(
             parseAiArtifactChartConfig({

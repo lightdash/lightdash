@@ -1,4 +1,7 @@
-import { type ToolRunQueryArgs } from '@lightdash/common';
+import {
+    isCustomChartTypeChartConfig,
+    type ToolRunQueryArgs,
+} from '@lightdash/common';
 import { Group, Text } from '@mantine/core';
 import type { FC } from 'react';
 import { ToolCallChip } from '../ToolCallChip';
@@ -15,7 +18,9 @@ export const QueryResultToolCallDescription: FC<
 > = ({ title, queryConfig, chartConfig }) => {
     const dimensions = queryConfig?.dimensions || [];
     const metrics = queryConfig?.metrics || [];
-    const groupBy = chartConfig?.groupBy || [];
+    const groupBy =
+        (!isCustomChartTypeChartConfig(chartConfig) && chartConfig?.groupBy) ||
+        [];
     const customMetricsArray = queryConfig?.customMetrics || [];
     const tableCalculationsArray = queryConfig?.tableCalculations || [];
 

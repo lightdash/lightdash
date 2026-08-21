@@ -4,6 +4,7 @@ import {
     ECHARTS_DEFAULT_COLORS,
     getGroupByDimensions,
     getWebAiChartConfig,
+    isCustomChartTypeChartConfig,
     type AiAgentChartTypeOption,
     type ApiAiAgentThreadMessageVizQuery,
     type ChartConfig,
@@ -25,6 +26,7 @@ import {
     useMantineColorScheme,
 } from '@mantine/core';
 import {
+    IconChartDots3,
     IconChevronDown,
     IconChevronUp,
     IconExclamationCircle,
@@ -207,8 +209,13 @@ export const AiVisualizationRenderer: FC<Props> = ({
     const displayDetails =
         fieldsCount > 0 || filtersCount > 0 || parametersCount > 0;
 
+    const isCustomChartTypeAnswer =
+        webAiChartConfig.type === AiResultType.QUERY_RESULT &&
+        isCustomChartTypeChartConfig(webAiChartConfig.vizTool.chartConfig);
+
     const defaultChartType: AiAgentChartTypeOption =
-        webAiChartConfig.type === AiResultType.QUERY_RESULT
+        webAiChartConfig.type === AiResultType.QUERY_RESULT &&
+        !isCustomChartTypeChartConfig(webAiChartConfig.vizTool.chartConfig)
             ? (webAiChartConfig.vizTool.chartConfig?.defaultVizType ?? 'table')
             : 'table';
 
@@ -222,6 +229,21 @@ export const AiVisualizationRenderer: FC<Props> = ({
         },
         [onExpandedChartConfigChange, selectedChartType],
     );
+
+    // Neutral placeholder until custom chart type rendering lands.
+    if (isCustomChartTypeAnswer) {
+        return (
+            <Center h={300}>
+                <Stack gap="xs" align="center">
+                    <MantineIcon icon={IconChartDots3} color="gray" />
+                    <Text size="sm" c="dimmed" ta="center">
+                        This answer uses a custom chart type — rendering it here
+                        is coming soon
+                    </Text>
+                </Stack>
+            </Center>
+        );
+    }
 
     if (!webAiChartConfig.echartsConfig) {
         return (

@@ -178,6 +178,7 @@ const makeAgentTools = () => {
             runAsyncQuery: noop,
             sendFile: noop,
             updateProgress: noopAsync,
+            resolveCustomChartType: noop,
         }),
         runSavedChart: getRunSavedChart({
             enableDataAccess: true,
