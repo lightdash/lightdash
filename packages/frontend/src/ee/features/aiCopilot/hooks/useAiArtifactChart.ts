@@ -1,25 +1,65 @@
 import {
-    isAiMergeChartArtifactConfig,
+    assertUnreachable,
+    getDataAppVizChartFromArtifact,
     type AiChartArtifactConfig,
+    type AiLegacySemanticChartArtifactConfig,
     type ApiAiAgentThreadMessageVizQuery,
+    type DataAppVizChart,
 } from '@lightdash/common';
 import { useCompiledSqlFromMetricQuery } from '../../../../hooks/useCompiledSql';
 import { useAiMergeCompiledSql } from './useAiMergeCompiledSql';
 
+type AiArtifactChartSource = {
+    isMergeArtifact: boolean;
+    /** Tool args driving the semantic query render paths, when any. */
+    semanticChartConfig: AiLegacySemanticChartArtifactConfig | null;
+    /** Set for custom chart type answers: uuid from the envelope + mapping. */
+    customChartType: DataAppVizChart | null;
+};
+
 /** Resolves an artifact's chart config into the shape the renderers consume. */
 export const getAiArtifactChartSource = (
     chartConfig: AiChartArtifactConfig | null | undefined,
-) => {
-    const mergeChartConfig = isAiMergeChartArtifactConfig(chartConfig)
-        ? chartConfig
-        : null;
-    return {
-        isMergeArtifact: mergeChartConfig !== null,
-        semanticChartConfig:
-            chartConfig?.source === 'semantic'
-                ? chartConfig.config
-                : (mergeChartConfig?.config ?? null),
-    };
+): AiArtifactChartSource => {
+    if (!chartConfig) {
+        return {
+            isMergeArtifact: false,
+            semanticChartConfig: null,
+            customChartType: null,
+        };
+    }
+    switch (chartConfig.source) {
+        case 'semantic':
+            return {
+                isMergeArtifact: false,
+                semanticChartConfig: chartConfig.config,
+                customChartType: null,
+            };
+        case 'merge':
+            return {
+                isMergeArtifact: true,
+                semanticChartConfig: chartConfig.config,
+                customChartType: null,
+            };
+        case 'customChartType':
+            return {
+                isMergeArtifact: false,
+                semanticChartConfig: chartConfig.config,
+                customChartType: getDataAppVizChartFromArtifact(chartConfig),
+            };
+        case 'sql':
+        case 'composer':
+            return {
+                isMergeArtifact: false,
+                semanticChartConfig: null,
+                customChartType: null,
+            };
+        default:
+            return assertUnreachable(
+                chartConfig,
+                'Unknown AI artifact chart config source',
+            );
+    }
 };
 
 /** The SQL behind an artifact's View SQL action, for both query shapes. */

@@ -112,6 +112,7 @@ import {
     ListWarehouseTablesFn,
     LoadAgentSkillFn,
     ReadContentFn,
+    ResolveCustomChartTypeFn,
     ResolveUrlFn,
     RunAsyncMergeQueryFn,
     RunAsyncQueryFn,
@@ -207,6 +208,7 @@ export type AiAgentToolsRuntime = {
     findExplores: FindExploresFn;
     listCustomChartTypes: ListCustomChartTypesFn;
     findCustomChartTypes: FindCustomChartTypesFn;
+    resolveCustomChartType: ResolveCustomChartTypeFn;
     getVerifiedFieldUsage: GetVerifiedFieldUsageFn;
     findFields: FindFieldsFn;
     findContent: FindContentFn;
@@ -579,6 +581,8 @@ export class AiAgentToolsService extends BaseService {
             listCustomChartTypes: () => this.listCustomChartTypes(context),
             findCustomChartTypes: (args) =>
                 this.findCustomChartTypes(context, args),
+            resolveCustomChartType: (slug) =>
+                this.resolveCustomChartType(context, slug),
             getVerifiedFieldUsage: () => this.getVerifiedFieldUsage(context),
             findFields: (args) => this.findFields(context, args),
             findContent: (args) => this.findContent(context, args),
@@ -904,6 +908,30 @@ export class AiAgentToolsService extends BaseService {
                 return this.parseCustomChartTypes(data);
             },
         );
+    }
+
+    // Slug → the data needed to validate and persist an answer rendered
+    // through a custom chart type. Null when the slug doesn't resolve.
+    private async resolveCustomChartType(
+        context: AiAgentToolsRuntimeContext,
+        slug: string,
+    ): ReturnType<ResolveCustomChartTypeFn> {
+        if (!(await this.customChartTypesEnabled(context))) {
+            return null;
+        }
+        const row = await this.appModel.findDataAppVisualizationBySlug(
+            context.projectUuid,
+            slug,
+        );
+        if (!row) return null;
+        const parsed = dataAppVizSchema.safeParse(row.viz_schema);
+        if (!parsed.success) {
+            this.logger.warn(
+                `Cannot resolve custom chart type "${slug}": persisted viz_schema failed validation`,
+            );
+            return null;
+        }
+        return { dataAppVizUuid: row.app_id, schema: parsed.data };
     }
 
     private findFields(

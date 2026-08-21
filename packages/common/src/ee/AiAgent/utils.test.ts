@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { AiResultType } from './types';
 import {
+    getDataAppVizChartFromArtifact,
     getMcpToolBaseName,
     parseAiArtifactChartConfig,
     parseVizConfig,
@@ -31,6 +32,12 @@ const semanticConfig = {
     },
 };
 
+const customChartTypeSlugChartConfig = {
+    customChartTypeSlug: 'cohort-waterfall',
+    fieldMapping: { x: 'orders_created_month', y: 'orders_revenue' },
+    options: { showLegend: true },
+};
+
 describe('parseAiArtifactChartConfig', () => {
     it('normalizes legacy semantic configs', () => {
         expect(parseAiArtifactChartConfig(semanticConfig)).toEqual({
@@ -43,6 +50,74 @@ describe('parseAiArtifactChartConfig', () => {
         const config = { source: 'semantic', config: semanticConfig } as const;
 
         expect(parseAiArtifactChartConfig(config)).toEqual(config);
+    });
+
+    it('round-trips a customChartType envelope', () => {
+        const config = {
+            source: 'customChartType',
+            schemaVersion: 1,
+            dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+            config: {
+                ...semanticConfig,
+                chartConfig: customChartTypeSlugChartConfig,
+            },
+        } as const;
+
+        // The V3 schema parse fills defaulted fields the persisted value omits.
+        expect(parseAiArtifactChartConfig(config)).toEqual({
+            ...config,
+            config: {
+                ...config.config,
+                mergeConfig: null,
+                queryConfig: { ...config.config.queryConfig, parameters: null },
+            },
+        });
+    });
+
+    it('rejects a customChartType envelope whose config is not the slug branch', () => {
+        expect(
+            parseAiArtifactChartConfig({
+                source: 'customChartType',
+                schemaVersion: 1,
+                dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+                config: semanticConfig,
+            }),
+        ).toBeNull();
+    });
+
+    it('rejects semantic configs carrying a custom chart type slug chartConfig', () => {
+        expect(
+            parseAiArtifactChartConfig({
+                source: 'semantic',
+                config: {
+                    ...semanticConfig,
+                    chartConfig: customChartTypeSlugChartConfig,
+                },
+            }),
+        ).toBeNull();
+        // Legacy bare shape too.
+        expect(
+            parseAiArtifactChartConfig({
+                ...semanticConfig,
+                chartConfig: customChartTypeSlugChartConfig,
+            }),
+        ).toBeNull();
+    });
+
+    it('rejects semantic configs carrying the retired uuid-enriched chartConfig', () => {
+        expect(
+            parseAiArtifactChartConfig({
+                source: 'semantic',
+                config: {
+                    ...semanticConfig,
+                    chartConfig: {
+                        dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+                        fieldMapping: { x: 'orders_created_month' },
+                        optionValues: { showLegend: true },
+                    },
+                },
+            }),
+        ).toBeNull();
     });
 
     it('drops legacy SQL execution UUIDs', () => {
@@ -113,6 +188,54 @@ describe('parseAiArtifactChartConfig', () => {
 
     it('rejects invalid configs', () => {
         expect(parseAiArtifactChartConfig({ source: 'sql' })).toBeNull();
+    });
+});
+
+describe('getDataAppVizChartFromArtifact', () => {
+    it('builds the saved-chart shape from envelope uuid + verbatim tool args', () => {
+        expect(
+            getDataAppVizChartFromArtifact({
+                source: 'customChartType',
+                schemaVersion: 1,
+                dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+                config: {
+                    ...semanticConfig,
+                    queryConfig: {
+                        ...semanticConfig.queryConfig,
+                        parameters: null,
+                    },
+                    chartConfig: customChartTypeSlugChartConfig,
+                },
+            }),
+        ).toEqual({
+            dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+            fieldMapping: customChartTypeSlugChartConfig.fieldMapping,
+            optionValues: { showLegend: true },
+        });
+    });
+
+    it('omits optionValues when the model set no options', () => {
+        expect(
+            getDataAppVizChartFromArtifact({
+                source: 'customChartType',
+                schemaVersion: 1,
+                dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+                config: {
+                    ...semanticConfig,
+                    queryConfig: {
+                        ...semanticConfig.queryConfig,
+                        parameters: null,
+                    },
+                    chartConfig: {
+                        ...customChartTypeSlugChartConfig,
+                        options: null,
+                    },
+                },
+            }),
+        ).toEqual({
+            dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+            fieldMapping: customChartTypeSlugChartConfig.fieldMapping,
+        });
     });
 });
 

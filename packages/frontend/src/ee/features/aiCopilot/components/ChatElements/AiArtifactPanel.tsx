@@ -5,6 +5,7 @@ import {
     isAiAgentSqlArtifactVizQuery,
     isAiComposerChartArtifactConfig,
     isAiSqlChartArtifactConfig,
+    isCustomChartTypeSlugChartConfig,
     parseVizConfig,
     type AiAgentChartTypeOption,
     type AiAgentMessageAssistant,
@@ -119,7 +120,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
         )
             ? artifactChartConfig
             : undefined;
-        const { isMergeArtifact, semanticChartConfig } =
+        const { isMergeArtifact, semanticChartConfig, customChartType } =
             getAiArtifactChartSource(artifactData?.chartConfig);
 
         const vizConfig = useMemo(() => {
@@ -191,8 +192,15 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             selectedChartType,
         ]);
 
+        // Custom chart type answers are recognized by the artifact envelope
+        // source, not by the shape of the stored tool args.
+        const isCustomChartTypeAnswer = customChartType !== null;
+
         const defaultChartType: AiAgentChartTypeOption =
-            parsedChartConfig?.type === AiResultType.QUERY_RESULT
+            parsedChartConfig?.type === AiResultType.QUERY_RESULT &&
+            !isCustomChartTypeSlugChartConfig(
+                parsedChartConfig.vizTool.chartConfig,
+            )
                 ? (parsedChartConfig.vizTool.chartConfig?.defaultVizType ??
                   'table')
                 : 'table';
@@ -203,8 +211,10 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             ? getGroupByDimensions(parsedChartConfig)
             : undefined;
 
+        // No chart type switcher on custom chart type answers (PoC).
         const shouldShowPill =
-            parsedChartConfig?.type === AiResultType.QUERY_RESULT;
+            parsedChartConfig?.type === AiResultType.QUERY_RESULT &&
+            !isCustomChartTypeAnswer;
 
         if (isArtifactLoading || !message) {
             return (
@@ -466,6 +476,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                         vizQueryData={semanticVizQueryData}
                         results={queryResults}
                         chartConfig={semanticChartConfig}
+                        customChartType={customChartType}
                         selectedChartType={selectedChartType}
                         headerContent={floatingHead}
                         loadExplore={!isMergeArtifact}

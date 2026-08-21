@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 import {
+    chartConfigBuiltinOnlySchema,
     toolRunQueryArgsSchema,
     toolRunQueryArgsSchemaPersisted,
     toolRunQueryArgsSchemaTransformed,
@@ -26,8 +27,12 @@ Recommended Dashboard Structure:
 7. **Detailed Breakdowns**: Add tables with more detail and specific line items that have the biggest impact on metrics
 `;
 
-// Dashboard visualization schema - use generateVisualization format for each visualization
-const dashboardV2VisualizationSchema = toolRunQueryArgsSchema;
+// Dashboard visualization schema - use generateVisualization format for each
+// visualization. Custom chart types are thread-only for the PoC, so each
+// dashboard visualization pins the builtin-only chart config.
+const dashboardV2VisualizationSchema = toolRunQueryArgsSchema.extend({
+    chartConfig: chartConfigBuiltinOnlySchema,
+});
 
 // Persisted artifacts may carry legacy template table calcs the advertised
 // (formula-only) viz schema no longer accepts; type as the wide persisted shape.

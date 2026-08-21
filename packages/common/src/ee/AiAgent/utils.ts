@@ -1,12 +1,15 @@
+import { type DataAppVizChart } from '../../types/savedCharts';
 import { isAiComposerChartArtifactConfig } from './composerArtifact';
 import { AI_DEFAULT_MAX_QUERY_LIMIT } from './constants';
 import type {
     AiChartArtifactConfig,
+    AiCustomChartTypeChartArtifactConfig,
     AiLegacySemanticChartArtifactConfig,
 } from './index';
 import {
     convertAiTableCalcsSchemaToTableCalcs,
     filterAggregationCustomMetrics,
+    isCustomChartTypeSlugChartConfig,
     metricQueryTableViz,
     metricQueryTimeSeriesViz,
     metricQueryVerticalBarViz,
@@ -147,6 +150,17 @@ export const parseVizConfig = (
     return null;
 };
 
+// Semantic artifacts are builtin-only: a custom chart type answer is stored
+// in its own envelope, never as a slug config under source 'semantic'.
+const isBuiltinSemanticVizConfig = (raw: object): boolean => {
+    const parsed = parseVizConfig(raw);
+    if (!parsed) return false;
+    return !(
+        parsed.type === AiResultType.QUERY_RESULT &&
+        isCustomChartTypeSlugChartConfig(parsed.vizTool.chartConfig)
+    );
+};
+
 export const parseAiArtifactChartConfig = (
     config: unknown,
 ): AiChartArtifactConfig | null => {
@@ -154,6 +168,31 @@ export const parseAiArtifactChartConfig = (
 
     if (isAiComposerChartArtifactConfig(config)) {
         return config;
+    }
+
+    if (
+        'source' in config &&
+        config.source === 'customChartType' &&
+        'schemaVersion' in config &&
+        config.schemaVersion === 1 &&
+        'dataAppVizUuid' in config &&
+        typeof config.dataAppVizUuid === 'string' &&
+        'config' in config
+    ) {
+        const parsed = toolRunQueryArgsSchemaPersisted.safeParse(config.config);
+        if (
+            parsed.success &&
+            !parsed.data.mergeConfig &&
+            isCustomChartTypeSlugChartConfig(parsed.data.chartConfig)
+        ) {
+            return {
+                source: 'customChartType',
+                schemaVersion: 1,
+                dataAppVizUuid: config.dataAppVizUuid,
+                config: parsed.data,
+            };
+        }
+        return null;
     }
 
     if (
@@ -195,7 +234,7 @@ export const parseAiArtifactChartConfig = (
         'config' in config &&
         config.config &&
         typeof config.config === 'object' &&
-        parseVizConfig(config.config)
+        isBuiltinSemanticVizConfig(config.config)
     ) {
         return {
             source: 'semantic',
@@ -203,7 +242,7 @@ export const parseAiArtifactChartConfig = (
         };
     }
 
-    if (parseVizConfig(config)) {
+    if (isBuiltinSemanticVizConfig(config)) {
         return {
             source: 'semantic',
             config: config as AiLegacySemanticChartArtifactConfig,
@@ -211,4 +250,19 @@ export const parseAiArtifactChartConfig = (
     }
 
     return null;
+};
+
+// The saved-chart shape a custom chart type answer renders and saves with:
+// the server-derived uuid from the envelope plus the model's field mapping
+// and option values from the verbatim tool args.
+export const getDataAppVizChartFromArtifact = (
+    artifactConfig: AiCustomChartTypeChartArtifactConfig,
+): DataAppVizChart | null => {
+    const { chartConfig } = artifactConfig.config;
+    if (!isCustomChartTypeSlugChartConfig(chartConfig)) return null;
+    return {
+        dataAppVizUuid: artifactConfig.dataAppVizUuid,
+        fieldMapping: chartConfig.fieldMapping,
+        ...(chartConfig.options ? { optionValues: chartConfig.options } : {}),
+    };
 };

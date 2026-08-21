@@ -1,5 +1,8 @@
 import { type EChartsOption } from 'echarts';
-import { type ToolRunQueryArgsTransformed } from '../../../schemas';
+import {
+    isCustomChartTypeSlugChartConfig,
+    type ToolRunQueryArgsTransformed,
+} from '../../../schemas';
 import { type GetPivotedResultsFn, type QueryResults } from '../types';
 import { getBarChartEchartsConfig } from './viz/bar';
 import { getFunnelChartEchartsConfig } from './viz/funnel';
@@ -21,13 +24,22 @@ export const getRunQueryEchartsConfig = async (
     queryResults: QueryResults,
     getPivotedResults: GetPivotedResultsFn,
 ): Promise<EChartsOption | null> => {
-    const chartType = queryTool.chartConfig?.defaultVizType ?? 'table';
+    const { chartConfig } = queryTool;
+
+    // Custom chart types have no echarts image render (iframe-based) —
+    // callers fall back to sending results as CSV.
+    if (isCustomChartTypeSlugChartConfig(chartConfig)) {
+        return Promise.resolve(null);
+    }
+
+    const chartType = chartConfig?.defaultVizType ?? 'table';
 
     // Don't render table as image
     if (chartType === 'table') {
         return Promise.resolve(null);
     }
 
+    const builtinQueryTool = { ...queryTool, chartConfig };
     const { rows, fields: fieldsMap } = queryResults;
 
     // Empty data - don't render
@@ -38,7 +50,7 @@ export const getRunQueryEchartsConfig = async (
     switch (chartType) {
         case 'bar':
             return getBarChartEchartsConfig(
-                queryTool,
+                builtinQueryTool,
                 rows,
                 fieldsMap,
                 getPivotedResults,
@@ -46,7 +58,7 @@ export const getRunQueryEchartsConfig = async (
 
         case 'horizontal':
             return getHorizontalBarChartEchartsConfig(
-                queryTool,
+                builtinQueryTool,
                 rows,
                 fieldsMap,
                 getPivotedResults,
@@ -54,7 +66,7 @@ export const getRunQueryEchartsConfig = async (
 
         case 'line':
             return getLineChartEchartsConfig(
-                queryTool,
+                builtinQueryTool,
                 rows,
                 fieldsMap,
                 getPivotedResults,
@@ -62,17 +74,21 @@ export const getRunQueryEchartsConfig = async (
 
         case 'scatter':
             return getScatterChartEchartsConfig(
-                queryTool,
+                builtinQueryTool,
                 rows,
                 fieldsMap,
                 getPivotedResults,
             );
 
         case 'pie':
-            return getPieChartEchartsConfig(queryTool, rows);
+            return getPieChartEchartsConfig(builtinQueryTool, rows);
 
         case 'funnel':
-            return getFunnelChartEchartsConfig(queryTool, rows, fieldsMap);
+            return getFunnelChartEchartsConfig(
+                builtinQueryTool,
+                rows,
+                fieldsMap,
+            );
 
         default:
             return Promise.resolve(null);

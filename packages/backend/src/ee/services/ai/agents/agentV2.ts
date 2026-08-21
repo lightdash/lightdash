@@ -860,6 +860,7 @@ export const getAgentTools = (
         enableDataAccess: args.enableDataAccess,
         projectParameterDefinitions,
         enableMergeQueries: args.enableMergeQueries,
+        resolveCustomChartType: dependencies.resolveCustomChartType,
     });
 
     const runSavedChart = getRunSavedChart({

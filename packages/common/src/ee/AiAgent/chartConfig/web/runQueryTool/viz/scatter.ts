@@ -5,7 +5,7 @@ import {
     ChartType,
     type CartesianChartConfig,
 } from '../../../../../../types/savedCharts';
-import { type ToolRunQueryArgsTransformed } from '../../../../schemas';
+import { type ToolRunQueryArgsTransformedBuiltinChart } from '../../../../schemas';
 import { formatFieldLabel } from '../../../shared/formatFieldLabel';
 import { formatPivotValueLabel } from '../../shared/formatPivotValueLabel';
 
@@ -16,10 +16,13 @@ export const getScatterChartConfig = ({
     chartConfig,
     metadata,
 }: {
-    queryTool: ToolRunQueryArgsTransformed;
+    queryTool: ToolRunQueryArgsTransformedBuiltinChart;
     metricQuery: MetricQuery;
     fieldsMap: ItemsMap;
-    chartConfig: ToolRunQueryArgsTransformed['chartConfig'] | null | undefined;
+    chartConfig:
+        | ToolRunQueryArgsTransformedBuiltinChart['chartConfig']
+        | null
+        | undefined;
     metadata: { title: string; description: string };
 }): CartesianChartConfig => {
     const { dimensions, metrics } = queryTool.queryConfig;

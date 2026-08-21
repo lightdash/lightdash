@@ -69,6 +69,7 @@ import {
     ReadContentFn,
     ReadPinnedThreadFn,
     RecordSqlApprovalFn,
+    ResolveCustomChartTypeFn,
     ResolveUrlFn,
     RunAsyncMergeQueryFn,
     RunAsyncQueryFn,
@@ -308,6 +309,7 @@ export type AiAgentDependencies = {
     findExplores: FindExploresFn;
     listCustomChartTypes: ListCustomChartTypesFn;
     findCustomChartTypes: FindCustomChartTypesFn;
+    resolveCustomChartType: ResolveCustomChartTypeFn;
     getVerifiedFieldUsage: GetVerifiedFieldUsageFn;
     searchSemanticLayer: SearchSemanticLayerFn;
     analyzeFieldImpact: AnalyzeFieldImpactFn;

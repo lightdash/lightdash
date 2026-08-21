@@ -19,6 +19,7 @@ import {
     CustomChartTypeLibrary,
     DashboardAsCode,
     DashboardSearchResult,
+    DataAppVizSchema,
     DbtProjectType,
     Explore,
     FieldImpactReport,
@@ -109,6 +110,14 @@ export type ListCustomChartTypesFn = () => Promise<CustomChartTypeLibrary>;
 export type FindCustomChartTypesFn = (
     args: { query: string } | { slug: string },
 ) => Promise<CustomChartType[]>;
+
+// Resolves a project-scoped custom chart type slug to the data it takes to
+// validate and persist an answer rendered through it. Null when the slug does
+// not resolve to a schema-bearing custom chart type in this project.
+export type ResolveCustomChartTypeFn = (slug: string) => Promise<{
+    dataAppVizUuid: string;
+    schema: DataAppVizSchema;
+} | null>;
 
 export type FindFieldResult = {
     fields: CatalogField[];
