@@ -1,5 +1,6 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { DurationInput } from '.';
 import { renderWithProviders } from '../../../testing/testUtils';
@@ -68,13 +69,49 @@ describe('DurationInput', () => {
 
     it('keeps the typed amount and re-emits seconds on unit change', async () => {
         const onChange = vi.fn();
-        renderWithProviders(
-            <DurationInput label="Duration" value={5} onChange={onChange} />,
-        );
+        const Controlled = () => {
+            const [value, setValue] = useState<number | null>(5);
+            return (
+                <DurationInput
+                    label="Duration"
+                    value={value}
+                    onChange={(seconds) => {
+                        onChange(seconds);
+                        setValue(seconds);
+                    }}
+                />
+            );
+        };
+        renderWithProviders(<Controlled />);
         await userEvent.click(unitSelect());
         await userEvent.click(await screen.findByText('minutes'));
         expect(unitSelect()).toHaveValue('minutes');
         expect(onChange).toHaveBeenLastCalledWith(300);
+    });
+
+    it('keeps the chosen unit while the value still divides by it', async () => {
+        const { rerender } = renderWithProviders(
+            <DurationInput label="Duration" value={3000} onChange={vi.fn()} />,
+        );
+        expect(unitSelect()).toHaveValue('minutes');
+        // 60 minutes must not flip to "1 hour" while the user is typing
+        rerender(
+            <DurationInput label="Duration" value={3600} onChange={vi.fn()} />,
+        );
+        expect(screen.getByLabelText('Duration')).toHaveValue('60');
+        expect(unitSelect()).toHaveValue('minutes');
+    });
+
+    it('re-derives the unit when the parent sets a value it cannot express', async () => {
+        const { rerender } = renderWithProviders(
+            <DurationInput label="Duration" value={7200} onChange={vi.fn()} />,
+        );
+        expect(unitSelect()).toHaveValue('hours');
+        rerender(
+            <DurationInput label="Duration" value={90} onChange={vi.fn()} />,
+        );
+        expect(screen.getByLabelText('Duration')).toHaveValue('90');
+        expect(unitSelect()).toHaveValue('seconds');
     });
 
     it('emits null when cleared', async () => {

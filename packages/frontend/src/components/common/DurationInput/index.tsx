@@ -58,11 +58,17 @@ export const DurationInput: FC<DurationInputProps> = ({
             : [...units].sort(
                   (a, b) => DURATION_UNIT_SECONDS[a] - DURATION_UNIT_SECONDS[b],
               )[0];
-    const [unit, setUnit] = useState<DurationUnit>(
+    const [selectedUnit, setUnit] = useState<DurationUnit>(
         () =>
             (value !== null ? findExactUnit(value, units) : null) ??
             fallbackUnit,
     );
+    // Keep the user's unit while it still divides the value; if the parent
+    // sets a value it can't express (e.g. a form reset), re-derive it.
+    const unit =
+        value === null || value % DURATION_UNIT_SECONDS[selectedUnit] === 0
+            ? selectedUnit
+            : (findExactUnit(value, units) ?? selectedUnit);
     const multiplier = DURATION_UNIT_SECONDS[unit];
     const amount = value === null ? '' : value / multiplier;
 
