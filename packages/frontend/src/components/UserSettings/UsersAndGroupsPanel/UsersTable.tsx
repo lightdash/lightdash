@@ -311,7 +311,8 @@ const UsersTable: FC = () => {
                 accessorKey: 'role',
                 header: 'Role',
                 enableSorting: false,
-                size: 200,
+                // Wide enough for a set of three small role pills on one line
+                size: 260,
                 Cell: ({ row }) => {
                     const user = row.original;
                     if (multipleRolesEnabled) {

@@ -1,5 +1,6 @@
 import { MultiSelect, Tooltip } from '@mantine/core';
 import { useCallback, useMemo } from 'react';
+import classes from './RoleSetMultiSelect.module.css';
 
 export type RoleOption = { value: string; label: string };
 
@@ -113,6 +114,7 @@ export function RoleSetMultiSelect<TSystemRole extends string>({
                 placeholder={
                     toValues(value).length === 0 ? placeholder : undefined
                 }
+                classNames={{ inputField: classes.inputField }}
                 searchable
                 hidePickedOptions
                 comboboxProps={{ withinPortal: true }}

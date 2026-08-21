@@ -77,7 +77,7 @@ export const OrganizationRoleSetCell: FC<Props> = ({
             onChange={onChange}
             disabled={disabled || isPending}
             ariaLabel={`Roles for ${user.email}`}
-            w={280}
+            w={260}
         />
     );
 };
