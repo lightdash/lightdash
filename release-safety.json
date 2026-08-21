@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "1.236.0",
-  "previousVersion": "1.235.6",
-  "releaseDate": "2026-08-21T15:53:12.472Z",
+  "version": "1.236.1",
+  "previousVersion": "1.236.0",
+  "releaseDate": "2026-08-21T16:04:47.243Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260820145644_add_results_cache_ttl_to_projects.ts",
-        "edition": "core",
-        "tables": [
-          "projects"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

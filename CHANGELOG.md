@@ -1,3 +1,10 @@
+## [1.236.1](https://github.com/lightdash/lightdash/compare/1.236.0...1.236.1) (2026-08-21)
+
+
+### Bug Fixes
+
+* **frontend:** hide metrics nav without access ([#27804](https://github.com/lightdash/lightdash/issues/27804)) ([1ece2b4](https://github.com/lightdash/lightdash/commit/1ece2b453fa2fcdc9562e1b52e3326bdf4be2a81))
+
 # [1.236.0](https://github.com/lightdash/lightdash/compare/1.235.6...1.236.0) (2026-08-21)
 
 
