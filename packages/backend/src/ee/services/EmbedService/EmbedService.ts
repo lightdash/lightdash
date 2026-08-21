@@ -17,6 +17,7 @@ import {
     DashboardAvailableFilters,
     DashboardDAO,
     DashboardFilters,
+    DATA_APP_VIZ_TEMPLATE,
     DateGranularity,
     DateZoom,
     DecodedEmbed,
@@ -2578,6 +2579,20 @@ export class EmbedService extends BaseService {
                         throw new ForbiddenError(
                             'This data app is not authorized for standalone embedding',
                         );
+                    }
+                    // Custom chart types are chart-rendering content, not
+                    // standalone apps — `allowAllApps` and stale allowlist
+                    // entries must not make them embeddable as apps. Chart
+                    // embeds render vizs through the viz-specific endpoints.
+                    if (content.appUuid !== undefined) {
+                        const app = await this.appModel.findAppByUuid(
+                            content.appUuid,
+                        );
+                        if (app?.template === DATA_APP_VIZ_TEMPLATE) {
+                            throw new ForbiddenError(
+                                'Custom chart types cannot be embedded as standalone data apps',
+                            );
+                        }
                     }
                 }
 
