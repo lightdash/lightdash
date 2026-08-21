@@ -33,7 +33,10 @@ import {
     loadReleaseSafetyIndex,
     writeReleaseSafetyIndex,
 } from './release-safety-index';
-import type { MigrationDetail } from './release-safety-migrations';
+import type {
+    MigrationDetail,
+    MigrationOperation,
+} from './release-safety-migrations';
 import {
     isMigrationPath,
     readMigrationMetadata,
@@ -124,6 +127,7 @@ export interface BuildMarkerInput {
     /** null when migrations could not be determined (e.g. first release / no prev tag) */
     migrations: MigrationsResult | null;
     migrationDetails?: MigrationDetail[];
+    migrationOperations?: MigrationOperation[];
     migrationMetadataComplete?: boolean;
     declarationMetadataComplete?: boolean;
     declaredBreaks?: BreakingChangeDeclaration[];
@@ -192,6 +196,64 @@ export interface SqlLintSummary {
     breaking: boolean;
     /** Pre-rendered finding strings for the marker note. */
     findings: string[];
+}
+
+export interface DeterministicSafetyInput {
+    migrations: MigrationsResult | null;
+    migrationOperations?: readonly MigrationOperation[];
+    migrationMetadataComplete?: boolean;
+    declarationMetadataComplete?: boolean;
+    declaredBreaks?: readonly BreakingChangeDeclaration[];
+    config?: ConfigSurface | null;
+    restApi?: ApiSurface | null;
+    mcpApi?: ApiSurface | null;
+    sqlLint?: SqlLintSummary | null;
+}
+
+const DETERMINISTIC_OPERATION_SAFETY = {
+    'create-index-concurrently': true,
+    'create-unique-index-concurrently': false,
+    'drop-index-concurrently-if-exists': true,
+    'set-statement-timeout': true,
+    'reset-statement-timeout': true,
+    'set-lock-timeout': true,
+    'reset-lock-timeout': true,
+    'select-invalid-index': true,
+    unknown: false,
+} satisfies Record<MigrationOperation, boolean>;
+
+export function isDeterministicallyRollingUpdateSafe(
+    input: DeterministicSafetyInput,
+): boolean {
+    const operations = input.migrationOperations ?? [];
+    return (
+        input.migrations?.present === true &&
+        input.migrationMetadataComplete === true &&
+        input.declarationMetadataComplete === true &&
+        input.restApi?.checked === true &&
+        input.restApi.breaking === false &&
+        input.mcpApi?.checked === true &&
+        input.mcpApi.breaking === false &&
+        input.config?.checked === true &&
+        input.config.breaking === false &&
+        (input.declaredBreaks?.length ?? 0) === 0 &&
+        !(input.sqlLint?.ran && input.sqlLint.breaking) &&
+        operations.length > 0 &&
+        operations.every(
+            (operation) =>
+                DETERMINISTIC_OPERATION_SAFETY[operation] === true,
+        )
+    );
+}
+
+export function isAiReviewEligible(input: DeterministicSafetyInput): boolean {
+    const apiBreak =
+        input.restApi?.breaking === true || input.mcpApi?.breaking === true;
+    return (
+        apiBreak ||
+        (input.migrations?.present === true &&
+            !isDeterministicallyRollingUpdateSafe(input))
+    );
 }
 
 /**
@@ -263,9 +325,16 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
     );
     const fullyChecked =
         rest.checked && mcp.checked && config.checked && metadataComplete;
+    const deterministicallySafe = isDeterministicallyRollingUpdateSafe(input);
 
     let rollingUpdateSafe: TriState = 'unknown';
-    if (present === false && fullyChecked && !apiBreak && !deterministicBreak) {
+    if (
+        (present === false &&
+            fullyChecked &&
+            !apiBreak &&
+            !deterministicBreak) ||
+        deterministicallySafe
+    ) {
         rollingUpdateSafe = true;
     }
     if (linterFlagged || deterministicBreak) {
@@ -645,20 +714,27 @@ export async function generateReleaseSafety(
 
     // P6: gated AI rolling-update review — the VALIDATION layer over the
     // deterministic detectors. Runs when a key is present AND something was flagged
-    // worth validating: a migration is present (even a linter-clean one — it can
-    // recognise an expand/contract the linter can't), OR a REST/MCP break was
-    // flagged (it decides whether an in-flight frontend/client actually breaks). It
-    // is fed the deterministic breaking lists so it validates exactly what the
-    // detectors found. Any degrade leaves the verdict at the linter floor /
+    // worth validating: a migration is not deterministically proven safe, OR a
+    // REST/MCP break was flagged (it decides whether an in-flight frontend/client
+    // actually breaks). It is fed the deterministic breaking lists so it validates
+    // exactly what the detectors found. Any degrade leaves the verdict at the linter
+    // floor /
     // cautious default and never fails the release.
     const restBreakingChanges =
         restApi?.checked && restApi.breaking === true ? restApi.changes : [];
     const mcpBreakingChanges =
         mcpApi?.checked && mcpApi.breaking === true ? mcpApi.changes : [];
-    const reviewable =
-        migrations?.present === true ||
-        restBreakingChanges.length > 0 ||
-        mcpBreakingChanges.length > 0;
+    const reviewable = isAiReviewEligible({
+        migrations,
+        migrationOperations: migrationMetadata.operations,
+        migrationMetadataComplete: migrationMetadata.complete,
+        declarationMetadataComplete: declarations.diagnostics.length === 0,
+        declaredBreaks: declarations.added,
+        config,
+        restApi,
+        mcpApi,
+        sqlLint,
+    });
     let aiReview: AiReviewSummary | null = null;
     if (wantAiReview && markerEnabled && reviewable && args.lastTag) {
         const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -761,6 +837,7 @@ export async function generateReleaseSafety(
                 : new Date().toISOString()),
         migrations,
         migrationDetails: migrationMetadata.migrations,
+        migrationOperations: migrationMetadata.operations,
         migrationMetadataComplete: migrationMetadata.complete,
         declarationMetadataComplete: declarations.diagnostics.length === 0,
         declaredBreaks: declarations.added,

@@ -85,6 +85,7 @@ test('analyzer reads core tables and forward heaviness only', () => {
                 scansTable: true,
             },
         },
+        operations: ['unknown'],
         complete: true,
         incompleteReasons: [],
     });
@@ -167,7 +168,7 @@ test('raw SQL built from a local constant reads as fully as a literal', () => {
             const IndexName = 'analytics_chart_views_user_uuid_timestamp_idx';
             export async function up(knex) {
                 await knex.raw(\`DROP INDEX CONCURRENTLY IF EXISTS \${IndexName}\`);
-                await knex.raw(
+                await knex.raw<{ rowCount: number }>(
                     \`CREATE INDEX CONCURRENTLY \${IndexName} ON \${TableName} (user_uuid, timestamp)\`,
                 );
             }
@@ -179,7 +180,103 @@ test('raw SQL built from a local constant reads as fully as a literal', () => {
         rewritesTable: false,
         scansTable: true,
     });
+    assert.deepStrictEqual(result.operations, [
+        'create-index-concurrently',
+        'drop-index-concurrently-if-exists',
+    ]);
     assert.strictEqual(result.complete, true);
+});
+
+test('analyzer extracts the compatible index migration ancillary operations', () => {
+    const coreResult = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260820153000_index.ts',
+        `
+            const TableName = 'analytics_chart_views';
+            const IndexName = 'analytics_chart_views_user_uuid_timestamp_index';
+            export async function up(knex) {
+                await knex.raw('SET statement_timeout = 0');
+                await knex.raw(
+                    \`SELECT 1
+                     FROM pg_class
+                     JOIN pg_index ON pg_index.indexrelid = pg_class.oid
+                     WHERE pg_class.relname = ?
+                       AND pg_index.indrelid = ?::regclass
+                       AND NOT pg_index.indisvalid\`,
+                    [IndexName, TableName],
+                );
+                await knex.raw(\`DROP INDEX CONCURRENTLY IF EXISTS \${IndexName}\`);
+                await knex.raw(
+                    \`CREATE INDEX CONCURRENTLY IF NOT EXISTS \${IndexName} ON \${TableName} (user_uuid, timestamp)\`,
+                );
+                await knex.raw('RESET statement_timeout');
+            }
+        `,
+    );
+    assert.deepStrictEqual(coreResult.operations, [
+        'create-index-concurrently',
+        'drop-index-concurrently-if-exists',
+        'reset-statement-timeout',
+        'select-invalid-index',
+        'set-statement-timeout',
+    ]);
+
+    const eeResult = analyzeMigrationSource(
+        'packages/backend/src/ee/database/migrations/20260820150000_index.ts',
+        `
+            const IndexName = 'ai_thread_organization_uuid_index';
+            export async function up(knex) {
+                await knex.raw(\`SET lock_timeout = '10s'\`);
+                await knex.raw(
+                    \`SELECT 1 FROM pg_index i
+                     JOIN pg_class c ON c.oid = i.indexrelid
+                     WHERE c.relname = '\${IndexName}' AND NOT i.indisvalid\`,
+                );
+                await knex.raw('RESET lock_timeout');
+            }
+        `,
+    );
+    assert.deepStrictEqual(eeResult.operations, [
+        'reset-lock-timeout',
+        'select-invalid-index',
+        'set-lock-timeout',
+    ]);
+});
+
+test('unique concurrent indexes remain a distinct unsupported operation', () => {
+    const result = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260820160000_unique.ts',
+        `
+            export async function up(knex) {
+                await knex.raw('CREATE UNIQUE INDEX CONCURRENTLY users_email_idx ON users (email)');
+            }
+        `,
+    );
+    assert.deepStrictEqual(result.operations, [
+        'create-unique-index-concurrently',
+    ]);
+    assert.deepStrictEqual(result.migration.heaviness, {
+        locksTable: false,
+        rewritesTable: false,
+        scansTable: true,
+    });
+    assert.strictEqual(result.complete, true);
+});
+
+test('mixed and unsupported database work cannot produce an empty operation set', () => {
+    const result = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260820170000_mixed.ts',
+        `
+            export async function up(knex) {
+                await knex.raw('CREATE INDEX CONCURRENTLY users_name_idx ON users (name)');
+                await knex.raw('ALTER TABLE users ADD COLUMN nickname text');
+                await knex.schema.createTable('settings', () => undefined);
+            }
+        `,
+    );
+    assert.deepStrictEqual(result.operations, [
+        'create-index-concurrently',
+        'unknown',
+    ]);
 });
 
 test('numeric constants substitute as readily as string ones', () => {
@@ -459,6 +556,23 @@ test('IO accepts safe and breaking classifications for incomplete metadata', () 
             rmSync(directory, { force: true, recursive: true });
         }
     }
+});
+
+test('IO exposes the operation set from the real compatible index migration', () => {
+    const result = readMigrationMetadata({
+        paths: [
+            'packages/backend/src/database/migrations/20260820153000_index_analytics_chart_views_user_uuid_timestamp.ts',
+        ],
+        ref: 'HEAD',
+    });
+    assert.deepStrictEqual(result.operations, [
+        'create-index-concurrently',
+        'drop-index-concurrently-if-exists',
+        'reset-statement-timeout',
+        'select-invalid-index',
+        'set-statement-timeout',
+    ]);
+    assert.strictEqual(result.complete, true);
 });
 
 test('loads and runs without repository dependency resolution', () => {
