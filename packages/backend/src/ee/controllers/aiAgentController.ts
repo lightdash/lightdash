@@ -989,6 +989,39 @@ export class AiAgentController extends BaseController {
     }
 
     /**
+     * Permanently delete an AI agent thread and everything derived from it.
+     * Available to the thread owner and to agent admins.
+     * @summary Delete AI agent thread
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('/{agentUuid}/threads/{threadUuid}')
+    @OperationId('deleteAgentThread')
+    async deleteAgentThread(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: UUID,
+        @Path() threadUuid: UUID,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        await this.getAiAgentService().deleteAgentThread(
+            toSessionUser(req.account),
+            agentUuid,
+            threadUuid,
+        );
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
      * Get the writeback pull request associated with a thread — the PR the
      * agent opened in this thread, or the PR a verification thread verifies.
      * @summary Get AI agent thread pull request

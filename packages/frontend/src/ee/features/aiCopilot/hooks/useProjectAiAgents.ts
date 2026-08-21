@@ -40,7 +40,7 @@ import {
     type UseInfiniteQueryOptions,
     type UseQueryOptions,
 } from '@tanstack/react-query';
-import { useNavigate } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { lightdashApi } from '../../../../api';
 import useHealth from '../../../../hooks/health/useHealth';
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
@@ -559,6 +559,72 @@ export const useInfiniteAiAgentThreads = (
         },
         enabled: !!projectUuid,
         ...options,
+    });
+};
+
+const deleteAgentThread = async (
+    projectUuid: string,
+    agentUuid: string,
+    threadUuid: string,
+) =>
+    lightdashApi<ApiSuccessEmpty>({
+        version: 'v1',
+        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/threads/${threadUuid}`,
+        method: 'DELETE',
+        body: undefined,
+    });
+
+export const useDeleteAiAgentThreadMutation = (projectUuid: string) => {
+    const navigate = useNavigate();
+    const queryClient = useQueryClient();
+    const { showToastApiError, showToastSuccess } = useToaster();
+    const { threadUuid: activeThreadUuid } = useParams();
+
+    return useMutation<
+        ApiSuccessEmpty,
+        ApiError,
+        { agentUuid: string; threadUuid: string }
+    >({
+        mutationFn: ({ agentUuid, threadUuid }) =>
+            deleteAgentThread(projectUuid, agentUuid, threadUuid),
+        onSuccess: async (_result, { agentUuid, threadUuid }) => {
+            showToastSuccess({ title: 'Thread deleted' });
+            // Leave the thread page before touching the cache, otherwise the
+            // still-mounted thread query refetches the deleted thread and 404s
+            if (threadUuid === activeThreadUuid) {
+                await navigate(
+                    `${getAiAgentPageBase(projectUuid)}/${agentUuid}/threads`,
+                );
+            }
+            queryClient.removeQueries({
+                queryKey: [
+                    AI_AGENTS_KEY,
+                    projectUuid,
+                    agentUuid,
+                    'threads',
+                    threadUuid,
+                ],
+            });
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey: [AI_AGENTS_KEY, projectUuid, PROJECT_THREADS_KEY],
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: [
+                        AI_AGENTS_KEY,
+                        projectUuid,
+                        agentUuid,
+                        'threads',
+                    ],
+                }),
+            ]);
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to delete thread',
+                apiError: error,
+            });
+        },
     });
 };
 

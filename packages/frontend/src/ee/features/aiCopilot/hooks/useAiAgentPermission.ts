@@ -29,6 +29,24 @@ export const useCanCreateAiAgentThread = (projectUuid?: string) => {
     );
 };
 
+export const useCanManageAiAgentThread = ({
+    projectUuid,
+    threadUserUuid,
+}: {
+    projectUuid?: string;
+    threadUserUuid?: string;
+}) => {
+    const { user } = useApp();
+    return !!user.data?.ability.can(
+        'manage',
+        subject('AiAgentThread', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+            userUuid: threadUserUuid,
+        }),
+    );
+};
+
 export const useAiAgentOrgPermission = ({
     action,
 }: {

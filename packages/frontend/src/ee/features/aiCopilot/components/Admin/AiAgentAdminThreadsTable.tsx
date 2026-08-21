@@ -29,6 +29,7 @@ import {
     IconThumbDown,
     IconThumbUp,
     IconTilde,
+    IconTrash,
     IconUser,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -50,6 +51,7 @@ import { useIsTruncated } from '../../../../../hooks/useIsTruncated';
 import SlackSvg from '../../../../../svgs/slack.svg?react';
 import {
     useAiAgentAdminReviewItems,
+    useDeleteAiAgentAdminThread,
     useDownloadAiAgentAdminThreadDump,
     useInfiniteAiAgentAdminThreads,
 } from '../../hooks/useAiAgentAdmin';
@@ -76,12 +78,14 @@ type AiAgentAdminThreadsTableProps = {
     onThreadSelect?: (thread: AiAgentAdminThreadSummary) => void;
     selectedThread?: AiAgentAdminThreadSummary | null;
     setSelectedThread?: (thread: AiAgentAdminThreadSummary) => void;
+    onThreadDeleted?: (threadUuid: string) => void;
 };
 
 const AiAgentAdminThreadsTable = ({
     onThreadSelect,
     setSelectedThread,
     selectedThread,
+    onThreadDeleted,
 }: AiAgentAdminThreadsTableProps) => {
     const theme = useMantineTheme();
     const navigate = useNavigate();
@@ -111,6 +115,18 @@ const AiAgentAdminThreadsTable = ({
         },
         [hasAcceptedThreadDumpNotice, downloadThreadDump],
     );
+
+    const { mutateAsync: deleteThread, isLoading: isDeletingThread } =
+        useDeleteAiAgentAdminThread();
+    const [pendingDeleteThreadUuid, setPendingDeleteThreadUuid] = useState<
+        string | null
+    >(null);
+    const handleDeleteThread = useCallback(async () => {
+        if (!pendingDeleteThreadUuid) return;
+        await deleteThread(pendingDeleteThreadUuid);
+        onThreadDeleted?.(pendingDeleteThreadUuid);
+        setPendingDeleteThreadUuid(null);
+    }, [deleteThread, onThreadDeleted, pendingDeleteThreadUuid]);
 
     const {
         search,
@@ -770,32 +786,49 @@ const AiAgentAdminThreadsTable = ({
         },
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { estimateSize: () => 72, overscan: 40 },
-        enableRowActions: isThreadDumpEnabled,
+        enableRowActions: true,
         positionActionsColumn: 'last',
         renderRowActions: ({ row }) => {
             const thread = row.original;
             return (
-                <Tooltip
-                    label="Download debug dump"
-                    openDelay={300}
-                    withinPortal
-                >
-                    <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        aria-label="Download debug dump"
-                        loading={
-                            isDownloadingThreadDump &&
-                            downloadingThreadUuid === thread.uuid
-                        }
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            handleDownloadThreadDump(thread.uuid);
-                        }}
-                    >
-                        <MantineIcon icon={IconFileDownload} />
-                    </ActionIcon>
-                </Tooltip>
+                <Group gap={0} wrap="nowrap">
+                    {isThreadDumpEnabled && (
+                        <Tooltip
+                            label="Download debug dump"
+                            openDelay={300}
+                            withinPortal
+                        >
+                            <ActionIcon
+                                variant="subtle"
+                                color="gray"
+                                aria-label="Download debug dump"
+                                loading={
+                                    isDownloadingThreadDump &&
+                                    downloadingThreadUuid === thread.uuid
+                                }
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDownloadThreadDump(thread.uuid);
+                                }}
+                            >
+                                <MantineIcon icon={IconFileDownload} />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
+                    <Tooltip label="Delete thread" openDelay={300} withinPortal>
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            aria-label="Delete thread"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setPendingDeleteThreadUuid(thread.uuid);
+                            }}
+                        >
+                            <MantineIcon icon={IconTrash} />
+                        </ActionIcon>
+                    </Tooltip>
+                </Group>
             );
         },
     });
@@ -831,6 +864,16 @@ const AiAgentAdminThreadsTable = ({
                     </Text>
                 </Stack>
             </MantineModal>
+            <MantineModal
+                opened={pendingDeleteThreadUuid !== null}
+                onClose={() => setPendingDeleteThreadUuid(null)}
+                title="Delete thread"
+                variant="delete"
+                resourceType="thread"
+                description="The whole conversation and everything derived from it will be permanently deleted. This action cannot be undone."
+                onConfirm={handleDeleteThread}
+                confirmLoading={isDeletingThread}
+            />
         </>
     );
 };

@@ -9651,12 +9651,7 @@ export class AiAgentModel {
         };
     }
 
-    /**
-     * Deletes one batch of expired threads plus the derived rows the FK
-     * graph does not cascade: memories distilled from a thread, runSql
-     * approval decisions (keyed by tool call id), and pinned-context
-     * references. Everything else is covered by ON DELETE CASCADE.
-     */
+    /** Deletes one batch of expired threads via the shared cascade. */
     async deleteExpiredThreads(
         organizationUuid: string,
         batchSize: number,
@@ -9691,37 +9686,83 @@ export class AiAgentModel {
                 return { deletedThreadUuids, deletedMemoriesCount: 0 };
             }
 
-            await trx(AiSqlApprovalTableName)
-                .whereIn('tool_call_id', (builder) =>
-                    builder
-                        .select(`${AiAgentToolCallTableName}.tool_call_id`)
-                        .from(AiAgentToolCallTableName)
-                        .join(
-                            AiPromptTableName,
-                            `${AiPromptTableName}.ai_prompt_uuid`,
-                            `${AiAgentToolCallTableName}.ai_prompt_uuid`,
-                        )
-                        .whereIn(
-                            `${AiPromptTableName}.ai_thread_uuid`,
-                            deletedThreadUuids,
-                        ),
-                )
-                .delete();
-
-            await trx(AiPromptContextTableName)
-                .where('entity_type', 'thread')
-                .whereIn('entity_uuid', deletedThreadUuids)
-                .delete();
-
-            const deletedMemoriesCount = await trx(AiAgentMemoryTableName)
-                .whereIn('source_thread_uuid', deletedThreadUuids)
-                .delete();
-
-            await trx(AiThreadTableName)
-                .whereIn('ai_thread_uuid', deletedThreadUuids)
-                .delete();
+            const { deletedMemoriesCount } =
+                await AiAgentModel.deleteThreadsCascade(
+                    trx,
+                    deletedThreadUuids,
+                );
 
             return { deletedThreadUuids, deletedMemoriesCount };
         });
+    }
+
+    /**
+     * Deletes a single thread on demand with the same cascade as retention
+     * cleanup. Returns undefined when the thread does not exist in the org.
+     */
+    async deleteThread({
+        organizationUuid,
+        threadUuid,
+    }: {
+        organizationUuid: string;
+        threadUuid: string;
+    }): Promise<{ deletedMemoriesCount: number } | undefined> {
+        return this.database.transaction(async (trx) => {
+            const locked = await trx(AiThreadTableName)
+                .where({
+                    ai_thread_uuid: threadUuid,
+                    organization_uuid: organizationUuid,
+                })
+                .forUpdate()
+                .first('ai_thread_uuid');
+            if (!locked) return undefined;
+
+            const { deletedMemoriesCount } =
+                await AiAgentModel.deleteThreadsCascade(trx, [threadUuid]);
+            return { deletedMemoriesCount };
+        });
+    }
+
+    /**
+     * Removes the derived rows the FK graph does not cascade — memories
+     * distilled from a thread, runSql approval decisions (keyed by tool call
+     * id), and pinned-context references — then the threads themselves.
+     * Everything else is covered by ON DELETE CASCADE.
+     */
+    private static async deleteThreadsCascade(
+        trx: Knex.Transaction,
+        deletedThreadUuids: string[],
+    ): Promise<{ deletedMemoriesCount: number }> {
+        await trx(AiSqlApprovalTableName)
+            .whereIn('tool_call_id', (builder) =>
+                builder
+                    .select(`${AiAgentToolCallTableName}.tool_call_id`)
+                    .from(AiAgentToolCallTableName)
+                    .join(
+                        AiPromptTableName,
+                        `${AiPromptTableName}.ai_prompt_uuid`,
+                        `${AiAgentToolCallTableName}.ai_prompt_uuid`,
+                    )
+                    .whereIn(
+                        `${AiPromptTableName}.ai_thread_uuid`,
+                        deletedThreadUuids,
+                    ),
+            )
+            .delete();
+
+        await trx(AiPromptContextTableName)
+            .where('entity_type', 'thread')
+            .whereIn('entity_uuid', deletedThreadUuids)
+            .delete();
+
+        const deletedMemoriesCount = await trx(AiAgentMemoryTableName)
+            .whereIn('source_thread_uuid', deletedThreadUuids)
+            .delete();
+
+        await trx(AiThreadTableName)
+            .whereIn('ai_thread_uuid', deletedThreadUuids)
+            .delete();
+
+        return { deletedMemoriesCount };
     }
 }

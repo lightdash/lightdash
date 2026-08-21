@@ -45,6 +45,7 @@ import {
 } from '@lightdash/common';
 import {
     Body,
+    Delete,
     Get,
     Hidden,
     Middlewares,
@@ -169,6 +170,34 @@ export class AiAgentAdminController extends BaseController {
         return {
             status: 'ok',
             results: dump,
+        };
+    }
+
+    /**
+     * Permanently delete an AI agent thread and everything derived from it.
+     * @summary Delete AI agent thread
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('/threads/{threadUuid}')
+    @OperationId('deleteAdminAiAgentThread')
+    async deleteThread(
+        @Request() req: express.Request,
+        @Path() threadUuid: UUID,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getAiAgentAdminService().deleteThread(
+            toSessionUser(req.account),
+            threadUuid,
+        );
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 

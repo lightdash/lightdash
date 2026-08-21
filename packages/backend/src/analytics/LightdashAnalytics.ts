@@ -2602,6 +2602,20 @@ export type AiAgentCreatedEvent = BaseTrack & {
     };
 };
 
+// Content-free audit trail for on-demand thread deletion.
+export type AiAgentThreadDeletedEvent = BaseTrack & {
+    event: 'ai_agent.thread_deleted';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string | null;
+        threadId: string;
+        memoriesDeleted: number;
+        deletedVia: 'admin' | 'owner';
+    };
+};
+
 export type AiAgentThreadsRetentionCleanedEvent = BaseTrack & {
     event: 'ai_agent.threads_retention_cleaned';
     anonymousId: string;
@@ -3447,6 +3461,7 @@ type TypedEvent =
     | SubtotalQueryEvent
     | DeprecatedRouteCalled
     | AiAgentCreatedEvent
+    | AiAgentThreadDeletedEvent
     | AiAgentThreadsRetentionCleanedEvent
     | AiAgentProvisioningFailedEvent
     | AiAgentGithubMcpConnectedEvent

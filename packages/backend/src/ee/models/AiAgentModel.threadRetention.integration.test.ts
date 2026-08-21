@@ -449,4 +449,45 @@ describe('AiAgentModel thread retention integration', () => {
         expect(preview.agentCount).toBeGreaterThanOrEqual(1);
         expect(await threadExists(oldThread)).toBe(true);
     });
+
+    it('deletes a thread on demand regardless of retention windows and in-flight guards, with the full cascade', async () => {
+        const agentUuid = await createAgent(null);
+        const threadUuid = await createThread(agentUuid, 0);
+        const promptUuid = await addPrompt(threadUuid, {
+            responded: false,
+            createdHoursAgo: 0,
+        });
+        const toolCallId = await addRunSqlToolCall(promptUuid);
+        await database(AiSqlApprovalTableName).insert({
+            tool_call_id: toolCallId,
+            decision: 'approved',
+            decided_by_user_uuid: userUuid,
+        });
+        await addMemory(agentUuid, threadUuid);
+
+        const result = await model.deleteThread({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            threadUuid,
+        });
+
+        expect(result).toEqual({ deletedMemoriesCount: 1 });
+        expect(await threadExists(threadUuid)).toBe(false);
+        const orphanedApproval = await database(AiSqlApprovalTableName)
+            .where('tool_call_id', toolCallId)
+            .first();
+        expect(orphanedApproval).toBeUndefined();
+    });
+
+    it('does not delete a thread on demand for the wrong organization', async () => {
+        const agentUuid = await createAgent(null);
+        const threadUuid = await createThread(agentUuid, 0);
+
+        const result = await model.deleteThread({
+            organizationUuid: '00000000-0000-0000-0000-000000000000',
+            threadUuid,
+        });
+
+        expect(result).toBeUndefined();
+        expect(await threadExists(threadUuid)).toBe(true);
+    });
 });

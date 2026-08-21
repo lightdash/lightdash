@@ -79,6 +79,11 @@ export const AiThreadsSettingsPage = () => {
                 onThreadSelect={handleThreadSelect}
                 selectedThread={selectedThread}
                 setSelectedThread={setSelectedThread}
+                onThreadDeleted={(threadUuid) => {
+                    if (selectedThread?.uuid === threadUuid) {
+                        handleCloseSidebar();
+                    }
+                }}
             />
 
             <Drawer
