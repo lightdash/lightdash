@@ -178,6 +178,36 @@ describe('lightdash pgwire handlers: describe vs query', () => {
         expect(runExploreQuery).not.toHaveBeenCalled();
     });
 
+    it('accepts database-qualified table names the way Postgres does', async () => {
+        const sql =
+            'SELECT "orders_status" FROM "project-uuid"."public"."orders" LIMIT 1';
+        await expect(handlers.describe(session, sql)).resolves.toEqual([
+            { name: 'orders_status', oid: 25 },
+        ]);
+        await expect(handlers.query(session, sql)).resolves.toMatchObject({
+            type: 'rows',
+            rows: [['completed']],
+        });
+        // catalog queries too
+        await expect(
+            handlers.query(
+                session,
+                'select relname from "project-uuid"."pg_catalog"."pg_class" where relnamespace = 2200 order by 1',
+            ),
+        ).resolves.toMatchObject({ rows: [['orders']] });
+        // a parseable statement that merely mentions the database name is untouched
+        await expect(
+            handlers.query(session, `select '"project-uuid"."a"."b"' as s`),
+        ).resolves.toMatchObject({ rows: [['"project-uuid"."a"."b"']] });
+        // a different database's qualifier still fails like Postgres
+        await expect(
+            handlers.query(
+                session,
+                'SELECT "orders_status" FROM "other-db"."public"."orders"',
+            ),
+        ).rejects.toMatchObject({ code: '42601' });
+    });
+
     it('surfaces compile errors from describe with the same SQLSTATE as query', async () => {
         const sql = 'SELECT nope FROM orders';
         await expect(handlers.describe(session, sql)).rejects.toMatchObject({
