@@ -45,12 +45,53 @@ describe('ConfigurePanel', () => {
         expect(screen.getByText('Generated options')).toBeInTheDocument();
     });
 
+    it('shows every accepted field with its type and requirement', () => {
+        renderPanel({
+            schema: {
+                fields: [
+                    {
+                        name: 'category',
+                        label: 'Category',
+                        type: 'dimension',
+                        required: true,
+                    },
+                    {
+                        name: 'value',
+                        label: 'Value',
+                        type: 'metric',
+                        required: true,
+                    },
+                    {
+                        name: 'series',
+                        label: 'Group by',
+                        type: 'series',
+                        required: false,
+                    },
+                ],
+                configOptions: schema.configOptions,
+                colorPalette: null,
+            },
+        });
+
+        fireEvent.click(screen.getByRole('tab', { name: 'Fields' }));
+
+        expect(screen.getByText('Accepted fields')).toBeInTheDocument();
+        expect(screen.getByText('Category')).toBeInTheDocument();
+        expect(screen.getByText('Value')).toBeInTheDocument();
+        expect(screen.getByText('Group by')).toBeInTheDocument();
+        expect(screen.getAllByText('Required')).toHaveLength(2);
+        expect(screen.getByText('Optional')).toBeInTheDocument();
+        expect(screen.getAllByText('dimension')).toHaveLength(2);
+        expect(screen.getByText('metric')).toBeInTheDocument();
+        expect(screen.queryByText('series')).not.toBeInTheDocument();
+    });
+
     it('splits the declared options into one tab per group', () => {
         renderPanel();
 
         expect(
             screen.getAllByRole('tab').map((tab) => tab.textContent),
-        ).toEqual(['Display', 'Style']);
+        ).toEqual(['Display', 'Style', 'Fields']);
         expect(screen.getByLabelText('Show grid')).toBeInTheDocument();
         expect(screen.queryByLabelText('Show markers')).not.toBeInTheDocument();
     });
@@ -79,14 +120,17 @@ describe('ConfigurePanel', () => {
         expect(screen.getByLabelText('Show grid')).toBeChecked();
     });
 
-    it('says so when a chart type declares nothing to configure', () => {
+    it('keeps an empty fields tab when no options are declared', () => {
         renderPanel({
             schema: { fields: [], configOptions: [], colorPalette: null },
         });
 
-        expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: 'Fields' })).toHaveAttribute(
+            'aria-selected',
+            'true',
+        );
         expect(
-            screen.getByText('This chart type declares no display options.'),
+            screen.getByText('This chart type accepts no data fields.'),
         ).toBeInTheDocument();
     });
 });

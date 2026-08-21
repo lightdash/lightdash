@@ -32,6 +32,24 @@
     white-space: nowrap;
 }
 
+.acceptedFields {
+    padding: var(--mantine-spacing-sm);
+}
+
+.fieldRow {
+    padding-block: var(--mantine-spacing-xs);
+    border-bottom: 1px solid var(--mantine-color-ldGray-1);
+}
+
+.fieldRow:last-child {
+    border-bottom: 0;
+}
+
+.fieldDetails {
+    min-width: 0;
+    flex: 1;
+}
+
 .tabs {
     display: flex;
     flex-direction: column;
