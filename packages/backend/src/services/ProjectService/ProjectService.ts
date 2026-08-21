@@ -87,6 +87,7 @@ import {
     getAvailableFilterFieldIds,
     getAvailableParametersFromTables,
     getColumnTimezone,
+    getCompiledModels,
     getCustomSqlFieldKey,
     getDashboardFilterRulesForTables,
     getDbtEnvironmentVariableKeyError,
@@ -4591,8 +4592,10 @@ export class ProjectService extends BaseService {
         // The primary git adapter is only read for its manifest here; the merged
         // MANIFEST adapter is what compiles, so destroy the primary clone in finally.
         manifestFetchAdapters.push(primary.adapter);
-        const { manifest: primaryManifest } =
-            await primary.adapter.getDbtManifest();
+        const {
+            manifest: primaryManifest,
+            selectedModelIds: primarySelectedModelIds,
+        } = await primary.adapter.getDbtManifest();
 
         // A credential error fails the whole deploy by name, matching every
         // other per-source failure below (broken clone, broken manifest) — a
@@ -4650,11 +4653,13 @@ export class ProjectService extends BaseService {
                 // destroys this clone even if the fetch below throws.
                 manifestFetchAdapters.push(sourceAdapter);
                 try {
-                    const { manifest } = await sourceAdapter.getDbtManifest();
+                    const { manifest, selectedModelIds } =
+                        await sourceAdapter.getDbtManifest();
                     return {
                         name: source.name,
                         precedence: source.precedence,
                         manifest,
+                        selectedModelIds,
                     };
                 } catch (e) {
                     throw new ParameterError(
@@ -4713,6 +4718,33 @@ export class ProjectService extends BaseService {
             );
         }
 
+        const sourceSelections = [
+            {
+                manifest: primaryManifest,
+                selectedModelIds: primarySelectedModelIds,
+            },
+            ...built.map(({ manifest, selectedModelIds }) => ({
+                manifest,
+                selectedModelIds,
+            })),
+        ];
+        // Selector-less sources contribute every model when any source uses a selector.
+        const selectedModelIds = sourceSelections.every(
+            (source) => source.selectedModelIds === undefined,
+        )
+            ? undefined
+            : Array.from(
+                  new Set(
+                      sourceSelections.flatMap((source) =>
+                          source.selectedModelIds === undefined
+                              ? getCompiledModels(
+                                    getModelsFromManifest(source.manifest),
+                                ).map((model) => model.unique_id)
+                              : source.selectedModelIds,
+                      ),
+                  ),
+              );
+
         return projectAdapterFromConfig(
             {
                 type: DbtProjectType.MANIFEST,
@@ -4728,7 +4760,10 @@ export class ProjectService extends BaseService {
             // (spotlight categories, table_groups, parameters, AI context). The
             // primary clone is alive until the caller destroys manifestFetchAdapters
             // after compile, so the merged adapter can read these during compile.
-            primary.adapter.dbtProjectDir,
+            {
+                projectDir: primary.adapter.dbtProjectDir,
+                selectedModelIds,
+            },
         );
     }
 

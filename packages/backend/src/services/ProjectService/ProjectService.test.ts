@@ -4553,9 +4553,15 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         docs: {},
     });
 
-    const buildAdapterWithManifest = (manifest: DbtManifest) =>
+    const buildAdapterWithManifest = (
+        manifest: DbtManifest,
+        selectedModelIds?: string[],
+    ) =>
         ({
-            getDbtManifest: vi.fn(async () => ({ manifest })),
+            getDbtManifest: vi.fn(async () => ({
+                manifest,
+                ...(selectedModelIds ? { selectedModelIds } : {}),
+            })),
         }) as unknown as ProjectAdapter;
 
     const buildSource = (name: string): ProjectDbtSource => ({
@@ -4573,12 +4579,16 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
     const buildMergedAdapter = async (
         primaryManifest: DbtManifest,
         sourceManifest: DbtManifest,
+        selectedModelIds: {
+            primary?: string[];
+            source?: string[];
+        } = {},
     ) => {
         const projectService = getMockedProjectService(
             lightdashConfigMock,
         ) as unknown as ProjectServiceInternals;
         vi.spyOn(projectService, 'buildSourceAdapter').mockResolvedValue(
-            buildAdapterWithManifest(sourceManifest),
+            buildAdapterWithManifest(sourceManifest, selectedModelIds.source),
         );
 
         return projectService.buildMergedManifestAdapter({
@@ -4586,12 +4596,189 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             organizationUuid: 'org-uuid',
             primary: {
                 ...primary,
-                adapter: buildAdapterWithManifest(primaryManifest),
+                adapter: buildAdapterWithManifest(
+                    primaryManifest,
+                    selectedModelIds.primary,
+                ),
             },
             sources: [buildSource('source-b')],
             manifestFetchAdapters: [],
         });
     };
+
+    it('returns the deduplicated union when both sources select models', async () => {
+        const primaryManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_a.orders',
+                name: 'orders',
+                packageName: 'pkg_a',
+            },
+        ]);
+        const sourceManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_b.customers',
+                name: 'customers',
+                packageName: 'pkg_b',
+            },
+        ]);
+
+        const adapter = await buildMergedAdapter(
+            primaryManifest,
+            sourceManifest,
+            {
+                primary: ['model.pkg_a.orders', 'model.pkg_a.orders'],
+                source: ['model.pkg_b.customers', 'model.pkg_b.customers'],
+            },
+        );
+
+        await expect(adapter.getDbtManifest()).resolves.toMatchObject({
+            selectedModelIds: ['model.pkg_a.orders', 'model.pkg_b.customers'],
+        });
+    });
+
+    it('omits selected model ids when neither source has a selector', async () => {
+        const primaryManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_a.orders',
+                name: 'orders',
+                packageName: 'pkg_a',
+            },
+        ]);
+        const sourceManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_b.customers',
+                name: 'customers',
+                packageName: 'pkg_b',
+            },
+        ]);
+
+        const adapter = await buildMergedAdapter(
+            primaryManifest,
+            sourceManifest,
+        );
+        const result = await adapter.getDbtManifest();
+
+        expect(result).not.toHaveProperty('selectedModelIds');
+    });
+
+    it('preserves an empty selection when every selector matches nothing', async () => {
+        const primaryManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_a.orders',
+                name: 'orders',
+                packageName: 'pkg_a',
+            },
+        ]);
+        const sourceManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_b.customers',
+                name: 'customers',
+                packageName: 'pkg_b',
+            },
+        ]);
+
+        const adapter = await buildMergedAdapter(
+            primaryManifest,
+            sourceManifest,
+            { primary: [], source: [] },
+        );
+        const result = await adapter.getDbtManifest();
+
+        expect(result).toHaveProperty('selectedModelIds', []);
+    });
+
+    it('includes every model from the selector-less source', async () => {
+        const primaryManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_a.orders',
+                name: 'orders',
+                packageName: 'pkg_a',
+            },
+            {
+                uniqueId: 'model.pkg_a.payments',
+                name: 'payments',
+                packageName: 'pkg_a',
+            },
+        ]);
+        const sourceManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_b.customers',
+                name: 'customers',
+                packageName: 'pkg_b',
+            },
+            {
+                uniqueId: 'model.pkg_b.products',
+                name: 'products',
+                packageName: 'pkg_b',
+            },
+        ]);
+
+        const primarySelectedAdapter = await buildMergedAdapter(
+            primaryManifest,
+            sourceManifest,
+            { primary: ['model.pkg_a.orders'] },
+        );
+        const sourceSelectedAdapter = await buildMergedAdapter(
+            primaryManifest,
+            sourceManifest,
+            { source: ['model.pkg_b.customers'] },
+        );
+
+        await expect(
+            primarySelectedAdapter.getDbtManifest(),
+        ).resolves.toMatchObject({
+            selectedModelIds: [
+                'model.pkg_a.orders',
+                'model.pkg_b.customers',
+                'model.pkg_b.products',
+            ],
+        });
+        await expect(
+            sourceSelectedAdapter.getDbtManifest(),
+        ).resolves.toMatchObject({
+            selectedModelIds: [
+                'model.pkg_a.orders',
+                'model.pkg_a.payments',
+                'model.pkg_b.customers',
+            ],
+        });
+    });
+
+    it('keeps unselected models in the merged manifest', async () => {
+        const primaryManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_a.orders',
+                name: 'orders',
+                packageName: 'pkg_a',
+            },
+            {
+                uniqueId: 'model.pkg_a.staging_orders',
+                name: 'staging_orders',
+                packageName: 'pkg_a',
+            },
+        ]);
+        const sourceManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_b.customers',
+                name: 'customers',
+                packageName: 'pkg_b',
+            },
+        ]);
+
+        const adapter = await buildMergedAdapter(
+            primaryManifest,
+            sourceManifest,
+            { primary: ['model.pkg_a.orders'] },
+        );
+        const result = await adapter.getDbtManifest();
+
+        expect(result.manifest.nodes).toHaveProperty(
+            'model.pkg_a.staging_orders',
+        );
+        expect(result.selectedModelIds).not.toContain(
+            'model.pkg_a.staging_orders',
+        );
+    });
 
     it('rejects cross-source bare model name collisions before returning a merged adapter', async () => {
         const primaryManifest = buildManifest([
