@@ -1,4 +1,4 @@
-import { ChartKind, ChartType, getAppDisplayName } from '@lightdash/common';
+import { ChartType } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -10,12 +10,7 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import {
-    IconArrowLeft,
-    IconPuzzle,
-    IconSettings,
-    IconX,
-} from '@tabler/icons-react';
+import { IconArrowLeft, IconSettings, IconX } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Link, useLocation, useParams } from 'react-router';
 import { useCanEditDataApp } from '../../../features/apps/hooks/useCanEditDataApp';
@@ -26,10 +21,7 @@ import MantineIcon from '../../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import VisualizationConfig from '../VisualizationCard/VisualizationConfig';
-import {
-    useChartTypeOptions,
-    type SelectedChartType,
-} from '../VisualizationCardOptions/useChartTypeOptions';
+import { useChartTypeOptions } from '../VisualizationCardOptions/useChartTypeOptions';
 import ExplorerChartTypeGallery, {
     ChartTypeThumbnail,
 } from './ChartTypeGallery';
@@ -50,7 +42,7 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const location = useLocation();
     const { visualizationConfig } = useVisualizationContext();
-    const { selectedChartType, vegaOption } = useChartTypeOptions();
+    const { getSelectedChartTypeItem } = useChartTypeOptions();
     const dataAppVizUuid = isDataAppVizVisualizationConfig(visualizationConfig)
         ? visualizationConfig.chartConfig.dataAppVizUuid
         : undefined;
@@ -66,21 +58,10 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
     });
 
     const isProjectType = chartType === ChartType.DATA_APP_VIZ;
-    const selectedItem: SelectedChartType = isProjectType
-        ? {
-              id: ChartKind.DATA_APP_VIZ,
-              label: selectedProjectType
-                  ? getAppDisplayName(
-                        selectedProjectType.name,
-                        selectedProjectType.dataAppVizUuid,
-                    )
-                  : 'Project chart type',
-              icon: IconPuzzle,
-              rotatedIcon: false,
-          }
-        : chartType === ChartType.CUSTOM
-          ? vegaOption
-          : selectedChartType;
+    const selectedItem = getSelectedChartTypeItem(
+        chartType,
+        selectedProjectType ?? null,
+    );
 
     return (
         <ChartGalleryContext.Provider value={true}>

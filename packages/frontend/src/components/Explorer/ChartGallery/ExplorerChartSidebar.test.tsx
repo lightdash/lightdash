@@ -1,5 +1,5 @@
 import { ChartKind, ChartType } from '@lightdash/common';
-import { IconCode, IconTable } from '@tabler/icons-react';
+import { IconTable } from '@tabler/icons-react';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
@@ -28,21 +28,18 @@ vi.mock('../../LightdashVisualization/useVisualizationContext', () => ({
         },
     }),
 }));
+
+const { getSelectedChartTypeItem } = vi.hoisted(() => ({
+    getSelectedChartTypeItem: vi.fn(() => ({
+        id: ChartKind.TABLE,
+        label: 'Table',
+        icon: IconTable,
+        rotatedIcon: false,
+    })),
+}));
+
 vi.mock('../VisualizationCardOptions/useChartTypeOptions', () => ({
-    useChartTypeOptions: () => ({
-        selectedChartType: {
-            id: ChartKind.TABLE,
-            label: 'Table',
-            icon: IconTable,
-            rotatedIcon: false,
-        },
-        vegaOption: {
-            id: ChartKind.CUSTOM,
-            label: 'Vega (JSON editor)',
-            icon: IconCode,
-            rotatedIcon: false,
-        },
-    }),
+    useChartTypeOptions: () => ({ getSelectedChartTypeItem }),
 }));
 
 const ReopenHarness = () => {
@@ -74,6 +71,10 @@ describe('ExplorerChartSidebar', () => {
 
         expect(screen.getByText('Configure controls')).toBeInTheDocument();
         expect(screen.getByText('Table')).toBeInTheDocument();
+        expect(getSelectedChartTypeItem).toHaveBeenCalledWith(
+            ChartType.TABLE,
+            null,
+        );
         await userEvent.click(screen.getByText('Choose type'));
         await userEvent.click(
             screen.getByRole('button', { name: 'Select chart' }),
