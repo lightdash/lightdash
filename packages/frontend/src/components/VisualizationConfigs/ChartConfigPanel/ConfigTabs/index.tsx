@@ -1,7 +1,6 @@
-import { Tabs } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
-import ConfigTabsList from '../../../common/ChartGallery/ConfigTabsList';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
+import { VisualizationConfigTabs } from '../../common/VisualizationConfigTabs';
 import { Axes } from '../Axes';
 import { Grid } from '../Grid';
 import { Layout } from '../Layout';
@@ -14,39 +13,30 @@ export const ConfigTabs: FC = memo(() => {
     const items = useMemo(() => Object.values(itemsMap || {}), [itemsMap]);
 
     return (
-        <Tabs defaultValue="layout" keepMounted={false}>
-            <ConfigTabsList mb="sm">
-                <Tabs.Tab px="sm" value="layout">
-                    Layout
-                </Tabs.Tab>
-                <Tabs.Tab px="sm" value="series">
-                    Series
-                </Tabs.Tab>
-                <Tabs.Tab px="sm" value="axes">
-                    Axes
-                </Tabs.Tab>
-                <Tabs.Tab px="sm" value="legend">
-                    Display
-                </Tabs.Tab>
-                <Tabs.Tab px="sm" value="grid">
-                    Margins
-                </Tabs.Tab>
-            </ConfigTabsList>
-            <Tabs.Panel value="layout">
-                <Layout items={items} />
-            </Tabs.Panel>
-            <Tabs.Panel value="series">
-                <Series items={items} />
-            </Tabs.Panel>
-            <Tabs.Panel value="axes">
-                <Axes itemsMap={itemsMap} />
-            </Tabs.Panel>
-            <Tabs.Panel value="legend">
-                <Legend items={items} />
-            </Tabs.Panel>
-            <Tabs.Panel value="grid">
-                <Grid />
-            </Tabs.Panel>
-        </Tabs>
+        <VisualizationConfigTabs
+            tabs={[
+                {
+                    value: 'layout',
+                    label: 'Layout',
+                    panel: <Layout items={items} />,
+                },
+                {
+                    value: 'series',
+                    label: 'Series',
+                    panel: <Series items={items} />,
+                },
+                {
+                    value: 'axes',
+                    label: 'Axes',
+                    panel: <Axes itemsMap={itemsMap} />,
+                },
+                {
+                    value: 'legend',
+                    label: 'Display',
+                    panel: <Legend items={items} />,
+                },
+                { value: 'grid', label: 'Margins', panel: <Grid /> },
+            ]}
+        />
     );
 });
