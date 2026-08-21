@@ -1,0 +1,22 @@
+.unitSelect {
+    height: 100%;
+    border-left: 1px solid var(--mantine-color-default-border);
+    display: flex;
+    align-items: center;
+}
+
+.unitInput {
+    height: 100%;
+    min-height: 0;
+    padding-left: var(--mantine-spacing-sm);
+    color: var(--input-color);
+    cursor: pointer;
+
+    &:disabled {
+        cursor: not-allowed;
+    }
+}
+
+.unitDropdown {
+    min-width: max-content;
+}

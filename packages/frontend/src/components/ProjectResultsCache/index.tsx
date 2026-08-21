@@ -18,40 +18,13 @@ import {
     useResultsCacheSettings,
     useUpdateResultsCacheSettings,
 } from '../../hooks/useProjectResultsCacheSettings';
-import { NumberInput } from '../common/NumberInput';
+import { DurationInput } from '../common/DurationInput';
+import { formatDuration } from '../common/DurationInput/duration';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
-
-const MIN_TTL_MINUTES = MIN_RESULTS_CACHE_TTL_SECONDS / 60;
-const MAX_TTL_MINUTES = MAX_RESULTS_CACHE_TTL_SECONDS / 60;
-
-const MINUTES_PER_HOUR = 60;
-const MINUTES_PER_DAY = 24 * MINUTES_PER_HOUR;
-
-const plural = (value: number, unit: string) =>
-    `${value} ${unit}${value === 1 ? '' : 's'}`;
-
-const formatDuration = (minutes: number): string => {
-    if (minutes >= 2 * MINUTES_PER_DAY && minutes % MINUTES_PER_DAY === 0) {
-        return plural(minutes / MINUTES_PER_DAY, 'day');
-    }
-    if (minutes > MINUTES_PER_HOUR) {
-        const hours = minutes / MINUTES_PER_HOUR;
-        return plural(
-            Number.isInteger(hours) ? hours : Number(hours.toFixed(1)),
-            'hour',
-        );
-    }
-    return plural(minutes, 'minute');
-};
-
-const formatDurationHint = (minutes: number | ''): string | null =>
-    typeof minutes === 'number' && minutes > MINUTES_PER_HOUR
-        ? `= ${formatDuration(minutes)}`
-        : null;
 
 type FormValues = {
     useInstanceDefault: boolean;
-    ttlMinutes: number | '';
+    ttlSeconds: number | null;
 };
 
 type FormProps = {
@@ -67,26 +40,23 @@ const ProjectResultsCacheForm: FC<FormProps> = ({
 }) => {
     const { mutate: updateSettings, isLoading: isUpdating } =
         useUpdateResultsCacheSettings(projectUuid);
-    const instanceDefaultMinutes = Math.round(instanceDefaultSeconds / 60);
 
     const form = useForm<FormValues>({
         initialValues: {
             useInstanceDefault: initialTtlSeconds === null,
-            ttlMinutes:
-                initialTtlSeconds === null
-                    ? instanceDefaultMinutes
-                    : Math.round(initialTtlSeconds / 60),
+            ttlSeconds: initialTtlSeconds ?? instanceDefaultSeconds,
         },
         validate: {
-            ttlMinutes: (value, values) => {
+            ttlSeconds: (value, values) => {
                 if (values.useInstanceDefault) return null;
                 if (
-                    typeof value !== 'number' ||
-                    !Number.isInteger(value) ||
-                    value < MIN_TTL_MINUTES ||
-                    value > MAX_TTL_MINUTES
+                    value === null ||
+                    value < MIN_RESULTS_CACHE_TTL_SECONDS ||
+                    value > MAX_RESULTS_CACHE_TTL_SECONDS
                 ) {
-                    return `Enter a whole number of minutes between ${MIN_TTL_MINUTES} and ${MAX_TTL_MINUTES} (30 days)`;
+                    return `Enter a duration between ${formatDuration(
+                        MIN_RESULTS_CACHE_TTL_SECONDS,
+                    )} and ${formatDuration(MAX_RESULTS_CACHE_TTL_SECONDS)}`;
                 }
                 return null;
             },
@@ -95,19 +65,17 @@ const ProjectResultsCacheForm: FC<FormProps> = ({
 
     return (
         <form
-            onSubmit={form.onSubmit(({ useInstanceDefault, ttlMinutes }) => {
-                if (useInstanceDefault) {
-                    updateSettings({ cacheTtlSeconds: null });
-                } else if (typeof ttlMinutes === 'number') {
-                    updateSettings({ cacheTtlSeconds: ttlMinutes * 60 });
-                }
+            onSubmit={form.onSubmit(({ useInstanceDefault, ttlSeconds }) => {
+                updateSettings({
+                    cacheTtlSeconds: useInstanceDefault ? null : ttlSeconds,
+                });
             })}
         >
             <Stack gap="md">
                 <Switch
                     label="Use the default cache duration"
                     description={`Cached results expire after ${formatDuration(
-                        instanceDefaultMinutes,
+                        instanceDefaultSeconds,
                     )}.`}
                     disabled={isUpdating}
                     {...form.getInputProps('useInstanceDefault', {
@@ -115,19 +83,18 @@ const ProjectResultsCacheForm: FC<FormProps> = ({
                     })}
                 />
 
-                <NumberInput
-                    label="Cache duration (minutes)"
-                    min={MIN_TTL_MINUTES}
-                    max={MAX_TTL_MINUTES}
-                    step={1}
-                    rightSectionWidth={90}
-                    rightSection={
-                        <Text c="ldGray.6" fz="xs">
-                            {formatDurationHint(form.values.ttlMinutes)}
-                        </Text>
-                    }
+                <DurationInput
+                    label="Cache duration"
+                    units={['minutes', 'hours', 'days']}
+                    defaultUnit="hours"
+                    minSeconds={MIN_RESULTS_CACHE_TTL_SECONDS}
+                    maxSeconds={MAX_RESULTS_CACHE_TTL_SECONDS}
                     disabled={isUpdating || form.values.useInstanceDefault}
-                    {...form.getInputProps('ttlMinutes')}
+                    value={form.values.ttlSeconds}
+                    onChange={(seconds) =>
+                        form.setFieldValue('ttlSeconds', seconds)
+                    }
+                    error={form.errors.ttlSeconds}
                 />
 
                 <Group justify="flex-end">
