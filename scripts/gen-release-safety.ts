@@ -293,8 +293,9 @@ export function ownExpandContractFloor(input: {
 
 /**
  * PURE. Assemble the marker from already-gathered inputs. Encodes the honesty
- * rules: definitive AI verdicts stand despite incomplete metadata, while
- * deterministic breaks, linter findings, and required stops remain unsafe.
+ * rules: definitive AI verdicts stand despite incomplete metadata. Declared
+ * and config breaks plus required stops remain unsafe; a linter finding holds
+ * unless a definitive AI verdict clears it.
  */
 export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
     const present: TriState = input.migrations
@@ -347,6 +348,9 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
     ) {
         rollingUpdateSafe = true;
     }
+    if (linterFlagged || deterministicBreak) {
+        rollingUpdateSafe = false;
+    }
     if (
         input.aiReview &&
         input.aiReview.rollingUpdateSafe !== 'unknown' &&
@@ -354,11 +358,7 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
     ) {
         rollingUpdateSafe = input.aiReview.rollingUpdateSafe;
     }
-    if (
-        deterministicBreak ||
-        linterFlagged ||
-        requiredStops.includes(input.version)
-    ) {
+    if (deterministicBreak || requiredStops.includes(input.version)) {
         rollingUpdateSafe = false;
     }
 

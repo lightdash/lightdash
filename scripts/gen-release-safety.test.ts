@@ -264,14 +264,14 @@ test('incomplete migration metadata blocks deterministic safety', () => {
 });
 
 test('existing deterministic false verdicts cannot be loosened', () => {
-    const inputs = [
-        {
-            sqlLint: {
-                ran: true,
-                breaking: true,
-                findings: ['unsupported SQL'],
-            },
+    const linterFinding = {
+        sqlLint: {
+            ran: true,
+            breaking: true,
+            findings: ['unsupported SQL'],
         },
+    };
+    const deterministicBreakInputs = [
         {
             config: {
                 checked: true,
@@ -289,7 +289,7 @@ test('existing deterministic false verdicts cannot be loosened', () => {
             ],
         },
     ];
-    for (const override of inputs) {
+    for (const override of [linterFinding, ...deterministicBreakInputs]) {
         const input = {
             ...base,
             migrations: migration,
@@ -305,6 +305,18 @@ test('existing deterministic false verdicts cannot be loosened', () => {
             buildMarker(input).compatibility.rollingUpdateSafe,
             false,
         );
+    }
+    for (const override of deterministicBreakInputs) {
+        const input = {
+            ...base,
+            migrations: migration,
+            migrationDetails,
+            migrationOperations: compatibleOperations,
+            migrationMetadataComplete: true,
+            declarationMetadataComplete: true,
+            ...checkedSurfaces,
+            ...override,
+        };
         assert.strictEqual(
             buildMarker({
                 ...input,
@@ -316,6 +328,53 @@ test('existing deterministic false verdicts cannot be loosened', () => {
             }).compatibility.rollingUpdateSafe,
             false,
         );
+    }
+});
+
+test('a definitive AI verdict clears a linter finding and publishes its floor', () => {
+    const marker = buildMarker({
+        ...base,
+        migrations: migration,
+        migrationDetails,
+        ...checkedSurfaces,
+        sqlLint: {
+            ran: true,
+            breaking: true,
+            findings: ['drop-column'],
+        },
+        aiReview: {
+            rollingUpdateSafe: true,
+            recommendedStrategy: 'RollingUpdate',
+            summary: 'cleared',
+        },
+        expandContractFloor: '1.100.0',
+    });
+    assert.strictEqual(marker.compatibility.rollingUpdateSafe, true);
+    assert.strictEqual(marker.upgrade.minPreviousVersion, '1.100.0');
+});
+
+test('a linter finding stays unsafe without a definitive AI verdict', () => {
+    for (const aiReview of [
+        undefined,
+        {
+            rollingUpdateSafe: 'unknown' as const,
+            recommendedStrategy: 'unknown' as const,
+            summary: 'unknown',
+        },
+    ]) {
+        const marker = buildMarker({
+            ...base,
+            migrations: migration,
+            migrationDetails,
+            ...checkedSurfaces,
+            sqlLint: {
+                ran: true,
+                breaking: true,
+                findings: ['drop-column'],
+            },
+            aiReview,
+        });
+        assert.strictEqual(marker.compatibility.rollingUpdateSafe, false);
     }
 });
 
@@ -589,7 +648,7 @@ test('ownExpandContractFloor matches the marker floor', () => {
     const marker = buildMarker(input);
     assert.strictEqual(ownExpandContractFloor(input), '1.100.0');
     assert.strictEqual(marker.upgrade.minPreviousVersion, '1.100.0');
-    assert.strictEqual(marker.compatibility.rollingUpdateSafe, false);
+    assert.strictEqual(marker.compatibility.rollingUpdateSafe, true);
 });
 
 if (failures.length > 0) {
