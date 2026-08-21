@@ -1,3 +1,10 @@
+## [1.235.5](https://github.com/lightdash/lightdash/compare/1.235.4...1.235.5) (2026-08-21)
+
+
+### Bug Fixes
+
+* **mcp:** preserve SQL row limit when polling ([#27854](https://github.com/lightdash/lightdash/issues/27854)) ([996ff06](https://github.com/lightdash/lightdash/commit/996ff0618b7d4fc4d73d1fee32eba151173edc37))
+
 ## [1.235.4](https://github.com/lightdash/lightdash/compare/1.235.3...1.235.4) (2026-08-21)
 
 
