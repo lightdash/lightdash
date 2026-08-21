@@ -1,3 +1,10 @@
+## [1.235.4](https://github.com/lightdash/lightdash/compare/1.235.3...1.235.4) (2026-08-21)
+
+
+### Bug Fixes
+
+* **common:** preserve translatable chart fields in language maps ([#27760](https://github.com/lightdash/lightdash/issues/27760)) ([144995c](https://github.com/lightdash/lightdash/commit/144995cb3ba7e72f6fe337b41db2f399baabce4d))
+
 ## [1.235.3](https://github.com/lightdash/lightdash/compare/1.235.2...1.235.3) (2026-08-21)
 
 
