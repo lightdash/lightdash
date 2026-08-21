@@ -111,6 +111,7 @@ function buildService() {
         recordBuildNarration: vi.fn().mockResolvedValue(undefined),
         listAppsByProject: vi.fn().mockResolvedValue([sourceApp]),
         remapPreviewDashboardTileApps: vi.fn().mockResolvedValue(undefined),
+        remapPreviewChartVizBindings: vi.fn().mockResolvedValue(undefined),
     };
 
     const externalConnectionModel = {
