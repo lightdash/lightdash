@@ -908,7 +908,7 @@ export class AppModel {
      * (data_app_viz), 'only' keeps just them. NULL templates ("Custom" and
      * pre-template apps) count as data apps.
      */
-    private static applyDataAppVizsFilter(
+    static applyDataAppVizsFilter(
         query: Knex.QueryBuilder,
         dataAppVizsFilter: DataAppVizsFilter | undefined,
     ): void {
