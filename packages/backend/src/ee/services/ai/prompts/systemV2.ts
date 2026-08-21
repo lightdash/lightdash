@@ -4,6 +4,7 @@ import {
     Explore,
     WarehouseTypes,
     type AgentSqlScope,
+    type CustomChartTypeLibrary,
 } from '@lightdash/common';
 import { SystemModelMessage } from 'ai';
 import moment from 'moment';
@@ -13,10 +14,7 @@ import {
     AiAgentRequestingUser,
 } from '../types/aiAgent';
 import { escapeXmlText, xmlBuilder } from '../xmlBuilder';
-import {
-    renderAvailableCustomChartTypes,
-    type CustomChartTypeLibrary,
-} from './availableCustomChartTypes';
+import { renderAvailableCustomChartTypes } from './availableCustomChartTypes';
 import { renderAvailableExplores } from './availableExplores';
 import { getAiWritebackSection } from './systemV2AiWriteback';
 import { getCodingAgentSection } from './systemV2CodingAgent';

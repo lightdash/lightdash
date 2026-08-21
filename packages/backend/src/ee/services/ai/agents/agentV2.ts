@@ -6,6 +6,7 @@ import {
     Explore,
     type AiDeepResearchBudget,
     type AiDeepResearchExecutionContextSnapshot,
+    type CustomChartTypeLibrary,
     type ParameterDefinitions,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -34,7 +35,6 @@ import {
     isDeepResearchWarehouseMcpTool,
 } from '../../AiDeepResearchService/toolClassification';
 import { Compaction } from '../compaction';
-import { type CustomChartTypeLibrary } from '../prompts/availableCustomChartTypes';
 import { AI_DEEP_RESEARCH_INSTRUCTIONS } from '../prompts/deepResearch';
 import { getSystemPromptV2 } from '../prompts/systemV2';
 import {
