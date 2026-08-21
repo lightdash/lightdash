@@ -15,18 +15,17 @@ import {
     Collapse,
     Group,
     Stack,
-    Tabs,
     SegmentedControl,
     Switch,
     Tooltip,
 } from '@mantine/core';
 import { memo, type FC } from 'react';
-import ConfigTabsList from '../../common/ChartGallery/ConfigTabsList';
 import FieldSelect from '../../common/FieldSelect';
 import { isFunnelVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { ColorPaletteSection } from '../common/ColorPaletteSection';
 import { Config } from '../common/Config';
+import { VisualizationConfigTabs } from '../common/VisualizationConfigTabs';
 import compactStyles from '../mantineTheme.module.css';
 import { StepConfig } from './StepConfig';
 
@@ -61,245 +60,266 @@ export const ConfigTabs: FC = memo(() => {
     } = visualizationConfig.chartConfig;
 
     return (
-        <Tabs defaultValue="general" keepMounted={false}>
-            <ConfigTabsList mb="sm">
-                <Tabs.Tab px="sm" value="general">
-                    General
-                </Tabs.Tab>
-                <Tabs.Tab px="sm" value="steps">
-                    Steps
-                </Tabs.Tab>
-                <Tabs.Tab px="sm" value="display">
-                    Display
-                </Tabs.Tab>
-            </ConfigTabsList>
+        <VisualizationConfigTabs
+            tabs={[
+                {
+                    value: 'general',
+                    label: 'General',
+                    panel: (
+                        <Stack>
+                            <Config>
+                                <Config.Section>
+                                    <Config.Heading>
+                                        Data orientation
+                                    </Config.Heading>
+                                    <Group gap="xs">
+                                        <Config.Label>Steps are</Config.Label>
+                                        <SegmentedControl
+                                            size="xs"
+                                            value={dataInput}
+                                            data={[
+                                                {
+                                                    value: FunnelChartDataInput.COLUMN,
+                                                    label: 'Rows',
+                                                },
+                                                {
+                                                    value: FunnelChartDataInput.ROW,
+                                                    label: 'Columns',
+                                                },
+                                            ]}
+                                            onChange={(value) =>
+                                                setDataInput(
+                                                    value ===
+                                                        FunnelChartDataInput.ROW
+                                                        ? FunnelChartDataInput.ROW
+                                                        : FunnelChartDataInput.COLUMN,
+                                                )
+                                            }
+                                        />
+                                    </Group>
+                                </Config.Section>
+                            </Config>
+                            <Config>
+                                {dataInput === FunnelChartDataInput.COLUMN && (
+                                    <Config.Section>
+                                        <Config.Heading>
+                                            Data field
+                                        </Config.Heading>
 
-            <Tabs.Panel value="general">
-                <Stack>
-                    <Config>
-                        <Config.Section>
-                            <Config.Heading>Data orientation</Config.Heading>
-                            <Group gap="xs">
-                                <Config.Label>Steps are</Config.Label>
-                                <SegmentedControl
-                                    size="xs"
-                                    value={dataInput}
-                                    data={[
-                                        {
-                                            value: FunnelChartDataInput.COLUMN,
-                                            label: 'Rows',
-                                        },
-                                        {
-                                            value: FunnelChartDataInput.ROW,
-                                            label: 'Columns',
-                                        },
-                                    ]}
-                                    onChange={(value) =>
-                                        setDataInput(
-                                            value === FunnelChartDataInput.ROW
-                                                ? FunnelChartDataInput.ROW
-                                                : FunnelChartDataInput.COLUMN,
-                                        )
-                                    }
-                                />
-                            </Group>
-                        </Config.Section>
-                    </Config>
-                    <Config>
-                        {dataInput === FunnelChartDataInput.COLUMN && (
-                            <Config.Section>
-                                <Config.Heading>Data field</Config.Heading>
-
-                                <Tooltip
-                                    disabled={
-                                        numericFields &&
-                                        numericFields.length > 0
-                                    }
-                                    label="You must select at least one numeric metric to create a pie chart"
-                                >
-                                    <Box>
-                                        <FieldSelect<Metric | TableCalculation>
-                                            placeholder="Select metric"
+                                        <Tooltip
                                             disabled={
-                                                numericFields.length === 0
+                                                numericFields &&
+                                                numericFields.length > 0
                                             }
-                                            item={selectedField}
-                                            items={numericFields}
-                                            onChange={(newField) => {
-                                                if (
-                                                    newField &&
-                                                    isField(newField)
-                                                )
-                                                    onFieldChange(
-                                                        getItemId(newField),
-                                                    );
-                                                else if (
-                                                    newField &&
-                                                    isTableCalculation(newField)
-                                                )
-                                                    onFieldChange(
-                                                        newField.name,
-                                                    );
-                                                else onFieldChange(null);
+                                            label="You must select at least one numeric metric to create a pie chart"
+                                        >
+                                            <Box>
+                                                <FieldSelect<
+                                                    Metric | TableCalculation
+                                                >
+                                                    placeholder="Select metric"
+                                                    disabled={
+                                                        numericFields.length ===
+                                                        0
+                                                    }
+                                                    item={selectedField}
+                                                    items={numericFields}
+                                                    onChange={(newField) => {
+                                                        if (
+                                                            newField &&
+                                                            isField(newField)
+                                                        )
+                                                            onFieldChange(
+                                                                getItemId(
+                                                                    newField,
+                                                                ),
+                                                            );
+                                                        else if (
+                                                            newField &&
+                                                            isTableCalculation(
+                                                                newField,
+                                                            )
+                                                        )
+                                                            onFieldChange(
+                                                                newField.name,
+                                                            );
+                                                        else
+                                                            onFieldChange(null);
+                                                    }}
+                                                    hasGrouping
+                                                />
+                                            </Box>
+                                        </Tooltip>
+                                    </Config.Section>
+                                )}
+                            </Config>
+                        </Stack>
+                    ),
+                },
+                {
+                    value: 'steps',
+                    label: 'Steps',
+                    panel: (
+                        <Stack>
+                            <ColorPaletteSection />
+                            <Config>
+                                <Config.Section>
+                                    <Config.Heading>Labels</Config.Heading>
+
+                                    <Group gap="xs" wrap="nowrap">
+                                        <Config.Label>Position</Config.Label>
+                                        <SegmentedControl
+                                            size="xs"
+                                            value={labels?.position}
+                                            data={[
+                                                {
+                                                    value: FunnelChartLabelPosition.LEFT,
+                                                    label: 'Left',
+                                                },
+
+                                                {
+                                                    value: FunnelChartLabelPosition.INSIDE,
+                                                    label: 'Inside',
+                                                },
+                                                {
+                                                    value: FunnelChartLabelPosition.RIGHT,
+                                                    label: 'Right',
+                                                },
+                                                {
+                                                    value: FunnelChartLabelPosition.HIDDEN,
+                                                    label: 'Hidden',
+                                                },
+                                            ]}
+                                            onChange={(newPosition) =>
+                                                onLabelsChange({
+                                                    position:
+                                                        newPosition as FunnelChartLabelPosition,
+                                                })
+                                            }
+                                        />
+                                    </Group>
+
+                                    <Group gap="xs">
+                                        <Checkbox
+                                            size="xs"
+                                            classNames={{
+                                                label: compactStyles.compactCheckboxLabel,
                                             }}
-                                            hasGrouping
+                                            checked={labels?.showValue}
+                                            onChange={(newValue) =>
+                                                onLabelsChange({
+                                                    showValue:
+                                                        newValue.currentTarget
+                                                            .checked,
+                                                })
+                                            }
+                                            label="Show value"
                                         />
-                                    </Box>
-                                </Tooltip>
-                            </Config.Section>
-                        )}
-                    </Config>
-                </Stack>
-            </Tabs.Panel>
-            <Tabs.Panel value="steps">
-                <Stack>
-                    <ColorPaletteSection />
-                    <Config>
-                        <Config.Section>
-                            <Config.Heading>Labels</Config.Heading>
 
-                            <Group gap="xs" wrap="nowrap">
-                                <Config.Label>Position</Config.Label>
-                                <SegmentedControl
-                                    size="xs"
-                                    value={labels?.position}
-                                    data={[
-                                        {
-                                            value: FunnelChartLabelPosition.LEFT,
-                                            label: 'Left',
-                                        },
-
-                                        {
-                                            value: FunnelChartLabelPosition.INSIDE,
-                                            label: 'Inside',
-                                        },
-                                        {
-                                            value: FunnelChartLabelPosition.RIGHT,
-                                            label: 'Right',
-                                        },
-                                        {
-                                            value: FunnelChartLabelPosition.HIDDEN,
-                                            label: 'Hidden',
-                                        },
-                                    ]}
-                                    onChange={(newPosition) =>
-                                        onLabelsChange({
-                                            position:
-                                                newPosition as FunnelChartLabelPosition,
-                                        })
-                                    }
-                                />
-                            </Group>
-
-                            <Group gap="xs">
-                                <Checkbox
-                                    size="xs"
-                                    classNames={{
-                                        label: compactStyles.compactCheckboxLabel,
-                                    }}
-                                    checked={labels?.showValue}
-                                    onChange={(newValue) =>
-                                        onLabelsChange({
-                                            showValue:
-                                                newValue.currentTarget.checked,
-                                        })
-                                    }
-                                    label="Show value"
-                                />
-
-                                <Checkbox
-                                    size="xs"
-                                    classNames={{
-                                        label: compactStyles.compactCheckboxLabel,
-                                    }}
-                                    checked={labels?.showPercentage}
-                                    onChange={(newValue) =>
-                                        onLabelsChange({
-                                            showPercentage:
-                                                newValue.currentTarget.checked,
-                                        })
-                                    }
-                                    label="Show percentage"
-                                />
-                            </Group>
-                        </Config.Section>
-                    </Config>
-                    <Config>
-                        <Config.Section>
-                            <Config.Heading>Steps</Config.Heading>
-                            {data
-                                .sort((a, b) => b.value - a.value)
-                                .map((step) => {
-                                    return (
-                                        <StepConfig
-                                            key={step.id}
-                                            id={step.id}
-                                            defaultColor={
-                                                colorDefaults[step.id]
+                                        <Checkbox
+                                            size="xs"
+                                            classNames={{
+                                                label: compactStyles.compactCheckboxLabel,
+                                            }}
+                                            checked={labels?.showPercentage}
+                                            onChange={(newValue) =>
+                                                onLabelsChange({
+                                                    showPercentage:
+                                                        newValue.currentTarget
+                                                            .checked,
+                                                })
                                             }
-                                            defaultLabel={step.name}
-                                            swatches={[]}
-                                            color={colorOverrides[step.id]}
-                                            label={labelOverrides[step.id]}
-                                            granularityFields={
-                                                granularityFields
-                                            }
-                                            onColorChange={
-                                                onColorOverridesChange
-                                            }
-                                            onLabelChange={
-                                                onLabelOverridesChange
-                                            }
+                                            label="Show percentage"
                                         />
-                                    );
-                                })}
-                        </Config.Section>
-                    </Config>
-                </Stack>
-            </Tabs.Panel>
-            <Tabs.Panel value="display">
-                <Stack>
-                    <Config>
-                        <Group>
-                            <Config.Heading>Show legend</Config.Heading>
-                            <Switch
-                                size="xs"
-                                classNames={{
-                                    label: compactStyles.compactCheckboxLabel,
-                                }}
-                                checked={showLegend}
-                                onChange={toggleShowLegend}
-                            />
-                        </Group>
-                    </Config>
+                                    </Group>
+                                </Config.Section>
+                            </Config>
+                            <Config>
+                                <Config.Section>
+                                    <Config.Heading>Steps</Config.Heading>
+                                    {data
+                                        .sort((a, b) => b.value - a.value)
+                                        .map((step) => {
+                                            return (
+                                                <StepConfig
+                                                    key={step.id}
+                                                    id={step.id}
+                                                    defaultColor={
+                                                        colorDefaults[step.id]
+                                                    }
+                                                    defaultLabel={step.name}
+                                                    swatches={[]}
+                                                    color={
+                                                        colorOverrides[step.id]
+                                                    }
+                                                    label={
+                                                        labelOverrides[step.id]
+                                                    }
+                                                    granularityFields={
+                                                        granularityFields
+                                                    }
+                                                    onColorChange={
+                                                        onColorOverridesChange
+                                                    }
+                                                    onLabelChange={
+                                                        onLabelOverridesChange
+                                                    }
+                                                />
+                                            );
+                                        })}
+                                </Config.Section>
+                            </Config>
+                        </Stack>
+                    ),
+                },
+                {
+                    value: 'display',
+                    label: 'Display',
+                    panel: (
+                        <Stack>
+                            <Config>
+                                <Group>
+                                    <Config.Heading>Show legend</Config.Heading>
+                                    <Switch
+                                        size="xs"
+                                        classNames={{
+                                            label: compactStyles.compactCheckboxLabel,
+                                        }}
+                                        checked={showLegend}
+                                        onChange={toggleShowLegend}
+                                    />
+                                </Group>
+                            </Config>
 
-                    <Collapse in={showLegend}>
-                        <Group gap="xs">
-                            <Config.Label>Orientation</Config.Label>
-                            <SegmentedControl
-                                size="xs"
-                                name="orient"
-                                value={legendPosition}
-                                onChange={(value) =>
-                                    legendPositionChange(
-                                        value as FunnelChartLegendPosition,
-                                    )
-                                }
-                                data={[
-                                    {
-                                        value: FunnelChartLegendPosition.HORIZONTAL,
-                                        label: 'Horizontal',
-                                    },
-                                    {
-                                        value: FunnelChartLegendPosition.VERTICAL,
-                                        label: 'Vertical',
-                                    },
-                                ]}
-                            />
-                        </Group>
-                    </Collapse>
-                </Stack>
-            </Tabs.Panel>
-        </Tabs>
+                            <Collapse in={showLegend}>
+                                <Group gap="xs">
+                                    <Config.Label>Orientation</Config.Label>
+                                    <SegmentedControl
+                                        size="xs"
+                                        name="orient"
+                                        value={legendPosition}
+                                        onChange={(value) =>
+                                            legendPositionChange(
+                                                value as FunnelChartLegendPosition,
+                                            )
+                                        }
+                                        data={[
+                                            {
+                                                value: FunnelChartLegendPosition.HORIZONTAL,
+                                                label: 'Horizontal',
+                                            },
+                                            {
+                                                value: FunnelChartLegendPosition.VERTICAL,
+                                                label: 'Vertical',
+                                            },
+                                        ]}
+                                    />
+                                </Group>
+                            </Collapse>
+                        </Stack>
+                    ),
+                },
+            ]}
+        />
     );
 });
