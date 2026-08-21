@@ -17,12 +17,18 @@ import {
     useDataAppVizRenderMetadata,
 } from '../../features/chartTypes/hooks/useDataAppVizRender';
 import { reconcileDataAppVizFieldMapping } from '../../features/chartTypes/utils/autoMapDataAppVizFields';
+import useToaster from '../../hooks/toaster/useToaster';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import { useExplore } from '../../hooks/useExplore';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
+import useApp from '../../providers/App/useApp';
+import useTracking from '../../providers/Tracking/useTracking';
+import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
+import { resolveVizDrillDownConfig } from './vizDrillDownConfig';
 import { buildVizUnderlyingDataRequest } from './vizUnderlyingDataRequest';
 
 type Props = {
@@ -67,8 +73,13 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         resolvedTimezone,
     } = useVisualizationContext();
     const { embedToken } = useEmbed();
-    const { canViewUnderlyingData } = useContextMenuPermissions();
+    const { canViewUnderlyingData, canDrillInto } = useContextMenuPermissions();
     const previewOrigin = usePreviewOrigin();
+    const { user } = useApp();
+    // Fail-silent: /minimal routes at desktop viewports mount no
+    // TrackingProvider (App.tsx `enabled={isMobile || !isMinimalPage}`), so
+    // screenshot/export/unfurl renders simply skip the drill-by event.
+    const trackingContext = useTracking({ failSilently: true });
     const hasSignaledScreenshotReady = useRef(false);
 
     // Signal screenshot readiness on mount so dashboard capture isn't blocked
@@ -157,6 +168,65 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         [fields, itemsMap, fieldMapping],
     );
 
+    // Fail-silent: surfaces without MetricQueryDataProvider (no drill modal
+    // mounted) simply report drill-down as unavailable.
+    const metricQueryData = useMetricQueryDataContext(true);
+    const openDrillDownModal = metricQueryData?.openDrillDownModal;
+    const { showToastError } = useToaster();
+
+    // Same shape as underlyingDataPreconditions plus the drill permission and
+    // dialog; no explore fetch needed — DrillDownModal reads it from its provider.
+    const drillDownEnabled =
+        !!sourceQueryUuid &&
+        !!metricQuery &&
+        canDrillInto &&
+        !hasCustomBinDimension(metricQuery) &&
+        !embedToken &&
+        !minimal &&
+        !pivotDetails &&
+        !!openDrillDownModal &&
+        !!reconciledFieldMapping;
+
+    // undefined ⇒ the bridge answers the virtual route with an error —
+    // enforcement is structural, matching the underlying-data rewrite.
+    const onVizDrillDownIntent = useMemo(() => {
+        if (!drillDownEnabled || !openDrillDownModal || !reconciledFieldMapping)
+            return undefined;
+        return (intentBody: unknown) => {
+            try {
+                openDrillDownModal(
+                    resolveVizDrillDownConfig(intentBody, {
+                        fieldMapping: reconciledFieldMapping,
+                        itemsMap: itemsMap ?? {},
+                    }),
+                );
+                trackingContext?.track({
+                    name: EventName.DRILL_BY_CLICKED,
+                    properties: {
+                        organizationId: user?.data?.organizationUuid,
+                        userId: user?.data?.userUuid,
+                        projectId: projectUuid,
+                    },
+                });
+            } catch (err) {
+                showToastError({
+                    title: 'Could not drill into this data point',
+                    subtitle: err instanceof Error ? err.message : undefined,
+                });
+                throw err; // bridge relays the message as the route's error response
+            }
+        };
+    }, [
+        drillDownEnabled,
+        openDrillDownModal,
+        reconciledFieldMapping,
+        itemsMap,
+        showToastError,
+        trackingContext,
+        user,
+        projectUuid,
+    ]);
+
     const underlyingDataEnabled =
         underlyingDataPreconditions && !!explore && !!reconciledFieldMapping;
 
@@ -213,7 +283,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
             colorPalette,
             pivotDetails,
             underlyingData: { enabled: underlyingDataEnabled },
-            drillDown: { enabled: false },
+            drillDown: { enabled: drillDownEnabled },
         };
     }, [
         reconciledFieldMapping,
@@ -223,6 +293,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         colorPalette,
         pivotDetails,
         underlyingDataEnabled,
+        drillDownEnabled,
     ]);
 
     if (!projectUuid || !dataAppVizUuid) {
@@ -293,6 +364,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
             identityKey={dataAppVizUuid}
             dataAppVizContext={dataAppVizContext}
             rewriteVizUnderlyingDataRequest={rewriteVizUnderlyingDataRequest}
+            onVizDrillDownIntent={onVizDrillDownIntent}
         />
     );
 };
