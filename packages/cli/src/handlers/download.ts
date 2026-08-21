@@ -2540,6 +2540,7 @@ export const downloadHandler = async (
             }
 
             if (chartTypeRefsToDownload.length === 0) {
+                counts.chartTypesNum = 0;
                 if (chartTypeListingError === null) {
                     output.completeItem('0 found');
                 } else {
@@ -2590,6 +2591,7 @@ export const downloadHandler = async (
                         chartTypesOutcome.skippedWrongKindCount,
                     'custom chart type',
                 );
+                counts.chartTypesNum = chartTypesOutcome.successCount;
                 const chartTypesSkipped =
                     chartTypesOutcome.skippedNotBuiltCount +
                     chartTypesOutcome.skippedWrongKindCount;
@@ -3304,12 +3306,30 @@ export const uploadHandler = async (
             '--apps-only cannot be combined with --spaces-only.',
         );
     }
+    if (options.appsOnly && options.chartTypesOnly) {
+        throw new ParameterError(
+            '--apps-only cannot be combined with --chart-types-only.',
+        );
+    }
+    if (options.chartTypesOnly && options.spacesOnly) {
+        throw new ParameterError(
+            '--chart-types-only cannot be combined with --spaces-only.',
+        );
+    }
     if (
         options.appsOnly &&
         (options.charts.length > 0 || options.dashboards.length > 0)
     ) {
         throw new ParameterError(
             '--apps-only cannot be combined with --charts or --dashboards.',
+        );
+    }
+    if (
+        options.chartTypesOnly &&
+        (options.charts.length > 0 || options.dashboards.length > 0)
+    ) {
+        throw new ParameterError(
+            '--chart-types-only cannot be combined with --charts or --dashboards.',
         );
     }
     // Bare --apps-only means "all apps": imply --include-apps.
@@ -3320,11 +3340,31 @@ export const uploadHandler = async (
     ) {
         options.includeApps = true;
     }
+    if (options.appsOnly) {
+        options.chartTypes = undefined;
+        options.includeChartTypes = false;
+    }
+    // Bare --chart-types-only means "all chart types" likewise.
+    if (
+        options.chartTypesOnly &&
+        options.chartTypes === undefined &&
+        options.includeChartTypes !== true
+    ) {
+        options.includeChartTypes = true;
+    }
+    if (options.chartTypesOnly) {
+        options.apps = undefined;
+        options.includeApps = false;
+    }
 
     const isOrganizationUpload = options.organization === true;
-    // --apps-only rides the existing filter machinery: every non-app phase
-    // skips exactly as it does when only app refs are passed.
-    const hasFilters = hasContentFilters(options) || options.appsOnly === true;
+    // --apps-only / --chart-types-only ride the existing filter machinery:
+    // every other phase skips exactly as it does when only those refs are
+    // passed.
+    const hasFilters =
+        hasContentFilters(options) ||
+        options.appsOnly === true ||
+        options.chartTypesOnly === true;
     const shouldReconcileSpaces =
         !isOrganizationUpload && !options.skipSpaces && !hasFilters;
     let preflightSpaceFiles: SpaceCodeFile[] = [];
@@ -3585,8 +3625,10 @@ export const uploadHandler = async (
             }
         }
 
-        // Upload data apps (enterprise; explicit --apps/--include-apps, or
-        // auto-pushed for a dashboard's apps). Must land before dashboards.
+        // Upload data apps and custom chart types (enterprise). Data apps:
+        // explicit --apps/--include-apps, or auto-pushed for a dashboard's
+        // apps; must land before dashboards. Chart types: explicit
+        // --chart-types/--include-chart-types, from their own folder.
         const explicitAppReferences = Array.isArray(options.apps)
             ? options.apps
             : [];
@@ -3601,34 +3643,94 @@ export const uploadHandler = async (
                   await loadDashboardItems(),
                   options.dashboards,
               );
-        const shouldUploadApps =
+        const explicitChartTypeReferences = Array.isArray(options.chartTypes)
+            ? options.chartTypes
+            : [];
+        const isExplicitChartTypeSelection =
+            options.includeChartTypes === true ||
+            explicitChartTypeReferences.length > 0;
+        const appsPhaseActive =
             isExplicitAppSelection || autoPushAppSlugs.length > 0;
 
-        let appsCreated = 0;
-        let appsUpdated = 0;
-        let appsUnchanged = 0;
-        let appsFailed = 0;
-        let appsSkipped = 0;
-        let eeAppRoutesUnavailable = false;
-        const changesBeforeApps = { ...changes };
+        type BundleUploadPhase = {
+            label: string; // output phase label
+            noun: string; // singular, for messages
+            changesPrefix: string; // changes summary key prefix
+            dirName: string; // folder under the download root
+            explicitRefs: string[];
+            includeAllFolders: boolean;
+            isExplicitSelection: boolean;
+            autoPushSlugs: string[]; // dashboard-referenced apps; [] for chart types
+            useAppSpace: boolean; // --app-space applies (chart types are spaceless)
+            isChartTypes: boolean;
+        };
+        const bundleUploadPhases: BundleUploadPhase[] = [
+            {
+                label: 'Data apps',
+                noun: 'data app',
+                changesPrefix: 'data apps',
+                dirName: 'apps',
+                explicitRefs: explicitAppReferences,
+                includeAllFolders: options.includeApps === true,
+                isExplicitSelection: isExplicitAppSelection,
+                autoPushSlugs: autoPushAppSlugs,
+                useAppSpace: true,
+                isChartTypes: false,
+            },
+            {
+                label: 'Custom chart types',
+                noun: 'custom chart type',
+                changesPrefix: 'chart types',
+                dirName: 'chart-types',
+                explicitRefs: explicitChartTypeReferences,
+                includeAllFolders: options.includeChartTypes === true,
+                isExplicitSelection: isExplicitChartTypeSelection,
+                autoPushSlugs: [],
+                useAppSpace: false,
+                isChartTypes: true,
+            },
+        ];
 
-        if (shouldUploadApps && !uploadPermissions.dataApps) {
-            counts.appsNum = 0;
-            output.startItem('Data apps');
-            GlobalState.log(
-                styles.warning(
-                    `Skipping data apps: create:DataApp or manage:DataApp permission is required for this project (the create:DataApp@preview and manage:DataApp@preview scopes only cover preview projects you created). Dashboard tiles will resolve only if their apps already exist in this project.`,
-                ),
-            );
-            output.completeItem('permission denied', 'warning');
-        } else if (shouldUploadApps) {
-            output.startItem('Data apps');
-            // Explicit refs filter by slug/appUuid; --include-apps uploads all.
-            // A pure auto-push run applies no filter — gated per folder below.
-            let uploadFilter = isExplicitAppSelection
+        for (const phase of bundleUploadPhases) {
+            const shouldUploadPhase =
+                phase.isExplicitSelection || phase.autoPushSlugs.length > 0;
+            if (!shouldUploadPhase) {
+                // eslint-disable-next-line no-continue
+                continue;
+            }
+
+            let appsCreated = 0;
+            let appsUpdated = 0;
+            let appsUnchanged = 0;
+            let appsFailed = 0;
+            let appsSkipped = 0;
+            let eeAppRoutesUnavailable = false;
+            const changesBeforeApps = { ...changes };
+
+            if (!uploadPermissions.dataApps) {
+                if (phase.isChartTypes) {
+                    counts.chartTypesNum = 0;
+                } else {
+                    counts.appsNum = 0;
+                }
+                output.startItem(phase.label);
+                GlobalState.log(
+                    styles.warning(
+                        `Skipping ${phase.changesPrefix}: create:DataApp or manage:DataApp permission is required for this project (the create:DataApp@preview and manage:DataApp@preview scopes only cover preview projects you created). Dashboard tiles will resolve only if their apps already exist in this project.`,
+                    ),
+                );
+                output.completeItem('permission denied', 'warning');
+                // eslint-disable-next-line no-continue
+                continue;
+            }
+            output.startItem(phase.label);
+            // Explicit refs filter by slug/appUuid; include-all uploads every
+            // folder. A pure auto-push run applies no filter — gated per
+            // folder below.
+            let uploadFilter = phase.isExplicitSelection
                 ? getDataAppUploadFilter(
-                      explicitAppReferences,
-                      options.includeApps === true,
+                      phase.explicitRefs,
+                      phase.includeAllFolders,
                   )
                 : null;
 
@@ -3642,7 +3744,11 @@ export const uploadHandler = async (
                         ApiEmbedProjectAppsResponse['results']
                     >({
                         method: 'GET',
-                        url: `/api/v1/ee/projects/${projectId}/apps`,
+                        // Each kind resolves against its own listing — the
+                        // apps listing never includes chart types.
+                        url: `/api/v1/ee/projects/${projectId}/apps${
+                            phase.isChartTypes ? '/chart-types' : ''
+                        }`,
                         body: undefined,
                     });
                     uploadFilter = resolveUploadFilterUuids(
@@ -3657,9 +3763,10 @@ export const uploadHandler = async (
             }
 
             // The server applies the space on creates only; existing apps
-            // keep their space.
+            // keep their space. Chart types are spaceless, so --app-space
+            // never applies to them.
             let appSpaceUuid: string | undefined;
-            if (options.appSpace !== undefined) {
+            if (phase.useAppSpace && options.appSpace !== undefined) {
                 if (isUuid(options.appSpace)) {
                     appSpaceUuid = options.appSpace;
                 } else {
@@ -3675,10 +3782,20 @@ export const uploadHandler = async (
                         spaces,
                     );
                 }
+            } else if (
+                phase.isChartTypes &&
+                options.appSpace !== undefined &&
+                !appsPhaseActive
+            ) {
+                GlobalState.log(
+                    styles.warning(
+                        '--app-space does not apply to custom chart types — they are project-global and spaceless.',
+                    ),
+                );
             }
 
             const baseDir = getDownloadFolder(options.path);
-            const appsDir = path.join(baseDir, 'apps');
+            const appsDir = path.join(baseDir, phase.dirName);
 
             let appFolderEntries: import('fs').Dirent[];
             try {
@@ -3696,13 +3813,21 @@ export const uploadHandler = async (
             const subDirs = appFolderEntries.filter((e) => e.isDirectory());
 
             if (subDirs.length === 0) {
-                GlobalState.log(
-                    styles.warning(
-                        isExplicitAppSelection
-                            ? `No app folders found in ${appsDir}. Run 'lightdash download --include-apps' first.`
-                            : `No app folders found in ${appsDir} for the dashboard(s) being uploaded. Re-run 'lightdash download' to fetch their apps.`,
-                    ),
-                );
+                if (phase.isChartTypes) {
+                    GlobalState.log(
+                        styles.warning(
+                            `No chart type folders found in ${appsDir}. Run 'lightdash download --include-chart-types' first.`,
+                        ),
+                    );
+                } else {
+                    GlobalState.log(
+                        styles.warning(
+                            phase.isExplicitSelection
+                                ? `No app folders found in ${appsDir}. Run 'lightdash download --include-apps' first.`
+                                : `No app folders found in ${appsDir} for the dashboard(s) being uploaded. Re-run 'lightdash download' to fetch their apps.`,
+                        ),
+                    );
+                }
             }
 
             const matchedRefs = new Set<string>();
@@ -3716,7 +3841,7 @@ export const uploadHandler = async (
                     if (!uploadFilterMatches(uploadFilter, code.manifest)) {
                         const isAutoPushCandidate =
                             code.manifest.slug !== undefined &&
-                            autoPushAppSlugs.includes(code.manifest.slug);
+                            phase.autoPushSlugs.includes(code.manifest.slug);
                         if (isAutoPushCandidate) {
                             GlobalState.log(
                                 styles.warning(
@@ -3725,7 +3850,7 @@ export const uploadHandler = async (
                             );
                         } else {
                             GlobalState.debug(
-                                `Skipping app folder "${subDir.name}" (not in filter)`,
+                                `Skipping ${phase.noun} folder "${subDir.name}" (not in filter)`,
                             );
                         }
                         // eslint-disable-next-line no-continue
@@ -3737,10 +3862,29 @@ export const uploadHandler = async (
                         );
                     }
 
-                    if (!isExplicitAppSelection) {
+                    // Folder-kind guard: the manifest governs what the server
+                    // creates, so a bundle filed under the wrong folder would
+                    // silently upload as the wrong kind. Skip and say where
+                    // it belongs instead.
+                    const isVizBundle =
+                        code.manifest.template === DATA_APP_VIZ_TEMPLATE;
+                    if (isVizBundle !== phase.isChartTypes) {
+                        GlobalState.log(
+                            styles.warning(
+                                isVizBundle
+                                    ? `Skipping "${subDir.name}": it is a custom chart type — move the folder to chart-types/ and upload with --chart-types or --include-chart-types.`
+                                    : `Skipping "${subDir.name}": it is a data app — move the folder to apps/ and upload with --apps or --include-apps.`,
+                            ),
+                        );
+                        appsSkipped += 1;
+                        // eslint-disable-next-line no-continue
+                        continue;
+                    }
+
+                    if (!phase.isExplicitSelection) {
                         const isAutoPushCandidate =
                             code.manifest.slug !== undefined &&
-                            autoPushAppSlugs.includes(code.manifest.slug);
+                            phase.autoPushSlugs.includes(code.manifest.slug);
                         if (!isAutoPushCandidate) {
                             // eslint-disable-next-line no-continue
                             continue;
@@ -3956,7 +4100,9 @@ export const uploadHandler = async (
 
                     if (action === 'create') {
                         GlobalState.log(
-                            `New app: ${config.context.serverUrl}/projects/${projectId}/apps/${appUuid}`,
+                            phase.isChartTypes
+                                ? `New chart type: ${config.context.serverUrl}/projects/${projectId}/chart-types/${appUuid}`
+                                : `New app: ${config.context.serverUrl}/projects/${projectId}/apps/${appUuid}`,
                         );
                     }
                 } catch (appErr) {
@@ -3966,7 +4112,7 @@ export const uploadHandler = async (
                             : undefined;
                     // Auto-push is flag-free, so a server without the EE app
                     // routes must not fail an upload the user never asked for.
-                    if (!isExplicitAppSelection && status === 404) {
+                    if (!phase.isExplicitSelection && status === 404) {
                         eeAppRoutesUnavailable = true;
                         GlobalState.log(
                             styles.warning(
@@ -4003,18 +4149,27 @@ export const uploadHandler = async (
                 }
             }
 
-            if (appsCreated > 0) changes['data apps created'] = appsCreated;
-            if (appsUpdated > 0) changes['data apps updated'] = appsUpdated;
+            if (appsCreated > 0)
+                changes[`${phase.changesPrefix} created`] = appsCreated;
+            if (appsUpdated > 0)
+                changes[`${phase.changesPrefix} updated`] = appsUpdated;
             if (appsUnchanged > 0)
-                changes['data apps unchanged'] = appsUnchanged;
-            if (appsFailed > 0) changes['data apps failed'] = appsFailed;
-            if (appsSkipped > 0) changes['data apps skipped'] = appsSkipped;
-            counts.appsNum =
+                changes[`${phase.changesPrefix} unchanged`] = appsUnchanged;
+            if (appsFailed > 0)
+                changes[`${phase.changesPrefix} failed`] = appsFailed;
+            if (appsSkipped > 0)
+                changes[`${phase.changesPrefix} skipped`] = appsSkipped;
+            const phaseBundleTotal =
                 appsCreated +
                 appsUpdated +
                 appsUnchanged +
                 appsFailed +
                 appsSkipped;
+            if (phase.isChartTypes) {
+                counts.chartTypesNum = phaseBundleTotal;
+            } else {
+                counts.appsNum = phaseBundleTotal;
+            }
             const appSummary = summarizeUploadChanges(
                 changesBeforeApps,
                 changes,
@@ -4031,7 +4186,7 @@ export const uploadHandler = async (
                 // still exit non-zero or CI pipelines read the run as green.
                 GlobalState.log(
                     styles.error(
-                        `${appsFailed} data app upload(s) failed — see errors above.`,
+                        `${appsFailed} ${phase.noun} upload(s) failed — see errors above.`,
                     ),
                 );
                 process.exitCode = 1;
