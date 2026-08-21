@@ -584,10 +584,8 @@ export const LiveActivityCard: FC<Props> = ({
 }) => {
     const [userExpanded, setUserExpanded] = useState(false);
 
-    // When the latest tool changes, auto-expand for runSql (so users see the
-    // query immediately) and auto-collapse otherwise. The user's explicit
-    // toggle is reset on every tool change so the bento has fresh "default
-    // state" for each new step.
+    // Query tools expand by default so their SQL is legible while running.
+    // The user's explicit toggle resets when the active tool changes.
     const latestKeyId =
         toolGroups.length > 0
             ? toolGroups[toolGroups.length - 1].keyId
@@ -597,7 +595,11 @@ export const LiveActivityCard: FC<Props> = ({
             ? toolGroups[toolGroups.length - 1].toolName
             : undefined;
     useEffect(() => {
-        if (latestToolName === 'runSql') setUserExpanded(true);
+        if (
+            latestToolName === 'runSql' ||
+            latestToolName === 'runComposerQueries'
+        )
+            setUserExpanded(true);
         else setUserExpanded(false);
     }, [latestKeyId, latestToolName]);
 
@@ -626,7 +628,9 @@ export const LiveActivityCard: FC<Props> = ({
     // sees it immediately, without needing to click the chevron.
     const expanded = hasPending || userExpanded;
 
-    const latestNeedsExpandedBody = latest?.toolName === 'runSql';
+    const latestNeedsExpandedBody =
+        latest?.toolName === 'runSql' ||
+        latest?.toolName === 'runComposerQueries';
     const showBody =
         expanded && (hasHistory || hasPending || latestNeedsExpandedBody);
 

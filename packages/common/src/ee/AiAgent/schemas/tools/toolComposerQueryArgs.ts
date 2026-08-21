@@ -6,6 +6,7 @@ import {
 import {
     QuerySourceType,
     type DuckdbSourceQuery,
+    type ExternalSourceQuery,
     type SemanticLayerSourceQuery,
     type SqlSourceQuery,
 } from '../../../../types/querySources';
@@ -17,12 +18,13 @@ export const DEFAULT_COMPOSER_QUERY_MAX_LIMIT = 5000;
 
 export const TOOL_COMPOSER_QUERIES_DESCRIPTION = `Execute a composer query: a pipeline of one or more queries submitted together, where DuckDB queries can join and transform the results of the other queries. Results are stored as a chart artifact that renders the terminal node's results table in the thread.
 
-Use this tool when a single source cannot answer the question — e.g. joining a semantic layer metric query with raw warehouse SQL, or post-processing prior results with SQL. A pipeline may also be a single node: a lone "sql" node is how raw warehouse SQL runs when no standalone runSql tool is available.
+Use this tool when a single source cannot answer the question — e.g. joining a semantic layer metric query with an uploaded CSV, joining with raw warehouse SQL, or post-processing prior results with SQL. A pipeline may also be a single node: a lone "sql" node is how raw warehouse SQL runs when no standalone runSql tool is available.
 
 How to build a pipeline:
 - Every query is a node. Name each node with "nodeId" (letters, digits, underscores; starting with a letter or underscore).
 - "semanticLayer" nodes run a metric query against an explore. Result columns are named by field id — exactly the dimensions and metrics requested (e.g. metric "payments_total_revenue" yields column "payments_total_revenue").
 - "sql" nodes run raw SQL against the project's data warehouse, in the warehouse's SQL dialect. Result columns are the SELECT output names. SQL execution may require the user to approve the SQL first.
+- "external" nodes run DuckDB SQL over durable external tables such as uploaded CSVs and connected Google Sheets. Declare the tables via "tables": an array of table names, or a map of {sqlAlias: tableNameOrTableUuid}. Use the exact table name or UUID supplied in the user's attached-table context. Result columns are the SELECT output names. A single external node can read multiple external tables.
 - "duckdb" nodes run DuckDB SQL over other queries' results. Declare which results the SQL reads via "references": the shorthand array form lists node ids from this submission, each exposed as a table named by its node id (["orders", "revenue"] lets the SQL run SELECT * FROM orders JOIN revenue ...); the map form aliases tables or references stored results by queryUuid ({"o": "orders", "prev": "<queryUuid>"}). A referenced table's columns are the upstream result's columns.
 - The "terminal" node is the one whose results the artifact shows and whose rows are returned to you. By default it is the unique sink (the one node no other node references); pass "terminalNodeId" explicitly when the pipeline has multiple sinks.
 
@@ -133,10 +135,27 @@ export const createToolComposerQueriesArgsSchema = ({
         limit: limitSchema,
     });
 
+    const externalNodeSchema = z.object({
+        sourceType: z.literal(QuerySourceType.EXTERNAL),
+        nodeId: nodeIdSchema,
+        sql: z
+            .string()
+            .describe(
+                'DuckDB SQL over the declared external source tables. Each table is exposed under its name or map alias.',
+            ),
+        tables: z
+            .union([z.array(z.string()), z.record(z.string(), z.string())])
+            .describe(
+                'External tables read by this query: an array of table names, or a map of {sqlAlias: tableNameOrTableUuid}. Prefer the table UUID from attached-table context so renames cannot break the query.',
+            ),
+        limit: limitSchema,
+    });
+
     const sourceQueryNodeSchema = z.discriminatedUnion('sourceType', [
         semanticLayerNodeSchema,
         sqlNodeSchema,
         duckdbNodeSchema,
+        externalNodeSchema,
     ]);
 
     return createToolSchema()
@@ -181,7 +200,11 @@ export type ToolComposerQueryNode = z.infer<
  */
 export const toolComposerQueryNodeToSourceQuery = (
     node: ToolComposerQueryNode,
-): SemanticLayerSourceQuery | SqlSourceQuery | DuckdbSourceQuery => {
+):
+    | SemanticLayerSourceQuery
+    | SqlSourceQuery
+    | DuckdbSourceQuery
+    | ExternalSourceQuery => {
     switch (node.sourceType) {
         case QuerySourceType.SEMANTIC_LAYER: {
             const filters: MetricQueryRequest['filters'] | undefined =
@@ -211,6 +234,14 @@ export const toolComposerQueryNodeToSourceQuery = (
                 nodeId: node.nodeId,
                 sql: node.sql,
                 references: node.references,
+                limit: node.limit,
+            };
+        case QuerySourceType.EXTERNAL:
+            return {
+                sourceType: node.sourceType,
+                nodeId: node.nodeId,
+                sql: node.sql,
+                tables: node.tables,
                 limit: node.limit,
             };
         default:

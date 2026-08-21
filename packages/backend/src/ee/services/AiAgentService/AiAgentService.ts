@@ -10070,19 +10070,24 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 user,
                 featureFlagId: FeatureFlags.MergeQueries,
             });
-        // Composer queries (multi-source pipelines): the MultiSourceQuery flag
-        // gates the whole feature (the service re-checks it at execution);
-        // v0 surface is standard web chat only, so Slack prompts never get the
-        // tool, and neither do deep-research runs — composer supersedes the
-        // standalone runSql tool, but the deep-research worker/coordinator
-        // toolsets still rely on runSql.
-        const { enabled: multiSourceQueryEnabled } =
-            await this.featureFlagService.get({
+        // Composer is web-chat only and requires both orchestration and DuckDB
+        // compose; Slack and deep research retain their existing SQL tools.
+        const [
+            { enabled: multiSourceQueryEnabled },
+            { enabled: composeSqlRunnerEnabled },
+        ] = await Promise.all([
+            this.featureFlagService.get({
                 user,
                 featureFlagId: FeatureFlags.MultiSourceQuery,
-            });
+            }),
+            this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.ComposeSqlRunner,
+            }),
+        ]);
         const enableComposerQueries =
             multiSourceQueryEnabled &&
+            composeSqlRunnerEnabled &&
             agentSettings.enableDataAccess &&
             !isSlackPrompt(prompt) &&
             responseExecution.mode !== 'deep_research';
