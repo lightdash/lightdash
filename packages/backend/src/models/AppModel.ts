@@ -996,6 +996,29 @@ export class AppModel {
     }
 
     /**
+     * A single data app viz by its project-scoped slug, with its latest ready
+     * schema. Undefined when the slug is not a schema-bearing data app viz.
+     */
+    async findDataAppVisualizationBySlug(
+        projectUuid: string,
+        slug: string,
+    ): Promise<(DbApp & { viz_schema: DataAppVizSchema }) | undefined> {
+        return this.joinLatestReadyVersion(this.database(AppsTableName))
+            .where({
+                [`${AppsTableName}.project_uuid`]: projectUuid,
+                [`${AppsTableName}.template`]: DATA_APP_VIZ_TEMPLATE,
+                [`${AppsTableName}.slug`]: slug,
+            })
+            .whereNull(`${AppsTableName}.deleted_at`)
+            .whereNotNull(`${AppVersionsTableName}.viz_schema`)
+            .select<(DbApp & { viz_schema: DataAppVizSchema })[]>(
+                `${AppsTableName}.*`,
+                `${AppVersionsTableName}.viz_schema`,
+            )
+            .first();
+    }
+
+    /**
      * Fetch a single data app viz by id, with its organization uuid (for the
      * view permission check) and latest schema. Undefined when the id is not a
      * data app viz in this project.

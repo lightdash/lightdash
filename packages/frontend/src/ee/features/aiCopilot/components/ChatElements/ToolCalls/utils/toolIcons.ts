@@ -40,6 +40,7 @@ export const getToolIcon = (toolName: AiAgentToolName) => {
     const iconMap: Record<ToolName, (props: TablerIconsProps) => JSX.Element> =
         {
             findExplores: IconDatabase,
+            findCustomChartTypes: IconChartDots3,
             findFields: IconSearch,
             searchSemanticLayer: IconBooks,
             analyzeFieldImpact: IconChartDots3,

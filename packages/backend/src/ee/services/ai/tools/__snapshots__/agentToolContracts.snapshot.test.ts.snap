@@ -1209,6 +1209,78 @@ Usage tips:
     },
   },
   {
+    "description": "Tool: findCustomChartTypes
+
+Purpose:
+Browse the project's custom chart type library. Set \`query\` to keyword-search types by name and description, or set \`slug\` to fetch one exact type — set exactly one of the two. Each match returns the type's slug plus its full schema: the field slots to bind query fields to (name, label, type, required) and the config options it accepts.
+
+Use it to look beyond the types inlined in availableCustomChartTypes, or to read a type's full schema before rendering through it.
+
+Parameters:
+- query: keyword terms matched against custom chart type names and descriptions
+- slug: exact slug of one custom chart type, from availableCustomChartTypes or a previous search
+
+Output:
+- Matching custom chart types, each with slug, name, description and full serialized schema (field slots and config option details)
+",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "query": {
+          "description": "Keyword terms matched against custom chart type names and descriptions. Set exactly one of query or slug.",
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+        "slug": {
+          "description": "Exact slug of one custom chart type. Set exactly one of query or slug.",
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+      },
+      "required": [
+        "query",
+        "slug",
+      ],
+      "type": "object",
+    },
+    "name": "findCustomChartTypes",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "error",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
+  },
+  {
     "description": "Tool: findExplores
 
 Purpose:
@@ -7851,6 +7923,7 @@ Usage Tips:
 exports[`AI agent tool contracts > matches the shared agent tool definition names snapshot 1`] = `
 [
   "findExplores",
+  "findCustomChartTypes",
   "findFields",
   "searchSemanticLayer",
   "analyzeFieldImpact",

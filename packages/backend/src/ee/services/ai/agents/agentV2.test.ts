@@ -54,6 +54,9 @@ const buildAgentDependencies = (updatePrompt: ReturnType<typeof vi.fn>) =>
             listExplores: vi.fn().mockResolvedValue([]),
             getVerifiedFieldUsage: vi.fn().mockResolvedValue(new Map()),
             getProjectParameterDefinitions: vi.fn().mockResolvedValue({}),
+            listCustomChartTypes: vi
+                .fn()
+                .mockResolvedValue({ types: [], totalCount: 0 }),
             updatePrompt,
             perf: new Proxy({}, { get: () => vi.fn() }),
         },
@@ -1049,7 +1052,18 @@ describe('getAgentTools workstream tool gate', () => {
         }) as unknown as AiAgentArgs;
 
     const buildTools = (flags: ToolFlags) =>
-        getAgentTools(buildArgs(flags), depsStub(), [], mcpStub, new Map(), {});
+        getAgentTools(
+            buildArgs(flags),
+            depsStub(),
+            [],
+            mcpStub,
+            new Map(),
+            {},
+            {
+                types: [],
+                totalCount: 0,
+            },
+        );
 
     const toolNames = (flags: ToolFlags) => Object.keys(buildTools(flags));
 
@@ -1163,6 +1177,7 @@ describe('getAgentTools workstream tool gate', () => {
             },
             new Map(),
             {},
+            { types: [], totalCount: 0 },
         );
 
         expect(Object.keys(tools)).toEqual(
@@ -1321,6 +1336,7 @@ describe('getAgentTools workstream tool gate', () => {
                 },
                 new Map(),
                 {},
+                { types: [], totalCount: 0 },
             ),
         );
     };
@@ -1530,6 +1546,7 @@ describe('scopeAgentConversation', () => {
             {},
             new Map(),
             'Agent memory',
+            { types: [], totalCount: 0 },
         );
 
         expect(messages[0].role).toBe('system');
