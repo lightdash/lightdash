@@ -39,12 +39,14 @@ type FieldSelectProps = {
 };
 
 const {
+    dispatch,
     fieldSelectItems,
     fieldSelectProps,
     locationSearch,
     navigate,
     pickerProps,
 } = vi.hoisted(() => ({
+    dispatch: vi.fn(),
     fieldSelectItems: [] as Item[][],
     fieldSelectProps: [] as FieldSelectProps[],
     locationSearch: { current: '' },
@@ -52,6 +54,22 @@ const {
     pickerProps: [] as PickerProps[],
 }));
 
+// The picker routes project-type selection through the Redux-based
+// useSelectProjectChartType hook; assert on what it dispatches.
+vi.mock('../../../features/explorer/store', () => ({
+    useExplorerDispatch: () => dispatch,
+    explorerActions: {
+        setChartType: (payload: unknown) => ({ type: 'setChartType', payload }),
+        setChartConfig: (payload: unknown) => ({
+            type: 'setChartConfig',
+            payload,
+        }),
+        setPivotConfig: (payload: unknown) => ({
+            type: 'setPivotConfig',
+            payload,
+        }),
+    },
+}));
 vi.mock('../CustomChartType/CustomChartTypePicker', () => ({
     default: (props: PickerProps) => {
         pickerProps.push(props);
@@ -237,6 +255,7 @@ describe('DataAppVizConfigTabs', () => {
         } as unknown as ReturnType<typeof useVisualizationContext>);
 
     beforeEach(() => {
+        dispatch.mockClear();
         fieldSelectItems.length = 0;
         fieldSelectProps.length = 0;
         pickerProps.length = 0;
@@ -319,7 +338,7 @@ describe('DataAppVizConfigTabs', () => {
         expect(screen.getByTestId('color-palette-section')).toBeInTheDocument();
     });
 
-    it('binds the picked viz contract to the query columns', () => {
+    it('binds the picked viz contract to the query columns via the shared selector', () => {
         renderWithProviders(<ConfigTabs />);
 
         const picked = {
@@ -342,12 +361,34 @@ describe('DataAppVizConfigTabs', () => {
             pickerProps[pickerProps.length - 1].onSelectProjectType(picked),
         );
 
-        expect(setDataAppVizUuid).toHaveBeenCalledWith('picked-uuid', {
-            source: 'orders_visible',
-            value: 'orders_visible_metric',
-            breakdown: 'custom-dimension',
+        expect(dispatch).toHaveBeenCalledWith({
+            type: 'setChartType',
+            payload: { chartType: ChartType.DATA_APP_VIZ },
         });
-        expect(setPivotDimensions).toHaveBeenCalledWith(['custom-dimension']);
+        expect(dispatch).toHaveBeenCalledWith({
+            type: 'setChartConfig',
+            payload: {
+                chartConfig: {
+                    type: ChartType.DATA_APP_VIZ,
+                    config: {
+                        dataAppVizUuid: 'picked-uuid',
+                        fieldMapping: {
+                            source: 'orders_visible',
+                            value: 'orders_visible_metric',
+                            breakdown: 'custom-dimension',
+                        },
+                        optionValues: {},
+                    },
+                },
+            },
+        });
+        expect(dispatch).toHaveBeenLastCalledWith({
+            type: 'setPivotConfig',
+            payload: { columns: ['custom-dimension'] },
+        });
+        // The legacy path no longer bypasses the store via the local context.
+        expect(setDataAppVizUuid).not.toHaveBeenCalled();
+        expect(setPivotDimensions).not.toHaveBeenCalled();
     });
 
     it('updates pivot dimensions when a series mapping changes', () => {
