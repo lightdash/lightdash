@@ -2301,6 +2301,7 @@ export class AiAgentAdminService extends BaseService {
                     // The review flow owns preview + verification (below), so the
                     // tool must not also create its own preview project.
                     suppressWritebackPreview: true,
+                    writebackSource: 'admin_review',
                     onStepProgress: (message) => {
                         void setProgress(message);
                     },
