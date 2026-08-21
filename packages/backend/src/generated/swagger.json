@@ -44801,6 +44801,56 @@
                 ],
                 "type": "object"
             },
+            "ResultsCacheProjectSettings": {
+                "properties": {
+                    "instanceDefaultTtlSeconds": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "cacheTtlSeconds": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "instanceDefaultTtlSeconds",
+                    "cacheTtlSeconds",
+                    "projectUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_ResultsCacheProjectSettings_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ResultsCacheProjectSettings"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiResultsCacheProjectSettingsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_ResultsCacheProjectSettings_"
+            },
+            "UpdateResultsCacheProjectSettings": {
+                "properties": {
+                    "cacheTtlSeconds": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    }
+                },
+                "required": ["cacheTtlSeconds"],
+                "type": "object"
+            },
             "PreviewExpiresAt": {
                 "properties": {
                     "expiresAt": {
@@ -56061,7 +56111,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.235.6",
+        "version": "1.236.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -78887,6 +78937,96 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/UpdatePreviewExpirationProjectSettings"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/results-cache-config": {
+            "get": {
+                "operationId": "getProjectResultsCacheSettings",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResultsCacheProjectSettingsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the results cache TTL for a project. A null TTL means the\ninstance-wide default applies.",
+                "summary": "Get results cache settings",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "updateProjectResultsCacheSettings",
+                "responses": {
+                    "200": {
+                        "description": "Updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResultsCacheProjectSettingsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Update the results cache TTL for a project. Pass null to fall back to\nthe instance-wide default.",
+                "summary": "Update results cache settings",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateResultsCacheProjectSettings"
                             }
                         }
                     }

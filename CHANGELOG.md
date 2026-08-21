@@ -1,3 +1,11 @@
+# [1.236.0](https://github.com/lightdash/lightdash/compare/1.235.6...1.236.0) (2026-08-21)
+
+
+### Features
+
+* per-project results cache TTL setting and API ([#27772](https://github.com/lightdash/lightdash/issues/27772)) ([647cbf2](https://github.com/lightdash/lightdash/commit/647cbf26a7d36656b870fa494775dff895350a64))
+* query caching tab in project settings ([#27776](https://github.com/lightdash/lightdash/issues/27776)) ([58f2c1f](https://github.com/lightdash/lightdash/commit/58f2c1f554f5e16e41fb23e6b941bb5a7925e619))
+
 ## [1.235.6](https://github.com/lightdash/lightdash/compare/1.235.5...1.235.6) (2026-08-21)
 
 
