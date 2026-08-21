@@ -109,8 +109,12 @@ export class AppGenerateController extends BaseController {
     }
 
     /**
-     * List the project's data apps (for the embed config allowlist picker).
+     * List the project's data apps (for the embed config allowlist picker
+     * and the CLI's project-wide listing). Custom chart types are excluded
+     * unless requested with dataAppVizsFilter=only.
      * @summary List project data apps
+     * @param dataAppVizsFilter 'only' lists custom chart types instead of
+     * data apps; omitted or 'exclude' lists data apps only
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -119,12 +123,14 @@ export class AppGenerateController extends BaseController {
     async listProjectApps(
         @Request() req: express.Request,
         @Path() projectUuid: string,
+        @Query() dataAppVizsFilter?: 'exclude' | 'only',
     ): Promise<ApiEmbedProjectAppsResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
         const results = await this.getAppGenerateService().listAppsForProject(
             toSessionUser(req.account),
             projectUuid,
+            dataAppVizsFilter,
         );
         return {
             status: 'ok',

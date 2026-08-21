@@ -95,6 +95,7 @@ import {
     type DataAppViz,
     type DataAppVizRenderMetadata,
     type DataAppVizSchema,
+    type DataAppVizsFilter,
     type EmbedProjectApp,
     type Explore,
     type ExternalConnectionMethod,
@@ -8163,12 +8164,16 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
-     * List all (non-deleted) data apps in a project — used by the embed config
-     * UI to populate the standalone-app allowlist picker.
+     * List the project's (non-deleted) data apps — used by the embed config
+     * UI to populate the standalone-app allowlist picker, and by the CLI's
+     * project-wide app listing. Defaults to excluding custom chart types:
+     * they are not data apps, so every consumer that wants them must ask
+     * with 'only'.
      */
     async listAppsForProject(
         user: SessionUser,
         projectUuid: string,
+        dataAppVizsFilter: DataAppVizsFilter = 'exclude',
     ): Promise<EmbedProjectApp[]> {
         await this.assertDataAppsEnabled(user);
         const projectContext = await this.getDataAppProjectContext(projectUuid);
@@ -8176,11 +8181,14 @@ export class AppGenerateService extends BaseService {
         if (auditedAbility.cannot('view', subject('DataApp', projectContext))) {
             throw new ForbiddenError('Insufficient permissions');
         }
-        const apps = await this.appModel.listAppsByProject(projectUuid);
+        const apps = await this.appModel.listAppsByProject(projectUuid, {
+            dataAppVizsFilter,
+        });
         return apps.map((app) => ({
             appUuid: app.app_id,
             name: app.name,
             slug: app.slug,
+            template: app.template,
         }));
     }
 

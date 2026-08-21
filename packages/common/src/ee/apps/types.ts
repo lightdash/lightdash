@@ -632,6 +632,13 @@ export type ApiAppSummary = {
 
 export type MyAppsSortBy = 'createdAt' | 'latestActivity';
 
+/**
+ * Narrows an app listing to real data apps ('exclude' drops custom chart
+ * types) or to custom chart types only ('only'). Same vocabulary as the
+ * content API's dataAppVizsFilter query param.
+ */
+export type DataAppVizsFilter = 'exclude' | 'only';
+
 /** Minimal app shape for the embed config's standalone-app allowlist picker. */
 export type EmbedProjectApp = {
     appUuid: string;
@@ -639,6 +646,9 @@ export type EmbedProjectApp = {
     // Project-scoped identity, used by the CLI to tell whether a dashboard's
     // app already exists in an upload target.
     slug: string;
+    // The stored template flavor; distinguishes custom chart types
+    // (data_app_viz) from data apps. Null for "Custom" or pre-template apps.
+    template: Exclude<DataAppTemplate, 'custom'> | null;
 };
 
 export type ApiEmbedProjectAppsResponse = ApiSuccess<EmbedProjectApp[]>;
