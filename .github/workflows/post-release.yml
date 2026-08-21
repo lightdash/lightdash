@@ -103,12 +103,15 @@ jobs:
           tags: |
             lightdash/lightdash:${{ steps.version.outputs.version }}
             lightdash/lightdash:latest
+            us-docker.pkg.dev/lightdash-containers/lightdash/lightdash:${{ steps.version.outputs.version }}
             us-docker.pkg.dev/lightdash-containers/lightdash/lightdash:${{ steps.version.outputs.version }}-commercial
             us-docker.pkg.dev/lightdash-containers/lightdash/lightdash:beta
             us-docker.pkg.dev/lightdash-containers/lightdash/lightdash:${{ steps.version.outputs.timestamp }}
+            europe-docker.pkg.dev/lightdash-containers/lightdash/lightdash:${{ steps.version.outputs.version }}
             europe-docker.pkg.dev/lightdash-containers/lightdash/lightdash:${{ steps.version.outputs.version }}-commercial
             europe-docker.pkg.dev/lightdash-containers/lightdash/lightdash:beta
             europe-docker.pkg.dev/lightdash-containers/lightdash/lightdash:${{ steps.version.outputs.timestamp }}
+            europe-west2-docker.pkg.dev/lightdash-containers/lightdash/lightdash:${{ steps.version.outputs.version }}
             europe-west2-docker.pkg.dev/lightdash-containers/lightdash/lightdash:${{ steps.version.outputs.version }}-commercial
             europe-west2-docker.pkg.dev/lightdash-containers/lightdash/lightdash:beta
             europe-west2-docker.pkg.dev/lightdash-containers/lightdash/lightdash:${{ steps.version.outputs.timestamp }}
