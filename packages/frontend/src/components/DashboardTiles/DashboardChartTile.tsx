@@ -70,7 +70,6 @@ import React, {
     type FC,
     type RefObject,
 } from 'react';
-import { useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { useProjectColorPalette } from '../../hooks/appearance/useProjectColorPalette';
 import { type EChartsReact } from '../EChartsReactWrapper';
@@ -140,6 +139,7 @@ import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { useRefreshPreAggregateByDefinitionName } from '../../hooks/usePreAggregateRefresh';
+import { useProjectUrlIdentifier } from '../../hooks/useProjectRoute';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import {
     useInfiniteQueryResults,
@@ -648,6 +648,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
 
         const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
         const projectUuid = useProjectUuid();
+        const projectUrlIdentifier = useProjectUrlIdentifier();
         const { canViewExplore, canViewUnderlyingData, canDrillInto } =
             useContextMenuPermissions({ minimal: false });
 
@@ -1525,7 +1526,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                     title={title || chart.name || ''}
                     chartName={chart.name}
                     verification={chart.verification ?? null}
-                    titleHref={`/projects/${projectUuid}/saved/${chart.slug}/`}
+                    titleHref={`/projects/${projectUrlIdentifier}/saved/${chart.slug}/`}
                     description={chart.description}
                     belongsToDashboard={belongsToDashboard}
                     extraMenuItems={
@@ -2206,10 +2207,7 @@ export const GenericDashboardChartTile: FC<
     darkColorPaletteOverride,
     ...rest
 }) => {
-    const { projectUuid } = useParams<{
-        projectUuid: string;
-        dashboardUuid: string;
-    }>();
+    const projectUuid = useProjectUuid();
     const { user } = useApp();
 
     // Resolve the dashboard-aware palette via the shared resolver endpoint.

@@ -2,15 +2,16 @@ import { OrganizationAccessStatus, ProjectType } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { clsx } from 'clsx';
 import { memo } from 'react';
-import { useParams } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useOrganizationAccess } from '../../hooks/organization/useOrganizationAccess';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProject } from '../../hooks/useProject';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useImpersonation } from '../../hooks/user/useImpersonation';
 import useFullscreen from '../../providers/Fullscreen/useFullscreen';
 import MantineBaseProvider from '../../providers/MantineBaseProvider';
 import { isPlaygroundProvisioningSource } from '../../utils/playgroundProject';
+import { getProjectUrlIdentifier } from '../../utils/projectUrl';
 import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../common/Page/constants';
 import { DashboardExplorerBanner } from './DashboardExplorerBanner';
 import { ImpersonationBanner } from './ImpersonationBanner';
@@ -41,13 +42,15 @@ interface NavBarProps {
 const NavBarContent = ({
     navBarMode,
     activeProjectUuid,
+    activeProjectUrlIdentifier,
     isLoadingActiveProject,
 }: {
     navBarMode: NavBarMode;
     activeProjectUuid: string | undefined;
+    activeProjectUrlIdentifier: string | undefined;
     isLoadingActiveProject: boolean;
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     if (navBarMode === NavBarMode.EDITING_DASHBOARD_CHART) {
         return <DashboardExplorerBanner projectUuid={projectUuid} />;
     }
@@ -55,6 +58,7 @@ const NavBarContent = ({
     return (
         <MainNavBarContent
             activeProjectUuid={activeProjectUuid}
+            activeProjectUrlIdentifier={activeProjectUrlIdentifier}
             isLoadingActiveProject={isLoadingActiveProject}
         />
     );
@@ -65,9 +69,13 @@ const getNavBarRootElement = () =>
 
 const NavBar = memo(({ isFixed = true }: NavBarProps) => {
     const { isFullscreen } = useFullscreen();
+    const routeProjectUuid = useProjectUuid();
 
     const { activeProjectUuid, isLoading: isLoadingActiveProject } =
-        useActiveProjectUuid({ refetchOnMount: true });
+        useActiveProjectUuid({
+            refetchOnMount: true,
+            projectUuid: routeProjectUuid,
+        });
     const { data: project } = useProject(activeProjectUuid);
 
     const isCurrentProjectPreview = project?.type === ProjectType.PREVIEW;
@@ -119,6 +127,7 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
                             upstreamProject
                                 ? {
                                       projectUuid: upstreamProject.projectUuid,
+                                      slug: upstreamProject.slug,
                                       name: upstreamProject.name,
                                   }
                                 : null
@@ -145,6 +154,11 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
                     <NavBarContent
                         navBarMode={navBarMode}
                         activeProjectUuid={activeProjectUuid}
+                        activeProjectUrlIdentifier={
+                            project
+                                ? getProjectUrlIdentifier(project)
+                                : activeProjectUuid
+                        }
                         isLoadingActiveProject={isLoadingActiveProject}
                     />
                 </Box>

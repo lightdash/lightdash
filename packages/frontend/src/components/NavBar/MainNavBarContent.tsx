@@ -3,6 +3,7 @@ import { lazy, Suspense, type FC } from 'react';
 import { Link } from 'react-router';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
 import Omnibar from '../../features/omnibar';
+import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import useApp from '../../providers/App/useApp';
 import Logo from '../../svgs/logo-icon.svg?react';
 import { AutopilotNavButton } from './AutopilotNavButton';
@@ -26,15 +27,20 @@ const AiAgentsButton = lazy(() =>
 
 type Props = {
     activeProjectUuid: string | undefined;
+    activeProjectUrlIdentifier: string | undefined;
     isLoadingActiveProject: boolean;
 };
 
 export const MainNavBarContent: FC<Props> = ({
     activeProjectUuid,
+    activeProjectUrlIdentifier,
     isLoadingActiveProject,
 }) => {
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? activeProjectUrlIdentifier;
     const homeUrl = activeProjectUuid
-        ? `/projects/${activeProjectUuid}/home`
+        ? `/projects/${projectUrlIdentifier}/home`
         : '/';
     const { data: hasMetrics } = useHasMetricsInCatalog({
         projectUuid: activeProjectUuid,
@@ -57,7 +63,10 @@ export const MainNavBarContent: FC<Props> = ({
                 {!isLoadingActiveProject && activeProjectUuid && (
                     <>
                         <Button.Group>
-                            <ExploreMenu projectUuid={activeProjectUuid} />
+                            <ExploreMenu
+                                projectUuid={activeProjectUuid}
+                                projectUrlIdentifier={projectUrlIdentifier}
+                            />
                             <BrowseMenu projectUuid={activeProjectUuid} />
                             {hasMetrics && (
                                 <MetricsLink projectUuid={activeProjectUuid} />

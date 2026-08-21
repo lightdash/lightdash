@@ -22,8 +22,10 @@ import {
     IconVideo,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
+import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -71,6 +73,7 @@ const AddTileButton: FC<Props> = ({
 
     const { storeDashboard } = useDashboardStorage();
     const navigate = useNavigate();
+    const projectRoute = useOptionalProjectRoute();
     const { health } = useApp();
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const dataAppsEnabled = dataAppsFlag.data?.enabled === true;
@@ -122,9 +125,9 @@ const AddTileButton: FC<Props> = ({
         },
         [onAddTiles],
     );
-    const { projectUuid } = useParams<{
-        projectUuid: string;
-    }>();
+    const projectUuid = useProjectUuid();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
 
     return (
         <>
@@ -181,7 +184,7 @@ const AddTileButton: FC<Props> = ({
                                         dashboard?.slug,
                                     );
                                     void navigate(
-                                        `/projects/${projectUuid}/tables`,
+                                        `/projects/${projectUrlIdentifier}/tables`,
                                     );
                                 }}
                                 leftSection={<MantineIcon icon={IconPlus} />}

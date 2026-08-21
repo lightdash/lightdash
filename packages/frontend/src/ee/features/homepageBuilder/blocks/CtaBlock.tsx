@@ -22,6 +22,7 @@ import { type CSSProperties, type FC } from 'react';
 import { Link } from 'react-router';
 import { useProjectColorPalette } from '../../../../hooks/appearance/useProjectColorPalette';
 import { useOrganizationBrand } from '../../../../hooks/organization/useOrganizationBrand';
+import { useProjectUrlIdentifier } from '../../../../hooks/useProjectRoute';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
 import { useHomepageAiState } from '../hooks/useHomepageAiState';
@@ -31,18 +32,22 @@ import { type BlockComponentProps, type BuildComponentProps } from './types';
 
 type CtaConfig = HomepageCtaBlock['config'];
 
-const targetUrl = (target: HomepageCtaTarget, projectUuid: string): string => {
+const targetUrl = (
+    target: HomepageCtaTarget,
+    projectUuid: string,
+    projectUrlIdentifier: string,
+): string => {
     switch (target.type) {
         case 'ask-ai':
             return `/projects/${projectUuid}/ai-agents`;
         case 'run-query':
             return `/projects/${projectUuid}/tables`;
         case 'browse-dashboards':
-            return `/projects/${projectUuid}/dashboards`;
+            return `/projects/${projectUrlIdentifier}/dashboards`;
         case 'browse-spaces':
-            return `/projects/${projectUuid}/spaces`;
+            return `/projects/${projectUrlIdentifier}/spaces`;
         case 'dashboard':
-            return `/projects/${projectUuid}/dashboards/${target.dashboardUuid}/view`;
+            return `/projects/${projectUrlIdentifier}/dashboards/${target.dashboardUuid}/view`;
         case 'link':
             return target.url;
         default:
@@ -121,6 +126,7 @@ const CtaBanner: FC<{
     interactive: boolean;
     onNavigate?: () => void;
 }> = ({ config, projectUuid, interactive, onNavigate }) => {
+    const projectUrlIdentifier = useProjectUrlIdentifier();
     const { data: brand } = useOrganizationBrand();
     const theme = config.theme ?? 'brand';
     const background = config.background ?? 'none';
@@ -168,7 +174,7 @@ const CtaBanner: FC<{
     if (!interactive) {
         return <div {...shared}>{body}</div>;
     }
-    const url = targetUrl(config.target, projectUuid);
+    const url = targetUrl(config.target, projectUuid, projectUrlIdentifier);
     return config.target.type === 'link' ? (
         <a
             href={url}

@@ -14,7 +14,6 @@ import {
     IconFolderX,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, type FC } from 'react';
-import { useParams } from 'react-router';
 import { MoveAppToSpaceModal } from '../../../features/apps/components/MoveAppToSpaceModal';
 import { useAppPinningMutation } from '../../../features/apps/hooks/useAppPinningMutation';
 import { DeleteSqlChartModal } from '../../../features/sqlRunner/components/DeleteSqlChartModal';
@@ -22,6 +21,7 @@ import { useChartPinningMutation } from '../../../hooks/pinning/useChartPinningM
 import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboardPinningMutation';
 import { useSpacePinningMutation } from '../../../hooks/pinning/useSpaceMutation';
 import { useContentAction } from '../../../hooks/useContent';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useSpace } from '../../../hooks/useSpaces';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import AppDeleteModal from '../modal/AppDeleteModal';
@@ -79,7 +79,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
     action,
     onAction,
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
 
     const { mutateAsync: contentAction, isLoading: isContentActionLoading } =
         useContentAction(projectUuid);

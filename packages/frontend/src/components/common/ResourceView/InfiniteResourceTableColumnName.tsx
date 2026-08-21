@@ -141,6 +141,7 @@ const ResourceVerifiedInlineBadge = ({
 type InfiniteResourceTableColumnNameProps = {
     item: ResourceViewItem;
     projectUuid: string;
+    projectUrlIdentifier: string;
     canUserManageValidation: boolean;
     showDataAppVersionStatus: boolean;
 };
@@ -148,6 +149,7 @@ type InfiniteResourceTableColumnNameProps = {
 const InfiniteResourceTableColumnName = ({
     item,
     projectUuid,
+    projectUrlIdentifier,
     canUserManageValidation,
     showDataAppVersionStatus,
 }: InfiniteResourceTableColumnNameProps) => {
@@ -193,7 +195,7 @@ const InfiniteResourceTableColumnName = ({
             component={Link}
             c="unset"
             underline="never"
-            to={getResourceUrl(projectUuid, item)}
+            to={getResourceUrl(projectUuid, item, projectUrlIdentifier)}
             onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
                 e.stopPropagation()
             }

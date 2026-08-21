@@ -30,6 +30,7 @@ import {
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import useSearchParams from '../../../hooks/useSearchParams';
 import { useSpaceAccess } from '../../../hooks/useSpaceAccess';
 import {
@@ -181,6 +182,9 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
     onClose: externalOnClose,
 }) => {
     const navigate = useNavigate();
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     const shareSpaceModalSearchParam = useSearchParams('shareSpaceModal');
     const { user: sessionUser } = useApp();
     const { showToastError } = useToaster();
@@ -254,9 +258,16 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
     useEffect(() => {
         if (shareSpaceModalSearchParam === 'true') {
             setInternalIsOpen(true);
-            void navigate(`/projects/${projectUuid}/spaces/${space.uuid}`);
+            void navigate(
+                `/projects/${projectUrlIdentifier}/spaces/${space.uuid}`,
+            );
         }
-    }, [navigate, projectUuid, shareSpaceModalSearchParam, space.uuid]);
+    }, [
+        navigate,
+        projectUrlIdentifier,
+        shareSpaceModalSearchParam,
+        space.uuid,
+    ]);
 
     const { mutate: unshareSpaceMutation } = useDeleteSpaceShareMutation(
         projectUuid,

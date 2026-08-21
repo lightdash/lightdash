@@ -5,18 +5,26 @@ import { validate as isUuidString } from 'uuid';
 import ErrorState from '../components/common/ErrorState';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
 import { useProject } from '../hooks/useProject';
+import {
+    ProjectRouteContext,
+    type ProjectRouteContextValue,
+} from '../hooks/useProjectRoute';
+import { useProjects } from '../hooks/useProjects';
 import { Can } from '../providers/Ability';
 import useApp from '../providers/App/useApp';
+import { getProjectUrlIdentifier } from '../utils/projectUrl';
 import PageSpinner from './PageSpinner';
 
 const ResolvedProjectRoute: FC<
     React.PropsWithChildren<{ projectUuid: string }>
 > = ({ children, projectUuid }) => {
     const { user } = useApp();
-    const { activeProjectUuid, isLoading: isInitialLoading } =
-        useActiveProjectUuid({ refetchOnMount: true });
+    const { isLoading: isInitialLoading } = useActiveProjectUuid({
+        refetchOnMount: true,
+        projectUuid,
+    });
 
-    const { data: project, isError, error } = useProject(activeProjectUuid);
+    const { data: project, isError, error } = useProject(projectUuid);
     if (isInitialLoading) {
         return <PageSpinner />;
     }
@@ -29,6 +37,12 @@ const ResolvedProjectRoute: FC<
         return <Navigate to="/no-access" />;
     }
 
+    const projectRouteContext: ProjectRouteContextValue = {
+        project,
+        projectUuid,
+        projectUrlIdentifier: getProjectUrlIdentifier(project),
+    };
+
     return (
         <Can
             I="view"
@@ -40,7 +54,9 @@ const ResolvedProjectRoute: FC<
         >
             {(isAllowed) => {
                 return isAllowed ? (
-                    children
+                    <ProjectRouteContext.Provider value={projectRouteContext}>
+                        {children}
+                    </ProjectRouteContext.Provider>
                 ) : (
                     <Navigate to="/no-project-access" />
                 );
@@ -50,9 +66,31 @@ const ResolvedProjectRoute: FC<
 };
 
 const ProjectRoute: FC<React.PropsWithChildren> = ({ children }) => {
-    const { projectUuid } = useParams();
+    const { projectUuid: projectIdentifier } = useParams();
+    const isProjectUuid = isUuidString(projectIdentifier ?? '');
+    const projectsQuery = useProjects({
+        enabled: !!projectIdentifier && !isProjectUuid,
+    });
 
-    if (!projectUuid || !isUuidString(projectUuid)) {
+    if (!projectIdentifier) {
+        return <Navigate to="/projects" replace />;
+    }
+
+    if (!isProjectUuid && projectsQuery.isInitialLoading) {
+        return <PageSpinner />;
+    }
+
+    if (!isProjectUuid && projectsQuery.isError) {
+        return <ErrorState error={projectsQuery.error.error} />;
+    }
+
+    const projectUuid = isProjectUuid
+        ? projectIdentifier
+        : projectsQuery.data?.find(
+              (project) => project.slug === projectIdentifier,
+          )?.projectUuid;
+
+    if (!projectUuid) {
         return <Navigate to="/projects" replace />;
     }
 

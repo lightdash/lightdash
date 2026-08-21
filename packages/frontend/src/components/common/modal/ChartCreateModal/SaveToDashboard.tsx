@@ -18,6 +18,7 @@ import {
 } from '../../../../hooks/dashboard/useDashboard';
 import useDashboardStorage from '../../../../hooks/dashboard/useDashboardStorage';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useOptionalProjectRoute } from '../../../../hooks/useProjectRoute';
 import { useCreateMutation } from '../../../../hooks/useSavedQuery';
 import classes from './ChartCreateModal.module.css';
 import { DEFAULT_CHART_METADATA, type ChartMetadata } from './types';
@@ -51,6 +52,9 @@ export const SaveToDashboard: FC<Props> = ({
     defaults = DEFAULT_CHART_METADATA,
     colorPaletteUuid,
 }) => {
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     const [dashboardInfoFromStorage, setDashboardInfoFromStorage] = useState({
         name: dashboardName,
         dashboardUuid,
@@ -141,8 +145,8 @@ export const SaveToDashboard: FC<Props> = ({
             );
             void navigate(
                 activeTabUuid
-                    ? `/projects/${projectUuid}/dashboards/${selectedDashboard?.slug ?? dashboardUuid}/edit/tabs/${activeTabUuid}`
-                    : `/projects/${projectUuid}/dashboards/${selectedDashboard?.slug ?? dashboardUuid}/edit`,
+                    ? `/projects/${projectUrlIdentifier}/dashboards/${selectedDashboard?.slug ?? dashboardUuid}/edit/tabs/${activeTabUuid}`
+                    : `/projects/${projectUrlIdentifier}/dashboards/${selectedDashboard?.slug ?? dashboardUuid}/edit`,
             );
             showToastSuccess({
                 title: `Success! ${values.name} was added to ${dashboardName}`,
@@ -158,6 +162,7 @@ export const SaveToDashboard: FC<Props> = ({
             setUnsavedDashboardTiles,
             navigate,
             projectUuid,
+            projectUrlIdentifier,
             showToastSuccess,
             dashboardName,
             selectedDashboard?.tiles,

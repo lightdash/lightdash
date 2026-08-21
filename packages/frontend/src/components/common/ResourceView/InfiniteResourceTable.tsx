@@ -43,6 +43,7 @@ import {
     type ContentArgs,
 } from '../../../hooks/useContent';
 import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
+import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../hooks/validation/useValidation';
@@ -179,6 +180,9 @@ const InfiniteResourceTable = ({
     showDataAppVersionStatus = false,
     ...contentTableProps
 }: ResourceView2Props) => {
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? filters.projectUuid;
     const [selectedAdminContentType, setSelectedAdminContentType] = useState<
         'all' | 'shared'
     >(initialAdminContentViewValue);
@@ -230,6 +234,7 @@ const InfiniteResourceTable = ({
                     <InfiniteResourceTableColumnName
                         item={row.original}
                         projectUuid={filters.projectUuid}
+                        projectUrlIdentifier={projectUrlIdentifier}
                         canUserManageValidation={canUserManageValidation}
                         showDataAppVersionStatus={showDataAppVersionStatus}
                     />
@@ -256,7 +261,7 @@ const InfiniteResourceTable = ({
                         <Anchor
                             c="ldGray.7"
                             component={Link}
-                            to={`/projects/${space.projectUuid}/spaces/${space.uuid}`}
+                            to={`/projects/${projectUrlIdentifier}/spaces/${space.uuid}`}
                             onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
                                 e.stopPropagation()
                             }
@@ -607,7 +612,11 @@ const InfiniteResourceTable = ({
                         row.toggleSelected();
                     } else if (!isInitialLoading) {
                         void navigate(
-                            getResourceUrl(filters.projectUuid, row.original),
+                            getResourceUrl(
+                                filters.projectUuid,
+                                row.original,
+                                projectUrlIdentifier,
+                            ),
                         );
                     }
                 },

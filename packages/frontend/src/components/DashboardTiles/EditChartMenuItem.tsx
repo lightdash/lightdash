@@ -1,8 +1,8 @@
 import { type DashboardChartTile } from '@lightdash/common';
 import { IconFilePencil } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useParams } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
+import { useProjectUrlIdentifier } from '../../hooks/useProjectRoute';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import LinkMenuItem, { type LinkMenuItemProps } from '../common/LinkMenuItem';
@@ -25,9 +25,7 @@ const EditChartMenuItem: FC<Props> = ({ tile, chartSlug, ...props }) => {
 
     const { storeDashboard } = useDashboardStorage();
 
-    const { projectUuid } = useParams<{
-        projectUuid: string;
-    }>();
+    const projectUrlIdentifier = useProjectUrlIdentifier();
 
     const userCanManageExplore = user.data?.ability?.can('manage', 'Explore');
 
@@ -51,7 +49,7 @@ const EditChartMenuItem: FC<Props> = ({ tile, chartSlug, ...props }) => {
                     );
                 }
             }}
-            href={`/projects/${projectUuid}/saved/${chartSlug ?? tile.properties.savedChartUuid}/edit?fromDashboard=${dashboard?.uuid}`}
+            href={`/projects/${projectUrlIdentifier}/saved/${chartSlug ?? tile.properties.savedChartUuid}/edit?fromDashboard=${dashboard?.uuid}`}
             {...props}
         >
             Edit chart

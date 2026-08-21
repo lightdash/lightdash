@@ -15,7 +15,7 @@ const emptyResults = {
 } as SearchResults;
 
 describe('getSearchItemMap', () => {
-    it('uses dashboard slugs for dashboard and dashboard tab results', () => {
+    it('uses the project URL identifier for core content results', () => {
         const result = getSearchItemMap(
             {
                 ...emptyResults,
@@ -36,22 +36,42 @@ describe('getSearchItemMap', () => {
                         spaceUuid: 'space-uuid',
                     },
                 ],
+                spaces: [
+                    {
+                        uuid: 'space-uuid',
+                        name: 'Space',
+                    },
+                ],
+                savedCharts: [
+                    {
+                        uuid: 'chart-uuid',
+                        slug: 'chart-slug',
+                        name: 'Chart',
+                    },
+                ],
             } as SearchResults,
             'project-uuid',
+            'project-slug',
         );
 
         expect(result.dashboards[0]).toMatchObject({
             type: SearchItemType.DASHBOARD,
             location: {
-                pathname: '/projects/project-uuid/dashboards/dashboard-slug',
+                pathname: '/projects/project-slug/dashboards/dashboard-slug',
             },
         });
         expect(result.dashboardTabs[0]).toMatchObject({
             type: SearchItemType.DASHBOARD_TAB,
             location: {
                 pathname:
-                    '/projects/project-uuid/dashboards/dashboard-slug/view/tabs/tab-uuid',
+                    '/projects/project-slug/dashboards/dashboard-slug/view/tabs/tab-uuid',
             },
         });
+        expect(result.spaces[0].location.pathname).toBe(
+            '/projects/project-slug/spaces/space-uuid',
+        );
+        expect(result.savedCharts[0].location.pathname).toBe(
+            '/projects/project-slug/saved/chart-slug',
+        );
     });
 });

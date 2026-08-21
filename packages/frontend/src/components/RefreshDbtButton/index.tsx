@@ -12,8 +12,8 @@ import {
 } from '@mantine/core';
 import { IconRefresh } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
-import { useParams } from 'react-router';
 import { useProject } from '../../hooks/useProject';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useRefreshServer } from '../../hooks/useRefreshServer';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import useActiveJob from '../../providers/ActiveJob/useActiveJob';
@@ -34,7 +34,7 @@ const RefreshDbtButton: FC<{
     defaultTextOverride,
     refreshingTextOverride,
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const { data } = useProject(projectUuid);
     const { activeJob } = useActiveJob();
     const { mutate: refreshDbtServer } = useRefreshServer();

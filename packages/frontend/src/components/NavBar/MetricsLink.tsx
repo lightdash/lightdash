@@ -6,6 +6,7 @@ import { useProject } from '../../hooks/useProject';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import { getProjectUrlIdentifier } from '../../utils/projectUrl';
 import MantineIcon from '../common/MantineIcon';
 
 interface Props {
@@ -17,6 +18,9 @@ export const MetricsLink: FC<Props> = ({ projectUuid, asMenu }) => {
     const { user } = useApp();
     const navigate = useNavigate();
     const { data: project } = useProject(projectUuid);
+    const projectUrlIdentifier = project
+        ? getProjectUrlIdentifier(project)
+        : projectUuid;
     const { track } = useTracking();
 
     const trackMetricsCatalogClick = useCallback(() => {
@@ -34,14 +38,14 @@ export const MetricsLink: FC<Props> = ({ projectUuid, asMenu }) => {
 
     const handleMetricsCatalogClick = useCallback(() => {
         trackMetricsCatalogClick();
-        void navigate(`/projects/${projectUuid}/metrics`);
-    }, [trackMetricsCatalogClick, navigate, projectUuid]);
+        void navigate(`/projects/${projectUrlIdentifier}/metrics`);
+    }, [trackMetricsCatalogClick, navigate, projectUrlIdentifier]);
 
     if (asMenu) {
         return (
             <Menu.Item
                 component={Link}
-                to={`/projects/${projectUuid}/metrics`}
+                to={`/projects/${projectUrlIdentifier}/metrics`}
                 leftSection={<MantineIcon icon={IconHash} />}
                 onClick={trackMetricsCatalogClick}
             >

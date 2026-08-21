@@ -2,6 +2,7 @@ import { Anchor, List, ScrollArea, type ModalProps } from '@mantine/core';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import { useDashboardsContainingChart } from '../../../hooks/dashboard/useDashboards';
+import { useProjectUrlIdentifier } from '../../../hooks/useProjectRoute';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import {
     useSavedQuery,
@@ -22,6 +23,7 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
     ...modalProps
 }) => {
     const projectUuid = useProjectUuid();
+    const projectUrlIdentifier = useProjectUrlIdentifier();
     const { health } = useApp();
     const softDeleteEnabled = health.data?.softDelete.enabled;
     const retentionDays = health.data?.softDelete.retentionDays;
@@ -85,7 +87,7 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
                                         component={Link}
                                         fz="sm"
                                         target="_blank"
-                                        to={`/projects/${projectUuid}/dashboards/${dashboard.slug}`}
+                                        to={`/projects/${projectUrlIdentifier}/dashboards/${dashboard.slug}`}
                                     >
                                         {dashboard.name}
                                     </Anchor>

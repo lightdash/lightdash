@@ -16,6 +16,7 @@ import { Link } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { ResourceIcon } from '../../../../components/common/ResourceIcon';
 import { getResourceUrl } from '../../../../components/common/ResourceView/resourceUtils';
+import { useProjectUrlIdentifier } from '../../../../hooks/useProjectRoute';
 import { useTimeAgo } from '../../../../hooks/useTimeAgo';
 import classes from './blockStyles.module.css';
 
@@ -141,9 +142,14 @@ export const ContentCard: FC<Props> = ({
     star,
     variant = 'row',
 }) => {
+    const projectUrlIdentifier = useProjectUrlIdentifier();
     const to = onRemove
         ? null
-        : getResourceUrl(projectUuid, contentToResourceViewItem(content));
+        : getResourceUrl(
+              projectUuid,
+              contentToResourceViewItem(content),
+              projectUrlIdentifier,
+          );
     const cardClass = `${classes.hoverCard}${to ? ` ${classes.clickable}` : ''}`;
 
     // A single dense line — visibly lighter than the two-line card variant.

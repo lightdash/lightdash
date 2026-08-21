@@ -10,6 +10,7 @@ import { useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { z } from 'zod';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import {
     useCreateMutation,
     useSpace,
@@ -179,6 +180,9 @@ const SpaceActionModal: FC<
     parentSpaceUuid,
     ...props
 }) => {
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     const { data, isInitialLoading } = useSpace(projectUuid, spaceUuid, {
         enabled: !!spaceUuid,
     });
@@ -190,7 +194,7 @@ const SpaceActionModal: FC<
             onSuccess: (space) => {
                 if (shouldRedirect) {
                     void navigate(
-                        `/projects/${projectUuid}/spaces/${space.uuid}`,
+                        `/projects/${projectUrlIdentifier}/spaces/${space.uuid}`,
                     );
                 }
             },

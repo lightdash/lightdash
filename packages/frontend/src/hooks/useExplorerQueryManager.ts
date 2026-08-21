@@ -25,6 +25,7 @@ import { buildQueryArgs } from './explorer/buildQueryArgs';
 import { useExploreByProjectUuid } from './useExplore';
 import { useDateZoomGranularitySearch } from './useExplorerRoute';
 import { usePreAggregateCacheEnabled } from './usePreAggregateCacheEnabled';
+import { useProjectUuid } from './useProjectUuid';
 
 type ExplorerQueryManagerArgs = {
     projectUuid?: string;
@@ -69,16 +70,16 @@ export const useExplorerQueryManager = ({
     );
 
     const embed = useEmbed();
+    const routeProjectUuid = useProjectUuid();
     const params = useParams<{
         savedQueryUuid: string;
-        projectUuid: string;
     }>();
     const savedQueryUuid =
         explicitSavedQueryUuid ||
         embed?.savedQueryUuid ||
         params.savedQueryUuid;
     const projectUuid =
-        explicitProjectUuid || embed?.projectUuid || params.projectUuid!;
+        explicitProjectUuid || embed?.projectUuid || routeProjectUuid!;
     const viewModeQueryArgs = useMemo(() => {
         return savedQueryUuid ? { chartUuid: savedQueryUuid } : undefined;
     }, [savedQueryUuid]);

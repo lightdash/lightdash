@@ -2,6 +2,7 @@ import { ActionIcon, Anchor, Group, Text, Tooltip } from '@mantine/core';
 import { IconFolder } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
+import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import MantineIcon from '../../common/MantineIcon';
 
 type Props = {
@@ -29,6 +30,9 @@ export const TitleBreadCrumbs: FC<Props> = ({
     dashboardSlug,
     dashboardName,
 }) => {
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     const isChartWithinDashboard = !!(dashboardUuid && dashboardName);
     return (
         <>
@@ -53,7 +57,7 @@ export const TitleBreadCrumbs: FC<Props> = ({
                                 <ActionIcon
                                     variant="subtle"
                                     component={Link}
-                                    to={`/projects/${projectUuid}/dashboards/${dashboardSlug ?? dashboardUuid}`}
+                                    to={`/projects/${projectUrlIdentifier}/dashboards/${dashboardSlug ?? dashboardUuid}`}
                                 >
                                     <MantineIcon
                                         color="ldGray.4"
@@ -66,7 +70,7 @@ export const TitleBreadCrumbs: FC<Props> = ({
                                     fz="md"
                                     c="ldGray.6"
                                     component={Link}
-                                    to={`/projects/${projectUuid}/spaces/${spaceUuid}`}
+                                    to={`/projects/${projectUrlIdentifier}/spaces/${spaceUuid}`}
                                     style={{
                                         maxWidth: `${MAX_WIDTH_TITLE_PX}px`,
                                         whiteSpace: 'nowrap',
@@ -104,7 +108,7 @@ export const TitleBreadCrumbs: FC<Props> = ({
                             c="ldGray.6"
                             fz="md"
                             component={Link}
-                            to={`/projects/${projectUuid}/dashboards/${dashboardSlug ?? dashboardUuid}`}
+                            to={`/projects/${projectUrlIdentifier}/dashboards/${dashboardSlug ?? dashboardUuid}`}
                             truncate
                             display="inline-block"
                             maw={MAX_WIDTH_TITLE_PX}
