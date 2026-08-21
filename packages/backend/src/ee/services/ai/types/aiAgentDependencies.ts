@@ -16,6 +16,7 @@ import {
     ChartAsCode,
     CreateSchedulerAndTargetsWithoutIds,
     CustomChartType,
+    CustomChartTypeLibrary,
     DashboardAsCode,
     DashboardSearchResult,
     DbtProjectType,
@@ -103,12 +104,7 @@ export type FindExploresFn = (args: {
 // Used to rank verified/governed fields first in grep discovery.
 export type GetVerifiedFieldUsageFn = () => Promise<Map<string, number>>;
 
-// The project's custom chart type library, newest first, capped at the
-// system-prompt inline limit; totalCount is the whole library's size.
-export type ListCustomChartTypesFn = () => Promise<{
-    types: CustomChartType[];
-    totalCount: number;
-}>;
+export type ListCustomChartTypesFn = () => Promise<CustomChartTypeLibrary>;
 
 export type FindCustomChartTypesFn = (
     args: { query: string } | { slug: string },

@@ -820,19 +820,28 @@ export class AiAgentToolsService extends BaseService {
     // Custom chart types (data app vizs) are a project-level library, not
     // space content — agent spaceAccess deliberately does not filter them.
 
-    private static mapCustomChartType(
-        app: DbApp & { viz_schema: DataAppVizSchema },
-    ): CustomChartType | null {
-        // Persisted schemas may predate configOptions/colorPalette; the
-        // permissive parser backfills defaults and rejects malformed rows.
-        const parsed = dataAppVizSchema.safeParse(app.viz_schema);
-        if (!parsed.success) return null;
-        return {
-            slug: app.slug,
-            name: app.name,
-            description: app.description,
-            schema: parsed.data,
-        };
+    // Persisted schemas may predate configOptions/colorPalette; the
+    // permissive parser backfills defaults and rejects malformed rows.
+    private parseCustomChartTypes(
+        rows: (DbApp & { viz_schema: DataAppVizSchema })[],
+    ): CustomChartType[] {
+        const types: CustomChartType[] = [];
+        for (const row of rows) {
+            const parsed = dataAppVizSchema.safeParse(row.viz_schema);
+            if (parsed.success) {
+                types.push({
+                    slug: row.slug,
+                    name: row.name,
+                    description: row.description,
+                    schema: parsed.data,
+                });
+            } else {
+                this.logger.warn(
+                    `Dropping custom chart type "${row.slug}": persisted viz_schema failed validation`,
+                );
+            }
+        }
+        return types;
     }
 
     private async customChartTypesEnabled(
@@ -860,9 +869,7 @@ export class AiAgentToolsService extends BaseService {
                 page: 1,
                 pageSize: AiAgentToolsService.CUSTOM_CHART_TYPES_INLINE_LIMIT,
             });
-        const types = data
-            .map(AiAgentToolsService.mapCustomChartType)
-            .filter((type): type is CustomChartType => type !== null);
+        const types = this.parseCustomChartTypes(data);
         return { types, totalCount: pagination?.totalResults ?? types.length };
     }
 
@@ -896,10 +903,9 @@ export class AiAgentToolsService extends BaseService {
                                   args.query,
                               )
                           ).data;
-                return rows
-                    .filter((row) => row !== undefined)
-                    .map(AiAgentToolsService.mapCustomChartType)
-                    .filter((type): type is CustomChartType => type !== null);
+                return this.parseCustomChartTypes(
+                    rows.filter((row) => row !== undefined),
+                );
             },
         );
     }

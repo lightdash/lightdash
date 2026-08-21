@@ -13,6 +13,15 @@ export type CustomChartType = {
     schema: DataAppVizSchema;
 };
 
+/**
+ * The slice of the library the agent sees inline: newest first, capped at the
+ * system-prompt inline limit; totalCount is the whole library's size.
+ */
+export type CustomChartTypeLibrary = {
+    types: CustomChartType[];
+    totalCount: number;
+};
+
 const escapeXml = (value: string): string =>
     value
         .replace(/&/g, '&amp;')
