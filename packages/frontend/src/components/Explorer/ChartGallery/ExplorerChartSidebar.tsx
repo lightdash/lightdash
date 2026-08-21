@@ -20,6 +20,7 @@ import { useState, type FC } from 'react';
 import { Link, useLocation, useParams } from 'react-router';
 import { useCanEditDataApp } from '../../../features/apps/hooks/useCanEditDataApp';
 import { useDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
+import { chartTypeBuilderPath } from '../../../features/chartTypes/utils/chartTypeBuilderPath';
 import { ChartGalleryContext } from '../../common/ChartGallery/ChartGalleryContext';
 import MantineIcon from '../../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
@@ -162,7 +163,12 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                                                 <Anchor
                                                     component={Link}
                                                     to={{
-                                                        pathname: `/projects/${projectUuid}/chart-types/${selectedProjectType.dataAppVizUuid}`,
+                                                        pathname:
+                                                            chartTypeBuilderPath(
+                                                                projectUuid ??
+                                                                    '',
+                                                                selectedProjectType.dataAppVizUuid,
+                                                            ),
                                                         search: location.search,
                                                     }}
                                                     fz="xs"

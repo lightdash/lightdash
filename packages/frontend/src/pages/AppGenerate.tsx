@@ -148,6 +148,7 @@ import { getVersionNarration } from '../features/apps/utils/versionNarration';
 import { versionsToChatMessages } from '../features/apps/utils/versionsToChatMessages';
 import DataAppVizResultCard from '../features/chartTypes/components/DataAppVizResultCard';
 import DataAppVizTestPanel from '../features/chartTypes/components/DataAppVizTestPanel';
+import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
 import { useAppExternalConnections } from '../features/externalConnections/hooks/useAppExternalConnections';
 import { ThemePicker } from '../features/organizationDesigns/components/ThemePicker';
 import { useOrganizationDesigns } from '../features/organizationDesigns/hooks/useOrganizationDesigns';
@@ -1366,7 +1367,7 @@ const AppGenerate: FC = () => {
     ) {
         return (
             <Navigate
-                to={`/projects/${projectUuid}/chart-types/${activeAppUuid}`}
+                to={chartTypeBuilderPath(projectUuid ?? '', activeAppUuid)}
                 replace
             />
         );

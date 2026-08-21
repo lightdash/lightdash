@@ -13,6 +13,7 @@ import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useDeepCompareEffect } from 'react-use';
 import { useCanCreateDataApp } from '../../../../features/apps/hooks/useCanCreateDataApp';
+import { chartTypeBuilderPath } from '../../../../features/chartTypes/utils/chartTypeBuilderPath';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import { useIsInsideChartGallery } from '../../../common/ChartGallery/ChartGalleryContext';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
@@ -271,7 +272,9 @@ export const ConfigTabs: React.FC = memo(() => {
                             canCreateApp
                                 ? () =>
                                       void navigate({
-                                          pathname: `/projects/${projectUuid}/chart-types/new`,
+                                          pathname: chartTypeBuilderPath(
+                                              projectUuid ?? '',
+                                          ),
                                           search: location.search,
                                       })
                                 : null

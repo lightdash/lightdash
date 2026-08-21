@@ -25,6 +25,7 @@ import { useMemo, useState, type FC } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/useDataAppVisualizations';
+import { chartTypeBuilderPath } from '../../../features/chartTypes/utils/chartTypeBuilderPath';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
@@ -298,7 +299,9 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                       onCreateNew: canCreateChartType
                           ? () =>
                                 void navigate({
-                                    pathname: `/projects/${projectUuid}/chart-types/new`,
+                                    pathname: chartTypeBuilderPath(
+                                        projectUuid ?? '',
+                                    ),
                                     search: location.search,
                                 })
                           : null,

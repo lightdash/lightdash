@@ -12,6 +12,7 @@ import { FloatingActionsPill } from '../../../components/common/FloatingActionsP
 import MantineIcon from '../../../components/common/MantineIcon';
 import { PolymorphicPaperButton } from '../../../components/common/PolymorphicPaperButton';
 import { useCanEditDataApp } from '../../apps/hooks/useCanEditDataApp';
+import { chartTypeBuilderPath } from '../utils/chartTypeBuilderPath';
 import classes from './ChartTypeGalleryCard.module.css';
 import ChartTypeSamplePreview from './ChartTypeSamplePreview';
 
@@ -59,7 +60,10 @@ const ChartTypeGalleryCard: FC<Props> = ({ dataAppViz, onClick, onDelete }) => {
                             variant="subtle"
                             color="gray"
                             component={Link}
-                            to={`/projects/${dataAppViz.projectUuid}/chart-types/${dataAppViz.dataAppVizUuid}`}
+                            to={chartTypeBuilderPath(
+                                dataAppViz.projectUuid,
+                                dataAppViz.dataAppVizUuid,
+                            )}
                             aria-label={`Edit ${displayName}`}
                             onClick={(e) => e.stopPropagation()}
                         >

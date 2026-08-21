@@ -53,6 +53,7 @@ import {
     useDataAppVizBuild,
     type VizBuildRequest,
 } from '../features/chartTypes/hooks/useDataAppVizBuild';
+import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
 import { buildSampleVizContext } from '../features/chartTypes/utils/sampleVizContext';
 import { useResolvedColorPalette } from '../hooks/appearance/useResolvedColorPalette';
 import {
@@ -160,7 +161,7 @@ const ChartTypeBuilder: FC = () => {
         if (!urlVizUuid && build.appUuid && projectUuid) {
             void navigate(
                 {
-                    pathname: `/projects/${projectUuid}/chart-types/${build.appUuid}`,
+                    pathname: chartTypeBuilderPath(projectUuid, build.appUuid),
                     search: location.search,
                 },
                 { replace: true },
