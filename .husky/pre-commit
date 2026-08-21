@@ -6,6 +6,13 @@ if git diff --cached --name-only -- $GENERATED_API_FILES | grep -q .; then
   echo "Unstaged generated API artifacts; they are committed by the release workflow."
 fi
 
+if git diff --cached --name-only -- .env | grep -qx '.env' && \
+  git show :.env 2>/dev/null | grep -Eq '^LIGHTDASH_LICENSE_KEY=[[:space:]]*[^[:space:]]'; then
+  echo "ERROR: LIGHTDASH_LICENSE_KEY must not be committed to .env."
+  echo "Use .env.development.local for local secrets."
+  exit 1
+fi
+
 bash "$(dirname "$0")/runGitSecrets.sh"
 
 # Check if profiles.yml has been modified
