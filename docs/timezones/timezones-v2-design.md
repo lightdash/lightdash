@@ -156,7 +156,7 @@ Minimum affordance: a distinguishing icon for TZ-immune vs TZ-sensitive dimensio
     ❌ `gap-sql-runner-raw-display` *[bug]* — separately, the output *values* are serialized as UTC ISO `Z` regardless of type: TZ-aware values collapse to the UTC instant (offset dropped) and naive values get a false `Z`, so a user's in-SQL conversion is hidden or mislabeled. (GLITCH-489, v3)
 
 31. **A customer-facing doc explains the model — pinned vs viewer-TZ trade-off, DATE vs TIMESTAMP semantics,** `dataTimezone` **vs** `queryTimezone`**.**
-    ⚠️ `gap-customer-tz-doc` *[qol]* — Phase 3, pending publish (GLITCH-457, Todo). Published at docs.lightdash.com/guides/developer/timezones (2026-06-22); flag defaulted on in 1.22.0.
+    ⚠️ `gap-customer-tz-doc` *[qol]* — Phase 3, pending publish (GLITCH-457, Todo). Published 2026-06-22, now split into docs.lightdash.com/workspace-admin/set-project-timezone (setup) and docs.lightdash.com/personal-settings/timezone (daily use); flag defaulted on in 1.22.0.
 
 ---
 
@@ -185,7 +185,7 @@ All `feature` items, `gap-dual-conversion` (refactor), and the two narrow QoL it
 ### Phases
 
 1. ✅ **Backstage — complete.** `gap-calendar-predicate`, `gap-datatz-preview`. No customer-visible behavior change.
-2. ✅ **Correctness behind a flag — complete.** The five bugs gated by a per-project `TimezoneV2` flag, default OFF, paired with `gap-pin-ux-toggle`, `gap-cross-viewer-indicator`, and `gap-tz-sensitivity-dim-affordance` so the UI describes either mode honestly. The phase also closed the GLITCH-452 fallout cluster (exports, Date Zoom, raw-SQL table calcs, MIN/MAX rendering, picker affordance) and the DST fall-back bucketing decision (`gap-dst-fold-bucketing` → merge, GLITCH-509). Customer guide published at docs.lightdash.com/guides/developer/timezones (2026-06-22); the flag defaulted ON in 1.22.0 (#26295).
+2. ✅ **Correctness behind a flag — complete.** The five bugs gated by a per-project `TimezoneV2` flag, default OFF, paired with `gap-pin-ux-toggle`, `gap-cross-viewer-indicator`, and `gap-tz-sensitivity-dim-affordance` so the UI describes either mode honestly. The phase also closed the GLITCH-452 fallout cluster (exports, Date Zoom, raw-SQL table calcs, MIN/MAX rendering, picker affordance) and the DST fall-back bucketing decision (`gap-dst-fold-bucketing` → merge, GLITCH-509). Customer docs published 2026-06-22 (now docs.lightdash.com/workspace-admin/set-project-timezone and docs.lightdash.com/personal-settings/timezone); the flag defaulted ON in 1.22.0 (#26295).
 3. ⏳ **Flip the default — in progress.** After 60 days of opt-in adoption, flip `TimezoneV2` default to ON. Publish the customer doc (`gap-customer-tz-doc`, GLITCH-457). Old behavior survives 90 days as a project-level override, then is removed.
 
 After Phase 3, the design doc and the customer doc describe the same Lightdash.

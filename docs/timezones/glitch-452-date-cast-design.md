@@ -146,7 +146,7 @@ Confirmed by a code walkthrough; both `raw` formats parse identically, so these 
 
 ## Customer-doc alignment
 
-The published guide (docs.lightdash.com/guides/developer/timezones) is **consistent but doesn't explicitly document this change**: it says day-or-coarser grouping "buckets data by calendar boundaries," that `DATE` values "never shift," and its custom-SQL example ends in `::date`. It does **not** state that built-in day-grain dimensions change warehouse output type — that explicit statement lives in the internal design doc (`timezones-v2-design.md`, principle 13, `gap-date-grain-output`). No customer-doc change needed for 452.
+The published setup guide (docs.lightdash.com/workspace-admin/set-project-timezone) is **consistent but doesn't explicitly document this change**: it says day-or-coarser grouping "buckets data by calendar boundaries," that `DATE` values "never shift," and its custom-SQL example ends in `::date`. It does **not** state that built-in day-grain dimensions change warehouse output type — that explicit statement lives in the internal design doc (`timezones-v2-design.md`, principle 13, `gap-date-grain-output`). No customer-doc change needed for 452.
 
 ## Flag-gating invariant (hard requirement)
 

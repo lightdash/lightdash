@@ -431,12 +431,12 @@ So the architectural intent is "support both, default to consistent." **This is 
 |---|---|---|---|
 | ~~ECharts DST shift bug~~ ✅ fixed (GLITCH-449 → 509: all grains shift via companion column) | Correctness | 1d test + 2d fix | `packages/frontend/src/hooks/echarts/timezoneShift.ts` |
 | ~~`EnableTimezoneSupport=off` doesn't gate stored profile TZs~~ ✅ fixed | Correctness | 1d | `resolveQueryTimezone.ts` |
-| Scheduled deliveries TZ interaction undocumented (GLITCH-465, v3; now in the published timezones guide) | Docs | 0.5d | `timezone-handling.md` |
+| Scheduled deliveries TZ interaction undocumented (GLITCH-465, v3; now in the published timezone docs: workspace-admin/set-project-timezone and personal-settings/timezone) | Docs | 0.5d | `timezone-handling.md` |
 | Per-column wall-clock TZ annotation (GLITCH-463, v3) | Feature | 2d | `translator.ts` + `getColumnTimezone` |
 | ~~BigQuery half-hour offset bare-literal hole~~ ✅ not a bug (literal is a pre-converted UTC instant) | Correctness | 1d | `filtersCompiler.ts` |
 | Pre-agg TZ-frozen-after-project-TZ-change behavior (**untracked — no ticket**) | Correctness | 1d test | materialization path |
 | `${ldQueryTimezone}` SQL templating (GLITCH-462, v3) | Feature | 1w | `MetricQueryBuilder.ts` |
-| Customer-facing "how Lightdash handles TZ" doc (GLITCH-457, Phase 3; now in the published timezones guide) | Docs | 2d | new file in docs site |
+| Customer-facing "how Lightdash handles TZ" doc (GLITCH-457, Phase 3; now in the published timezone docs: workspace-admin/set-project-timezone and personal-settings/timezone) | Docs | 2d | new file in docs site |
 | SQL Runner output is raw UTC ISO by design; conversion is user-driven via `${ldQueryTimezone}`. In-SQL `CONVERT_TIMEZONE` only shows once cast to string | Feature | v3 | GLITCH-462 (`${ldQueryTimezone}` var) |
 | ~~Half-hour TZ test coverage~~ ✅ added (Postgres + BigQuery) | Testing | 0.5d | `queryTimezone.test.ts` |
 | moment-timezone version pinning policy (**untracked — no ticket**) | Hygiene | 0.5d | `package.json` |
