@@ -1,3 +1,10 @@
+## [1.235.2](https://github.com/lightdash/lightdash/compare/1.235.1...1.235.2) (2026-08-21)
+
+
+### Bug Fixes
+
+* search chart types by name and description ([#27845](https://github.com/lightdash/lightdash/issues/27845)) ([264a24d](https://github.com/lightdash/lightdash/commit/264a24d2a66dcb57dd90fc74a3510377c891edf4))
+
 ## [1.235.1](https://github.com/lightdash/lightdash/compare/1.235.0...1.235.1) (2026-08-21)
 
 
