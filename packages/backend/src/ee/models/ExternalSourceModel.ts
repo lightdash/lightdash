@@ -5,11 +5,13 @@ import {
     type ExternalSource,
     type ExternalSourceConnection,
     type ExternalSourceTable,
+    type ExternalSourceTableReference,
     type ExternalSourceType,
     type ResultColumns,
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
 import { Knex } from 'knex';
+import { validate as validateUuid } from 'uuid';
 import {
     ExternalSourceCredentialsTableName,
     ExternalSourceIngestAttemptsTableName,
@@ -29,6 +31,8 @@ type ExternalSourceModelArguments = {
     database: Knex;
     encryptionUtil: Pick<EncryptionUtil, 'encrypt' | 'decrypt'>;
 };
+
+const EXTERNAL_SOURCE_TABLE_NAME_PATTERN = /^[a-z][a-z0-9_]{0,254}$/;
 
 export class ExternalSourceModel {
     private readonly database: Knex;
@@ -863,7 +867,18 @@ export class ExternalSourceModel {
             .first();
     }
 
-    async findTableForQuery(projectUuid: string, tableUuid: string) {
+    /** UUIDs contain hyphens; SQL table names do not, so lookups are unambiguous. */
+    async findTableByUuidOrName(
+        projectUuid: string,
+        tableUuidOrName: ExternalSourceTableReference,
+    ) {
+        const isTableUuid = validateUuid(tableUuidOrName);
+        if (
+            !isTableUuid &&
+            !EXTERNAL_SOURCE_TABLE_NAME_PATTERN.test(tableUuidOrName)
+        ) {
+            return undefined;
+        }
         const row = await this.database(ExternalSourceTablesTableName)
             .innerJoin(
                 ExternalSourcesTableName,
@@ -876,15 +891,34 @@ export class ExternalSourceModel {
             )
             .where(`${ExternalSourceTablesTableName}.project_uuid`, projectUuid)
             .andWhere(`${ExternalSourcesTableName}.project_uuid`, projectUuid)
-            .andWhere(
-                `${ExternalSourceTablesTableName}.external_source_table_uuid`,
-                tableUuid,
-            )
+            .andWhere((queryBuilder) => {
+                if (isTableUuid) {
+                    queryBuilder.where(
+                        `${ExternalSourceTablesTableName}.external_source_table_uuid`,
+                        tableUuidOrName,
+                    );
+                } else {
+                    queryBuilder.where(
+                        `${ExternalSourceTablesTableName}.name`,
+                        tableUuidOrName,
+                    );
+                }
+            })
             .first();
         return row as
             | (DbExternalSourceTable & {
                   external_source_status: ExternalSourceStatus;
               })
             | undefined;
+    }
+
+    async listReadyTables(
+        projectUuid: string,
+    ): Promise<DbExternalSourceTable[]> {
+        return this.database(ExternalSourceTablesTableName)
+            .where('project_uuid', projectUuid)
+            .whereNotNull('locator')
+            .whereNotNull('columns')
+            .orderBy('name');
     }
 }

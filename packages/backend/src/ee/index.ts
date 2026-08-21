@@ -20,6 +20,8 @@ import { DeployService } from '../services/DeployService';
 import { InstanceConfigurationService } from '../services/InstanceConfigurationService/InstanceConfigurationService';
 import { OrganizationService } from '../services/OrganizationService/OrganizationService';
 import { ProjectService } from '../services/ProjectService/ProjectService';
+import { QuerySourceRegistry } from '../services/QuerySourceService/QuerySourceRegistry';
+import { QuerySourceService } from '../services/QuerySourceService/QuerySourceService';
 import { RolesService } from '../services/RolesService/RolesService';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import { failInFlightAiAgentStreams } from './aiAgentShutdown';
@@ -87,6 +89,7 @@ import { EmbedService } from './services/EmbedService/EmbedService';
 import { ExternalConnectionCoderService } from './services/ExternalConnectionCoderService/ExternalConnectionCoderService';
 import { ExternalConnectionService } from './services/ExternalConnectionService/ExternalConnectionService';
 import { GoogleServiceAccountTokenProvider } from './services/ExternalConnectionService/GoogleServiceAccountTokenProvider';
+import { ExternalQuerySource } from './services/ExternalSourceService/ExternalQuerySource';
 import { ExternalSourceService } from './services/ExternalSourceService/ExternalSourceService';
 import { HomepageRecommendedActionSkipsService } from './services/HomepageRecommendedActionSkipsService';
 import { EnterpriseLicenseService } from './services/LicenseService/LicenseService';
@@ -366,6 +369,26 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     googleDriveClient: clients.getGoogleDriveClient(),
                     userOAuthGrantsModel: models.getUserOAuthGrantsModel(),
                 }),
+            querySourceService: ({ models, repository }) => {
+                const registry = QuerySourceRegistry.withBuiltInSources({
+                    asyncQueryService: repository.getAsyncQueryService(),
+                    projectService: repository.getProjectService(),
+                });
+                registry.register(
+                    new ExternalQuerySource({
+                        asyncQueryService: repository.getAsyncQueryService(),
+                        projectService: repository.getProjectService(),
+                        externalSourceModel:
+                            models.getExternalSourceModel<ExternalSourceModel>(),
+                    }),
+                );
+                return new QuerySourceService({
+                    projectModel: models.getProjectModel(),
+                    queryHistoryModel: models.getQueryHistoryModel(),
+                    featureFlagModel: models.getFeatureFlagModel(),
+                    registry,
+                });
+            },
             appGenerateService: ({ context, models, clients, repository }) =>
                 new AppGenerateService({
                     lightdashConfig: context.lightdashConfig,
@@ -1013,10 +1036,16 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getPersistentDownloadFileService(),
                     organizationAccessService:
                         repository.getOrganizationAccessService(),
-                    externalSourceTableResolver: (projectUuid, tableUuid) =>
+                    externalSourceTableResolver: (
+                        projectUuid,
+                        tableUuidOrName,
+                    ) =>
                         models
                             .getExternalSourceModel<ExternalSourceModel>()
-                            .findTableForQuery(projectUuid, tableUuid),
+                            .findTableByUuidOrName(
+                                projectUuid,
+                                tableUuidOrName,
+                            ),
                     preAggregateStrategy: new PreAggregateStrategy({
                         preAggregationDuckDbClient:
                             new PreAggregationDuckDbClient({
