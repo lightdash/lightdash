@@ -21,7 +21,7 @@
         "cypress": "15.18.1",
         "cypress-split": "1.24.29",
         "dayjs": "1.11.10",
-        "js-yaml": "4.3.0"
+        "js-yaml": "4.3.1"
     },
     "devDependencies": {
         "oxlint": "1.75.0",
