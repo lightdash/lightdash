@@ -124,6 +124,11 @@ import {
     toolFindContentOutputSchema,
 } from './toolFindContentArgs';
 import {
+    TOOL_FIND_CUSTOM_CHART_TYPES_DESCRIPTION,
+    toolFindCustomChartTypesArgsSchema,
+    toolFindCustomChartTypesOutputSchema,
+} from './toolFindCustomChartTypesArgs';
+import {
     TOOL_FIND_DASHBOARDS_DESCRIPTION,
     toolFindDashboardsArgsSchema,
     toolFindDashboardsOutputSchema,
@@ -439,6 +444,20 @@ export const findExploresToolDefinition: ToolDefinitionWithoutMcpOutput<
     availability: ['agent'],
     inputSchema: toolFindExploresArgsSchemaV3,
     agent: { outputSchema: toolFindExploresOutputSchema },
+});
+
+export const findCustomChartTypesToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'findCustomChartTypes',
+    typeof toolFindCustomChartTypesArgsSchema,
+    typeof toolFindCustomChartTypesArgsSchema,
+    typeof toolFindCustomChartTypesOutputSchema
+> = defineTool({
+    name: 'findCustomChartTypes',
+    title: 'Find custom chart types',
+    description: TOOL_FIND_CUSTOM_CHART_TYPES_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolFindCustomChartTypesArgsSchema,
+    agent: { outputSchema: toolFindCustomChartTypesOutputSchema },
 });
 
 export const findFieldsToolDefinition: ToolDefinitionWithoutMcpOutput<
@@ -1632,6 +1651,7 @@ export const getAiWritebackStatusToolDefinition: ToolDefinitionWithMcpOutput<
 
 type AgentToolDefinitionsByName = {
     findExplores: typeof findExploresToolDefinition;
+    findCustomChartTypes: typeof findCustomChartTypesToolDefinition;
     findFields: typeof findFieldsToolDefinition;
     searchSemanticLayer: typeof searchSemanticLayerToolDefinition;
     analyzeFieldImpact: typeof analyzeFieldImpactToolDefinition;
@@ -1689,6 +1709,7 @@ type AgentToolDefinitionsByName = {
 
 export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     findExplores: findExploresToolDefinition,
+    findCustomChartTypes: findCustomChartTypesToolDefinition,
     findFields: findFieldsToolDefinition,
     searchSemanticLayer: searchSemanticLayerToolDefinition,
     analyzeFieldImpact: analyzeFieldImpactToolDefinition,
@@ -1751,6 +1772,7 @@ export const isAgentToolName = (toolName: string): toolName is AgentToolName =>
 
 export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     findExploresToolDefinition,
+    findCustomChartTypesToolDefinition,
     findFieldsToolDefinition,
     searchSemanticLayerToolDefinition,
     analyzeFieldImpactToolDefinition,

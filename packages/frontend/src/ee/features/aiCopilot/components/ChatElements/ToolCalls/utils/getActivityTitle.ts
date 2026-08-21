@@ -15,6 +15,7 @@ type ActivityTitle = {
 
 const SEARCH_TOOLS = new Set([
     'findExplores',
+    'findCustomChartTypes',
     'findFields',
     'discoverFields',
     'grepFields',

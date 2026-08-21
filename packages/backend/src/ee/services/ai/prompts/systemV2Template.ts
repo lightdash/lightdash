@@ -153,6 +153,8 @@ See the CRITICAL section at the top of this prompt: reasoning is user-visible. D
 ## Available explores
 {{available_explores}}
 
+{{available_custom_chart_types}}
+
 ## Available knowledge documents
 {{knowledge_documents}}
 

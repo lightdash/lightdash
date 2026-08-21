@@ -436,6 +436,7 @@ export function useAiAgentThreadStreamMutation() {
                             case 'tool-generateTableVizConfig':
                             case 'tool-generateTimeSeriesVizConfig':
                             case 'tool-findExplores':
+                            case 'tool-findCustomChartTypes':
                             case 'tool-findFields':
                             case 'tool-grepFields':
                             case 'tool-getMetadata':

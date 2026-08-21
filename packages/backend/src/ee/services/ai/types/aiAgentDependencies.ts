@@ -15,6 +15,7 @@ import {
     CatalogField,
     ChartAsCode,
     CreateSchedulerAndTargetsWithoutIds,
+    CustomChartType,
     DashboardAsCode,
     DashboardSearchResult,
     DbtProjectType,
@@ -101,6 +102,17 @@ export type FindExploresFn = (args: {
 // Project-wide verified-chart usage per field, keyed `table_field::fieldType`.
 // Used to rank verified/governed fields first in grep discovery.
 export type GetVerifiedFieldUsageFn = () => Promise<Map<string, number>>;
+
+// The project's custom chart type library, newest first, capped at the
+// system-prompt inline limit; totalCount is the whole library's size.
+export type ListCustomChartTypesFn = () => Promise<{
+    types: CustomChartType[];
+    totalCount: number;
+}>;
+
+export type FindCustomChartTypesFn = (
+    args: { query: string } | { slug: string },
+) => Promise<CustomChartType[]>;
 
 export type FindFieldResult = {
     fields: CatalogField[];

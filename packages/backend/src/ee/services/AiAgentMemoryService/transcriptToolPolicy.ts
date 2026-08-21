@@ -79,6 +79,7 @@ export const DISTILL_TOOL_POLICIES = {
     discoverFields: { result: keep },
     getMetadata: { result: keep },
     findExplores: { result: keep },
+    findCustomChartTypes: { result: keep },
     findFields: { result: keep },
     searchSemanticLayer: { result: keep },
     analyzeFieldImpact: { result: keep },

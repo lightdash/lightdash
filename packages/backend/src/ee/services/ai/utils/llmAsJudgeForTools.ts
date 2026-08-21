@@ -21,6 +21,7 @@ import {
 
 const TOOL_NAME_TO_DB_TOOL_NAME = {
     findExplores: 'find_explores',
+    findCustomChartTypes: 'find_custom_chart_types',
     findFields: 'find_fields',
     searchSemanticLayer: 'search_semantic_layer',
     analyzeFieldImpact: 'analyze_field_impact',

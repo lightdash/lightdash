@@ -15,6 +15,7 @@ import { getEditProjectContext } from './editProjectContext';
 import { getEditRepo } from './editRepo';
 import { getExploreRepo } from './exploreRepo';
 import { getFindContent } from './findContent';
+import { getFindCustomChartTypes } from './findCustomChartTypes';
 import { getFindExplores } from './findExplores';
 import { getFindFields } from './findFields';
 import { getGenerateDashboardV2 } from './generateDashboardV2';
@@ -91,6 +92,10 @@ const makeAgentTools = () => {
             toolDescriptionMaxChars: 600,
             dashboardDetailsToolName: 'readContent',
             trackCoverage: noop,
+        }),
+        findCustomChartTypes: getFindCustomChartTypes({
+            findCustomChartTypes: noop,
+            updateProgress: noopAsync,
         }),
         findExplores: getFindExplores({
             fieldSearchSize: 25,
