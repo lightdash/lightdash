@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    ChartType,
     type AiAgentMessageAssistant,
     type AiArtifact,
     type ApiError,
@@ -59,7 +58,10 @@ import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
-import { buildAiSavedChartData } from '../../utils/aiSavedChartData';
+import {
+    buildAiSavedChartData,
+    getCustomChartTypeConfig,
+} from '../../utils/aiSavedChartData';
 import {
     canonicalizeAiMerge,
     remapFieldIdsDeep,
@@ -203,10 +205,7 @@ export const AiChartQuickOptions = ({
 
     // Custom-chart-type answers derive their saved pivot from the type's
     // schema, fetched with the same query key as the thread renderer.
-    const customChartTypeConfig =
-        chartConfig.type === ChartType.DATA_APP_VIZ
-            ? chartConfig.config
-            : undefined;
+    const customChartTypeConfig = getCustomChartTypeConfig(chartConfig);
     const chartVersionUuid = useChartVersionPreview();
     const customChartTypeRenderTarget = useMemo(
         () => ({ isEmbedded: !!embedToken, savedChartUuid, chartVersionUuid }),
@@ -376,13 +375,15 @@ export const AiChartQuickOptions = ({
             );
             return { pathname: url.pathname, search: search.toString() };
         }
+        // Custom-chart-type answers carry the schema-derived pivot so the
+        // explorer opens pivoted exactly like the thread render; until the
+        // schema loads there is no pivot to carry, so no URL.
+        if (customChartTypeConfig && !savedData) return undefined;
         return getOpenInExploreUrl({
             metricQuery,
             projectUuid,
             columnOrder,
             chartConfig,
-            // Custom-chart-type answers carry the schema-derived pivot so the
-            // explorer opens pivoted exactly like the thread render.
             pivotColumns: customChartTypeConfig
                 ? savedData?.pivotConfig?.columns
                 : pivotDimensions,
@@ -397,7 +398,7 @@ export const AiChartQuickOptions = ({
         chartConfig,
         pivotDimensions,
         customChartTypeConfig,
-        savedData?.pivotConfig?.columns,
+        savedData,
     ]);
 
     const { mutateAsync: createShareUrl } = useCreateShareMutation();
@@ -633,7 +634,7 @@ export const AiChartQuickOptions = ({
                                 leftSection={
                                     <MantineIcon icon={IconExternalLink} />
                                 }
-                                disabled={isDisabled}
+                                disabled={isDisabled || !openInExploreUrl}
                                 onClick={handleExploreFromHere}
                             >
                                 Explore from here
