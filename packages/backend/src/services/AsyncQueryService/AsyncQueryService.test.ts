@@ -207,6 +207,7 @@ const projectModel = {
     getWithSensitiveFields: vi.fn(async () => projectWithSensitiveFields),
     get: vi.fn(async () => projectWithSensitiveFields),
     getSummary: vi.fn(async () => projectSummary),
+    getEffectiveResultsCacheTtlSeconds: vi.fn(async () => 86400),
     getTablesConfiguration: vi.fn(async () => tablesConfiguration),
     updateTablesConfiguration: vi.fn(),
     getQueryTimezone: vi.fn(async () => 'UTC'),

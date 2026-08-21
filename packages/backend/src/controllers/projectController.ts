@@ -22,6 +22,7 @@ import {
     ApiProjectAccessListResponse,
     ApiProjectColorPaletteResponse,
     ApiProjectResponse,
+    ApiResultsCacheProjectSettingsResponse,
     ApiScheduledDeliveryAsCodeListResponse,
     ApiScheduledDeliveryAsCodeUpsertResponse,
     ApiSpaceSummaryListResponse,
@@ -91,6 +92,7 @@ import {
     type UpdatePreviewExpirationProjectSettings,
     type UpdatePreviewExpiresAt,
     type UpdateQueryTimezoneSettings,
+    type UpdateResultsCacheProjectSettings,
     type UpdateSchedulerSettings,
     type UUID,
 } from '@lightdash/common';
@@ -1294,6 +1296,64 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         const settings = await this.services
             .getProjectService()
             .updateProjectPreviewExpirationSettings(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
+            );
+        return {
+            status: 'ok',
+            results: settings,
+        };
+    }
+
+    /**
+     * Get the results cache TTL for a project. A null TTL means the
+     * instance-wide default applies.
+     * @summary Get results cache settings
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/results-cache-config')
+    @OperationId('getProjectResultsCacheSettings')
+    async getProjectResultsCacheSettings(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiResultsCacheProjectSettingsResponse> {
+        assertRegisteredAccount(req.account);
+        const settings = await this.services
+            .getProjectService()
+            .getProjectResultsCacheSettings(
+                toSessionUser(req.account),
+                projectUuid,
+            );
+        return {
+            status: 'ok',
+            results: settings,
+        };
+    }
+
+    /**
+     * Update the results cache TTL for a project. Pass null to fall back to
+     * the instance-wide default.
+     * @summary Update results cache settings
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Updated')
+    @Patch('{projectUuid}/results-cache-config')
+    @OperationId('updateProjectResultsCacheSettings')
+    async updateProjectResultsCacheSettings(
+        @Path() projectUuid: UUID,
+        @Body() body: UpdateResultsCacheProjectSettings,
+        @Request() req: express.Request,
+    ): Promise<ApiResultsCacheProjectSettingsResponse> {
+        assertRegisteredAccount(req.account);
+        const settings = await this.services
+            .getProjectService()
+            .updateProjectResultsCacheSettings(
                 toSessionUser(req.account),
                 projectUuid,
                 body,

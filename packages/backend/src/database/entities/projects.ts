@@ -43,6 +43,7 @@ export type DbProject = {
     expires_at: Date | null;
     default_preview_expiration_hours: number;
     max_preview_expiration_hours: number;
+    results_cache_ttl_seconds: number | null;
     provisioning_source: string | null;
     agent_sql_scope: AgentSqlScope | null;
 };
@@ -89,6 +90,7 @@ type UpdateDbProject = Partial<
         | 'expires_at'
         | 'default_preview_expiration_hours'
         | 'max_preview_expiration_hours'
+        | 'results_cache_ttl_seconds'
         | 'provisioning_source'
         | 'agent_sql_scope'
     >

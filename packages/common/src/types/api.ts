@@ -303,6 +303,7 @@ import {
 import { type ApiRenameFieldsResponse, type ApiRenameResponse } from './rename';
 import { type MostPopularAndRecentlyUpdated } from './resourceViewItem';
 import { type ResultColumns, type ResultRow } from './results';
+import { type ApiResultsCacheProjectSettingsResponse } from './resultsCacheProjectSettings';
 import { type ApiRoadmapResponse } from './roadmap';
 import {
     type ApiCustomRoleAsCodeListResponse,
@@ -1435,6 +1436,7 @@ type ApiResults =
     | ApiPreAggregateCheckResponse['results']
     | ApiImpersonationOrganizationSettingsResponse['results']
     | ApiPreviewExpirationProjectSettingsResponse['results']
+    | ApiResultsCacheProjectSettingsResponse['results']
     | ApiPreviewExpiresAtResponse['results']
     | ApiContentVerificationResponse['results']
     | ApiContentVerificationDeleteResponse['results']

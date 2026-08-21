@@ -224,6 +224,11 @@ const projectModel = {
     ),
     update: vi.fn(async () => undefined),
     delete: vi.fn(async () => undefined),
+    getResultsCacheSettings: vi.fn<ProjectModel['getResultsCacheSettings']>(
+        async () => ({ cacheTtlSeconds: null }),
+    ),
+    updateResultsCacheSettings: vi.fn(async () => undefined),
+    getEffectiveResultsCacheTtlSeconds: vi.fn(async () => 86400),
 };
 const organizationWarehouseCredentialsModel = {
     getByUuidWithSensitiveData:
@@ -630,6 +635,111 @@ describe('ProjectService', () => {
             expect(result.dbtConnection).toHaveProperty('environment', [
                 { key: 'DBT_ENV_SECRET_PASSWORD', value: 'super-secret' },
             ]);
+        });
+    });
+
+    describe('updateProjectResultsCacheSettings', () => {
+        const cachingService = getMockedProjectService({
+            ...lightdashConfigMock,
+            results: { ...lightdashConfigMock.results, cacheEnabled: true },
+        });
+
+        beforeEach(() => {
+            projectModel.updateResultsCacheSettings.mockClear();
+        });
+
+        test('rejects updates while results caching is disabled', async () => {
+            await expect(
+                service.updateProjectResultsCacheSettings(user, projectUuid, {
+                    cacheTtlSeconds: 1800,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(
+                projectModel.updateResultsCacheSettings,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('rejects a TTL below one minute', async () => {
+            await expect(
+                cachingService.updateProjectResultsCacheSettings(
+                    user,
+                    projectUuid,
+                    {
+                        cacheTtlSeconds: 59,
+                    },
+                ),
+            ).rejects.toThrow(ParameterError);
+            expect(
+                projectModel.updateResultsCacheSettings,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('rejects a TTL above thirty days', async () => {
+            await expect(
+                cachingService.updateProjectResultsCacheSettings(
+                    user,
+                    projectUuid,
+                    {
+                        cacheTtlSeconds: 30 * 24 * 60 * 60 + 1,
+                    },
+                ),
+            ).rejects.toThrow(ParameterError);
+            expect(
+                projectModel.updateResultsCacheSettings,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('rejects a non-integer TTL', async () => {
+            await expect(
+                cachingService.updateProjectResultsCacheSettings(
+                    user,
+                    projectUuid,
+                    {
+                        cacheTtlSeconds: 90.5,
+                    },
+                ),
+            ).rejects.toThrow(ParameterError);
+            expect(
+                projectModel.updateResultsCacheSettings,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('persists a TTL within bounds', async () => {
+            const result =
+                await cachingService.updateProjectResultsCacheSettings(
+                    user,
+                    projectUuid,
+                    { cacheTtlSeconds: 1800 },
+                );
+
+            expect(
+                projectModel.updateResultsCacheSettings,
+            ).toHaveBeenCalledWith(projectUuid, { cacheTtlSeconds: 1800 });
+            expect(result).toEqual({
+                projectUuid,
+                cacheTtlSeconds: 1800,
+                instanceDefaultTtlSeconds:
+                    lightdashConfigMock.results.cacheStateTimeSeconds,
+            });
+        });
+
+        test('persists null to fall back to the instance default', async () => {
+            const result =
+                await cachingService.updateProjectResultsCacheSettings(
+                    user,
+                    projectUuid,
+                    { cacheTtlSeconds: null },
+                );
+
+            expect(
+                projectModel.updateResultsCacheSettings,
+            ).toHaveBeenCalledWith(projectUuid, { cacheTtlSeconds: null });
+            expect(result).toEqual({
+                projectUuid,
+                cacheTtlSeconds: null,
+                instanceDefaultTtlSeconds:
+                    lightdashConfigMock.results.cacheStateTimeSeconds,
+            });
         });
     });
 

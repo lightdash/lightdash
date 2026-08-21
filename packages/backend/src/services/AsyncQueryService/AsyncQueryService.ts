@@ -956,11 +956,15 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
-    public getCacheExpiresAt(baseDate: Date) {
-        return new Date(
-            baseDate.getTime() +
-                this.lightdashConfig.results.cacheStateTimeSeconds * 1000,
-        );
+    public async getCacheExpiresAt(
+        projectUuid: string,
+        baseDate: Date,
+    ): Promise<Date> {
+        const ttlSeconds =
+            await this.projectModel.getEffectiveResultsCacheTtlSeconds(
+                projectUuid,
+            );
+        return new Date(baseDate.getTime() + ttlSeconds * 1000);
     }
 
     async findResultsCache(
@@ -3345,7 +3349,10 @@ export class AsyncQueryService extends ProjectService {
             const s3StreamCreatedMs = Date.now() - t0;
 
             const createdAt = new Date();
-            const newExpiresAt = this.getCacheExpiresAt(createdAt);
+            const newExpiresAt = await this.getCacheExpiresAt(
+                projectUuid,
+                createdAt,
+            );
             this.analytics.track({
                 ...analyticsIdentity,
                 event: 'results_cache.create',
@@ -5496,6 +5503,10 @@ export class AsyncQueryService extends ProjectService {
                 await this.queryHistoryModel.updateStatusToExecuting(queryUuid);
             }
             const createdAt = new Date();
+            const resultsExpiresAt = await this.getCacheExpiresAt(
+                projectUuid,
+                createdAt,
+            );
             const staticColumns: ResultColumns = {
                 [fieldId]: { reference: fieldId, type: field.type },
             };
@@ -5510,7 +5521,7 @@ export class AsyncQueryService extends ProjectService {
                     results_file_name: fileName,
                     results_created_at: createdAt,
                     results_updated_at: createdAt,
-                    results_expires_at: this.getCacheExpiresAt(createdAt),
+                    results_expires_at: resultsExpiresAt,
                 },
                 account,
             );
