@@ -63,6 +63,7 @@ const createMcpService = () =>
         isContentToolsEnabled: vi.fn().mockResolvedValue(false),
         isCreateScheduledDeliveryEnabled: vi.fn().mockResolvedValue(false),
         isEnabled: vi.fn().mockResolvedValue(true),
+        isFilterExpressionsEnabled: vi.fn().mockResolvedValue(true),
         isRunMetricQueryEnabled: vi.fn().mockResolvedValue(false),
         isRunSqlEnabled: vi.fn().mockResolvedValue(false),
     }) as McpService;
@@ -301,8 +302,14 @@ describe('project-scoped MCP route', () => {
             expect.objectContaining({ userUuid: 'user-uuid' }),
             PROJECT_UUID,
         );
+        expect(mcpService.isFilterExpressionsEnabled).toHaveBeenCalledWith(
+            expect.objectContaining({ userUuid: 'user-uuid' }),
+        );
         expect(mcpService.createServer).toHaveBeenCalledWith(
-            expect.objectContaining({ projectPinned: true }),
+            expect.objectContaining({
+                projectPinned: true,
+                filterExpressionsEnabled: true,
+            }),
         );
         expect(transport.handleRequest).toHaveBeenCalledOnce();
     });

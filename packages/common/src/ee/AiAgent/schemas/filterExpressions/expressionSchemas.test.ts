@@ -39,7 +39,12 @@ import {
     type ToolRunQueryExpressionRuntimeArgs,
 } from './expressionSchemas';
 import { filterExpressionOperators } from './operators';
-import { FILTER_EXPRESSION_MAX_LENGTH } from './parse';
+import {
+    FILTER_EXPRESSION_MAX_LENGTH,
+    FILTER_EXPRESSION_MAX_LITERAL_LENGTH,
+    FILTER_EXPRESSION_MAX_RULES,
+    FILTER_EXPRESSION_MAX_VALUES_PER_RULE,
+} from './parse';
 
 const baseQueryConfig = {
     exploreName: 'orders',
@@ -167,6 +172,21 @@ describe('filter expression input schemas', () => {
         );
         expect(filterExpressionsSchema.description).toContain(
             '(D1 AND D2) AND (M1 OR M2)',
+        );
+    });
+
+    it('documents parser safety limits', () => {
+        expect(FILTER_EXPRESSION_GRAMMAR_DESCRIPTION).toContain(
+            `${FILTER_EXPRESSION_MAX_RULES} rules per expression`,
+        );
+        expect(FILTER_EXPRESSION_GRAMMAR_DESCRIPTION).toContain(
+            `${FILTER_EXPRESSION_MAX_VALUES_PER_RULE} values (including settings) per rule`,
+        );
+        expect(FILTER_EXPRESSION_GRAMMAR_DESCRIPTION).toContain(
+            `${FILTER_EXPRESSION_MAX_LITERAL_LENGTH} characters per literal`,
+        );
+        expect(FILTER_EXPRESSION_GRAMMAR_DESCRIPTION).toContain(
+            `${FILTER_EXPRESSION_MAX_LENGTH} characters per expression`,
         );
     });
 

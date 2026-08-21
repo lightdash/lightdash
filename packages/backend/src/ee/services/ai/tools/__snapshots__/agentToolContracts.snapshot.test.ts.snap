@@ -8179,6 +8179,7 @@ Available operators: isNull, notNull, equals, notEquals, startsWith, endsWith, i
 - Presence operators take no values. Other operators require one or more comma-separated values according to the field type.
 - Relative dates use a count followed by named settings (for example inThePast=30{unit:days,completed:false}). completed=false includes the current partial period; completed=true uses completed periods only.
 - Current dates use one unit (for example inTheCurrent=months).
+- Safety limits: 256 rules per expression, 256 values (including settings) per rule, 256 characters per literal, and 16384 characters per expression.
 - Nested groups and parentheses are not supported yet.",
   "inputSchema": {
     "$schema": "http://json-schema.org/draft-07/schema#",

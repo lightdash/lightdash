@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     defineUserAbility,
+    FeatureFlags,
     mcpToolDefinitions,
     OrganizationMemberRole,
     ProjectMemberRole,
@@ -96,7 +97,12 @@ const schemaToJson = (
     );
 };
 
-const makeMcpService = (mcpContentWritesEnabled = true): McpService =>
+const makeMcpService = (
+    mcpContentWritesEnabled = true,
+    featureFlagService = {
+        get: vi.fn().mockResolvedValue({ enabled: false }),
+    },
+): McpService =>
     new McpService({
         aiAgentService: {},
         aiAgentToolsService: { createRuntime: vi.fn() },
@@ -112,7 +118,7 @@ const makeMcpService = (mcpContentWritesEnabled = true): McpService =>
         catalogService: {},
         contentService: {},
         contentVerificationService: {},
-        featureFlagService: {},
+        featureFlagService,
         lightdashConfig: {
             mcp: {
                 runSqlMaxLimit: 500,
@@ -162,6 +168,19 @@ describe('MCP tool contracts', () => {
 
     it('matches the shared MCP tool definition names snapshot', () => {
         expect(sharedMcpToolDefinitionNames).toMatchSnapshot();
+    });
+
+    it('resolves the filter-expression feature flag for the request user', async () => {
+        const get = vi.fn().mockResolvedValue({ enabled: true });
+        const mcpService = makeMcpService(true, { get });
+
+        await expect(
+            mcpService.isFilterExpressionsEnabled(defaultSessionUser),
+        ).resolves.toBe(true);
+        expect(get).toHaveBeenCalledWith({
+            user: defaultSessionUser,
+            featureFlagId: FeatureFlags.AiFilterExpressions,
+        });
     });
 
     it('uses the grep-fields MCP analyst prompt', () => {
@@ -243,6 +262,29 @@ describe('MCP tool contracts', () => {
         expect(registeredNames).not.toContain(McpToolName.RUN_METRIC_QUERY);
         expect(registeredNames).toContain(McpToolName.FIND_CONTENT);
         expect(registeredNames).toContain(McpToolName.LIST_CONTENT);
+    });
+
+    it('matches the filter-expression run_metric_query tools/list snapshot', async () => {
+        const mcpService = makeMcpService();
+
+        mockRegisteredMcpTools.length = 0;
+        await mcpService.createServer({
+            runMetricQueryEnabled: true,
+            filterExpressionsEnabled: true,
+        });
+
+        const registered = mockRegisteredMcpTools.find(
+            ({ name }) => name === McpToolName.RUN_METRIC_QUERY,
+        );
+        expect(registered).toBeDefined();
+        expect({
+            name: registered?.name,
+            title: registered?.config.title,
+            description: registered?.config.description,
+            annotations: registered?.config.annotations,
+            inputSchema: schemaToJson(registered?.config.inputSchema),
+            outputSchema: schemaToJson(registered?.config.outputSchema),
+        }).toMatchSnapshot();
     });
 
     it('registers generate_hashes without project scope', async () => {

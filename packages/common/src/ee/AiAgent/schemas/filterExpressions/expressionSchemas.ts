@@ -18,7 +18,12 @@ import {
 import { createToolSchema } from '../toolSchemaBuilder';
 import visualizationMetadataSchema from '../visualizationMetadata';
 import { filterExpressionOperators } from './operators';
-import { FILTER_EXPRESSION_MAX_LENGTH } from './parse';
+import {
+    FILTER_EXPRESSION_MAX_LENGTH,
+    FILTER_EXPRESSION_MAX_LITERAL_LENGTH,
+    FILTER_EXPRESSION_MAX_RULES,
+    FILTER_EXPRESSION_MAX_VALUES_PER_RULE,
+} from './parse';
 
 export const FILTER_EXPRESSION_GRAMMAR_DESCRIPTION = `Filter expressions use the form "field operator=value".
 
@@ -32,6 +37,7 @@ Available operators: ${filterExpressionOperators.join(', ')}.
 - Presence operators take no values. Other operators require one or more comma-separated values according to the field type.
 - Relative dates use a count followed by named settings (for example inThePast=30{unit:days,completed:false}). completed=false includes the current partial period; completed=true uses completed periods only.
 - Current dates use one unit (for example inTheCurrent=months).
+- Safety limits: ${FILTER_EXPRESSION_MAX_RULES} rules per expression, ${FILTER_EXPRESSION_MAX_VALUES_PER_RULE} values (including settings) per rule, ${FILTER_EXPRESSION_MAX_LITERAL_LENGTH} characters per literal, and ${FILTER_EXPRESSION_MAX_LENGTH} characters per expression.
 - Nested groups and parentheses are not supported yet.`;
 
 export const filterExpressionInputSchema = z
