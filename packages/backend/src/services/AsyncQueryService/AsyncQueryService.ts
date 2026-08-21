@@ -30,6 +30,7 @@ import {
     Explore,
     ExploreCompiler,
     ExploreType,
+    ExternalSourceScope,
     ExternalSourceStatus,
     FeatureFlags,
     FieldType,
@@ -402,6 +403,8 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     ) => Promise<
         | (DbExternalSourceTable & {
               external_source_status: ExternalSourceStatus;
+              external_source_scope: ExternalSourceScope | null;
+              external_source_created_by_user_uuid: string | null;
           })
         | undefined
     >;
@@ -7171,15 +7174,25 @@ export class AsyncQueryService extends ProjectService {
     }: ExecuteAsyncExternalSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
         assertIsAccountWithOrg(account);
 
-        const { enabled: isEndpointEnabled } = await this.featureFlagModel.get({
-            user: {
-                userUuid: account.user.id,
-                organizationUuid: account.organization.organizationUuid,
-            },
-            featureFlagId: FeatureFlags.ExternalSources,
-        });
-        if (!isEndpointEnabled) {
+        const user = {
+            userUuid: account.user.id,
+            organizationUuid: account.organization.organizationUuid,
+        };
+        const [externalSourcesFlag, composeSqlFlag] = await Promise.all([
+            this.featureFlagModel.get({
+                user,
+                featureFlagId: FeatureFlags.ExternalSources,
+            }),
+            this.featureFlagModel.get({
+                user,
+                featureFlagId: FeatureFlags.ComposeSqlRunner,
+            }),
+        ]);
+        if (!externalSourcesFlag.enabled) {
             throw new ForbiddenError('External sources are not enabled');
+        }
+        if (!composeSqlFlag.enabled) {
+            throw new ForbiddenError('Compose SQL queries are not enabled');
         }
 
         const projectSummary = await this.projectModel.getSummary(projectUuid);
@@ -7224,6 +7237,16 @@ export class AsyncQueryService extends ProjectService {
                 if (!table) {
                     throw new ParameterError(
                         `Unknown external source table "${reference}"`,
+                    );
+                }
+                if (
+                    table.external_source_scope ===
+                        ExternalSourceScope.ATTACHMENT &&
+                    table.external_source_created_by_user_uuid !==
+                        account.user.id
+                ) {
+                    throw new ForbiddenError(
+                        'This attachment belongs to another user',
                     );
                 }
                 if (!table.locator || !table.columns) {

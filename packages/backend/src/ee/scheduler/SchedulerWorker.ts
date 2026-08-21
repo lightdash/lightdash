@@ -297,6 +297,31 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
     }
 
     protected getFullTaskList(): TypedEETaskList {
+        const externalSourceIngestTask =
+            (
+                taskName:
+                    | typeof EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE
+                    | typeof EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE_ATTACHMENT,
+            ): TypedEETaskList[typeof EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE] =>
+            async (payload, helpers) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        taskName,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        () => this.externalSourceService.runIngest(payload),
+                    ),
+                    helpers.job,
+                    EXTERNAL_SOURCE_INGEST_TIMEOUT_MS,
+                    async (_job, error) =>
+                        this.externalSourceService.markIngestError(
+                            payload.attemptUuid,
+                            error,
+                        ),
+                );
+            };
+
         return {
             ...super.getFullTaskList(),
             [EE_SCHEDULER_TASKS.SLACK_AI_PROMPT]: async (payload, _helpers) => {
@@ -727,27 +752,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     },
                 );
             },
-            [EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE]: async (
-                payload,
-                helpers,
-            ) => {
-                await tryJobOrTimeout(
-                    SchedulerClient.processJob(
-                        EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE,
-                        helpers.job.id,
-                        helpers.job.run_at,
-                        payload,
-                        () => this.externalSourceService.runIngest(payload),
-                    ),
-                    helpers.job,
-                    EXTERNAL_SOURCE_INGEST_TIMEOUT_MS,
-                    async (_job, error) =>
-                        this.externalSourceService.markIngestError(
-                            payload.attemptUuid,
-                            error,
-                        ),
-                );
-            },
+            [EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE]:
+                externalSourceIngestTask(
+                    EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE,
+                ),
+            [EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE_ATTACHMENT]:
+                externalSourceIngestTask(
+                    EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE_ATTACHMENT,
+                ),
             [EE_SCHEDULER_TASKS.MAINTAIN_EXTERNAL_SOURCES]: async () => {
                 await this.externalSourceService.maintain();
             },

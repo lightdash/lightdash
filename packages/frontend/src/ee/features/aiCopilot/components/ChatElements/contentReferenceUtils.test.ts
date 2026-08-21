@@ -145,6 +145,31 @@ describe('contentReferenceUtils', () => {
         ]);
     });
 
+    it('renders an attached external source as a stable reference', () => {
+        const result = buildContentReferenceSegments(
+            'compare Databricks finance with warehouse revenue',
+            [
+                {
+                    type: 'external_source',
+                    sourceUuid: 'source-1',
+                    sourceType: null,
+                    displayName: 'Databricks finance',
+                    tables: [],
+                },
+            ],
+        );
+
+        expect(result.segments).toEqual([
+            { type: 'text', text: 'compare ' },
+            expect.objectContaining({
+                type: 'reference',
+                key: 'external_source:source-1',
+                label: 'Databricks finance',
+            }),
+            { type: 'text', text: ' with warehouse revenue' },
+        ]);
+    });
+
     it('matches a standalone whole-word label (the irreducible text-match case)', () => {
         const result = buildContentReferenceSegments(
             'the orders table tracks orders by day',

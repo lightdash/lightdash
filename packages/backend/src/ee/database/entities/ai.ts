@@ -4,6 +4,7 @@ import {
     type AiDashboardRuntimeOverrides,
     type AiDeepResearchLimits,
     type AiOrgModelVisibility,
+    type AiPromptExternalSourceSnapshot,
     type AiPromptTokenUsage,
     type AiProviderApiKeyHints,
     type AiThreadCreatedFrom,
@@ -439,6 +440,7 @@ export type AiPromptContextEntityType =
     | 'thread'
     | 'file'
     | 'repository'
+    | 'external_source'
     | 'pull_request'
     | 'proposed_change'
     | 'review_finding'
@@ -459,6 +461,7 @@ export type DbAiPromptContext = {
     runtime_overrides:
         | AiChartRuntimeOverrides
         | AiDashboardRuntimeOverrides
+        | AiPromptExternalSourceSnapshot
         | null;
     created_at: Date;
 };

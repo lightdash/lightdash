@@ -17,6 +17,7 @@ import {
     Explore,
     ExploreError,
     ExploreType,
+    ExternalSourceScope,
     generateSlug,
     getLtreePathFromSlug,
     GroupType,
@@ -3141,13 +3142,15 @@ export class ProjectModel {
                 // Copy the source rows with fresh uuids so locator resolution
                 // works inside the preview. Ingested files are shared by URI,
                 // not duplicated.
-                const sources = await trx(ExternalSourcesTableName).where(
-                    'project_uuid',
-                    projectUuid,
-                );
+                const sources = await trx(ExternalSourcesTableName)
+                    .where('project_uuid', projectUuid)
+                    .andWhere('scope', ExternalSourceScope.CATALOG);
                 const sourceTables = await trx(
                     ExternalSourceTablesTableName,
-                ).where('project_uuid', projectUuid);
+                ).whereIn(
+                    'external_source_uuid',
+                    sources.map((source) => source.external_source_uuid),
+                );
                 const sourceUuidMap = new Map(
                     sources.map((s) => [s.external_source_uuid, uuidv4()]),
                 );

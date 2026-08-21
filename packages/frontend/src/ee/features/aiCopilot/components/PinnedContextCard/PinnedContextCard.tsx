@@ -9,7 +9,13 @@ type Props = {
 };
 
 type ItemMeta = {
-    kind: 'chart' | 'dashboard' | 'thread' | 'file' | 'repository';
+    kind:
+        | 'chart'
+        | 'dashboard'
+        | 'thread'
+        | 'file'
+        | 'repository'
+        | 'external_source';
     label: string;
     href: string | null;
 };
@@ -17,7 +23,15 @@ type ItemMeta = {
 const getItemMeta = (
     item: Extract<
         AiPromptContextItem,
-        { type: 'chart' | 'dashboard' | 'thread' | 'file' | 'repository' }
+        {
+            type:
+                | 'chart'
+                | 'dashboard'
+                | 'thread'
+                | 'file'
+                | 'repository'
+                | 'external_source';
+        }
     >,
     projectUuid: string,
 ): ItemMeta => {
@@ -46,6 +60,12 @@ const getItemMeta = (
             return { kind: 'file', label: item.path, href: null };
         case 'repository':
             return { kind: 'repository', label: item.fullName, href: null };
+        case 'external_source':
+            return {
+                kind: 'external_source',
+                label: item.displayName,
+                href: null,
+            };
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');
     }
@@ -57,7 +77,8 @@ export const PinnedContextCard: FC<Props> = ({ item, projectUuid }) => {
         case 'dashboard':
         case 'thread':
         case 'file':
-        case 'repository': {
+        case 'repository':
+        case 'external_source': {
             const meta = getItemMeta(item, projectUuid);
             return (
                 <ContentReferenceLink

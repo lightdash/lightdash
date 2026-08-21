@@ -1,13 +1,6 @@
 import { type ResultColumns } from './results';
 
-/**
- * External data sources: files and third-party apps connected to a project as
- * queryable tables. Each source owns one or more tables; every table is
- * ingested to a typed parquet file in object storage and generated as an
- * explore (ExploreType.EXTERNAL_SOURCE) executed on the DuckDB compose
- * engine. Sources are not warehouses: they plug in above the warehouse
- * client layer.
- */
+/** Typed parquet sources; catalog scope publishes explores, attachment scope does not. */
 export enum ExternalSourceType {
     CSV = 'csv',
     GOOGLE_SHEETS = 'google_sheets',
@@ -20,6 +13,12 @@ export enum ExternalSourceStatus {
     SYNCING = 'syncing',
     READY = 'ready',
     ERROR = 'error',
+}
+
+/** Controls whether a source is published into the project's Explore catalog. */
+export enum ExternalSourceScope {
+    CATALOG = 'catalog',
+    ATTACHMENT = 'attachment',
 }
 
 export type ExternalSourceCsvConnection = {
@@ -53,6 +52,7 @@ export type ExternalSource = {
     sourceUuid: string;
     projectUuid: string;
     type: ExternalSourceType;
+    scope: ExternalSourceScope;
     name: string;
     connection: ExternalSourceConnection;
     status: ExternalSourceStatus;
@@ -61,6 +61,13 @@ export type ExternalSource = {
     lastRefreshedAt: Date | null;
     tables: ExternalSourceTable[];
 };
+
+export const getExternalSourceDisplayName = (
+    source: Pick<ExternalSource, 'connection' | 'name'>,
+): string =>
+    source.connection.type === ExternalSourceType.CSV
+        ? source.connection.originalFilename
+        : source.name;
 
 /**
  * Back-reference stamped on explores generated from an external source table.
@@ -81,7 +88,8 @@ export type StagedExternalSourceUpload = {
 };
 
 export type CreateExternalSourceTablePayload = {
-    tableName: string;
+    /** Required for catalog sources; attachments receive a private name. */
+    tableName?: string;
     label?: string;
 };
 

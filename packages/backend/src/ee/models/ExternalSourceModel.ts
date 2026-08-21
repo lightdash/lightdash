@@ -1,4 +1,5 @@
 import {
+    ExternalSourceScope,
     ExternalSourceStatus,
     NotFoundError,
     ParameterError,
@@ -23,16 +24,56 @@ import {
     type DbExternalSourceObject,
     type DbExternalSourceTable,
     type DbExternalSourceUpdate,
+    type ExternalSourceIngestAttemptPhase,
+    type ExternalSourceIngestAttemptStatus,
 } from '../../database/entities/externalSources';
 import { type PreAggregateDuckdbLocator } from '../../utils/duckdb/duckdbSqlTables';
 import { type EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { AiPromptContextTableName } from '../database/entities/ai';
 
 type ExternalSourceModelArguments = {
     database: Knex;
     encryptionUtil: Pick<EncryptionUtil, 'encrypt' | 'decrypt'>;
 };
 
+export type ClaimExternalSourceIngestAttemptResult =
+    | { state: 'claimed'; attempt: DbExternalSourceIngestAttempt }
+    | { state: 'capacity'; attachment: boolean }
+    | { state: 'unavailable' };
+
 const EXTERNAL_SOURCE_TABLE_NAME_PATTERN = /^[a-z][a-z0-9_]{0,254}$/;
+
+const attemptStatuses = (
+    ...phases: ExternalSourceIngestAttemptPhase[]
+): ExternalSourceIngestAttemptStatus[] =>
+    phases.flatMap<ExternalSourceIngestAttemptStatus>((phase) => [
+        phase,
+        `attachment_${phase}`,
+    ]);
+
+const statusForAttempt = (
+    status: ExternalSourceIngestAttemptStatus,
+    phase: ExternalSourceIngestAttemptPhase,
+): ExternalSourceIngestAttemptStatus =>
+    status.startsWith('attachment_') ? `attachment_${phase}` : phase;
+
+const isAttemptPhase = (
+    status: ExternalSourceIngestAttemptStatus,
+    phase: ExternalSourceIngestAttemptPhase,
+): boolean => attemptStatuses(phase).includes(status);
+
+const ACTIVE_ATTEMPT_STATUSES = attemptStatuses(
+    'queued',
+    'running',
+    'publishing',
+    'failed',
+);
+
+const LEASED_ATTEMPT_STATUSES = attemptStatuses(
+    'running',
+    'publishing',
+    'failed',
+);
 
 export class ExternalSourceModel {
     private readonly database: Knex;
@@ -71,6 +112,7 @@ export class ExternalSourceModel {
             sourceUuid: row.external_source_uuid,
             projectUuid: row.project_uuid,
             type: row.type,
+            scope: row.scope ?? ExternalSourceScope.CATALOG,
             name: row.name,
             connection: row.connection,
             status: row.status,
@@ -84,6 +126,7 @@ export class ExternalSourceModel {
     async createSource(data: {
         projectUuid: string;
         type: ExternalSourceType;
+        scope: ExternalSourceScope;
         name: string;
         status: ExternalSourceStatus;
         connection: ExternalSourceConnection;
@@ -93,6 +136,7 @@ export class ExternalSourceModel {
             .insert({
                 project_uuid: data.projectUuid,
                 type: data.type,
+                scope: data.scope,
                 name: data.name,
                 status: data.status,
                 connection: data.connection,
@@ -136,10 +180,17 @@ export class ExternalSourceModel {
         return ExternalSourceModel.mapSource(row, tables);
     }
 
-    async listSources(projectUuid: string): Promise<ExternalSource[]> {
-        const rows = await this.database(ExternalSourcesTableName)
-            .where('project_uuid', projectUuid)
-            .orderBy('name');
+    async listSources(
+        projectUuid: string,
+        scope?: ExternalSourceScope,
+    ): Promise<ExternalSource[]> {
+        const query = this.database(ExternalSourcesTableName).where(
+            'project_uuid',
+            projectUuid,
+        );
+        const rows = await (
+            scope ? query.andWhere('scope', scope) : query
+        ).orderBy('name');
         const tables = await this.getTableRows(
             rows.map((row) => row.external_source_uuid),
         );
@@ -281,7 +332,10 @@ export class ExternalSourceModel {
                     external_source_table_uuid: data.tableUuid,
                     requested_by_user_uuid: data.requestedByUserUuid,
                     target_version: data.targetVersion,
-                    status: 'queued',
+                    status:
+                        source.scope === ExternalSourceScope.ATTACHMENT
+                            ? 'attachment_queued'
+                            : 'queued',
                 })
                 .onConflict(['external_source_table_uuid', 'target_version'])
                 .ignore()
@@ -322,7 +376,7 @@ export class ExternalSourceModel {
         attemptUuid: string;
         leaseMs: number;
         maxConcurrentPerOrganization: number;
-    }): Promise<DbExternalSourceIngestAttempt | null> {
+    }): Promise<ClaimExternalSourceIngestAttemptResult> {
         return this.database.transaction(async (trx) => {
             const attempt = await trx(ExternalSourceIngestAttemptsTableName)
                 .where('external_source_ingest_attempt_uuid', data.attemptUuid)
@@ -330,16 +384,18 @@ export class ExternalSourceModel {
                 .first();
             if (
                 !attempt ||
-                ['succeeded', 'cancelled'].includes(attempt.status)
+                attemptStatuses('succeeded', 'cancelled').includes(
+                    attempt.status,
+                )
             ) {
-                return null;
+                return { state: 'unavailable' };
             }
             if (
-                ['running', 'publishing', 'failed'].includes(attempt.status) &&
+                LEASED_ATTEMPT_STATUSES.includes(attempt.status) &&
                 attempt.lease_expires_at &&
                 attempt.lease_expires_at > new Date()
             ) {
-                return null;
+                return { state: 'unavailable' };
             }
 
             await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
@@ -347,7 +403,7 @@ export class ExternalSourceModel {
             ]);
             const [{ count }] = await trx(ExternalSourceIngestAttemptsTableName)
                 .where('organization_uuid', attempt.organization_uuid)
-                .whereIn('status', ['running', 'publishing', 'failed'])
+                .whereIn('status', LEASED_ATTEMPT_STATUSES)
                 .where('lease_expires_at', '>', new Date())
                 .whereNot(
                     'external_source_ingest_attempt_uuid',
@@ -355,13 +411,19 @@ export class ExternalSourceModel {
                 )
                 .count<{ count: string }[]>('* as count');
             if (Number(count) >= data.maxConcurrentPerOrganization) {
-                return null;
+                return {
+                    state: 'capacity',
+                    attachment: attempt.status.startsWith('attachment_'),
+                };
             }
 
             const [claimed] = await trx(ExternalSourceIngestAttemptsTableName)
                 .where('external_source_ingest_attempt_uuid', data.attemptUuid)
                 .update({
-                    status: attempt.columns ? 'publishing' : 'running',
+                    status: statusForAttempt(
+                        attempt.status,
+                        attempt.columns ? 'publishing' : 'running',
+                    ),
                     execution_uuid: randomUUID(),
                     lease_expires_at: new Date(Date.now() + data.leaseMs),
                     run_count: attempt.run_count + 1,
@@ -376,7 +438,7 @@ export class ExternalSourceModel {
                     error_message: null,
                     updated_at: new Date(),
                 });
-            return claimed;
+            return { state: 'claimed', attempt: claimed };
         });
     }
 
@@ -388,21 +450,28 @@ export class ExternalSourceModel {
         rowCount: number;
         totalBytes: number | null;
     }): Promise<boolean> {
-        const updated = await this.database(
-            ExternalSourceIngestAttemptsTableName,
-        )
-            .where('external_source_ingest_attempt_uuid', data.attemptUuid)
-            .andWhere('execution_uuid', data.executionUuid)
-            .andWhere('status', 'running')
-            .update({
-                status: 'publishing',
-                columns: data.columns,
-                locator: data.locator,
-                row_count: data.rowCount,
-                total_bytes: data.totalBytes,
-                updated_at: new Date(),
-            });
-        return updated === 1;
+        return this.database.transaction(async (trx) => {
+            const attempt = await trx(ExternalSourceIngestAttemptsTableName)
+                .where('external_source_ingest_attempt_uuid', data.attemptUuid)
+                .andWhere('execution_uuid', data.executionUuid)
+                .forUpdate()
+                .first();
+            if (!attempt || !isAttemptPhase(attempt.status, 'running')) {
+                return false;
+            }
+            const updated = await trx(ExternalSourceIngestAttemptsTableName)
+                .where('external_source_ingest_attempt_uuid', data.attemptUuid)
+                .andWhere('execution_uuid', data.executionUuid)
+                .update({
+                    status: statusForAttempt(attempt.status, 'publishing'),
+                    columns: data.columns,
+                    locator: data.locator,
+                    row_count: data.rowCount,
+                    total_bytes: data.totalBytes,
+                    updated_at: new Date(),
+                });
+            return updated === 1;
+        });
     }
 
     async publishIngestAttempt(data: {
@@ -414,9 +483,11 @@ export class ExternalSourceModel {
                 .where('external_source_ingest_attempt_uuid', data.attemptUuid)
                 .forUpdate()
                 .first();
-            if (!attempt || attempt.status === 'succeeded') return true;
+            if (!attempt || isAttemptPhase(attempt.status, 'succeeded')) {
+                return true;
+            }
             if (
-                attempt.status !== 'publishing' ||
+                !isAttemptPhase(attempt.status, 'publishing') ||
                 attempt.execution_uuid !== data.executionUuid ||
                 !attempt.columns ||
                 !attempt.locator
@@ -462,7 +533,7 @@ export class ExternalSourceModel {
             await trx(ExternalSourceIngestAttemptsTableName)
                 .where('external_source_ingest_attempt_uuid', data.attemptUuid)
                 .update({
-                    status: 'succeeded',
+                    status: statusForAttempt(attempt.status, 'succeeded'),
                     lease_expires_at: null,
                     finished_at: new Date(),
                     updated_at: new Date(),
@@ -507,11 +578,24 @@ export class ExternalSourceModel {
         deferRetryUntilLeaseExpires = false,
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
+            const currentAttempt = await trx(
+                ExternalSourceIngestAttemptsTableName,
+            )
+                .where('external_source_ingest_attempt_uuid', attemptUuid)
+                .forUpdate()
+                .first();
+            if (
+                !currentAttempt ||
+                !attemptStatuses('queued', 'running', 'publishing').includes(
+                    currentAttempt.status,
+                )
+            ) {
+                return;
+            }
             const [attempt] = await trx(ExternalSourceIngestAttemptsTableName)
                 .where('external_source_ingest_attempt_uuid', attemptUuid)
-                .whereIn('status', ['queued', 'running', 'publishing'])
                 .update({
-                    status: 'failed',
+                    status: statusForAttempt(currentAttempt.status, 'failed'),
                     lease_expires_at: deferRetryUntilLeaseExpires
                         ? undefined
                         : null,
@@ -544,10 +628,10 @@ export class ExternalSourceModel {
             .where('run_count', '<', 5)
             .andWhere((builder) =>
                 builder
-                    .where('status', 'queued')
+                    .whereIn('status', attemptStatuses('queued'))
                     .orWhere((failed) =>
                         failed
-                            .where('status', 'failed')
+                            .whereIn('status', attemptStatuses('failed'))
                             .andWhere((lease) =>
                                 lease
                                     .whereNull('lease_expires_at')
@@ -560,7 +644,10 @@ export class ExternalSourceModel {
                     )
                     .orWhere((expired) =>
                         expired
-                            .whereIn('status', ['running', 'publishing'])
+                            .whereIn(
+                                'status',
+                                attemptStatuses('running', 'publishing'),
+                            )
                             .andWhere('lease_expires_at', '<', new Date()),
                     ),
             )
@@ -829,12 +916,7 @@ export class ExternalSourceModel {
                 });
             await trx(ExternalSourceIngestAttemptsTableName)
                 .where('external_source_uuid', sourceUuid)
-                .whereIn('status', [
-                    'queued',
-                    'running',
-                    'publishing',
-                    'failed',
-                ])
+                .whereIn('status', ACTIVE_ATTEMPT_STATUSES)
                 .update({
                     status: 'cancelled',
                     lease_expires_at: null,
@@ -846,6 +928,30 @@ export class ExternalSourceModel {
                 .andWhere('external_source_uuid', sourceUuid)
                 .delete();
         });
+    }
+
+    async listExpiredUnreferencedAttachments(before: Date, limit: number) {
+        return this.database(`${ExternalSourcesTableName} as source`)
+            .leftJoin(
+                `${AiPromptContextTableName} as context`,
+                function join() {
+                    this.on(
+                        'context.entity_uuid',
+                        '=',
+                        'source.external_source_uuid',
+                    ).andOnVal('context.entity_type', '=', 'external_source');
+                },
+            )
+            .where('source.scope', ExternalSourceScope.ATTACHMENT)
+            .andWhere('source.created_at', '<', before)
+            .whereNull('context.ai_prompt_context_uuid')
+            .select<
+                Array<{
+                    project_uuid: string;
+                    external_source_uuid: string;
+                }>
+            >('source.project_uuid', 'source.external_source_uuid')
+            .limit(limit);
     }
 
     /**
@@ -889,6 +995,10 @@ export class ExternalSourceModel {
             .select(
                 `${ExternalSourcesTableName}.status as external_source_status`,
             )
+            .select(
+                `${ExternalSourcesTableName}.scope as external_source_scope`,
+                `${ExternalSourcesTableName}.created_by_user_uuid as external_source_created_by_user_uuid`,
+            )
             .where(`${ExternalSourceTablesTableName}.project_uuid`, projectUuid)
             .andWhere(`${ExternalSourcesTableName}.project_uuid`, projectUuid)
             .andWhere((queryBuilder) => {
@@ -908,6 +1018,8 @@ export class ExternalSourceModel {
         return row as
             | (DbExternalSourceTable & {
                   external_source_status: ExternalSourceStatus;
+                  external_source_scope: ExternalSourceScope | null;
+                  external_source_created_by_user_uuid: string | null;
               })
             | undefined;
     }

@@ -58,6 +58,36 @@ describe('CommercialSchedulerClient.aiDeepResearch', () => {
     });
 });
 
+describe('CommercialSchedulerClient.ingestExternalSourceAttachment', () => {
+    it('uses an attachment-only task that old workers cannot claim', async () => {
+        const addJob = vi.fn().mockResolvedValue({ id: 'job-1' });
+        const client = Object.create(
+            CommercialSchedulerClient.prototype,
+        ) as CommercialSchedulerClient;
+        client.graphileUtils = Promise.resolve({ addJob } as AnyType);
+        const payload = {
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            userUuid: 'user-1',
+            sourceUuid: 'source-1',
+            attemptUuid: 'attempt-1',
+        };
+        const runAt = new Date('2026-08-21T12:00:00.000Z');
+
+        await client.ingestExternalSourceAttachment(payload, { runAt });
+
+        expect(addJob).toHaveBeenCalledWith(
+            EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE_ATTACHMENT,
+            payload,
+            expect.objectContaining({
+                maxAttempts: 5,
+                jobKey: 'external-source-attachment-ingest:attempt-1',
+                runAt,
+            }),
+        );
+    });
+});
+
 describe('CommercialSchedulerClient.aiAgentMemoryDistill', () => {
     it('enqueues one keyed attempt per thread', async () => {
         const addJob = vi.fn().mockResolvedValue({ id: 'job-1' });

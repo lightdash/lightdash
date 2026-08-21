@@ -269,4 +269,38 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
             '- Preview environment (Preview: fix WAU) — preview_ready — test the fix in this preview project.',
         );
     });
+
+    it('teaches the agent to query every table exposed by an attached source', () => {
+        const content = buildMessage([
+            {
+                type: 'external_source',
+                sourceUuid: 'source-uuid',
+                sourceType: null,
+                displayName: 'Databricks finance',
+                tables: [
+                    {
+                        tableUuid: 'targets-uuid',
+                        tableName: 'quarterly_targets',
+                        displayName: 'Quarterly targets',
+                    },
+                    {
+                        tableUuid: 'actuals-uuid',
+                        tableName: 'monthly_actuals',
+                        displayName: 'Monthly actuals',
+                    },
+                ],
+            },
+        ]);
+
+        expect(content).toContain(
+            'External source "Databricks finance" (sourceUuid: source-uuid) exposes 2 queryable tables',
+        );
+        expect(content).toContain('runComposerQueries');
+        expect(content).toContain(
+            'tables: {"quarterly_targets":"targets-uuid","monthly_actuals":"actuals-uuid"}',
+        );
+        expect(content).toContain(
+            'One external node may read multiple tables from this source',
+        );
+    });
 });

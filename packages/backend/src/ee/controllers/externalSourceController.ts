@@ -1,6 +1,7 @@
 import {
     ApiErrorPayload,
     assertRegisteredAccount,
+    ExternalSourceScope,
     ParameterError,
     type ApiExternalSourceResponse,
     type ApiExternalSourcesResponse,
@@ -77,6 +78,7 @@ export class ExternalSourceController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
         @Query() filename: string,
+        @Query() scope?: ExternalSourceScope,
     ): Promise<ApiStagedExternalSourceUploadResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(201);
@@ -86,13 +88,14 @@ export class ExternalSourceController extends BaseController {
                 req.account,
                 projectUuid,
                 getRawUploadRequest(req, filename),
+                scope,
             ),
         };
     }
 
     /**
-     * Confirm a staged CSV upload: name the table and start the ingest.
-     * The source appears with a syncing status until the ingest finishes.
+     * Confirm a staged CSV upload. Catalog uploads require tableName;
+     * attachment uploads receive a private name.
      * @summary Create a table from a staged upload
      */
     @Middlewares([

@@ -1,5 +1,6 @@
 import {
     type ExternalSourceConnection,
+    type ExternalSourceScope,
     type ExternalSourceStatus,
     type ExternalSourceType,
     type ResultColumns,
@@ -14,13 +15,19 @@ export const ExternalSourceIngestAttemptsTableName =
     'external_source_ingest_attempts';
 export const ExternalSourceObjectsTableName = 'external_source_objects';
 
-export type ExternalSourceIngestAttemptStatus =
+export type ExternalSourceIngestAttemptPhase =
     | 'queued'
     | 'running'
     | 'publishing'
     | 'succeeded'
     | 'failed'
     | 'cancelled';
+
+// Attachment-prefixed states keep rolling-deploy legacy workers from claiming
+// private attachment jobs through the catalog recovery queue.
+export type ExternalSourceIngestAttemptStatus =
+    | ExternalSourceIngestAttemptPhase
+    | `attachment_${ExternalSourceIngestAttemptPhase}`;
 
 export type ExternalSourceObjectStatus =
     | 'uploading'
@@ -32,6 +39,7 @@ export type DbExternalSource = {
     external_source_uuid: string;
     project_uuid: string;
     type: ExternalSourceType;
+    scope: ExternalSourceScope | null;
     name: string;
     status: ExternalSourceStatus;
     error_message: string | null;
@@ -58,6 +66,7 @@ export type DbExternalSourceUpdate = Partial<
     Pick<
         DbExternalSource,
         | 'name'
+        | 'scope'
         | 'status'
         | 'error_message'
         | 'connection'

@@ -24,7 +24,7 @@ How to build a pipeline:
 - Every query is a node. Name each node with "nodeId" (letters, digits, underscores; starting with a letter or underscore).
 - "semanticLayer" nodes run a metric query against an explore. Result columns are named by field id — exactly the dimensions and metrics requested (e.g. metric "payments_total_revenue" yields column "payments_total_revenue").
 - "sql" nodes run raw SQL against the project's data warehouse, in the warehouse's SQL dialect. Result columns are the SELECT output names. SQL execution may require the user to approve the SQL first.
-- "external" nodes run DuckDB SQL over durable external tables such as uploaded CSVs and connected Google Sheets. Declare the tables via "tables": an array of table names, or a map of {sqlAlias: tableNameOrTableUuid}. Use the exact table name or UUID supplied in the user's attached-table context. Result columns are the SELECT output names. A single external node can read multiple external tables.
+- "external" nodes run DuckDB SQL over durable external tables such as uploaded CSVs and connected data sources. Declare the tables via "tables": an array of table names, or a map of {sqlAlias: tableNameOrTableUuid}. Use the exact table name or UUID supplied in the user's attached-source context. One source may expose many tables, and one external node can read any subset of them. Result columns are the SELECT output names.
 - "duckdb" nodes run DuckDB SQL over other queries' results. Declare which results the SQL reads via "references": the shorthand array form lists node ids from this submission, each exposed as a table named by its node id (["orders", "revenue"] lets the SQL run SELECT * FROM orders JOIN revenue ...); the map form aliases tables or references stored results by queryUuid ({"o": "orders", "prev": "<queryUuid>"}). A referenced table's columns are the upstream result's columns.
 - The "terminal" node is the one whose results the artifact shows and whose rows are returned to you. By default it is the unique sink (the one node no other node references); pass "terminalNodeId" explicitly when the pipeline has multiple sinks.
 
@@ -146,7 +146,7 @@ export const createToolComposerQueriesArgsSchema = ({
         tables: z
             .union([z.array(z.string()), z.record(z.string(), z.string())])
             .describe(
-                'External tables read by this query: an array of table names, or a map of {sqlAlias: tableNameOrTableUuid}. Prefer the table UUID from attached-table context so renames cannot break the query.',
+                'External tables read by this query: an array of table names, or a map of {sqlAlias: tableNameOrTableUuid}. Prefer table UUIDs from attached-source context so renames cannot break the query.',
             ),
         limit: limitSchema,
     });
