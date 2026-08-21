@@ -1,3 +1,10 @@
+## [1.234.1](https://github.com/lightdash/lightdash/compare/1.234.0...1.234.1) (2026-08-21)
+
+
+### Bug Fixes
+
+* **page:** stop the right sidebar toggle causing horizontal scroll ([#27842](https://github.com/lightdash/lightdash/issues/27842)) ([a506f66](https://github.com/lightdash/lightdash/commit/a506f6640a562eb078e6620e6915937cdfccc344)), closes [/linear.app/lightdash/issue/PROD-10434/prevent-horizontal-scroll-on-chart-configuration-sidebar-toggle#agent-session-512983](https://github.com//linear.app/lightdash/issue/PROD-10434/prevent-horizontal-scroll-on-chart-configuration-sidebar-toggle/issues/agent-session-512983)
+
 # [1.234.0](https://github.com/lightdash/lightdash/compare/1.233.0...1.234.0) (2026-08-21)
 
 
