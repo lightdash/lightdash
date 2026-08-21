@@ -225,6 +225,7 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
                 data-variant={variant}
                 data-size={size}
                 data-accent={accent}
+                data-disabled={disabled || undefined}
                 onMouseDown={onMouseDown}
             >
                 {header && <Box className={classes.header}>{header}</Box>}
