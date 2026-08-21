@@ -114,6 +114,8 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({
         hasOrderBy ||
         template?.type === TableCalculationTemplateType.RUNNING_TOTAL;
     const supportsPartitionBy = template && 'partitionBy' in template;
+    // The table can be sorted by the calculation itself — freezing that into
+    // orderBy would compile a self-referential ORDER BY, so exclude it.
     const legacyRunningTotalOrderBy = resultSorts
         .filter((sort) => sort.fieldId !== excludedFieldId)
         .map((sort) => ({

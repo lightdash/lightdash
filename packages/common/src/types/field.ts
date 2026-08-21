@@ -492,8 +492,9 @@ export type TableCalculationTemplate =
           type: TableCalculationTemplateType.RUNNING_TOTAL;
           /** Field ID to apply the template to */
           fieldId: string;
-          /** Undefined preserves legacy results-table sorting; [] is explicitly unordered.
-           * Do not normalize: doing so changes pre-existing SQL. */
+          // undefined = legacy: follows the results-table sort at query time; [] = explicitly unordered.
+          // Never normalize undefined to [] — it changes the SQL of every pre-existing running total.
+          /** Fields to order by for the running total */
           orderBy?: {
               fieldId: string;
               order: 'asc' | 'desc' | null;
