@@ -556,6 +556,73 @@ describe('AppGenerateService.importAppCode', () => {
         expect(appModel.moveToSpace).not.toHaveBeenCalled();
     });
 
+    it('create mode: a custom chart type is created spaceless and warns when a space was requested', async () => {
+        const { service, appModel, coderService } = buildService();
+        appModel.findApp.mockResolvedValue(undefined);
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, {
+                template: 'data_app_viz',
+                vizSchema: VIZ_SCHEMA,
+                spaceSlug: 'sales/q3-reports',
+            }),
+            spaceUuid: 'explicit-space-uuid',
+        } as ImportAppCodeRequestBody);
+
+        expect(coderService.getOrCreateSpace).not.toHaveBeenCalled();
+        expect(appModel.createWithVersion).toHaveBeenCalledWith(
+            expect.objectContaining({ space_uuid: null }),
+            expect.anything(),
+            'pending',
+            expect.any(Object),
+            undefined,
+            expect.anything(),
+            { forceSlug: true },
+        );
+        expect(result.warnings).toEqual(
+            expect.arrayContaining([
+                expect.stringContaining(
+                    'Custom chart types cannot be placed in spaces',
+                ),
+            ]),
+        );
+    });
+
+    it('append mode: a custom chart type ignores the manifest spaceSlug and warns', async () => {
+        const { service, appModel, coderService } = buildService();
+        appModel.findApp.mockResolvedValue({
+            app_id: EXISTING_APP_UUID,
+            project_uuid: PROJECT_UUID,
+            space_uuid: null,
+            created_by_user_uuid: USER_UUID,
+            organization_uuid: PROJECT_ORG_UUID,
+            name: 'Test Viz',
+            description: 'A test viz',
+            slug: EXISTING_APP_SLUG,
+            template: 'data_app_viz',
+        });
+        appModel.getLatestVersion.mockResolvedValue({ version: 4 });
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, {
+                template: 'data_app_viz',
+                vizSchema: VIZ_SCHEMA,
+                spaceSlug: 'sales/q3-reports',
+            }),
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(coderService.getOrCreateSpace).not.toHaveBeenCalled();
+        expect(appModel.moveToSpace).not.toHaveBeenCalled();
+        expect(result.warnings).toEqual(
+            expect.arrayContaining([
+                expect.stringContaining(
+                    'Custom chart types cannot be placed in spaces',
+                ),
+            ]),
+        );
+    });
+
     it('throws ParameterError when targetAppUuid is given but app is not found', async () => {
         const { service, appModel, schedulerClient } = buildService();
 
