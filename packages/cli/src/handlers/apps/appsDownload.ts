@@ -140,28 +140,37 @@ export const preSlugServerHint = (folder: string): string =>
     `This server predates slug-based app identity, so "${folder}" was matched by uuid only. If you expected to update an existing app, verify no duplicate was created, and upgrade the server (or use a matching CLI version).`;
 
 /**
- * Resolves the --apps-limit flag. Commander passes the raw string (or
- * undefined when the flag was not given, so an explicit flag is
- * distinguishable from the default). Throws ParameterError on anything
- * that is not a positive integer.
+ * Resolves a listing-cap flag (--apps-limit / --chart-types-limit).
+ * Commander passes the raw string (or undefined when the flag was not
+ * given, so an explicit flag is distinguishable from the default). Throws
+ * ParameterError on anything that is not a positive integer.
  */
 export const resolveAppsLimit = (
     rawLimit: string | undefined,
     includeApps: boolean,
+    flagNames: {
+        limitFlag: string;
+        includeFlag: string;
+        refsFlag: string;
+    } = {
+        limitFlag: '--apps-limit',
+        includeFlag: '--include-apps',
+        refsFlag: '--apps',
+    },
 ): { limit: number; noEffectWarning: string | null } => {
     if (rawLimit === undefined) {
         return { limit: DEFAULT_APPS_LIMIT, noEffectWarning: null };
     }
     if (!/^\d+$/.test(rawLimit) || parseInt(rawLimit, 10) < 1) {
         throw new ParameterError(
-            `--apps-limit must be a positive integer, got "${rawLimit}".`,
+            `${flagNames.limitFlag} must be a positive integer, got "${rawLimit}".`,
         );
     }
     return {
         limit: parseInt(rawLimit, 10),
         noEffectWarning: includeApps
             ? null
-            : '--apps-limit only applies to --include-apps; explicit --apps references are never capped.',
+            : `${flagNames.limitFlag} only applies to ${flagNames.includeFlag}; explicit ${flagNames.refsFlag} references are never capped.`,
     };
 };
 
@@ -320,13 +329,14 @@ export const appsDownloadSummary = (
     failures: AppDownloadFailure[],
     appsDir: string,
     skippedNotBuiltCount: number,
+    noun: string = 'data app',
 ): { ok: boolean; message: string; failureLines: string[] } => {
     const attempted = total - skippedNotBuiltCount;
     const skippedSuffix =
         skippedNotBuiltCount > 0
             ? ` (${skippedNotBuiltCount} skipped: no built version)`
             : '';
-    const base = `Downloaded ${successCount} of ${attempted} data app(s) to ${appsDir}${skippedSuffix}`;
+    const base = `Downloaded ${successCount} of ${attempted} ${noun}(s) to ${appsDir}${skippedSuffix}`;
     if (failures.length === 0) {
         return { ok: true, message: base, failureLines: [] };
     }
@@ -342,6 +352,7 @@ export const appsDownloadSummary = (
 export type AppsDownloadOutcome = {
     successCount: number;
     skippedNotBuiltCount: number;
+    skippedWrongKindCount: number;
     failures: AppDownloadFailure[];
 };
 
@@ -361,6 +372,10 @@ export const downloadAppsToDir = async (args: {
         projectId: string,
         appRef: string,
     ) => Promise<DataAppCodeDownload>;
+    // Post-fetch kind guard: return a reason to skip writing this bundle
+    // (e.g. a custom chart type fetched through a data-app flag), or null
+    // to accept it. Skips are reported, not failed.
+    skipBundle?: (manifest: DataAppManifest) => string | null;
     onProgress?: (processed: number, total: number) => void;
 }): Promise<AppsDownloadOutcome> => {
     const {
@@ -370,11 +385,13 @@ export const downloadAppsToDir = async (args: {
         takenFolders,
         cliVersion,
         fetchApp,
+        skipBundle,
         onProgress,
     } = args;
 
     let successCount = 0;
     let skippedNotBuiltCount = 0;
+    let skippedWrongKindCount = 0;
     const failures: AppDownloadFailure[] = [];
 
     for (const appRef of appRefs) {
@@ -384,6 +401,23 @@ export const downloadAppsToDir = async (args: {
                 // eslint-disable-next-line no-await-in-loop
                 await fetchApp(projectId, appRef),
             );
+
+            const skipReason = skipBundle?.(code.manifest) ?? null;
+            if (skipReason !== null) {
+                skippedWrongKindCount += 1;
+                GlobalState.log(
+                    styles.warning(`Skipped ${appRef}: ${skipReason}`),
+                );
+                onProgress?.(
+                    successCount +
+                        skippedNotBuiltCount +
+                        skippedWrongKindCount +
+                        failures.length,
+                    appRefs.length,
+                );
+                // eslint-disable-next-line no-continue
+                continue;
+            }
 
             const folder = resolveAppFolderName(code.manifest, takenFolders);
             takenFolders.add(folder);
@@ -429,10 +463,18 @@ export const downloadAppsToDir = async (args: {
             }
         }
         onProgress?.(
-            successCount + skippedNotBuiltCount + failures.length,
+            successCount +
+                skippedNotBuiltCount +
+                skippedWrongKindCount +
+                failures.length,
             appRefs.length,
         );
     }
 
-    return { successCount, skippedNotBuiltCount, failures };
+    return {
+        successCount,
+        skippedNotBuiltCount,
+        skippedWrongKindCount,
+        failures,
+    };
 };
