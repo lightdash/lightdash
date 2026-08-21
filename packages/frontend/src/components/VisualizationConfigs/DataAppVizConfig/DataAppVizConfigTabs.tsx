@@ -12,6 +12,7 @@ import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDa
 import { useCanEditDataApp } from '../../../features/apps/hooks/useCanEditDataApp';
 import { useDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
 import { reconcileDataAppVizFieldMapping } from '../../../features/chartTypes/utils/autoMapDataAppVizFields';
+import { chartTypeBuilderPath } from '../../../features/chartTypes/utils/chartTypeBuilderPath';
 import { getDataAppVizFieldItems } from '../../../features/chartTypes/utils/getDataAppVizFieldItems';
 import { useIsInsideChartGallery } from '../../common/ChartGallery/ChartGalleryContext';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
@@ -143,7 +144,10 @@ export const ConfigTabs: FC = memo(() => {
                         <Anchor
                             component={Link}
                             to={{
-                                pathname: `/projects/${projectUuid}/chart-types/${dataAppViz.dataAppVizUuid}`,
+                                pathname: chartTypeBuilderPath(
+                                    projectUuid ?? '',
+                                    dataAppViz.dataAppVizUuid,
+                                ),
                                 search: location.search,
                             }}
                             fz="xs"
@@ -183,7 +187,9 @@ export const ConfigTabs: FC = memo(() => {
                             canCreateApp
                                 ? () =>
                                       void navigate({
-                                          pathname: `/projects/${projectUuid}/chart-types/new`,
+                                          pathname: chartTypeBuilderPath(
+                                              projectUuid ?? '',
+                                          ),
                                           search: location.search,
                                       })
                                 : null
@@ -218,7 +224,9 @@ export const ConfigTabs: FC = memo(() => {
                                 <Anchor
                                     component={Link}
                                     to={{
-                                        pathname: `/projects/${projectUuid}/chart-types/new`,
+                                        pathname: chartTypeBuilderPath(
+                                            projectUuid ?? '',
+                                        ),
                                         search: location.search,
                                     }}
                                     size="xs"

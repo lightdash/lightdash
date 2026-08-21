@@ -23,6 +23,7 @@ import ChartTypeDetailModal from '../features/chartTypes/components/ChartTypeDet
 import ChartTypeGalleryCard from '../features/chartTypes/components/ChartTypeGalleryCard';
 import ChartTypeGalleryEmptyState from '../features/chartTypes/components/ChartTypeGalleryEmptyState';
 import { useDataAppVisualizations } from '../features/chartTypes/hooks/useDataAppVisualizations';
+import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../providers/Ability';
 import useApp from '../providers/App/useApp';
@@ -138,7 +139,7 @@ const ChartTypeGallery = () => {
                                     <Button
                                         size="xs"
                                         component={Link}
-                                        to={`/projects/${projectUuid}/chart-types/new`}
+                                        to={chartTypeBuilderPath(projectUuid)}
                                         leftSection={
                                             <MantineIcon
                                                 icon={IconPlus}

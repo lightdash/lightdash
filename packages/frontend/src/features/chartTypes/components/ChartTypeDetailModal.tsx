@@ -8,6 +8,7 @@ import MantineModal from '../../../components/common/MantineModal';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import { useAppVersionHistory } from '../../apps/hooks/useAppVersionHistory';
 import { useCanEditDataApp } from '../../apps/hooks/useCanEditDataApp';
+import { chartTypeBuilderPath } from '../utils/chartTypeBuilderPath';
 import classes from './ChartTypeDetailModal.module.css';
 import ChartTypeSamplePreview from './ChartTypeSamplePreview';
 
@@ -70,7 +71,10 @@ const ChartTypeDetailModal: FC<Props> = ({
             actions={
                 <Button
                     component={Link}
-                    to={`/projects/${projectUuid}/chart-types/${dataAppViz.dataAppVizUuid}`}
+                    to={chartTypeBuilderPath(
+                        projectUuid,
+                        dataAppViz.dataAppVizUuid,
+                    )}
                     variant="default"
                     leftSection={<MantineIcon icon={IconFilePencil} />}
                 >

@@ -6,6 +6,7 @@ import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
+import { chartTypeBuilderPath } from '../utils/chartTypeBuilderPath';
 
 type Props = {
     projectUuid: string;
@@ -42,7 +43,7 @@ const ChartTypeGalleryEmptyState: FC<Props> = ({ projectUuid }) => {
                 <Button
                     mt="xs"
                     component={Link}
-                    to={`/projects/${projectUuid}/chart-types/new`}
+                    to={chartTypeBuilderPath(projectUuid)}
                     leftSection={<MantineIcon icon={IconPlus} size={18} />}
                 >
                     New chart type
