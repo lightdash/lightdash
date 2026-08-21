@@ -14,12 +14,15 @@ import { ResultCount } from '../common/Table/TablePagination';
 import {
     type CellContextMenuProps,
     type HeaderProps,
+    type TotalsCellContextMenuProps,
 } from '../common/Table/types';
 import { isTableVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import TotalsCellContextMenu from '../MetricQueryData/TotalsCellContextMenu';
 import CellContextMenu from './CellContextMenu';
 import DashboardCellContextMenu from './DashboardCellContextMenu';
 import DashboardHeaderContextMenu from './DashboardHeaderContextMenu';
+import DashboardTotalsCellContextMenu from './DashboardTotalsCellContextMenu';
 import ExplorerPivotTable from './ExplorerPivotTable';
 import MinimalCellContextMenu from './MinimalCellContextMenu';
 import PivotRerunState from './PivotRerunState';
@@ -200,6 +203,16 @@ const SimpleTable: FC<SimpleTableProps> = ({
             return <CellContextMenu {...props} />;
         },
         [isDashboard, itemsMap, minimal, tileUuid],
+    );
+
+    const totalsCellContextMenu = useCallback<FC<TotalsCellContextMenuProps>>(
+        (props) => {
+            if (!minimal && isDashboard && tileUuid) {
+                return <DashboardTotalsCellContextMenu {...props} />;
+            }
+            return <TotalsCellContextMenu {...props} minimal={minimal} />;
+        },
+        [isDashboard, minimal, tileUuid],
     );
 
     const DashboardEmptyState = useCallback(() => {
@@ -457,6 +470,9 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 }
                 cellContextMenu={
                     enableContextMenu ? cellContextMenu : undefined
+                }
+                totalsCellContextMenu={
+                    enableContextMenu ? totalsCellContextMenu : undefined
                 }
                 pagination={{ showResultsTotal }}
                 {...rest}

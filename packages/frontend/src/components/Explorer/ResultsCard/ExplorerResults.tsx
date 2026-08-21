@@ -29,6 +29,7 @@ import { SectionName } from '../../../types/Events';
 import PivotTable from '../../common/PivotTable';
 import Table from '../../common/Table';
 import { JsonViewerModal } from '../../JsonViewerModal';
+import TotalsCellContextMenu from '../../MetricQueryData/TotalsCellContextMenu';
 import CellContextMenu from './CellContextMenu';
 import ColumnHeaderContextMenu from './ColumnHeaderContextMenu';
 import {
@@ -601,6 +602,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
                         columnOrder={resultsColumnOrder}
                         onColumnOrderChange={handleColumnOrderChange}
                         cellContextMenu={cellContextMenu}
+                        totalsCellContextMenu={TotalsCellContextMenu}
                         headerContextMenu={
                             isEditMode ? ColumnHeaderContextMenu : undefined
                         }

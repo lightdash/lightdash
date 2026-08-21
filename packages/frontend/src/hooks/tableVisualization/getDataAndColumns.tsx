@@ -24,6 +24,7 @@ import {
 import TotalCalculationErrorCell from '../../components/common/Table/TotalCalculationErrorCell';
 import {
     columnHelper,
+    type SubtotalCellInfo,
     type TableColumn,
     type TableHeader,
 } from '../../components/common/Table/types';
@@ -222,6 +223,41 @@ const getDataAndColumns = ({
             }
             const headerOverride = getFieldLabelOverride(itemId);
 
+            const totalRaw = totals?.[itemId];
+            const totalValue: ResultValue | undefined =
+                totalRaw !== undefined
+                    ? {
+                          raw: totalRaw,
+                          formatted: formatItemValue(
+                              item,
+                              totalRaw,
+                              false,
+                              parameters,
+                          ),
+                      }
+                    : undefined;
+
+            const getSubtotalRaw = (info: SubtotalCellInfo) => {
+                const groupingValuesAndSubtotalKey =
+                    getGroupingValuesAndSubtotalKey(info);
+
+                if (!groupingValuesAndSubtotalKey) {
+                    return null;
+                }
+
+                const { groupingValues, subtotalGroupKey } =
+                    groupingValuesAndSubtotalKey;
+
+                // Find the subtotal for the row, this is used to find the subtotal in the groupedSubtotals object
+                const subtotal = findMatchingSubtotal(
+                    groupedSubtotals?.[subtotalGroupKey],
+                    groupingValues,
+                    {},
+                );
+
+                return getSubtotalValueFromGroup(subtotal, itemId);
+            };
+
             const column: TableHeader | TableColumn = columnHelper.accessor(
                 (row: ResultRow) => row[itemId],
                 {
@@ -260,13 +296,8 @@ const getDataAndColumns = ({
                     cell: (info) => getFormattedValueCell(info, parameters),
 
                     footer: () => {
-                        if (totals?.[itemId] !== undefined) {
-                            return formatItemValue(
-                                item,
-                                totals[itemId],
-                                false,
-                                parameters,
-                            );
+                        if (totalValue !== undefined) {
+                            return totalValue.formatted;
                         }
                         if (totalsError && isNumericItem(item)) {
                             return (
@@ -291,6 +322,20 @@ const getDataAndColumns = ({
                         labelOverride: headerOverride,
                         isVisible: isColumnVisible(itemId),
                         frozen: isColumnFrozen(itemId),
+                        totalValue,
+                        getSubtotalValue: (info) => {
+                            const raw = getSubtotalRaw(info);
+                            if (raw === null || raw === undefined) return null;
+                            return {
+                                raw,
+                                formatted: formatItemValue(
+                                    item,
+                                    raw,
+                                    false,
+                                    parameters,
+                                ),
+                            };
+                        },
                         // For image columns with explicit width: set fixed width constraints
                         ...getImageSize(item),
                         ...getColumnWidthMeta(getColumnWidth(itemId)),
@@ -306,27 +351,7 @@ const getDataAndColumns = ({
                     // aggregationFn: 'max', // At least results in a cell value, although it's incorrect.
                     aggregatedCell: (info) => {
                         if (info.row.getIsGrouped()) {
-                            const groupingValuesAndSubtotalKey =
-                                getGroupingValuesAndSubtotalKey(info);
-
-                            if (!groupingValuesAndSubtotalKey) {
-                                return null;
-                            }
-
-                            const { groupingValues, subtotalGroupKey } =
-                                groupingValuesAndSubtotalKey;
-
-                            // Find the subtotal for the row, this is used to find the subtotal in the groupedSubtotals object
-                            const subtotal = findMatchingSubtotal(
-                                groupedSubtotals?.[subtotalGroupKey],
-                                groupingValues,
-                                {},
-                            );
-
-                            const subtotalValue = getSubtotalValueFromGroup(
-                                subtotal,
-                                info.column.id,
-                            );
+                            const subtotalValue = getSubtotalRaw(info);
 
                             if (subtotalValue === null) {
                                 return null;
