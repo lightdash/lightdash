@@ -1,6 +1,6 @@
 # Timezones v2 — Design Principles
 
-Distilled from the research review (not committed) and [Q&A](./timezone-questions.md). Each principle is one sentence + a status line.
+Distilled from the [Q&A](./timezone-questions.md). Each principle is one sentence + a status line.
 
 **Legend.** ✅ already true · ⚠️ partial — gap noted · ❌ change needed.
 

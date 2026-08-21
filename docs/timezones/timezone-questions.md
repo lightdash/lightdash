@@ -1,6 +1,6 @@
 # Timezone Questions — Specific Answers
 
-Direct answers to the questions raised in the timezone review (research doc, not committed). Each answer is grounded in what the code actually does today, with `file:line` references. Where the answer is "we don't do this," that's stated explicitly.
+Direct answers to the questions raised while reviewing timezone handling against industry practice. Each answer is grounded in what the code actually does today, with `file:line` references. Where the answer is "we don't do this," that's stated explicitly.
 
 Companion to [`timezone-handling.md`](./timezone-handling.md) (what we do).
 
@@ -44,7 +44,7 @@ Companion to [`timezone-handling.md`](./timezone-handling.md) (what we do).
 
 The closest workaround is `convert_timezone: false` per-dimension (translator.ts:219), but that's a *display* opt-out, not a wall-clock-tz declaration. The filter SQL still converts as if the value were in `dataTimezone`.
 
-**This is a real gap** — flagged in the review (section E). Per the research synthesis, this is the single highest-leverage feature to differentiate the design.
+**This is a real gap**. This is the single highest-leverage feature to differentiate the design.
 
 ---
 
@@ -139,7 +139,7 @@ This is the same order documented in [`timezone-handling.md:23`](./timezone-hand
 - **Embed queries**: same path, but `getAccountUserTimezone` returns null, so it falls through to project TZ unless the `?timezone=` embed URL param sets a per-session timezone.
 - **SQL Runner / user-written SQL**: `CURRENT_TIMESTAMP` runs on the warehouse against whatever session TZ we set. **Inconsistent with the rest** — a user who writes `WHERE created_at > NOW()` in SQL Runner does NOT get the same boundary as `IN_THE_CURRENT` in Explore.
 
-The fix is to expose the resolved TZ to user SQL as a template variable. Flagged in the review (section H).
+The fix is to expose the resolved TZ to user SQL as a template variable.
 
 ### "Yesterday" filter on a DATE column — what's the literal?
 
@@ -195,7 +195,7 @@ If we used `CURRENT_DATE` on the warehouse instead, the answer would depend on t
 
 ### Plans for a `wall_clock_timezone` annotation?
 
-**Now tracked for v3 (GLITCH-463), not yet built.** Flagged as a "real gap" in the review (section E). The implementation surface is small: a new column-level meta key like `meta.dimension.wall_clock_timezone: 'America/Los_Angeles'` that overrides `dataTimezone` per-dimension. Wires into `getColumnTimezone(credentials, dimension)` and threads through the existing `sourceTimezone` parameter chain in `timeFrames.ts`. Two engineering days at most.
+**Now tracked for v3 (GLITCH-463), not yet built.** The implementation surface is small: a new column-level meta key like `meta.dimension.wall_clock_timezone: 'America/Los_Angeles'` that overrides `dataTimezone` per-dimension. Wires into `getColumnTimezone(credentials, dimension)` and threads through the existing `sourceTimezone` parameter chain in `timeFrames.ts`. Two engineering days at most.
 
 ---
 
@@ -304,7 +304,7 @@ The companion filter parity is also implemented ([`timezone-handling.md:149`](./
 
 2. **Frontend ECharts shift** (`packages/frontend/src/hooks/echarts/timezoneShift.ts`): **broken at DST boundaries.** The shift offset is computed *per row* (`getTimezoneOffsetMs(rawMs, timezone)`) but applied as a constant adjustment when ECharts renders. For an hour-grain chart spanning a DST transition, the bars before and after the transition use different offsets — visually correct in position but the gap between them looks like a 1-hour jump.
 
-The internal doc does not mention DST. Flagged in the review (section B). The frontend half is now fixed: sub-day and DAY+ grains both shift onto the project wall-clock timeline via the companion column (GLITCH-449 → GLITCH-509), so the two folded hours render correctly and ECharts places native adaptive ticks on real day boundaries. The fall-back bucketing question below is now resolved (merge, GLITCH-509) — see that section.
+The internal doc does not mention DST. The frontend half is now fixed: sub-day and DAY+ grains both shift onto the project wall-clock timeline via the companion column (GLITCH-449 → GLITCH-509), so the two folded hours render correctly and ECharts places native adaptive ticks on real day boundaries. The fall-back bucketing question below is now resolved (merge, GLITCH-509) — see that section.
 
 ### DST fall-back — do the two 1 AM hours merge into one bucket or split into two?
 
