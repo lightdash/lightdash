@@ -1,5 +1,7 @@
 import {
     FilterOperator,
+    MetricType,
+    type AdditionalMetric,
     type FilterGroup,
     type FilterGroupItem,
     type FilterRule,
@@ -736,6 +738,38 @@ function compileSelect(
                 whereConjuncts.some(isContradiction),
         };
     };
+    /**
+     * `count(*)`, `count(1)` and `count()`: row counts, which connectors ask for
+     * when registering a dataset. They compile to a system COUNT(*) metric, so a
+     * bare count is the table's row count and a grouped one counts rows per group.
+     */
+    const isCountStar = (expr: Expr): boolean => {
+        if (
+            expr.type !== 'call' ||
+            expr.function.name.toLowerCase() !== 'count' ||
+            expr.distinct === 'distinct' ||
+            expr.over
+        ) {
+            return false;
+        }
+        if (expr.args.length === 0) {
+            return true;
+        }
+        if (expr.args.length !== 1) {
+            return false;
+        }
+        const [arg] = expr.args;
+        return (
+            (arg.type === 'ref' && arg.name === '*') ||
+            arg.type === 'integer' ||
+            arg.type === 'numeric' ||
+            arg.type === 'string' ||
+            arg.type === 'boolean'
+        );
+    };
+
+    const ROW_COUNT_METRIC_NAME = 'pgwire_row_count';
+
     /** Postgres-style default output name for an unaliased expression, unique within the statement */
     const autoName = (ctx: CompilerContext, expr: Expr): string => {
         const base =
@@ -820,6 +854,8 @@ function compileSelect(
     // SELECT list
     const dimensions: string[] = [];
     const metrics: string[] = [];
+    const additionalMetrics: AdditionalMetric[] = [];
+    const rowCountFieldId = `${table.name}_${ROW_COUNT_METRIC_NAME}`;
     const tableCalculations: TableCalculation[] = [];
     const columns: PgWireColumn[] = [];
     const selectedSources = new Set<string>();
@@ -850,6 +886,25 @@ function compileSelect(
 
     const handleSelectedColumn = (col: SelectedColumn): void => {
         const { expr } = col;
+        // count(*): a system COUNT(*) metric on the explore's base table
+        if (isCountStar(expr)) {
+            if (additionalMetrics.length === 0) {
+                additionalMetrics.push({
+                    name: ROW_COUNT_METRIC_NAME,
+                    table: table.name,
+                    sql: '*',
+                    type: MetricType.COUNT,
+                });
+                metrics.push(rowCountFieldId);
+            }
+            columns.push({
+                name: col.alias?.name ?? 'count',
+                source: rowCountFieldId,
+                kind: 'metric',
+                type: 'count',
+            });
+            return;
+        }
         // SELECT * or SELECT table.*
         if (expr.type === 'ref' && expr.name === '*') {
             if (expr.table && !ctx.fromNames.has(expr.table.name)) {
@@ -1090,6 +1145,7 @@ function compileSelect(
         sorts,
         limit,
         tableCalculations,
+        ...(additionalMetrics.length > 0 ? { additionalMetrics } : {}),
     };
 
     return {
