@@ -1,3 +1,10 @@
+# [1.232.0](https://github.com/lightdash/lightdash/compare/1.231.1...1.232.0) (2026-08-21)
+
+
+### Features
+
+* **release-safety:** prove compatible migration operations safe ([#27813](https://github.com/lightdash/lightdash/issues/27813)) ([03cc2df](https://github.com/lightdash/lightdash/commit/03cc2df54e1c92e27d33ecd2e9fe18c7bf475ca4))
+
 ## [1.231.1](https://github.com/lightdash/lightdash/compare/1.231.0...1.231.1) (2026-08-21)
 
 
