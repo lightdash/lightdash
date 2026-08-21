@@ -305,6 +305,17 @@ test('existing deterministic false verdicts cannot be loosened', () => {
             buildMarker(input).compatibility.rollingUpdateSafe,
             false,
         );
+        assert.strictEqual(
+            buildMarker({
+                ...input,
+                aiReview: {
+                    rollingUpdateSafe: true,
+                    recommendedStrategy: 'RollingUpdate',
+                    summary: 'verified',
+                },
+            }).compatibility.rollingUpdateSafe,
+            false,
+        );
     }
 });
 
@@ -378,7 +389,7 @@ test('definitive AI review can prove a migration safe', () => {
     assert.strictEqual(marker.compatibility.rollingUpdateSafe, true);
 });
 
-test('incomplete declaration metadata stays unknown after a definitive AI verdict', () => {
+test('a definitive AI verdict stands when declaration metadata is incomplete', () => {
     const marker = buildMarker({
         ...base,
         migrations: migration,
@@ -391,7 +402,39 @@ test('incomplete declaration metadata stays unknown after a definitive AI verdic
             summary: 'verified',
         },
     });
-    assert.strictEqual(marker.compatibility.rollingUpdateSafe, 'unknown');
+    assert.strictEqual(marker.compatibility.rollingUpdateSafe, true);
+});
+
+test('a definitive AI verdict stands when migration metadata is incomplete', () => {
+    const marker = buildMarker({
+        ...base,
+        migrations: migration,
+        migrationDetails,
+        ...checkedSurfaces,
+        migrationMetadataComplete: false,
+        aiReview: {
+            rollingUpdateSafe: true,
+            recommendedStrategy: 'RollingUpdate',
+            summary: 'verified',
+        },
+    });
+    assert.strictEqual(marker.compatibility.rollingUpdateSafe, true);
+});
+
+test('a definitive AI false stands when metadata is incomplete', () => {
+    const marker = buildMarker({
+        ...base,
+        migrations: migration,
+        migrationDetails,
+        ...checkedSurfaces,
+        migrationMetadataComplete: false,
+        aiReview: {
+            rollingUpdateSafe: false,
+            recommendedStrategy: 'Recreate',
+            summary: 'unsafe',
+        },
+    });
+    assert.strictEqual(marker.compatibility.rollingUpdateSafe, false);
 });
 
 test('a declared break stays unsafe when declaration metadata is incomplete', () => {
@@ -451,6 +494,22 @@ test('declared break uses the frozen shape and contributes a required stop', () 
     });
     assert.strictEqual(marker.compatibility.rollingUpdateSafe, false);
     assert.deepStrictEqual(marker.upgrade.requiredStops, ['1.115.0']);
+});
+
+test('a carried required stop for this version cannot be loosened', () => {
+    const marker = buildMarker({
+        ...base,
+        migrations: migration,
+        migrationDetails,
+        ...checkedSurfaces,
+        requiredStops: [base.version],
+        aiReview: {
+            rollingUpdateSafe: true,
+            recommendedStrategy: 'RollingUpdate',
+            summary: 'verified',
+        },
+    });
+    assert.strictEqual(marker.compatibility.rollingUpdateSafe, false);
 });
 
 test('a spent required stop is not pinned again by a later marker', () => {
@@ -530,7 +589,7 @@ test('ownExpandContractFloor matches the marker floor', () => {
     const marker = buildMarker(input);
     assert.strictEqual(ownExpandContractFloor(input), '1.100.0');
     assert.strictEqual(marker.upgrade.minPreviousVersion, '1.100.0');
-    assert.strictEqual(marker.compatibility.rollingUpdateSafe, true);
+    assert.strictEqual(marker.compatibility.rollingUpdateSafe, false);
 });
 
 if (failures.length > 0) {
