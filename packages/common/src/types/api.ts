@@ -815,6 +815,7 @@ export enum CreateProjectTableConfiguration {
 export type CreateProject = Omit<
     Project,
     | 'projectUuid'
+    | 'slug'
     | 'organizationUuid'
     | 'schedulerTimezone'
     | 'queryTimezone'
@@ -854,6 +855,7 @@ export const hasWarehouseCredentials = (
 export type UpdateProject = Omit<
     Project,
     | 'projectUuid'
+    | 'slug'
     | 'organizationUuid'
     | 'type'
     | 'schedulerTimezone'

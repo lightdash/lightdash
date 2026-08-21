@@ -51,6 +51,7 @@ export const projectUuid = 'project uuid';
 
 export const projectMock = {
     name: 'my project',
+    slug: 'my-project',
     project_type: ProjectType.DEFAULT,
     dbt_connection: Buffer.from(JSON.stringify(dbtCloudIDEProjectConfigMock)),
     encrypted_credentials: Buffer.from(JSON.stringify(bigqueryCredentials)),
@@ -91,6 +92,7 @@ export const expectedTablesConfiguration: TablesConfiguration = {
 export const expectedProject: Project = {
     organizationUuid: 'organizationUuid',
     projectUuid,
+    slug: 'my-project',
     name: 'my project',
     type: ProjectType.DEFAULT,
     dbtConnection: {

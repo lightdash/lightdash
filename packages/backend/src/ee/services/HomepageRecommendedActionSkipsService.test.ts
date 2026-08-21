@@ -25,6 +25,7 @@ const projectSummary = (
 ): ProjectSummary => ({
     name: 'Project',
     projectUuid: PROJECT_UUID,
+    slug: 'project',
     organizationUuid,
     type: ProjectType.DEFAULT,
     upstreamProjectUuid: undefined,

@@ -49,6 +49,7 @@ const user: SessionUser = {
 
 const makeProject = (projectUuid: string): OrganizationProject => ({
     projectUuid,
+    slug: 'project',
     name: 'Project',
     type: ProjectType.DEFAULT,
     createdByUserUuid: USER_UUID,

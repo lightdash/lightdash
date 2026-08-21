@@ -223,8 +223,10 @@ describe('Admin access to spaces', () => {
             cy.contains(spaceName);
         }
 
-        cy.contains('Parent Space 4').click();
-        cy.contains('Child Space 4.1');
+        cy.get('.mantine-Modal-body').within(() => {
+            cy.contains('Parent Space 4').click();
+            cy.contains('Child Space 4.1');
+        });
     });
 });
 

@@ -1159,6 +1159,7 @@ export const maybeOverrideDbtConnection = <T extends DbtProjectConfig>(
 export type Project = {
     organizationUuid: string;
     projectUuid: string;
+    slug?: string;
     name: string;
     type: ProjectType;
     dbtConnection: DbtProjectConfig;
@@ -1186,6 +1187,7 @@ export type ProjectSummary = Pick<
     Project,
     | 'name'
     | 'projectUuid'
+    | 'slug'
     | 'organizationUuid'
     | 'type'
     | 'upstreamProjectUuid'
