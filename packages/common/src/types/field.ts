@@ -492,6 +492,12 @@ export type TableCalculationTemplate =
           type: TableCalculationTemplateType.RUNNING_TOTAL;
           /** Field ID to apply the template to */
           fieldId: string;
+          /** Undefined preserves legacy results-table sorting; [] is explicitly unordered.
+           * Do not normalize: doing so changes pre-existing SQL. */
+          orderBy?: {
+              fieldId: string;
+              order: 'asc' | 'desc' | null;
+          }[];
       }
     | {
           /** Type of template calculation */

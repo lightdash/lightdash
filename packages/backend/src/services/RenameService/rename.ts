@@ -668,12 +668,13 @@ export const renameMetricQuery = (
                         tc.template.fieldId && {
                             fieldId: replaceId(tc.template.fieldId),
                         }),
-                    ...('orderBy' in tc.template && {
-                        orderBy: tc.template.orderBy.map((o) => ({
-                            ...o,
-                            fieldId: replaceId(o.fieldId),
-                        })),
-                    }),
+                    ...('orderBy' in tc.template &&
+                        tc.template.orderBy && {
+                            orderBy: tc.template.orderBy.map((o) => ({
+                                ...o,
+                                fieldId: replaceId(o.fieldId),
+                            })),
+                        }),
                     ...('partitionBy' in tc.template && tc.template.partitionBy
                         ? {
                               partitionBy:
