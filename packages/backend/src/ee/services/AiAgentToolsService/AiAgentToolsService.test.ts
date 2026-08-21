@@ -1764,6 +1764,155 @@ describe('AiAgentToolsService runComposerQueries', () => {
         });
     });
 
+    it('emits per-node status transitions while the pipeline executes', async () => {
+        vi.useFakeTimers();
+        try {
+            const executeSourceQueries = vi
+                .fn()
+                .mockResolvedValue({ queries: submissions });
+            const getAsyncQueryResults = vi
+                .fn()
+                .mockResolvedValueOnce({ status: QueryHistoryStatus.EXECUTING })
+                .mockResolvedValue(readyResults);
+            // While the terminal is still running, the upstream node has
+            // already finished.
+            const getSourceQueryStatuses = vi.fn().mockResolvedValue({
+                statuses: [
+                    {
+                        queryUuid: 'query-1',
+                        status: QueryHistoryStatus.READY,
+                        error: null,
+                    },
+                    {
+                        queryUuid: 'query-2',
+                        status: QueryHistoryStatus.EXECUTING,
+                        error: null,
+                    },
+                ],
+            });
+            const service = makeService({
+                querySourceService: {
+                    executeSourceQueries,
+                    getSourceQueryStatuses,
+                },
+                asyncQueryService: { getAsyncQueryResults },
+            });
+
+            const onNodeStatus = vi.fn();
+            const promise = service
+                .createRuntime(makeRuntimeContext())
+                .runComposerQueries({
+                    queries: composerQueries,
+                    terminalNodeId: 'joined',
+                    onNodeStatus,
+                });
+            await vi.advanceTimersByTimeAsync(2_000);
+            await promise;
+
+            expect(onNodeStatus.mock.calls.map(([update]) => update)).toEqual([
+                {
+                    nodeId: 'orders',
+                    queryUuid: 'query-1',
+                    status: 'running',
+                    errorMessage: null,
+                },
+                {
+                    nodeId: 'joined',
+                    queryUuid: 'query-2',
+                    status: 'running',
+                    errorMessage: null,
+                },
+                {
+                    nodeId: 'orders',
+                    queryUuid: 'query-1',
+                    status: 'success',
+                    errorMessage: null,
+                },
+                {
+                    nodeId: 'joined',
+                    queryUuid: 'query-2',
+                    status: 'success',
+                    errorMessage: null,
+                },
+            ]);
+            // Only the still-pending nodes are batch-polled.
+            expect(getSourceQueryStatuses).toHaveBeenCalledWith(
+                account,
+                projectUuid,
+                ['query-1', 'query-2'],
+            );
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('emits error statuses for failing nodes before throwing', async () => {
+        const executeSourceQueries = vi
+            .fn()
+            .mockResolvedValue({ queries: submissions });
+        const getAsyncQueryResults = vi.fn().mockResolvedValue({
+            status: QueryHistoryStatus.ERROR,
+            error: 'referenced query failed',
+        });
+        const getSourceQueryStatuses = vi.fn().mockResolvedValue({
+            statuses: [
+                {
+                    queryUuid: 'query-1',
+                    status: QueryHistoryStatus.ERROR,
+                    error: 'relation does not exist',
+                },
+                {
+                    queryUuid: 'query-2',
+                    status: QueryHistoryStatus.ERROR,
+                    error: 'referenced query failed',
+                },
+            ],
+        });
+        const service = makeService({
+            querySourceService: {
+                executeSourceQueries,
+                getSourceQueryStatuses,
+            },
+            asyncQueryService: { getAsyncQueryResults },
+        });
+
+        const onNodeStatus = vi.fn();
+        await expect(
+            service.createRuntime(makeRuntimeContext()).runComposerQueries({
+                queries: composerQueries,
+                terminalNodeId: 'joined',
+                onNodeStatus,
+            }),
+        ).rejects.toThrow(/"orders" \(relation does not exist\)/);
+
+        expect(onNodeStatus.mock.calls.map(([update]) => update)).toEqual([
+            {
+                nodeId: 'orders',
+                queryUuid: 'query-1',
+                status: 'running',
+                errorMessage: null,
+            },
+            {
+                nodeId: 'joined',
+                queryUuid: 'query-2',
+                status: 'running',
+                errorMessage: null,
+            },
+            {
+                nodeId: 'orders',
+                queryUuid: 'query-1',
+                status: 'error',
+                errorMessage: 'relation does not exist',
+            },
+            {
+                nodeId: 'joined',
+                queryUuid: 'query-2',
+                status: 'error',
+                errorMessage: 'referenced query failed',
+            },
+        ]);
+    });
+
     it('rejects a terminal node that was not part of the submission', async () => {
         const executeSourceQueries = vi
             .fn()

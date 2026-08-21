@@ -39,7 +39,10 @@ import {
 import type { FC } from 'react';
 import type { ToolCallSummary } from '../utils/types';
 import { AiChartGenerationToolCallDescription } from './AiChartGenerationToolCallDescription';
-import { ComposerQueriesToolCallDescription } from './ComposerQueriesToolCallDescription';
+import {
+    ComposerQueriesToolCallDescription,
+    type ComposerQueryNodeStatus,
+} from './ComposerQueriesToolCallDescription';
 import { ContentEditorToolCallDescription } from './ContentEditorToolCallDescription';
 import { ContentSearchToolCallDescription } from './ContentSearchToolCallDescription';
 import { DashboardChartsToolCallDescription } from './DashboardChartsToolCallDescription';
@@ -81,7 +84,13 @@ export const ToolCallDescription: FC<{
     toolName: ToolName;
     toolCall: ToolCallSummary;
     toolResult?: AiAgentToolResult;
-}> = ({ toolName, toolCall, toolResult }) => {
+    /**
+     * Live per-node execution statuses for a running composer pipeline,
+     * keyed by nodeId. Only meaningful for runComposerQueries; omitted for
+     * persisted views, which render the pipeline without indicators.
+     */
+    composerNodeStatuses?: Record<string, ComposerQueryNodeStatus>;
+}> = ({ toolName, toolCall, toolResult, composerNodeStatuses }) => {
     // Mid-stream the toolArgs payload can arrive before any input chunks have
     // been parsed. Casting an undefined value and reading fields throws, so
     // bail until args exist.
@@ -237,6 +246,7 @@ export const ToolCallDescription: FC<{
             return (
                 <ComposerQueriesToolCallDescription
                     queries={composerToolArgs.queries ?? []}
+                    nodeStatuses={composerNodeStatuses}
                 />
             );
         case 'readContent':
