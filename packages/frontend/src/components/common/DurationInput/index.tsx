@@ -1,5 +1,5 @@
-import { Flex, Input, Select } from '@mantine/core';
-import { useId, useState, type FC } from 'react';
+import { Select } from '@mantine/core';
+import { useState, type FC } from 'react';
 import { NumberInput, type NumberInputProps } from '../NumberInput';
 import {
     ALL_DURATION_UNITS,
@@ -8,6 +8,7 @@ import {
     type DurationUnit,
     findExactUnit,
 } from './duration';
+import styles from './DurationInput.module.css';
 
 export type DurationInputProps = Omit<
     NumberInputProps,
@@ -37,10 +38,9 @@ export type DurationInputProps = Omit<
 };
 
 /**
- * A number input with a unit select beside it, laid out like the filter
- * "in the last N days" inputs. The value is always expressed in seconds, so
- * callers never deal with unit conversion. Switching unit keeps the typed
- * number and re-emits the converted seconds.
+ * A number input with a unit selector in its right section. The value is
+ * always expressed in seconds, so callers never deal with unit conversion.
+ * Switching unit keeps the typed number and re-emits the converted seconds.
  */
 export const DurationInput: FC<DurationInputProps> = ({
     value,
@@ -50,17 +50,8 @@ export const DurationInput: FC<DurationInputProps> = ({
     minSeconds,
     maxSeconds,
     disabled,
-    label,
-    description,
-    error,
-    required,
-    withAsterisk,
-    size,
-    id,
     ...numberInputProps
 }) => {
-    const generatedId = useId();
-    const inputId = id ?? generatedId;
     const fallbackUnit =
         defaultUnit && units.includes(defaultUnit)
             ? defaultUnit
@@ -85,46 +76,40 @@ export const DurationInput: FC<DurationInputProps> = ({
         Math.round(count * unitSeconds);
 
     return (
-        <Input.Wrapper
-            id={inputId}
-            label={label}
-            description={description}
-            error={error}
-            required={required}
-            withAsterisk={withAsterisk}
-            size={size}
-        >
-            <Flex gap="xs">
-                <NumberInput
-                    {...numberInputProps}
-                    id={inputId}
-                    flex="1 1 auto"
-                    size={size}
-                    value={amount}
-                    disabled={disabled}
-                    error={!!error}
-                    decimalScale={2}
-                    min={minSeconds === undefined ? 0 : minSeconds / multiplier}
-                    max={
-                        maxSeconds === undefined
-                            ? undefined
-                            : maxSeconds / multiplier
-                    }
-                    onNumberChange={(count) =>
-                        onChange(
-                            count === undefined
-                                ? null
-                                : toSeconds(count, multiplier),
-                        )
-                    }
-                />
+        <NumberInput
+            {...numberInputProps}
+            value={amount}
+            disabled={disabled}
+            decimalScale={2}
+            min={minSeconds === undefined ? 0 : minSeconds / multiplier}
+            max={maxSeconds === undefined ? undefined : maxSeconds / multiplier}
+            onNumberChange={(count) =>
+                onChange(
+                    count === undefined ? null : toSeconds(count, multiplier),
+                )
+            }
+            rightSectionWidth={108}
+            rightSectionPointerEvents="all"
+            rightSection={
                 <Select
                     aria-label="Duration unit"
-                    w={130}
-                    size={size}
+                    variant="unstyled"
+                    size={numberInputProps.size}
+                    w="100%"
                     disabled={disabled}
-                    error={!!error}
                     allowDeselect={false}
+                    rightSectionWidth={28}
+                    comboboxProps={{
+                        width: 'target',
+                        position: 'bottom-end',
+                        withinPortal: true,
+                        offset: 6,
+                    }}
+                    classNames={{
+                        wrapper: styles.unitSelect,
+                        input: styles.unitInput,
+                        dropdown: styles.unitDropdown,
+                    }}
                     data={units.map((candidate) => ({
                         value: candidate,
                         label: DURATION_UNIT_LABELS[candidate],
@@ -144,7 +129,7 @@ export const DurationInput: FC<DurationInputProps> = ({
                         }
                     }}
                 />
-            </Flex>
-        </Input.Wrapper>
+            }
+        />
     );
 };
