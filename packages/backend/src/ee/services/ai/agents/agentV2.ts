@@ -6,6 +6,7 @@ import {
     Explore,
     type AiDeepResearchBudget,
     type AiDeepResearchExecutionContextSnapshot,
+    type CustomChartTypeLibrary,
     type ParameterDefinitions,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -54,6 +55,7 @@ import { getEditProjectContext } from '../tools/editProjectContext';
 import { getEditRepo } from '../tools/editRepo';
 import { getExploreRepo } from '../tools/exploreRepo';
 import { getFindContent } from '../tools/findContent';
+import { getFindCustomChartTypes } from '../tools/findCustomChartTypes';
 import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
 import { getGenerateHashes } from '../tools/generateHashes';
 import { getGenerateUuids } from '../tools/generateUuids';
@@ -770,6 +772,7 @@ export const getAgentTools = (
     mcpToolSetup: AgentMcpToolSetup,
     verifiedFieldUsage: Map<string, number>,
     projectParameterDefinitions: ParameterDefinitions,
+    customChartTypeLibrary: CustomChartTypeLibrary,
 ): ToolSet => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger(
@@ -819,6 +822,16 @@ export const getAgentTools = (
     const listContent = getListContent({
         listContent: dependencies.listContent,
     });
+
+    // Only offered when the project has a custom chart type library — an
+    // empty library keeps zero prompt and tool overhead.
+    const findCustomChartTypes =
+        customChartTypeLibrary.totalCount > 0
+            ? getFindCustomChartTypes({
+                  findCustomChartTypes: dependencies.findCustomChartTypes,
+                  updateProgress: dependencies.updateProgress,
+              })
+            : null;
 
     const getDashboardCharts = getGetDashboardCharts({
         getDashboardCharts: dependencies.getDashboardCharts,
@@ -1143,6 +1156,7 @@ export const getAgentTools = (
         ...(closePullRequest ? { closePullRequest } : {}),
         ...(getPullRequestDiff ? { getPullRequestDiff } : {}),
         ...(args.enableDataAccess ? { searchFieldValues } : {}),
+        ...(findCustomChartTypes ? { findCustomChartTypes } : {}),
         ...(runSql ? { runSql } : {}),
         ...(runComposerQueries ? { runComposerQueries } : {}),
         ...(listWarehouseTables ? { listWarehouseTables } : {}),
@@ -1364,6 +1378,7 @@ export const getAgentMessages = (
     tools: ToolSet,
     verifiedFieldUsage: Map<string, number>,
     memoryBlock: string | null,
+    customChartTypeLibrary: CustomChartTypeLibrary,
 ) => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger('Agent Messages', 'Getting agent messages.');
@@ -1435,6 +1450,7 @@ export const getAgentMessages = (
             instructions.length > 0 ? instructions.join('\n\n') : undefined,
         requestingUser: args.requestingUser,
         availableExplores,
+        availableCustomChartTypes: customChartTypeLibrary,
         availableSkills: args.availableSkills,
         knowledgeDocuments: args.knowledgeDocuments,
         deepResearchRuns: args.deepResearchRuns,
@@ -1536,12 +1552,17 @@ export const generateAgentResponse = async ({
     );
 
     try {
-        const [availableExplores, memoryBlock, projectParameterDefinitions] =
-            await Promise.all([
-                dependencies.listExplores(),
-                getMemoryBlock(args, dependencies),
-                dependencies.getProjectParameterDefinitions(),
-            ]);
+        const [
+            availableExplores,
+            memoryBlock,
+            projectParameterDefinitions,
+            customChartTypeLibrary,
+        ] = await Promise.all([
+            dependencies.listExplores(),
+            getMemoryBlock(args, dependencies),
+            dependencies.getProjectParameterDefinitions(),
+            dependencies.listCustomChartTypes(),
+        ]);
         // Verified-chart usage powers verified-first ranking in grep discovery;
         // degrade to an empty map if it can't be fetched.
         const verifiedFieldUsage = await dependencies
@@ -1555,6 +1576,7 @@ export const generateAgentResponse = async ({
                 mcpToolSetup,
                 verifiedFieldUsage,
                 projectParameterDefinitions,
+                customChartTypeLibrary,
             ),
             dependencies.updateProgress,
             args.execution.mode === 'deep_research',
@@ -1567,6 +1589,7 @@ export const generateAgentResponse = async ({
             tools,
             verifiedFieldUsage,
             memoryBlock,
+            customChartTypeLibrary,
         );
         logger(
             'Generate Agent Response',
@@ -1895,12 +1918,17 @@ export const streamAgentResponse = async ({
     };
 
     try {
-        const [availableExplores, memoryBlock, projectParameterDefinitions] =
-            await Promise.all([
-                dependencies.listExplores(),
-                getMemoryBlock(args, dependencies),
-                dependencies.getProjectParameterDefinitions(),
-            ]);
+        const [
+            availableExplores,
+            memoryBlock,
+            projectParameterDefinitions,
+            customChartTypeLibrary,
+        ] = await Promise.all([
+            dependencies.listExplores(),
+            getMemoryBlock(args, dependencies),
+            dependencies.getProjectParameterDefinitions(),
+            dependencies.listCustomChartTypes(),
+        ]);
         const verifiedFieldUsage = await dependencies
             .getVerifiedFieldUsage()
             .catch(() => new Map<string, number>());
@@ -1911,6 +1939,7 @@ export const streamAgentResponse = async ({
             mcpToolSetup,
             verifiedFieldUsage,
             projectParameterDefinitions,
+            customChartTypeLibrary,
         );
         await persistDeepResearchExecutionContext(args, tools, mcpToolSetup);
         const messages = getAgentMessages(
@@ -1920,6 +1949,7 @@ export const streamAgentResponse = async ({
             tools,
             verifiedFieldUsage,
             memoryBlock,
+            customChartTypeLibrary,
         );
         logger(
             'Stream Agent Response',

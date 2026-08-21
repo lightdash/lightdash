@@ -41,6 +41,62 @@ describe('getSystemPromptV2 project context', () => {
     });
 });
 
+describe('getSystemPromptV2 custom chart types', () => {
+    const chartType = (slug: string, name: string) => ({
+        slug,
+        name,
+        description: '',
+        schema: {
+            fields: [
+                {
+                    name: 'status',
+                    label: 'Status',
+                    type: 'dimension' as const,
+                    required: true,
+                },
+            ],
+            configOptions: [],
+            colorPalette: null,
+        },
+    });
+
+    test('inlines the library as an availableCustomChartTypes block', () => {
+        const content = promptText({
+            availableExplores: [],
+            availableCustomChartTypes: {
+                types: [chartType('cohort-waterfall', 'Cohort Waterfall')],
+                totalCount: 1,
+            },
+        });
+        expect(content).toContain('## Available custom chart types');
+        expect(content).toContain('<availableCustomChartTypes>');
+        expect(content).toContain(
+            '<customChartType slug="cohort-waterfall" name="Cohort Waterfall">',
+        );
+        expect(content).not.toContain('more types exist');
+    });
+
+    test('omits the whole section for an empty library', () => {
+        const content = promptText({ availableExplores: [] });
+        expect(content).not.toContain('## Available custom chart types');
+        expect(content).not.toContain('{{available_custom_chart_types}}');
+        expect(content).not.toContain('availableCustomChartTypes');
+    });
+
+    test('points past the inline cap when more types exist', () => {
+        const content = promptText({
+            availableExplores: [],
+            availableCustomChartTypes: {
+                types: [chartType('cohort-waterfall', 'Cohort Waterfall')],
+                totalCount: 12,
+            },
+        });
+        expect(content).toContain(
+            '11 more types exist — use findCustomChartTypes',
+        );
+    });
+});
+
 describe('getSystemPromptV2 merge queries', () => {
     test('directs cross-explore questions to generateVisualization when enabled', () => {
         const content = promptText({

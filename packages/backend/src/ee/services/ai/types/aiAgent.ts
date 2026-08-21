@@ -46,6 +46,7 @@ import {
     EditRepoFn,
     ExploreRepoFn,
     FindContentFn,
+    FindCustomChartTypesFn,
     FindExploresFn,
     GetDashboardChartsFn,
     GetKnowledgeDocumentContentFn,
@@ -58,6 +59,7 @@ import {
     IsPromptInterruptedFn,
     IsThreadSqlAutoApprovedFn,
     ListContentFn,
+    ListCustomChartTypesFn,
     ListExploresFn,
     ListKnowledgeDocumentsFn,
     ListProjectsFn,
@@ -304,6 +306,8 @@ export type AiAgentDependencies = {
     validateContent: ValidateContentFn;
     getDashboardCharts: GetDashboardChartsFn;
     findExplores: FindExploresFn;
+    listCustomChartTypes: ListCustomChartTypesFn;
+    findCustomChartTypes: FindCustomChartTypesFn;
     getVerifiedFieldUsage: GetVerifiedFieldUsageFn;
     searchSemanticLayer: SearchSemanticLayerFn;
     analyzeFieldImpact: AnalyzeFieldImpactFn;

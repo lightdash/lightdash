@@ -6,6 +6,7 @@ import type {
     ToolDescribeWarehouseTableArgs,
     ToolFindChartsArgs,
     ToolFindContentArgs,
+    ToolFindCustomChartTypesArgs,
     ToolFindDashboardsArgs,
     ToolFindExploresArgsV1,
     ToolFindExploresArgsV2,
@@ -84,6 +85,10 @@ export const getToolCallChipLabel = (
         case 'findFields': {
             const args = toolArgs as ToolFindFieldsArgs;
             return args.fieldSearchQueries?.[0]?.label ?? null;
+        }
+        case 'findCustomChartTypes': {
+            const args = toolArgs as ToolFindCustomChartTypesArgs;
+            return args.query ?? args.slug ?? null;
         }
         case 'discoverFields': {
             const args = toolArgs as DiscoverFieldsInput;
