@@ -267,6 +267,18 @@ export const toolRunQueryArgsSchemaV2 = createToolSchema()
     })
     .build();
 
+// Merge-less advertised contract with formula-only table calcs: MCP
+// run_metric_query and merge-disabled agent runtimes. Template-shaped
+// payloads fail validation at the boundary with an actionable Zod error the
+// model can correct; persisted args still parse via the wide schemas.
+export const toolRunQueryArgsSchemaV2FormulaOnly = createToolSchema()
+    .extend({
+        ...visualizationMetadataSchema.shape,
+        queryConfig: queryConfigSchemaV4,
+        chartConfig: chartConfigSchema,
+    })
+    .build();
+
 export const toolRunQueryArgsSchemaV3 = createToolSchema()
     .extend({
         ...visualizationMetadataSchema.shape,
@@ -307,7 +319,7 @@ export const toolRunQueryArgsSchema = toolRunQueryArgsSchemaV4;
 //   narrow it — old threads must keep parsing.
 export const toolRunQueryArgsSchemaPersisted = toolRunQueryArgsSchemaV3;
 
-// V2 for runtimes where merge queries are disabled: a merge-shaped payload
+// For runtimes where merge queries are disabled: a merge-shaped payload
 // must fail validation, not have Zod strip mergeConfig and run only the
 // primary query. The preprocess leaves the emitted JSON schema unchanged.
 export const toolRunQueryArgsSchemaV2RejectingMerge = z.preprocess(
@@ -328,7 +340,7 @@ export const toolRunQueryArgsSchemaV2RejectingMerge = z.preprocess(
         }
         return raw;
     },
-    toolRunQueryArgsSchemaV2,
+    toolRunQueryArgsSchemaV2FormulaOnly,
 );
 
 export type ToolRunQueryArgsV1 = z.infer<typeof toolRunQueryArgsSchemaV1>;
