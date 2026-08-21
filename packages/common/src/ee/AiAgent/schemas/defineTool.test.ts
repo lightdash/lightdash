@@ -1,11 +1,15 @@
+import { getEncoding } from 'js-tiktoken';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { defineTool } from './defineTool';
+import { FILTER_EXPRESSION_GRAMMAR_DESCRIPTION } from './filterExpressions';
 import {
     agentToolNames,
     findContentToolDefinition,
+    generateVisualizationFilterExpressionToolDefinition,
     generateVisualizationToolDefinition,
     mcpToolDefinitions,
+    runQueryFilterExpressionToolDefinition,
     runQueryToolDefinition,
 } from './tools';
 import { ToolNameSchema } from './visualizations';
@@ -19,6 +23,89 @@ describe('defineTool', () => {
         expect(mcpView.name).toBe('run_metric_query');
         expect(mcpView.canonicalName).toBe('runQuery');
         expect(mcpView.outputSchema).toBeDefined();
+    });
+
+    it('keeps runtime-selected filter expression definitions out of default arrays', () => {
+        expect(
+            mcpToolDefinitions.includes(runQueryFilterExpressionToolDefinition),
+        ).toBe(false);
+        expect(
+            generateVisualizationFilterExpressionToolDefinition.for('agent')
+                .name,
+        ).toBe('generateVisualization');
+        expect(runQueryFilterExpressionToolDefinition.for('mcp').name).toBe(
+            'run_metric_query',
+        );
+    });
+
+    it('snapshots compact query contracts and tokenizer counts', () => {
+        const agentLegacy = generateVisualizationToolDefinition.for('agent');
+        const agentExpression =
+            generateVisualizationFilterExpressionToolDefinition.for('agent');
+        const mcpLegacy = runQueryToolDefinition.for('mcp');
+        const mcpExpression = runQueryFilterExpressionToolDefinition.for('mcp');
+        const serializeAgent = (
+            view: typeof agentLegacy | typeof agentExpression,
+        ) =>
+            JSON.stringify({
+                description: view.description,
+                inputSchema: view.inputSchema.jsonSchema,
+            });
+        const serializeMcp = (view: typeof mcpLegacy | typeof mcpExpression) =>
+            JSON.stringify({
+                description: view.description,
+                inputSchema: zodToJsonSchema(view.inputSchema),
+            });
+        const contracts = {
+            agentLegacy: serializeAgent(agentLegacy),
+            agentExpression: serializeAgent(agentExpression),
+            mcpLegacy: serializeMcp(mcpLegacy),
+            mcpExpression: serializeMcp(mcpExpression),
+        };
+        const cl100k = getEncoding('cl100k_base');
+        const o200k = getEncoding('o200k_base');
+        const measure = (contract: string) => ({
+            bytes: new TextEncoder().encode(contract).length,
+            cl100kTokens: cl100k.encode(contract).length,
+            o200kTokens: o200k.encode(contract).length,
+        });
+
+        expect(contracts.agentExpression).not.toContain('fieldFilterType');
+        expect(contracts.mcpExpression).not.toContain('fieldFilterType');
+        expect(
+            mcpExpression.description.split(
+                FILTER_EXPRESSION_GRAMMAR_DESCRIPTION,
+            ),
+        ).toHaveLength(2);
+        expect({
+            agentLegacy: measure(contracts.agentLegacy),
+            agentExpression: measure(contracts.agentExpression),
+            mcpLegacy: measure(contracts.mcpLegacy),
+            mcpExpression: measure(contracts.mcpExpression),
+        }).toMatchInlineSnapshot(`
+          {
+            "agentExpression": {
+              "bytes": 20835,
+              "cl100kTokens": 4608,
+              "o200kTokens": 4682,
+            },
+            "agentLegacy": {
+              "bytes": 42556,
+              "cl100kTokens": 10240,
+              "o200kTokens": 10444,
+            },
+            "mcpExpression": {
+              "bytes": 27096,
+              "cl100kTokens": 5991,
+              "o200kTokens": 6104,
+            },
+            "mcpLegacy": {
+              "bytes": 90074,
+              "cl100kTokens": 21125,
+              "o200kTokens": 21616,
+            },
+          }
+        `);
     });
 
     it('uses runtime-available dashboard detail tools', () => {

@@ -223,6 +223,7 @@ export type AiAgentArgs = AnyAiModel & {
     enablePreviewDeploySetup: boolean;
     enableRepoDiscovery: boolean;
     enableMergeQueries: boolean;
+    enableFilterExpressions: boolean;
     // Whether the general-purpose coding agent (`editRepo`) is available — the
     // CodingAgent flag, the org has a writable Git installation, and (in Slack)
     // a trusted prompt identity. Independent of enableAiWriteback.

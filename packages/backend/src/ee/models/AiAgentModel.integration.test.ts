@@ -62,6 +62,108 @@ describe('AiAgentModel prompt activity', () => {
         return row?.updated_at ?? null;
     };
 
+    it('normalizes filter-expression artifacts on every model read path', async () => {
+        const threadUuid = await createWebAppThread();
+        const promptUuid = await model.createWebAppPrompt({
+            threadUuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            prompt: 'Persist a filter expression',
+        });
+        const resolvedArgs = {
+            title: 'Orders by status',
+            description: 'Completed orders',
+            queryConfig: {
+                exploreName: 'orders',
+                dimensions: ['orders_status'],
+                metrics: ['orders_count'],
+                sorts: [],
+                limit: 500,
+                customMetrics: null,
+                tableCalculations: null,
+                filters: {
+                    type: 'and',
+                    dimensions: [
+                        {
+                            fieldId: 'orders_status',
+                            fieldType: 'string',
+                            fieldFilterType: 'string',
+                            operator: 'equals',
+                            values: ['complete'],
+                        },
+                    ],
+                    metrics: null,
+                    tableCalculations: null,
+                },
+            },
+            chartConfig: null,
+            mergeConfig: null,
+        };
+        const persistedConfig = {
+            source: 'filterExpression',
+            schemaVersion: 1,
+            expressionArgs: {
+                ...resolvedArgs,
+                queryConfig: {
+                    ...resolvedArgs.queryConfig,
+                    filters: {
+                        dimensions: 'orders_status equals=complete',
+                        metrics: null,
+                        tableCalculations: null,
+                    },
+                },
+            },
+            resolvedArgs,
+        };
+
+        const created = await model.createArtifact({
+            threadUuid,
+            promptUuid,
+            artifactType: 'chart',
+            title: 'Orders by status',
+            description: 'Completed orders',
+            vizConfig: persistedConfig,
+        });
+        const version = await model.createArtifactVersion({
+            artifactUuid: created.artifactUuid,
+            promptUuid,
+            title: 'Orders by status',
+            description: 'Completed orders',
+            vizConfig: persistedConfig,
+        });
+        const fetched = await model.getArtifact(created.artifactUuid);
+        const byThread = await model.findArtifactsByThreadUuid(
+            threadUuid,
+            'chart',
+        );
+        const byPrompt =
+            await model.findArtifactVersionsByPromptUuid(promptUuid);
+
+        for (const artifact of [
+            created,
+            version,
+            fetched,
+            ...byThread,
+            ...byPrompt,
+        ]) {
+            expect(artifact.chartConfig).toMatchObject({
+                source: 'semantic',
+                config: {
+                    queryConfig: {
+                        filters: {
+                            dimensions: [
+                                {
+                                    fieldId: 'orders_status',
+                                    values: ['complete'],
+                                },
+                            ],
+                        },
+                    },
+                    mergeConfig: null,
+                },
+            });
+        }
+    });
+
     it('sets thread updated_at to the inserted web prompt created_at', async () => {
         const threadUuid = await createWebAppThread();
         expect(await getThreadUpdatedAt(threadUuid)).toBeNull();

@@ -10,6 +10,7 @@ import {
     metricQueryTableViz,
     metricQueryTimeSeriesViz,
     metricQueryVerticalBarViz,
+    parseAiFilterExpressionArtifactConfigV1,
     parsePersistedRunQueryArgs,
     toolRunQueryArgsSchemaPersisted,
     toolTableVizArgsSchemaTransformed,
@@ -151,6 +152,24 @@ export const parseAiArtifactChartConfig = (
     config: unknown,
 ): AiChartArtifactConfig | null => {
     if (!config || typeof config !== 'object') return null;
+
+    if ('source' in config && config.source === 'filterExpression') {
+        const parsed = parseAiFilterExpressionArtifactConfigV1(config);
+        if (!parsed || !parseVizConfig(parsed.resolvedArgs)) return null;
+
+        if (parsed.resolvedArgs.mergeConfig) {
+            return {
+                source: 'merge',
+                schemaVersion: 1,
+                config: parsed.resolvedArgs,
+            };
+        }
+
+        return {
+            source: 'semantic',
+            config: parsed.resolvedArgs,
+        };
+    }
 
     if (isAiComposerChartArtifactConfig(config)) {
         return config;

@@ -45,6 +45,127 @@ describe('parseAiArtifactChartConfig', () => {
         expect(parseAiArtifactChartConfig(config)).toEqual(config);
     });
 
+    it('normalizes a persisted filter expression independently of its feature flag', () => {
+        const config = {
+            source: 'filterExpression',
+            schemaVersion: 1,
+            expressionArgs: {
+                ...semanticConfig,
+                queryConfig: {
+                    ...semanticConfig.queryConfig,
+                    filters: {
+                        dimensions: 'orders_status equals=complete',
+                        metrics: null,
+                        tableCalculations: null,
+                    },
+                },
+            },
+            resolvedArgs: semanticConfig,
+        };
+
+        const normalized = {
+            source: 'semantic',
+            config: {
+                ...semanticConfig,
+                queryConfig: {
+                    ...semanticConfig.queryConfig,
+                    parameters: null,
+                },
+                mergeConfig: null,
+            },
+        };
+
+        expect(parseAiArtifactChartConfig(config)).toEqual(normalized);
+        expect(
+            parseAiArtifactChartConfig({
+                ...config,
+                expressionArgs: {
+                    ...config.expressionArgs,
+                    mergeConfig: null,
+                },
+            }),
+        ).toEqual(normalized);
+    });
+
+    it('rejects malformed or inconsistent filter expression artifacts', () => {
+        const expressionArgs = {
+            ...semanticConfig,
+            queryConfig: {
+                ...semanticConfig.queryConfig,
+                filters: {
+                    dimensions: 'orders_status equals=complete',
+                    metrics: null,
+                    tableCalculations: null,
+                },
+            },
+        };
+
+        expect(
+            parseAiArtifactChartConfig({
+                source: 'filterExpression',
+                schemaVersion: 1,
+                expressionArgs: {
+                    ...expressionArgs,
+                    queryConfig: {
+                        ...expressionArgs.queryConfig,
+                        filters: {
+                            ...expressionArgs.queryConfig.filters,
+                            dimensions: '',
+                        },
+                    },
+                },
+                resolvedArgs: semanticConfig,
+            }),
+        ).toBeNull();
+
+        expect(
+            parseAiArtifactChartConfig({
+                source: 'filterExpression',
+                schemaVersion: 1,
+                expressionArgs,
+                resolvedArgs: {
+                    ...semanticConfig,
+                    queryConfig: {
+                        ...semanticConfig.queryConfig,
+                        filters: {
+                            dimensions: 'orders_status equals=complete',
+                            metrics: null,
+                            tableCalculations: null,
+                        },
+                    },
+                },
+            }),
+        ).toBeNull();
+
+        expect(
+            parseAiArtifactChartConfig({
+                source: 'filterExpression',
+                schemaVersion: 1,
+                expressionArgs,
+                resolvedArgs: {
+                    ...semanticConfig,
+                    mergeConfig: {
+                        primarySourceId: 'orders',
+                        additionalSources: [],
+                        joinKey: [],
+                        joinType: 'full',
+                    },
+                },
+            }),
+        ).toBeNull();
+
+        // A malformed envelope must not fall through to legacy V1 parsing.
+        expect(
+            parseAiArtifactChartConfig({
+                ...semanticConfig,
+                source: 'filterExpression',
+                schemaVersion: 1,
+                expressionArgs,
+                resolvedArgs: semanticConfig,
+            }),
+        ).toBeNull();
+    });
+
     it('drops legacy SQL execution UUIDs', () => {
         expect(
             parseAiArtifactChartConfig({
@@ -109,6 +230,101 @@ describe('parseAiArtifactChartConfig', () => {
                 queryConfig: { ...config.config.queryConfig, parameters: null },
             },
         });
+    });
+
+    it('normalizes a persisted merge filter expression', () => {
+        const resolvedConfig = {
+            ...semanticConfig,
+            mergeConfig: {
+                primarySourceId: 'orders',
+                additionalSources: [
+                    {
+                        id: 'targets',
+                        queryConfig: {
+                            exploreName: 'targets',
+                            dimensions: ['targets_month'],
+                            metrics: ['targets_target'],
+                            sorts: [],
+                            customMetrics: null,
+                            filters: null,
+                        },
+                    },
+                ],
+                joinKey: [
+                    {
+                        name: 'month',
+                        fields: [
+                            {
+                                sourceId: 'orders',
+                                fieldId: 'orders_created_month',
+                            },
+                            {
+                                sourceId: 'targets',
+                                fieldId: 'targets_month',
+                            },
+                        ],
+                    },
+                ],
+                joinType: 'full',
+            },
+        } as const;
+        const expressionArgs = {
+            ...resolvedConfig,
+            queryConfig: {
+                ...resolvedConfig.queryConfig,
+                filters: {
+                    dimensions: 'orders_created_month equals=2025-01-01',
+                    metrics: null,
+                    tableCalculations: null,
+                },
+            },
+            mergeConfig: {
+                ...resolvedConfig.mergeConfig,
+                additionalSources:
+                    resolvedConfig.mergeConfig.additionalSources.map(
+                        (source) => ({
+                            ...source,
+                            queryConfig: {
+                                ...source.queryConfig,
+                                filters: {
+                                    dimensions:
+                                        'targets_month equals=2025-01-01',
+                                    metrics: null,
+                                    tableCalculations: null,
+                                },
+                            },
+                        }),
+                    ),
+            },
+        };
+
+        expect(
+            parseAiArtifactChartConfig({
+                source: 'filterExpression',
+                schemaVersion: 1,
+                expressionArgs,
+                resolvedArgs: resolvedConfig,
+            }),
+        ).toEqual({
+            source: 'merge',
+            schemaVersion: 1,
+            config: {
+                ...resolvedConfig,
+                queryConfig: {
+                    ...resolvedConfig.queryConfig,
+                    parameters: null,
+                },
+            },
+        });
+
+        expect(
+            parseAiArtifactChartConfig({
+                source: 'filterExpression',
+                schemaVersion: 1,
+                expressionArgs,
+                resolvedArgs: semanticConfig,
+            }),
+        ).toBeNull();
     });
 
     it('rejects invalid configs', () => {
