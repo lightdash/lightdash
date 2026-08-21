@@ -129,6 +129,27 @@ export class SpaceModel {
         this.MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT = 10;
     }
 
+    private static getCustomerVisibleSpacesQuery(database: Knex) {
+        return database<DbSpace>(SpaceTableName).where(
+            `${SpaceTableName}.is_access_container`,
+            false,
+        );
+    }
+
+    private static async assertCustomerVisibleSpace(
+        database: Knex,
+        spaceUuid: string,
+    ): Promise<void> {
+        const space = await SpaceModel.getCustomerVisibleSpacesQuery(database)
+            .where(`${SpaceTableName}.space_uuid`, spaceUuid)
+            .first(`${SpaceTableName}.space_uuid`);
+        if (space === undefined) {
+            throw new NotFoundError(
+                `space with spaceUuid ${spaceUuid} does not exist`,
+            );
+        }
+    }
+
     private static async querySpacesForCode(
         {
             projectUuid,
@@ -141,7 +162,7 @@ export class SpaceModel {
         },
         trx: Knex,
     ): Promise<SpaceCodeModel[]> {
-        const query = trx(SpaceTableName)
+        const query = SpaceModel.getCustomerVisibleSpacesQuery(trx)
             .innerJoin(
                 ProjectTableName,
                 `${ProjectTableName}.project_id`,
@@ -213,16 +234,13 @@ export class SpaceModel {
         visitedSpaceUuids.add(startingSpaceUuid);
 
         await acquireSpaceAccessLock(trx, startingSpaceUuid);
-        const space: { parentSpaceUuid: string | null } | undefined = await trx(
-            SpaceTableName,
-        )
-            .where({
-                project_id: projectId,
-                space_uuid: startingSpaceUuid,
-            })
-            .whereNull('deleted_at')
-            .first({ parentSpaceUuid: 'parent_space_uuid' })
-            .forShare();
+        const space: { parentSpaceUuid: string | null } | undefined =
+            await SpaceModel.getCustomerVisibleSpacesQuery(trx)
+                .where(`${SpaceTableName}.project_id`, projectId)
+                .where(`${SpaceTableName}.space_uuid`, startingSpaceUuid)
+                .whereNull(`${SpaceTableName}.deleted_at`)
+                .first({ parentSpaceUuid: 'parent_space_uuid' })
+                .forShare();
 
         if (space === undefined) {
             throw new ParameterError(
@@ -809,12 +827,12 @@ export class SpaceModel {
                     input.access !== undefined ? requestedSpaceUuid : null,
             });
 
-            const pathMatches = await transaction(SpaceTableName)
-                .where({
-                    project_id: project.projectId,
-                    path: input.path,
-                })
-                .whereNull('deleted_at')
+            const pathMatches = await SpaceModel.getCustomerVisibleSpacesQuery(
+                transaction,
+            )
+                .where(`${SpaceTableName}.project_id`, project.projectId)
+                .where(`${SpaceTableName}.path`, input.path)
+                .whereNull(`${SpaceTableName}.deleted_at`)
                 .select<
                     Array<{
                         spaceUuid: string;
@@ -858,20 +876,27 @@ export class SpaceModel {
                     ? input.path.slice(0, input.path.lastIndexOf('.'))
                     : null;
                 if (input.parentSpaceUuid !== null) {
-                    const parent = await transaction(SpaceTableName)
-                        .where({
-                            space_uuid: input.parentSpaceUuid,
-                            project_id: project.projectId,
-                        })
-                        .whereNull('deleted_at')
-                        .first<{
-                            path: string;
-                            isDefaultUserSpace: boolean;
-                        }>({
-                            path: 'path',
-                            isDefaultUserSpace: 'is_default_user_space',
-                        })
-                        .forUpdate();
+                    const parent =
+                        await SpaceModel.getCustomerVisibleSpacesQuery(
+                            transaction,
+                        )
+                            .where(
+                                `${SpaceTableName}.space_uuid`,
+                                input.parentSpaceUuid,
+                            )
+                            .where(
+                                `${SpaceTableName}.project_id`,
+                                project.projectId,
+                            )
+                            .whereNull(`${SpaceTableName}.deleted_at`)
+                            .first<{
+                                path: string;
+                                isDefaultUserSpace: boolean;
+                            }>({
+                                path: 'path',
+                                isDefaultUserSpace: 'is_default_user_space',
+                            })
+                            .forUpdate();
                     if (parent === undefined) {
                         throw new NotFoundError(
                             `Parent space with uuid ${input.parentSpaceUuid} does not exist in project ${input.projectUuid}`,
@@ -921,6 +946,7 @@ export class SpaceModel {
                     .where({
                         space_uuid: spaceUuid,
                         project_id: project.projectId,
+                        is_access_container: false,
                     })
                     .update({
                         name: input.name,
@@ -962,6 +988,7 @@ export class SpaceModel {
                     .where({
                         space_uuid: spaceUuid,
                         project_id: project.projectId,
+                        is_access_container: false,
                     })
                     .update({ name: input.name });
             } else if (
@@ -1034,14 +1061,19 @@ export class SpaceModel {
     static async getSpaceIdAndName(db: Knex, spaceUuid: string | undefined) {
         if (spaceUuid === undefined) return undefined;
 
-        const [space] = await db(SpaceTableName)
+        const [space] = await SpaceModel.getCustomerVisibleSpacesQuery(db)
             .select(['space_id', 'name'])
             .where('space_uuid', spaceUuid);
+        if (space === undefined) {
+            return undefined;
+        }
         return { spaceId: space.space_id, name: space.name };
     }
 
     async getRootSpaceUuidsForProject(projectUuid: string): Promise<string[]> {
-        const spaces = await this.database(SpaceTableName)
+        const spaces = await SpaceModel.getCustomerVisibleSpacesQuery(
+            this.database,
+        )
             .innerJoin(
                 ProjectTableName,
                 `${ProjectTableName}.project_id`,
@@ -1065,7 +1097,9 @@ export class SpaceModel {
     }): Promise<boolean> {
         if (spaceUuids.length === 0) return false;
 
-        const space = await this.database(SpaceTableName)
+        const space = await SpaceModel.getCustomerVisibleSpacesQuery(
+            this.database,
+        )
             .innerJoin(
                 ProjectTableName,
                 `${ProjectTableName}.project_id`,
@@ -1084,7 +1118,9 @@ export class SpaceModel {
         parentSpaceUuids: string[],
     ): Promise<string[]> {
         if (parentSpaceUuids.length === 0) return [];
-        const rows = await this.database(SpaceTableName)
+        const rows = await SpaceModel.getCustomerVisibleSpacesQuery(
+            this.database,
+        )
             .whereIn(`${SpaceTableName}.parent_space_uuid`, parentSpaceUuids)
             .whereNull(`${SpaceTableName}.deleted_at`)
             .select(`${SpaceTableName}.space_uuid`);
@@ -1110,7 +1146,7 @@ export class SpaceModel {
                 name: 'SpaceModel.find',
             },
             async () => {
-                const query = trx(SpaceTableName)
+                const query = SpaceModel.getCustomerVisibleSpacesQuery(trx)
                     .innerJoin(
                         ProjectTableName,
                         `${ProjectTableName}.project_id`,
@@ -1271,7 +1307,9 @@ export class SpaceModel {
             | 'inheritsFromOrgOrProject'
         >
     > {
-        const [row] = await this.database(SpaceTableName)
+        const [row] = await SpaceModel.getCustomerVisibleSpacesQuery(
+            this.database,
+        )
             .leftJoin(
                 ProjectTableName,
                 `${ProjectTableName}.project_id`,
@@ -1879,6 +1917,7 @@ export class SpaceModel {
                     FROM ${SpaceTableName}
                     WHERE space_uuid = ?
                       AND deleted_at IS NULL
+                      AND is_access_container = FALSE
 
                     UNION ALL
 
@@ -1886,6 +1925,7 @@ export class SpaceModel {
                     FROM ${SpaceTableName} s
                     JOIN ancestors a ON s.space_uuid = a.parent_space_uuid
                     WHERE s.deleted_at IS NULL
+                      AND s.is_access_container = FALSE
                 )
                 SELECT space_uuid, name FROM ancestors
                 ORDER BY depth DESC
@@ -1912,7 +1952,9 @@ export class SpaceModel {
         spaceUuid: string;
         projectUuid: string;
     }) {
-        const space = await this.database(SpaceTableName)
+        const space = await SpaceModel.getCustomerVisibleSpacesQuery(
+            this.database,
+        )
             .select('path')
             .where('space_uuid', spaceUuid)
             .first();
@@ -1923,7 +1965,9 @@ export class SpaceModel {
             );
         }
 
-        const ancestors = await this.database(SpaceTableName)
+        const ancestors = await SpaceModel.getCustomerVisibleSpacesQuery(
+            this.database,
+        )
             .select('space_uuid')
             .innerJoin(
                 `${ProjectTableName}`,
@@ -1944,7 +1988,9 @@ export class SpaceModel {
         path: string;
         projectUuid: string;
     }) {
-        const closestAncestor = await this.database(SpaceTableName)
+        const closestAncestor = await SpaceModel.getCustomerVisibleSpacesQuery(
+            this.database,
+        )
             .select('space_uuid')
             .innerJoin(
                 `${ProjectTableName}`,
@@ -1970,7 +2016,7 @@ export class SpaceModel {
             return getLtreePathFromSlug(spaceSlug);
         }
 
-        const parentSpace = await trx(SpaceTableName)
+        const parentSpace = await SpaceModel.getCustomerVisibleSpacesQuery(trx)
             .select('path')
             .where('space_uuid', parentSpaceUuid)
             .where('project_id', projectId)
@@ -2059,7 +2105,7 @@ export class SpaceModel {
             `space:${path ?? baseSlug}`,
         );
         if (path !== undefined) {
-            const existing = await trx(SpaceTableName)
+            const existing = await SpaceModel.getCustomerVisibleSpacesQuery(trx)
                 .where('project_id', project.project_id)
                 .where('path', path)
                 .first();
@@ -2108,6 +2154,7 @@ export class SpaceModel {
     async permanentDelete(spaceUuid: string): Promise<void> {
         await this.database(SpaceTableName)
             .where('space_uuid', spaceUuid)
+            .where('is_access_container', false)
             .delete();
     }
 
@@ -2118,6 +2165,7 @@ export class SpaceModel {
                 deleted_by_user_uuid: userUuid,
             })
             .where('space_uuid', spaceUuid)
+            .where('is_access_container', false)
             .whereNull('deleted_at');
     }
 
@@ -2128,6 +2176,7 @@ export class SpaceModel {
                 deleted_by_user_uuid: null,
             })
             .where('space_uuid', spaceUuid)
+            .where('is_access_container', false)
             .whereNotNull('deleted_at');
 
         if (updateCount !== 1) {
@@ -2147,6 +2196,7 @@ export class SpaceModel {
                     FROM ${SpaceTableName}
                     WHERE parent_space_uuid = ?
                       AND deleted_at IS NULL
+                      AND is_access_container = FALSE
 
                     UNION ALL
 
@@ -2154,6 +2204,7 @@ export class SpaceModel {
                     FROM ${SpaceTableName} s
                     JOIN descendants d ON s.parent_space_uuid = d.space_uuid
                     WHERE s.deleted_at IS NULL
+                      AND s.is_access_container = FALSE
                 )
                 SELECT space_uuid FROM descendants
                 `,
@@ -2168,7 +2219,7 @@ export class SpaceModel {
         options?: { deleted?: boolean; deletedByUserUuid?: string },
     ): Promise<string[]> {
         // Direct children only — callers recurse to handle full depth
-        const query = this.database(SpaceTableName)
+        const query = SpaceModel.getCustomerVisibleSpacesQuery(this.database)
             .select('space_uuid')
             .where('parent_space_uuid', spaceUuid);
 
@@ -2304,6 +2355,7 @@ export class SpaceModel {
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
             await acquireSpaceAccessLock(trx, spaceUuid);
+            await SpaceModel.assertCustomerVisibleSpace(trx, spaceUuid);
             const updateData: Record<string, unknown> = {
                 name: space.name,
                 inherit_parent_permissions: space.inheritParentPermissions,
@@ -2334,6 +2386,7 @@ export class SpaceModel {
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
             await acquireSpaceAccessLock(trx, spaceUuid);
+            await SpaceModel.assertCustomerVisibleSpace(trx, spaceUuid);
             if (userAccessEntries.length > 0) {
                 await trx(SpaceUserAccessTableName)
                     .insert(
@@ -2397,6 +2450,11 @@ export class SpaceModel {
             throw new NotFoundError(
                 `Project with uuid ${projectUuid} does not exist`,
             );
+        }
+
+        await SpaceModel.assertCustomerVisibleSpace(tx, spaceUuid);
+        if (targetSpaceUuid !== null) {
+            await SpaceModel.assertCustomerVisibleSpace(tx, targetSpaceUuid);
         }
 
         // check if parent space is not subtree of space
@@ -2480,6 +2538,7 @@ export class SpaceModel {
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
             await acquireSpaceAccessLock(trx, spaceUuid);
+            await SpaceModel.assertCustomerVisibleSpace(trx, spaceUuid);
             await trx(SpaceUserAccessTableName)
                 .insert({
                     space_uuid: spaceUuid,
@@ -2497,6 +2556,7 @@ export class SpaceModel {
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
             await acquireSpaceAccessLock(trx, spaceUuid);
+            await SpaceModel.assertCustomerVisibleSpace(trx, spaceUuid);
             await trx(SpaceUserAccessTableName)
                 .where('space_uuid', spaceUuid)
                 .andWhere('user_uuid', userUuid)
@@ -2511,6 +2571,7 @@ export class SpaceModel {
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
             await acquireSpaceAccessLock(trx, spaceUuid);
+            await SpaceModel.assertCustomerVisibleSpace(trx, spaceUuid);
             await trx(SpaceGroupAccessTableName)
                 .insert({
                     space_uuid: spaceUuid,
@@ -2528,6 +2589,7 @@ export class SpaceModel {
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
             await acquireSpaceAccessLock(trx, spaceUuid);
+            await SpaceModel.assertCustomerVisibleSpace(trx, spaceUuid);
             await trx(SpaceGroupAccessTableName)
                 .where('space_uuid', spaceUuid)
                 .andWhere('group_uuid', groupUuid)

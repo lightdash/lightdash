@@ -9,6 +9,7 @@ import { CatalogModel } from './CatalogModel/CatalogModel';
 import { CommentModel } from './CommentModel/CommentModel';
 import { ContentModel } from './ContentModel/ContentModel';
 import { ContentVerificationModel } from './ContentVerificationModel';
+import { DashboardAccessContainerModel } from './DashboardAccessContainerModel';
 import { DashboardModel } from './DashboardModel/DashboardModel';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
 import { DeploySessionModel } from './DeploySessionModel';
@@ -82,6 +83,7 @@ export type ModelManifest = {
     analyticsModel: AnalyticsModel;
     appModel: AppModel;
     commentModel: CommentModel;
+    dashboardAccessContainerModel: DashboardAccessContainerModel;
     dashboardModel: DashboardModel;
     deploySessionModel: DeploySessionModel;
     downloadFileModel: DownloadFileModel;
@@ -289,6 +291,13 @@ export class ModelRepository
         return this.getModel(
             'commentModel',
             () => new CommentModel({ database: this.database }),
+        );
+    }
+
+    public getDashboardAccessContainerModel(): DashboardAccessContainerModel {
+        return this.getModel(
+            'dashboardAccessContainerModel',
+            () => new DashboardAccessContainerModel(this.database),
         );
     }
 

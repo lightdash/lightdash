@@ -898,13 +898,22 @@ export class SpacePermissionModel {
      */
     async getInheritanceChains(
         spaceUuids: string[],
-        { trx = this.database }: { trx?: Knex } = {},
+        {
+            trx = this.database,
+            accessContainerMode = 'exclude',
+        }: {
+            trx?: Knex;
+            accessContainerMode?: 'exclude' | 'only';
+        } = {},
     ): Promise<Record<string, SpaceInheritanceChain>> {
         return wrapSentryTransaction(
             'SpacePermissionModel.getInheritanceChains',
             { spaceUuidsCount: spaceUuids.length },
             async () => {
                 if (spaceUuids.length === 0) return {};
+
+                const accessContainerPredicate =
+                    accessContainerMode === 'only' ? '= TRUE' : '= FALSE';
 
                 // NOTE: use a CTE instead of ltree path @> joins to walk the space
                 // hierarchy via parent_space_uuid FK. We have duplicate paths in the
@@ -927,6 +936,7 @@ export class SpacePermissionModel {
                         FROM ${SpaceTableName}
                         WHERE space_uuid = ANY(?)
                           AND deleted_at IS NULL
+                          AND is_access_container ${accessContainerPredicate}
 
                         UNION ALL
 
@@ -936,6 +946,7 @@ export class SpacePermissionModel {
                         FROM ${SpaceTableName} s
                         JOIN chain c ON s.space_uuid = c.parent_space_uuid
                         WHERE s.deleted_at IS NULL
+                          AND s.is_access_container ${accessContainerPredicate}
                     )
                     SELECT requested_space_uuid, space_uuid, name, inherit_parent_permissions, parent_space_uuid
                     FROM chain

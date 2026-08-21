@@ -25,7 +25,10 @@ const createMockSpacePermissionModel = () => ({
         vi.fn<
             (
                 spaceUuids: string[],
-                options?: { trx?: Knex },
+                options?: {
+                    trx?: Knex;
+                    accessContainerMode?: 'exclude' | 'only';
+                },
             ) => Promise<Record<string, SpaceInheritanceChain>>
         >(),
     getDirectSpaceAccess:
@@ -148,7 +151,7 @@ describe('SpacePermissionService', () => {
 
         expect(mockPermissionModel.getInheritanceChains).toHaveBeenCalledWith(
             [spaceUuid],
-            { trx },
+            { trx, accessContainerMode: 'exclude' },
         );
         expect(mockPermissionModel.getDirectSpaceAccess).toHaveBeenCalledWith(
             [spaceUuid],
@@ -167,6 +170,14 @@ describe('SpacePermissionService', () => {
             [spaceUuid],
             { trx },
         );
+
+        await service.getAccessContainerContext(userUuid, [spaceUuid], { trx });
+        expect(
+            mockPermissionModel.getInheritanceChains,
+        ).toHaveBeenLastCalledWith([spaceUuid], {
+            trx,
+            accessContainerMode: 'only',
+        });
     });
 
     describe('getSpacesCaslContext (via getAllSpaceAccessContext)', () => {

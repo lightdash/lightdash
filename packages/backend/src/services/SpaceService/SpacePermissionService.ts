@@ -173,6 +173,18 @@ export class SpacePermissionService extends BaseService {
         return this.getSpacesCaslContext(spaceUuids, { userUuid }, { trx });
     }
 
+    async getAccessContainerContext(
+        userUuid: string,
+        spaceUuids: string[],
+        { trx }: { trx?: Knex } = {},
+    ): Promise<Record<string, SpaceAccessContextForCasl>> {
+        return this.getSpacesCaslContext(
+            spaceUuids,
+            { userUuid },
+            { trx, accessContainerMode: 'only' },
+        );
+    }
+
     /**
      * Returns the CASL context for a space with ALL users' resolved access
      * (not filtered to a single user). Used for access propagation and
@@ -389,14 +401,20 @@ export class SpacePermissionService extends BaseService {
     private async getSpacesCaslContext(
         spaceUuidsArg: string[],
         filters?: { userUuid?: string; userUuids?: string[] },
-        { trx }: { trx?: Knex } = {},
+        {
+            trx,
+            accessContainerMode = 'exclude',
+        }: {
+            trx?: Knex;
+            accessContainerMode?: 'exclude' | 'only';
+        } = {},
     ): Promise<Record<string, SpaceAccessContextForCasl>> {
         const uniqueSpaceUuids = [...new Set(spaceUuidsArg)];
 
         // Get inheritance chains for all spaces in a single batched query
         const chainMap = await this.spacePermissionModel.getInheritanceChains(
             uniqueSpaceUuids,
-            { trx },
+            { trx, accessContainerMode },
         );
         const chains = uniqueSpaceUuids
             .filter((uuid) => chainMap[uuid] !== undefined)
