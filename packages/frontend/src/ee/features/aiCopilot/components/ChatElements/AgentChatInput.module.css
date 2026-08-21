@@ -65,6 +65,19 @@
     }
 }
 
+.footerNotice {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: var(--mantine-spacing-xs);
+    padding: 0 var(--mantine-spacing-sm);
+}
+
+/* The notice component may render nothing (flag off, no retention window) —
+   collapse the wrapper so it leaves no stray gap below the input. */
+.footerNotice:empty {
+    display: none;
+}
+
 /* Minimal mode styles for existing threads */
 .minimalContainer {
     position: relative;

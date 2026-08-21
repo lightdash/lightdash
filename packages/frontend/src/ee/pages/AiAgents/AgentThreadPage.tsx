@@ -407,14 +407,16 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                     {workstreams && workstreams.length > 0 && (
                         <ThreadWorkstreamsPanel workstreams={workstreams} />
                     )}
-                    <ThreadRetentionNotice
-                        agentThreadRetentionHours={
-                            agent.threadRetentionHours ?? null
-                        }
-                    />
                     <AgentChatInput
                         disabled={inputDisabled}
                         disabledReason={inputDisabledReason}
+                        footerNotice={
+                            <ThreadRetentionNotice
+                                agentThreadRetentionHours={
+                                    agent.threadRetentionHours ?? null
+                                }
+                            />
+                        }
                         loading={isBusy}
                         onSubmit={handleSubmit}
                         onStartDeepResearch={
