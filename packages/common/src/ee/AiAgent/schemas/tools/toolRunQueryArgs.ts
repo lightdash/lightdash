@@ -22,7 +22,7 @@ import {
 import { mcpAsyncQueryUuidSchema } from './toolQueryResultSchemas';
 
 // Query configuration schema - what data to fetch
-const queryConfigBaseSchema = z.object({
+export const queryConfigBaseSchema = z.object({
     exploreName: z
         .string()
         .describe(
@@ -85,7 +85,7 @@ const queryConfigSchemaV4 = queryConfigSchemaV2.extend({
     tableCalculations: formulaTableCalcsSchema,
 });
 
-const mergeSourceQueryConfigSchema = queryConfigSchemaV2
+export const mergeSourceQueryConfigSchema = queryConfigSchemaV2
     .omit({
         limit: true,
         parameters: true,
@@ -95,7 +95,7 @@ const mergeSourceQueryConfigSchema = queryConfigSchemaV2
         'A second semantic-layer query. The primary query limit and parameter values apply to the whole merge.',
     );
 
-const mergeConfigSchema = z
+export const mergeConfigSchema = z
     .object({
         primarySourceId: z
             .string()
@@ -145,7 +145,7 @@ const mergeConfigSchema = z
     );
 
 // Chart-specific configuration for rendering hints
-const chartConfigSchema = z
+export const chartConfigSchema = z
     .object({
         defaultVizType: z
             .enum([

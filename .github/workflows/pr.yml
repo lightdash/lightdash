@@ -140,12 +140,14 @@ jobs:
           pnpm -F frontend unused-exports & pid_unused=$!
           pnpm typecheck & pid_typecheck=$!
           pnpm -F common check:filter-grammar-parser & pid_grammar=$!
+          pnpm -F common check:filter-expression-parser & pid_expression_grammar=$!
           fail=0
           wait $pid_lint || fail=1
           wait $pid_format || fail=1
           wait $pid_unused || fail=1
           wait $pid_typecheck || fail=1
           wait $pid_grammar || fail=1
+          wait $pid_expression_grammar || fail=1
           exit $fail
       - name: Run unit tests
         run: pnpm test
