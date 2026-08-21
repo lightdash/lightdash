@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     type AiAgent,
     type AiAgentProjectThreadSummary,
 } from '@lightdash/common';
@@ -27,6 +28,7 @@ import { useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
+import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import { useCanManageAiAgentThread } from '../../hooks/useAiAgentPermission';
 import { useAiOrganizationSettings } from '../../hooks/useAiOrganizationSettings';
 import {
@@ -43,6 +45,7 @@ type ThreadNavLinkProps = {
     isActive: boolean;
     projectUuid: string;
     showAgentName?: boolean;
+    deletionDisabled: boolean;
     onDelete: (thread: AiAgentProjectThreadSummary) => void;
 };
 
@@ -51,6 +54,7 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
     isActive,
     projectUuid,
     showAgentName = false,
+    deletionDisabled,
     onDelete,
 }) => {
     const threadTitle = (thread.title || thread.firstMessage.message).trim();
@@ -60,7 +64,8 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
         threadUserUuid: thread.user.uuid,
     });
     // Deleting a Slack thread here would not remove it from Slack itself
-    const canDelete = canManageThread && thread.createdFrom !== 'slack';
+    const canDelete =
+        !deletionDisabled && canManageThread && thread.createdFrom !== 'slack';
 
     return (
         <NavLink
@@ -144,6 +149,11 @@ const ThreadList: FC<ThreadListProps> = ({
 
     const threads = data?.pages.flatMap((page) => page.data) ?? [];
 
+    const deletionDisabledFlag = useServerFeatureFlag(
+        FeatureFlags.AiDisableThreadDeletion,
+    );
+    const deletionDisabled = deletionDisabledFlag.data?.enabled === true;
+
     const [threadToDelete, setThreadToDelete] =
         useState<AiAgentProjectThreadSummary | null>(null);
     const { mutateAsync: deleteThread, isLoading: isDeletingThread } =
@@ -184,6 +194,7 @@ const ThreadList: FC<ThreadListProps> = ({
                             isActive={thread.uuid === threadUuid}
                             projectUuid={projectUuid}
                             showAgentName={showAgentName}
+                            deletionDisabled={deletionDisabled}
                             onDelete={setThreadToDelete}
                         />
                     ))}

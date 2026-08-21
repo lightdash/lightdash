@@ -363,6 +363,12 @@ export enum FeatureFlags {
      * engine and its S3 configuration. Off by default.
      */
     ExternalSources = 'external-sources',
+
+    /**
+     * Prevent users from deleting their own AI agent threads. Admins can
+     * still delete threads from the agent admin threads view. Off by default.
+     */
+    AiDisableThreadDeletion = 'ai-disable-thread-deletion',
 }
 
 export type FeatureFlag = {

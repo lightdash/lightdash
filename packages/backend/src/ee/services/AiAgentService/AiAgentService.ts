@@ -3041,7 +3041,9 @@ export class AiAgentService extends BaseService {
      * cleanup. Owners can delete their own threads (`manage:AiAgentThread`
      * conditioned on their user uuid); agent admins can delete any thread.
      * Deliberately not gated on copilot being enabled so conversations remain
-     * deletable after the feature is turned off.
+     * deletable after the feature is turned off. The `ai-disable-thread-deletion`
+     * feature flag blocks this endpoint entirely; the admin threads view uses a
+     * separate path and keeps working.
      */
     async deleteAgentThread(
         user: SessionUser,
@@ -3051,6 +3053,18 @@ export class AiAgentService extends BaseService {
         const { organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
+        }
+
+        const { enabled: deletionDisabled } = await this.featureFlagService.get(
+            {
+                user,
+                featureFlagId: FeatureFlags.AiDisableThreadDeletion,
+            },
+        );
+        if (deletionDisabled) {
+            throw new ForbiddenError(
+                'Thread deletion is disabled for this organization',
+            );
         }
 
         const agent = await this.aiAgentModel.getAgent({
