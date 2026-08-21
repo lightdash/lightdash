@@ -27,6 +27,7 @@ import {
 import dayjs from 'dayjs';
 import { type FC } from 'react';
 import { Link } from 'react-router';
+import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import MantineIcon from '../MantineIcon';
 import InfoRow from '../PageHeader/InfoRow';
@@ -89,6 +90,9 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
     withChartData = false,
     latestVersion,
 }) => {
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     const timeAgo = useTimeAgo(updatedAt ?? new Date());
     const label =
         firstViewedAt && viewStats
@@ -161,7 +165,7 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
                     <InfoRow icon={IconFolder} label="Space">
                         <Anchor
                             component={Link}
-                            to={`/projects/${projectUuid}/spaces/${spaceUuid}`}
+                            to={`/projects/${projectUrlIdentifier}/spaces/${spaceUuid}`}
                             fz={12}
                             fw={500}
                         >

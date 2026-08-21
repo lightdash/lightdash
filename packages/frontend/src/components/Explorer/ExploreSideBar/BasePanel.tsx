@@ -19,6 +19,7 @@ import { useLocation, useNavigate } from 'react-router';
 import { AddDataModal } from '../../../features/externalSources/components/AddDataModal';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useExplores } from '../../../hooks/useExplores';
+import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useProjectTableGroups } from '../../../hooks/useProjectTableGroups';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -53,6 +54,9 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
     const navigate = useNavigate();
     const location = useLocation();
     const projectUuid = useProjectUuid();
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     const [search, setSearch] = useState<string>('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const [, startTransition] = useTransition();
@@ -181,14 +185,14 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
                     return;
                 }
                 void navigate({
-                    pathname: `/projects/${projectUuid}/tables/${explore.name}`,
+                    pathname: `/projects/${projectUrlIdentifier}/tables/${explore.name}`,
                     search: location.search,
                 });
             });
         },
         [
             navigate,
-            projectUuid,
+            projectUrlIdentifier,
             location.search,
             startTransition,
             onExploreClick,

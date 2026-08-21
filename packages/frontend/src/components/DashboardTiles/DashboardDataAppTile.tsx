@@ -7,7 +7,6 @@ import {
 import { Box, Loader, Stack, Text } from '@mantine/core';
 import { IconAppsOff, IconCode } from '@tabler/icons-react';
 import React, { useMemo, useState, type FC } from 'react';
-import { useParams } from 'react-router';
 import AppIframePreview from '../../features/apps/AppIframePreview';
 import { getVisiblePreviewTokenError } from '../../features/apps/hooks/previewTokenQueryOptions';
 import { useAppPreviewToken } from '../../features/apps/hooks/useAppPreviewToken';
@@ -16,6 +15,7 @@ import { usePreviewOrigin } from '../../features/apps/previewOrigin';
 import { DashboardTileComments } from '../../features/comments';
 import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
 import { useProject } from '../../hooks/useProject';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useSpaceSummaries } from '../../hooks/useSpaces';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -38,7 +38,7 @@ const DataAppTile: FC<Props> = (props) => {
             uuid,
         },
     } = props;
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
 
     const [isCommentsMenuOpen, setIsCommentsMenuOpen] = useState(false);
     const showComments = useDashboardContext(

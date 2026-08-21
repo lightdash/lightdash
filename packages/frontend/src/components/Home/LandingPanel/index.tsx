@@ -9,9 +9,14 @@ import MantineLinkButton from '../../common/MantineLinkButton';
 interface Props {
     userName: string | undefined;
     projectUuid: string;
+    projectUrlIdentifier: string;
 }
 
-const LandingPanel: FC<Props> = ({ userName, projectUuid }) => {
+const LandingPanel: FC<Props> = ({
+    userName,
+    projectUuid,
+    projectUrlIdentifier,
+}) => {
     const { user } = useApp();
     return (
         <Group justify="space-between" my="xl">
@@ -33,7 +38,7 @@ const LandingPanel: FC<Props> = ({ userName, projectUuid }) => {
                 })}
             >
                 <MantineLinkButton
-                    href={`/projects/${projectUuid}/tables`}
+                    href={`/projects/${projectUrlIdentifier}/tables`}
                     trackingEvent={{
                         name: EventName.LANDING_RUN_QUERY_CLICKED,
                         properties: {

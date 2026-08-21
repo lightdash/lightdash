@@ -38,8 +38,10 @@ import {
 } from '../../hooks/useActiveProject';
 import { useIsTruncated } from '../../hooks/useIsTruncated';
 import { useProject } from '../../hooks/useProject';
+import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import { useProjects } from '../../hooks/useProjects';
 import useApp from '../../providers/App/useApp';
+import { getProjectUrlIdentifier } from '../../utils/projectUrl';
 import MantineIcon from '../common/MantineIcon';
 import { CreatePreviewModal } from './CreatePreviewProjectModal';
 import classes from './ProjectSwitcher.module.css';
@@ -282,32 +284,39 @@ const PreviewRow: FC<{
     );
 };
 
-const swappableProjectRoutes = (activeProjectUuid: string) => [
-    `/projects/${activeProjectUuid}/home`,
-    `/projects/${activeProjectUuid}/saved`,
-    `/projects/${activeProjectUuid}/dashboards`,
-    `/projects/${activeProjectUuid}/spaces`,
-    `/projects/${activeProjectUuid}/sqlRunner`,
-    `/projects/${activeProjectUuid}/tables`,
-    `/projects/${activeProjectUuid}/user-activity`,
-    `/projects/${activeProjectUuid}`,
-    `/generalSettings`,
-    `/generalSettings/password`,
-    `/generalSettings/myWarehouseConnections`,
-    `/generalSettings/personalAccessTokens`,
-    `/generalSettings/scimAccessTokens`,
-    `/generalSettings/organization`,
-    `/generalSettings/userManagement`,
-    `/generalSettings/appearance`,
-    `/generalSettings/projectManagement`,
-    `/generalSettings/projectManagement/${activeProjectUuid}/settings`,
-    `/generalSettings/projectManagement/${activeProjectUuid}/tablesConfiguration`,
-    `/generalSettings/projectManagement/${activeProjectUuid}/projectAccess`,
-    `/generalSettings/projectManagement/${activeProjectUuid}/integrations/dbtCloud`,
-    `/generalSettings/projectManagement/${activeProjectUuid}/usageAnalytics`,
-    `/generalSettings/projectManagement/${activeProjectUuid}/scheduledDeliveries`,
-    `/generalSettings/projectManagement/${activeProjectUuid}/validator`,
-    `/generalSettings/projectManagement/${activeProjectUuid}`,
+const swappableProjectRoutes = (
+    activeProjectUuid: string,
+    activeProjectUrlIdentifier: string,
+) => [
+    ...[
+        `/projects/${activeProjectUrlIdentifier}/home`,
+        `/projects/${activeProjectUrlIdentifier}/saved`,
+        `/projects/${activeProjectUrlIdentifier}/dashboards`,
+        `/projects/${activeProjectUrlIdentifier}/spaces`,
+        `/projects/${activeProjectUrlIdentifier}`,
+    ].map((path) => ({ path, handle: { useProjectSlug: true } })),
+    ...[
+        `/projects/${activeProjectUuid}/sqlRunner`,
+        `/projects/${activeProjectUuid}/tables`,
+        `/projects/${activeProjectUuid}/user-activity`,
+        `/generalSettings`,
+        `/generalSettings/password`,
+        `/generalSettings/myWarehouseConnections`,
+        `/generalSettings/personalAccessTokens`,
+        `/generalSettings/scimAccessTokens`,
+        `/generalSettings/organization`,
+        `/generalSettings/userManagement`,
+        `/generalSettings/appearance`,
+        `/generalSettings/projectManagement`,
+        `/generalSettings/projectManagement/${activeProjectUuid}/settings`,
+        `/generalSettings/projectManagement/${activeProjectUuid}/tablesConfiguration`,
+        `/generalSettings/projectManagement/${activeProjectUuid}/projectAccess`,
+        `/generalSettings/projectManagement/${activeProjectUuid}/integrations/dbtCloud`,
+        `/generalSettings/projectManagement/${activeProjectUuid}/usageAnalytics`,
+        `/generalSettings/projectManagement/${activeProjectUuid}/scheduledDeliveries`,
+        `/generalSettings/projectManagement/${activeProjectUuid}/validator`,
+        `/generalSettings/projectManagement/${activeProjectUuid}`,
+    ].map((path) => ({ path, handle: { useProjectSlug: false } })),
 ];
 
 const ProjectSwitcher = () => {
@@ -324,10 +333,14 @@ const ProjectSwitcher = () => {
             enabled: isMenuOpen,
         },
     );
+    const projectRoute = useOptionalProjectRoute();
     const { isLoading: isLoadingActiveProjectUuid, activeProjectUuid } =
-        useActiveProjectUuid();
+        useActiveProjectUuid({ projectUuid: projectRoute?.projectUuid });
     // Fetch only the active project for the button label (lightweight)
     const { data: activeProject } = useProject(activeProjectUuid);
+    const activeProjectUrlIdentifier = activeProject
+        ? getProjectUrlIdentifier(activeProject)
+        : activeProjectUuid;
     // When inside a preview, fetch its upstream project to show in the breadcrumb
     const upstreamProjectUuid =
         activeProject?.type === ProjectType.PREVIEW
@@ -337,7 +350,9 @@ const ProjectSwitcher = () => {
 
     const { mutate: setLastProjectMutation } = useUpdateActiveProjectMutation();
     const location = useLocation();
-    const isHomePage = !!useMatch(`/projects/${activeProjectUuid}/home`);
+    const isHomePage = !!useMatch(
+        `/projects/${activeProjectUrlIdentifier}/home`,
+    );
 
     const [isCreatePreviewOpen, setIsCreatePreview] = useState(false);
     // Project drilled into to view its previews; null = top-level project list
@@ -354,10 +369,11 @@ const ProjectSwitcher = () => {
 
     const routeMatches =
         matchRoutes(
-            activeProjectUuid
-                ? swappableProjectRoutes(activeProjectUuid).map((path) => ({
-                      path,
-                  }))
+            activeProjectUuid && activeProjectUrlIdentifier
+                ? swappableProjectRoutes(
+                      activeProjectUuid,
+                      activeProjectUrlIdentifier,
+                  )
                 : [],
             location,
         ) || [];
@@ -384,7 +400,7 @@ const ProjectSwitcher = () => {
                               icon: IconArrowRight,
                               onClick: () => {
                                   void navigate(
-                                      `/projects/${project.projectUuid}/home`,
+                                      `/projects/${getProjectUrlIdentifier(project)}/home`,
                                   );
                               },
                           }
@@ -392,18 +408,36 @@ const ProjectSwitcher = () => {
             });
 
             if (shouldSwapProjectRoute) {
+                const useProjectSlug = Boolean(
+                    swappableRouteMatch.handle?.useProjectSlug,
+                );
+                const currentProjectIdentifier = useProjectSlug
+                    ? activeProjectUrlIdentifier
+                    : activeProjectUuid;
+                const nextProjectIdentifier = useProjectSlug
+                    ? getProjectUrlIdentifier(project)
+                    : project.projectUuid;
+                if (!currentProjectIdentifier) {
+                    void navigate(
+                        `/projects/${getProjectUrlIdentifier(project)}/home`,
+                    );
+                    return;
+                }
                 void navigate(
                     swappableRouteMatch.path.replace(
-                        activeProjectUuid,
-                        project.projectUuid,
+                        currentProjectIdentifier,
+                        nextProjectIdentifier,
                     ),
                 );
             } else {
-                void navigate(`/projects/${project.projectUuid}/home`);
+                void navigate(
+                    `/projects/${getProjectUrlIdentifier(project)}/home`,
+                );
             }
         },
         [
             activeProjectUuid,
+            activeProjectUrlIdentifier,
             navigate,
             isHomePage,
             projects,

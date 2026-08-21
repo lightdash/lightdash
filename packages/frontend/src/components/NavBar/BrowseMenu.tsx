@@ -32,6 +32,7 @@ import { useState, type FC } from 'react';
 import { Link } from 'react-router';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
 import { useFavorites } from '../../hooks/favorites/useFavorites';
+import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../../hooks/useSpaces';
 import useApp from '../../providers/App/useApp';
@@ -45,14 +46,18 @@ interface Props {
     projectUuid: string;
 }
 
-const getFavoriteItemUrl = (projectUuid: string, item: ResourceViewItem) => {
+const getFavoriteItemUrl = (
+    projectUuid: string,
+    projectUrlIdentifier: string,
+    item: ResourceViewItem,
+) => {
     switch (item.type) {
         case ResourceViewItemType.DASHBOARD:
-            return `/projects/${projectUuid}/dashboards/${item.data.slug}/view`;
+            return `/projects/${projectUrlIdentifier}/dashboards/${item.data.slug}/view`;
         case ResourceViewItemType.CHART:
-            return `/projects/${projectUuid}/saved/${item.data.slug}`;
+            return `/projects/${projectUrlIdentifier}/saved/${item.data.slug}`;
         case ResourceViewItemType.SPACE:
-            return `/projects/${projectUuid}/spaces/${item.data.uuid}`;
+            return `/projects/${projectUrlIdentifier}/spaces/${item.data.uuid}`;
         case ResourceViewItemType.DATA_APP:
             return `/projects/${projectUuid}/apps/${item.data.uuid}/view`;
         default:
@@ -76,6 +81,9 @@ const getFavoriteItemIcon = (item: ResourceViewItem) => {
 };
 
 const BrowseMenu: FC<Props> = ({ projectUuid }) => {
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     // Track if menu has ever been opened to defer loading spaces
     const [hasBeenOpened, setHasBeenOpened] = useState(false);
     const [spacesExpanded, setSpacesExpanded] = useState(false);
@@ -139,7 +147,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
             <Menu.Dropdown>
                 <Menu.Item
                     component={Link}
-                    to={`/projects/${projectUuid}/spaces`}
+                    to={`/projects/${projectUrlIdentifier}/spaces`}
                     leftSection={<MantineIcon icon={IconFolders} />}
                 >
                     All Spaces
@@ -147,7 +155,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
 
                 <Menu.Item
                     component={Link}
-                    to={`/projects/${projectUuid}/dashboards`}
+                    to={`/projects/${projectUrlIdentifier}/dashboards`}
                     leftSection={<MantineIcon icon={IconLayoutDashboard} />}
                 >
                     All dashboards
@@ -155,7 +163,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
 
                 <Menu.Item
                     component={Link}
-                    to={`/projects/${projectUuid}/saved`}
+                    to={`/projects/${projectUrlIdentifier}/saved`}
                     leftSection={<MantineIcon icon={IconChartAreaLine} />}
                 >
                     All saved charts
@@ -204,6 +212,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                                         component={Link}
                                         to={getFavoriteItemUrl(
                                             projectUuid,
+                                            projectUrlIdentifier,
                                             item,
                                         )}
                                         leftSection={
@@ -272,7 +281,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                                                 <Menu.Item
                                                     key={space.uuid}
                                                     component={Link}
-                                                    to={`/projects/${projectUuid}/spaces/${space.uuid}`}
+                                                    to={`/projects/${projectUrlIdentifier}/spaces/${space.uuid}`}
                                                     leftSection={
                                                         <MantineIcon
                                                             icon={IconFolder}

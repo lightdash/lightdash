@@ -10,8 +10,8 @@ import { type UseFormReturnType } from '@mantine/form';
 import { useDebouncedValue } from '@mantine/hooks';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { useParams } from 'react-router';
 import { lightdashApi } from '../../../api';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 
 interface DataAppTileFormProps {
     form: UseFormReturnType<DashboardDataAppTileProperties['properties']>;
@@ -38,7 +38,7 @@ const useProjectDataApps = (projectUuid: string | undefined, search: string) =>
     });
 
 const DataAppTileForm = ({ form }: DataAppTileFormProps) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const [searchValue, setSearchValue] = useState('');
     const [debouncedSearch] = useDebouncedValue(searchValue, 300);
     const { data, isLoading, isFetching, error } = useProjectDataApps(

@@ -19,6 +19,7 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
+import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import MantineIcon from '../MantineIcon';
 import styles from './DashboardInfoOverlay.module.css';
@@ -34,6 +35,9 @@ const DashboardInfoOverlay: FC<DashboardInfoOverlayProps> = ({
     projectUuid,
 }) => {
     const timeAgo = useTimeAgo(dashboard.updatedAt);
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
 
     return (
         <Stack gap="sm" w={320} p="md" className={styles.dashboardInfoOverlay}>
@@ -61,7 +65,7 @@ const DashboardInfoOverlay: FC<DashboardInfoOverlayProps> = ({
                     <InfoRow icon={IconFolder} label="Space">
                         <Anchor
                             component={Link}
-                            to={`/projects/${projectUuid}/spaces/${dashboard.spaceUuid}`}
+                            to={`/projects/${projectUrlIdentifier}/spaces/${dashboard.spaceUuid}`}
                             fz={12}
                             fw={500}
                         >

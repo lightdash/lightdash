@@ -31,15 +31,18 @@ import {
     useDashboardQuery,
     useDashboardVersionRollbackMutation,
 } from '../hooks/dashboard/useDashboard';
+import { useProjectUrlIdentifier } from '../hooks/useProjectRoute';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import { Can } from '../providers/Ability';
 import NoTableIcon from '../svgs/emptystate-no-table.svg?react';
 import DashboardVersionComparison from './DashboardVersionComparison';
 
 const DashboardHistory = () => {
     const navigate = useNavigate();
-    const { dashboardUuid: routeDashboardIdentifier, projectUuid } = useParams<{
+    const projectUuid = useProjectUuid();
+    const projectUrlIdentifier = useProjectUrlIdentifier();
+    const { dashboardUuid: routeDashboardIdentifier } = useParams<{
         dashboardUuid: string;
-        projectUuid: string;
     }>();
     const [isRollbackModalOpen, setIsRollbackModalOpen] = useState(false);
     const [selectedVersionUuid, setSelectedVersionUuid] = useState<string>();
@@ -89,7 +92,7 @@ const DashboardHistory = () => {
                             items={[
                                 {
                                     title: 'Dashboard',
-                                    to: `/projects/${projectUuid}/dashboards/${dashboardIdentifier}`,
+                                    to: `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}`,
                                 },
                                 { title: 'Version history', active: true },
                             ]}
@@ -224,7 +227,7 @@ const DashboardHistory = () => {
                                     onSuccess: () => {
                                         setIsRollbackModalOpen(false);
                                         void navigate(
-                                            `/projects/${projectUuid}/dashboards/${dashboardIdentifier}`,
+                                            `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}`,
                                         );
                                     },
                                 });

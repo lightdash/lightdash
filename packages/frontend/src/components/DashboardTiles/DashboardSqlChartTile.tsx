@@ -22,9 +22,9 @@ import {
     useState,
     type FC,
 } from 'react';
-import { useParams } from 'react-router';
 import { useSavedSqlChartResults } from '../../features/sqlRunner/hooks/useSavedSqlChartResults';
 import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useSearchParams from '../../hooks/useSearchParams';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -88,9 +88,7 @@ const SqlChartTile: FC<Props> = ({
     ...rest
 }) => {
     const { user } = useApp();
-    const { projectUuid } = useParams<{
-        projectUuid: string;
-    }>();
+    const projectUuid = useProjectUuid();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const effectiveProjectUuid = projectUuidOverride ?? projectUuid;
     const effectiveDashboardUuid = dashboardUuidOverride ?? dashboardUuid;

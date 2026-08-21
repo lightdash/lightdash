@@ -36,6 +36,7 @@ import { useIsLauncherMounted } from '../../ee/features/aiCopilot/components/Lau
 import { useActiveTabParameters } from '../../hooks/dashboard/useActiveTabParameters';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProject } from '../../hooks/useProject';
+import { useProjectUrlIdentifier } from '../../hooks/useProjectRoute';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -317,6 +318,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const dashboardUuid = dashboard?.uuid;
     const dashboardIdentifier = dashboard?.slug;
     const projectUuid = useDashboardContext((c) => c.projectUuid);
+    const projectUrlIdentifier = useProjectUrlIdentifier();
     const setHaveTabsChanged = useDashboardContext((c) => c.setHaveTabsChanged);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
@@ -670,8 +672,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             void navigate(
                 {
                     pathname: isEditMode
-                        ? `/projects/${projectUuid}/dashboards/${dashboardIdentifier}/edit/tabs/${tab?.uuid}`
-                        : `/projects/${projectUuid}/dashboards/${dashboardIdentifier}/view/tabs/${tab?.uuid}`,
+                        ? `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/edit/tabs/${tab?.uuid}`
+                        : `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/view/tabs/${tab?.uuid}`,
                     search: newParams.toString(),
                 },
                 { replace: true },
@@ -776,7 +778,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             // If this is the last tab, navigate to the non-tab URL.
             // See `const = sortedTabs` for more context.
             void navigate(
-                `/projects/${projectUuid}/dashboards/${dashboardIdentifier}/edit`,
+                `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/edit`,
                 { replace: true },
             );
 
