@@ -1,8 +1,9 @@
 import { type ItemsMap } from '../../../../../types/field';
 import { type MetricQuery } from '../../../../../types/metricQuery';
-import { type ChartConfig } from '../../../../../types/savedCharts';
+import { ChartType, type ChartConfig } from '../../../../../types/savedCharts';
 import {
-    isCustomChartTypeChartConfig,
+    isCustomChartTypePersistedChartConfig,
+    isCustomChartTypeSlugChartConfig,
     type ToolRunQueryArgsTransformed,
 } from '../../../schemas';
 import { getTableChartConfig } from '../generateTableVizConfigTool/getTableChartConfig';
@@ -32,10 +33,15 @@ export const getRunQueryChartConfig = ({
 }): ChartConfig => {
     const { chartConfig } = queryTool;
 
-    // Custom chart type answers render through a dedicated path; the thread
-    // shows a placeholder for them, this table config is a safe no-op for
-    // any other caller.
-    if (isCustomChartTypeChartConfig(chartConfig)) {
+    // The persisted shape mirrors the saved-chart DataAppVizChart, so it
+    // mounts the custom chart renderer as the chart config verbatim.
+    if (isCustomChartTypePersistedChartConfig(chartConfig)) {
+        return { type: ChartType.DATA_APP_VIZ, config: chartConfig };
+    }
+
+    // Un-enriched slug shape — only exists before the server resolves the
+    // slug to a uuid, so it should never reach render; table is a safe no-op.
+    if (isCustomChartTypeSlugChartConfig(chartConfig)) {
         return getTableChartConfig();
     }
 
