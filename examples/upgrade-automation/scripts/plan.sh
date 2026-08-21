@@ -22,10 +22,11 @@ base64_file() {
 }
 
 create_commit() {
-    local expected_head_oid=$1
-    local file_path=$2
-    local file_contents=$3
-    local commit_message=$4
+    local branch_name=$1
+    local expected_head_oid=$2
+    local file_path=$3
+    local file_contents=$4
+    local commit_message=$5
     local query
     query='mutation($input: CreateCommitOnBranchInput!) {
         createCommitOnBranch(input: $input) {
@@ -39,7 +40,7 @@ create_commit() {
     jq -n \
         --arg query "$query" \
         --arg repository "$GITHUB_REPOSITORY" \
-        --arg branch "$upgrade_branch" \
+        --arg branch "$branch_name" \
         --arg expected_head_oid "$expected_head_oid" \
         --arg message "$commit_message" \
         --arg path "$file_path" \
@@ -94,7 +95,30 @@ merge_error=$(mktemp)
 body_file=$(mktemp)
 summary_file=$(mktemp)
 fresh_file=$(mktemp ./plan-fresh.XXXXXX)
-trap 'rm -f "$index_file" "$gate_error" "$merge_error" "$body_file" "$summary_file" "$fresh_file"' EXIT
+head_file=$(mktemp ./plan-head.XXXXXX)
+scratch_ref_created=false
+scratch_expected_sha=
+
+delete_scratch_ref() {
+    if [[ "$scratch_ref_created" == "true" ]]; then
+        local scratch_head_sha
+        scratch_head_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$scratch_branch" --jq '.object.sha')
+        if [[ "$scratch_head_sha" != "$scratch_expected_sha" ]]; then
+            echo "refusing to delete $scratch_branch because it no longer belongs to this run" >&2
+            return 1
+        fi
+        gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$scratch_branch" >/dev/null
+        scratch_ref_created=false
+        scratch_expected_sha=
+    fi
+}
+
+cleanup() {
+    delete_scratch_ref || true
+    rm -f "$index_file" "$gate_error" "$merge_error" "$body_file" "$summary_file" "$fresh_file" "$head_file"
+}
+
+trap cleanup EXIT
 
 curl --connect-timeout 10 --max-time 60 --fail --silent --show-error "$RELEASE_INDEX_URL" --output "$index_file"
 jq -e '.schemaVersion == "1" and (.entries | type == "array")' "$index_file" >/dev/null
@@ -261,6 +285,11 @@ fi
 
 default_branch=$(gh api "repos/$GITHUB_REPOSITORY" --jq '.default_branch')
 upgrade_branch="${branch_prefix}-$(safe_branch_version "$mapped_version")"
+if [[ -z "$upgrade_branch" || "$upgrade_branch" == "$branch_prefix-" ]] \
+    || ! git check-ref-format "refs/heads/$upgrade_branch" >/dev/null; then
+    echo "upgrade branch is not a valid non-empty branch name" >&2
+    exit 1
+fi
 bump_file=${BUMP_TARGET%%#*}
 bump_path=${BUMP_TARGET#*#}
 bump_filename=${bump_file##*/}
@@ -268,10 +297,26 @@ bump_extension=${bump_filename##*.}
 if [[ "${bump_filename#.}" == *.* && -n "$bump_extension" ]]; then
     mv "$fresh_file" "$fresh_file.$bump_extension"
     fresh_file="$fresh_file.$bump_extension"
+    mv "$head_file" "$head_file.$bump_extension"
+    head_file="$head_file.$bump_extension"
 fi
 commit_message="chore: upgrade Lightdash to $mapped_version"
 commit_response=
 committed=false
+skip_commit=false
+scratch_run_id=${GITHUB_RUN_ID:-$$}
+scratch_run_attempt=${GITHUB_RUN_ATTEMPT:-1}
+if [[ ! "$scratch_run_id" =~ ^[0-9]+$ || ! "$scratch_run_attempt" =~ ^[0-9]+$ ]]; then
+    echo "GitHub run identifiers must be numeric" >&2
+    exit 1
+fi
+scratch_branch="${upgrade_branch}-build-${scratch_run_id}-${scratch_run_attempt}"
+if ! git check-ref-format "refs/heads/$scratch_branch" >/dev/null; then
+    echo "scratch branch is not a valid branch name" >&2
+    exit 1
+fi
+pr_json=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$upgrade_branch" --state open --json number,url,headRefOid --jq '.[0] // empty')
+pr_created=false
 
 for attempt in 1 2 3; do
     base_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$default_branch" --jq '.object.sha')
@@ -298,30 +343,60 @@ for attempt in 1 2 3; do
         exit 0
     fi
 
-    if gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$upgrade_branch" >/dev/null 2>&1; then
-        gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/heads/$upgrade_branch" \
-            -f sha="$base_sha" \
-            -F force=true >/dev/null
-    else
-        gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
-            -f ref="refs/heads/$upgrade_branch" \
-            -f sha="$base_sha" >/dev/null
+    if [[ -n "$pr_json" ]]; then
+        pr_head_sha=$(jq -r '.headRefOid' <<<"$pr_json")
+        pr_parent_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/commits/$pr_head_sha" --jq '.parents[0].sha // empty')
+        if [[ "$pr_parent_sha" == "$base_sha" ]]; then
+            gh api "repos/$GITHUB_REPOSITORY/contents/$bump_file?ref=$pr_head_sha" --jq '.content' \
+                | tr -d '\n' \
+                | base64 --decode >"$head_file"
+            pr_mapped=$(python3 "$ACTION_ROOT/scripts/bump-target.py" read "$head_file#$bump_path")
+            if [[ "$pr_mapped" == "$mapped_version" ]]; then
+                echo "$upgrade_branch already pins $mapped_version on current main $base_sha; skipping rebuild"
+                skip_commit=true
+                break
+            fi
+        fi
     fi
+
+    gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+        -f ref="refs/heads/$scratch_branch" \
+        -f sha="$base_sha" >/dev/null
+    scratch_ref_created=true
+    scratch_expected_sha=$base_sha
 
     python3 "$ACTION_ROOT/scripts/bump-target.py" write "$fresh_file#$bump_path" "$mapped_version"
     file_contents=$(base64_file "$fresh_file")
-    if commit_response=$(create_commit "$base_sha" "$bump_file" "$file_contents" "$commit_message"); then
+    if commit_response=$(create_commit "$scratch_branch" "$base_sha" "$bump_file" "$file_contents" "$commit_message"); then
+        new_commit_oid=$(jq -er '.data.createCommitOnBranch.commit.oid | select(type == "string" and length > 0)' <<<"$commit_response")
+        scratch_expected_sha=$new_commit_oid
+        new_commit_parent_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/commits/$new_commit_oid" --jq 'if (.parents | length) == 1 then .parents[0].sha else empty end')
+        scratch_head_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$scratch_branch" --jq '.object.sha')
+        if [[ "$new_commit_parent_sha" != "$base_sha" || "$scratch_head_sha" != "$new_commit_oid" ]]; then
+            echo "created commit is not the expected child of $base_sha on $scratch_branch" >&2
+            exit 1
+        fi
+        if gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$upgrade_branch" >/dev/null 2>&1; then
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/heads/$upgrade_branch" \
+                -f sha="$new_commit_oid" \
+                -F force=true >/dev/null
+        else
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+                -f ref="refs/heads/$upgrade_branch" \
+                -f sha="$new_commit_oid" >/dev/null
+        fi
+        delete_scratch_ref
         committed=true
         break
     fi
+    delete_scratch_ref
     echo "commit attempt $attempt lost the race; retrying from the latest $default_branch" >&2
 done
 
-if [[ "$committed" != "true" ]]; then
+if [[ "$committed" != "true" && "$skip_commit" != "true" ]]; then
     echo "failed to commit $bump_file after 3 attempts" >&2
     exit 1
 fi
-jq -e '.data.createCommitOnBranch.commit.oid | type == "string" and length > 0' <<<"$commit_response" >/dev/null
 
 plain_reason='The release-safety gate found a green upgrade path.'
 if [[ "$safety_gate" == "false" ]]; then
@@ -361,22 +436,25 @@ $formatted_json
 This pull request was created by the self-hosted Lightdash upgrade automation. Verification runs after the configured deployment workflow completes.
 EOF
 
-pr_json=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$upgrade_branch" --state open --json number,url --jq '.[0] // empty')
-pr_created=false
-if [[ -z "$pr_json" ]]; then
-    pr_created=true
-    pr_url=$(gh pr create \
-        --repo "$GITHUB_REPOSITORY" \
-        --base "$default_branch" \
-        --head "$upgrade_branch" \
-        --title "chore: upgrade Lightdash to $mapped_version" \
-        --body-file "$body_file")
-    pr_json=$(gh pr view "$pr_url" --repo "$GITHUB_REPOSITORY" --json number,url)
-else
+if [[ "$skip_commit" == "true" ]]; then
     pr_url=$(jq -r '.url' <<<"$pr_json")
-    gh pr edit "$pr_url" \
-        --title "chore: upgrade Lightdash to $mapped_version" \
-        --body-file "$body_file"
+else
+    pr_json=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$upgrade_branch" --state open --json number,url --jq '.[0] // empty')
+    if [[ -z "$pr_json" ]]; then
+        pr_created=true
+        pr_url=$(gh pr create \
+            --repo "$GITHUB_REPOSITORY" \
+            --base "$default_branch" \
+            --head "$upgrade_branch" \
+            --title "chore: upgrade Lightdash to $mapped_version" \
+            --body-file "$body_file")
+        pr_json=$(gh pr view "$pr_url" --repo "$GITHUB_REPOSITORY" --json number,url)
+    else
+        pr_url=$(jq -r '.url' <<<"$pr_json")
+        gh pr edit "$pr_url" \
+            --title "chore: upgrade Lightdash to $mapped_version" \
+            --body-file "$body_file"
+    fi
 fi
 pr_number=$(jq -r '.number' <<<"$pr_json")
 pr_url=$(jq -r '.url' <<<"$pr_json")
