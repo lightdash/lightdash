@@ -149,6 +149,7 @@
 .belowComposerControls {
     display: flex;
     justify-content: flex-end;
+    align-items: center;
     min-height: rem(30px);
     padding: rem(4px) rem(8px) 0;
 }

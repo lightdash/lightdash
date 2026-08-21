@@ -916,6 +916,11 @@ export const AgentChatInput = ({
             </Pill.Group>
         ) : undefined;
 
+    const hasExternalModeControls =
+        !disabled &&
+        shouldShowDeepResearchBelowComposer &&
+        Boolean(compactDeepResearchControl || showSqlModeControl);
+
     const renderExternalModeControls = ({
         actionSize,
         iconSize,
@@ -923,15 +928,13 @@ export const AgentChatInput = ({
         actionSize: number | 'sm' | 'md';
         iconSize: number;
     }) => {
-        if (
-            !shouldShowDeepResearchBelowComposer ||
-            (!compactDeepResearchControl && !showSqlModeControl)
-        ) {
+        if (!hasExternalModeControls) {
             return null;
         }
 
         return (
             <Box className={styles.belowComposerControls}>
+                {footerNotice && <Box mr="auto">{footerNotice}</Box>}
                 <Group gap="xs" align="center" wrap="nowrap">
                     {compactDeepResearchControl}
                     {renderSqlModeControl({ actionSize, iconSize })}
@@ -1054,7 +1057,7 @@ export const AgentChatInput = ({
                     </Text>
                 )}
 
-                {footerNotice && (
+                {!disabled && !hasExternalModeControls && footerNotice && (
                     <Box className={styles.footerNotice}>{footerNotice}</Box>
                 )}
             </Box>
@@ -1156,7 +1159,7 @@ export const AgentChatInput = ({
                 </Paper>
             )}
 
-            {footerNotice && (
+            {!disabled && !hasExternalModeControls && footerNotice && (
                 <Box className={styles.footerNotice}>{footerNotice}</Box>
             )}
         </Box>
