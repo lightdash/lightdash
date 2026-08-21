@@ -11,10 +11,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../../../features/apps/hooks/useCanEditDataApp';
 import { useDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
-import {
-    autoMapDataAppVizFields,
-    reconcileDataAppVizFieldMapping,
-} from '../../../features/chartTypes/utils/autoMapDataAppVizFields';
+import { reconcileDataAppVizFieldMapping } from '../../../features/chartTypes/utils/autoMapDataAppVizFields';
 import { getDataAppVizFieldItems } from '../../../features/chartTypes/utils/getDataAppVizFieldItems';
 import { useIsInsideChartGallery } from '../../common/ChartGallery/ChartGalleryContext';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
@@ -22,6 +19,7 @@ import { useVisualizationContext } from '../../LightdashVisualization/useVisuali
 import { ColorPaletteSection } from '../common/ColorPaletteSection';
 import { type CustomChartTypeOption } from '../CustomChartType/customChartTypeOption';
 import CustomChartTypeSection from '../CustomChartType/CustomChartTypeSection';
+import { useSelectProjectChartType } from '../CustomChartType/useSelectProjectChartType';
 import classes from './DataAppVizConfigTabs.module.css';
 import DataAppVizOptionTabs from './DataAppVizOptionTabs';
 import DataAppVizSettings from './DataAppVizSettings';
@@ -35,6 +33,7 @@ export const ConfigTabs: FC = memo(() => {
     const navigate = useNavigate();
     const { visualizationConfig, itemsMap, setChartType, setPivotDimensions } =
         useVisualizationContext();
+    const selectProjectChartType = useSelectProjectChartType();
 
     const isDataAppViz = isDataAppVizVisualizationConfig(visualizationConfig);
     const dataAppVizUuid = isDataAppViz
@@ -170,21 +169,12 @@ export const ConfigTabs: FC = memo(() => {
                         selectedDataAppViz={dataAppViz ?? null}
                         hasColumns={hasColumns}
                         onSelectVega={() => setChartType(ChartType.CUSTOM)}
-                        onSelectProjectType={(picked) => {
-                            const pickedFields = picked.schema?.fields ?? [];
-                            const pickedMapping = autoMapDataAppVizFields(
-                                pickedFields,
+                        onSelectProjectType={(picked) =>
+                            selectProjectChartType(
+                                picked,
                                 itemsMap ?? NO_COLUMNS,
-                            );
-                            setDataAppVizUuid(
-                                picked.dataAppVizUuid,
-                                pickedMapping,
-                            );
-                            setMappingPivotDimensions(
-                                pickedFields,
-                                pickedMapping,
-                            );
-                        }}
+                            )
+                        }
                         onClear={() => {
                             setDataAppVizUuid('', {});
                             setPivotDimensions(undefined);
