@@ -3,9 +3,9 @@ services:
     image: pgvector/pgvector:pg16
     restart: always
     ports:
-      - "${AGENT_DB_PORT:-15432}:5432"
+      - "127.0.0.1:${AGENT_DB_PORT:-15432}:5432"
     environment:
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD: ${PGPASSWORD:-password}
     volumes:
       - agent-db-data:/var/lib/postgresql/data
     healthcheck:
@@ -28,8 +28,8 @@ services:
   minio:
     image: coollabsio/minio:latest
     ports:
-      - "${AGENT_MINIO_PORT:-19000}:9000"
-      - "${AGENT_MINIO_CONSOLE_PORT:-19001}:9001"
+      - "127.0.0.1:${AGENT_MINIO_PORT:-19000}:9000"
+      - "127.0.0.1:${AGENT_MINIO_CONSOLE_PORT:-19001}:9001"
     volumes:
       - agent-minio-data:/minio/data
       - ../docker/init-minio.sh:/init-minio.sh
@@ -48,7 +48,7 @@ services:
     image: ghcr.io/browserless/chromium:v2.38.2
     restart: always
     ports:
-      - "${AGENT_BROWSER_PORT:-13001}:3000"
+      - "127.0.0.1:${AGENT_BROWSER_PORT:-13001}:3000"
     shm_size: 512m
     deploy:
       resources:
@@ -59,8 +59,8 @@ services:
     image: axllent/mailpit:latest
     restart: unless-stopped
     ports:
-      - "${AGENT_MAILPIT_WEB_PORT:-18025}:8025"
-      - "${AGENT_MAILPIT_SMTP_PORT:-11025}:1025"
+      - "127.0.0.1:${AGENT_MAILPIT_WEB_PORT:-18025}:8025"
+      - "127.0.0.1:${AGENT_MAILPIT_SMTP_PORT:-11025}:1025"
     environment:
       MP_MAX_MESSAGES: 5000
       MP_SMTP_AUTH_ACCEPT_ANY: 1
