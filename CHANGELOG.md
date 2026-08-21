@@ -1,3 +1,10 @@
+## [1.236.2](https://github.com/lightdash/lightdash/compare/1.236.1...1.236.2) (2026-08-21)
+
+
+### Bug Fixes
+
+* **pgwire:** ignore scheduler pauses in catalog timeouts ([#27873](https://github.com/lightdash/lightdash/issues/27873)) ([b518663](https://github.com/lightdash/lightdash/commit/b51866366bc3be40f6668e5504352cd91ad5c4eb))
+
 ## [1.236.1](https://github.com/lightdash/lightdash/compare/1.236.0...1.236.1) (2026-08-21)
 
 
