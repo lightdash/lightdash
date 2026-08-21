@@ -1,3 +1,10 @@
+## [1.235.3](https://github.com/lightdash/lightdash/compare/1.235.2...1.235.3) (2026-08-21)
+
+
+### Bug Fixes
+
+* preserve OAuth loopback redirects ([#27853](https://github.com/lightdash/lightdash/issues/27853)) ([a2277ce](https://github.com/lightdash/lightdash/commit/a2277ce564ff2559c7f8aa6f675a94f98bf2af17))
+
 ## [1.235.2](https://github.com/lightdash/lightdash/compare/1.235.1...1.235.2) (2026-08-21)
 
 
