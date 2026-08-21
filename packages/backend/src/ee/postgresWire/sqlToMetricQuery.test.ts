@@ -1079,10 +1079,13 @@ describe('compileSqlToMetricQuery', () => {
             );
             expect(probe.columns.map((c) => c.name)).toEqual(['?column?']);
             expect(probe.metricQuery.dimensions).toEqual(['orders_status']);
-            // aggregates still point at metrics
+            // aggregates other than row counts still point at metrics
             expect(() =>
-                compileSqlToMetricQuery('SELECT count(1) FROM orders', CATALOG),
-            ).toThrow(/Aggregate function "count" is not supported/);
+                compileSqlToMetricQuery(
+                    'SELECT sum(orders_amount) FROM orders',
+                    CATALOG,
+                ),
+            ).toThrow(/Aggregate function "sum" is not supported/);
         });
     });
 
@@ -1399,6 +1402,59 @@ describe('compileSqlToMetricQuery', () => {
                 'aov',
             ]);
         });
+    });
+});
+
+describe('row counts', () => {
+    it('compiles count(*) to a system COUNT metric', () => {
+        const compiled = compileSqlToMetricQuery(
+            'SELECT count(*) FROM orders',
+            CATALOG,
+        );
+        expect(compiled.columns).toEqual([
+            {
+                name: 'count',
+                source: 'orders_pgwire_row_count',
+                kind: 'metric',
+                type: 'count',
+            },
+        ]);
+        expect(compiled.metricQuery.metrics).toEqual([
+            'orders_pgwire_row_count',
+        ]);
+        expect(compiled.metricQuery.additionalMetrics).toEqual([
+            {
+                name: 'pgwire_row_count',
+                table: 'orders',
+                sql: '*',
+                type: 'count',
+            },
+        ]);
+        expect(compiled.metricQuery.dimensions).toEqual([]);
+    });
+
+    it('supports count(1), aliases, filters and grouped counts', () => {
+        expect(
+            compileSqlToMetricQuery(
+                "SELECT count(1) AS n FROM orders WHERE orders_status = 'completed'",
+                CATALOG,
+            ).columns[0],
+        ).toMatchObject({ name: 'n', kind: 'metric' });
+        const grouped = compileSqlToMetricQuery(
+            'SELECT orders_status, count(*) FROM orders GROUP BY orders_status',
+            CATALOG,
+        );
+        expect(grouped.metricQuery.dimensions).toEqual(['orders_status']);
+        expect(grouped.metricQuery.metrics).toEqual([
+            'orders_pgwire_row_count',
+        ]);
+        // count(distinct x) still points at metrics
+        expect(() =>
+            compileSqlToMetricQuery(
+                'SELECT count(distinct orders_status) FROM orders',
+                CATALOG,
+            ),
+        ).toThrow(/not supported/);
     });
 });
 
