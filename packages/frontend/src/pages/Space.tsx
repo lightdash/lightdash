@@ -434,6 +434,9 @@ const Space: FC = () => {
                                 ContentType.SPACE,
                                 ContentType.DATA_APP,
                             ],
+                            // Vizs are spaceless today, but declare the
+                            // exclusion rather than rely on that invariant.
+                            dataAppVizsFilter: 'exclude',
                         }}
                         contentTypeFilter={{
                             defaultValue: undefined,
