@@ -1,3 +1,10 @@
+## [1.235.1](https://github.com/lightdash/lightdash/compare/1.235.0...1.235.1) (2026-08-21)
+
+
+### Bug Fixes
+
+* **dbt:** apply dbt selectors when a project has multiple dbt sources ([#27848](https://github.com/lightdash/lightdash/issues/27848)) ([237cf79](https://github.com/lightdash/lightdash/commit/237cf79e982a44d55b248f1a678d97875d401ed4)), closes [#27846](https://github.com/lightdash/lightdash/issues/27846)
+
 # [1.235.0](https://github.com/lightdash/lightdash/compare/1.234.1...1.235.0) (2026-08-21)
 
 
