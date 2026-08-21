@@ -79,6 +79,10 @@ export const useSettingsContext = (): SettingsContext => {
     const { data: externalSourcesFlag } = useServerFeatureFlag(
         FeatureFlags.ExternalSources,
     );
+    const { data: resultsCacheFlag } = useServerFeatureFlag(
+        FeatureFlags.ResultsCacheEnabled,
+    );
+    const isResultsCacheEnabled = resultsCacheFlag?.enabled ?? false;
 
     const { data: proLimitsFlag } = useServerFeatureFlag(
         FeatureFlags.ProLimits,
@@ -201,6 +205,7 @@ export const useSettingsContext = (): SettingsContext => {
         dataAppsFlag,
         isDataAppsFlagLoading: dataAppsFlagQuery.isInitialLoading,
         externalSourcesFlag,
+        isResultsCacheEnabled,
         embeddingEnabled,
         allowPasswordAuthentication,
         hasSocialLogin,

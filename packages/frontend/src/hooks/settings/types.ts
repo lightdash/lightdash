@@ -80,6 +80,7 @@ export type SettingsContext = {
     dataAppsFlag: FeatureFlag | undefined;
     isDataAppsFlagLoading: boolean;
     externalSourcesFlag: FeatureFlag | undefined;
+    isResultsCacheEnabled: boolean;
     embeddingEnabled: FeatureFlag | undefined;
     allowPasswordAuthentication: boolean;
     hasSocialLogin: boolean | undefined;
