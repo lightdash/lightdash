@@ -3,6 +3,7 @@ import {
     deriveDataAppVizPivotConfig,
     type ChartConfig,
     type CreateSavedChartVersion,
+    type DataAppVizChart,
     type DataAppVizRenderMetadata,
     type MetricQuery,
     type ParametersValuesMap,
@@ -24,6 +25,13 @@ type BuildAiSavedChartDataArgs = {
     /** Fetched for custom-chart-type answers; undefined for builtin answers. */
     customChartTypeMetadata: DataAppVizRenderMetadata | undefined;
 };
+
+export const getCustomChartTypeConfig = (
+    chartConfig: ChartConfig,
+): DataAppVizChart | undefined =>
+    chartConfig.type === ChartType.DATA_APP_VIZ
+        ? chartConfig.config
+        : undefined;
 
 /** The saved-chart version an AI answer persists through the save flows. */
 export const buildAiSavedChartData = ({
@@ -61,10 +69,7 @@ export const buildAiSavedChartData = ({
             parameters: merge.parameters,
         };
     }
-    const customChartTypeConfig =
-        chartConfig.type === ChartType.DATA_APP_VIZ
-            ? chartConfig.config
-            : undefined;
+    const customChartTypeConfig = getCustomChartTypeConfig(chartConfig);
     // The thread pivots custom answers server-side from the type's schema;
     // persisting the same derivation makes the saved chart round-trip.
     if (customChartTypeConfig) {

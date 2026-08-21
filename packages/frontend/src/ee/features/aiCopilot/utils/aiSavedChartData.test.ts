@@ -1,5 +1,6 @@
 import {
     ChartType,
+    MergeJoinType,
     type ChartConfig,
     type DataAppVizRenderMetadata,
     type MetricQuery,
@@ -185,7 +186,7 @@ describe('buildAiSavedChartData', () => {
                         },
                     },
                 ],
-                joinType: 'full' as CanonicalAiMerge['mergeQuery']['joinType'],
+                joinType: MergeJoinType.FULL,
                 tableCalculations: [],
                 limit: 500,
             },
