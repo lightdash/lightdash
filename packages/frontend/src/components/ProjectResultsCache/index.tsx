@@ -131,7 +131,11 @@ const ProjectResultsCacheForm: FC<FormProps> = ({
                 />
 
                 <Group justify="flex-end">
-                    <Button type="submit" loading={isUpdating}>
+                    <Button
+                        type="submit"
+                        loading={isUpdating}
+                        disabled={isUpdating || !form.isValid()}
+                    >
                         Save
                     </Button>
                 </Group>
