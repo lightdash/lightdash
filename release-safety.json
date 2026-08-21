@@ -1,14 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "1.232.2",
-  "previousVersion": "1.232.1",
-  "releaseDate": "2026-08-21T08:37:48.873Z",
+  "version": "1.233.0",
+  "previousVersion": "1.232.2",
+  "releaseDate": "2026-08-21T09:02:32.738Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20260821081500_add_slug_to_projects.ts",
+        "edition": "core",
+        "tables": [
+          "projects"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": true,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

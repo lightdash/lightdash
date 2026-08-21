@@ -42873,6 +42873,7 @@ const models: TsoaRoute.Models = {
                 dbtConnection: { ref: 'DbtProjectConfig', required: true },
                 type: { ref: 'ProjectType', required: true },
                 name: { dataType: 'string', required: true },
+                slug: { dataType: 'string' },
                 projectUuid: { dataType: 'string', required: true },
                 organizationUuid: { dataType: 'string', required: true },
             },
@@ -42892,13 +42893,20 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Project.name-or-projectUuid-or-organizationUuid-or-type-or-upstreamProjectUuid-or-createdByUserUuid-or-provisioningSource_':
+    'Pick_Project.name-or-projectUuid-or-slug-or-organizationUuid-or-type-or-upstreamProjectUuid-or-createdByUserUuid-or-provisioningSource_':
         {
             dataType: 'refAlias',
             type: {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
                     name: { dataType: 'string', required: true },
+                    slug: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                     type: { ref: 'ProjectType', required: true },
                     organizationUuid: { dataType: 'string', required: true },
                     projectUuid: { dataType: 'string', required: true },
@@ -42933,7 +42941,7 @@ const models: TsoaRoute.Models = {
     ProjectSummary: {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_Project.name-or-projectUuid-or-organizationUuid-or-type-or-upstreamProjectUuid-or-createdByUserUuid-or-provisioningSource_',
+            ref: 'Pick_Project.name-or-projectUuid-or-slug-or-organizationUuid-or-type-or-upstreamProjectUuid-or-createdByUserUuid-or-provisioningSource_',
             validators: {},
         },
     },
@@ -46699,6 +46707,7 @@ const models: TsoaRoute.Models = {
                 },
                 type: { ref: 'ProjectType', required: true },
                 name: { dataType: 'string', required: true },
+                slug: { dataType: 'string' },
                 projectUuid: { dataType: 'string', required: true },
             },
             validators: {},

@@ -43179,6 +43179,9 @@
                     "name": {
                         "type": "string"
                     },
+                    "slug": {
+                        "type": "string"
+                    },
                     "projectUuid": {
                         "type": "string"
                     },
@@ -43221,9 +43224,12 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_Project.name-or-projectUuid-or-organizationUuid-or-type-or-upstreamProjectUuid-or-createdByUserUuid-or-provisioningSource_": {
+            "Pick_Project.name-or-projectUuid-or-slug-or-organizationUuid-or-type-or-upstreamProjectUuid-or-createdByUserUuid-or-provisioningSource_": {
                 "properties": {
                     "name": {
+                        "type": "string"
+                    },
+                    "slug": {
                         "type": "string"
                     },
                     "type": {
@@ -43258,7 +43264,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "ProjectSummary": {
-                "$ref": "#/components/schemas/Pick_Project.name-or-projectUuid-or-organizationUuid-or-type-or-upstreamProjectUuid-or-createdByUserUuid-or-provisioningSource_"
+                "$ref": "#/components/schemas/Pick_Project.name-or-projectUuid-or-slug-or-organizationUuid-or-type-or-upstreamProjectUuid-or-createdByUserUuid-or-provisioningSource_"
             },
             "ApiSuccess_ProjectSummary_": {
                 "properties": {
@@ -46877,6 +46883,9 @@
                         "$ref": "#/components/schemas/ProjectType"
                     },
                     "name": {
+                        "type": "string"
+                    },
+                    "slug": {
                         "type": "string"
                     },
                     "projectUuid": {
@@ -56034,7 +56043,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.232.2",
+        "version": "1.233.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

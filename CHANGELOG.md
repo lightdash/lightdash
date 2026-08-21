@@ -1,3 +1,10 @@
+# [1.233.0](https://github.com/lightdash/lightdash/compare/1.232.2...1.233.0) (2026-08-21)
+
+
+### Features
+
+* add organization-scoped project slugs ([#27818](https://github.com/lightdash/lightdash/issues/27818)) ([e76509c](https://github.com/lightdash/lightdash/commit/e76509ca0597fa2fcfefcd72889a09738916393a))
+
 ## [1.232.2](https://github.com/lightdash/lightdash/compare/1.232.1...1.232.2) (2026-08-21)
 
 
