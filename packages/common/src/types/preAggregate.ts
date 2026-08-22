@@ -33,7 +33,27 @@ export type ActiveMaterializationDetails = {
     columns: ResultColumns | null;
     materializedAt: Date;
     totalBytes: number | null;
+    rowCount: number | null;
+    /** Cap from the persisted materialization payload the artifact was built with. */
+    resolvedMaxRows: number | null;
 };
+
+/**
+ * Strictly-under-cap contract shared by the materialization promote gate and
+ * active-materialization resolution: an artifact built with LIMIT resolvedMaxRows
+ * that reports rowCount >= resolvedMaxRows may be truncated, so it must be failed
+ * instead of promoted and never served. Unknown row counts or caps pass.
+ */
+export const hasPreAggregateMaterializationReachedMaxRows = ({
+    rowCount,
+    resolvedMaxRows,
+}: {
+    rowCount: number | null;
+    resolvedMaxRows: number | null;
+}): boolean =>
+    rowCount !== null &&
+    resolvedMaxRows !== null &&
+    rowCount >= resolvedMaxRows;
 
 export type PreAggregateMaterializationRole = {
     email: string;
@@ -263,11 +283,13 @@ export const computePreAggregateWarnings = (
     } = options;
     const warnings: PreAggregateMaterializationWarning[] = [];
 
-    const rowCount = materialization?.rowCount;
+    const rowCount = materialization?.rowCount ?? null;
     if (
-        materializationMaxRows != null &&
-        rowCount != null &&
-        rowCount >= materializationMaxRows
+        materializationMaxRows !== null &&
+        hasPreAggregateMaterializationReachedMaxRows({
+            rowCount,
+            resolvedMaxRows: materializationMaxRows,
+        })
     ) {
         warnings.push({
             type: 'max_rows_applied',
@@ -276,7 +298,7 @@ export const computePreAggregateWarnings = (
         });
     }
 
-    if (rowCount != null && rowCount > rowCountThreshold) {
+    if (rowCount !== null && rowCount > rowCountThreshold) {
         warnings.push({
             type: 'row_count_exceeded',
             message: `This pre-aggregate has ${rowCount.toLocaleString()} rows, which exceeds the recommended threshold of ${rowCountThreshold.toLocaleString()} rows. Large pre-aggregates may take longer to build and consume more storage.`,
