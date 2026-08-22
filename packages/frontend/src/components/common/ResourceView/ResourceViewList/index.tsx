@@ -17,10 +17,12 @@ import { useSpaceSummaries } from '../../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../../hooks/validation/useValidation';
 import { ResourceIcon, ResourceIndicator } from '../../ResourceIcon';
 import { ResourceInfoPopup } from '../../ResourceInfoPopup/ResourceInfoPopup';
+import ViewsCountPopover from '../../ViewsCountPopover';
 import {
     getResourceTypeName,
     getResourceUrl,
     getResourceViewsSinceWhenDescription,
+    getViewStatsResourceType,
 } from '../resourceUtils';
 import {
     ResourceSortDirection,
@@ -227,21 +229,29 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                     {canBelongToSpace && (
                                         <Text fz="xs" c="ldGray.6">
                                             {getResourceTypeName(item)} •{' '}
-                                            <Tooltip
-                                                position="top-start"
-                                                disabled={
-                                                    !item.data.views ||
-                                                    !item.data.firstViewedAt
-                                                }
-                                                label={getResourceViewsSinceWhenDescription(
+                                            <ViewsCountPopover
+                                                resourceType={getViewStatsResourceType(
                                                     item,
                                                 )}
+                                                resourceUuid={item.data.uuid}
+                                                projectUuid={projectUuid}
                                             >
-                                                <span>
-                                                    {item.data.views || '0'}{' '}
-                                                    views
-                                                </span>
-                                            </Tooltip>
+                                                <Tooltip
+                                                    position="top-start"
+                                                    disabled={
+                                                        !item.data.views ||
+                                                        !item.data.firstViewedAt
+                                                    }
+                                                    label={getResourceViewsSinceWhenDescription(
+                                                        item,
+                                                    )}
+                                                >
+                                                    <span>
+                                                        {item.data.views || '0'}{' '}
+                                                        views
+                                                    </span>
+                                                </Tooltip>
+                                            </ViewsCountPopover>
                                         </Text>
                                     )}
                                 </Stack>

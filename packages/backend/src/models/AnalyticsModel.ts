@@ -1,4 +1,5 @@
 import {
+    DetailedViewStatistics,
     OrganizationMemberRole,
     UnusedContent,
     UnusedContentItem,
@@ -6,7 +7,6 @@ import {
     UnusedContentReason,
     UserActivity,
     UserWithCount,
-    ViewStatistics,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
@@ -57,7 +57,9 @@ export class AnalyticsModel {
         this.database = args.database;
     }
 
-    async getChartViewStats(chartUuid: string): Promise<ViewStatistics> {
+    async getChartViewStats(
+        chartUuid: string,
+    ): Promise<DetailedViewStatistics> {
         return traceSpan(
             {
                 op: 'AnalyticsModel.getChartStats',
@@ -66,21 +68,67 @@ export class AnalyticsModel {
             async () => {
                 const stats = await this.database(AnalyticsChartViewsTableName)
                     .count({ views: '*' })
+                    .countDistinct({ unique_viewer_count: 'user_uuid' })
+                    .count({
+                        anonymous_view_count: this.database.raw(
+                            'CASE WHEN user_uuid IS NULL THEN 1 END',
+                        ),
+                    })
                     .min({
                         first_viewed_at: 'timestamp',
                     })
                     .where('chart_uuid', chartUuid)
                     .first();
 
-                return {
-                    views:
-                        typeof stats?.views === 'number'
-                            ? stats.views
-                            : parseInt(stats?.views ?? '0', 10),
-                    firstViewedAt: stats?.first_viewed_at ?? new Date(),
-                };
+                return this.formatViewStatistics(stats);
             },
         );
+    }
+
+    async getDashboardViewStats(
+        dashboardUuid: string,
+    ): Promise<DetailedViewStatistics> {
+        return traceSpan(
+            {
+                op: 'AnalyticsModel.getDashboardViewStats',
+                name: 'AnalyticsModel.getDashboardViewStats',
+            },
+            async () => {
+                const stats = await this.database(
+                    AnalyticsDashboardViewsTableName,
+                )
+                    .count({ views: '*' })
+                    .countDistinct({ unique_viewer_count: 'user_uuid' })
+                    .count({
+                        anonymous_view_count: this.database.raw(
+                            'CASE WHEN user_uuid IS NULL THEN 1 END',
+                        ),
+                    })
+                    .min({ first_viewed_at: 'timestamp' })
+                    .where('dashboard_uuid', dashboardUuid)
+                    .first();
+
+                return this.formatViewStatistics(stats);
+            },
+        );
+    }
+
+    private formatViewStatistics(
+        stats:
+            | {
+                  views?: string | number;
+                  unique_viewer_count?: string | number;
+                  anonymous_view_count?: string | number;
+                  first_viewed_at?: Date;
+              }
+            | undefined,
+    ): DetailedViewStatistics {
+        return {
+            views: Number(stats?.views ?? 0),
+            firstViewedAt: stats?.first_viewed_at ?? null,
+            uniqueViewerCount: Number(stats?.unique_viewer_count ?? 0),
+            anonymousViewCount: Number(stats?.anonymous_view_count ?? 0),
+        };
     }
 
     async addChartViewEvent(

@@ -21,6 +21,36 @@ describe('AnalyticsModel', () => {
         tracker.reset();
     });
 
+    it.each([
+        ['chart', 'chart_uuid', () => model.getChartViewStats(projectUuid)],
+        [
+            'dashboard',
+            'dashboard_uuid',
+            () => model.getDashboardViewStats(projectUuid),
+        ],
+    ])(
+        'returns detailed %s view statistics',
+        async (_resourceType, uuidColumn, getStats) => {
+            tracker.on
+                .select(new RegExp(`where "${uuidColumn}" =`, 'i'))
+                .response([
+                    {
+                        views: '12',
+                        unique_viewer_count: '4',
+                        anonymous_view_count: '2',
+                        first_viewed_at: new Date('2025-01-01'),
+                    },
+                ]);
+
+            await expect(getStats()).resolves.toEqual({
+                views: 12,
+                uniqueViewerCount: 4,
+                anonymousViewCount: 2,
+                firstViewedAt: new Date('2025-01-01'),
+            });
+        },
+    );
+
     it('includes organization custom-role users in the project population', () => {
         const sql = usersInProjectSql(projectUuid, organizationUuid).replace(
             /\s+/g,
