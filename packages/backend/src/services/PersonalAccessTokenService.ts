@@ -3,6 +3,7 @@ import {
     Account,
     CreatePersonalAccessToken,
     ForbiddenError,
+    isSelfRegisteredOAuthAuthentication,
     ParameterError,
     PersonalAccessToken,
     PersonalAccessTokenWithToken,
@@ -60,6 +61,12 @@ export class PersonalAccessTokenService extends BaseService {
         data: CreatePersonalAccessToken,
         method: RequestMethod,
     ): Promise<PersonalAccessTokenWithToken> {
+        if (isSelfRegisteredOAuthAuthentication(account.authentication)) {
+            throw new ForbiddenError(
+                'Self-registered OAuth clients cannot create personal access tokens',
+            );
+        }
+
         const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
@@ -158,6 +165,12 @@ export class PersonalAccessTokenService extends BaseService {
         personalAccessTokenUuid: string,
         data: { expiresAt: Date },
     ): Promise<PersonalAccessTokenWithToken> {
+        if (isSelfRegisteredOAuthAuthentication(account.authentication)) {
+            throw new ForbiddenError(
+                'Self-registered OAuth clients cannot rotate personal access tokens',
+            );
+        }
+
         const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(

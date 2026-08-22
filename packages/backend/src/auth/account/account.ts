@@ -282,7 +282,7 @@ export const fromOauth = (
         refreshToken?: string;
         refreshTokenExpiresAt?: Date;
         scope?: string[];
-        client: { id: string };
+        client: { id: string; organizationUuid?: string | null };
     },
 ): OauthAccount => {
     const [organization, user] = extractOrganizationFromUser(sessionUser);
@@ -292,6 +292,7 @@ export const fromOauth = (
             source: token.accessToken,
             token: token.accessToken,
             clientId: token.client.id,
+            clientOrganizationUuid: token.client.organizationUuid,
             scopes: token.scope || [],
         },
         organization,

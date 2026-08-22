@@ -108,6 +108,7 @@ export class ServiceAccountsController extends BaseController {
     ): Promise<{ status: 'ok'; results: ServiceAccount }> {
         assertRegisteredAccount(req.account);
         const token = await this.getServiceAccountService().create({
+            authentication: req.account.authentication,
             user: toSessionUser(req.account),
             tokenDetails: {
                 ...body,
