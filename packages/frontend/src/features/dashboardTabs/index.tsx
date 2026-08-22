@@ -1378,7 +1378,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
 
             <ScrollToTop
                 show={isHeaderStuck}
-                bottom={isLauncherMounted ? 52 : 24}
+                bottom={isLauncherMounted ? 72 : 24}
             />
         </DragDropContext>
     );
