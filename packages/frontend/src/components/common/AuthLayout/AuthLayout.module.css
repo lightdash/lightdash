@@ -3,6 +3,19 @@
     min-height: 100vh;
 }
 
+.pinkBackground {
+    min-height: 100vh;
+    background-color: var(--mantine-color-pink-1);
+}
+
+.root[data-pink-background='true'] .brandPanel {
+    background-color: var(--mantine-color-pink-7);
+}
+
+.root[data-pink-background='true'] .formPanel {
+    background-color: var(--mantine-color-pink-1);
+}
+
 .brandPanel {
     position: relative;
     overflow: hidden;
