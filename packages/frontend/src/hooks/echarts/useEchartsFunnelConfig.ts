@@ -24,6 +24,16 @@ import { useVisualizationContext } from '../../components/LightdashVisualization
 import { sanitizeEchartsFontFamily } from '../../utils/sanitizeEchartsFontFamily';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 
+/**
+ * `sort: 'none'` keeps the step order the query returned. Without it ECharts
+ * applies its own default of `sort: 'descending'` and re-orders by value.
+ */
+export const FUNNEL_SERIES_DEFAULTS = {
+    type: 'funnel',
+    gap: 3,
+    sort: 'none',
+} as const satisfies Partial<FunnelSeriesOption>;
+
 export type FunnelSeriesDataPoint = NonNullable<
     FunnelSeriesOption['data']
 >[number] & {
@@ -111,8 +121,7 @@ const useEchartsFunnelConfig = (
         const granularityMap = getGranularityMapFromItems(itemsMap);
 
         return {
-            type: 'funnel',
-            gap: 3,
+            ...FUNNEL_SERIES_DEFAULTS,
             data: seriesData.map(({ id, name, value, meta }) => {
                 const labelOverride = labelOverrides?.[id] ?? name;
                 return {
