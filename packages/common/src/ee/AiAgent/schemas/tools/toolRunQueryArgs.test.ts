@@ -282,6 +282,22 @@ describe('chartConfig custom chart type union', () => {
         expect(result.success).toBe(true);
     });
 
+    it('parses nullish options to null (omitted key and explicit null)', () => {
+        const { options, ...withoutOptions } = customChartTypeChartConfig;
+        expect(
+            toolRunQueryArgsSchema.parse({
+                ...buildV2Args(),
+                chartConfig: withoutOptions,
+            }).chartConfig,
+        ).toEqual({ ...withoutOptions, options: null });
+        expect(
+            toolRunQueryArgsSchema.parse({
+                ...buildV2Args(),
+                chartConfig: { ...withoutOptions, options: null },
+            }).chartConfig,
+        ).toEqual({ ...withoutOptions, options: null });
+    });
+
     it('advertised schema rejects a custom config missing fieldMapping', () => {
         const { fieldMapping, ...withoutMapping } = customChartTypeChartConfig;
         expect(

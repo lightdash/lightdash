@@ -328,6 +328,17 @@ export const getRunQuery = ({
                     );
                 }
 
+                // Merge × custom chart type has no defined contract yet —
+                // reject explicitly rather than silently falling back.
+                if (
+                    queryTool.mergeConfig &&
+                    isCustomChartTypeSlugChartConfig(queryTool.chartConfig)
+                ) {
+                    throw new AiAgentValidatorError(
+                        'Custom chart types cannot be combined with mergeConfig. Either set mergeConfig to null to render this answer through the custom chart type, or keep the merge and use a builtin chartConfig.',
+                    );
+                }
+
                 const prompt = await getPrompt();
 
                 if (queryTool.mergeConfig) {
@@ -363,8 +374,8 @@ export const getRunQuery = ({
                         maxQueryLimit: maxLimit,
                     });
 
-                    // Merge × custom chart type is undefined for the PoC —
-                    // rejection lands with the hardening pass.
+                    // Custom chart configs were rejected above; the guard
+                    // narrows chartConfig to the builtin branch.
                     if (
                         queryTool.chartConfig &&
                         !isCustomChartTypeSlugChartConfig(queryTool.chartConfig)
@@ -505,18 +516,19 @@ export const getRunQuery = ({
                     const aggregations = filterAggregationCustomMetrics(
                         queryTool.queryConfig.customMetrics,
                     );
-                    const selectedFieldIds = [
-                        ...queryTool.queryConfig.dimensions,
-                        ...queryTool.queryConfig.metrics,
-                        ...(aggregations ?? []).map(getItemId),
-                        ...(queryTool.queryConfig.tableCalculations ?? []).map(
-                            (tableCalc) => tableCalc.name,
-                        ),
-                    ];
                     validateCustomChartTypeChartConfig(
                         customChartConfig,
                         resolved.schema,
-                        selectedFieldIds,
+                        {
+                            dimensions: queryTool.queryConfig.dimensions,
+                            metrics: [
+                                ...queryTool.queryConfig.metrics,
+                                ...(aggregations ?? []).map(getItemId),
+                            ],
+                            tableCalculations: (
+                                queryTool.queryConfig.tableCalculations ?? []
+                            ).map((tableCalc) => tableCalc.name),
+                        },
                     );
                     customChartTypeDataAppVizUuid = resolved.dataAppVizUuid;
                 }
