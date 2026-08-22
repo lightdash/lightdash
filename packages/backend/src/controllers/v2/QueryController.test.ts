@@ -78,6 +78,11 @@ describe('QueryController', () => {
                     dimensions: [],
                     metrics: [],
                 },
+                groupLimit: {
+                    dimensionId: 'orders.country',
+                    rankByMetricId: 'orders.revenue',
+                    limit: 5,
+                },
             } as never,
             'project-uuid',
             req,
@@ -86,6 +91,11 @@ describe('QueryController', () => {
         expect(executeAsyncMetricQuery).toHaveBeenCalledWith(
             expect.objectContaining({
                 dataAppPreviewToken: 'signed-preview-token',
+                groupLimit: {
+                    dimensionId: 'orders.country',
+                    rankByMetricId: 'orders.revenue',
+                    limit: 5,
+                },
             }),
         );
     });

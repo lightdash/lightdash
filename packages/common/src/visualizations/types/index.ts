@@ -175,6 +175,7 @@ export type PivotValuesColumn = {
         formatted?: string;
     }[];
     columnIndex?: number;
+    isOtherGroup?: boolean;
 };
 
 export type PivotChartData = {

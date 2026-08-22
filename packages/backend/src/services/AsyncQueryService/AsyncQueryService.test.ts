@@ -2,8 +2,10 @@ import { Ability } from '@casl/ability';
 import {
     Account,
     AnyType,
+    BinType,
     ChartType,
     CreateWarehouseCredentials,
+    CustomDimensionType,
     DimensionType,
     DownloadFileType,
     ExecuteAsyncQueryRequestParams,
@@ -1773,6 +1775,89 @@ describe('AsyncQueryService', () => {
                 }),
                 expect.any(Object),
             );
+        });
+
+        test('runs one ranking query and prepares the main query with the resolved groups', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            service.getExploreWithUserAccessControls = vi
+                .fn()
+                .mockResolvedValue({
+                    explore: validExplore,
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                });
+            (service as AnyType).getWarehouseCredentials = vi
+                .fn()
+                .mockResolvedValue(warehouseClientMock.credentials);
+            service.combineParameters = vi.fn().mockResolvedValue(undefined);
+            const prepareMetricQuery = vi.fn(
+                ({ metricQuery }: { metricQuery: MetricQuery }) =>
+                    createQueryComposerMock({
+                        metricQuery,
+                        userAccessControls: {
+                            userAttributes: {},
+                            intrinsicUserAttributes: {},
+                        },
+                    }),
+            );
+            (service as AnyType).prepareMetricQueryAsyncQueryArgs =
+                prepareMetricQuery;
+            const streamQuery = vi.fn(async (_sql, callback) => {
+                callback({ rows: [{ a_dim1: 'Top value' }] });
+            });
+            (service as AnyType)._getWarehouseClient = vi
+                .fn()
+                .mockResolvedValue({
+                    warehouseClient: { streamQuery },
+                    sshTunnel: { disconnect: vi.fn() },
+                });
+            service['executeAsyncQuery'] = vi.fn().mockResolvedValue({
+                queryUuid: 'queryUuid',
+                cacheMetadata: { cacheHit: false },
+            });
+
+            await service.executeAsyncMetricQuery({
+                account: sessionAccount,
+                projectUuid,
+                metricQuery: {
+                    ...metricQueryMock,
+                    dimensions: ['a_dim1'],
+                    metrics: ['a_met1'],
+                },
+                groupLimit: {
+                    dimensionId: 'a_dim1',
+                    rankByMetricId: 'a_met1',
+                    limit: 5,
+                },
+                context: QueryExecutionContext.EXPLORE,
+            });
+
+            expect(streamQuery).toHaveBeenCalledTimes(1);
+            expect(prepareMetricQuery).toHaveBeenCalledTimes(2);
+            expect(
+                prepareMetricQuery.mock.calls[0][0].metricQuery,
+            ).toMatchObject({
+                dimensions: ['a_dim1'],
+                metrics: ['a_met1'],
+                sorts: [
+                    { fieldId: 'a_met1', descending: true },
+                    { fieldId: 'a_dim1', descending: false },
+                ],
+                limit: 5,
+            });
+            expect(
+                prepareMetricQuery.mock.calls[1][0].metricQuery,
+            ).toMatchObject({
+                dimensions: ['a_dim1_group_limit'],
+                customDimensions: [
+                    expect.objectContaining({
+                        isGroupLimit: true,
+                        otherLabel: 'Other',
+                    }),
+                ],
+            });
         });
 
         test('attaches required pre-aggregate routing metadata for direct pre-aggregate explores', async () => {
@@ -4993,6 +5078,56 @@ describe('AsyncQueryService', () => {
             // the totals result stop after the first page.
             expect(pivotDetails).not.toBeNull();
             expect(pivotDetails?.totalRows).toBe(5);
+        });
+
+        test('marks only the synthesized group-limit bucket as Other', async () => {
+            const { pivotDetails } =
+                await AsyncQueryService.runQueryAndTransformRows({
+                    warehouseClient: buildWarehouseClientStreaming([
+                        [
+                            {
+                                row_index: 1,
+                                column_index: 1,
+                                total_columns: 1,
+                                dim_a: 'Other (grouped)',
+                                metric_x_any: 7,
+                            },
+                        ],
+                    ]),
+                    query: 'SELECT 1',
+                    queryTags: {
+                        query_context: QueryExecutionContext.EXPLORE,
+                    },
+                    pivotConfiguration: {
+                        indexColumn: undefined,
+                        valuesColumns: [
+                            {
+                                reference: 'metric_x',
+                                aggregation: VizAggregationOptions.ANY,
+                            },
+                        ],
+                        groupByColumns: [{ reference: 'dim_a' }],
+                        sortBy: undefined,
+                    },
+                    itemsMap: {
+                        dim_a: {
+                            id: 'dim_a',
+                            name: 'Dimension A',
+                            table: 'table',
+                            type: CustomDimensionType.BIN,
+                            binType: BinType.CUSTOM_GROUP,
+                            dimensionId: 'table.dimension_a',
+                            customGroups: [],
+                            otherLabel: 'Other (grouped)',
+                            isGroupLimit: true,
+                        },
+                    },
+                    displayTimezone: null,
+                });
+
+            expect(
+                Array.from(pivotDetails?.valuesColumns.values() ?? []),
+            ).toEqual([expect.objectContaining({ isOtherGroup: true })]);
         });
     });
 });
