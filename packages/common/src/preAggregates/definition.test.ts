@@ -125,6 +125,11 @@ describe('parseDbtPreAggregateDef', () => {
             message: '"fieldId" must be a non-empty string',
         },
         {
+            name: 'a blank fieldId after normalization',
+            sorts: [{ fieldId: '   ', descending: false }],
+            message: '"fieldId" must be a non-empty string',
+        },
+        {
             name: 'a missing direction',
             sorts: [{ fieldId: 'orders_order_date_day' }],
             message: '"descending" is required',
@@ -162,7 +167,7 @@ describe('parseDbtPreAggregateDef', () => {
             message: 'has unsupported "sorts" fields: nulls_first',
         },
         {
-            name: 'a duplicate fieldId',
+            name: 'a duplicate normalized fieldId',
             sorts: [
                 { fieldId: 'orders_status', descending: false },
                 { fieldId: ' orders_status ', descending: true },
