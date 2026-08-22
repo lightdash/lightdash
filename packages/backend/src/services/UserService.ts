@@ -2607,29 +2607,6 @@ export class UserService extends BaseService {
         const { organizationUuid } = user;
         const actor = createActorFromUser(user);
 
-        const flag = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.LeaveOrganization,
-        });
-        if (!flag.enabled) {
-            this.logger.warn('Leave organization denied: feature disabled', {
-                userUuid: user.userUuid,
-                organizationUuid,
-            });
-            emitAuthAuditEvent({
-                actor,
-                action: 'leave_organization',
-                resourceType: 'OrganizationMembership',
-                status: 'denied',
-                reason: 'Feature disabled',
-                organizationUuid,
-                context,
-            });
-            throw new ForbiddenError(
-                'Leaving the organization is not enabled for this instance',
-            );
-        }
-
         const member =
             await this.organizationMemberProfileModel.getOrganizationMemberByUuid(
                 organizationUuid,

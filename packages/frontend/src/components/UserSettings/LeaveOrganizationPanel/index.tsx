@@ -1,10 +1,9 @@
-import { FeatureFlags, OrganizationMemberRole } from '@lightdash/common';
+import { OrganizationMemberRole } from '@lightdash/common';
 import { Box, Button, Group, Tooltip } from '@mantine/core';
 import { IconLogout } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
 import { LeaveOrganizationModal } from './LeaveOrganizationModal';
@@ -14,18 +13,11 @@ export const LeaveOrganizationPanel: FC = () => {
     const { isInitialLoading: isOrganizationLoading, data: organization } =
         useOrganization();
 
-    const { data: leaveOrganizationFlag } = useServerFeatureFlag(
-        FeatureFlags.LeaveOrganization,
-    );
-    const isLeaveOrganizationEnabled = leaveOrganizationFlag?.enabled === true;
-
     const isAdmin = user.data?.role === OrganizationMemberRole.ADMIN;
 
     // Only admins can list org users — non-admins skip this query.
     const { data: orgUsers, isInitialLoading: isOrgUsersLoading } =
-        useOrganizationUsers({
-            enabled: isAdmin && isLeaveOrganizationEnabled,
-        });
+        useOrganizationUsers({ enabled: isAdmin });
 
     const [showModal, setShowModal] = useState(false);
 
@@ -39,7 +31,6 @@ export const LeaveOrganizationPanel: FC = () => {
         );
     }, [isAdmin, orgUsers, user.data?.userUuid]);
 
-    if (!isLeaveOrganizationEnabled) return null;
     if (isOrganizationLoading || !organization || !user.data) return null;
     if (isAdmin && isOrgUsersLoading) return null;
 
