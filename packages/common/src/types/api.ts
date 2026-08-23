@@ -222,6 +222,7 @@ import type {
     ApiGroupListResponse,
 } from './groups';
 import { type ApiImpersonationOrganizationSettingsResponse } from './impersonationOrganizationSettings';
+import { type ApiLearnCatalogueResponse } from './learn';
 import type { LinearInstallation, LinearProject, LinearTeam } from './linear';
 import {
     type ApiCompiledMergeQueryResults,
@@ -229,7 +230,6 @@ import {
     type MergeQuery,
     type MergeQueryError,
 } from './mergeQuery';
-import { type ApiLearnCatalogueResponse } from './learn';
 import { type MetricQuery, type QueryWarning } from './metricQuery';
 import type {
     ApiMetricsExplorerQueryResults,
