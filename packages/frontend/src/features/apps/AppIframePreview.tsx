@@ -4,7 +4,6 @@ import {
     type DashboardFilters,
     type QueryExecutionContext,
 } from '@lightdash/common';
-import { useComputedColorScheme } from '@mantine/core';
 import {
     forwardRef,
     useCallback,
@@ -14,6 +13,7 @@ import {
     useRef,
     useState,
 } from 'react';
+import { useAppColorScheme } from '../../providers/ColorSchemeContext';
 import { type DeliveryCaptureAccumulator } from './deliveryCapture/deliveryCaptureAccumulator';
 import {
     useAppSdkBridge,
@@ -192,9 +192,9 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
         ref,
     ) => {
         const iframeRef = useRef<HTMLIFrameElement>(null);
-        // Resolves to an exact light/dark (embed routes force it from
-        // `?theme=`), so this is the scheme the surrounding page renders in.
-        const hostColorScheme = useComputedColorScheme('light');
+        // Reads from ColorSchemeContext — the same source of truth the host
+        // UI uses — so the iframe always matches the visible appearance.
+        const { colorScheme: hostColorScheme } = useAppColorScheme();
         const colorScheme: AppColorScheme = forceColorScheme ?? hostColorScheme;
         const { applySeed, handleUrlStateChange } = useAppUrlStateSync({
             appUuid,
