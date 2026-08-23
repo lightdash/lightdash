@@ -1,3 +1,10 @@
+# [1.238.0](https://github.com/lightdash/lightdash/compare/1.237.0...1.238.0) (2026-08-23)
+
+
+### Features
+
+* remove leave organization feature flag ([#27809](https://github.com/lightdash/lightdash/issues/27809)) ([d45e705](https://github.com/lightdash/lightdash/commit/d45e705cc12b785d71849d46eecf45987ba304d6))
+
 # [1.237.0](https://github.com/lightdash/lightdash/compare/1.236.2...1.237.0) (2026-08-21)
 
 
