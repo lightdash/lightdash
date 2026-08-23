@@ -13,7 +13,7 @@ import {
     Stack,
     Text,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
