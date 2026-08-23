@@ -1,4 +1,4 @@
-import { Badge, Group, Paper, Progress, Text } from '@mantine-8/core';
+import { Badge, Group, Paper, Progress, Text } from '@mantine/core';
 import type { FC } from 'react';
 import {
     CARD_H,
