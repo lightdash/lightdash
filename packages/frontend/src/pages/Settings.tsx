@@ -161,7 +161,6 @@ const Settings: FC = () => {
         hasAnyAiAgentAccess,
         isAiOrganizationSettingsLoading,
         showImpersonationPanel,
-        isLeaveOrganizationEnabled,
         isCustomRolesEnabled,
         isProLimitsEnabled,
         isOrganizationRoadmapEnabled,
@@ -200,20 +199,17 @@ const Settings: FC = () => {
                             <ProfilePanel />
                         </SettingsGridCard>
                         {health?.hasGithub && <GithubUserSettingsPanel />}
-                        {isLeaveOrganizationEnabled && (
-                            <SettingsGridCard>
-                                <Box>
-                                    <Title order={5}>Danger zone</Title>
-                                    <Text c="ldGray.6" fz="xs">
-                                        Leave the organization to remove
-                                        yourself from it (you cannot leave if
-                                        you are the only admin). This action is
-                                        not reversible.
-                                    </Text>
-                                </Box>
-                                <LeaveOrganizationPanel />
-                            </SettingsGridCard>
-                        )}
+                        <SettingsGridCard>
+                            <Box>
+                                <Title order={5}>Danger zone</Title>
+                                <Text c="ldGray.6" fz="xs">
+                                    Leave the organization to remove yourself
+                                    from it (you cannot leave if you are the
+                                    only admin). This action is not reversible.
+                                </Text>
+                            </Box>
+                            <LeaveOrganizationPanel />
+                        </SettingsGridCard>
                     </SettingsPage>
                 ),
             },
@@ -325,33 +321,29 @@ const Settings: FC = () => {
                             <SupportImpersonationPanel />
                         </SettingsGridCard>
 
-                        {(isLeaveOrganizationEnabled ||
-                            user.ability?.can('delete', 'Organization')) && (
-                            <SettingsGridCard>
-                                <div>
-                                    <Title order={5}>Danger zone</Title>
-                                    <Text c="ldGray.6" fz="xs">
-                                        {isLeaveOrganizationEnabled &&
-                                            'Leave the organization to remove yourself from it (you cannot leave if you are the only admin). '}
-                                        {user.ability?.can(
-                                            'delete',
-                                            'Organization',
-                                        ) &&
-                                            'Deleting the organization removes the whole workspace and all its content, including users. '}
-                                        These actions are not reversible.
-                                    </Text>
-                                </div>
-                                <Stack gap="sm" align="flex-end">
-                                    {isLeaveOrganizationEnabled && (
-                                        <LeaveOrganizationPanel />
-                                    )}
+                        <SettingsGridCard>
+                            <Box>
+                                <Title order={5}>Danger zone</Title>
+                                <Text c="ldGray.6" fz="xs">
+                                    {
+                                        'Leave the organization to remove yourself from it (you cannot leave if you are the only admin). '
+                                    }
                                     {user.ability?.can(
                                         'delete',
                                         'Organization',
-                                    ) && <DeleteOrganizationPanel />}
-                                </Stack>
-                            </SettingsGridCard>
-                        )}
+                                    ) &&
+                                        'Deleting the organization removes the whole workspace and all its content, including users. '}
+                                    These actions are not reversible.
+                                </Text>
+                            </Box>
+                            <Stack gap="sm" align="flex-end">
+                                <LeaveOrganizationPanel />
+                                {user.ability?.can(
+                                    'delete',
+                                    'Organization',
+                                ) && <DeleteOrganizationPanel />}
+                            </Stack>
+                        </SettingsGridCard>
                     </SettingsPage>
                 ),
             });
@@ -785,7 +777,6 @@ const Settings: FC = () => {
         isOrganizationRoadmapEnabled,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
-        isLeaveOrganizationEnabled,
         isAiCopilotEnabledOrTrial,
         shouldShowAiAgentReviews,
         canManageOrgAiAgent,

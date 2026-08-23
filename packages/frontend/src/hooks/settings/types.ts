@@ -60,7 +60,6 @@ export type SettingsContext = {
     organization: Organization | undefined;
     project: Project | undefined;
     showImpersonationPanel: boolean | undefined;
-    isLeaveOrganizationEnabled: boolean;
     isCustomRolesEnabled: boolean | undefined;
     isProLimitsEnabled: boolean;
     isOrganizationRoadmapEnabled: boolean;
