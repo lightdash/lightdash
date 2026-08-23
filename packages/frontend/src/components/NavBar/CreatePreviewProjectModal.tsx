@@ -246,7 +246,7 @@ const CreatePreviewModal: FC<Props> = ({
     const regularProjectList = useMemo(() => {
         if (isLoadingProjects || !projects || !user.data) return [];
 
-        return projects
+        const items = projects
             .filter((p) => p.type === ProjectType.DEFAULT)
             .map((project) => {
                 const userCannotCreatePreview = user.data.ability.cannot(
@@ -258,26 +258,32 @@ const CreatePreviewModal: FC<Props> = ({
                     }),
                 );
 
-                const item: {
-                    value: string;
-                    label: string;
-                    disabled: boolean;
-                    group?: string;
-                } = {
+                return {
                     value: project.projectUuid,
                     label: project.name,
                     disabled: userCannotCreatePreview,
                 };
-
-                if (userCannotCreatePreview) {
-                    item.group = 'Requires Developer Access';
-                }
-
-                return item;
             })
             .sort((a, b) =>
                 a.disabled === b.disabled ? 0 : a.disabled ? 1 : -1,
             );
+
+        const accessible = items.filter((item) => !item.disabled);
+        const restricted = items.filter((item) => item.disabled);
+
+        const groups: { group: string; items: typeof accessible }[] = [];
+
+        if (accessible.length > 0) {
+            groups.push({ group: 'Accessible', items: accessible });
+        }
+        if (restricted.length > 0) {
+            groups.push({
+                group: 'Requires Developer Access',
+                items: restricted,
+            });
+        }
+
+        return groups;
     }, [isLoadingProjects, projects, user.data]);
 
     const { data: projectDetails } = useProject(
@@ -297,9 +303,9 @@ const CreatePreviewModal: FC<Props> = ({
             !selectedProjectUuid &&
             projects
         ) {
-            const initialProjectValue = regularProjectList.find(
-                (project) => project.value === initialProjectUuid,
-            );
+            const initialProjectValue = regularProjectList
+                .flatMap((group) => group.items)
+                .find((project) => project.value === initialProjectUuid);
 
             if (initialProjectValue && !initialProjectValue.disabled) {
                 setSelectedProjectUuid(initialProjectUuid);
