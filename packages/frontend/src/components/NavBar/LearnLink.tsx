@@ -1,5 +1,5 @@
 import { FeatureFlags } from '@lightdash/common';
-import { Button, Menu } from '@mantine-8/core';
+import { Button, Menu } from '@mantine/core';
 import { IconSchool } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import { useNavigate } from 'react-router';

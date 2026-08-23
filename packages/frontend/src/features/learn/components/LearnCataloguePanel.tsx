@@ -11,7 +11,7 @@ import {
     TextInput,
     Title,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconExternalLink, IconSchool, IconSearch } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
