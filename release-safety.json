@@ -1,28 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "1.252.0",
-  "previousVersion": "1.251.7",
-  "releaseDate": "2026-08-24T19:17:35.290Z",
+  "version": "1.252.1",
+  "previousVersion": "1.252.0",
+  "releaseDate": "2026-08-24T20:31:54.740Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260816210000_create_project_merged_manifests.ts",
-        "edition": "core",
-        "tables": [
-          "project_merged_manifests",
-          "projects"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

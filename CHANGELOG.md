@@ -1,3 +1,10 @@
+## [1.252.1](https://github.com/lightdash/lightdash/compare/1.252.0...1.252.1) (2026-08-24)
+
+
+### Bug Fixes
+
+* add a continue link to the OAuth redirect page ([#27967](https://github.com/lightdash/lightdash/issues/27967)) ([aad85ac](https://github.com/lightdash/lightdash/commit/aad85ac33bea791fb1c9f057b05ffc3182382680))
+
 # [1.252.0](https://github.com/lightdash/lightdash/compare/1.251.7...1.252.0) (2026-08-24)
 
 
