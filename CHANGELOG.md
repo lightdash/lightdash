@@ -1,3 +1,10 @@
+# [1.250.0](https://github.com/lightdash/lightdash/compare/1.249.0...1.250.0) (2026-08-24)
+
+
+### Features
+
+* give the primary dbt source a stable persistent identity ([#27443](https://github.com/lightdash/lightdash/issues/27443)) ([fa3a6e6](https://github.com/lightdash/lightdash/commit/fa3a6e61fe7e610f3a634cbd8e75a136d6632a50))
+
 # [1.249.0](https://github.com/lightdash/lightdash/compare/1.248.2...1.249.0) (2026-08-24)
 
 
