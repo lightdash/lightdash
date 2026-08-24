@@ -536,11 +536,6 @@ describe('direct access read models PostgreSQL integration', () => {
     });
 
     it('atomically writes and resets grants for every concrete resource', async () => {
-        await transaction(ProjectGroupAccessTableName).insert({
-            project_uuid: projectUuid,
-            group_uuid: groupUuid,
-            role: ProjectMemberRole.VIEWER,
-        });
         const cases = [
             {
                 model: new DashboardAccessModel(transaction),
@@ -783,11 +778,6 @@ describe('direct access read models PostgreSQL integration', () => {
                 actorRoleResolver: async () => SpaceMemberRole.EDITOR,
             }),
         ).rejects.toMatchObject({ name: 'ForbiddenError' });
-        await transaction(ProjectGroupAccessTableName).insert({
-            project_uuid: projectUuid,
-            group_uuid: groupUuid,
-            role: ProjectMemberRole.VIEWER,
-        });
         await expect(
             model.upsertGroupAccess({
                 resourceUuid: dashboardUuid,
