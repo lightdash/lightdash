@@ -1,5 +1,6 @@
 import {
     HTML_SANITIZE_DEFAULT_RULES,
+    HTML_SANITIZE_LEARN_LESSON_RULES,
     HTML_SANITIZE_MARKDOWN_TILE_RULES,
     sanitizeHtml,
 } from './sanitizeHtml';
@@ -327,5 +328,59 @@ describe('sanitizeHtml', () => {
                 input,
             );
         });
+    });
+});
+
+describe('HTML_SANITIZE_LEARN_LESSON_RULES', () => {
+    const lesson =
+        '<p>Open Browse<a class="cit" href="#fig-1" data-hl="r1">1</a>.</p>' +
+        '<span class="figwrap" id="fig-1"><img src="https://x/y.png" alt="Spaces">' +
+        '<span class="hlbox below pl-l" data-r="r1" data-label="1 · Browse" style="left:10.5%;top:1.2%;width:7.5%;height:4%"></span></span>' +
+        '<figure class="shot" id="fig-2"><img src="https://x/z.png" alt=""><figcaption>Cap</figcaption></figure>';
+
+    test('keeps citation pins, figure ids and positioned highlight boxes', () => {
+        const out = sanitizeHtml(lesson, HTML_SANITIZE_LEARN_LESSON_RULES);
+        expect(out).toContain(
+            '<a class="cit" href="#fig-1" data-hl="r1">1</a>',
+        );
+        expect(out).toContain('<span class="figwrap" id="fig-1">');
+        expect(out).toContain('data-r="r1"');
+        expect(out).toContain('data-label="1 · Browse"');
+        expect(out).toContain('left:10.5%');
+        expect(out).toContain('height:4%');
+        expect(out).toContain('<figure class="shot" id="fig-2">');
+    });
+
+    test('still drops scripts, stylesheets and unsafe styles', () => {
+        const out = sanitizeHtml(
+            '<style>a{}</style><script>x()</script>' +
+                '<span class="hlbox" style="position:fixed;left:10%;background:url(x)"></span>',
+            HTML_SANITIZE_LEARN_LESSON_RULES,
+        );
+        expect(out).not.toContain('<style');
+        expect(out).not.toContain('<script');
+        expect(out).not.toContain('position');
+        expect(out).not.toContain('url(');
+        expect(out).toContain('left:10%');
+    });
+});
+
+describe('HTML_SANITIZE_LEARN_LESSON_RULES demo placeholders', () => {
+    test('keeps the data-demo mount point and nothing else on it', () => {
+        const out = sanitizeHtml(
+            '<div data-demo="save-chart" onclick="x()"></div>',
+            HTML_SANITIZE_LEARN_LESSON_RULES,
+        );
+        expect(out).toBe('<div data-demo="save-chart"></div>');
+    });
+});
+
+describe('HTML_SANITIZE_LEARN_LESSON_RULES frames', () => {
+    test('drops iframes even though markdown tiles allow them', () => {
+        const out = sanitizeHtml(
+            '<p>Before</p><iframe src="https://example.com/login" width="600" height="400"></iframe><p>After</p>',
+            HTML_SANITIZE_LEARN_LESSON_RULES,
+        );
+        expect(out).toBe('<p>Before</p><p>After</p>');
     });
 });

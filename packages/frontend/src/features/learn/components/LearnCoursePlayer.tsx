@@ -1,5 +1,5 @@
 import {
-    HTML_SANITIZE_MARKDOWN_TILE_RULES,
+    HTML_SANITIZE_LEARN_LESSON_RULES,
     sanitizeHtml,
     type LearnCourse,
 } from '@lightdash/common';
@@ -15,10 +15,12 @@ import {
     Title,
 } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
-import { useEffect, useMemo, useState, type FC } from 'react';
+import { useEffect, useMemo, useRef, useState, type FC } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
+import { wireCitations } from '../citations';
 import {
     getLessonBookmark,
     setLastCourseId,
@@ -28,6 +30,10 @@ import {
     useRecordLearnEvent,
 } from '../hooks';
 import { cardState, emptyRollup } from '../model';
+import { LearnDemo } from './LearnDemo';
+import styles from './LearnLesson.module.css';
+
+type DemoMount = { id: string; element: HTMLElement };
 
 function scoreQuiz(
     questions: LearnCourse['quiz']['questions'],
@@ -42,7 +48,7 @@ function lessonHtml(course: LearnCourse, index: number): string {
         /src="assets\//g,
         `src="${course.assetBaseUrl}/assets/`,
     );
-    return sanitizeHtml(raw, HTML_SANITIZE_MARKDOWN_TILE_RULES);
+    return sanitizeHtml(raw, HTML_SANITIZE_LEARN_LESSON_RULES);
 }
 
 export const LearnCoursePlayer: FC = () => {
@@ -98,6 +104,41 @@ export const LearnCoursePlayer: FC = () => {
             object: { type: 'course', ...eventObject },
         });
     }, [data, started, state, eventObject, record]);
+
+    // One object per lesson: a fresh `{ __html }` each render would make React
+    // reset the injected HTML and wipe the demo portals mounted inside it.
+    const lessonHtmlString = useMemo(
+        () =>
+            data && page !== null && page < data.lessons.length
+                ? lessonHtml(data, page)
+                : null,
+        [data, page],
+    );
+    const lessonMarkup = useMemo(
+        () => (lessonHtmlString === null ? null : { __html: lessonHtmlString }),
+        [lessonHtmlString],
+    );
+
+    // Re-wire after every lesson change: React replaces the injected HTML.
+    // Demo placeholders left by the lesson become portal targets.
+    const lessonRef = useRef<HTMLDivElement>(null);
+    const [demoMounts, setDemoMounts] = useState<DemoMount[]>([]);
+    useEffect(() => {
+        const el = lessonRef.current;
+        if (!el) {
+            setDemoMounts([]);
+            return undefined;
+        }
+        setDemoMounts(
+            Array.from(el.querySelectorAll<HTMLElement>('div[data-demo]')).map(
+                (element) => ({
+                    id: element.getAttribute('data-demo') ?? '',
+                    element,
+                }),
+            ),
+        );
+        return wireCitations(el);
+    }, [data, page]);
 
     if (course.isInitialLoading || (data && page === null)) {
         return <SuboptimalState title="Loading course…" loading />;
@@ -156,7 +197,7 @@ export const LearnCoursePlayer: FC = () => {
     };
 
     return (
-        <Stack gap="md" py="lg" maw={760} mx="auto">
+        <Stack gap="md" py="lg" maw={760} w="100%" mx="auto">
             <Anchor
                 size="sm"
                 onClick={() => navigate(`/projects/${projectUuid}/learn`)}
@@ -189,15 +230,32 @@ export const LearnCoursePlayer: FC = () => {
                 </Group>
                 <Progress value={progressPct} size="xs" radius={0} />
                 <Stack p="lg" gap="md">
-                    {!onQuiz && (
+                    {!onQuiz && lessonMarkup && (
                         <div
                             // eslint-disable-next-line react/no-danger
-                            dangerouslySetInnerHTML={{
-                                __html: lessonHtml(data, page),
-                            }}
-                            style={{ lineHeight: 1.6 }}
+                            ref={lessonRef}
+                            className={styles.lesson}
+                            dangerouslySetInnerHTML={lessonMarkup}
                         />
                     )}
+                    {!onQuiz &&
+                        demoMounts.map(({ id, element }, index) => {
+                            const demo = Object.prototype.hasOwnProperty.call(
+                                data.demos,
+                                id,
+                            )
+                                ? data.demos[id]
+                                : undefined;
+                            if (!demo || !element.isConnected) return null;
+                            return createPortal(
+                                <LearnDemo
+                                    demo={demo}
+                                    assetBaseUrl={data.assetBaseUrl}
+                                />,
+                                element,
+                                `${page}-${index}-${id}`,
+                            );
+                        })}
                     {onQuiz && quizResult === null && (
                         <Stack gap="md">
                             <Title order={3}>Quiz</Title>

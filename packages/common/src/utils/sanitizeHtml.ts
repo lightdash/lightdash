@@ -127,6 +127,49 @@ export const HTML_SANITIZE_MARKDOWN_TILE_RULES: sanitize.IOptions = {
     ),
 };
 
+const percentRegex = /^\d+(?:\.\d+)?%$/;
+const tileAttributes =
+    HTML_SANITIZE_MARKDOWN_TILE_RULES.allowedAttributes || {};
+
+/**
+ * Rules for lesson HTML published by Lightdash University. Lessons carry
+ * citation pins (`a.cit` → `#fig-…`) and highlight boxes positioned by
+ * percentage over a figure; scripts and stylesheets are still dropped.
+ */
+export const HTML_SANITIZE_LEARN_LESSON_RULES: sanitize.IOptions = {
+    ...HTML_SANITIZE_MARKDOWN_TILE_RULES,
+    // Lessons never embed frames; a compromised content host must not either.
+    allowedTags: (HTML_SANITIZE_MARKDOWN_TILE_RULES.allowedTags || []).filter(
+        (tag) => tag !== 'iframe',
+    ),
+    allowedAttributes: {
+        ...Object.fromEntries(
+            Object.entries(tileAttributes).filter(([tag]) => tag !== 'iframe'),
+        ),
+        a: [...(tileAttributes.a ?? []), 'class', 'data-hl'],
+        span: [
+            ...(tileAttributes.span ?? []),
+            'class',
+            'id',
+            'data-r',
+            'data-label',
+        ],
+        figure: ['class', 'id'],
+        img: [...(tileAttributes.img ?? []), 'class'],
+        div: [...(tileAttributes.div ?? []), 'data-demo'],
+    },
+    allowedStyles: {
+        ...HTML_SANITIZE_MARKDOWN_TILE_RULES.allowedStyles,
+        span: {
+            ...allowedTextStylingProperties,
+            left: [percentRegex],
+            top: [percentRegex],
+            width: [...allowedTextStylingProperties.width, percentRegex],
+            height: [...allowedTextStylingProperties.height, percentRegex],
+        },
+    },
+};
+
 export const sanitizeHtml = (
     input: string,
     ruleSet: sanitize.IOptions = HTML_SANITIZE_DEFAULT_RULES,

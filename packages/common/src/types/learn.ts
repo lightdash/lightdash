@@ -55,6 +55,28 @@ export type LearnLesson = {
     html: string;
 };
 
+/** A clickable region on a demo step, as fractions of the image. */
+export type LearnDemoHotspot = {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+};
+
+export type LearnDemoStep = {
+    image: string;
+    caption: string;
+    hotspot: LearnDemoHotspot | null;
+};
+
+/** An interactive click-through demo a lesson mounts with `data-demo`. */
+export type LearnDemo = {
+    id: string;
+    title: string;
+    viewport: { width: number; height: number };
+    steps: LearnDemoStep[];
+};
+
 export type LearnCourse = {
     id: string;
     title: string;
@@ -62,6 +84,7 @@ export type LearnCourse = {
     logo?: string;
     lessons: LearnLesson[];
     quiz: { questions: LearnQuizQuestion[] };
+    demos: Record<string, LearnDemo>;
     version: number;
     contentHash: string;
     publishedAt: string;
@@ -69,12 +92,38 @@ export type LearnCourse = {
     assetBaseUrl: string;
 };
 
+const LearnDemoSchema = z
+    .object({
+        id: z.string().min(1),
+        title: z.string(),
+        viewport: z.object({ width: z.number(), height: z.number() }),
+        steps: z.array(
+            z
+                .object({
+                    image: z.string().min(1),
+                    caption: z.string(),
+                    hotspot: z
+                        .object({
+                            x: z.number(),
+                            y: z.number(),
+                            width: z.number(),
+                            height: z.number(),
+                        })
+                        .nullish()
+                        .transform((value) => value ?? null),
+                })
+                .passthrough(),
+        ),
+    })
+    .passthrough();
+
 export const LearnCourseSchema = z
     .object({
         id: z.string().min(1),
         title: z.string().min(1),
         passingScore: z.number(),
         logo: z.string().optional(),
+        demos: z.record(LearnDemoSchema).default({}),
         lessons: z.array(
             z
                 .object({
