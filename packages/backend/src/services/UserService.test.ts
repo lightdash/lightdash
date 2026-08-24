@@ -22,6 +22,8 @@ import {
     PossibleAbilities,
     ProjectMemberRole,
     SessionUser,
+    SnowflakeAuthenticationType,
+    WarehouseTypes,
 } from '@lightdash/common';
 import { analyticsMock } from '../analytics/LightdashAnalytics.mock';
 import EmailClient from '../clients/EmailClient/EmailClient';
@@ -223,6 +225,7 @@ const organizationMemberProfileModel = {
 
 type UserServiceTestOverrides = {
     featureFlagModel?: Pick<FeatureFlagModel, 'get'>;
+    userWarehouseCredentialsModel?: Partial<UserWarehouseCredentialsModel>;
     personalAccessTokenModel?: Pick<
         PersonalAccessTokenModel,
         'delete' | 'updateUsedDate'
@@ -284,7 +287,9 @@ const createUserService = (
             organizationSsoModel as unknown as OrganizationSsoModel,
         organizationSettingsModel:
             organizationSettingsModel as unknown as OrganizationSettingsModel,
-        userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
+        userWarehouseCredentialsModel:
+            (overrides.userWarehouseCredentialsModel as UserWarehouseCredentialsModel) ??
+            ({} as UserWarehouseCredentialsModel),
         warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
         projectModel: projectModel as unknown as ProjectModel,
         featureFlagModel:
@@ -4666,6 +4671,59 @@ describe('UserService', () => {
             expect(projectModel.ensureDefaultUserSpace).toHaveBeenCalledTimes(
                 2,
             );
+        });
+    });
+
+    describe('createSnowflakeWarehouseCredentials', () => {
+        it('updates only an existing Snowflake SSO credential', async () => {
+            const credentialsModel = {
+                getAllByUserUuid: vi.fn().mockResolvedValue([
+                    {
+                        uuid: 'password-credentials-uuid',
+                        credentials: {
+                            type: WarehouseTypes.SNOWFLAKE,
+                            user: 'snowflake-user',
+                            authenticationType:
+                                SnowflakeAuthenticationType.PASSWORD,
+                        },
+                        project: null,
+                    },
+                    {
+                        uuid: 'sso-credentials-uuid',
+                        credentials: {
+                            type: WarehouseTypes.SNOWFLAKE,
+                            authenticationType: SnowflakeAuthenticationType.SSO,
+                        },
+                        project: null,
+                    },
+                ]),
+                update: vi.fn().mockResolvedValue('sso-credentials-uuid'),
+                getByUuid: vi.fn().mockResolvedValue({
+                    uuid: 'sso-credentials-uuid',
+                }),
+                create: vi.fn(),
+            };
+            const service = createUserService(lightdashConfigMock, {
+                userWarehouseCredentialsModel:
+                    credentialsModel as unknown as UserWarehouseCredentialsModel,
+            });
+
+            await service.createSnowflakeWarehouseCredentials(
+                sessionUser,
+                'new-refresh-token',
+            );
+
+            expect(credentialsModel.update).toHaveBeenCalledWith(
+                sessionUser.userUuid,
+                'sso-credentials-uuid',
+                expect.objectContaining({
+                    credentials: expect.objectContaining({
+                        authenticationType: SnowflakeAuthenticationType.SSO,
+                        refreshToken: 'new-refresh-token',
+                    }),
+                }),
+            );
+            expect(credentialsModel.create).not.toHaveBeenCalled();
         });
     });
 

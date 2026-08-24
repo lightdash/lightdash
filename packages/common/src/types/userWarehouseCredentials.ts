@@ -36,10 +36,13 @@ export type UserWarehouseCredentials = {
           >
         | Pick<
               | CreatePostgresCredentials
-              | CreateSnowflakeCredentials
               | CreateTrinoCredentials
               | CreateClickhouseCredentials,
               'type' | 'user'
+          >
+        | Pick<
+              CreateSnowflakeCredentials,
+              'type' | 'user' | 'authenticationType'
           >
         | Pick<CreateBigqueryCredentials, 'type'>
         | Pick<CreateDatabricksCredentials, 'type'>
@@ -71,6 +74,8 @@ export type UserWarehouseCredentialsWithSecrets = Pick<
               | 'type'
               | 'user'
               | 'password'
+              | 'privateKey'
+              | 'privateKeyPass'
               | 'authenticationType'
               | 'refreshToken'
           >
@@ -158,9 +163,34 @@ export const snowflakeSsoUserCredentialsSchema = z
         user: z.string().optional(),
         password: z.string().optional(),
         authenticationType: z.literal(SnowflakeAuthenticationType.SSO),
-        refreshToken: z.string(),
+        refreshToken: z.string().min(1),
     })
     .strict();
+
+export const snowflakeUserCredentialsSchema = z.union([
+    snowflakeSsoUserCredentialsSchema,
+    z
+        .object({
+            type: z.literal(WarehouseTypes.SNOWFLAKE),
+            user: z.string().trim().min(1),
+            password: z.string().min(1),
+            authenticationType: z
+                .literal(SnowflakeAuthenticationType.PASSWORD)
+                .optional(),
+        })
+        .strict(),
+    z
+        .object({
+            type: z.literal(WarehouseTypes.SNOWFLAKE),
+            user: z.string().trim().min(1),
+            privateKey: z.string().trim().min(1),
+            privateKeyPass: z.string().optional(),
+            authenticationType: z.literal(
+                SnowflakeAuthenticationType.PRIVATE_KEY,
+            ),
+        })
+        .strict(),
+]);
 
 // Zod schema for validating Databricks OAuth U2M user warehouse credentials
 // Requires refreshToken and allows optional compatibility fields

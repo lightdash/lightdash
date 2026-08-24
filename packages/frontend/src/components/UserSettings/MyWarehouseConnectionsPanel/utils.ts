@@ -1,5 +1,6 @@
 import {
     DatabricksAuthenticationType,
+    SnowflakeAuthenticationType,
     WarehouseTypes,
     type UpsertUserWarehouseCredentials,
 } from '@lightdash/common';
@@ -26,3 +27,9 @@ export const isDatabricksPersonalAccessToken = (
     credentials.type === WarehouseTypes.DATABRICKS &&
     credentials.authenticationType ===
         DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN;
+
+export const isSnowflakeSso = (
+    credentials: UpsertUserWarehouseCredentials['credentials'],
+) =>
+    credentials.type === WarehouseTypes.SNOWFLAKE &&
+    credentials.authenticationType === SnowflakeAuthenticationType.SSO;

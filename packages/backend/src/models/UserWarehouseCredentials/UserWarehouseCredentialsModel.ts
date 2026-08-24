@@ -15,6 +15,7 @@ import {
     SnowflakeAuthenticationType,
     snowflakeSsoUserCredentialsSchema,
     SnowflakeTokenError,
+    snowflakeUserCredentialsSchema,
     UnexpectedServerError,
     UpsertUserWarehouseCredentials,
     UserWarehouseCredentials,
@@ -98,9 +99,16 @@ export class UserWarehouseCredentialsModel {
                             : {}),
                     };
                     break;
+                case WarehouseTypes.SNOWFLAKE:
+                    credentials = {
+                        type: credentialsWithSecrets.type,
+                        user: credentialsWithSecrets.user,
+                        authenticationType:
+                            credentialsWithSecrets.authenticationType,
+                    };
+                    break;
                 case WarehouseTypes.POSTGRES:
                 case WarehouseTypes.TRINO:
-                case WarehouseTypes.SNOWFLAKE:
                 case WarehouseTypes.CLICKHOUSE:
                     credentials = {
                         type: credentialsWithSecrets.type,
@@ -528,6 +536,17 @@ export class UserWarehouseCredentialsModel {
             if (!result.success) {
                 throw new ParameterError(
                     'BigQuery credentials require a valid keyfile. Please reauthenticate with Google.',
+                );
+            }
+        }
+
+        if (data.credentials.type === WarehouseTypes.SNOWFLAKE) {
+            const result = snowflakeUserCredentialsSchema.safeParse(
+                data.credentials,
+            );
+            if (!result.success) {
+                throw new ParameterError(
+                    'Snowflake credentials require a username and a valid password, private key, or OAuth token.',
                 );
             }
         }

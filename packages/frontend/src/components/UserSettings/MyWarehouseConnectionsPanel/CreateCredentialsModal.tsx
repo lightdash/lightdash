@@ -1,5 +1,6 @@
 import {
     RedshiftAuthenticationType,
+    SnowflakeAuthenticationType,
     WarehouseTypes,
     type UpsertUserWarehouseCredentials,
     type UserWarehouseCredentials,
@@ -17,6 +18,7 @@ import { getWarehouseLabel } from '../../ProjectConnection/ProjectConnectFlow/ut
 import {
     getDefaultDatabricksAuthenticationType,
     isDatabricksPersonalAccessToken,
+    isSnowflakeSso,
 } from './utils';
 import { WarehouseFormInputs } from './WarehouseFormInputs';
 
@@ -53,6 +55,7 @@ const getDefaultCredentials = (
             type: WarehouseTypes.SNOWFLAKE,
             user: '',
             password: '',
+            authenticationType: SnowflakeAuthenticationType.PASSWORD,
         },
         [WarehouseTypes.TRINO]: {
             type: WarehouseTypes.TRINO,
@@ -126,12 +129,11 @@ export const CreateCredentialsModal: FC<Props> = ({
             RedshiftAuthenticationType.IAM_BROWSER;
     const showSaveButton =
         !isRedshiftBrowserSso &&
+        !isSnowflakeSso(form.values.credentials) &&
         (isDatabricksPersonalAccessToken(form.values.credentials) ||
-            ![
-                WarehouseTypes.BIGQUERY,
-                WarehouseTypes.SNOWFLAKE,
-                WarehouseTypes.DATABRICKS,
-            ].includes(warehouseType ?? form.values.credentials.type));
+            ![WarehouseTypes.BIGQUERY, WarehouseTypes.DATABRICKS].includes(
+                warehouseType ?? form.values.credentials.type,
+            ));
 
     return (
         <MantineModal
