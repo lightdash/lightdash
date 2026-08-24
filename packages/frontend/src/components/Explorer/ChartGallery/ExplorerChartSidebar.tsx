@@ -12,10 +12,11 @@ import {
 } from '@mantine/core';
 import { IconArrowLeft, IconSettings, IconX } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-import { Link, useLocation, useParams } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import { useCanEditDataApp } from '../../../features/apps/hooks/useCanEditDataApp';
 import { useDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
 import { chartTypeBuilderPath } from '../../../features/chartTypes/utils/chartTypeBuilderPath';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { ChartGalleryContext } from '../../common/ChartGallery/ChartGalleryContext';
 import MantineIcon from '../../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
@@ -39,7 +40,8 @@ const isMode = (value: string): value is Mode =>
 
 const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
     const [mode, setMode] = useState<Mode>('configure');
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    // Resolves the project uuid even when the URL carries the project slug.
+    const projectUuid = useProjectUuid();
     const location = useLocation();
     const { visualizationConfig } = useVisualizationContext();
     const { getSelectedChartTypeItem } = useChartTypeOptions();
