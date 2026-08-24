@@ -1,4 +1,5 @@
 import { type FC } from 'react';
+import { askOpacity, askScale, type NodeAskState } from '../askView';
 import { NODE_SIZE } from '../layout';
 import { plural } from '../model';
 import { NODE_TRANSITION, staggerMs, type NodeMotion } from '../motion';
@@ -16,6 +17,7 @@ export type BoardNodeProps = {
     nextUp: boolean;
     index: number;
     motion: NodeMotion;
+    askState: NodeAskState;
     onSelect: (id: string) => void;
 };
 
@@ -30,9 +32,10 @@ export const BoardNode: FC<BoardNodeProps> = ({
     nextUp,
     index,
     motion,
+    askState,
     onSelect,
 }) => {
-    const showPulse = nextUp && unlocked && !selected;
+    const showPulse = nextUp && unlocked && !selected && askState === 'none';
     // Ring/glow/label colour are enumerable states, so they live as CSS
     // modifier classes; only continuous per-node values stay inline.
     const className = [
@@ -41,6 +44,8 @@ export const BoardNode: FC<BoardNodeProps> = ({
         unlocked && done && styles.nodeDone,
         selected && styles.nodeSelected,
         showPulse && styles.nodeNextUp,
+        askState === 'matched' && styles.nodeMatched,
+        askState === 'locked-match' && styles.nodeLockedMatch,
     ]
         .filter(Boolean)
         .join(' ');
@@ -59,8 +64,8 @@ export const BoardNode: FC<BoardNodeProps> = ({
                 left: motion.x - NODE_SIZE / 2,
                 top: motion.y - NODE_SIZE / 2,
                 background: unlocked ? progressFill(progress) : undefined,
-                opacity: motion.opacity,
-                transform: `scale(${motion.scale})`,
+                opacity: askOpacity(askState, motion.opacity),
+                transform: `scale(${askScale(askState, motion.scale)})`,
                 transition: motion.animate ? NODE_TRANSITION : 'none',
                 transitionDelay: motion.animate
                     ? `${staggerMs(index)}ms`

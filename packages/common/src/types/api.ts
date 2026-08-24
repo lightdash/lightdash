@@ -223,6 +223,7 @@ import type {
 } from './groups';
 import { type ApiImpersonationOrganizationSettingsResponse } from './impersonationOrganizationSettings';
 import {
+    type ApiLearnAskResponse,
     type ApiLearnCatalogueResponse,
     type ApiLearnCourseResponse,
     type ApiLearnEventsResponse,
@@ -1315,6 +1316,7 @@ type ApiResults =
     | ApiLearnCourseResponse['results']
     | ApiLearnProgressResponse['results']
     | ApiLearnEventsResponse['results']
+    | ApiLearnAskResponse['results']
     | ChartHistory
     | ChartVersion
     | DashboardHistory

@@ -1,5 +1,7 @@
 import {
     type ApiError,
+    type LearnAskRequest,
+    type LearnAskResults,
     type LearnCatalogue,
     type LearnCourse,
     type LearnEventInput,
@@ -47,6 +49,13 @@ const postLearnEvents = async (events: LearnEventInput[]) =>
         body: JSON.stringify(events),
     });
 
+const postLearnAsk = async (body: LearnAskRequest) =>
+    lightdashApi<LearnAskResults>({
+        url: '/learn/ask',
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
+
 export const useLearnCatalogue = () =>
     useQuery<LearnCatalogue, ApiError>({
         queryKey: ['learn-catalogue'],
@@ -62,6 +71,11 @@ export const useLearnCourse = (courseId: string | undefined) =>
         enabled: courseId !== undefined,
         staleTime: 5 * 60 * 1000,
         retry: false,
+    });
+
+export const useLearnAsk = () =>
+    useMutation<LearnAskResults, ApiError, LearnAskRequest>({
+        mutationFn: postLearnAsk,
     });
 
 const useLearnServerProgress = () =>

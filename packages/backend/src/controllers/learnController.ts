@@ -1,10 +1,12 @@
 import {
     assertRegisteredAccount,
     type ApiErrorPayload,
+    type ApiLearnAskResponse,
     type ApiLearnCatalogueResponse,
     type ApiLearnCourseResponse,
     type ApiLearnEventsResponse,
     type ApiLearnProgressResponse,
+    type LearnAskRequest,
     type LearnEventInput,
 } from '@lightdash/common';
 import {
@@ -115,6 +117,28 @@ export class LearnController extends BaseController {
             results: await this.services
                 .getLearnService()
                 .recordEvents(req.account, body),
+        };
+    }
+
+    /**
+     * Search the Lightdash University library for lessons matching a question.
+     * @summary Search Learn content
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/ask')
+    @OperationId('askLearn')
+    async askLearn(
+        @Request() req: express.Request,
+        @Body() body: LearnAskRequest,
+    ): Promise<ApiLearnAskResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getLearnService()
+                .ask(req.account, body),
         };
     }
 }

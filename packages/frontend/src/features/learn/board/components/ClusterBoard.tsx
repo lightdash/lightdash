@@ -2,6 +2,8 @@ import { type LearnCatalogueEntry } from '@lightdash/common';
 import { useElementSize } from '@mantine/hooks';
 import { useMemo, type FC, type RefObject } from 'react';
 import { type Rollup } from '../../model';
+import { type AskHighlights } from '../ask';
+import { nodeAskState } from '../askView';
 import {
     BOARD_WIDTH,
     buildLayout,
@@ -30,6 +32,7 @@ export type ClusterBoardProps = {
     origin: Seat | null;
     burst: boolean;
     reducedMotion: boolean;
+    highlights: AskHighlights | null;
     onSelect: (id: string) => void;
     boardRef: RefObject<HTMLDivElement | null>;
 };
@@ -54,6 +57,7 @@ export const ClusterBoard: FC<ClusterBoardProps> = ({
     origin,
     burst,
     reducedMotion,
+    highlights,
     onSelect,
     boardRef,
 }) => {
@@ -151,7 +155,8 @@ export const ClusterBoard: FC<ClusterBoardProps> = ({
                 {layout.nodes.map((node) => {
                     const entry = byId.get(node.id);
                     if (!entry) return null;
-                    const motion = resolveMotion({
+                    const askState = nodeAskState(node.id, highlights);
+                    const flight = resolveMotion({
                         unlocked: node.unlocked,
                         wasUnlocked: prevHeld
                             ? isUnlocked(entry, prevHeld)
@@ -162,6 +167,17 @@ export const ClusterBoard: FC<ClusterBoardProps> = ({
                         burst,
                         reducedMotion,
                     });
+                    // A locked match is parked at its cluster centre: it shows
+                    // an answer, so it takes no part in the role-switch flight.
+                    const motion =
+                        askState === 'locked-match'
+                            ? {
+                                  ...flight,
+                                  x: node.x,
+                                  y: node.y,
+                                  animate: false,
+                              }
+                            : flight;
                     return (
                         <BoardNode
                             key={node.id}
@@ -178,6 +194,7 @@ export const ClusterBoard: FC<ClusterBoardProps> = ({
                             nextUp={nextUpId === node.id}
                             index={node.index}
                             motion={motion}
+                            askState={askState}
                             onSelect={onSelect}
                         />
                     );

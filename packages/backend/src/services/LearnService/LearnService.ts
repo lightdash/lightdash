@@ -2,6 +2,8 @@ import {
     assertRegisteredAccount,
     FeatureFlags,
     ForbiddenError,
+    LearnAskRequestSchema,
+    LearnAskResponseSchema,
     LearnCatalogueSchema,
     LearnCourseSchema,
     LearnEventInputSchema,
@@ -11,6 +13,7 @@ import {
     UnexpectedServerError,
     type Account,
     type ApiLearnEventsResponse,
+    type LearnAskResults,
     type LearnCatalogue,
     type LearnCourse,
     type LearnEventInput,
@@ -177,6 +180,41 @@ export class LearnService extends BaseService {
             throw new UnexpectedServerError('Could not load Learn progress');
         }
         return { courses: parsed.data.courses, serverSynced: true };
+    }
+
+    async ask(account: Account, body: unknown): Promise<LearnAskResults> {
+        await this.assertLearnEnabled(account);
+        const request = LearnAskRequestSchema.safeParse(body);
+        if (!request.success) {
+            throw new ParameterError('Invalid Learn ask payload');
+        }
+        // Upstream search is unauthenticated and never reads the learner, so it
+        // carries neither the service token nor the email: it works unconfigured.
+        const { progressApiUrl } = this.lightdashConfig.learn;
+        const response = await this.fetchUpstream(
+            `${progressApiUrl}/api/v1/ask`,
+            {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify(request.data),
+            },
+        );
+        if (!response.ok) {
+            this.logger.warn('Learn ask service returned an error', {
+                statusCode: response.status,
+            });
+            throw new UnexpectedServerError('Could not search Learn content');
+        }
+        const parsed = LearnAskResponseSchema.safeParse(
+            await LearnService.parseJson(response),
+        );
+        if (!parsed.success) {
+            this.logger.warn('Learn ask results failed validation', {
+                issueCount: parsed.error.issues.length,
+            });
+            throw new UnexpectedServerError('Could not search Learn content');
+        }
+        return { matches: parsed.data.results };
     }
 
     async recordEvents(

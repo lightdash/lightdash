@@ -1,3 +1,6 @@
+// Board model. Twin: lightdash-university academy/board/model.ts.
+// A change here lands in both repositories in the same piece of work.
+
 import {
     getAllScopeMap,
     getAllScopesForRole,

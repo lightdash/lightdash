@@ -23,9 +23,16 @@ export type LearnCatalogueEntry = {
     publishedAt: string;
 };
 
+/** A curated Ask chip: the question, and the module that answers it. */
+export type LearnAskSuggestion = {
+    query: string;
+    courseId: string;
+};
+
 export type LearnCatalogue = {
     generatedAt: string;
     courses: LearnCatalogueEntry[];
+    suggestions: LearnAskSuggestion[];
 };
 
 const LearnFeatureRequirementSchema = z.object({
@@ -52,10 +59,16 @@ export const LearnCatalogueEntrySchema: z.ZodType<LearnCatalogueEntry> = z
     })
     .passthrough() as unknown as z.ZodType<LearnCatalogueEntry>;
 
+const LearnAskSuggestionSchema = z.object({
+    query: z.string().min(1),
+    courseId: z.string().min(1),
+});
+
 export const LearnCatalogueSchema: z.ZodType<LearnCatalogue> = z
     .object({
         generatedAt: z.string(),
         courses: z.array(LearnCatalogueEntrySchema),
+        suggestions: z.array(LearnAskSuggestionSchema).default([]),
     })
     .passthrough() as unknown as z.ZodType<LearnCatalogue>;
 
@@ -290,4 +303,49 @@ export type ApiLearnProgressResponse = {
 export type ApiLearnEventsResponse = {
     status: 'ok';
     results: { accepted: number };
+};
+
+export type LearnAskRequest = {
+    query: string;
+};
+
+/** The longest question the search accepts: shared by the schema and the input. */
+export const LEARN_ASK_QUERY_MAX_LENGTH = 500;
+
+export const LearnAskRequestSchema: z.ZodType<LearnAskRequest> = z
+    .object({
+        query: z.string().min(1).max(LEARN_ASK_QUERY_MAX_LENGTH),
+    })
+    .strict() as unknown as z.ZodType<LearnAskRequest>;
+
+export type LearnAskMatch = {
+    courseId: string;
+    lessonId: string | null;
+    title: string;
+    score: number;
+};
+
+export type LearnAskResults = {
+    matches: LearnAskMatch[];
+};
+
+export const LearnAskResponseSchema = z
+    .object({
+        results: z.array(
+            z.object({
+                courseId: z.string().min(1),
+                lessonId: z
+                    .string()
+                    .nullish()
+                    .transform((value) => value ?? null),
+                title: z.string(),
+                score: z.number(),
+            }),
+        ),
+    })
+    .passthrough();
+
+export type ApiLearnAskResponse = {
+    status: 'ok';
+    results: LearnAskResults;
 };

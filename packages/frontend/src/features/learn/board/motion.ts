@@ -1,3 +1,6 @@
+// Board motion. Twin: lightdash-university academy/board/motion.ts.
+// A change here lands in both repositories in the same piece of work.
+
 import type { Seat } from './layout';
 
 export const NODE_TRANSITION =

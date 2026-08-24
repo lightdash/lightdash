@@ -57,10 +57,14 @@
     color: #818898;
 }
 
+.tabsRow {
+    padding: 4px 28px 10px;
+}
+
 .tabs {
     display: flex;
+    flex-wrap: wrap;
     gap: 6px;
-    margin-top: 8px;
 }
 
 .tab {
@@ -189,6 +193,20 @@
             inset 0 0 0 2px var(--mantine-color-ldBrandViolet-6),
             0 0 0 10px rgba(94, 76, 255, 0);
     }
+}
+
+/* Ask states. Dimming is the inline opacity from askOpacity(); these classes
+   carry only the ring treatment. */
+.nodeMatched {
+    box-shadow:
+        inset 0 0 0 2px var(--mantine-color-ldBrandViolet-6),
+        0 0 0 8px rgba(94, 76, 255, 0.18);
+}
+
+.nodeLockedMatch {
+    background: #ffffff;
+    color: #818898;
+    box-shadow: inset 0 0 0 1.5px #818898;
 }
 
 .rail {
@@ -375,6 +393,132 @@
 .cta:hover {
     /* No ldBrandViolet shade matches this hover tone; kept as a literal. */
     background: #1200b2;
+}
+
+.ask {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.askForm {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    background: #ffffff;
+    border-radius: 999px;
+    padding: 4px 4px 4px 16px;
+    box-shadow: inset 0 0 0 1px #e5e7eb;
+}
+
+.askInput {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 36px;
+    border: 0;
+    outline: none;
+    font: inherit;
+    font-size: 14px;
+    background: transparent;
+    color: #272835;
+}
+
+.askInput::placeholder {
+    color: #818898;
+}
+
+.askClear {
+    width: 24px;
+    height: 24px;
+    flex: none;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #818898;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.askSubmit {
+    height: 36px;
+    flex: none;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--mantine-color-ldBrandViolet-6);
+    color: #ffffff;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* One row: the chip list is capped, so it never needs to wrap. */
+.askChips {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 6px;
+}
+
+.askChip {
+    height: 28px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #818898;
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    box-shadow: inset 0 0 0 1px #eceff3;
+}
+
+.askResults {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.askGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.askModule {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #818898;
+}
+
+.askRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+}
+
+.askLesson {
+    color: #272835;
+}
+
+.askOpen {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--mantine-color-ldBrandViolet-6);
+    cursor: pointer;
 }
 
 @media (prefers-reduced-motion: reduce) {

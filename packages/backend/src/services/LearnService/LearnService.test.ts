@@ -1,5 +1,6 @@
 import {
     ForbiddenError,
+    LEARN_ASK_QUERY_MAX_LENGTH,
     NotFoundError,
     ParameterError,
     UnexpectedServerError,
@@ -60,9 +61,15 @@ const catalogueEntry = {
     publishedAt: '2026-08-01T00:00:00.000Z',
 };
 
+const suggestion = {
+    query: 'How do I get a dashboard emailed to me every Monday?',
+    courseId: 'viewer-fundamentals',
+};
+
 const cataloguePayload = {
     generatedAt: '2026-08-01T00:00:00.000Z',
     courses: [catalogueEntry],
+    suggestions: [suggestion],
 };
 
 const coursePayload = {
@@ -118,6 +125,14 @@ describe('LearnService', () => {
             await expect(service.getCatalogue(buildAccount())).rejects.toThrow(
                 ForbiddenError,
             );
+            expect(fetchMock).not.toHaveBeenCalled();
+        });
+
+        it('gates the ask proxy on the flag', async () => {
+            const { service } = buildService({ flagEnabled: false });
+            await expect(
+                service.ask(buildAccount(), { query: 'anything' }),
+            ).rejects.toThrow(ForbiddenError);
             expect(fetchMock).not.toHaveBeenCalled();
         });
     });
@@ -184,6 +199,21 @@ describe('LearnService', () => {
             await expect(service.getCatalogue(buildAccount())).rejects.toThrow(
                 UnexpectedServerError,
             );
+        });
+
+        it('returns the curated ask suggestions', async () => {
+            const { service } = buildService();
+            fetchMock.mockResolvedValue(jsonResponse(cataloguePayload));
+            const catalogue = await service.getCatalogue(buildAccount());
+            expect(catalogue.suggestions).toEqual([suggestion]);
+        });
+
+        it('defaults suggestions for a catalogue published before them', async () => {
+            const { service } = buildService();
+            const { suggestions, ...legacy } = cataloguePayload;
+            fetchMock.mockResolvedValue(jsonResponse(legacy));
+            const catalogue = await service.getCatalogue(buildAccount());
+            expect(catalogue.suggestions).toEqual([]);
         });
     });
 
@@ -296,6 +326,105 @@ describe('LearnService', () => {
             fetchMock.mockResolvedValue(jsonResponse({}, 500));
             await expect(
                 service.recordEvents(buildAccount(), [validEvent]),
+            ).rejects.toThrow(UnexpectedServerError);
+        });
+    });
+
+    describe('ask', () => {
+        it('rejects an invalid payload with ParameterError', async () => {
+            const { service } = buildService();
+            await expect(
+                service.ask(buildAccount(), { query: '' }),
+            ).rejects.toThrow(ParameterError);
+            expect(fetchMock).not.toHaveBeenCalled();
+        });
+
+        it('rejects a query over the published length cap', async () => {
+            const { service } = buildService();
+            await expect(
+                service.ask(buildAccount(), {
+                    query: 'x'.repeat(LEARN_ASK_QUERY_MAX_LENGTH + 1),
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(fetchMock).not.toHaveBeenCalled();
+        });
+
+        it('searches on an instance with no service token', async () => {
+            const { service } = buildService({ withToken: false });
+            fetchMock.mockResolvedValue(
+                jsonResponse({
+                    results: [
+                        {
+                            courseId: 'viewer-fundamentals',
+                            lessonId: 'l1',
+                            title: 'Lesson One',
+                            score: 0.72,
+                        },
+                    ],
+                }),
+            );
+            const result = await service.ask(buildAccount(), {
+                query: 'deliveries',
+            });
+            expect(result.matches).toHaveLength(1);
+            const [url, init] = fetchMock.mock.calls[0];
+            expect(url).toBe('https://progress.test/api/v1/ask');
+            expect(
+                (init.headers as Record<string, string>).authorization,
+            ).toBeUndefined();
+        });
+
+        it('forwards the query, normalises a missing lessonId and drops unknown per-match fields', async () => {
+            const { service } = buildService();
+            fetchMock.mockResolvedValue(
+                jsonResponse({
+                    results: [
+                        {
+                            courseId: 'viewer-fundamentals',
+                            lessonId: 'l1',
+                            title: 'Lesson One',
+                            score: 0.72,
+                            snippet: 'internal debugging text',
+                        },
+                        {
+                            courseId: 'deliveries',
+                            title: 'Deliveries',
+                            score: 0.51,
+                        },
+                    ],
+                }),
+            );
+            const result = await service.ask(buildAccount(), {
+                query: 'email me a dashboard',
+            });
+            expect(result.matches).toEqual([
+                {
+                    courseId: 'viewer-fundamentals',
+                    lessonId: 'l1',
+                    title: 'Lesson One',
+                    score: 0.72,
+                },
+                {
+                    courseId: 'deliveries',
+                    lessonId: null,
+                    title: 'Deliveries',
+                    score: 0.51,
+                },
+            ]);
+            const [url, init] = fetchMock.mock.calls[0];
+            // Upstream ask never reads the learner: no email in the URL or body.
+            expect(url).toBe('https://progress.test/api/v1/ask');
+            expect(init.method).toBe('POST');
+            expect(JSON.parse(init.body as string)).toEqual({
+                query: 'email me a dashboard',
+            });
+        });
+
+        it('maps a search outage to UnexpectedServerError', async () => {
+            const { service } = buildService();
+            fetchMock.mockResolvedValue(jsonResponse({}, 503));
+            await expect(
+                service.ask(buildAccount(), { query: 'anything' }),
             ).rejects.toThrow(UnexpectedServerError);
         });
     });

@@ -1,3 +1,6 @@
+// Board geometry. Twin: lightdash-university academy/board/layout.ts.
+// A change here lands in both repositories in the same piece of work.
+
 import { GROUP_ORDER, type BoardGroup } from './model';
 
 export const BOARD_WIDTH = 1120;
