@@ -404,9 +404,8 @@ export type DuckdbCredentials =
     | DuckdbEmbeddedCredentials;
 
 /**
- * Rows created before the connectionType field was introduced are
- * MotherDuck-shaped DuckDB credentials. Default the field at decrypt time
- * so the discriminated union narrows correctly without a data migration.
+ * Normalize legacy credential values at decrypt time so callers receive a
+ * valid discriminated union without requiring data migrations.
  */
 export const normalizeWarehouseCredentials = <
     T extends CreateWarehouseCredentials,
@@ -423,6 +422,16 @@ export const normalizeWarehouseCredentials = <
             connectionType: DuckdbConnectionType.MOTHERDUCK,
         };
     }
+
+    if (credentials.type === WarehouseTypes.SNOWFLAKE) {
+        const { timeoutSeconds } = credentials as {
+            timeoutSeconds?: number | string | null;
+        };
+        if (timeoutSeconds === '' || timeoutSeconds === null) {
+            return { ...credentials, timeoutSeconds: undefined };
+        }
+    }
+
     return credentials;
 };
 
