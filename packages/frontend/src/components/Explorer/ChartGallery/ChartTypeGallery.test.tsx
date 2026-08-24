@@ -141,6 +141,61 @@ describe('ChartTypeGallery', () => {
             screen.getByRole('button', { name: 'Edit Event pulse' }),
         ).toBeInTheDocument();
     });
+
+    it('marks the selected grid card and disables cards that cannot be picked', () => {
+        renderWithProviders(
+            <ChartTypeGallery
+                search=""
+                onSearchChange={vi.fn()}
+                sections={[
+                    {
+                        label: 'Built in',
+                        layout: 'grid',
+                        items: [
+                            {
+                                ...galleryItem('Bar chart', ''),
+                                selected: true,
+                            },
+                            {
+                                ...galleryItem('Line chart', ''),
+                                disabled: true,
+                            },
+                        ],
+                        emptyMessage: 'Nothing here',
+                    },
+                ]}
+            />,
+        );
+
+        expect(
+            screen.getByRole('button', { name: 'Bar chart' }),
+        ).toHaveAttribute('data-selected', 'true');
+        const lineChart = screen.getByRole('button', { name: 'Line chart' });
+        expect(lineChart).toHaveAttribute('data-selected', 'false');
+        expect(lineChart).toBeDisabled();
+    });
+
+    it('shows the empty message when a grid section has no items', () => {
+        renderWithProviders(
+            <ChartTypeGallery
+                search="zzz"
+                onSearchChange={vi.fn()}
+                sections={[
+                    {
+                        label: 'Built in',
+                        layout: 'grid',
+                        items: [],
+                        emptyMessage:
+                            'No built-in chart types match your search',
+                    },
+                ]}
+            />,
+        );
+
+        expect(
+            screen.getByText('No built-in chart types match your search'),
+        ).toBeInTheDocument();
+    });
 });
 
 const mockedUseDataAppVisualizations = vi.mocked(useDataAppVisualizations);
@@ -214,6 +269,24 @@ describe('ExplorerChartTypeGallery', () => {
         expect(
             screen.getByRole('button', { name: /Pie chart/ }),
         ).toBeInTheDocument();
+    });
+
+    it('reads clearly when no built-in chart types match the search', async () => {
+        renderGallery();
+
+        await userEvent.type(
+            screen.getByRole('textbox', { name: 'Search chart types' }),
+            'zzz',
+        );
+
+        expect(
+            await screen.findByText(
+                'No built-in chart types match your search',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: /Bar chart/ }),
+        ).not.toBeInTheDocument();
     });
 
     it('selects the existing Vega configuration path', async () => {
