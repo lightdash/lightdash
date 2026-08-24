@@ -1,3 +1,10 @@
+## [1.251.7](https://github.com/lightdash/lightdash/compare/1.251.6...1.251.7) (2026-08-24)
+
+
+### Bug Fixes
+
+* restore dbt source contracts ([#27964](https://github.com/lightdash/lightdash/issues/27964)) ([a6b6762](https://github.com/lightdash/lightdash/commit/a6b6762e8caaede895ec0b756b595137c9b0a513))
+
 ## [1.251.6](https://github.com/lightdash/lightdash/compare/1.251.5...1.251.6) (2026-08-24)
 
 
