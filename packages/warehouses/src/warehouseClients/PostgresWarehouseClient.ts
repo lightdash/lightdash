@@ -138,10 +138,10 @@ const POSTGRES_NAME_TOO_LONG_SQLSTATE = '42622';
 
 // Server-side ceiling for a single streamed query, bounded just under the
 // 10-min scheduler job timeout so a stalled cursor fails clearly instead of
-// hanging the whole job. The pool's `query_timeout` does not fire on the
-// cursor (pg-cursor) path, so the ceiling is enforced via `statement_timeout`
-// plus a client-side wall-clock backstop. Overridable per-connection via
-// `timeoutSeconds`.
+// hanging the whole job. Enforced via `statement_timeout` plus a client-side
+// wall-clock backstop. Do not also configure the pg pool's `query_timeout`: it
+// applies to cursor queries and would race these deliberately ordered limits.
+// Overridable per-connection via `timeoutSeconds`.
 const DEFAULT_STATEMENT_TIMEOUT_MS = 1000 * 60 * 9; // 9 minutes
 
 // The client-side backstop fires this long after the server-side
@@ -318,15 +318,15 @@ export class PostgresClient<
         let pool: pg.Pool | undefined;
         let closeClient: (() => void) | undefined;
         let activeStream: QueryStream | undefined;
-        let queryTimeout: ReturnType<typeof setTimeout> | undefined;
+        let clientTimeout: ReturnType<typeof setTimeout> | undefined;
 
         const reportPhase = options.onPhaseTiming;
 
-        // The pool's `query_timeout` does not fire on the cursor (pg-cursor)
-        // path, so we enforce the ceiling ourselves: a server-side
-        // `statement_timeout` (set below) plus this client-side wall-clock
-        // backstop that fires shortly after, in case the server never reports
-        // back (e.g. a stalled SSH tunnel socket).
+        // Enforce the ceiling with a server-side `statement_timeout` (set
+        // below) plus this client-side wall-clock backstop, which fires shortly
+        // after in case the server never reports back (e.g. a stalled SSH
+        // tunnel socket). A pg `query_timeout` is deliberately omitted because
+        // it also applies to cursor queries and would race the server timeout.
         const statementTimeoutMs = this.credentials.timeoutSeconds
             ? this.credentials.timeoutSeconds * 1000
             : DEFAULT_STATEMENT_TIMEOUT_MS;
@@ -334,7 +334,7 @@ export class PostgresClient<
             statementTimeoutMs + CLIENT_STATEMENT_TIMEOUT_BUFFER_MS;
 
         return new Promise<void>((resolve, reject) => {
-            queryTimeout = setTimeout(() => {
+            clientTimeout = setTimeout(() => {
                 const timeoutError = new WarehouseQueryError(
                     `Query timed out after ${Math.round(
                         clientTimeoutMs / 1000,
@@ -347,9 +347,6 @@ export class PostgresClient<
             pool = new pg.Pool({
                 ...this.config,
                 connectionTimeoutMillis: 30000,
-                query_timeout: this.credentials.timeoutSeconds
-                    ? this.credentials.timeoutSeconds * 1000
-                    : 1000 * 60 * 5, // sets the default query timeout to 5 minutes
             });
 
             pool.on('error', (err) => {
@@ -405,17 +402,11 @@ export class PostgresClient<
                     // CodeQL: This will raise a security warning because user defined raw SQL is being passed into the database module.
                     //         In this case this is exactly what we want to do. We're hitting the user's warehouse not the application's database.
                     activeStream = client.query(
-                        // callback is not defined in types when using QueryStream
-                        // @ts-ignore
                         new QueryStream(
                             this.getSQLWithMetadata(sql, options?.tags),
                             options?.values,
                         ),
-                        // there is a bug in PG lib where callback is required when passing `query_timeout` to the Pool
-                        // see the code: https://github.com/brianc/node-postgres/blob/master/packages/pg/lib/client.js#L541-L542
-                        () => {},
-                        // typecast is necessary to fix the type issue described above
-                    ) as unknown as QueryStream;
+                    );
 
                     // Cache field conversion — result.fields is the same
                     // array reference for every row in a query, so we only
@@ -490,10 +481,10 @@ export class PostgresClient<
                     });
                 };
 
-                // Always enforce a server-side statement timeout — the pool's
-                // query_timeout is ineffective on the cursor path. Issued as
-                // its own single statement (followed by the optional timezone)
-                // to stay portable across Postgres and Redshift.
+                // Always enforce the primary query-execution ceiling on the
+                // server. Issued as its own single statement (followed by the
+                // optional timezone) to stay portable across Postgres and
+                // Redshift.
                 const sessionStart = performance.now();
                 client
                     .query(`SET statement_timeout = ${statementTimeoutMs}`)
@@ -528,8 +519,8 @@ export class PostgresClient<
                 throw this.parseError(error, sql);
             })
             .finally(async () => {
-                if (queryTimeout) {
-                    clearTimeout(queryTimeout);
+                if (clientTimeout) {
+                    clearTimeout(clientTimeout);
                 }
                 // Release the client first, then end the pool
                 if (closeClient) {
