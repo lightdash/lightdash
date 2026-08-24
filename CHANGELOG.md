@@ -1,3 +1,15 @@
+# [1.241.0](https://github.com/lightdash/lightdash/compare/1.240.3...1.241.0) (2026-08-24)
+
+
+### Bug Fixes
+
+* **ai:** preserve MCP tool schema wrapper during input-schema hardening ([#27900](https://github.com/lightdash/lightdash/issues/27900)) ([ec095b2](https://github.com/lightdash/lightdash/commit/ec095b216b34790f5d47501134632a87d35fa44a))
+
+
+### Features
+
+* **ai:** support corporate LLM gateways ([#27898](https://github.com/lightdash/lightdash/issues/27898)) ([18f246f](https://github.com/lightdash/lightdash/commit/18f246fd703a6797d535ab86ed6ccf7d43d910e2))
+
 ## [1.240.3](https://github.com/lightdash/lightdash/compare/1.240.2...1.240.3) (2026-08-24)
 
 
