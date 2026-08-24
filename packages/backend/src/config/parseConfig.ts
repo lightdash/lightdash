@@ -48,6 +48,10 @@ import {
     DEFAULT_OPENAI_MODEL_NAME,
     DEFAULT_OPENROUTER_MODEL_NAME,
 } from './aiConfigSchema';
+import {
+    normalizeAnthropicGatewayBaseUrl,
+    normalizeLlmGatewayBaseUrl,
+} from './aiGatewayConfig';
 
 enum TokenEnvironmentVariable {
     SERVICE_ACCOUNT = 'LD_SETUP_SERVICE_ACCOUNT_TOKEN',
@@ -1147,11 +1151,28 @@ const parseAndSanitizeSchedulerTasks = (): Array<SchedulerTaskName> => {
 const getProviderSupportsStreaming = (envVar: string): boolean =>
     process.env[envVar] !== 'false';
 
+const isEnabledBoolean = (value: string | undefined): boolean =>
+    value !== undefined && ['1', 'true'].includes(value.trim().toLowerCase());
+
 const getBedrockConfig = (customHeaders: Record<string, string>) => {
+    const baseUrl = process.env.BEDROCK_BASE_URL
+        ? normalizeLlmGatewayBaseUrl(
+              process.env.BEDROCK_BASE_URL,
+              'BEDROCK_BASE_URL',
+          )
+        : undefined;
+    const gateway = {
+        baseUrl,
+        claudeCodeSkipAuth: isEnabledBoolean(
+            process.env.CLAUDE_CODE_SKIP_BEDROCK_AUTH,
+        ),
+    };
+
     if (process.env.BEDROCK_API_KEY) {
         return {
             apiKey: process.env.BEDROCK_API_KEY,
             region: process.env.BEDROCK_REGION,
+            ...gateway,
             inferenceProfilePrefix:
                 process.env.BEDROCK_INFERENCE_PROFILE_PREFIX,
             modelName:
@@ -1172,6 +1193,7 @@ const getBedrockConfig = (customHeaders: Record<string, string>) => {
             secretAccessKey: process.env.BEDROCK_SECRET_ACCESS_KEY,
             sessionToken: process.env.BEDROCK_SESSION_TOKEN,
             region: process.env.BEDROCK_REGION,
+            ...gateway,
             inferenceProfilePrefix:
                 process.env.BEDROCK_INFERENCE_PROFILE_PREFIX,
             modelName:
@@ -1190,6 +1212,7 @@ const getBedrockConfig = (customHeaders: Record<string, string>) => {
         return {
             useDefaultCredentials: true as const,
             region: process.env.BEDROCK_REGION,
+            ...gateway,
             inferenceProfilePrefix:
                 process.env.BEDROCK_INFERENCE_PROFILE_PREFIX,
             modelName:
@@ -1203,6 +1226,13 @@ const getBedrockConfig = (customHeaders: Record<string, string>) => {
                 'BEDROCK_SUPPORTS_STREAMING',
             ),
         } as const;
+    }
+
+    if (gateway.baseUrl) {
+        throw new ParseError(
+            'BEDROCK_BASE_URL requires BEDROCK_API_KEY, BEDROCK_ACCESS_KEY_ID, or BEDROCK_USE_DEFAULT_CREDENTIALS=true for the backend Bedrock provider. CLAUDE_CODE_SKIP_BEDROCK_AUTH only skips credentials for Claude Code.',
+            {},
+        );
     }
 
     return undefined;
@@ -1289,6 +1319,11 @@ export const getAiConfig = () => ({
                       modelName:
                           process.env.ANTHROPIC_MODEL_NAME ||
                           DEFAULT_ANTHROPIC_MODEL_NAME,
+                      baseUrl: process.env.ANTHROPIC_BASE_URL
+                          ? normalizeAnthropicGatewayBaseUrl(
+                                process.env.ANTHROPIC_BASE_URL,
+                            )
+                          : undefined,
                       availableModels: getArrayFromCommaSeparatedList(
                           'ANTHROPIC_AVAILABLE_MODELS',
                       ),
@@ -2589,6 +2624,9 @@ export const parseConfig = (): LightdashConfig => {
         );
     }
 
+    if (process.env.ANTHROPIC_BASE_URL) {
+        normalizeAnthropicGatewayBaseUrl(process.env.ANTHROPIC_BASE_URL);
+    }
     const rawCopilotConfig = getAiConfig();
     const copilotConfigParse =
         aiCopilotConfigSchema.safeParse(rawCopilotConfig);
@@ -3303,7 +3341,9 @@ export const parseConfig = (): LightdashConfig => {
         managedAgent: {
             anthropicApiKey:
                 process.env.MANAGED_AGENT_ANTHROPIC_API_KEY ||
-                process.env.ANTHROPIC_API_KEY ||
+                (!process.env.ANTHROPIC_BASE_URL
+                    ? process.env.ANTHROPIC_API_KEY
+                    : undefined) ||
                 null,
             skillIds: (process.env.MANAGED_AGENT_SKILL_IDS || '')
                 .split(',')

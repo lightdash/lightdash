@@ -517,6 +517,83 @@ test('Should parse bedrock inference profile prefix from env', () => {
     });
 });
 
+test('Should parse and normalize LLM gateway base URLs', () => {
+    process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
+    process.env.ANTHROPIC_BASE_URL = ' https://anthropic-gateway.example/v1 ';
+    process.env.BEDROCK_API_KEY = 'test-bedrock-key';
+    process.env.BEDROCK_REGION = 'us-east-1';
+    process.env.BEDROCK_BASE_URL = ' https://bedrock-gateway.example/runtime ';
+
+    expect(parseConfig()).toMatchObject({
+        ai: {
+            copilot: {
+                providers: {
+                    anthropic: {
+                        baseUrl: 'https://anthropic-gateway.example',
+                    },
+                    bedrock: {
+                        baseUrl: 'https://bedrock-gateway.example/runtime',
+                    },
+                },
+            },
+        },
+    });
+});
+
+test.each(['1', 'true'])(
+    '%s enables Claude Code Bedrock skip-auth',
+    (value) => {
+        process.env.BEDROCK_API_KEY = 'test-bedrock-key';
+        process.env.BEDROCK_REGION = 'us-east-1';
+        process.env.BEDROCK_BASE_URL =
+            'https://bedrock-gateway.example/runtime';
+        process.env.CLAUDE_CODE_SKIP_BEDROCK_AUTH = value;
+
+        expect(
+            parseConfig().ai.copilot.providers.bedrock?.claudeCodeSkipAuth,
+        ).toBe(true);
+    },
+);
+
+test.each([
+    ['ANTHROPIC_BASE_URL', 'gateway.internal'],
+    ['BEDROCK_BASE_URL', 'ftp://gateway.internal'],
+])('rejects invalid %s values', (environmentVariable, value) => {
+    process.env[environmentVariable] = value;
+    if (environmentVariable === 'BEDROCK_BASE_URL') {
+        process.env.BEDROCK_API_KEY = 'test-bedrock-key';
+        process.env.BEDROCK_REGION = 'us-east-1';
+    }
+
+    expect(() => parseConfig()).toThrow(environmentVariable);
+});
+
+test('explains that Bedrock skip-auth does not configure backend credentials', () => {
+    process.env.BEDROCK_REGION = 'us-east-1';
+    process.env.BEDROCK_BASE_URL = 'https://bedrock-gateway.example/runtime';
+    process.env.CLAUDE_CODE_SKIP_BEDROCK_AUTH = 'true';
+
+    expect(() => parseConfig()).toThrow(
+        'BEDROCK_BASE_URL requires BEDROCK_API_KEY',
+    );
+});
+
+test('does not reuse an Anthropic gateway token for Managed Agent', () => {
+    process.env.ANTHROPIC_API_KEY = 'gateway-token';
+    process.env.ANTHROPIC_BASE_URL = 'https://anthropic-gateway.example';
+
+    expect(parseConfig().managedAgent.anthropicApiKey).toBeNull();
+
+    process.env.MANAGED_AGENT_ANTHROPIC_API_KEY = 'managed-agent-key';
+    expect(parseConfig().managedAgent.anthropicApiKey).toBe(
+        'managed-agent-key',
+    );
+
+    delete process.env.MANAGED_AGENT_ANTHROPIC_API_KEY;
+    delete process.env.ANTHROPIC_BASE_URL;
+    expect(parseConfig().managedAgent.anthropicApiKey).toBe('gateway-token');
+});
+
 test('Should default AI tool description max chars to 600', () => {
     expect(parseConfig().ai.copilot.toolDescriptionMaxChars).toEqual(600);
 });

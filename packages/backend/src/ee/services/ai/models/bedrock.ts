@@ -35,12 +35,14 @@ export const getBedrockProvider = (
         return createAmazonBedrock({
             apiKey: config.apiKey,
             region: config.region,
+            ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
             headers: config.customHeaders,
         });
     }
     if ('accessKeyId' in config) {
         return createAmazonBedrock({
             region: config.region,
+            ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
             accessKeyId: config.accessKeyId,
             secretAccessKey: config.secretAccessKey,
             headers: config.customHeaders,
@@ -51,6 +53,7 @@ export const getBedrockProvider = (
     }
     return createAmazonBedrock({
         region: config.region,
+        ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
         headers: config.customHeaders,
         credentialProvider: fromNodeProviderChain(),
     });

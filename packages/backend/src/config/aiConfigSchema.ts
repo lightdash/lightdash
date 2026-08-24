@@ -81,6 +81,7 @@ export const aiCopilotConfigSchema = z
                 .object({
                     apiKey: z.string(),
                     modelName: z.string().default(DEFAULT_ANTHROPIC_MODEL_NAME),
+                    baseUrl: z.string().optional(),
                     availableModels: z.array(z.string()).optional(),
                     customHeaders: customHeadersSchema,
                     supportsStreaming: supportsStreamingSchema,
@@ -109,6 +110,8 @@ export const aiCopilotConfigSchema = z
                     z.object({
                         apiKey: z.string(),
                         region: z.string(),
+                        baseUrl: z.string().optional(),
+                        claudeCodeSkipAuth: z.boolean().optional(),
                         inferenceProfilePrefix: z.string().optional(),
                         modelName: z
                             .string()
@@ -125,6 +128,8 @@ export const aiCopilotConfigSchema = z
                         accessKeyId: z.string(),
                         secretAccessKey: z.string(),
                         sessionToken: z.string().optional(),
+                        baseUrl: z.string().optional(),
+                        claudeCodeSkipAuth: z.boolean().optional(),
                         inferenceProfilePrefix: z.string().optional(),
                         modelName: z
                             .string()
@@ -139,6 +144,8 @@ export const aiCopilotConfigSchema = z
                     z.object({
                         useDefaultCredentials: z.literal(true),
                         region: z.string(),
+                        baseUrl: z.string().optional(),
+                        claudeCodeSkipAuth: z.boolean().optional(),
                         inferenceProfilePrefix: z.string().optional(),
                         modelName: z
                             .string()

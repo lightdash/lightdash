@@ -1251,17 +1251,38 @@ APP_RUNTIME_CDN_ORIGIN=https://cdn.example.com     # Optional CDN for CSP
 APP_RUNTIME_PREVIEW_ORIGIN=https://preview.example # Optional Separate domain for preview serving
 ```
 
-### LLM provider (Anthropic vs Bedrock)
+### LLM provider and corporate gateways
 
 The `claude` CLI inside the E2B sandbox routes through either the Anthropic API or AWS Bedrock, following the same `AI_DEFAULT_PROVIDER` switch the AI copilot uses (`lightdashConfig.ai.copilot`). Claude Code itself only supports these two providers — any value other than `bedrock` falls back to the Anthropic API.
 
 | Mode                                      | Sandbox env vars                                                                                                      | Firewall allowlist                                                         |
 | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
 | **Anthropic** _(default)_                 | `ANTHROPIC_API_KEY`                                                                                                   | `api.anthropic.com`                                                        |
+| **Anthropic gateway**                     | `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`                                                                          | Gateway hostname only                                                      |
 | **Bedrock — bearer token** (`apiKey` set) | `CLAUDE_CODE_USE_BEDROCK=1`, `AWS_REGION`, `AWS_BEARER_TOKEN_BEDROCK`                                                 | `bedrock-runtime.{region}.amazonaws.com`, `bedrock.{region}.amazonaws.com` |
 | **Bedrock — IAM** (`accessKeyId` set)     | `CLAUDE_CODE_USE_BEDROCK=1`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, optional `AWS_SESSION_TOKEN` | `bedrock-runtime.{region}.amazonaws.com`, `bedrock.{region}.amazonaws.com` |
+| **Bedrock gateway**                       | Bedrock env above plus `ANTHROPIC_BEDROCK_BASE_URL`; optionally `CLAUDE_CODE_SKIP_BEDROCK_AUTH=1`                     | Gateway hostname only                                                      |
 
 Bedrock mode reuses the AI copilot's existing `BEDROCK_*` configuration (`lightdashConfig.ai.copilot.providers.bedrock`) — no separate data-apps credentials.
+
+Set `ANTHROPIC_BASE_URL` for an Anthropic-wire gateway. Configure it as the base before the API's `/v1` segment, for example `https://gateway.example/anthropic`, not `https://gateway.example/anthropic/v1`. Lightdash accepts a trailing `/v1` for compatibility and normalizes it away. The backend appends `/v1` for the Anthropic SDK, while Claude Code appends `/v1/messages` itself. Gateway requests use `ANTHROPIC_API_KEY` as an `Authorization: Bearer` token; direct Anthropic requests continue to use `x-api-key`. Organization-level BYO Anthropic keys cannot be combined with an instance Anthropic gateway.
+
+Set `BEDROCK_BASE_URL` for a Bedrock-wire gateway. The same base configures the backend Bedrock AI SDK and is mapped to Claude Code's `ANTHROPIC_BEDROCK_BASE_URL`. `CLAUDE_CODE_SKIP_BEDROCK_AUTH` accepts `1` or `true` and suppresses AWS credentials only inside Claude Code. Lightdash still requires `BEDROCK_API_KEY`, static AWS credentials, or `BEDROCK_USE_DEFAULT_CREDENTIALS=true` because the backend Bedrock provider uses the same configuration.
+
+The configured gateway must implement every API wire used by the enabled consumers:
+
+| Consumer | Protocol and path relative to the configured base |
+| --- | --- |
+| Backend Anthropic chat | Anthropic Messages: `/v1/messages` |
+| Anthropic model discovery | Anthropic Models: `/v1/models` (or configure `ANTHROPIC_AVAILABLE_MODELS` to bypass discovery) |
+| Backend Bedrock chat | Bedrock Converse: `/model/{model}/converse` or `/converse-stream` |
+| Backend Bedrock embeddings | Bedrock Invoke: `/model/{model}/invoke` |
+| Claude Code on Bedrock | Bedrock Invoke: `/model/{model}/invoke-with-response-stream` |
+| Codex on a Bedrock gateway | OpenAI Responses: `/responses` |
+
+When `APPS_CODING_AGENT=codex`, OpenAI-wire gateways continue to use `OPENAI_BASE_URL`. A Bedrock gateway uses a custom Codex Responses provider backed by `BEDROCK_BASE_URL` and `BEDROCK_API_KEY`. Codex sends Bedrock model IDs with the `openai.` prefix, for example `openai.gpt-5.6-terra`, so the gateway must register or translate that model name. Codex's built-in Bedrock provider cannot override its endpoint, so IAM/SigV4 credentials with `BEDROCK_BASE_URL` are rejected rather than falling back to the public AWS endpoint.
+
+These gateway settings apply to the AI copilot and Data App coding agents. They do not reroute AI Writeback, the onboarding agent, or Anthropic's managed-agent beta APIs. Configure `MANAGED_AGENT_ANTHROPIC_API_KEY` separately when using Managed Agent alongside `ANTHROPIC_BASE_URL`; Lightdash will not reuse the gateway token against the public Anthropic endpoint.
 
 Validation is fail-loud: when `AI_DEFAULT_PROVIDER=bedrock` but credentials or region are missing, `resolveBedrockConfig` throws `MissingConfigError` rather than silently falling back to Anthropic or injecting an undefined region (the AI config schema is parsed leniently via safeParse, so startup validation can't be relied on here). The pipeline-start log line includes `llm=...` via `describeClaudeCodeEnv` — a non-secret summary of provider + auth method + region for ops visibility, never the credential values.
 

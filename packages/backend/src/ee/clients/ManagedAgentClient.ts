@@ -7,6 +7,7 @@ import type {
 import { ParameterError, type ManagedAgentPolicy } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { createHash } from 'crypto';
+import { ANTHROPIC_PUBLIC_BASE_URL } from '../../config/aiGatewayConfig';
 import type { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { traceSpan, type TraceSpan } from '../../tracing/tracing';
@@ -61,11 +62,18 @@ export class ManagedAgentClient {
         const { anthropicApiKey } = this.config.lightdashConfig.managedAgent;
         if (!anthropicApiKey) {
             throw new ParameterError(
-                'ANTHROPIC_API_KEY is required for managed agent',
+                this.config.lightdashConfig.ai.copilot.providers.anthropic
+                    ?.baseUrl
+                    ? 'MANAGED_AGENT_ANTHROPIC_API_KEY is required for managed agent when ANTHROPIC_BASE_URL is configured'
+                    : 'ANTHROPIC_API_KEY or MANAGED_AGENT_ANTHROPIC_API_KEY is required for managed agent',
             );
         }
 
-        return new Anthropic({ apiKey: anthropicApiKey });
+        return new Anthropic({
+            apiKey: anthropicApiKey,
+            authToken: null,
+            baseURL: ANTHROPIC_PUBLIC_BASE_URL,
+        });
     }
 
     private getRenderedAgentConfig(
