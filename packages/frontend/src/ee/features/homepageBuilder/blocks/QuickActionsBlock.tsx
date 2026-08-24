@@ -31,6 +31,7 @@ import { Link } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { useInfiniteContent } from '../../../../hooks/useContent';
+import { useProjectUrlIdentifier } from '../../../../hooks/useProjectRoute';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
 import { useHomepageAiState } from '../hooks/useHomepageAiState';
@@ -82,17 +83,22 @@ const actionKey = (action: HomepageQuickAction): string =>
 const actionPresentation = (
     action: HomepageQuickAction,
     projectUuid: string,
+    projectUrlIdentifier = projectUuid,
 ): Omit<StaticActionDefinition, 'url'> & { url: string } => {
     if (action.type === 'dashboard') {
         return {
             icon: IconLayoutDashboard,
             title: action.label,
             description: 'Open this dashboard.',
-            url: `/projects/${projectUuid}/dashboards/${action.dashboardUuid}/view`,
+            url: `/projects/${projectUrlIdentifier}/dashboards/${action.dashboardUuid}/view`,
         };
     }
     const { url, ...definition } = STATIC_ACTIONS[action.type];
-    return { ...definition, url: url(projectUuid) };
+    const identifier =
+        action.type === 'browse-dashboards' || action.type === 'browse-spaces'
+            ? projectUrlIdentifier
+            : projectUuid;
+    return { ...definition, url: url(identifier) };
 };
 
 export const QuickActionCards: FC<{
@@ -101,6 +107,7 @@ export const QuickActionCards: FC<{
     // Centred under the composer; left-aligned when it follows a page heading
     justify?: 'center' | 'flex-start';
 }> = ({ actions, projectUuid, justify = 'center' }) => {
+    const projectUrlIdentifier = useProjectUrlIdentifier();
     const { track } = useTracking();
     const { canAskAi } = useHomepageAiState(projectUuid);
     const visibleActions = actions.filter(
@@ -110,7 +117,11 @@ export const QuickActionCards: FC<{
     return (
         <Group gap={8} justify={justify}>
             {visibleActions.map((action) => {
-                const presentation = actionPresentation(action, projectUuid);
+                const presentation = actionPresentation(
+                    action,
+                    projectUuid,
+                    projectUrlIdentifier,
+                );
                 const trackClick = () =>
                     track({
                         name: EventName.HOMEPAGE_QUICK_ACTION_CLICKED,

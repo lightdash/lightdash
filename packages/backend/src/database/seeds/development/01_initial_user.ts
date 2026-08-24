@@ -197,6 +197,7 @@ export async function seed(knex: Knex): Promise<void> {
     )
         .insert({
             ...SEED_PROJECT,
+            slug: generateSlug(SEED_PROJECT.name),
             organization_id: organizationId,
             dbt_connection: encryptedProjectSettings,
             dbt_version: SupportedDbtVersions.V1_12,

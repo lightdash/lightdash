@@ -61,6 +61,7 @@ export const getResourceTypeName = (item: ResourceViewItem) => {
 
 const getChartResourceUrl = (
     projectUuid: string,
+    projectUrlIdentifier: string,
     item: ResourceViewChartItem,
 ) => {
     switch (item.data.source) {
@@ -68,7 +69,7 @@ const getChartResourceUrl = (
             return `/projects/${projectUuid}/sql-runner/${item.data.slug}`;
         case ChartSourceType.DBT_EXPLORE:
         case undefined:
-            return `/projects/${projectUuid}/saved/${item.data.slug}`;
+            return `/projects/${projectUrlIdentifier}/saved/${item.data.slug}`;
         default:
             return assertUnreachable(
                 item.data.source,
@@ -77,15 +78,19 @@ const getChartResourceUrl = (
     }
 };
 
-export const getResourceUrl = (projectUuid: string, item: ResourceViewItem) => {
+export const getResourceUrl = (
+    projectUuid: string,
+    item: ResourceViewItem,
+    projectUrlIdentifier = projectUuid,
+) => {
     const itemType = item.type;
     switch (item.type) {
         case ResourceViewItemType.DASHBOARD:
-            return `/projects/${projectUuid}/dashboards/${item.data.slug}/view`;
+            return `/projects/${projectUrlIdentifier}/dashboards/${item.data.slug}/view`;
         case ResourceViewItemType.CHART:
-            return getChartResourceUrl(projectUuid, item);
+            return getChartResourceUrl(projectUuid, projectUrlIdentifier, item);
         case ResourceViewItemType.SPACE:
-            return `/projects/${projectUuid}/spaces/${item.data.uuid}`;
+            return `/projects/${projectUrlIdentifier}/spaces/${item.data.uuid}`;
         case ResourceViewItemType.DATA_APP:
             return `/projects/${projectUuid}/apps/${item.data.uuid}/view`;
         default:

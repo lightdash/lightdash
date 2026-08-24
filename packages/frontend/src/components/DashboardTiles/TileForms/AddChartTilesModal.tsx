@@ -29,9 +29,9 @@ import React, {
     useState,
     type FC,
 } from 'react';
-import { useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { useChartSummariesV2 } from '../../../hooks/useChartSummariesV2';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import MantineModal from '../../common/MantineModal';
 import { MultiSelectCombobox } from '../../common/MultiSelectCombobox/MultiSelectCombobox';
@@ -107,11 +107,7 @@ const AddChartTilesModal: FC<Props> = ({
     spaceUuid,
     maxSelectedValues,
 }) => {
-    const { projectUuid: projectUuidFromParams } = useParams<{
-        projectUuid: string;
-    }>();
-    const projectUuidFromContext = useDashboardContext((c) => c.projectUuid);
-    const projectUuid = projectUuidFromParams ?? projectUuidFromContext;
+    const projectUuid = useProjectUuid();
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 300);
     const {

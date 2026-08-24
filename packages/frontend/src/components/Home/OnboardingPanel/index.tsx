@@ -7,7 +7,7 @@ import { EventName } from '../../../types/Events';
 import MantineLinkButton from '../../common/MantineLinkButton';
 
 interface Props {
-    projectUuid: string;
+    projectUrlIdentifier: string;
     userName?: string;
 }
 
@@ -29,7 +29,7 @@ const onboardingSteps = [
     },
 ];
 
-const OnboardingPanel: FC<Props> = ({ projectUuid, userName }) => {
+const OnboardingPanel: FC<Props> = ({ projectUrlIdentifier, userName }) => {
     return (
         <Stack justify="flex-start" gap="xs" mt="4xl">
             <Title order={3}>
@@ -55,7 +55,7 @@ const OnboardingPanel: FC<Props> = ({ projectUuid, userName }) => {
                         </Card>
                     ))}
                     <MantineLinkButton
-                        href={`/projects/${projectUuid}/tables`}
+                        href={`/projects/${projectUrlIdentifier}/tables`}
                         trackingEvent={{
                             name: EventName.ONBOARDING_STEP_CLICKED,
                             properties: {

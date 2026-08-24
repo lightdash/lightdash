@@ -16,6 +16,7 @@ import {
 import { MergeProvider } from '../features/mergeQuery/context/MergeContext';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import useApp from '../providers/App/useApp';
 import { ExplorerSection } from '../providers/Explorer/types';
@@ -56,9 +57,9 @@ const SavedExplorerContent = memo(() => {
 const SavedExplorer = () => {
     const { health } = useApp();
 
-    const { savedQueryUuid, projectUuid, mode } = useParams<{
+    const projectUuid = useProjectUuid();
+    const { savedQueryUuid, mode } = useParams<{
         savedQueryUuid: string;
-        projectUuid: string;
         mode?: string;
     }>();
 

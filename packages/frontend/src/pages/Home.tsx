@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import { DbtProjectType, ProjectType } from '@lightdash/common';
 import { Stack } from '@mantine/core';
 import { useState, type FC, type ReactNode } from 'react';
-import { useParams } from 'react-router';
 import { useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
@@ -34,14 +33,15 @@ import {
     useMostPopularAndRecentlyUpdated,
     useProject,
 } from '../hooks/useProject';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import useApp from '../providers/App/useApp';
 import { FavoritesProvider } from '../providers/Favorites/FavoritesProvider';
 import { PinnedItemsProvider } from '../providers/PinnedItems/PinnedItemsProvider';
+import { getProjectUrlIdentifier } from '../utils/projectUrl';
 
 const Home: FC = () => {
-    const params = useParams<{ projectUuid: string }>();
     const [isTryNewHomepageOpen, setIsTryNewHomepageOpen] = useState(false);
-    const selectedProjectUuid = params.projectUuid;
+    const selectedProjectUuid = useProjectUuid();
     const project = useProject(selectedProjectUuid);
     const onboarding = useOnboardingStatus();
     const pinnedItems = usePinnedItems(
@@ -114,6 +114,7 @@ const Home: FC = () => {
     const isGitHubProject =
         project.data.type !== ProjectType.PREVIEW &&
         project.data.dbtConnection.type === DbtProjectType.GITHUB;
+    const projectUrlIdentifier = getProjectUrlIdentifier(project.data);
 
     let body: ReactNode;
     if (
@@ -176,7 +177,7 @@ const Home: FC = () => {
                 <Stack gap="xl">
                     {!onboarding.data.ranQuery ? (
                         <OnboardingPanel
-                            projectUuid={project.data.projectUuid}
+                            projectUrlIdentifier={projectUrlIdentifier}
                             userName={user.data?.firstName}
                         />
                     ) : (
@@ -186,6 +187,7 @@ const Home: FC = () => {
                             <LandingPanel
                                 userName={user.data?.firstName}
                                 projectUuid={project.data.projectUuid}
+                                projectUrlIdentifier={projectUrlIdentifier}
                             />
                             {/* Below the greeting on purpose: an admin-only promo
                             shouldn't outrank the page's own hero */}
@@ -232,6 +234,7 @@ const Home: FC = () => {
                             <HomepageContentPanel
                                 data={mostPopularAndRecentlyUpdated}
                                 projectUuid={project.data.projectUuid}
+                                projectUrlIdentifier={projectUrlIdentifier}
                             />
                         </FavoritesProvider>
                     )}

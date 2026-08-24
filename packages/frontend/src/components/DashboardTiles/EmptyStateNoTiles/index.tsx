@@ -6,8 +6,9 @@ import {
     IconPlayerPlay,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useParams } from 'react-router';
 import { useProjectSavedChartStatus } from '../../../hooks/useOnboardingStatus';
+import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
@@ -39,7 +40,10 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
     activeTabUuid,
     dashboardTabs,
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     const { user } = useApp();
     const { data: hasSavedCharts } = useProjectSavedChartStatus(projectUuid);
 
@@ -101,7 +105,7 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
                                     leftSection={
                                         <MantineIcon icon={IconPlayerPlay} />
                                     }
-                                    href={`/projects/${projectUuid}/tables`}
+                                    href={`/projects/${projectUrlIdentifier}/tables`}
                                 >
                                     Run a query
                                 </MantineLinkButton>

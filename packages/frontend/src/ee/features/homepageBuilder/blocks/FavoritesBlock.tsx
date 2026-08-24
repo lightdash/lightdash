@@ -16,6 +16,7 @@ import { getResourceUrl } from '../../../../components/common/ResourceView/resou
 import TruncatedText from '../../../../components/common/TruncatedText';
 import { useFavoriteMutation } from '../../../../hooks/favorites/useFavoriteMutation';
 import { useFavorites } from '../../../../hooks/favorites/useFavorites';
+import { useProjectUrlIdentifier } from '../../../../hooks/useProjectRoute';
 import layout from '../homepageLayout.module.css';
 import { BlockHeader } from './BlockShell';
 import classes from './blockStyles.module.css';
@@ -40,6 +41,7 @@ const FavoritePills: FC<{
     emptyText: string | null;
     justify?: 'flex-start' | 'center';
 }> = ({ projectUuid, isInteractive, emptyText, justify = 'flex-start' }) => {
+    const projectUrlIdentifier = useProjectUrlIdentifier();
     const { data: favorites } = useFavorites(projectUuid);
     const { mutate: toggleFavorite } = useFavoriteMutation(projectUuid);
     const [expanded, setExpanded] = useState(false);
@@ -69,7 +71,7 @@ const FavoritePills: FC<{
             {visible.map((item) => (
                 <Link
                     key={item.data.uuid}
-                    to={getResourceUrl(projectUuid, item)}
+                    to={getResourceUrl(projectUuid, item, projectUrlIdentifier)}
                     className={classes.favPill}
                 >
                     <MantineIcon

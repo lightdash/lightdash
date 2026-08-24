@@ -25,10 +25,7 @@ describe('Dashboard List', () => {
         cy.findByText('Next').click();
         cy.findByText('Create').click();
 
-        cy.url().should(
-            'match',
-            /\/projects\/[0-9a-f-]{36}\/dashboards\/[^/]+\/edit$/,
-        );
+        cy.url().should('match', /\/projects\/[^/]+\/dashboards\/[^/]+\/edit$/);
         cy.findByText('Untitled dashboard').should('exist');
     });
 

@@ -8,10 +8,10 @@ import {
     type JobStep,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
 import useActiveJob from '../providers/ActiveJob/useActiveJob';
 import useToaster from './toaster/useToaster';
+import { useProjectUuid } from './useProjectUuid';
 
 export const jobStepStatusLabel = (status: JobStepStatusType) => {
     switch (status) {
@@ -124,7 +124,7 @@ export const useJob = (
 };
 
 export const useRefreshServer = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const queryClient = useQueryClient();
     const { setActiveJobId } = useActiveJob();
     const { showToastApiError } = useToaster();

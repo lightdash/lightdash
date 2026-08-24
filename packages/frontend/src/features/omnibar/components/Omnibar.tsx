@@ -42,6 +42,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { AiAgentIcon } from '../../../ee/features/aiCopilot/components/AiAgentIcon';
 import { useAiAgentButtonVisibility } from '../../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useProject } from '../../../hooks/useProject';
+import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../hooks/validation/useValidation';
 import useApp from '../../../providers/App/useApp';
@@ -73,6 +74,9 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const { data: projectData } = useProject(projectUuid);
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     const { track } = useTracking();
     const canUserManageValidation = useValidationUserAbility(projectUuid);
     const [searchFilters, setSearchFilters] = useState<SearchFilters>();
@@ -88,6 +92,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
 
     const { data: searchResults, isFetching } = useSearch({
         projectUuid,
+        projectUrlIdentifier: projectRoute?.projectUrlIdentifier,
         query: debouncedValue,
         filters: searchFilters,
         source: 'omnibar',
@@ -541,7 +546,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                         }
                                         onClick={() =>
                                             handleQuickAction(
-                                                `/projects/${projectUuid}/tables`,
+                                                `/projects/${projectUrlIdentifier}/tables`,
                                             )
                                         }
                                     >

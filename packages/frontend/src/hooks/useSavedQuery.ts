@@ -22,6 +22,7 @@ import useApp from '../providers/App/useApp';
 import { convertDateFilters } from '../utils/dateFilter';
 import useToaster from './toaster/useToaster';
 import { invalidateContent } from './useContent';
+import { useProjectUuid } from './useProjectUuid';
 import useSearchParams from './useSearchParams';
 
 const isCustomSqlDimensionForbiddenError = (
@@ -368,7 +369,7 @@ export const useCreateMutation = ({
     showViewChartAction?: boolean;
 } = {}) => {
     const navigate = useNavigate();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const queryClient = useQueryClient();
     const { embedToken } = useEmbed();
     const isEmbedded = embedToken !== undefined;
@@ -436,7 +437,7 @@ export const useDuplicateChartMutation = (
     options?: DuplicateChartMutationOptions,
 ) => {
     const navigate = useNavigate();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<

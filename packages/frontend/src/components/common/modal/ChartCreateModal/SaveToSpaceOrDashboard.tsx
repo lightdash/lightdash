@@ -39,6 +39,7 @@ import {
 import { useDashboards } from '../../../../hooks/dashboard/useDashboards';
 import useDashboardStorage from '../../../../hooks/dashboard/useDashboardStorage';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useOptionalProjectRoute } from '../../../../hooks/useProjectRoute';
 import { useCreateMutation } from '../../../../hooks/useSavedQuery';
 import { useSpaceManagement } from '../../../../hooks/useSpaceManagement';
 import {
@@ -116,6 +117,9 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     redirectOnSuccess = true,
     showViewChartAction = true,
 }) => {
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     const { user } = useApp();
     const navigate = useNavigate();
     const { showToastSuccess } = useToaster();
@@ -412,8 +416,8 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                 );
                 void navigate(
                     activeTabUuid
-                        ? `/projects/${projectUuid}/dashboards/${originatingDashboardData?.slug ?? originatingDashboard.dashboardUuid}/edit/tabs/${activeTabUuid}`
-                        : `/projects/${projectUuid}/dashboards/${originatingDashboardData?.slug ?? originatingDashboard.dashboardUuid}/edit`,
+                        ? `/projects/${projectUrlIdentifier}/dashboards/${originatingDashboardData?.slug ?? originatingDashboard.dashboardUuid}/edit/tabs/${activeTabUuid}`
+                        : `/projects/${projectUrlIdentifier}/dashboards/${originatingDashboardData?.slug ?? originatingDashboard.dashboardUuid}/edit`,
                 );
                 showToastSuccess({
                     title: `Success! ${values.name} was added to ${originatingDashboard.dashboardName}`,
@@ -561,6 +565,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             originatingDashboard,
             originatingDashboardData,
             projectUuid,
+            projectUrlIdentifier,
             navigate,
             showToastSuccess,
             getUnsavedDashboardTiles,
