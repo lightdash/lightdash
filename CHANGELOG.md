@@ -1,3 +1,10 @@
+## [1.240.3](https://github.com/lightdash/lightdash/compare/1.240.2...1.240.3) (2026-08-24)
+
+
+### Bug Fixes
+
+* tidy AI chat input footer ([#27878](https://github.com/lightdash/lightdash/issues/27878)) ([3aad34c](https://github.com/lightdash/lightdash/commit/3aad34c926aa4b80df28eec666090212d92f6ccd))
+
 ## [1.240.2](https://github.com/lightdash/lightdash/compare/1.240.1...1.240.2) (2026-08-24)
 
 
