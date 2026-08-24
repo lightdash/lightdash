@@ -299,7 +299,14 @@ describe('getRunQuery custom chart types', () => {
                 required: false,
             },
         ],
-        configOptions: [],
+        configOptions: [
+            {
+                name: 'showLegend',
+                label: 'Show legend',
+                type: 'boolean' as const,
+                default: true,
+            },
+        ],
         colorPalette: null,
     };
 
@@ -437,6 +444,113 @@ describe('getRunQuery custom chart types', () => {
         expect(output.result).toContain('y → other_metric');
         expect(output.result).toContain('a_dim1, a_met1');
         expect(runAsyncQuery).not.toHaveBeenCalled();
+    });
+
+    it('returns a descriptive error for a field bound outside the slot pool', async () => {
+        const { output, runAsyncQuery } = await executeCustom({
+            chartConfig: {
+                ...customChartConfig,
+                fieldMapping: { x: 'a_met1', y: 'a_met1' },
+            },
+        });
+
+        expect(output.metadata).toEqual({ status: 'error' });
+        expect(output.result).toContain(
+            'Slot "x" (dimension) only accepts dimensions, but "a_met1" is a metric',
+        );
+        expect(runAsyncQuery).not.toHaveBeenCalled();
+    });
+
+    it('returns a descriptive error for an invalid option value', async () => {
+        const { output, runAsyncQuery } = await executeCustom({
+            chartConfig: {
+                ...customChartConfig,
+                options: { showLegend: 'yes' },
+            },
+        });
+
+        expect(output.metadata).toEqual({ status: 'error' });
+        expect(output.result).toContain(
+            'Option "showLegend" (boolean) expects true or false, received "yes"',
+        );
+        expect(runAsyncQuery).not.toHaveBeenCalled();
+    });
+
+    it('rejects mergeConfig combined with a custom chart type', async () => {
+        const runAsyncMergeQuery = vi.fn() as RunAsyncMergeQueryFn;
+        const runAsyncQuery = vi.fn() as RunAsyncQueryFn;
+        const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);
+        const queryTool = getRunQuery({
+            updateProgress: vi.fn().mockResolvedValue(undefined),
+            runAsyncQuery,
+            runAsyncMergeQuery,
+            enableMergeQueries: true,
+            projectParameterDefinitions: {},
+            getPrompt: vi.fn().mockResolvedValue(makePrompt()),
+            sendFile: vi.fn().mockResolvedValue(undefined),
+            createOrUpdateArtifact,
+            maxLimit: 500,
+            maxContextRows: Number.POSITIVE_INFINITY,
+            exposeQueryUuid: false,
+            enableDataAccess: true,
+            resolveCustomChartType: vi.fn().mockResolvedValue({
+                dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+                schema: vizSchema,
+            }) as ResolveCustomChartTypeFn,
+        });
+
+        const mergeCustomInput = {
+            ...toolInput,
+            chartConfig: customChartConfig,
+            mergeConfig: {
+                primarySourceId: 'primary',
+                additionalSources: [
+                    {
+                        id: 'comparison',
+                        queryConfig: {
+                            exploreName: validExplore.name,
+                            dimensions: metricQueryMock.dimensions,
+                            metrics: metricQueryMock.metrics,
+                            sorts: [],
+                            customMetrics: null,
+                            filters: null,
+                        },
+                    },
+                ],
+                joinKey: [
+                    {
+                        name: 'key',
+                        fields: [
+                            {
+                                sourceId: 'primary',
+                                fieldId: metricQueryMock.dimensions[0],
+                            },
+                            {
+                                sourceId: 'comparison',
+                                fieldId: metricQueryMock.dimensions[0],
+                            },
+                        ],
+                    },
+                ],
+                joinType: 'full' as const,
+            },
+        };
+        const output = await queryTool.execute!(mergeCustomInput, {
+            messages: [],
+            toolCallId: 'tool-call-1',
+            experimental_context: new AgentContext([validExplore]),
+        });
+        if (Symbol.asyncIterator in output) {
+            throw new Error('Expected a non-streaming tool result');
+        }
+
+        expect(output.metadata).toEqual({ status: 'error' });
+        expect(output.result).toContain(
+            'Custom chart types cannot be combined with mergeConfig',
+        );
+        expect(runAsyncMergeQuery).not.toHaveBeenCalled();
+        expect(runAsyncQuery).not.toHaveBeenCalled();
+        expect(createOrUpdateArtifact).not.toHaveBeenCalled();
     });
 });
 
