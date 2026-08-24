@@ -4763,7 +4763,12 @@ export class ProjectService extends BaseService {
                           source.selectedModelIds === undefined
                               ? getCompiledModels(
                                     getModelsFromManifest(source.manifest),
-                                ).map((model) => model.unique_id)
+                                )
+                                    .filter(
+                                        (model) =>
+                                            model.resource_type === 'model',
+                                    )
+                                    .map((model) => model.unique_id)
                               : source.selectedModelIds,
                       ),
                   ),
