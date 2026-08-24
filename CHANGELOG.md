@@ -1,3 +1,16 @@
+# [1.249.0](https://github.com/lightdash/lightdash/compare/1.248.2...1.249.0) (2026-08-24)
+
+
+### Bug Fixes
+
+* slide the page sidebar open in step with the content ([#27936](https://github.com/lightdash/lightdash/issues/27936)) ([2801e90](https://github.com/lightdash/lightdash/commit/2801e9087b40501e1730a58dda8c1117992b900d))
+
+
+### Features
+
+* **data-app-viz:** host-side drill-down intent handling ([#27904](https://github.com/lightdash/lightdash/issues/27904)) ([6e0dd60](https://github.com/lightdash/lightdash/commit/6e0dd60f53f97b7997399fc42b368d61a627da42))
+* **query-sdk:** viz drill-down capability ([#27903](https://github.com/lightdash/lightdash/issues/27903)) ([b92b8da](https://github.com/lightdash/lightdash/commit/b92b8da4cea151f90cff69efc0c5dde51244e7c4))
+
 ## [1.248.2](https://github.com/lightdash/lightdash/compare/1.248.1...1.248.2) (2026-08-24)
 
 
