@@ -72,6 +72,7 @@ const projectModel = {
         dbtSourceUuid: primarySourceUuid,
         dbtSourceName: 'dbt_project',
     })),
+    updateDbtSourceName: vi.fn(async () => undefined),
 };
 
 const projectDbtSourcesModel = {
@@ -419,6 +420,29 @@ describe('ProjectDbtSourcesService', () => {
     });
 
     describe('updateProjectDbtSource', () => {
+        it('renames the primary source through its stable source uuid', async () => {
+            const service = getService();
+
+            await expect(
+                service.updateProjectDbtSource(
+                    adminAccount,
+                    projectUuid,
+                    primarySourceUuid,
+                    { name: 'core_analytics' },
+                ),
+            ).resolves.toMatchObject({
+                projectDbtSourceUuid: primarySourceUuid,
+                name: 'core_analytics',
+                isPrimary: true,
+            });
+
+            expect(projectModel.updateDbtSourceName).toHaveBeenCalledWith(
+                projectUuid,
+                'core_analytics',
+            );
+            expect(projectDbtSourcesModel.getSource).not.toHaveBeenCalled();
+        });
+
         it('rejects the primary source name', async () => {
             projectDbtSourcesModel.getSource.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,

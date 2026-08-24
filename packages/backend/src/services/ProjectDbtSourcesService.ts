@@ -338,6 +338,35 @@ export class ProjectDbtSourcesService extends BaseService {
         data: ApiUpdateProjectDbtSource,
     ): Promise<ProjectDbtSourceSummary> {
         await this.checkProjectAccess(account, projectUuid, 'manage');
+        const identity =
+            await this.projectModel.getDbtSourceIdentity(projectUuid);
+        if (projectDbtSourceUuid === identity.dbtSourceUuid) {
+            if (data.name === undefined || data.dbtConnection !== undefined) {
+                throw new ParameterError(
+                    'Only the primary dbt source name can be updated here',
+                );
+            }
+            assertProjectDbtSourceName(data.name);
+            const [project, additionalSources] = await Promise.all([
+                this.projectModel.get(projectUuid),
+                this.projectDbtSourcesModel.getSources(projectUuid),
+            ]);
+            if (additionalSources.some((source) => source.name === data.name)) {
+                throw new AlreadyExistsError(
+                    `A dbt source named "${data.name}" already exists on this project`,
+                );
+            }
+            await this.projectModel.updateDbtSourceName(projectUuid, data.name);
+            return {
+                projectDbtSourceUuid: identity.dbtSourceUuid,
+                name: data.name,
+                isPrimary: true,
+                precedence: 0,
+                type: project.dbtConnection.type,
+                hasCredentialError: false,
+                ...ProjectDbtSourcesService.gitIdentity(project.dbtConnection),
+            };
+        }
         const existing =
             await this.projectDbtSourcesModel.getSource(projectDbtSourceUuid);
         if (existing.projectUuid !== projectUuid) {
@@ -347,8 +376,6 @@ export class ProjectDbtSourcesService extends BaseService {
         }
         if (data.name !== undefined) {
             assertProjectDbtSourceName(data.name);
-            const identity =
-                await this.projectModel.getDbtSourceIdentity(projectUuid);
             if (data.name === identity.dbtSourceName) {
                 throw new AlreadyExistsError(
                     `A dbt source named "${identity.dbtSourceName}" already exists on this project`,

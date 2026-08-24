@@ -412,6 +412,20 @@ export class ProjectModel {
         };
     }
 
+    async updateDbtSourceName(
+        projectUuid: string,
+        dbtSourceName: string,
+    ): Promise<void> {
+        const updatedProjects = await this.database(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            .update({ dbt_source_name: dbtSourceName })
+            .returning('project_uuid');
+
+        if (updatedProjects.length === 0) {
+            throw new NotFoundError('Project not found');
+        }
+    }
+
     async getAllByOrganizationUuid(
         organizationUuid: string,
     ): Promise<OrganizationProject[]> {
