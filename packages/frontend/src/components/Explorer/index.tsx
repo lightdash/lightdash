@@ -3,7 +3,7 @@ import {
     getExploreParameterDefinitions,
     getReferencedParameterDefinitions,
 } from '@lightdash/common';
-import { Stack } from '@mantine/core';
+import { Box, Stack } from '@mantine/core';
 import {
     memo,
     useCallback,
@@ -16,9 +16,11 @@ import {
 import {
     explorerActions,
     selectAdditionalMetricModal,
+    selectChartTypeAuthoring,
     selectColumnOrder,
     selectDimensions,
     selectFormatModal,
+    selectIsChartTypeAuthoring,
     selectIsEditMode,
     selectMetricQuery,
     selectMetrics,
@@ -49,6 +51,7 @@ import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
 import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
 import RefreshDbtButton from '../RefreshDbtButton';
+import ExplorerChartTypeAuthoring from './ChartTypeAuthoring/ExplorerChartTypeAuthoring';
 import { CustomDimensionModal } from './CustomDimensionModal';
 import { CustomMetricModal } from './CustomMetricModal';
 import ExplorerHeader from './ExplorerHeader';
@@ -74,6 +77,12 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
         const isEditMode = useExplorerSelector(selectIsEditMode);
         const showQueryBuilder = isEditMode || !chartView;
         const showMinimalChart = chartView && !isEditMode;
+        // Authoring a chart type takes the chart's place; the query keeps
+        // running underneath so the preview renders against it.
+        const chartTypeAuthoring = useExplorerSelector(
+            selectChartTypeAuthoring,
+        );
+        const isAuthoring = useExplorerSelector(selectIsChartTypeAuthoring);
         const parameterReferencesFromRedux = useExplorerSelector(
             selectParameterReferences,
         );
@@ -267,21 +276,30 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
                 resolvedTimezone={query.data?.resolvedTimezone}
             >
                 <Stack style={{ flexGrow: 1 }}>
-                    {!hideHeader &&
+                    <MergeAutoRun />
+                    {isAuthoring && chartTypeAuthoring && (
+                        <ExplorerChartTypeAuthoring
+                            authoring={chartTypeAuthoring}
+                        />
+                    )}
+                    {!isAuthoring &&
+                        !hideHeader &&
                         (isEditMode ? (
                             <ExplorerHeader />
                         ) : (
                             !savedChart && <RefreshDbtButton />
                         ))}
 
-                    <MergeAutoRun />
-                    {!isFullscreen && showQueryBuilder && <MergeReadOnlyBar />}
+                    {!isAuthoring && !isFullscreen && showQueryBuilder && (
+                        <MergeReadOnlyBar />
+                    )}
 
-                    {!isFullscreen && showQueryBuilder && (
+                    {!isAuthoring && !isFullscreen && showQueryBuilder && (
                         <MergeRelationshipCard />
                     )}
 
-                    {!isFullscreen &&
+                    {!isAuthoring &&
+                        !isFullscreen &&
                         showQueryBuilder &&
                         !!tableName &&
                         hasReferencedUserParameters && (
@@ -292,16 +310,23 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
                             />
                         )}
 
-                    {!isFullscreen && showQueryBuilder && <FiltersCard />}
+                    {!isAuthoring && !isFullscreen && showQueryBuilder && (
+                        <FiltersCard />
+                    )}
 
-                    <VisualizationCard
-                        projectUuid={projectUuid}
-                        onScreenshotReady={handleScreenshotReady}
-                        onScreenshotError={handleScreenshotError}
-                        minimal={showMinimalChart}
-                    />
+                    {/* Stays mounted while authoring: it hosts the sidebar
+                        that configures the type being built. */}
+                    <Box display={isAuthoring ? 'none' : 'contents'}>
+                        <VisualizationCard
+                            projectUuid={projectUuid}
+                            renderVisualization={!isAuthoring}
+                            onScreenshotReady={handleScreenshotReady}
+                            onScreenshotError={handleScreenshotError}
+                            minimal={showMinimalChart}
+                        />
+                    </Box>
 
-                    {!isFullscreen && showQueryBuilder && (
+                    {!isAuthoring && !isFullscreen && showQueryBuilder && (
                         <>
                             <ResultsCard />
 

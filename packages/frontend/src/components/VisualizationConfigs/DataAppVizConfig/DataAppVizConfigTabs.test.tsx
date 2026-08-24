@@ -45,6 +45,7 @@ const {
     locationSearch,
     navigate,
     pickerProps,
+    authoringState,
 } = vi.hoisted(() => ({
     dispatch: vi.fn(),
     fieldSelectItems: [] as Item[][],
@@ -52,12 +53,17 @@ const {
     locationSearch: { current: '' },
     navigate: vi.fn(),
     pickerProps: [] as PickerProps[],
+    authoringState: {
+        current: null as { dataAppVizUuid: string | null } | null,
+    },
 }));
 
 // The picker routes project-type selection through the Redux-based
 // useSelectProjectChartType hook; assert on what it dispatches.
 vi.mock('../../../features/explorer/store', () => ({
     useExplorerDispatch: () => dispatch,
+    useExplorerSelector: () => authoringState.current,
+    selectChartTypeAuthoring: () => null,
     explorerActions: {
         setChartType: (payload: unknown) => ({ type: 'setChartType', payload }),
         setChartConfig: (payload: unknown) => ({
@@ -66,6 +72,10 @@ vi.mock('../../../features/explorer/store', () => ({
         }),
         setPivotConfig: (payload: unknown) => ({
             type: 'setPivotConfig',
+            payload,
+        }),
+        startChartTypeAuthoring: (payload: unknown) => ({
+            type: 'startChartTypeAuthoring',
             payload,
         }),
     },
@@ -483,6 +493,54 @@ describe('DataAppVizConfigTabs', () => {
             pathname: '/projects/project-1/chart-types/new',
             search: locationSearch.current,
         });
+    });
+
+    it('starts authoring in place from inside the chart gallery', async () => {
+        signInAs(OrganizationMemberRole.EDITOR);
+        mockContext(queryColumns, '');
+        vi.mocked(useDataAppVisualization).mockReturnValue({
+            data: undefined,
+        } as unknown as ReturnType<typeof useDataAppVisualization>);
+
+        renderWithProviders(
+            <ChartGalleryContext.Provider value={true}>
+                <ConfigTabs />
+            </ChartGalleryContext.Provider>,
+        );
+
+        const builder = await screen.findByText('builder');
+        expect(builder.closest('a')).toBeNull();
+        await userEvent.click(builder);
+
+        expect(dispatch).toHaveBeenCalledWith({
+            type: 'startChartTypeAuthoring',
+            payload: { dataAppVizUuid: null },
+        });
+        expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it('explains the empty configuration while a new type is being authored', async () => {
+        signInAs(OrganizationMemberRole.EDITOR);
+        mockContext(queryColumns, '');
+        authoringState.current = { dataAppVizUuid: null };
+        vi.mocked(useDataAppVisualization).mockReturnValue({
+            data: undefined,
+        } as unknown as ReturnType<typeof useDataAppVisualization>);
+
+        try {
+            renderWithProviders(
+                <ChartGalleryContext.Provider value={true}>
+                    <ConfigTabs />
+                </ChartGalleryContext.Provider>,
+            );
+
+            expect(
+                await screen.findByText(/Describe the chart type you need/),
+            ).toBeInTheDocument();
+            expect(screen.queryByText('builder')).not.toBeInTheDocument();
+        } finally {
+            authoringState.current = null;
+        }
     });
 
     it('offers no builder link to who cannot create chart types', async () => {
