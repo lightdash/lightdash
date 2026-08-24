@@ -2,8 +2,8 @@ import { ChartType, FeatureFlags } from '@lightdash/common';
 import { Button, Menu } from '@mantine/core';
 import { IconChevronDown, IconCode } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
-import { useParams } from 'react-router';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -21,7 +21,7 @@ const VisualizationCardOptions: FC = memo(() => {
         selectedChartType,
     } = useChartTypeOptions();
 
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const dataAppsEnabled =
         useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
         true;

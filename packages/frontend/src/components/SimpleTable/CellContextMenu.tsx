@@ -12,8 +12,8 @@ import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconStack } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
 import { useCallback, useMemo, type FC } from 'react';
-import { useParams } from 'react-router';
 import useToaster from '../../hooks/toaster/useToaster';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { Can } from '../../providers/Ability';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
@@ -45,7 +45,7 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
 
     const { track } = useTracking();
     const { user } = useApp();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const clipboard = useClipboard({ timeout: 200 });
 
     const handleCopyToClipboard = useCallback(() => {

@@ -7,7 +7,6 @@ import {
 import { Stack, Text } from '@mantine/core';
 import { IconPuzzle } from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, type FC } from 'react';
-import { useParams } from 'react-router';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
 import AppIframePreview from '../../features/apps/AppIframePreview';
 import { useChartVersionPreview } from '../../features/apps/ChartVersionPreview/useChartVersionPreview';
@@ -20,6 +19,7 @@ import {
 import { reconcileDataAppVizFieldMapping } from '../../features/chartTypes/utils/autoMapDataAppVizFields';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import { useExplore } from '../../hooks/useExplore';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
 import MantineIcon from '../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
@@ -54,7 +54,7 @@ const getTerminalRequestErrorMessage = (
 };
 
 const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const {
         visualizationConfig,
         resultsData,

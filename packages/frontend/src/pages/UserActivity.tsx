@@ -19,7 +19,7 @@ import {
 } from '@mantine/core';
 import { IconUsers } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link } from 'react-router';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
@@ -32,6 +32,7 @@ import {
 } from '../hooks/analytics/useUserActivity';
 import useHealth from '../hooks/health/useHealth';
 import { useProject } from '../hooks/useProject';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import useApp from '../providers/App/useApp';
 import classes from './UserActivity.module.css';
 
@@ -205,15 +206,14 @@ const chartWeeklyAverageQueries = (
 });
 
 const UserActivity: FC = () => {
-    const params = useParams<{ projectUuid: string }>();
-    const { data: project } = useProject(params.projectUuid);
+    const projectUuid = useProjectUuid();
+    const { data: project } = useProject(projectUuid);
     const { user: sessionUser } = useApp();
     const { data: health } = useHealth();
     const { mutateAsync: downloadCsv, isLoading: isDownloadingCsv } =
         useDownloadUserActivityCsv();
 
-    const { data, isInitialLoading } = useUserActivity(params.projectUuid);
-    const projectUuid = params.projectUuid;
+    const { data, isInitialLoading } = useUserActivity(projectUuid);
     if (sessionUser.data?.ability?.cannot('view', 'Analytics')) {
         return <ForbiddenPanel />;
     }
@@ -233,7 +233,7 @@ const UserActivity: FC = () => {
                     items={[
                         {
                             title: 'Usage analytics',
-                            to: `/generalSettings/projectManagement/${params.projectUuid}/usageAnalytics`,
+                            to: `/generalSettings/projectManagement/${projectUuid}/usageAnalytics`,
                         },
                         {
                             title: (
@@ -257,8 +257,8 @@ const UserActivity: FC = () => {
                         variant="outline"
                         disabled={isDownloadingCsv}
                         onClick={() => {
-                            if (params.projectUuid)
-                                downloadCsv(params.projectUuid)
+                            if (projectUuid)
+                                downloadCsv(projectUuid)
                                     .then((url) => {
                                         if (url) {
                                             // If the file takes a while to download,

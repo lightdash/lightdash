@@ -1,7 +1,7 @@
 import { type ManagedAgentRunsListResponse } from '@lightdash/common';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { useParams } from 'react-router';
 import { lightdashApi } from '../../../../api';
+import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 
 const PAGE_SIZE = 20;
 const FIRST_PAGE_REFETCH_MS = 30000;
@@ -20,7 +20,7 @@ const getRuns = async (
 };
 
 export const useManagedAgentRuns = (opts: { enabled?: boolean } = {}) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const isEnabled = opts.enabled ?? true;
     return useInfiniteQuery<ManagedAgentRunsListResponse>({
         queryKey: ['managed-agent-runs', projectUuid],

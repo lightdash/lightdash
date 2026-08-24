@@ -30,7 +30,6 @@ import {
     IconExclamationCircle,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC, type ReactNode } from 'react';
-import { useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SeriesContextMenu } from '../../../../../components/Explorer/VisualizationCard/SeriesContextMenu';
 import LightdashVisualization from '../../../../../components/LightdashVisualization';
@@ -43,6 +42,7 @@ import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import { useProjectColorPalette } from '../../../../../hooks/appearance/useProjectColorPalette';
 import useHealth from '../../../../../hooks/health/useHealth';
 import { useExplore } from '../../../../../hooks/useExplore';
+import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
 import { AgentVisualizationChartTypeSwitcher } from './AgentVisualizationChartTypeSwitcher';
@@ -96,7 +96,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
     interactionMode = 'full',
 }) => {
     const { data: health } = useHealth();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const isEmbed = isEmbedAiAgentRoute();
     const { data: resolvedPalette } = useProjectColorPalette(
         projectUuid,

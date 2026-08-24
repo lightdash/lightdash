@@ -20,7 +20,8 @@ import {
     type FC,
     type PropsWithChildren,
 } from 'react';
-import { useParams, useSearchParams } from 'react-router';
+import { useSearchParams } from 'react-router';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useInfiniteQueryResults } from '../../../hooks/useQueryResults';
 import {
     DEFAULT_ADDITIONAL_SOURCE_ID,
@@ -50,7 +51,7 @@ export const MergeProvider: FC<
         readOnly?: boolean;
     }>
 > = ({ children, savedMerge, readOnly = false }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const [searchParams, setSearchParams] = useSearchParams();
     // Restored once, on mount. A link wins over the chart's stored merge, so
     // that sharing a modified merge shows what was shared rather than what was

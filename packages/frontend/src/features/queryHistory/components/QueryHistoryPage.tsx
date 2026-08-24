@@ -14,10 +14,10 @@ import { useDebouncedValue } from '@mantine/hooks';
 import { IconChevronDown, IconSearch } from '@tabler/icons-react';
 import clsx from 'clsx';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import Page from '../../../components/common/Page/Page';
 import { useProject } from '../../../hooks/useProject';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useInfiniteQueryHistory } from '../hooks/useQueryHistory';
 import styles from '../QueryHistory.module.css';
 import { formatWarehouseTime } from '../utils/format';
@@ -37,7 +37,7 @@ const DEFAULT_EXPANDED_WINDOWS = new Set([
 ]);
 
 export const QueryHistoryPage: FC = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const { data: project } = useProject(projectUuid);
 
     const [trigger, setTrigger] = useState<QueryTrigger | undefined>(

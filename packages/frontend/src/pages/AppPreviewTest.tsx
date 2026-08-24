@@ -23,21 +23,15 @@ import {
 } from '../features/apps/hooks/useTrackedAppQueries';
 import { useTrackedExternalRequests } from '../features/apps/hooks/useTrackedExternalRequests';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useNativeFullscreenToggle from '../providers/Fullscreen/useNativeFullscreenToggle';
 import classes from './AppPreviewTest.module.css';
 
 export default function AppPreviewTest() {
     const navigate = useNavigate();
-    const {
-        projectUuid,
-        appUuid,
-        version: versionParam,
-    } = useParams<{
-        projectUuid: string;
-        appUuid: string;
-        version: string;
-    }>();
+    const { appUuid, version: versionParam } = useParams();
+    const projectUuid = useProjectUuid();
 
     const explicitVersion = versionParam ? Number(versionParam) : undefined;
 

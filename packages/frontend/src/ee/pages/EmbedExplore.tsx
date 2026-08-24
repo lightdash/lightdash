@@ -5,9 +5,10 @@ import {
 } from '@lightdash/common';
 import { IconUnlink } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
-import { useLocation, useParams, useSearchParams } from 'react-router';
+import { useLocation, useSearchParams } from 'react-router';
 import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalState';
 import { parseChartFromExplorerSearchParams } from '../../hooks/useExplorerRoute';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
 import EmbedExplore from '../features/embed/EmbedExplore/components/EmbedExplore';
 import useEmbed from '../providers/Embed/useEmbed';
@@ -29,9 +30,7 @@ const EmbedExplorePage: FC<{
         projectUuid: embedProjectUuid,
         savedChart: savedChartEmbed,
     } = useEmbed();
-    const { projectUuid: paramsProjectUuid } = useParams<{
-        projectUuid: string;
-    }>();
+    const paramsProjectUuid = useProjectUuid();
     const { search } = useLocation();
     const [searchParams] = useSearchParams();
     const projectUuid = embedProjectUuid ?? paramsProjectUuid;

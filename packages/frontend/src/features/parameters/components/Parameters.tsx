@@ -7,12 +7,12 @@ import {
 } from '@lightdash/common';
 import { Group, Skeleton } from '@mantine/core';
 import { useCallback, useMemo, useState, type FC, type ReactNode } from 'react';
-import { useParams } from 'react-router';
 import {
     DraggableItem,
     DroppableArea,
 } from '../../../components/common/DndHelpers';
 import { useDndSensors } from '../../../hooks/useDndSensors';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import Parameter from './Parameter';
 
 type Props = {
@@ -49,7 +49,7 @@ export const Parameters: FC<Props> = ({
     dropdownClassName,
     shadowedReservedNames = [],
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const [openPopoverId, setOpenPopoverId] = useState<string | undefined>();
 
     const handlePopoverOpen = useCallback((popoverId: string) => {

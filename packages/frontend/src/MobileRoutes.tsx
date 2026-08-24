@@ -36,6 +36,7 @@ import ProjectRoute from './components/ProjectRoute';
 import LegacyAppPreviewRedirect from './features/apps/LegacyAppPreviewRedirect';
 import { loadLazyRouteDefault } from './features/chunkErrorHandler';
 import { useActiveProjectUuid } from './hooks/useActiveProject';
+import { useProjectUuid } from './hooks/useProjectUuid';
 import useLogoutMutation from './hooks/user/useUserLogoutMutation';
 import classes from './MobileRoutes.module.css';
 import MantineBaseProvider from './providers/MantineBaseProvider';
@@ -51,7 +52,8 @@ const getMobileNavBarRootElement = () =>
     document.getElementById('mobile-navbar') ?? undefined;
 
 const RedirectToResource: FC = () => {
-    const { projectUuid, savedQueryUuid, dashboardUuid } = useParams();
+    const { savedQueryUuid, dashboardUuid } = useParams();
+    const projectUuid = useProjectUuid();
     if (dashboardUuid) {
         return (
             <Navigate

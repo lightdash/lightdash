@@ -60,6 +60,7 @@ import {
     getExplorerUrlFromCreateSavedChartVersion,
     parseChartFromExplorerSearchParams,
 } from '../hooks/useExplorerRoute';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import classes from './ChartTypeBuilder.module.css';
 
@@ -77,10 +78,8 @@ const toVizClarifyParams = (request: VizBuildRequest): ClarifyParams => ({
 });
 
 const ChartTypeBuilder: FC = () => {
-    const { projectUuid, dataAppVizUuid: urlVizUuid } = useParams<{
-        projectUuid: string;
-        dataAppVizUuid?: string;
-    }>();
+    const { dataAppVizUuid: urlVizUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const location = useLocation();
     const navigate = useNavigate();
     const explorerChart = useMemo(() => {

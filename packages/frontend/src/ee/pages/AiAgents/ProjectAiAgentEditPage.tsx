@@ -41,6 +41,7 @@ import {
     NAVBAR_HEIGHT,
 } from '../../../components/common/Page/constants';
 import { useProjects } from '../../../hooks/useProjects';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
 import { VerifiedArtifactDetail } from '../../features/aiCopilot/components/Admin/VerifiedArtifactDetail';
 import { VerifiedArtifactsLayout } from '../../features/aiCopilot/components/Admin/VerifiedArtifactsLayout';
@@ -126,14 +127,8 @@ type Props = {
 
 const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
     const navigate = useNavigate();
-    const { agentUuid, projectUuid, evalUuid, runUuid, artifactUuid } =
-        useParams<{
-            agentUuid: string;
-            projectUuid: string;
-            evalUuid?: string;
-            runUuid?: string;
-            artifactUuid?: string;
-        }>();
+    const { agentUuid, evalUuid, runUuid, artifactUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const location = useLocation();
     const canManageAgents = useAiAgentPermission({
         action: 'manage',

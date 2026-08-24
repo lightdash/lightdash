@@ -10,10 +10,11 @@ import {
 import { Menu, type MenuProps, Text } from '@mantine/core';
 import { IconArrowBarToDown, IconCopy } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
-import { useLocation, useParams } from 'react-router';
+import { useLocation } from 'react-router';
 import { FilterDashboardTo } from '../../../features/dashboardFilters/FilterDashboardTo';
 import { useContextMenuPermissions } from '../../../hooks/useContextMenuPermissions';
 import { useProject } from '../../../hooks/useProject';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useAccount } from '../../../hooks/user/useAccount';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -63,7 +64,7 @@ const ValueCellMenuDropdownContent: FC<{
     const tracking = useTracking({ failSilently: true });
     const metricQueryData = useMetricQueryDataContext(true);
     const { data: account } = useAccount();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const { data: project } = useProject(projectUuid);
     const location = useLocation();
     const isDashboardPage = location.pathname.includes('/dashboards');

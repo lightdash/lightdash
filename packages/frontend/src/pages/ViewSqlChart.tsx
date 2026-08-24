@@ -43,6 +43,7 @@ import {
     setSavedChartData,
     updateParameterValue,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 
 enum TabOption {
     CHART = 'chart',
@@ -51,7 +52,8 @@ enum TabOption {
 }
 
 const ViewSqlChart = () => {
-    const params = useParams<{ projectUuid: string; slug?: string }>();
+    const params = useParams<{ slug?: string }>();
+    const projectUuid = useProjectUuid();
     const dispatch = useAppDispatch();
     const [activeTab, setActiveTab] = useState<TabOption>(TabOption.CHART);
 
@@ -79,7 +81,7 @@ const ViewSqlChart = () => {
         },
         getDownloadQueryUuid,
     } = useSavedSqlChartResults({
-        projectUuid: params.projectUuid,
+        projectUuid: projectUuid,
         ...(isUuid ? { savedSqlUuid: slugParam } : { slug: slugParam }),
         parameters: parameterValues,
     });
@@ -104,19 +106,16 @@ const ViewSqlChart = () => {
         if (chartData) {
             dispatch(setSavedChartData(chartData));
         }
-        if (params.projectUuid) {
-            dispatch(setProjectUuid(params.projectUuid));
+        if (projectUuid) {
+            dispatch(setProjectUuid(projectUuid));
         }
-    }, [dispatch, chartData, params.projectUuid]);
+    }, [dispatch, chartData, projectUuid]);
 
     const {
         data: projectParameters,
         isLoading: isProjectParametersLoading,
         isError: isProjectParametersError,
-    } = useParameters(
-        params.projectUuid,
-        Array.from(parameterReferences ?? []),
-    );
+    } = useParameters(projectUuid, Array.from(parameterReferences ?? []));
 
     return (
         <Page
@@ -182,9 +181,9 @@ const ViewSqlChart = () => {
                                         isVizBigNumberConfig(
                                             chartData?.config,
                                         )))) &&
-                                params.projectUuid && (
+                                projectUuid && (
                                     <ResultsDownloadButton
-                                        projectUuid={params.projectUuid}
+                                        projectUuid={projectUuid}
                                         disabled={!chartResultsData}
                                         vizTableConfig={
                                             isVizTableConfig(chartData?.config)
@@ -209,11 +208,11 @@ const ViewSqlChart = () => {
                                 )}
                             {activeTab === TabOption.CHART &&
                                 echartsInstance &&
-                                params.projectUuid && (
+                                projectUuid && (
                                     <ChartDownload
                                         echartsInstance={echartsInstance}
                                         chartName={chartData?.name}
-                                        projectUuid={params.projectUuid}
+                                        projectUuid={projectUuid}
                                         disabled={!chartResultsData}
                                         totalResults={
                                             chartResultsData

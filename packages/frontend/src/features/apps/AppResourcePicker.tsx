@@ -51,7 +51,6 @@ import {
     type ClipboardEvent,
     type FC,
 } from 'react';
-import { useParams } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import { ModelSelector } from '../../components/common/ModelSelector/ModelSelector';
 import { ChartIcon, IconBox } from '../../components/common/ResourceIcon';
@@ -59,6 +58,7 @@ import { getChartIcon } from '../../components/common/ResourceIcon/utils';
 import { useDashboards } from '../../hooks/dashboard/useDashboards';
 import { useChartSummariesV2 } from '../../hooks/useChartSummariesV2';
 import { useProject } from '../../hooks/useProject';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useApp from '../../providers/App/useApp';
 import { useExternalConnections } from '../externalConnections/hooks/useExternalConnections';
 import classes from './AppResourcePicker.module.css';
@@ -360,7 +360,7 @@ const QueryPickerView: FC<{
     attachFromLink,
     isResolvingLink,
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch] = useDebouncedValue(searchQuery, 300);
 
@@ -835,7 +835,7 @@ const DashboardPickerView: FC<{
     attachFromLink,
     isResolvingLink,
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch] = useDebouncedValue(searchQuery, 300);
 
@@ -953,7 +953,7 @@ const ConnectionPickerView: FC<{
     onDone: () => void;
     enabled: boolean;
 }> = ({ selectedConnections, onSelect, onDeselect, onDone, enabled }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const [searchQuery, setSearchQuery] = useState('');
     const { data: connections, isInitialLoading } = useExternalConnections(
         enabled ? projectUuid : undefined,
@@ -1144,7 +1144,7 @@ export const AttachButton: FC<{
     disabled,
     filesDisabled,
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const [opened, setOpened] = useState(false);
     const [view, setView] = useState<AttachView>('menu');
 

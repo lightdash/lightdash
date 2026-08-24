@@ -11,7 +11,6 @@ import {
     matchPath,
     Navigate,
     useLocation,
-    useParams,
     useRoutes,
     type RouteObject,
 } from 'react-router';
@@ -22,6 +21,7 @@ import PullRequestsPage from '../../features/pullRequests/components/PullRequest
 import RecentlyDeletedPage from '../../features/recentlyDeleted/components/RecentlyDeletedPage';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import { useProject } from '../../hooks/useProject';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import { DocumentTitle } from '../common/DocumentTitle';
@@ -77,9 +77,7 @@ const ProjectSettingsPage: FC<ProjectSettingsPageProps> = ({
 const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
     externalSourcesEnabled,
 }) => {
-    const { projectUuid } = useParams<{
-        projectUuid: string;
-    }>();
+    const projectUuid = useProjectUuid();
     const location = useLocation();
 
     const { health, user } = useApp();

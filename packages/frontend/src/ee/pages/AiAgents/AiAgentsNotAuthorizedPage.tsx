@@ -10,13 +10,14 @@ import {
 } from '@mantine/core';
 import { IconArrowLeft, IconLock, IconRobot } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
 import { isEmbedAiAgentRoute } from '../../features/aiCopilot/hooks/aiAgentRouting';
 
 const AiAgentsNotAuthorizedPage: FC = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const isEmbed = isEmbedAiAgentRoute();
 
     return (

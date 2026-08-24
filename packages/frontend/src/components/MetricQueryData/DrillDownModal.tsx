@@ -22,10 +22,10 @@ import {
 import { Button } from '@mantine/core';
 import { IconArrowBarToDown, IconExternalLink } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useParams } from 'react-router';
 import { v4 as uuidv4 } from 'uuid';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
 import FieldSelect from '../common/FieldSelect';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
@@ -202,7 +202,7 @@ const drillDownExploreUrl = ({
 };
 
 export const DrillDownModal: FC = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
 
     const [selectedDimension, setSelectedDimension] =
         useState<CompiledDimension>();
