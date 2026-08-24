@@ -1086,21 +1086,6 @@ export const isAiSqlChartArtifactConfig = (
     'limit' in config &&
     typeof config.limit === 'number';
 
-export const isAiCustomChartTypeChartArtifactConfig = (
-    config: unknown,
-): config is AiCustomChartTypeChartArtifactConfig =>
-    typeof config === 'object' &&
-    config !== null &&
-    'source' in config &&
-    config.source === 'customChartType' &&
-    'schemaVersion' in config &&
-    config.schemaVersion === 1 &&
-    'dataAppVizUuid' in config &&
-    typeof config.dataAppVizUuid === 'string' &&
-    'config' in config &&
-    typeof config.config === 'object' &&
-    config.config !== null;
-
 export const isAiMergeChartArtifactConfig = (
     config: unknown,
 ): config is AiMergeChartArtifactConfig =>

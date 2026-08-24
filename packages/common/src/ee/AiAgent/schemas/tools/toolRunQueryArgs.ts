@@ -338,11 +338,6 @@ export const toolRunQueryArgsSchemaV2Mcp = toolRunQueryArgsSchemaV2.extend({
     chartConfig: chartConfigBuiltinOnlySchema,
 });
 
-// Agent view of V2 for merge-disabled runtimes. Advertise and parse share
-// the same chartConfig union, so this is V2 itself — the alias keeps the
-// contract-defining call sites explicit.
-export const toolRunQueryArgsSchemaV2Advertised = toolRunQueryArgsSchemaV2;
-
 // V4 is the current agent contract (formula-only table calcs). MCP runQuery
 // continues to advertise V2. Historical schemas remain available solely for
 // persisted chats/artifacts — parse those with V1–V3, never with V4.
@@ -386,7 +381,7 @@ export const toolRunQueryArgsSchemaV2RejectingMerge = z.preprocess(
         }
         return raw;
     },
-    toolRunQueryArgsSchemaV2Advertised,
+    toolRunQueryArgsSchemaV2,
 );
 
 export type ToolRunQueryArgsV1 = z.infer<typeof toolRunQueryArgsSchemaV1>;

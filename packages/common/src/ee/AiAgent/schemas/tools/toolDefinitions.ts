@@ -272,7 +272,7 @@ import {
     toolRunQueryArgsSchemaV2RejectingMerge,
     toolRunQueryArgsSchemaV2Transformed,
     toolRunQueryOutputSchema,
-    type toolRunQueryArgsSchemaV2Advertised,
+    type toolRunQueryArgsSchemaV2,
 } from './toolRunQueryArgs';
 import {
     TOOL_RUN_SAVED_CHART_DESCRIPTION,
@@ -578,7 +578,7 @@ export const runQueryToolDefinition: ToolDefinitionWithMcpOutput<
 // stripped to the primary query by Zod. Lazy, like `.for('agent')`.
 export const getRunQueryAgentViewRejectingMerge = (): AgentToolView<
     'runQuery',
-    typeof toolRunQueryArgsSchemaV2Advertised,
+    typeof toolRunQueryArgsSchemaV2,
     typeof toolRunQueryOutputSchema
 > => ({
     ...runQueryToolDefinition.for('agent'),
