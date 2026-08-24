@@ -62,6 +62,38 @@ export const oauthPageStyles = `
         flex-direction: column;
         gap: 16px;
     }
+    .oauth-btn,
+    .button {
+        display: inline-block;
+        padding: 8px 24px;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        font-weight: 500;
+        font-size: 14px;
+        cursor: pointer;
+        text-decoration: none;
+        transition: background 0.15s, border-color 0.15s;
+    }
+    .oauth-btn.approve,
+    .button {
+        background: #111418;
+        color: #fff;
+        border-color: #111418;
+    }
+    .oauth-btn.approve:hover,
+    .button:hover {
+        background: #2c2e33;
+        border-color: #2c2e33;
+    }
+    .oauth-btn.deny {
+        background: transparent;
+        color: #111418;
+        border-color: #e9ecef;
+    }
+    .oauth-btn.deny:hover {
+        background: #f8fafc;
+        border-color: #dee2e6;
+    }
 `;
 
 // Lightdash logo SVG
@@ -123,6 +155,7 @@ const OAUTH_REDIRECT_TEMPLATE = `
                 {{{logo}}}
                 <h1>Redirecting...</h1>
                 <p>{{message}}</p>
+                <a class="button" href="{{redirectUrl}}">Continue</a>
             </div>
         </div>
     </body>
@@ -282,33 +315,6 @@ const OAUTH_AUTHORIZE_TEMPLATE = `
                 margin-top: 24px;
                 padding-top: 16px;
                 border-top: 1px solid #e9ecef;
-            }
-            .oauth-btn {
-                padding: 8px 24px;
-                border: 1px solid #e9ecef;
-                border-radius: 8px;
-                font-weight: 500;
-                font-size: 14px;
-                cursor: pointer;
-                transition: background 0.15s, border-color 0.15s;
-            }
-            .oauth-btn.approve {
-                background: #111418;
-                color: #fff;
-                border-color: #111418;
-            }
-            .oauth-btn.approve:hover {
-                background: #2c2e33;
-                border-color: #2c2e33;
-            }
-            .oauth-btn.deny {
-                background: transparent;
-                color: #111418;
-                border-color: #e9ecef;
-            }
-            .oauth-btn.deny:hover {
-                background: #f8fafc;
-                border-color: #dee2e6;
             }
         </style>
     </head>

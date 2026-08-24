@@ -57,7 +57,21 @@ describe('OAuth page templates', () => {
         expect(redirectPage).not.toContain('</script>');
         expect(redirectPage).not.toContain('<img src=x');
         expect(redirectPage).not.toContain('onerror=');
-        expect(redirectPage).not.toContain('href=');
+        expect(redirectPage).toContain(
+            '<a class="button" href="https://example.com/callback?&lt;/script&gt;&lt;img src&#x3D;x onerror&#x3D;alert(document.domain)&gt;">Continue</a>',
+        );
         expect(redirectPage).toContain('&lt;/script&gt;');
+    });
+
+    it('escapes quotes in OAuth redirect link URLs', () => {
+        const redirectPage = generateOAuthRedirectPage({
+            redirectUrl: 'com.lightdash.mobile://oauth/callback?state="value"',
+            message: 'Redirecting',
+        });
+
+        expect(redirectPage).toContain(
+            '<a class="button" href="com.lightdash.mobile://oauth/callback?state&#x3D;&quot;value&quot;">Continue</a>',
+        );
+        expect(redirectPage).not.toContain('href="value"');
     });
 });
