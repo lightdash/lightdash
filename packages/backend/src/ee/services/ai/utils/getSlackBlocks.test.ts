@@ -399,6 +399,192 @@ describe('Slack AI agent blocks', () => {
         ]);
     });
 
+    it('links custom chart type answers with a data app viz config and schema-derived pivot', async () => {
+        let sharedParams: string | undefined;
+        const blocks = await getModernArtifactCardBlocks(
+            {
+                promptUuid: 'prompt-1',
+                projectUuid: 'project-1',
+                threadUuid: 'thread-1',
+            } as never,
+            'https://lightdash.example.com',
+            500,
+            async (_path, params) => {
+                sharedParams = params;
+                return 'https://lightdash.example.com/share/custom';
+            },
+            async () => ({}) as never,
+            async () => true,
+            'agent-1',
+            [
+                {
+                    artifactUuid: 'artifact-1',
+                    threadUuid: 'thread-1',
+                    promptUuid: 'prompt-1',
+                    artifactType: 'chart',
+                    savedQueryUuid: null,
+                    savedDashboardUuid: null,
+                    createdAt: new Date(),
+                    versionNumber: 1,
+                    versionUuid: 'version-1',
+                    title: 'Monthly Orders by Status',
+                    description: null,
+                    dashboardConfig: null,
+                    versionCreatedAt: new Date(),
+                    verifiedByUserUuid: null,
+                    verifiedAt: null,
+                    chartConfig: {
+                        source: 'customChartType',
+                        schemaVersion: 1,
+                        dataAppVizUuid: 'data-app-viz-1',
+                        config: {
+                            title: 'Monthly Orders by Status',
+                            description: 'Orders by month and status',
+                            queryConfig: {
+                                exploreName: 'orders',
+                                dimensions: [
+                                    'orders_order_date_month',
+                                    'orders_status',
+                                ],
+                                metrics: ['orders_unique_order_count'],
+                                sorts: [],
+                                limit: 500,
+                                parameters: null,
+                                customMetrics: [],
+                                tableCalculations: [],
+                                filters: null,
+                            },
+                            chartConfig: {
+                                customChartTypeSlug: 'fuzzy-bar',
+                                fieldMapping: {
+                                    x: 'orders_order_date_month',
+                                    y: 'orders_unique_order_count',
+                                    series: 'orders_status',
+                                },
+                                options: null,
+                            },
+                        },
+                    },
+                },
+            ],
+            [],
+            async (dataAppVizUuid) => {
+                expect(dataAppVizUuid).toBe('data-app-viz-1');
+                return [
+                    {
+                        name: 'x',
+                        label: 'X',
+                        type: 'dimension',
+                        required: true,
+                    },
+                    { name: 'y', label: 'Y', type: 'metric', required: true },
+                    {
+                        name: 'series',
+                        label: 'Series',
+                        type: 'series',
+                        required: false,
+                    },
+                ];
+            },
+        );
+
+        expect(blocks).toHaveLength(1);
+        const savedRaw = new URLSearchParams(sharedParams).get(
+            'create_saved_chart_version',
+        );
+        expect(savedRaw).toBeTruthy();
+        const saved = JSON.parse(savedRaw!);
+        expect(saved.chartConfig).toEqual({
+            type: ChartType.DATA_APP_VIZ,
+            config: {
+                dataAppVizUuid: 'data-app-viz-1',
+                fieldMapping: {
+                    x: 'orders_order_date_month',
+                    y: 'orders_unique_order_count',
+                    series: 'orders_status',
+                },
+            },
+        });
+        expect(saved.pivotConfig).toEqual({ columns: ['orders_status'] });
+    });
+
+    it('keeps the table fallback for custom chart type answers when the schema is unavailable', async () => {
+        let sharedParams: string | undefined;
+        await getModernArtifactCardBlocks(
+            {
+                promptUuid: 'prompt-1',
+                projectUuid: 'project-1',
+                threadUuid: 'thread-1',
+            } as never,
+            'https://lightdash.example.com',
+            500,
+            async (_path, params) => {
+                sharedParams = params;
+                return 'https://lightdash.example.com/share/custom';
+            },
+            async () => ({}) as never,
+            async () => true,
+            'agent-1',
+            [
+                {
+                    artifactUuid: 'artifact-1',
+                    threadUuid: 'thread-1',
+                    promptUuid: 'prompt-1',
+                    artifactType: 'chart',
+                    savedQueryUuid: null,
+                    savedDashboardUuid: null,
+                    createdAt: new Date(),
+                    versionNumber: 1,
+                    versionUuid: 'version-1',
+                    title: 'Monthly Orders by Status',
+                    description: null,
+                    dashboardConfig: null,
+                    versionCreatedAt: new Date(),
+                    verifiedByUserUuid: null,
+                    verifiedAt: null,
+                    chartConfig: {
+                        source: 'customChartType',
+                        schemaVersion: 1,
+                        dataAppVizUuid: 'data-app-viz-1',
+                        config: {
+                            title: 'Monthly Orders by Status',
+                            description: 'Orders by month and status',
+                            queryConfig: {
+                                exploreName: 'orders',
+                                dimensions: ['orders_order_date_month'],
+                                metrics: ['orders_unique_order_count'],
+                                sorts: [],
+                                limit: 500,
+                                parameters: null,
+                                customMetrics: [],
+                                tableCalculations: [],
+                                filters: null,
+                            },
+                            chartConfig: {
+                                customChartTypeSlug: 'fuzzy-bar',
+                                fieldMapping: {
+                                    x: 'orders_order_date_month',
+                                    y: 'orders_unique_order_count',
+                                },
+                                options: null,
+                            },
+                        },
+                    },
+                },
+            ],
+            [],
+            async () => null,
+        );
+
+        const saved = JSON.parse(
+            new URLSearchParams(sharedParams).get(
+                'create_saved_chart_version',
+            )!,
+        );
+        expect(saved.chartConfig.type).toBe(ChartType.TABLE);
+        expect(saved.pivotConfig).toBeUndefined();
+    });
+
     it('omits the hero but keeps the Open image button when the image URL is unreachable', async () => {
         const blocks = await getModernArtifactCardBlocks(
             {

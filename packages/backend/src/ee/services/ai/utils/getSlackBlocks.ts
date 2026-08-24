@@ -4,6 +4,8 @@ import {
     AiAgentToolResult,
     AiArtifact,
     ChartType,
+    deriveDataAppVizPivotConfig,
+    getDataAppVizChartFromArtifact,
     getGroupByDimensions,
     getItemMap,
     getWebAiChartConfig,
@@ -16,6 +18,7 @@ import {
     SlackPrompt,
     type AiLegacySemanticChartArtifactConfig,
     type ChartConfig,
+    type DataAppVizField,
     type Explore,
 } from '@lightdash/common';
 import { Block, KnownBlock } from '@slack/bolt';
@@ -546,6 +549,9 @@ export async function getModernArtifactCardBlocks(
         }
     >,
     toolResults?: AiAgentToolResult[],
+    getDataAppVizSchemaFields?: (
+        dataAppVizUuid: string,
+    ) => Promise<DataAppVizField[] | null>,
 ): Promise<(Block | KnownBlock)[]> {
     if (!artifacts || artifacts.length === 0) {
         return [];
@@ -726,27 +732,52 @@ export async function getModernArtifactCardBlocks(
                     },
                 };
                 let pivotConfig: { columns: string[] } | undefined;
-                try {
-                    const webAiChartConfig = getWebAiChartConfig({
-                        vizConfig: artifact.chartConfig.config,
-                        metricQuery: metricQueryWithSql,
-                        maxQueryLimit,
-                        fieldsMap: getItemMap(
-                            explore,
-                            additionalMetricsWithSql,
-                            vizConfig.metricQuery.tableCalculations,
-                        ),
-                    });
-                    if (webAiChartConfig.echartsConfig) {
-                        chartConfig = webAiChartConfig.echartsConfig;
+                if (artifact.chartConfig.source === 'customChartType') {
+                    // Mirror the web save flow: DATA_APP_VIZ config plus the
+                    // type's schema-derived pivot. Without the schema (app
+                    // deleted / invalid) keep the table fallback so the link
+                    // still works.
+                    const dataAppVizChart = getDataAppVizChartFromArtifact(
+                        artifact.chartConfig,
+                    );
+                    const schemaFields = dataAppVizChart
+                        ? await getDataAppVizSchemaFields?.(
+                              artifact.chartConfig.dataAppVizUuid,
+                          )
+                        : null;
+                    if (dataAppVizChart && schemaFields) {
+                        chartConfig = {
+                            type: ChartType.DATA_APP_VIZ,
+                            config: dataAppVizChart,
+                        };
+                        pivotConfig = deriveDataAppVizPivotConfig(
+                            schemaFields,
+                            dataAppVizChart.fieldMapping,
+                        );
                     }
-                    const groupByDimensions =
-                        getGroupByDimensions(webAiChartConfig);
-                    pivotConfig = groupByDimensions?.length
-                        ? { columns: groupByDimensions }
-                        : undefined;
-                } catch {
-                    // keep the table fallback
+                } else {
+                    try {
+                        const webAiChartConfig = getWebAiChartConfig({
+                            vizConfig: artifact.chartConfig.config,
+                            metricQuery: metricQueryWithSql,
+                            maxQueryLimit,
+                            fieldsMap: getItemMap(
+                                explore,
+                                additionalMetricsWithSql,
+                                vizConfig.metricQuery.tableCalculations,
+                            ),
+                        });
+                        if (webAiChartConfig.echartsConfig) {
+                            chartConfig = webAiChartConfig.echartsConfig;
+                        }
+                        const groupByDimensions =
+                            getGroupByDimensions(webAiChartConfig);
+                        pivotConfig = groupByDimensions?.length
+                            ? { columns: groupByDimensions }
+                            : undefined;
+                    } catch {
+                        // keep the table fallback
+                    }
                 }
 
                 const path = `/projects/${slackPrompt.projectUuid}/tables/${vizConfig.metricQuery.exploreName}`;
