@@ -25,11 +25,6 @@
     overflow: hidden;
 }
 
-/* Matches the config scroll area's offset scrollbar so Change lines up with the inputs. */
-.selectedType {
-    padding-right: 8px;
-}
-
 .buttonAnchor {
     font-family: inherit;
 }

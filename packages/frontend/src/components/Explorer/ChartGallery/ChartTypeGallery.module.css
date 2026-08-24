@@ -4,18 +4,16 @@
     min-height: 0;
 }
 
+/* The offset scrollbar sits in the panel padding, so cards keep the same right
+   edge as the search input. */
 .scrollArea {
     flex: 1 1 auto;
     min-height: 0;
+    margin-right: -8px;
 }
 
 .scrollContent {
     min-width: 0;
-}
-
-/* Matches the scroll area's offset scrollbar so the search lines up with the cards. */
-.search {
-    margin-right: 8px;
 }
 
 .rowWrapper {
