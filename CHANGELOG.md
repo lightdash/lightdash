@@ -1,3 +1,10 @@
+## [1.242.6](https://github.com/lightdash/lightdash/compare/1.242.5...1.242.6) (2026-08-24)
+
+
+### Bug Fixes
+
+* **ai:** score chart context without result rows ([#27919](https://github.com/lightdash/lightdash/issues/27919)) ([aed87a0](https://github.com/lightdash/lightdash/commit/aed87a0ac92cc755701a3c6372bb44b8eff154e9))
+
 ## [1.242.5](https://github.com/lightdash/lightdash/compare/1.242.4...1.242.5) (2026-08-24)
 
 
