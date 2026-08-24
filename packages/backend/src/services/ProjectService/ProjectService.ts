@@ -4714,6 +4714,8 @@ export class ProjectService extends BaseService {
                 `Failed to delete merged dbt manifest for project ${projectUuid}: ${getErrorMessage(error)}`,
             );
         }
+    }
+
     /**
      * Merge the primary source's manifest with every additional source's manifest
      * into one combined manifest, then return a MANIFEST adapter over it so a single

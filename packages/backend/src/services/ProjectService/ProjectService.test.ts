@@ -5032,12 +5032,14 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             primary?: string[];
             source?: string[];
         } = {},
-    ) =>
-        buildMergedAdapterWithService(
+    ) => {
+        const { adapter } = buildMergedAdapterWithService(
             primaryManifest,
             sourceManifest,
             selectedModelIds,
-        ).adapter;
+        );
+        return (await adapter).adapter;
+    };
 
     it('returns the deduplicated union when both sources select models', async () => {
         const primaryManifest = buildManifest([
@@ -5450,10 +5452,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         ]);
 
         const { adapter: buildMergedAdapterResult } =
-            buildMergedAdapterWithService(
-            primaryManifest,
-            sourceManifest,
-        );
+            buildMergedAdapterWithService(primaryManifest, sourceManifest);
         const { stagedMergedManifest } = await buildMergedAdapterResult;
 
         expect(projectModel.upsertMergedManifest).not.toHaveBeenCalled();
@@ -5465,7 +5464,9 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         ) as DbtManifest;
         expect(Object.keys(persisted.nodes)).toEqual([
             'model.pkg_a.orders',
+            'seed.pkg_a.country_codes',
             'model.pkg_b.customers',
+            'seed.pkg_b.country_codes',
         ]);
     });
 
@@ -5538,8 +5539,10 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
 
         expect(compiledNodes).toEqual([
             'model.pkg_a.orders',
+            'seed.pkg_a.country_codes',
             'seed.pkg_a.countries',
             'model.pkg_b.customers',
+            'seed.pkg_b.country_codes',
         ]);
         expect(persisted.nodes['model.pkg_a.helper']).toHaveProperty(
             'compiled',
