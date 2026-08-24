@@ -73,7 +73,7 @@ describe('CommercialFeatureFlagModel direct access PostgreSQL integration', () =
             },
         });
 
-    it('ignores a user-level override that would enable the flag', async () => {
+    it('enables through a user-level override', async () => {
         await transaction(FeatureFlagOverridesTableName).insert({
             flag_id: CommercialFeatureFlags.DirectAccess,
             user_uuid: SEED_ORG_1_ADMIN.user_uuid,
@@ -82,11 +82,13 @@ describe('CommercialFeatureFlagModel direct access PostgreSQL integration', () =
 
         await expect(getFlag()).resolves.toEqual({
             id: CommercialFeatureFlags.DirectAccess,
-            enabled: false,
+            enabled: true,
         });
     });
 
-    it('keeps an organization disable authoritative over a user enable', async () => {
+    // Standard override precedence: a staff-written user-level enable wins
+    // over an organization disable, consistent with every commercial flag.
+    it('lets a user-level enable take precedence over an organization disable', async () => {
         await transaction(FeatureFlagOverridesTableName).insert([
             {
                 flag_id: CommercialFeatureFlags.DirectAccess,
@@ -102,11 +104,11 @@ describe('CommercialFeatureFlagModel direct access PostgreSQL integration', () =
 
         await expect(getFlag()).resolves.toEqual({
             id: CommercialFeatureFlags.DirectAccess,
-            enabled: false,
+            enabled: true,
         });
     });
 
-    it('enables through an organization-level override only', async () => {
+    it('enables through an organization-level override', async () => {
         await transaction(FeatureFlagOverridesTableName).insert({
             flag_id: CommercialFeatureFlags.DirectAccess,
             organization_uuid: organizationUuid,

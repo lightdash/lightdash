@@ -21,17 +21,14 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
         };
     }
 
-    // Organization-only: a per-user override can neither enable direct
-    // access nor bypass an organization-level disable.
+    // Default-off with standard override precedence (user > org > default),
+    // consistent with the other commercial flags: a staff-written user-level
+    // override can enable direct access past an organization disable.
     private async getDirectAccessFlag(args: FeatureFlagLogicArgs) {
-        const organizationUuid = args.user?.organizationUuid;
-        if (!organizationUuid) {
+        if (!args.user) {
             return { id: args.featureFlagId, enabled: false };
         }
-        const dbResult = await this.tryGetOrganizationScopedFromDatabase(
-            args.featureFlagId,
-            organizationUuid,
-        );
+        const dbResult = await this.tryGetFromDatabase(args);
         return dbResult ?? { id: args.featureFlagId, enabled: false };
     }
 
