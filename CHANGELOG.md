@@ -1,3 +1,17 @@
+# [1.243.0](https://github.com/lightdash/lightdash/compare/1.242.7...1.243.0) (2026-08-24)
+
+
+### Bug Fixes
+
+* funnel chart respects the query's sort order ([#27934](https://github.com/lightdash/lightdash/issues/27934)) ([1a2bc47](https://github.com/lightdash/lightdash/commit/1a2bc47e23c75ba3a06c4083b9fb474261b40371))
+* let page sidebars yield width on narrow windows ([#27932](https://github.com/lightdash/lightdash/issues/27932)) ([bf3a682](https://github.com/lightdash/lightdash/commit/bf3a682625ecadadf2b279a10c7780020e7ac1bb))
+* **warehouses:** surface databricks status errors ([#27930](https://github.com/lightdash/lightdash/issues/27930)) ([4e349db](https://github.com/lightdash/lightdash/commit/4e349db3feb0d6da4bec50cc34e5edc078286317))
+
+
+### Features
+
+* show built-in chart types as a grid in the chart gallery ([#27911](https://github.com/lightdash/lightdash/issues/27911)) ([9d3fcdc](https://github.com/lightdash/lightdash/commit/9d3fcdc57ab696883cb184c4ccbf8608d3d10b06))
+
 ## [1.242.7](https://github.com/lightdash/lightdash/compare/1.242.6...1.242.7) (2026-08-24)
 
 
