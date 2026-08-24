@@ -123,6 +123,11 @@ export class AiService extends BaseService {
                 await this.orgAiCopilotConfigResolver.getAccessibleModelIds(
                     'anthropic',
                     anthropicConfig.apiKey,
+                    {
+                        baseUrl: anthropicConfig.baseUrl,
+                        availableModels: anthropicConfig.availableModels,
+                        customHeaders: anthropicConfig.customHeaders,
+                    },
                 );
             const preset = pickAmbientAnthropicPreset(accessibleModelIds);
             if (!preset) {

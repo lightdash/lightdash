@@ -1,4 +1,5 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
+import { getAnthropicApiBaseUrl } from '../../../../config/aiGatewayConfig';
 import { LightdashConfig } from '../../../../config/parseConfig';
 import { ModelPreset } from './presets';
 import { AiModel } from './types';
@@ -12,10 +13,17 @@ export const getAnthropicModel = (
     preset: ModelPreset<'anthropic'>,
     options?: { enableReasoning?: boolean },
 ): AiModel<typeof PROVIDER> => {
-    const anthropic = createAnthropic({
-        apiKey: config.apiKey,
-        headers: config.customHeaders,
-    });
+    const anthropic = config.baseUrl
+        ? createAnthropic({
+              authToken: config.apiKey,
+              baseURL: getAnthropicApiBaseUrl(config.baseUrl),
+              headers: config.customHeaders,
+          })
+        : createAnthropic({
+              apiKey: config.apiKey,
+              baseURL: getAnthropicApiBaseUrl(),
+              headers: config.customHeaders,
+          });
 
     const model = anthropic(preset.modelId);
 

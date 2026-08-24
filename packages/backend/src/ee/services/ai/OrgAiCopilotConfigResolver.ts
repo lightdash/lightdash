@@ -1,6 +1,7 @@
 import {
     BYO_AI_PROVIDERS,
     FeatureFlags,
+    MissingConfigError,
     type AiOrgModelVisibility,
     type ByoAiProvider,
     type DataAppModelVisibility,
@@ -37,12 +38,19 @@ export type ReviewJudgeAvailability = {
     canJudgeOnByoKey: boolean;
 };
 
+const hasAnthropicByoGatewayConflict = (
+    config: CopilotConfig,
+    orgKeys: AiOrgProviderApiKeys,
+): boolean => Boolean(orgKeys.anthropic && config.providers.anthropic?.baseUrl);
+
 /**
  * Overlay an org's own API key onto the instance copilot config. Only the
  * apiKey is org-supplied — every other provider option comes from the instance
  * config. Keys for providers the instance does not configure are ignored here
  * (the write path rejects them), so BYO can only swap the key of a provider
- * this instance already runs.
+ * this instance already runs. Anthropic gateway mode is the exception: its
+ * instance credential authenticates the gateway, so replacing it with an org
+ * key is rejected rather than sending that key to the gateway.
  */
 /**
  * Effective model visibility = stored settings on top of an implicit default:
@@ -70,6 +78,11 @@ export const overlayOrgProviderApiKeys = (
     const providers = { ...config.providers };
 
     if (orgKeys.anthropic && providers.anthropic) {
+        if (hasAnthropicByoGatewayConflict(config, orgKeys)) {
+            throw new MissingConfigError(
+                'Organization Anthropic API keys cannot be used while ANTHROPIC_BASE_URL is configured. Remove the organization key or disable the instance Anthropic gateway.',
+            );
+        }
         providers.anthropic = {
             ...providers.anthropic,
             apiKey: orgKeys.anthropic,
@@ -245,10 +258,15 @@ export class OrgAiCopilotConfigResolver {
             );
         const keyAccessibleModelIds = orgKeys.anthropic
             ? {
-                  anthropic: await this.aiModelCatalog.getAccessibleModelIds(
-                      'anthropic',
-                      orgKeys.anthropic,
-                  ),
+                  anthropic: hasAnthropicByoGatewayConflict(
+                      this.lightdashConfig.ai.copilot,
+                      orgKeys,
+                  )
+                      ? null
+                      : await this.aiModelCatalog.getAccessibleModelIds(
+                            'anthropic',
+                            orgKeys.anthropic,
+                        ),
               }
             : null;
         return {
@@ -312,8 +330,19 @@ export class OrgAiCopilotConfigResolver {
     async getAccessibleModelIds(
         provider: ByoAiProvider,
         apiKey: string,
+        options?: {
+            baseUrl?: string;
+            availableModels?: string[];
+            customHeaders?: Record<string, string>;
+        },
     ): Promise<string[] | null> {
-        return this.aiModelCatalog.getAccessibleModelIds(provider, apiKey);
+        if (options?.baseUrl && options.availableModels?.length) {
+            return options.availableModels;
+        }
+        return this.aiModelCatalog.getAccessibleModelIds(provider, apiKey, {
+            baseUrl: options?.baseUrl,
+            headers: options?.customHeaders,
+        });
     }
 
     /**
@@ -329,10 +358,11 @@ export class OrgAiCopilotConfigResolver {
     ) {
         const { anthropic } = config.providers;
         const accessibleModelIds = anthropic?.apiKey
-            ? await this.aiModelCatalog.getAccessibleModelIds(
-                  'anthropic',
-                  anthropic.apiKey,
-              )
+            ? await this.getAccessibleModelIds('anthropic', anthropic.apiKey, {
+                  baseUrl: anthropic.baseUrl,
+                  availableModels: anthropic.availableModels,
+                  customHeaders: anthropic.customHeaders,
+              })
             : null;
         return getFastModelForAccessibleKey(
             config,
@@ -363,6 +393,14 @@ export class OrgAiCopilotConfigResolver {
         if (!orgKeys) return none;
         const hasActiveByoKey = Boolean(orgKeys.anthropic || orgKeys.openai);
         if (!orgKeys.anthropic) {
+            return { hasActiveByoKey, canJudgeOnByoKey: false };
+        }
+        if (
+            hasAnthropicByoGatewayConflict(
+                this.lightdashConfig.ai.copilot,
+                orgKeys,
+            )
+        ) {
             return { hasActiveByoKey, canJudgeOnByoKey: false };
         }
         const modelIds = await this.aiModelCatalog.getAccessibleModelIds(

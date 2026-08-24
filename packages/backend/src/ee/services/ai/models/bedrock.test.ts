@@ -39,10 +39,18 @@ describe('getBedrockProvider', () => {
         vi.clearAllMocks();
     });
 
-    test('passes apiKey when configured', () => {
-        getBedrockProvider({ ...baseConfig, apiKey: 'key' });
+    test('passes the API key and custom base URL when configured', () => {
+        getBedrockProvider({
+            ...baseConfig,
+            apiKey: 'key',
+            baseUrl: 'https://bedrock-gateway.example/runtime',
+        });
         expect(createAmazonBedrock).toHaveBeenCalledWith(
-            expect.objectContaining({ apiKey: 'key', region: 'us-east-1' }),
+            expect.objectContaining({
+                apiKey: 'key',
+                region: 'us-east-1',
+                baseURL: 'https://bedrock-gateway.example/runtime',
+            }),
         );
     });
 

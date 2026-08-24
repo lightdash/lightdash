@@ -817,9 +817,9 @@ export class AppGenerateService extends BaseService {
         env: Record<string, string>,
     ): 'anthropic' | 'bedrock' | 'openai' {
         if (this.dataAppCodingAgent === 'codex') {
-            return getCodexCodeProvider(env) === 'amazon-bedrock'
-                ? 'bedrock'
-                : 'openai';
+            return getCodexCodeProvider(env) === 'openai'
+                ? 'openai'
+                : 'bedrock';
         }
         return env.CLAUDE_CODE_USE_BEDROCK === '1' ? 'bedrock' : 'anthropic';
     }

@@ -24,6 +24,9 @@ describe('AiModelCatalog', () => {
 
         expect(result).toEqual(['claude-opus-4-8', 'claude-sonnet-5']);
         expect(fetchFn).toHaveBeenCalledTimes(2);
+        expect(String(fetchFn.mock.calls[0][0])).toContain(
+            'https://api.anthropic.com/v1/models',
+        );
         expect(String(fetchFn.mock.calls[1][0])).toContain(
             'after_id=claude-opus-4-8',
         );
@@ -44,7 +47,7 @@ describe('AiModelCatalog', () => {
         expect(fetchFn).toHaveBeenCalledTimes(1);
     });
 
-    it('returns null on http error and does not cache the failure', async () => {
+    it('returns null on HTTP error and does not cache the failure', async () => {
         const fetchFn = vi
             .fn<FetchLike>()
             .mockResolvedValueOnce({
@@ -61,6 +64,29 @@ describe('AiModelCatalog', () => {
         expect(
             await catalog.getAccessibleModelIds('anthropic', 'sk-ant-bad'),
         ).toEqual(['claude-sonnet-5']);
+    });
+
+    it('uses the normalized gateway models endpoint and bearer auth', async () => {
+        const fetchFn = vi
+            .fn<FetchLike>()
+            .mockResolvedValue(page(['claude-sonnet-5'], false));
+        const catalog = new AiModelCatalog({ fetchFn });
+
+        await catalog.getAccessibleModelIds('anthropic', 'gateway-token', {
+            baseUrl: 'https://gateway.example/anthropic/v1',
+            headers: { 'x-gateway-tenant': 'lightdash' },
+        });
+
+        expect(String(fetchFn.mock.calls[0][0])).toContain(
+            'https://gateway.example/anthropic/v1/models',
+        );
+        expect(fetchFn.mock.calls[0][1].headers).toMatchObject({
+            authorization: 'Bearer gateway-token',
+            'x-gateway-tenant': 'lightdash',
+        });
+        expect(fetchFn.mock.calls[0][1].headers).not.toHaveProperty(
+            'x-api-key',
+        );
     });
 
     it('returns null when fetch throws', async () => {

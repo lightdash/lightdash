@@ -64,6 +64,17 @@ const bothProvidersConfig: CopilotConfig = aiCopilotConfigSchema.parse({
     },
 });
 
+const anthropicGatewayConfig: CopilotConfig = aiCopilotConfigSchema.parse({
+    ...bothProvidersConfig,
+    providers: {
+        ...bothProvidersConfig.providers,
+        anthropic: {
+            ...bothProvidersConfig.providers.anthropic,
+            baseUrl: 'https://llm-gateway.example',
+        },
+    },
+});
+
 const bedrockConfig: CopilotConfig = aiCopilotConfigSchema.parse({
     enabled: true,
     requiresFeatureFlag: false,
@@ -141,6 +152,14 @@ describe('overlayOrgProviderApiKeys', () => {
         expect(result.providers.openai?.apiKey).toBe('org-openai-key');
         expect(result.providers.openai?.modelName).toBe('gpt-5.4');
         expect(result.defaultProvider).toBe('openai');
+    });
+
+    it('rejects an organization Anthropic key when the instance uses an Anthropic gateway', () => {
+        expect(() =>
+            overlayOrgProviderApiKeys(anthropicGatewayConfig, {
+                anthropic: 'org-anthropic-key',
+            }),
+        ).toThrow('Organization Anthropic API keys cannot be used');
     });
 
     it('ignores a key for a provider the instance has not configured', () => {
@@ -273,6 +292,20 @@ describe('OrgAiCopilotConfigResolver', () => {
             flagEnabled: true,
         }).getCopilotConfig('org-uuid');
         expect(result.providers.openai?.apiKey).toBe('org-openai-key');
+    });
+
+    it('uses configured Anthropic models without probing a gateway catalog', async () => {
+        const resolver = makeResolver({
+            flagEnabled: true,
+            accessibleModelIds: null,
+        });
+
+        expect(
+            await resolver.getAccessibleModelIds('anthropic', 'gateway-token', {
+                baseUrl: 'https://llm-gateway.example',
+                availableModels: ['claude-sonnet-4-6'],
+            }),
+        ).toEqual(['claude-sonnet-4-6']);
     });
 
     describe('getClaudeCodeConfig', () => {
@@ -519,6 +552,20 @@ describe('OrgAiCopilotConfigResolver', () => {
                 keyAccessibleModelIds: { anthropic: null },
             });
         });
+
+        it('does not probe a BYO Anthropic key through an instance gateway', async () => {
+            const resolver = makeResolver({
+                flagEnabled: true,
+                orgKeys: { anthropic: 'sk-ant-x' },
+                accessibleModelIds: ['claude-opus-4-8'],
+                instanceConfig: anthropicGatewayConfig,
+            });
+
+            expect(await resolver.getOrgModelOverrides('org-uuid')).toEqual({
+                modelVisibility: { openai: { enabled: false } },
+                keyAccessibleModelIds: { anthropic: null },
+            });
+        });
     });
 
     describe('getReviewJudgeAvailability', () => {
@@ -586,6 +633,19 @@ describe('OrgAiCopilotConfigResolver', () => {
                 flagEnabled: true,
                 orgKeys: { openai: 'sk-x' },
             });
+            expect(
+                await resolver.getReviewJudgeAvailability('org-uuid'),
+            ).toEqual({ hasActiveByoKey: true, canJudgeOnByoKey: false });
+        });
+
+        it('does not judge with a BYO Anthropic key through an instance gateway', async () => {
+            const resolver = makeResolver({
+                flagEnabled: true,
+                orgKeys: { anthropic: 'sk-ant-x' },
+                accessibleModelIds: ['claude-haiku-4-5-20251001'],
+                instanceConfig: anthropicGatewayConfig,
+            });
+
             expect(
                 await resolver.getReviewJudgeAvailability('org-uuid'),
             ).toEqual({ hasActiveByoKey: true, canJudgeOnByoKey: false });
