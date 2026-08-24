@@ -1,3 +1,10 @@
+## [1.240.1](https://github.com/lightdash/lightdash/compare/1.240.0...1.240.1) (2026-08-24)
+
+
+### Bug Fixes
+
+* accept project slugs in Slack unfurls ([#27890](https://github.com/lightdash/lightdash/issues/27890)) ([28bf027](https://github.com/lightdash/lightdash/commit/28bf02740f497c7a8b90ddfde0db9ad6245fa341))
+
 # [1.240.0](https://github.com/lightdash/lightdash/compare/1.239.0...1.240.0) (2026-08-24)
 
 
