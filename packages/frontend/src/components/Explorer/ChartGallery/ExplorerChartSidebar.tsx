@@ -1,20 +1,8 @@
-import { ChartType } from '@lightdash/common';
-import {
-    ActionIcon,
-    Anchor,
-    Group,
-    Paper,
-    SegmentedControl,
-    Stack,
-    Text,
-    Tooltip,
-} from '@mantine/core';
-import { IconSettings, IconX } from '@tabler/icons-react';
+import { type ChartType } from '@lightdash/common';
+import { ActionIcon, Anchor, Group, Stack, Text, Tooltip } from '@mantine/core';
+import { IconArrowLeft, IconSettings, IconX } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-import { Link, useLocation } from 'react-router';
-import { useCanEditDataApp } from '../../../features/apps/hooks/useCanEditDataApp';
 import { useDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
-import { chartTypeBuilderPath } from '../../../features/chartTypes/utils/chartTypeBuilderPath';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { ChartGalleryContext } from '../../common/ChartGallery/ChartGalleryContext';
 import MantineIcon from '../../common/MantineIcon';
@@ -34,13 +22,9 @@ type Props = {
 
 type Mode = 'choose' | 'configure';
 
-const isMode = (value: string): value is Mode =>
-    value === 'choose' || value === 'configure';
-
 const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
     const [mode, setMode] = useState<Mode>('configure');
     const projectUuid = useProjectUuid();
-    const location = useLocation();
     const { visualizationConfig } = useVisualizationContext();
     const { getSelectedChartTypeItem } = useChartTypeOptions();
     const dataAppVizUuid = isDataAppVizVisualizationConfig(visualizationConfig)
@@ -52,12 +36,6 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
         null,
     );
 
-    const canEditSelectedType = useCanEditDataApp(projectUuid, {
-        spaceUuid: selectedProjectType?.spaceUuid ?? null,
-        createdByUserUuid: selectedProjectType?.createdByUserUuid ?? null,
-    });
-
-    const isProjectType = chartType === ChartType.DATA_APP_VIZ;
     const selectedItem = getSelectedChartTypeItem(
         chartType,
         selectedProjectType ?? null,
@@ -92,77 +70,48 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                 </Group>
 
                 <Stack className={classes.body} gap="md">
-                    <SegmentedControl
-                        fullWidth
-                        value={mode}
-                        onChange={(value) => {
-                            if (isMode(value)) setMode(value);
-                        }}
-                        data={[
-                            { value: 'choose', label: 'Choose type' },
-                            { value: 'configure', label: 'Configure' },
-                        ]}
-                    />
-
                     {mode === 'choose' ? (
-                        <ExplorerChartTypeGallery
-                            onSelected={() => setMode('configure')}
-                        />
+                        <>
+                            <Group gap="xs" wrap="nowrap">
+                                <ActionIcon
+                                    variant="subtle"
+                                    color="gray"
+                                    size="sm"
+                                    aria-label="Back to configuration"
+                                    onClick={() => setMode('configure')}
+                                >
+                                    <MantineIcon icon={IconArrowLeft} />
+                                </ActionIcon>
+                                <Text fw={600} fz="sm">
+                                    Choose chart type
+                                </Text>
+                            </Group>
+                            <ExplorerChartTypeGallery
+                                onSelected={() => setMode('configure')}
+                            />
+                        </>
                     ) : (
                         <Stack className={classes.configure} gap="md">
-                            <Paper
-                                className={classes.selectedChart}
-                                withBorder
-                                radius="md"
-                                p="sm"
-                            >
-                                <Group wrap="nowrap">
-                                    <ChartTypeThumbnail
-                                        icon={selectedItem.icon}
-                                        rotatedIcon={selectedItem.rotatedIcon}
-                                    />
-                                    <Text fw={600} truncate flex={1}>
-                                        {selectedItem.label}
-                                    </Text>
-                                    <Group gap="xs" wrap="nowrap">
-                                        {isProjectType &&
-                                        selectedProjectType &&
-                                        canEditSelectedType ? (
-                                            <Anchor
-                                                component={Link}
-                                                to={{
-                                                    pathname:
-                                                        chartTypeBuilderPath(
-                                                            projectUuid ?? '',
-                                                            selectedProjectType.dataAppVizUuid,
-                                                        ),
-                                                    search: location.search,
-                                                }}
-                                                fz="xs"
-                                                fw={500}
-                                            >
-                                                Edit ↗
-                                            </Anchor>
-                                        ) : null}
-                                        <Anchor
-                                            component="button"
-                                            type="button"
-                                            className={classes.buttonAnchor}
-                                            fz="xs"
-                                            fw={500}
-                                            onClick={() => setMode('choose')}
-                                        >
-                                            Change
-                                        </Anchor>
-                                    </Group>
-                                </Group>
-                                {isProjectType &&
-                                selectedProjectType?.description ? (
-                                    <Text fz="xs" c="dimmed" lh={1.5} mt="xs">
-                                        {selectedProjectType.description}
-                                    </Text>
-                                ) : null}
-                            </Paper>
+                            <Group wrap="nowrap" gap="sm">
+                                <ChartTypeThumbnail
+                                    small
+                                    icon={selectedItem.icon}
+                                    rotatedIcon={selectedItem.rotatedIcon}
+                                />
+                                <Text fw={600} fz="sm" truncate flex={1}>
+                                    {selectedItem.label}
+                                </Text>
+                                <Anchor
+                                    component="button"
+                                    type="button"
+                                    className={classes.buttonAnchor}
+                                    fz="xs"
+                                    fw={500}
+                                    onClick={() => setMode('choose')}
+                                >
+                                    Change
+                                </Anchor>
+                            </Group>
 
                             <VisualizationConfig
                                 chartType={chartType}
