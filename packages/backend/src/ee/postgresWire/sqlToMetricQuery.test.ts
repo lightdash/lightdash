@@ -1405,6 +1405,57 @@ describe('compileSqlToMetricQuery', () => {
     });
 });
 
+describe('aggregate passthrough', () => {
+    it('treats SUM over a metric column as the metric at the query grain', () => {
+        const compiled = compileSqlToMetricQuery(
+            'SELECT orders_status, SUM(orders_total_order_amount) AS orders_total_order_amount FROM orders GROUP BY orders_status ORDER BY orders_total_order_amount DESC',
+            CATALOG,
+        );
+        expect(compiled.metricQuery.dimensions).toEqual(['orders_status']);
+        expect(compiled.metricQuery.metrics).toEqual([
+            'orders_total_order_amount',
+        ]);
+        expect(compiled.metricQuery.tableCalculations).toEqual([]);
+        expect(compiled.columns.map((c) => c.name)).toEqual([
+            'orders_status',
+            'orders_total_order_amount',
+        ]);
+        expect(compiled.metricQuery.sorts).toEqual([
+            { fieldId: 'orders_total_order_amount', descending: true },
+        ]);
+    });
+
+    it('passes min/max/avg through and keeps dimension aggregates rejected', () => {
+        expect(
+            compileSqlToMetricQuery(
+                'SELECT max(orders_total_order_amount) AS m FROM orders',
+                CATALOG,
+            ).metricQuery.metrics,
+        ).toEqual(['orders_total_order_amount']);
+        expect(() =>
+            compileSqlToMetricQuery(
+                'SELECT orders_status, sum(orders_amount) FROM orders GROUP BY 1',
+                CATALOG,
+            ),
+        ).toThrow(/not supported/);
+        expect(() =>
+            compileSqlToMetricQuery(
+                'SELECT sum(distinct orders_total_order_amount) AS s FROM orders',
+                CATALOG,
+            ),
+        ).toThrow(/not supported/);
+    });
+
+    it('explains aggregation instead of an alias conflict for dimension aggregates', () => {
+        expect(() =>
+            compileSqlToMetricQuery(
+                'SELECT orders_amount, sum(orders_amount) AS orders_amount FROM orders GROUP BY orders_amount',
+                CATALOG,
+            ),
+        ).toThrow(/Aggregate function "sum" is not supported here/);
+    });
+});
+
 describe('row counts', () => {
     it('compiles count(*) to a system COUNT metric', () => {
         const compiled = compileSqlToMetricQuery(
