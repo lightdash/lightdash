@@ -1,9 +1,13 @@
 import {
+    canDelegateDirectAccessRole,
+    ForbiddenError,
     OrganizationMemberRole,
-    type SpaceMemberRole,
+    SpaceMemberRole,
+    type UUID,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { GroupMembershipTableName } from '../database/entities/groupMemberships';
+import { GroupTableName } from '../database/entities/groups';
 import { OrganizationMembershipCustomRolesTableName } from '../database/entities/organizationMembershipCustomRoles';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import { ProjectGroupAccessTableName } from '../database/entities/projectGroupAccess';
@@ -12,39 +16,129 @@ import { ProjectTableName } from '../database/entities/projects';
 import { UserTableName } from '../database/entities/users';
 
 export type DirectAccess = {
-    organizationUuid: string;
-    projectUuid: string;
+    organizationUuid: UUID;
+    projectUuid: UUID;
     userRole: SpaceMemberRole | null;
     groupRoles: SpaceMemberRole[];
 };
 
 export type DirectAccessRow = {
-    resourceUuid: string;
-    organizationUuid: string;
-    projectUuid: string;
+    resourceUuid: UUID;
+    organizationUuid: UUID;
+    projectUuid: UUID;
     role: SpaceMemberRole;
-    groupUuid: string | null;
+    groupUuid: UUID | null;
 };
 
-export const groupDirectAccessRows = (
-    rows: DirectAccessRow[],
-): Record<string, DirectAccess> => {
-    const accessByResource: Record<string, DirectAccess> = {};
-    for (const row of rows) {
-        const access = accessByResource[row.resourceUuid] ?? {
-            organizationUuid: row.organizationUuid,
-            projectUuid: row.projectUuid,
-            userRole: null,
-            groupRoles: [],
-        };
-        if (row.groupUuid === null) {
-            access.userRole = row.role;
-        } else {
-            access.groupRoles.push(row.role);
-        }
-        accessByResource[row.resourceUuid] = access;
+export type DirectAccessMutationContext = {
+    organizationId: number;
+    organizationUuid: UUID;
+    projectId: number;
+    projectUuid: UUID;
+};
+
+export type DirectAccessMutationResult = DirectAccessMutationContext & {
+    beforeRole: SpaceMemberRole | null;
+    afterRole: SpaceMemberRole | null;
+};
+
+export type DirectAccessResetResult = DirectAccessMutationContext & {
+    revokedUsers: number;
+    revokedGroups: number;
+};
+
+/**
+ * The resolver must return only after locking every authority source that
+ * could lower the actor's role. Those locks must be held by `transaction`
+ * until the direct access mutation completes. When authority depends on the
+ * absence of a row, the resolver must lock a stable anchor or use an
+ * equivalent serialization mechanism.
+ */
+export type DirectAccessModelActorRoleResolver = (input: {
+    transaction: Knex.Transaction;
+    context: DirectAccessMutationContext;
+}) => Promise<SpaceMemberRole | undefined>;
+
+export type DirectAccessModel = {
+    getUserAccess(
+        resourceUuids: UUID[],
+        userUuid: UUID,
+    ): Promise<Record<string, DirectAccess>>;
+    upsertUserAccess(input: {
+        resourceUuid: UUID;
+        userUuid: UUID;
+        role: SpaceMemberRole;
+        actorRole: SpaceMemberRole | undefined;
+        actorRoleResolver: DirectAccessModelActorRoleResolver;
+        grantedByUserUuid: UUID;
+    }): Promise<DirectAccessMutationResult>;
+    upsertGroupAccess(input: {
+        resourceUuid: UUID;
+        groupUuid: UUID;
+        role: SpaceMemberRole;
+        actorRole: SpaceMemberRole | undefined;
+        actorRoleResolver: DirectAccessModelActorRoleResolver;
+        grantedByUserUuid: UUID;
+    }): Promise<DirectAccessMutationResult>;
+    revokeUserAccess(input: {
+        resourceUuid: UUID;
+        userUuid: UUID;
+        actorRole: SpaceMemberRole | undefined;
+        actorRoleResolver: DirectAccessModelActorRoleResolver;
+        actorUserUuid: UUID;
+    }): Promise<DirectAccessMutationResult>;
+    revokeGroupAccess(input: {
+        resourceUuid: UUID;
+        groupUuid: UUID;
+        actorRole: SpaceMemberRole | undefined;
+        actorRoleResolver: DirectAccessModelActorRoleResolver;
+    }): Promise<DirectAccessMutationResult>;
+    resetAccess(input: {
+        resourceUuid: UUID;
+        actorRole: SpaceMemberRole | undefined;
+        actorRoleResolver: DirectAccessModelActorRoleResolver;
+    }): Promise<DirectAccessResetResult>;
+};
+
+export const assertCanGrantDirectAccess = (
+    actorRole: SpaceMemberRole | undefined,
+    requestedRole: SpaceMemberRole,
+): void => {
+    if (!canDelegateDirectAccessRole(actorRole, requestedRole)) {
+        throw new ForbiddenError(
+            'You cannot grant the requested direct access role',
+        );
     }
-    return accessByResource;
+};
+
+export const assertCanRevokeDirectAccess = ({
+    actorRole,
+    existingRole,
+    isSelfRevoke,
+}: {
+    actorRole: SpaceMemberRole | undefined;
+    existingRole?: SpaceMemberRole;
+    isSelfRevoke: boolean;
+}): void => {
+    if (isSelfRevoke) {
+        return;
+    }
+    if (
+        actorRole === undefined ||
+        actorRole === SpaceMemberRole.VIEWER ||
+        (existingRole !== undefined &&
+            !canDelegateDirectAccessRole(actorRole, existingRole))
+    ) {
+        throw new ForbiddenError('You cannot revoke this direct access role');
+    }
+};
+
+export const assertCanResetDirectAccess = (
+    actorRole: SpaceMemberRole | undefined,
+): void => {
+    if (actorRole !== SpaceMemberRole.ADMIN) {
+        throw new ForbiddenError('Only admins can reset direct access');
+    }
 };
 
 /**
@@ -153,3 +247,70 @@ export const getActiveGrantedGroupPredicate =
                 );
         });
     };
+
+export const validateDirectAccessUser = async (
+    trx: Knex,
+    context: DirectAccessMutationContext,
+    userUuid: string,
+): Promise<boolean> => {
+    const user = await trx(UserTableName)
+        .innerJoin(
+            OrganizationMembershipsTableName,
+            `${OrganizationMembershipsTableName}.user_id`,
+            `${UserTableName}.user_id`,
+        )
+        .innerJoin(
+            ProjectTableName,
+            `${ProjectTableName}.organization_id`,
+            `${OrganizationMembershipsTableName}.organization_id`,
+        )
+        .where(`${UserTableName}.user_uuid`, userUuid)
+        .where(`${ProjectTableName}.project_id`, context.projectId)
+        .where(getActiveProjectMemberPredicate(trx))
+        .first(`${UserTableName}.user_id`);
+
+    return user !== undefined;
+};
+
+export const validateDirectAccessGroup = async (
+    trx: Knex,
+    context: DirectAccessMutationContext,
+    groupUuid: string,
+): Promise<boolean> => {
+    const group = await trx(GroupTableName)
+        .innerJoin(
+            ProjectGroupAccessTableName,
+            `${ProjectGroupAccessTableName}.group_uuid`,
+            `${GroupTableName}.group_uuid`,
+        )
+        .where(`${GroupTableName}.group_uuid`, groupUuid)
+        .where(`${GroupTableName}.organization_id`, context.organizationId)
+        .where(
+            `${ProjectGroupAccessTableName}.project_uuid`,
+            context.projectUuid,
+        )
+        .first(`${GroupTableName}.group_uuid`);
+
+    return group !== undefined;
+};
+
+export const groupDirectAccessRows = (
+    rows: DirectAccessRow[],
+): Record<string, DirectAccess> => {
+    const accessByResource: Record<string, DirectAccess> = {};
+    for (const row of rows) {
+        const access = accessByResource[row.resourceUuid] ?? {
+            organizationUuid: row.organizationUuid,
+            projectUuid: row.projectUuid,
+            userRole: null,
+            groupRoles: [],
+        };
+        if (row.groupUuid === null) {
+            access.userRole = row.role;
+        } else {
+            access.groupRoles.push(row.role);
+        }
+        accessByResource[row.resourceUuid] = access;
+    }
+    return accessByResource;
+};
