@@ -2,11 +2,14 @@ import {
     generateOAuthAuthorizePage,
     generateOAuthRedirectPage,
     generateOAuthSuccessResponse,
+    isSafeRedirectScheme,
     parseScopeString,
 } from './oauth';
 
 const VIEWPORT_META =
     '<meta name="viewport" content="width=device-width, initial-scale=1" />';
+const JAVASCRIPT_SCHEME = ['javascript', ''].join(':');
+const JAVASCRIPT_REDIRECT_URI = `${JAVASCRIPT_SCHEME}alert(1)`;
 
 const authorizePage = () =>
     generateOAuthAuthorizePage({
@@ -24,6 +27,29 @@ const authorizePage = () =>
         loginUrl: '/login',
         hiddenInputs: [],
     });
+
+describe('isSafeRedirectScheme', () => {
+    it.each([
+        'https://example.com/callback',
+        'http://localhost:9000/callback',
+        'com.lightdash.mobile://oauth/callback',
+    ])('accepts supported redirect URI %s', (redirectUri) => {
+        expect(isSafeRedirectScheme(redirectUri)).toBe(true);
+    });
+
+    it.each([
+        JAVASCRIPT_REDIRECT_URI,
+        'data:text/html,x',
+        'vbscript:x',
+        'file:///etc/passwd',
+        'blob:https://x',
+        [' JAVASCRIPT', 'alert(1)'].join(':'),
+        '\tDaTa:text/html,x ',
+        'not a URL',
+    ])('rejects unsafe redirect URI %s', (redirectUri) => {
+        expect(isSafeRedirectScheme(redirectUri)).toBe(false);
+    });
+});
 
 describe('OAuth page templates', () => {
     it('declares the viewport on the authorize page so it renders at 1:1 on mobile', () => {
@@ -57,7 +83,31 @@ describe('OAuth page templates', () => {
         expect(redirectPage).not.toContain('</script>');
         expect(redirectPage).not.toContain('<img src=x');
         expect(redirectPage).not.toContain('onerror=');
-        expect(redirectPage).not.toContain('href=');
+        expect(redirectPage).toContain(
+            '<a class="button" href="https://example.com/callback?&lt;/script&gt;&lt;img src&#x3D;x onerror&#x3D;alert(document.domain)&gt;">Continue</a>',
+        );
         expect(redirectPage).toContain('&lt;/script&gt;');
+    });
+
+    it('escapes quotes in OAuth redirect link URLs', () => {
+        const redirectPage = generateOAuthRedirectPage({
+            redirectUrl: 'com.lightdash.mobile://oauth/callback?state="value"',
+            message: 'Redirecting',
+        });
+
+        expect(redirectPage).toContain(
+            '<a class="button" href="com.lightdash.mobile://oauth/callback?state&#x3D;&quot;value&quot;">Continue</a>',
+        );
+        expect(redirectPage).not.toContain('href="value"');
+    });
+
+    it('does not navigate to an unsafe OAuth redirect URL', () => {
+        const redirectPage = generateOAuthRedirectPage({
+            redirectUrl: JAVASCRIPT_REDIRECT_URI,
+            message: 'Redirecting',
+        });
+
+        expect(redirectPage).not.toContain(JAVASCRIPT_SCHEME);
+        expect(redirectPage).not.toContain('http-equiv="refresh"');
     });
 });

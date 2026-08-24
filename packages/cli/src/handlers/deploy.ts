@@ -61,7 +61,7 @@ type DeployHandlerOptions = DbtCompileOptions & {
     warehouseCredentials?: boolean;
     organizationCredentials?: string;
     assumeYes?: boolean;
-    useBatchedDeploy?: boolean;
+    batchedDeploy?: boolean;
     batchSize?: string;
     parallelBatches?: string;
     gzip?: boolean;
@@ -213,7 +213,7 @@ const retryBatchUpload = async <T>(
 const deployBatched = async (
     explores: (Explore | ExploreError)[],
     options: DeployArgs,
-): Promise<void> => {
+): Promise<boolean> => {
     const batchSize = parseInt(options.batchSize || '50', 10);
     if (Number.isNaN(batchSize) || batchSize < 1 || batchSize > 1000) {
         throw new Error(
@@ -241,14 +241,27 @@ const deployBatched = async (
 
     // Start deploy session
     GlobalState.log(`Starting deploy session...`);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const startSessionResponse = (await lightdashApi<any>({
-        method: 'POST',
-        url: `/api/v2/projects/${options.projectUuid}/deploy`,
-        body: JSON.stringify({}),
-    })) as { deploySessionUuid: string };
+    let sessionUuid: string;
+    try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const startSessionResponse = (await lightdashApi<any>({
+            method: 'POST',
+            url: `/api/v2/projects/${options.projectUuid}/deploy`,
+            body: JSON.stringify({}),
+        })) as { deploySessionUuid: string };
+        sessionUuid = startSessionResponse.deploySessionUuid;
+    } catch (error) {
+        if (error instanceof LightdashError && error.statusCode === 404) {
+            GlobalState.log(
+                styles.info(
+                    'Batched deploy is not supported by this server; falling back to legacy deploy',
+                ),
+            );
+            return false;
+        }
+        throw error;
+    }
 
-    const sessionUuid = startSessionResponse.deploySessionUuid;
     GlobalState.log(styles.success(`Deploy session created: ${sessionUuid}`));
 
     // Split explores into batches
@@ -342,6 +355,7 @@ const deployBatched = async (
             durationMs: Date.now() - deployStartTime,
         },
     });
+    return true;
 };
 
 export const deploy = async (
@@ -433,10 +447,10 @@ export const deploy = async (
         );
     }
 
-    // Use batched deploy if enabled
-    if (options.useBatchedDeploy) {
-        await deployBatched(deployableExplores, options);
-    } else {
+    const shouldUseLegacyDeploy =
+        options.batchedDeploy === false ||
+        !(await deployBatched(deployableExplores, options));
+    if (shouldUseLegacyDeploy) {
         const deployStartTime = Date.now();
         const deployPayload = JSON.stringify(deployableExplores);
         try {

@@ -6,6 +6,8 @@ import { OAuth2Model } from '../../models/OAuth2Model';
 import { UserModel } from '../../models/UserModel';
 import { OAuthService } from './OAuthService';
 
+const JAVASCRIPT_REDIRECT_URI = ['javascript', 'alert(1)'].join(':');
+
 // Test subclass to expose oauthServer for mocking
 class TestOAuthService extends OAuthService {
     public setOAuthServer(server: AnyType) {
@@ -155,6 +157,19 @@ describe('OAuthService edge cases', () => {
             expect(mockOAuthModel.validateRedirectUri).toHaveBeenCalledWith(
                 'https://example.com/callback',
                 client,
+            );
+        });
+    });
+
+    describe('registerClient', () => {
+        it('rejects an unsafe redirect URI scheme', async () => {
+            await expect(
+                oauthService.registerClient({
+                    clientName: 'Unsafe client',
+                    redirectUris: [JAVASCRIPT_REDIRECT_URI],
+                }),
+            ).rejects.toThrow(
+                `Invalid redirect URI ${JAVASCRIPT_REDIRECT_URI}`,
             );
         });
     });

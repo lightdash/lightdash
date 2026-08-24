@@ -56138,7 +56138,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.251.7",
+        "version": "1.252.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -77188,6 +77188,38 @@
                 },
                 "description": "Get a project of an organiztion",
                 "summary": "Get project",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/dbt/manifest": {
+            "get": {
+                "operationId": "GetMergedDbtManifest",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [

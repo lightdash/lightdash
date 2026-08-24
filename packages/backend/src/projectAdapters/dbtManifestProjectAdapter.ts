@@ -35,6 +35,9 @@ class ManifestDbtClient implements DbtClient {
         }
         const rawManifest = {
             manifest: JSON.parse(this.manifest),
+            ...(this.selectedModelIds !== undefined
+                ? { selectedModelIds: this.selectedModelIds }
+                : {}),
         };
 
         if (isDbtRpcManifestResults(rawManifest)) {
