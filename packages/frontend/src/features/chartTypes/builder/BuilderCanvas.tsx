@@ -31,6 +31,8 @@ type Props = {
      *  mounted to receive one. */
     onPickExample: ((prompt: string) => void) | null;
     onSdkManifest: (manifest: SdkManifest) => void;
+    /** Whether the previewed viz may write its own state into the page URL. */
+    syncPreviewUrlState: boolean;
 };
 
 /** Same footprint and viewBox as an example card's thumbnail, so the canvas
@@ -85,6 +87,7 @@ const BuilderCanvas: FC<Props> = ({
     configurePanel,
     onPickExample,
     onSdkManifest,
+    syncPreviewUrlState,
 }) => {
     const hasPreview = appUuid !== null && previewVersion !== null;
     const isFirstBuild = isBuilding && !hasPreview;
@@ -106,6 +109,7 @@ const BuilderCanvas: FC<Props> = ({
                             refreshKey={0}
                             dataAppVizContext={previewContext ?? undefined}
                             onSdkManifest={onSdkManifest}
+                            urlStateSync={syncPreviewUrlState}
                         />
                     </Box>
                 </Box>
