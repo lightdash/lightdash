@@ -1,3 +1,11 @@
+# [1.245.0](https://github.com/lightdash/lightdash/compare/1.244.0...1.245.0) (2026-08-24)
+
+
+### Features
+
+* **ai:** run-query tool accepts custom chart type configs, persists uuid-enriched artifacts ([#27868](https://github.com/lightdash/lightdash/issues/27868)) ([6dd6822](https://github.com/lightdash/lightdash/commit/6dd68220b062e9b43158efc5ce0b4d2a85cf4cc2))
+* render composer query pipelines live with per-node statuses ([#27879](https://github.com/lightdash/lightdash/issues/27879)) ([438e784](https://github.com/lightdash/lightdash/commit/438e78465c2737c15042c081d6d974f7e2c8dc95))
+
 # [1.244.0](https://github.com/lightdash/lightdash/compare/1.243.2...1.244.0) (2026-08-24)
 
 
