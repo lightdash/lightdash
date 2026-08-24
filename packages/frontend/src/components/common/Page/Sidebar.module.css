@@ -146,6 +146,13 @@
     z-index: 1;
 }
 
+/* While open, the sidebar may give up width (down to its configured minimum)
+   before the page row overflows, so narrow windows reflow instead of clipping. */
+.sidebarContainer[data-open='true'] {
+    flex: 0 1 var(--sidebar-width);
+    min-width: min(var(--sidebar-width), var(--sidebar-min-width));
+}
+
 .sidebarPaper {
     --sidebar-padding: 16px;
 
@@ -154,6 +161,7 @@
     flex-direction: column;
     overflow: hidden;
     width: var(--sidebar-width);
+    max-width: 100%;
     padding: var(--sidebar-padding);
     padding-bottom: 0;
 }
@@ -167,5 +175,6 @@
     flex-grow: 1;
     flex-direction: column;
     width: calc(var(--sidebar-width) - 2 * var(--sidebar-padding));
+    max-width: 100%;
     min-height: 0;
 }

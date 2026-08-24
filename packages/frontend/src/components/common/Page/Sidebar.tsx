@@ -6,7 +6,7 @@ import {
     type FlexProps,
     type MantineTransition,
 } from '@mantine/core';
-import { type FC } from 'react';
+import { useLayoutEffect, useRef, type FC } from 'react';
 import useSidebarResize from '../../../hooks/useSidebarResize';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
@@ -75,6 +75,19 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
             onResizeEnd,
         });
 
+    // The row may flex the open sidebar below sidebarWidth. Closing slides the
+    // paper out from the width it actually rendered at (and must not animate
+    // width, or it eases in from sidebarWidth), so it never snaps back to the
+    // full width mid-animation.
+    const renderedWidthRef = useRef(sidebarWidth);
+    useLayoutEffect(() => {
+        if (isOpen && sidebarRef.current) {
+            renderedWidthRef.current =
+                sidebarRef.current.getBoundingClientRect().width;
+        }
+    });
+    const paperWidth = isOpen ? sidebarWidth : renderedWidthRef.current;
+
     // Collapsible sidebars drop out of the page flow when collapsed and
     // reveal as a floating overlay when the edge trigger (or panel) is hovered.
     if (collapsible) {
@@ -130,10 +143,11 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
     // scrollbar on every toggle.
     const transition: MantineTransition = {
         in: { opacity: 1, marginLeft: 0 },
-        out: { opacity: 0, marginLeft: -sidebarWidth },
-        transitionProperty: isResizing
-            ? 'opacity, margin'
-            : 'opacity, margin, width',
+        out: { opacity: 0, marginLeft: -paperWidth },
+        transitionProperty:
+            isResizing || !isOpen
+                ? 'opacity, margin'
+                : 'opacity, margin, width',
     };
 
     return (
@@ -142,6 +156,11 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
                 ref={sidebarRef}
                 direction="column"
                 className={classes.sidebarContainer}
+                data-open={isOpen}
+                style={{
+                    '--sidebar-width': `${paperWidth}px`,
+                    '--sidebar-min-width': `${minWidth}px`,
+                }}
                 {...containerProps}
             >
                 <Transition
@@ -156,10 +175,7 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
                                 shadow="lg"
                                 radius={0}
                                 className={classes.sidebarPaper}
-                                style={{
-                                    ...style,
-                                    '--sidebar-width': `${sidebarWidth}px`,
-                                }}
+                                style={style}
                                 data-no-padding={noSidebarPadding}
                                 data-testid="common-sidebar"
                             >
