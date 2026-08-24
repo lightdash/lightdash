@@ -199,18 +199,13 @@ describe('AgentChatInput Deep Research mode', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('does not start research while the composer is disabled', async () => {
-        const user = userEvent.setup();
+    it('hides the deep research toggle while the composer is disabled', () => {
         const onStartDeepResearch = vi.fn().mockResolvedValue(undefined);
         renderInput({ onStartDeepResearch, disabled: true });
 
-        await user.click(
-            screen.getByRole('button', { name: 'Enable deep research' }),
-        );
-
         expect(
-            screen.getByRole('button', { name: 'Start research' }),
-        ).toBeDisabled();
+            screen.queryByRole('button', { name: 'Enable deep research' }),
+        ).not.toBeInTheDocument();
         expect(onStartDeepResearch).not.toHaveBeenCalled();
     });
 
