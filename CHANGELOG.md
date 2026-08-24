@@ -1,3 +1,10 @@
+## [1.242.1](https://github.com/lightdash/lightdash/compare/1.242.0...1.242.1) (2026-08-24)
+
+
+### Bug Fixes
+
+* resolve project uuid from route params across all slug-URL surfaces ([#27914](https://github.com/lightdash/lightdash/issues/27914)) ([5262166](https://github.com/lightdash/lightdash/commit/52621664769b1795fccfc5ae09cac9c78779ebf1))
+
 # [1.242.0](https://github.com/lightdash/lightdash/compare/1.241.1...1.242.0) (2026-08-24)
 
 
