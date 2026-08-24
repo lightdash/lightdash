@@ -10,6 +10,7 @@ import {
     LATEST_SUPPORTED_DBT_VERSION,
     LIGHTDASH_DBT_PROFILE_ENV_VAR_PREFIX,
     mergeWarehouseCredentials,
+    normalizeWarehouseCredentials,
     PROJECT_DBT_SOURCE_NAME_MAX_LENGTH,
     PROJECT_DBT_SOURCE_NAME_PATTERN,
     resolveDbtVersion,
@@ -19,6 +20,7 @@ import {
     type CreateAthenaCredentials,
     type CreatePostgresCredentials,
     type CreateRedshiftCredentials,
+    type CreateSnowflakeCredentials,
     type CreateWarehouseCredentials,
 } from './projects';
 
@@ -137,6 +139,43 @@ describe('dbt environment variable validation', () => {
         expect(
             buildSafeDbtEnvironmentVariables([{ key, value: 'stolen' }]),
         ).toEqual({ environment: {}, blockedKeys: [key] });
+    });
+});
+
+describe('normalizeWarehouseCredentials', () => {
+    test.each(['', null])(
+        'removes a blank Snowflake timeout saved as %p',
+        (timeoutSeconds) => {
+            const savedCredentials = {
+                type: WarehouseTypes.SNOWFLAKE,
+                account: 'account',
+                user: 'user',
+                database: 'database',
+                warehouse: 'warehouse',
+                schema: 'schema',
+                timeoutSeconds,
+            } as unknown as CreateSnowflakeCredentials;
+
+            expect(
+                normalizeWarehouseCredentials(savedCredentials).timeoutSeconds,
+            ).toBeUndefined();
+        },
+    );
+
+    test('keeps a numeric Snowflake timeout, including 0', () => {
+        const savedCredentials: CreateSnowflakeCredentials = {
+            type: WarehouseTypes.SNOWFLAKE,
+            account: 'account',
+            user: 'user',
+            database: 'database',
+            warehouse: 'warehouse',
+            schema: 'schema',
+            timeoutSeconds: 0,
+        };
+
+        expect(
+            normalizeWarehouseCredentials(savedCredentials).timeoutSeconds,
+        ).toBe(0);
     });
 });
 

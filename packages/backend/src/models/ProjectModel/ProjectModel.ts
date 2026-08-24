@@ -575,10 +575,13 @@ export class ProjectModel {
         projectId: number,
         data: CreateWarehouseCredentials,
     ): Promise<void> {
+        // Normalize on write too, so stored blobs never hold legacy values
+        // that violate the credentials types
+        const credentials = normalizeWarehouseCredentials(data);
         let encryptedCredentials: Buffer;
         try {
             encryptedCredentials = this.encryptionUtil.encrypt(
-                JSON.stringify(data),
+                JSON.stringify(credentials),
             );
         } catch (e) {
             throw new UnexpectedServerError('Could not save credentials.');
@@ -587,7 +590,7 @@ export class ProjectModel {
         await trx('warehouse_credentials')
             .insert({
                 project_id: projectId,
-                warehouse_type: data.type,
+                warehouse_type: credentials.type,
                 encrypted_credentials: encryptedCredentials,
             })
             .onConflict('project_id')
