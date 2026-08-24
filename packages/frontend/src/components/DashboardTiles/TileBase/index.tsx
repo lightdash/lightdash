@@ -55,6 +55,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     children,
     extraHeaderElement,
     visibleHeaderElement,
+    hasNonMenuHeaderContent = false,
     titleHref,
     minimal = false,
     tabs,
@@ -97,7 +98,8 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
 
     const hasMenuContent = isEditMode || !!extraMenuItems;
     const isVerified = verification !== null && verification !== undefined;
-    const hasHeaderContent = hasMenuContent || isVerified;
+    const hasHeaderContent =
+        hasMenuContent || isVerified || hasNonMenuHeaderContent;
 
     return (
         <div ref={containerRef} className={styles.tileWrapper}>

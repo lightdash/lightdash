@@ -220,6 +220,59 @@ describe('getAutocompleteFilterGroup', () => {
         expect(filterIds).toContain(isCompletedFilter.id);
     });
 
+    it('does not use a Data App as proof that filters share a query', () => {
+        const dataAppTile = {
+            uuid: 'data-app-a1',
+            type: DashboardTileTypes.DATA_APP,
+            x: 0,
+            y: 0,
+            h: 1,
+            w: 1,
+            tabUuid: TAB_A_UUID,
+            properties: {
+                appUuid: 'app-a1',
+                title: 'Data App A1',
+            },
+        } satisfies DashboardTile;
+        const currentFilter: DashboardFilterRule = {
+            ...paymentMethodFilter,
+            tileTargets: {
+                'tile-a1': {
+                    fieldId: 'payments_payment_method',
+                    tableName: 'payments',
+                },
+                'tile-a2': false,
+            },
+        };
+        const otherFilter: DashboardFilterRule = {
+            ...isCompletedFilter,
+            tileTargets: {
+                'tile-a1': false,
+                'tile-a2': {
+                    fieldId: 'orders_is_completed',
+                    tableName: 'orders',
+                },
+            },
+        };
+
+        const result = getAutocompleteFilterGroup({
+            filterId: currentFilter.id,
+            item: makeField('payments_payment_method', 'payments'),
+            dashboardFilters: {
+                dimensions: [currentFilter, otherFilter],
+                metrics: [],
+                tableCalculations: [],
+            },
+            dashboardTiles: [tileA1, tileA2, dataAppTile],
+            filterableFieldsByTileUuid,
+            activeTabUuid: TAB_A_UUID,
+        });
+
+        expect(result?.and.map((filter) => filter.id)).not.toContain(
+            otherFilter.id,
+        );
+    });
+
     it('works without tabs (activeTabUuid undefined)', () => {
         // When there are no tabs, all tiles are considered for overlap.
         // is_completed applies to tile-b1/b2, payment_method applies to all,
