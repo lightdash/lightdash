@@ -556,6 +556,34 @@ describe('ProjectDbtSourcesService', () => {
             );
         });
 
+        it('rejects an invalid GitHub token before updating the source', async () => {
+            projectDbtSourcesModel.getSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                projectUuid,
+                dbtConnection: githubConnection,
+            } as never);
+            const service = getService();
+
+            await expect(
+                service.updateProjectDbtSource(
+                    adminAccount,
+                    projectUuid,
+                    sourceUuid,
+                    {
+                        dbtConnection: {
+                            ...githubConnection,
+                            authorization_method: 'personal_access_token',
+                            personal_access_token: 'invalid',
+                        } as never,
+                    },
+                ),
+            ).rejects.toThrow(
+                'GitHub token should start with "github_pat_", "ghp_", "gho_", "ghs_", or "ghu_"',
+            );
+
+            expect(projectDbtSourcesModel.updateSource).not.toHaveBeenCalled();
+        });
+
         it('rejects a source uuid that belongs to a different project', async () => {
             projectDbtSourcesModel.getSource.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,
