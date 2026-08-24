@@ -4,6 +4,7 @@ import IDBSQLClient, {
 } from '@databricks/sql/dist/contracts/IDBSQLClient';
 import IDBSQLSession from '@databricks/sql/dist/contracts/IDBSQLSession';
 import IOperation from '@databricks/sql/dist/contracts/IOperation';
+import StatusError from '@databricks/sql/dist/errors/StatusError';
 import { TTypeId as DatabricksDataTypes } from '@databricks/sql/thrift/TCLIService_types';
 import {
     AnyType,
@@ -293,6 +294,11 @@ const DATABRICKS_QUERY_TIMEOUT_SECONDS = 300;
 // wide results in one array and can OOM the worker on large queries
 const DATABRICKS_FETCH_CHUNK_MAX_ROWS = 5000;
 
+const getDatabricksErrorMessage = (error: unknown) =>
+    error instanceof StatusError && error.message
+        ? error.message
+        : getErrorMessage(error);
+
 export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabricksCredentials> {
     schema: string;
 
@@ -359,7 +365,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         try {
             connection = await client.connect(this.connectionOptions);
         } catch (e: unknown) {
-            throw new WarehouseConnectionError(getErrorMessage(e));
+            throw new WarehouseConnectionError(getDatabricksErrorMessage(e));
         }
 
         try {
@@ -376,7 +382,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                     closeError,
                 );
             }
-            throw new WarehouseConnectionError(getErrorMessage(e));
+            throw new WarehouseConnectionError(getDatabricksErrorMessage(e));
         }
 
         return {
@@ -455,7 +461,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                 // eslint-disable-next-line no-await-in-loop
             } while (await query.hasMoreRows());
         } catch (e: unknown) {
-            throw new WarehouseQueryError(getErrorMessage(e));
+            throw new WarehouseQueryError(getDatabricksErrorMessage(e));
         } finally {
             try {
                 if (query) await query.close();
@@ -494,7 +500,9 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                         });
                         return (await query.fetchAll()) as SchemaResult[];
                     } catch (e: unknown) {
-                        throw new WarehouseQueryError(getErrorMessage(e));
+                        throw new WarehouseQueryError(
+                            getDatabricksErrorMessage(e),
+                        );
                     } finally {
                         try {
                             if (query) await query.close();
@@ -509,7 +517,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                 },
             );
         } catch (e: unknown) {
-            throw new WarehouseQueryError(getErrorMessage(e));
+            throw new WarehouseQueryError(getDatabricksErrorMessage(e));
         } finally {
             try {
                 await close();
