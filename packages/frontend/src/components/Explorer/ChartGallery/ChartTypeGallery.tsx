@@ -12,9 +12,16 @@ import {
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
-import { useDebouncedValue, useElementSize } from '@mantine/hooks';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconPlus, IconSearch } from '@tabler/icons-react';
-import { useEffect, useMemo, useState, type FC, type ReactNode } from 'react';
+import {
+    useCallback,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+    type ReactNode,
+} from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataAppChecker } from '../../../features/apps/hooks/useCanEditDataApp';
@@ -120,15 +127,27 @@ const GalleryItemButton: FC<GalleryItemButtonProps> = ({
     </UnstyledButton>
 );
 
+// Observes the clamped description and reports whether it is actually cut
+// off; ResizeObserver fires on observe and on any later size change.
+const useIsClamped = () => {
+    const [isClamped, setIsClamped] = useState(false);
+    const observerRef = useRef<ResizeObserver | null>(null);
+    const ref = useCallback((node: HTMLParagraphElement | null) => {
+        observerRef.current?.disconnect();
+        observerRef.current = null;
+        if (!node) return;
+        observerRef.current = new ResizeObserver(() => {
+            setIsClamped(node.scrollHeight > node.clientHeight);
+        });
+        observerRef.current.observe(node);
+    }, []);
+    return { ref, isClamped };
+};
+
 const GalleryRow: FC<{ item: ChartTypeGalleryRowItem }> = ({ item }) => {
     // The description is clamped to two lines; surface the full text on hover
     // only when it is actually cut off.
-    const { ref, width } = useElementSize<HTMLParagraphElement>();
-    const [isClamped, setIsClamped] = useState(false);
-    useEffect(() => {
-        if (!ref.current) return;
-        setIsClamped(ref.current.scrollHeight > ref.current.clientHeight);
-    }, [ref, width, item.description]);
+    const { ref, isClamped } = useIsClamped();
 
     return (
         <Box className={classes.rowWrapper}>
