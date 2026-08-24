@@ -124,6 +124,9 @@ type Props = {
         path: string;
         body: unknown;
     };
+    /** Handles the viz drill-down virtual route. Only set by
+     *  DataAppVizRenderer when the capability is on. */
+    onVizDrillDownIntent?: (intentBody: unknown) => void;
     // Round-trip the app's `useUrlState` controls through the page's `?state=`
     // param. Leave unset where the page URL isn't the app's share surface
     // (dashboard tiles, screenshots).
@@ -185,6 +188,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             capabilities,
             dataAppVizContext,
             rewriteVizUnderlyingDataRequest,
+            onVizDrillDownIntent,
             urlStateSync,
             onSdkManifest,
             forceColorScheme,
@@ -283,6 +287,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onExternalRequestEvent,
             dataAppVizContext,
             rewriteVizUnderlyingDataRequest,
+            onVizDrillDownIntent,
             onUrlStateChange: urlStateSync ? handleUrlStateChange : undefined,
             onSdkManifest,
             colorScheme,

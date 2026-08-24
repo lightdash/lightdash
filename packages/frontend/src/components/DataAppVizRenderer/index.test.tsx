@@ -2,6 +2,9 @@ import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+// Mirrors the real hook's failSilently contract: TrackingContextType | undefined.
+type TrackingMockContext = { track: (...args: unknown[]) => void } | undefined;
+
 const mocks = vi.hoisted(() => ({
     metadata: {
         current: undefined as
@@ -52,6 +55,12 @@ const mocks = vi.hoisted(() => ({
     exploreHook: vi.fn(),
     // Extra keys merged into the useVisualizationContext mock return value.
     vizContextOverrides: { current: {} as Record<string, unknown> },
+    track: vi.fn(),
+    // undefined models no TrackingProvider mounted (e.g. /minimal routes at
+    // desktop viewports) — the real fail-silent hook returns undefined there.
+    trackingContext: {
+        current: undefined as TrackingMockContext,
+    },
 }));
 
 vi.mock('react-router', () => ({
@@ -89,6 +98,19 @@ vi.mock('../../hooks/useExplore', () => ({
         mocks.exploreHook(...args);
         return { data: mocks.explore.current };
     },
+}));
+vi.mock('../../providers/App/useApp', () => ({
+    default: () => ({
+        user: {
+            data: {
+                organizationUuid: 'organization-uuid',
+                userUuid: 'user-uuid',
+            },
+        },
+    }),
+}));
+vi.mock('../../providers/Tracking/useTracking', () => ({
+    default: (): TrackingMockContext => mocks.trackingContext.current,
 }));
 vi.mock('../LightdashVisualization/types', () => ({
     isDataAppVizVisualizationConfig: () => true,
@@ -169,6 +191,8 @@ describe('DataAppVizRenderer', () => {
         mocks.explore.current = undefined;
         mocks.exploreHook.mockClear();
         mocks.vizContextOverrides.current = {};
+        mocks.track.mockClear();
+        mocks.trackingContext.current = { track: mocks.track };
     });
 
     it('prompts for a visualization when none is selected', () => {
@@ -410,6 +434,8 @@ describe('DataAppVizRenderer underlying-data gating', () => {
         mocks.canViewUnderlyingData.current = true;
         mocks.explore.current = { name: 'orders' };
         mocks.vizContextOverrides.current = { resultsData: happyResultsData() };
+        mocks.track.mockClear();
+        mocks.trackingContext.current = { track: mocks.track };
     });
 
     it('happy path: pushes enabled and installs the rewrite callback', () => {
@@ -461,6 +487,10 @@ describe('DataAppVizRenderer underlying-data gating', () => {
                     resultsData: happyResultsData(),
                     minimal: true,
                 };
+                // /minimal routes at desktop viewports mount no
+                // TrackingProvider — exercise the real fail-silent path
+                // rather than masking it with a working mock.
+                mocks.trackingContext.current = undefined;
             },
         ],
         [
