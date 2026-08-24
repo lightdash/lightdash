@@ -2365,7 +2365,7 @@ describe('findMatch', () => {
         });
     });
 
-    it('matches an opaque SQL custom dimension', () => {
+    it('misses an opaque SQL custom dimension with no ${} references', () => {
         const explore = makeExploreWithPreAggregate({
             name: 'orders_summary',
             dimensions: ['status'],
@@ -2387,9 +2387,43 @@ describe('findMatch', () => {
         );
 
         expect(result).toStrictEqual({
-            hit: true,
-            preAggregateName: 'orders_summary',
-            miss: null,
+            hit: false,
+            preAggregateName: null,
+            miss: {
+                reason: PreAggregateMissReason.DIMENSION_NOT_IN_PRE_AGGREGATE,
+                fieldId: 'custom_1',
+            },
+        });
+    });
+
+    it('misses a SQL custom dimension using ${TABLE} references', () => {
+        const explore = makeExploreWithPreAggregate({
+            name: 'orders_summary',
+            dimensions: ['status'],
+            metrics: ['order_count'],
+        });
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['custom_1'],
+                metrics: ['orders_order_count'],
+                customDimensions: [
+                    makeCustomSqlDimension(
+                        '${TABLE}.status IS NOT NULL',
+                        DimensionType.BOOLEAN,
+                    ),
+                ],
+            }),
+            explore,
+        );
+
+        expect(result).toStrictEqual({
+            hit: false,
+            preAggregateName: null,
+            miss: {
+                reason: PreAggregateMissReason.DIMENSION_NOT_IN_PRE_AGGREGATE,
+                fieldId: 'custom_1',
+            },
         });
     });
 

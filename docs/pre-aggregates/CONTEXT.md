@@ -84,7 +84,9 @@ _Avoid_: routing, resolution
 **SQL custom dimension**:
 A query-defined dimension computed by a SQL expression. During matching, every
 semantic dimension referenced by the expression must be covered at a safely
-derivable grain.
+derivable grain. Expressions with no `${...}` references or with raw
+`${TABLE}.column` references can't be verified against materialized columns and
+never match.
 _Avoid_: custom SQL field, calculated dimension
 
 **Hit**:

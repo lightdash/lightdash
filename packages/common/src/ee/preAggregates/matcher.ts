@@ -1049,15 +1049,17 @@ const getSqlCustomDimensionMissForDef = ({
         Explore['tables'][string]['dimensions'][string]
     >;
 }): PreAggregateMatchMiss | null => {
-    for (const { refTable, refName } of parseAllReferences(
-        customDimension.sql,
-        customDimension.table,
-    )) {
-        if (refName === 'TABLE') {
-            // eslint-disable-next-line no-continue
-            continue;
-        }
+    const refs = parseAllReferences(customDimension.sql, customDimension.table);
+    // Opaque SQL (no ${refs}) and ${TABLE}.col reference raw columns that don't
+    // exist in the materialized table, so coverage can't be verified
+    if (refs.length === 0 || refs.some(({ refName }) => refName === 'TABLE')) {
+        return {
+            reason: PreAggregateMissReason.DIMENSION_NOT_IN_PRE_AGGREGATE,
+            fieldId: getItemId(customDimension),
+        };
+    }
 
+    for (const { refTable, refName } of refs) {
         const dimension = getReferencedDimension(
             refTable,
             refName,
