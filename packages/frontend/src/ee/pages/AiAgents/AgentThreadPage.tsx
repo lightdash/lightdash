@@ -3,6 +3,7 @@ import { Box, Center, Flex, Loader } from '@mantine/core';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useOutletContext, useParams, useSearchParams } from 'react-router';
 import { matchesModelConfig } from '../../../components/common/ModelSelector/utils';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
 import { ReviewVerificationPanel } from '../../features/aiCopilot/components/Admin/ReviewVerificationPanel';
 import { AgentChatDisplay } from '../../features/aiCopilot/components/ChatElements/AgentChatDisplay';
@@ -57,7 +58,8 @@ import { getDashboardNavigationUrlFromContentToolResult } from '../../features/a
 import { type AgentContext } from './AgentPage';
 
 const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
-    const { agentUuid, threadUuid, projectUuid, promptUuid } = useParams();
+    const { agentUuid, threadUuid, promptUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const [searchParams] = useSearchParams();
     const isEmbed = isEmbedAiAgentRoute();
     const { user } = useApp();

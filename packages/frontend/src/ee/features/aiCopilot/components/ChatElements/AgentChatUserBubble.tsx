@@ -4,6 +4,7 @@ import MDEditor from '@uiw/react-md-editor';
 import { format, parseISO } from 'date-fns';
 import { type FC } from 'react';
 import { Link, useParams } from 'react-router';
+import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 import useApp from '../../../../../providers/App/useApp';
 import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
@@ -39,7 +40,8 @@ export const UserBubble: FC<Props> = ({
     isActive = false,
     projectUuid: projectUuidProp,
 }) => {
-    const { projectUuid: paramsProjectUuid, agentUuid } = useParams();
+    const { agentUuid } = useParams();
+    const paramsProjectUuid = useProjectUuid();
     const projectUuid = projectUuidProp ?? paramsProjectUuid;
     const timeAgo = useTimeAgo(message.createdAt);
     const name = getVisibleUserName(message.user.name);

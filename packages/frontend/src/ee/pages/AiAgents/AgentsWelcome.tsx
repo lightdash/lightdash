@@ -17,8 +17,9 @@ import {
     IconMessageChatbot,
     IconPlus,
 } from '@tabler/icons-react';
-import { Link, Navigate, useParams, useSearchParams } from 'react-router';
+import { Link, Navigate, useSearchParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import {
     AI_ROUTING_AUTO_VALUE,
     AI_ROUTING_SEARCH_PARAM,
@@ -83,7 +84,7 @@ const AiPageLoading = () => (
  * 5. Otherwise — open the first agent in the list.
  */
 const AgentsWelcome = () => {
-    const { projectUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const [searchParams] = useSearchParams();
     const forceRouter =
         searchParams.get(AI_ROUTING_SEARCH_PARAM) === AI_ROUTING_AUTO_VALUE;

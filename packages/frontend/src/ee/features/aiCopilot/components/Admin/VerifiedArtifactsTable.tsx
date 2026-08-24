@@ -22,6 +22,7 @@ import {
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
+import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useInfiniteVerifiedArtifacts } from '../../hooks/useAiAgentAdmin';
 import { useSetArtifactVersionVerified } from '../../hooks/useAiAgentArtifacts';
 import { useAiAgentPermission } from '../../hooks/useAiAgentPermission';
@@ -36,7 +37,8 @@ export const VerifiedArtifactsTable: FC<Props> = ({
     selectedArtifactVersionUuid,
 }) => {
     const theme = useMantineTheme();
-    const { projectUuid, agentUuid } = useParams();
+    const { agentUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const navigate = useNavigate();
     const canManageAgent = useAiAgentPermission({
         action: 'manage',

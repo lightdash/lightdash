@@ -6,6 +6,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
+import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { clearArtifact, setArtifact } from '../../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
@@ -17,7 +18,8 @@ import { VerifiedArtifactsTable } from './VerifiedArtifactsTable';
 
 export const VerifiedArtifactsLayout: FC = () => {
     const theme = useMantineTheme();
-    const { projectUuid, agentUuid } = useParams();
+    const { agentUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const dispatch = useAiAgentStoreDispatch();
     const artifact = useAiAgentStoreSelector(
         (state) => state.aiArtifact.artifact,

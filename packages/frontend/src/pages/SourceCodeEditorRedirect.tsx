@@ -1,4 +1,5 @@
-import { Navigate, useParams, useSearchParams } from 'react-router';
+import { Navigate, useSearchParams } from 'react-router';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 
 /**
  * Redirects the old /projects/:projectUuid/source-code route to the project
@@ -7,7 +8,7 @@ import { Navigate, useParams, useSearchParams } from 'react-router';
  * Preserves any branch/file params from the original URL.
  */
 const SourceCodeEditorRedirect = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const [searchParams] = useSearchParams();
 
     // Preserve branch and file params if they exist

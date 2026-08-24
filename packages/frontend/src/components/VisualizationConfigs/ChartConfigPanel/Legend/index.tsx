@@ -20,8 +20,8 @@ import {
 } from '@mantine/core';
 import { useDebouncedCallback } from '@mantine/hooks';
 import { lazy, Suspense, useMemo, useState, type FC } from 'react';
-import { useParams } from 'react-router';
 import { useToggle } from 'react-use';
+import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 import UnitInput from '../../../common/UnitInput';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
@@ -141,7 +141,7 @@ type Props = {
 };
 
 export const Legend: FC<Props> = ({ items }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
 
     const { visualizationConfig } = useVisualizationContext();
 

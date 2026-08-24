@@ -9,7 +9,7 @@ import {
 } from '@lightdash/common';
 import { Group, Select, Stack, TextInput, Accordion } from '@mantine/core';
 import { useCallback, useMemo, type FC } from 'react';
-import { useParams } from 'react-router';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import FilterInputComponent from '../../common/Filters/FilterInputs';
 import {
     getFilterOperatorOptions,
@@ -39,7 +39,7 @@ const BigNumberConditionalFormattingRule: FC<Props> = ({
     onRemoveRule,
     hasRemove,
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
 
     const filterType: FilterType.NUMBER | FilterType.STRING | undefined =
         useMemo(() => {

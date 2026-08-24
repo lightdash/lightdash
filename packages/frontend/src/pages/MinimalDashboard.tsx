@@ -45,6 +45,7 @@ import {
 import { useScheduler } from '../features/scheduler/hooks/useScheduler';
 import { useDashboardQuery } from '../hooks/dashboard/useDashboard';
 import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import useSearchParams from '../hooks/useSearchParams';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
@@ -309,11 +310,8 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
 };
 
 const MinimalDashboard: FC = () => {
-    const { projectUuid, dashboardUuid, tabUuid } = useParams<{
-        projectUuid: string;
-        dashboardUuid: string;
-        tabUuid?: string;
-    }>();
+    const { dashboardUuid, tabUuid } = useParams();
+    const projectUuid = useProjectUuid();
 
     const schedulerUuid = useSearchParams('schedulerUuid');
 

@@ -13,6 +13,7 @@ import { GuidedTour } from '../../../components/common/GuidedTour';
 import MantineModal from '../../../components/common/MantineModal';
 import { ShareLinkButton } from '../../../components/common/ShareLinkButton';
 import { useOnboardingTour } from '../../../hooks/useOnboardingTour';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -47,7 +48,8 @@ type NavigateFromAgentChatOptions = {
 };
 
 const AgentPage = () => {
-    const { agentUuid, threadUuid, projectUuid } = useParams();
+    const { agentUuid, threadUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const isEmbed = isEmbedAiAgentRoute();

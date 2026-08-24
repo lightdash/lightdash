@@ -24,7 +24,7 @@ import {
 } from '@mantine/core';
 import differenceBy from 'lodash/differenceBy';
 import { useCallback, useMemo, type FC } from 'react';
-import { useParams } from 'react-router';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import FieldSelect from '../../common/FieldSelect';
 import FilterInputComponent from '../../common/Filters/FilterInputs';
 import {
@@ -63,7 +63,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
     hasRemove,
     disabled,
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
 
     const comparisonType = useMemo(() => {
         if (

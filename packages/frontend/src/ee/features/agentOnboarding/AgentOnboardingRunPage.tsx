@@ -27,6 +27,7 @@ import ErrorState from '../../../components/common/ErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
 import Page from '../../../components/common/Page/Page';
 import PageSpinner from '../../../components/PageSpinner';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { AgentOnboardingActivityPanel } from './AgentOnboardingActivity';
 import { AgentOnboardingDemoOffer } from './AgentOnboardingDemoOffer';
 import { AgentOnboardingFileBrowser } from './AgentOnboardingFileBrowser';
@@ -148,10 +149,8 @@ const RunActions: FC<{
 };
 
 const AgentOnboardingRunPage: FC = () => {
-    const { agentOnboardingRunUuid, projectUuid } = useParams<{
-        agentOnboardingRunUuid: string;
-        projectUuid: string;
-    }>();
+    const { agentOnboardingRunUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const navigate = useNavigate();
     const [isCancellationRequested, setIsCancellationRequested] =
         useState(false);

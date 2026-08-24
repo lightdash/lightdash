@@ -153,6 +153,7 @@ import { useAppExternalConnections } from '../features/externalConnections/hooks
 import { ThemePicker } from '../features/organizationDesigns/components/ThemePicker';
 import { useOrganizationDesigns } from '../features/organizationDesigns/hooks/useOrganizationDesigns';
 import useToaster from '../hooks/toaster/useToaster';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../hooks/useSpaces';
 import { useAbilityContext } from '../providers/Ability/useAbilityContext';
@@ -390,10 +391,8 @@ const AvailableConnectionsChip: FC<{ aliases: string[] }> = ({ aliases }) => (
 );
 
 const AppGenerate: FC = () => {
-    const { projectUuid, appUuid: urlAppUuid } = useParams<{
-        projectUuid: string;
-        appUuid: string;
-    }>();
+    const { appUuid: urlAppUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const navigate = useNavigate();
     const location = useLocation();
     const queryClient = useQueryClient();

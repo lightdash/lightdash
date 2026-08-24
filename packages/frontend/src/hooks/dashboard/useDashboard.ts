@@ -26,12 +26,13 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate } from 'react-router';
 import { lightdashApi } from '../../api';
 import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
 import useApp from '../../providers/App/useApp';
 import useToaster from '../toaster/useToaster';
 import { invalidateContent } from '../useContent';
+import { useProjectUuid } from '../useProjectUuid';
 import useQueryError from '../useQueryError';
 import useDashboardStorage from './useDashboardStorage';
 
@@ -628,7 +629,7 @@ export const useDuplicateDashboardMutation = (
     options?: DuplicateDashboardMutationOptions,
 ) => {
     const navigate = useNavigate();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<

@@ -22,11 +22,11 @@ import {
 } from '@mantine/core';
 import { IconCode } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
-import { useParams } from 'react-router';
 import FieldIcon from '../../../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { ItemDetailPreview } from '../../../../../components/Explorer/ExploreTree/TableTree/ItemDetailPreview';
 import { SingleItemModalContent } from '../../../../../components/Explorer/WriteBackModal';
+import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
@@ -48,7 +48,7 @@ const MetricDimensionItem: FC<{
     customMetric,
     onWriteBackCustomMetric,
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const { user } = useApp();
     const { track } = useTracking();
     const [isCodeIconHovered, setIsCodeIconHovered] = useState(false);
@@ -236,7 +236,7 @@ const AgentVisualizationMetricsAndDimensions: FC<Props> = ({
     metricQuery,
     fieldsMap,
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const [writeBackModal, setWriteBackModal] = useState<{
         isOpen: boolean;
         metric: AdditionalMetric | null;

@@ -13,6 +13,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useParams } from 'react-router';
+import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useAiAgentMemory } from '../../hooks/useAiAgentMemory';
 import { MemoryDetailsModal } from '../MemoryDetails/MemoryDetails';
 import styles from './MemoryCitation.module.css';
@@ -29,7 +30,8 @@ export const MemoryCitation = ({
     const [hasOpened, setHasOpened] = useState(false);
     const [detailsOpened, { open: openDetails, close: closeDetails }] =
         useDisclosure(false);
-    const { projectUuid, agentUuid } = useParams();
+    const { agentUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const slug = id?.replace(/^user-content-/, '');
     // Citations in old threads keep resolving after memories are disabled
     const memoryQuery = useAiAgentMemory({

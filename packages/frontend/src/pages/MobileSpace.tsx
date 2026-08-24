@@ -20,14 +20,13 @@ import { ResourceSortDirection } from '../components/common/ResourceView/types';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useInfiniteContent } from '../hooks/useContent';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useSpace, useSpaceSummaries } from '../hooks/useSpaces';
 import useApp from '../providers/App/useApp';
 
 const MobileSpace: FC = () => {
-    const { projectUuid, spaceUuid } = useParams<{
-        projectUuid: string;
-        spaceUuid: string;
-    }>();
+    const { spaceUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const {
         data: space,
         isInitialLoading,

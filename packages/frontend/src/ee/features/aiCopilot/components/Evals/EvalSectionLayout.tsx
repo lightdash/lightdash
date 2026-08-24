@@ -16,6 +16,7 @@ import { type FC, type ReactNode } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import {
     useAiAgentEvaluation,
     useAiAgentEvaluationRuns,
@@ -33,12 +34,8 @@ export const EvalSectionLayout: FC<EvalSectionLayoutProps> = ({ children }) => {
     const theme = useMantineTheme();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
-    const { projectUuid, agentUuid, evalUuid, runUuid } = useParams<{
-        projectUuid: string;
-        agentUuid: string;
-        evalUuid?: string;
-        runUuid?: string;
-    }>();
+    const { agentUuid, evalUuid, runUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const { selectedThreadUuid, isSidebarOpen, clearThread } =
         useEvalSectionContext();
     // Fetch evaluation data if we're on an eval detail page

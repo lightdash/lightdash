@@ -2,12 +2,13 @@ import { subject } from '@casl/ability';
 import { type ProjectHomepage } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import Page from '../../../components/common/Page/Page';
 import ForbiddenPanel from '../../../components/ForbiddenPanel';
 import PageSpinner from '../../../components/PageSpinner';
 import { usePinnedItems } from '../../../hooks/pinning/usePinnedItems';
 import { useProject } from '../../../hooks/useProject';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
 import { CreateHomepageModal } from './CreateHomepageModal';
 import { HomepageEditor } from './HomepageEditor';
@@ -26,7 +27,7 @@ const MAX_STARTER_SPACES = 4;
 
 // ts-unused-exports:disable-next-line
 export const HomepageBuilderPage: FC = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
     const queryClient = useQueryClient();

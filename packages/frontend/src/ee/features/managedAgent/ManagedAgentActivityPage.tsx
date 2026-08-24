@@ -81,7 +81,6 @@ import {
     type FC,
 } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { useParams } from 'react-router';
 import { lightdashApi } from '../../../api';
 import { AiMarkdown } from '../../../components/common/AiMarkdown';
 import { CategoryBadge } from '../../../components/common/CategoryBadge';
@@ -99,6 +98,7 @@ import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
 import { useGetSlack } from '../../../hooks/slack/useSlack';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProject } from '../../../hooks/useProject';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useChartVersion, useSavedQuery } from '../../../hooks/useSavedQuery';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
@@ -2634,7 +2634,7 @@ const FilteredActionsView: FC<{
 };
 
 const ManagedAgentActivityPage: FC = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const queryClient = useQueryClient();
     const { user } = useApp();
     const canManageAutopilot =

@@ -55,7 +55,6 @@ import {
     useState,
     type FC,
 } from 'react';
-import { useParams } from 'react-router';
 import { useToggle } from 'react-use';
 import { type ValueOf } from 'type-fest';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -72,6 +71,7 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import { useConvertSqlToFormula } from '../../../hooks/useConvertSqlToFormula';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProject } from '../../../hooks/useProject';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useCannotAuthorCustomSqlTableCalculations } from '../../../hooks/user/useCannotAuthorCustomSqlTableCalculations';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { getUniqueTableCalculationName } from '../utils';
@@ -169,7 +169,7 @@ const TableCalculationModal: FC<Props> = ({
 }) => {
     const [isExpanded, toggleExpanded] = useToggle(false);
 
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const { data: project } = useProject(projectUuid);
     const { data: health } = useHealth();
 

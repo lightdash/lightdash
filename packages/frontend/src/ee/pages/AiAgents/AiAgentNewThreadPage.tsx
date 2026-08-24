@@ -15,6 +15,7 @@ import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useOutletContext, useParams, useSearchParams } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { AiAgentNewThreadMcpConnections } from '../../features/aiCopilot/components/AiAgentNewThreadMcpConnections';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import {
@@ -48,7 +49,8 @@ import { type AgentContext } from './AgentPage';
 import styles from './AiAgentNewThreadPage.module.css';
 
 const AiAgentNewThreadPage: FC = () => {
-    const { agentUuid, projectUuid } = useParams();
+    const { agentUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const isEmbed = isEmbedAiAgentRoute();
     const [searchParams] = useSearchParams();
     const chartUuid = searchParams.get('chartUuid');
