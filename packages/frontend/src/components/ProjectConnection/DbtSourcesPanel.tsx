@@ -191,7 +191,6 @@ const AddDbtSourceModal: FC<{
     opened: boolean;
     onClose: () => void;
 }> = ({ projectUuid, opened, onClose }) => {
-    const createMutation = useCreateProjectDbtSourceMutation(projectUuid);
     const form = useForm({
         initialValues: {
             name: '',
@@ -215,6 +214,9 @@ const AddDbtSourceModal: FC<{
         form.reset();
         onClose();
     };
+    const createMutation = useCreateProjectDbtSourceMutation(projectUuid, {
+        onSuccess: handleClose,
+    });
 
     const handleSubmit = () => {
         const { hasErrors } = form.validate();
