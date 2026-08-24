@@ -26,6 +26,7 @@ describe('getStreamToolCallPart', () => {
             },
             toolResult: null,
             isPreliminary: undefined,
+            isArgsPartial: false,
         });
     });
 
@@ -59,6 +60,7 @@ describe('getStreamToolCallPart', () => {
             },
             toolResult: output,
             isPreliminary: false,
+            isArgsPartial: false,
         });
     });
 });
