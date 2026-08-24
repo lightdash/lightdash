@@ -61,6 +61,28 @@ describe('getUserAbilityBuilder — org-level role resolution', () => {
                 ruleSetEqual(builder.build().rules, buildExpected(role));
             },
         );
+
+        // UserModel passes organization_memberships.role_uuid straight through,
+        // so a user with no org custom role arrives as null, never undefined.
+        it.each([OrganizationMemberRole.MEMBER, OrganizationMemberRole.ADMIN])(
+            '%s user with a null roleUuid uses the system role path when customRolesEnabled=true',
+            (role) => {
+                const { builder } = getUserAbilityBuilder({
+                    user: {
+                        role,
+                        organizationUuid: ORG_UUID,
+                        userUuid: USER_UUID,
+                        roleUuid: null,
+                    },
+                    projectProfiles: [],
+                    permissionsConfig: PERMISSIONS_CONFIG,
+                    customRoleScopes: {},
+                    customRolesEnabled: true,
+                });
+                ruleSetEqual(builder.build().rules, buildExpected(role));
+                expect(builder.build().rules.length).toBeGreaterThan(0);
+            },
+        );
     });
 
     describe('Custom-roles feature flag', () => {

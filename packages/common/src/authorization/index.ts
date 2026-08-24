@@ -27,10 +27,10 @@ export type ProjectAbilityProfile = Pick<
 };
 
 type UserAbilityBuilderArgs = {
-    user: Pick<
-        LightdashUser,
-        'role' | 'organizationUuid' | 'userUuid' | 'roleUuid'
-    >;
+    user: Pick<LightdashUser, 'role' | 'organizationUuid' | 'userUuid'> & {
+        /** Read straight from the DB column: `null` when there is no org custom role. */
+        roleUuid?: string | null;
+    };
     /** Additional organization custom roles unioned on top of the user's slot. */
     orgExtraRoleUuids?: string[];
     projectProfiles: ProjectAbilityProfile[];
@@ -60,7 +60,7 @@ export const getUserAbilityBuilder = ({
     const invalidScopes: string[] = [];
     const hasPrimaryProjectCustomRole =
         customRolesEnabled &&
-        projectProfiles.some(({ roleUuid }) => roleUuid !== undefined);
+        projectProfiles.some(({ roleUuid }) => !!roleUuid);
     // A primary project custom role owns the user-global PAT decision; unlike
     // normal project permissions, omitting this scope restricts the org default.
     const organizationSystemPermissionsConfig = hasPrimaryProjectCustomRole
@@ -91,9 +91,11 @@ export const getUserAbilityBuilder = ({
         });
     };
     if (user.role && user.organizationUuid) {
-        const primaryOrgCustomRoleUuid = customRolesEnabled
-            ? user.roleUuid
-            : undefined;
+        // `roleUuid` arrives as `null` for users with no org custom role, so
+        // this stays a truthiness check — `!== undefined` would send every
+        // system-role user down the fail-closed path below.
+        const primaryOrgCustomRoleUuid =
+            customRolesEnabled && user.roleUuid ? user.roleUuid : undefined;
         if (primaryOrgCustomRoleUuid !== undefined) {
             const orgCustomRoleScopes =
                 customRoleScopes?.[primaryOrgCustomRoleUuid];
