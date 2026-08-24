@@ -1,3 +1,17 @@
+# [1.252.0](https://github.com/lightdash/lightdash/compare/1.251.7...1.252.0) (2026-08-24)
+
+
+### Bug Fixes
+
+* **cli:** preserve source overrides in previews ([#27457](https://github.com/lightdash/lightdash/issues/27457)) ([40ca9f0](https://github.com/lightdash/lightdash/commit/40ca9f01b42e7b628d8238c3b2d1f547d440f97a))
+
+
+### Features
+
+* **cli:** default to batched deploy with old-server fallback ([#27499](https://github.com/lightdash/lightdash/issues/27499)) ([8e422c0](https://github.com/lightdash/lightdash/commit/8e422c06229bb9adba17aa7b4b787cce03662235))
+* persist and serve the merged dbt manifest ([#27447](https://github.com/lightdash/lightdash/issues/27447)) ([7149cf4](https://github.com/lightdash/lightdash/commit/7149cf41226f47f3e044ab26fd3772525969a6b9))
+* the CLI fetches the served merged manifest for previews ([#27451](https://github.com/lightdash/lightdash/issues/27451)) ([1ce0c82](https://github.com/lightdash/lightdash/commit/1ce0c829b51a0b751e339d4d8ede5e204b61b6be))
+
 ## [1.251.7](https://github.com/lightdash/lightdash/compare/1.251.6...1.251.7) (2026-08-24)
 
 
