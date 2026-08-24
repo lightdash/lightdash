@@ -38,6 +38,10 @@ hand to a fresh research agent to turn the plan into a concrete design.
 | 4 | [04-classic-charts-as-pipelines.md](04-classic-charts-as-pipelines.md) | Interpret existing charts as single-node pipelines at the execution seam |
 | 5 | [05-viz-config-convergence.md](05-viz-config-convergence.md) | Opportunistically converge the four viz config vocabularies |
 
+Cross-cutting: [perf-instrumentation.md](perf-instrumentation.md) — query-path
+instrumentation and before/after dashboard plan for the view-time formatting
+migration (ships before any behavior flag flips).
+
 ## Design tenets (apply to every step)
 
 1. **Union, not optional.** `metricQuery` never becomes `metricQuery?:`.
