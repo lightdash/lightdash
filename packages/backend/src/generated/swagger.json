@@ -42503,10 +42503,28 @@
                 ],
                 "type": "string"
             },
+            "WarehouseLocation": {
+                "properties": {
+                    "schema": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "database": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["schema", "database"],
+                "type": "object",
+                "description": "Where in the warehouse a set of models lives — the two levels of a table\nreference, whatever a given warehouse calls them (BigQuery project and\ndataset, Snowflake database and schema, Databricks catalog and schema). A\nnull field means \"inherit from the project's warehouse connection\"."
+            },
             "ProjectDbtSourceSummary": {
                 "properties": {
                     "hasCredentialError": {
                         "type": "boolean"
+                    },
+                    "warehouseLocation": {
+                        "$ref": "#/components/schemas/WarehouseLocation"
                     },
                     "projectSubPath": {
                         "type": "string",
@@ -42544,6 +42562,7 @@
                 },
                 "required": [
                     "hasCredentialError",
+                    "warehouseLocation",
                     "projectSubPath",
                     "branch",
                     "repository",
@@ -42554,7 +42573,7 @@
                     "projectDbtSourceUuid"
                 ],
                 "type": "object",
-                "description": "Non-sensitive view of a dbt source for API responses — never includes the\ndecrypted connection (which holds credentials). The primary source is\nsynthesised from the project's own dbt_connection. `repository`, `branch` and\n`projectSubPath` are the git-backed source's identity (null for non-git\nconnections); they are safe to expose — only secrets are stripped.\n\n`hasCredentialError` is always `false` for the synthesised primary source.\nSee `ProjectDbtSource` for what it means on an additional source."
+                "description": "Non-sensitive view of a dbt source for API responses — never includes the\ndecrypted connection (which holds credentials). The primary source is\nsynthesised from the project's own dbt_connection. `repository`, `branch` and\n`projectSubPath` are the git-backed source's identity (null for non-git\nconnections); they are safe to expose — only secrets are stripped.\n\n`hasCredentialError` is always `false` for the synthesised primary source.\nSee `ProjectDbtSource` for what it means on an additional source.\n\n`warehouseLocation` is where this source's models live in the project's\nwarehouse. For the primary source it is the location the project's warehouse\nconnection already points at."
             },
             "ApiProjectDbtSourcesResponse": {
                 "properties": {
@@ -42946,6 +42965,9 @@
             },
             "ApiCreateProjectDbtSource": {
                 "properties": {
+                    "warehouseLocation": {
+                        "$ref": "#/components/schemas/WarehouseLocation"
+                    },
                     "dbtConnection": {
                         "$ref": "#/components/schemas/DbtProjectConfig"
                     },
@@ -42994,6 +43016,9 @@
             },
             "ApiUpdateProjectDbtSource": {
                 "properties": {
+                    "warehouseLocation": {
+                        "$ref": "#/components/schemas/WarehouseLocation"
+                    },
                     "dbtConnection": {
                         "$ref": "#/components/schemas/DbtProjectConfig"
                     },
@@ -56111,7 +56136,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.242.3",
+        "version": "1.242.4",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

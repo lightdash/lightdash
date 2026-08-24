@@ -1,3 +1,10 @@
+## [1.242.4](https://github.com/lightdash/lightdash/compare/1.242.3...1.242.4) (2026-08-24)
+
+
+### Bug Fixes
+
+* **dbt:** compile each dbt source against its own warehouse location ([#27918](https://github.com/lightdash/lightdash/issues/27918)) ([387e149](https://github.com/lightdash/lightdash/commit/387e149a955cc756aab03ec7031b8b45f6de8b3f)), closes [#27916](https://github.com/lightdash/lightdash/issues/27916)
+
 ## [1.242.3](https://github.com/lightdash/lightdash/compare/1.242.2...1.242.3) (2026-08-24)
 
 

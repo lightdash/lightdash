@@ -42352,12 +42352,39 @@ const models: TsoaRoute.Models = {
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    WarehouseLocation: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                schema: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                database: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ProjectDbtSourceSummary: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 hasCredentialError: { dataType: 'boolean', required: true },
+                warehouseLocation: { ref: 'WarehouseLocation', required: true },
                 projectSubPath: {
                     dataType: 'union',
                     subSchemas: [
@@ -42664,6 +42691,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                warehouseLocation: { ref: 'WarehouseLocation' },
                 dbtConnection: { ref: 'DbtProjectConfig', required: true },
                 name: { dataType: 'string', required: true },
             },
@@ -42715,6 +42743,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                warehouseLocation: { ref: 'WarehouseLocation' },
                 dbtConnection: { ref: 'DbtProjectConfig' },
                 name: { dataType: 'string' },
             },
