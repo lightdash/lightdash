@@ -1,9 +1,14 @@
-import { type AiWebAppPrompt, type SlackPrompt } from '@lightdash/common';
+import {
+    type AiWebAppPrompt,
+    type SlackPrompt,
+    type ToolRunQueryCustomChartTypeConfig,
+} from '@lightdash/common';
 import {
     metricQueryMock,
     validExplore,
 } from '../../../../services/ProjectService/ProjectService.mock';
 import type {
+    ResolveCustomChartTypeFn,
     RunAsyncMergeQueryFn,
     RunAsyncQueryFn,
 } from '../types/aiAgentDependencies';
@@ -91,6 +96,7 @@ const executeTool = async (
         maxContextRows: Number.POSITIVE_INFINITY,
         exposeQueryUuid,
         enableDataAccess,
+        resolveCustomChartType: vi.fn().mockResolvedValue(null),
     });
 
     const output = await queryTool.execute!(toolInput, {
@@ -130,6 +136,7 @@ describe('getRunQuery', () => {
             maxContextRows: Number.POSITIVE_INFINITY,
             exposeQueryUuid: false,
             enableDataAccess: true,
+            resolveCustomChartType: vi.fn().mockResolvedValue(null),
         });
         const mergeInput = {
             ...toolInput,
@@ -270,6 +277,169 @@ describe('getRunQuery', () => {
     });
 });
 
+describe('getRunQuery custom chart types', () => {
+    const vizSchema = {
+        fields: [
+            {
+                name: 'x',
+                label: 'X axis',
+                type: 'dimension' as const,
+                required: true,
+            },
+            {
+                name: 'y',
+                label: 'Y axis',
+                type: 'metric' as const,
+                required: true,
+            },
+            {
+                name: 'series',
+                label: 'Series',
+                type: 'series' as const,
+                required: false,
+            },
+        ],
+        configOptions: [],
+        colorPalette: null,
+    };
+
+    const makeQueryResults = () => ({
+        queryUuid: '11111111-1111-4111-8111-111111111111',
+        rows: [{ a_dim1: 'one', a_met1: 1 }],
+        cacheMetadata: { cacheHit: false },
+        fields: {},
+    });
+
+    const executeCustom = async ({
+        chartConfig,
+        resolveCustomChartType = vi.fn().mockResolvedValue({
+            dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+            schema: vizSchema,
+        }) as ResolveCustomChartTypeFn,
+        runAsyncQuery = vi
+            .fn()
+            .mockResolvedValue(makeQueryResults()) as RunAsyncQueryFn,
+    }: {
+        chartConfig: ToolRunQueryCustomChartTypeConfig;
+        resolveCustomChartType?: ResolveCustomChartTypeFn;
+        runAsyncQuery?: RunAsyncQueryFn;
+    }) => {
+        const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);
+        const queryTool = getRunQuery({
+            updateProgress: vi.fn().mockResolvedValue(undefined),
+            runAsyncQuery,
+            runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
+            enableMergeQueries: false,
+            projectParameterDefinitions: {},
+            getPrompt: vi.fn().mockResolvedValue(makePrompt()),
+            sendFile: vi.fn().mockResolvedValue(undefined),
+            createOrUpdateArtifact,
+            maxLimit: 500,
+            maxContextRows: Number.POSITIVE_INFINITY,
+            exposeQueryUuid: false,
+            enableDataAccess: true,
+            resolveCustomChartType,
+        });
+        const input = { ...toolInput, chartConfig };
+        const output = await queryTool.execute!(input, {
+            messages: [],
+            toolCallId: 'tool-call-1',
+            experimental_context: new AgentContext([validExplore]),
+        });
+        if (Symbol.asyncIterator in output) {
+            throw new Error('Expected a non-streaming tool result');
+        }
+        return { output, createOrUpdateArtifact, runAsyncQuery, input };
+    };
+
+    const customChartConfig = {
+        customChartTypeSlug: 'cohort-waterfall',
+        fieldMapping: { x: 'a_dim1', y: 'a_met1' },
+        options: { showLegend: true },
+    };
+
+    it('runs the query and persists the envelope with the verbatim tool args', async () => {
+        const { output, createOrUpdateArtifact, runAsyncQuery, input } =
+            await executeCustom({ chartConfig: customChartConfig });
+
+        expect(output.metadata).toMatchObject({ status: 'success' });
+        expect(runAsyncQuery).toHaveBeenCalled();
+        expect(createOrUpdateArtifact).toHaveBeenCalledWith(
+            expect.objectContaining({
+                vizConfig: {
+                    source: 'customChartType',
+                    schemaVersion: 1,
+                    dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+                    // Model output stored unmodified — slug config intact.
+                    config: input,
+                },
+            }),
+        );
+    });
+
+    it('returns a descriptive error for an unknown slug without running the query', async () => {
+        const { output, runAsyncQuery, createOrUpdateArtifact } =
+            await executeCustom({
+                chartConfig: customChartConfig,
+                resolveCustomChartType: vi
+                    .fn()
+                    .mockResolvedValue(null) as ResolveCustomChartTypeFn,
+            });
+
+        expect(output.metadata).toEqual({ status: 'error' });
+        expect(output.result).toContain(
+            'Custom chart type "cohort-waterfall" was not found in this project',
+        );
+        expect(output.result).toContain('findCustomChartTypes');
+        expect(runAsyncQuery).not.toHaveBeenCalled();
+        expect(createOrUpdateArtifact).not.toHaveBeenCalled();
+    });
+
+    it('returns a descriptive error for an unknown slot', async () => {
+        const { output, runAsyncQuery } = await executeCustom({
+            chartConfig: {
+                ...customChartConfig,
+                fieldMapping: { x: 'a_dim1', y: 'a_met1', nope: 'a_dim1' },
+            },
+        });
+
+        expect(output.metadata).toEqual({ status: 'error' });
+        expect(output.result).toContain('Unknown field slots');
+        expect(output.result).toContain('nope');
+        expect(output.result).toContain('x, y, series');
+        expect(runAsyncQuery).not.toHaveBeenCalled();
+    });
+
+    it('returns a descriptive error for an unbound required slot', async () => {
+        const { output, runAsyncQuery } = await executeCustom({
+            chartConfig: {
+                ...customChartConfig,
+                fieldMapping: { x: 'a_dim1' },
+            },
+        });
+
+        expect(output.metadata).toEqual({ status: 'error' });
+        expect(output.result).toContain(
+            'Required field slots not bound in fieldMapping: y',
+        );
+        expect(runAsyncQuery).not.toHaveBeenCalled();
+    });
+
+    it('returns a descriptive error for a field id outside the query', async () => {
+        const { output, runAsyncQuery } = await executeCustom({
+            chartConfig: {
+                ...customChartConfig,
+                fieldMapping: { x: 'a_dim1', y: 'other_metric' },
+            },
+        });
+
+        expect(output.metadata).toEqual({ status: 'error' });
+        expect(output.result).toContain('y → other_metric');
+        expect(output.result).toContain('a_dim1, a_met1');
+        expect(runAsyncQuery).not.toHaveBeenCalled();
+    });
+});
+
 describe('getRunQuery query UUID visibility', () => {
     const runAsyncQuery: RunAsyncQueryFn = vi.fn().mockResolvedValue({
         queryUuid: '11111111-1111-4111-8111-111111111111',
@@ -361,6 +531,7 @@ describe('getRunQuery parameters', () => {
             maxContextRows: Number.POSITIVE_INFINITY,
             exposeQueryUuid: false,
             enableDataAccess: true,
+            resolveCustomChartType: vi.fn().mockResolvedValue(null),
         });
         const output = await queryTool.execute!(
             {
@@ -481,6 +652,7 @@ describe('getRunQuery parameters', () => {
             maxContextRows: Number.POSITIVE_INFINITY,
             exposeQueryUuid: false,
             enableDataAccess: true,
+            resolveCustomChartType: vi.fn().mockResolvedValue(null),
         });
         const output = await queryTool.execute!(
             {

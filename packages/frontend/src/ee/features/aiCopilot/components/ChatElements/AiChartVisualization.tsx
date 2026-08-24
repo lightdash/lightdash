@@ -62,9 +62,8 @@ export const AiChartVisualization: FC<Props> = ({
         useState<AiAgentChartTypeOption | null>(null);
 
     const isSqlArtifact = isAiSqlChartArtifactConfig(artifactData.chartConfig);
-    const { isMergeArtifact, semanticChartConfig } = getAiArtifactChartSource(
-        artifactData.chartConfig,
-    );
+    const { isMergeArtifact, semanticChartConfig, customChartType } =
+        getAiArtifactChartSource(artifactData.chartConfig);
 
     const vizConfig = useMemo(() => {
         if (!semanticChartConfig) return null;
@@ -253,6 +252,7 @@ export const AiChartVisualization: FC<Props> = ({
             vizQueryData={semanticVizQueryData}
             results={queryResults}
             chartConfig={semanticChartConfig}
+            customChartType={customChartType}
             selectedChartType={selectedChartType}
             onChartTypeChange={setSelectedChartType}
             headerContent={inlineHeaderContent}

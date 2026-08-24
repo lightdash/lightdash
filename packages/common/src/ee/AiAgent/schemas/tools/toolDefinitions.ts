@@ -268,10 +268,11 @@ import {
     toolRenderChartArgsSchemaTransformed,
     toolRunQueryArgsSchema,
     toolRunQueryArgsSchemaTransformed,
-    toolRunQueryArgsSchemaV2,
+    toolRunQueryArgsSchemaV2Mcp,
     toolRunQueryArgsSchemaV2RejectingMerge,
     toolRunQueryArgsSchemaV2Transformed,
     toolRunQueryOutputSchema,
+    type toolRunQueryArgsSchemaV2,
 } from './toolRunQueryArgs';
 import {
     TOOL_RUN_SAVED_CHART_DESCRIPTION,
@@ -551,7 +552,7 @@ export const generateVisualizationToolDefinition: ToolDefinitionWithoutMcpOutput
 
 export const runQueryToolDefinition: ToolDefinitionWithMcpOutput<
     'runQuery',
-    typeof toolRunQueryArgsSchemaV2,
+    typeof toolRunQueryArgsSchemaV2Mcp,
     typeof toolRunQueryArgsSchemaV2Transformed,
     typeof toolRunQueryOutputSchema,
     typeof mcpRunMetricQueryStructuredOutputSchema
@@ -560,7 +561,9 @@ export const runQueryToolDefinition: ToolDefinitionWithMcpOutput<
     title: 'Run query',
     description: TOOL_RUN_QUERY_DESCRIPTION,
     availability: ['agent', 'mcp'],
-    inputSchema: toolRunQueryArgsSchemaV2,
+    // Custom chart types are agent-only for the PoC — MCP keeps the
+    // builtin-only chart config contract.
+    inputSchema: toolRunQueryArgsSchemaV2Mcp,
     inputSchemaTransformed: toolRunQueryArgsSchemaV2Transformed,
     agent: { outputSchema: toolRunQueryOutputSchema },
     mcp: {

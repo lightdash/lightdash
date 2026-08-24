@@ -4,9 +4,11 @@ import {
     ECHARTS_DEFAULT_COLORS,
     getGroupByDimensions,
     getWebAiChartConfig,
+    isCustomChartTypeSlugChartConfig,
     type AiAgentChartTypeOption,
     type ApiAiAgentThreadMessageVizQuery,
     type ChartConfig,
+    type DataAppVizChart,
     type EChartsSeries,
     type ToolRunQueryArgs,
     type ToolTableVizArgs,
@@ -25,6 +27,7 @@ import {
     useMantineColorScheme,
 } from '@mantine/core';
 import {
+    IconChartDots3,
     IconChevronDown,
     IconChevronUp,
     IconExclamationCircle,
@@ -64,6 +67,9 @@ type Props = {
         | ToolTimeSeriesArgs
         | ToolVerticalBarArgs
         | ToolRunQueryArgs;
+    // Set for custom chart type answers (from the artifact envelope): the
+    // saved-chart shape the dedicated renderer mounts with.
+    customChartType?: DataAppVizChart | null;
     selectedChartType: AiAgentChartTypeOption | null;
     // When provided, an inline switcher is rendered above the chart. Omit
     // it (e.g. on the floating panel) when a parent renders its own.
@@ -85,6 +91,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
     vizQueryData,
     results,
     chartConfig,
+    customChartType = null,
     selectedChartType,
     onChartTypeChange,
     switcherVariant = 'default',
@@ -207,8 +214,11 @@ export const AiVisualizationRenderer: FC<Props> = ({
     const displayDetails =
         fieldsCount > 0 || filtersCount > 0 || parametersCount > 0;
 
+    const isCustomChartTypeAnswer = customChartType !== null;
+
     const defaultChartType: AiAgentChartTypeOption =
-        webAiChartConfig.type === AiResultType.QUERY_RESULT
+        webAiChartConfig.type === AiResultType.QUERY_RESULT &&
+        !isCustomChartTypeSlugChartConfig(webAiChartConfig.vizTool.chartConfig)
             ? (webAiChartConfig.vizTool.chartConfig?.defaultVizType ?? 'table')
             : 'table';
 
@@ -222,6 +232,21 @@ export const AiVisualizationRenderer: FC<Props> = ({
         },
         [onExpandedChartConfigChange, selectedChartType],
     );
+
+    // Neutral placeholder until custom chart type rendering lands.
+    if (isCustomChartTypeAnswer) {
+        return (
+            <Center h={300}>
+                <Stack gap="xs" align="center">
+                    <MantineIcon icon={IconChartDots3} color="gray" />
+                    <Text size="sm" c="dimmed" ta="center">
+                        This answer uses a custom chart type — rendering it here
+                        is coming soon
+                    </Text>
+                </Stack>
+            </Center>
+        );
+    }
 
     if (!webAiChartConfig.echartsConfig) {
         return (

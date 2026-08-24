@@ -10,6 +10,7 @@ import {
     getSlackAiEchartsConfig,
     getTotalFilterRules,
     getValidAiQueryLimit,
+    isCustomChartTypeSlugChartConfig,
     isMergeMetricSource,
     isSlackPrompt,
     MERGE_TABLE_NAME,
@@ -26,6 +27,7 @@ import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type {
     CreateOrUpdateArtifactFn,
     GetPromptFn,
+    ResolveCustomChartTypeFn,
     RunAsyncMergeQueryFn,
     RunAsyncQueryFn,
     SendFileFn,
@@ -52,6 +54,7 @@ import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import {
     validateAxisFields,
+    validateCustomChartTypeChartConfig,
     validateCustomMetricFilters,
     validateCustomMetricsDefinition,
     validateFieldEntityType,
@@ -80,6 +83,7 @@ type Dependencies = {
     projectParameterDefinitions: ParameterDefinitions;
     enableMergeQueries: boolean;
     runAsyncMergeQuery: RunAsyncMergeQueryFn;
+    resolveCustomChartType: ResolveCustomChartTypeFn;
 };
 
 // The parameter state a query actually ran with — explicit vs
@@ -181,16 +185,24 @@ export const validateRunQueryTool = (
         queryTool.queryConfig.filters,
     );
 
+    // groupBy/axis checks only apply to the builtin branch; the custom chart
+    // type branch is validated separately against the type's schema.
+    const builtinChartConfig = isCustomChartTypeSlugChartConfig(
+        queryTool.chartConfig,
+    )
+        ? null
+        : queryTool.chartConfig;
+
     // Validate groupBy fields
     validateGroupByFields(
         explore,
-        queryTool.chartConfig?.groupBy,
+        builtinChartConfig?.groupBy,
         queryTool.queryConfig.dimensions,
     );
 
     // Validate axis fields
     validateAxisFields(
-        queryTool.chartConfig,
+        builtinChartConfig,
         queryTool.queryConfig.dimensions,
         queryTool.queryConfig.metrics,
         queryTool.queryConfig.tableCalculations,
@@ -290,6 +302,7 @@ export const getRunQuery = ({
     projectParameterDefinitions,
     enableMergeQueries,
     runAsyncMergeQuery,
+    resolveCustomChartType,
 }: Dependencies) =>
     tool({
         ...(enableMergeQueries
@@ -350,7 +363,12 @@ export const getRunQuery = ({
                         maxQueryLimit: maxLimit,
                     });
 
-                    if (queryTool.chartConfig) {
+                    // Merge × custom chart type is undefined for the PoC —
+                    // rejection lands with the hardening pass.
+                    if (
+                        queryTool.chartConfig &&
+                        !isCustomChartTypeSlugChartConfig(queryTool.chartConfig)
+                    ) {
                         // Merged output columns are fields of the merge/source
                         // "tables", so getItemId is the naming authority.
                         const dimensionIds = queryTool.mergeConfig.joinKey.map(
@@ -469,6 +487,40 @@ export const getRunQuery = ({
                     };
                 }
 
+                // Custom chart type answers: resolve the slug project-scoped
+                // and validate the field mapping against the type's schema.
+                // The resolved uuid is persisted beside the verbatim tool
+                // args in the artifact envelope.
+                let customChartTypeDataAppVizUuid: string | null = null;
+                if (isCustomChartTypeSlugChartConfig(queryTool.chartConfig)) {
+                    const customChartConfig = queryTool.chartConfig;
+                    const resolved = await resolveCustomChartType(
+                        customChartConfig.customChartTypeSlug,
+                    );
+                    if (!resolved) {
+                        throw new AiAgentValidatorError(
+                            `Custom chart type "${customChartConfig.customChartTypeSlug}" was not found in this project. Use findCustomChartTypes to browse the available types and their slugs.`,
+                        );
+                    }
+                    const aggregations = filterAggregationCustomMetrics(
+                        queryTool.queryConfig.customMetrics,
+                    );
+                    const selectedFieldIds = [
+                        ...queryTool.queryConfig.dimensions,
+                        ...queryTool.queryConfig.metrics,
+                        ...(aggregations ?? []).map(getItemId),
+                        ...(queryTool.queryConfig.tableCalculations ?? []).map(
+                            (tableCalc) => tableCalc.name,
+                        ),
+                    ];
+                    validateCustomChartTypeChartConfig(
+                        customChartConfig,
+                        resolved.schema,
+                        selectedFieldIds,
+                    );
+                    customChartTypeDataAppVizUuid = resolved.dataAppVizUuid;
+                }
+
                 const populatedCustomMetrics = populateCustomMetricsSQL(
                     queryTool.queryConfig.customMetrics,
                     explore,
@@ -484,22 +536,24 @@ export const getRunQuery = ({
                 // emits yAxisMetrics with only the base metric id (it can't
                 // know the auto-generated PoP ids); the server fills them
                 // in here before persisting the artifact.
-                const expandedToolArgs =
+                let expandedToolArgs: typeof toolArgs = toolArgs;
+                if (
                     expandedMetrics.length >
                         queryTool.queryConfig.metrics.length &&
-                    toolArgs.chartConfig
-                        ? {
-                              ...toolArgs,
-                              chartConfig: {
-                                  ...toolArgs.chartConfig,
-                                  yAxisMetrics:
-                                      expandMetricsWithPopAdditionalMetrics(
-                                          toolArgs.chartConfig.yAxisMetrics,
-                                          populatedCustomMetrics,
-                                      ),
-                              },
-                          }
-                        : toolArgs;
+                    toolArgs.chartConfig &&
+                    !isCustomChartTypeSlugChartConfig(toolArgs.chartConfig)
+                ) {
+                    expandedToolArgs = {
+                        ...toolArgs,
+                        chartConfig: {
+                            ...toolArgs.chartConfig,
+                            yAxisMetrics: expandMetricsWithPopAdditionalMetrics(
+                                toolArgs.chartConfig.yAxisMetrics,
+                                populatedCustomMetrics,
+                            ),
+                        },
+                    };
+                }
 
                 const createOrUpdateArtifactHook = () =>
                     createOrUpdateArtifact({
@@ -508,10 +562,19 @@ export const getRunQuery = ({
                         artifactType: 'chart',
                         title: toolArgs.title,
                         description: toolArgs.description,
-                        vizConfig: {
-                            source: 'semantic',
-                            config: expandedToolArgs,
-                        },
+                        vizConfig: customChartTypeDataAppVizUuid
+                            ? {
+                                  // Envelope: model output verbatim, server-
+                                  // derived uuid beside it.
+                                  source: 'customChartType',
+                                  schemaVersion: 1,
+                                  dataAppVizUuid: customChartTypeDataAppVizUuid,
+                                  config: toolArgs,
+                              }
+                            : {
+                                  source: 'semantic',
+                                  config: expandedToolArgs,
+                              },
                     });
 
                 // Early artifact creation for non-data-access mode

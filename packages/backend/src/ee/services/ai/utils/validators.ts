@@ -7,6 +7,7 @@ import {
     convertAdditionalMetric,
     convertAiTableCalcsSchemaToTableCalcs,
     CustomMetricBaseTransformed,
+    DataAppVizSchema,
     dateFilterSchema,
     DEFAULT_FILTER_CASE_SENSITIVE,
     DependencyNode,
@@ -46,7 +47,8 @@ import {
     TableCalcSchema,
     TableCalcsSchema,
     TableCalculation,
-    ToolRunQueryArgsTransformed,
+    ToolRunQueryBuiltinChartConfig,
+    ToolRunQueryCustomChartTypeConfig,
     ToolSortField,
     TransformedCustomMetric,
     UnitOfTime,
@@ -1503,7 +1505,7 @@ export function validateYAxisMetrics(
  * @param tableCalculations - Table calculations that can be used as metrics
  */
 export function validateAxisFields(
-    chartConfig: ToolRunQueryArgsTransformed['chartConfig'] | null | undefined,
+    chartConfig: ToolRunQueryBuiltinChartConfig | null | undefined,
     selectedDimensions: string[],
     selectedMetrics: string[],
     tableCalculations?: TableCalcsSchema | TableCalculation[],
@@ -1553,6 +1555,77 @@ Remember:
 - yAxisMetrics must be included in queryConfig.metrics or tableCalculations`;
 
         Logger.error(`[AiAgent][Validate Axis Fields] ${errorMessage}`);
+
+        throw new AiAgentValidatorError(errorMessage);
+    }
+}
+
+/**
+ * Minimal pre-query validation for a custom chart type chartConfig: slot
+ * names exist, required slots are bound, and mapped field ids are selected in
+ * the query. Slot/field pool matching and option validation land with the
+ * hardening pass.
+ */
+export function validateCustomChartTypeChartConfig(
+    chartConfig: ToolRunQueryCustomChartTypeConfig,
+    vizSchema: DataAppVizSchema,
+    selectedFieldIds: string[],
+) {
+    const errors: string[] = [];
+    const declaredSlots = vizSchema.fields.map((field) => field.name);
+
+    const unknownSlots = Object.keys(chartConfig.fieldMapping).filter(
+        (slot) => !declaredSlots.includes(slot),
+    );
+    if (unknownSlots.length > 0) {
+        errors.push(
+            `Unknown field slots in fieldMapping: ${unknownSlots.join(
+                ', ',
+            )}. This custom chart type declares these slots: ${declaredSlots.join(
+                ', ',
+            )}.`,
+        );
+    }
+
+    const unboundRequiredSlots = vizSchema.fields
+        .filter(
+            (field) => field.required && !chartConfig.fieldMapping[field.name],
+        )
+        .map((field) => field.name);
+    if (unboundRequiredSlots.length > 0) {
+        errors.push(
+            `Required field slots not bound in fieldMapping: ${unboundRequiredSlots.join(
+                ', ',
+            )}.`,
+        );
+    }
+
+    const selected = new Set(selectedFieldIds);
+    const unknownFieldIds = Object.entries(chartConfig.fieldMapping).filter(
+        ([, fieldId]) => !selected.has(fieldId),
+    );
+    if (unknownFieldIds.length > 0) {
+        errors.push(
+            `fieldMapping references field ids that are not selected in queryConfig: ${unknownFieldIds
+                .map(([slot, fieldId]) => `${slot} → ${fieldId}`)
+                .join(
+                    ', ',
+                )}. Fields selected in this query: ${selectedFieldIds.join(
+                ', ',
+            )}.`,
+        );
+    }
+
+    if (errors.length > 0) {
+        const errorMessage = `Invalid configuration for custom chart type "${
+            chartConfig.customChartTypeSlug
+        }":
+
+${errors.join('\n\n')}
+
+Use findCustomChartTypes with this slug to see the type's field slots, then bind each slot to a field id selected in queryConfig.`;
+
+        Logger.error(`[AiAgent][Validate Custom Chart Type] ${errorMessage}`);
 
         throw new AiAgentValidatorError(errorMessage);
     }

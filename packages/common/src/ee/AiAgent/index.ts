@@ -1037,9 +1037,20 @@ export type AiMergeChartArtifactConfig = {
     config: ToolRunQueryArgsV3;
 };
 
+// Custom chart type answer envelope: the model's tool args are stored
+// verbatim (slug chartConfig intact) and everything the server derives —
+// the resolved dataAppVizUuid — sits beside them.
+export type AiCustomChartTypeChartArtifactConfig = {
+    source: 'customChartType';
+    schemaVersion: 1;
+    dataAppVizUuid: string;
+    config: ToolRunQueryArgs;
+};
+
 export type AiChartArtifactConfig =
     | AiSemanticChartArtifactConfig
     | AiMergeChartArtifactConfig
+    | AiCustomChartTypeChartArtifactConfig
     | AiSqlChartArtifactConfig
     | AiComposerChartArtifactConfig;
 
