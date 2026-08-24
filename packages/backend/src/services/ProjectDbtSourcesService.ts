@@ -17,6 +17,7 @@ import {
     sensitiveDbtCredentialsFieldNames,
     UnexpectedServerError,
     validateWarehouseLocation,
+    validateProjectDbtSourceName,
     type Account,
     type WarehouseLocation,
 } from '@lightdash/common';
@@ -32,6 +33,11 @@ type ProjectDbtSourcesServiceArguments = {
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
     projectDbtSourcesModel: ProjectDbtSourcesModel;
+};
+
+const assertProjectDbtSourceName = (name: string): void => {
+    const validationError = validateProjectDbtSourceName(name);
+    if (validationError) throw new ParameterError(validationError);
 };
 
 /**
@@ -209,6 +215,7 @@ export class ProjectDbtSourcesService extends BaseService {
             projectUuid,
             'manage',
         );
+        assertProjectDbtSourceName(data.name);
         // GitHub-only for now: additional sources are restricted to GitHub
         // connections until the other git providers are validated end-to-end.
         if (data.dbtConnection.type !== DbtProjectType.GITHUB) {
@@ -318,6 +325,7 @@ export class ProjectDbtSourcesService extends BaseService {
             );
         }
         if (data.name !== undefined) {
+            assertProjectDbtSourceName(data.name);
             const identity =
                 await this.projectModel.getDbtSourceIdentity(projectUuid);
             if (data.name === identity.dbtSourceName) {

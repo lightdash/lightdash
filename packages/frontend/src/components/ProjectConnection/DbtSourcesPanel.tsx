@@ -2,6 +2,7 @@ import {
     DbtProjectType,
     DefaultSupportedDbtVersion,
     FeatureFlags,
+    validateProjectDbtSourceName,
     WarehouseTypes,
     type CreateWarehouseCredentials,
     type DbtProjectConfig,
@@ -204,7 +205,7 @@ const AddDbtSourceModal: FC<{
             dbtVersion: DefaultSupportedDbtVersion,
         },
         validate: {
-            name: (value) => (value.trim() ? null : 'Name is required'),
+            name: (value) => validateProjectDbtSourceName(value.trim()),
             dbt: dbtFormValidators,
         },
         validateInputOnBlur: true,
@@ -268,7 +269,10 @@ const EditDbtSourceModalInner: FC<{
             dbtVersion: DefaultSupportedDbtVersion,
         },
         validate: {
-            name: (value) => (value.trim() ? null : 'Name is required'),
+            name: (value) =>
+                value.trim() === source.name
+                    ? null
+                    : validateProjectDbtSourceName(value.trim()),
             dbt: dbtFormValidators,
         },
         validateInputOnBlur: true,
@@ -277,11 +281,12 @@ const EditDbtSourceModalInner: FC<{
     const handleSubmit = () => {
         const { hasErrors } = form.validate();
         if (hasErrors) return;
+        const name = form.values.name.trim();
         updateMutation.mutate(
             {
                 projectDbtSourceUuid: source.projectDbtSourceUuid,
                 data: {
-                    name: form.values.name.trim(),
+                    ...(name === source.name ? {} : { name }),
                     dbtConnection: form.values.dbt,
                     warehouseLocation: toApiLocation(
                         form.values.warehouseLocation,

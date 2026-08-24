@@ -1051,6 +1051,20 @@ export type ProjectDbtSource = {
 };
 
 export const DEFAULT_PROJECT_DBT_SOURCE_NAME = 'dbt_project';
+export const PROJECT_DBT_SOURCE_NAME_PATTERN = /^[a-zA-Z0-9_]+$/;
+export const PROJECT_DBT_SOURCE_NAME_MAX_LENGTH = 64;
+
+export const validateProjectDbtSourceName = (name: string): string | null => {
+    if (!name) return 'Name is required';
+    if (!PROJECT_DBT_SOURCE_NAME_PATTERN.test(name)) {
+        return 'Use only letters, numbers, and underscores';
+    }
+    if (name.length > PROJECT_DBT_SOURCE_NAME_MAX_LENGTH) {
+        return `Name must be ${PROJECT_DBT_SOURCE_NAME_MAX_LENGTH} characters or fewer`;
+    }
+    if (name.includes('__')) return 'Name cannot contain "__"';
+    return null;
+};
 
 export type CreateProjectDbtSource = {
     name: string;

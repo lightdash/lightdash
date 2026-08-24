@@ -62,6 +62,68 @@ const simpleMetric = (
 });
 
 describe('translateMetricFlowMetrics', () => {
+    it('qualifies colliding metric names from merged manifest sources', () => {
+        const analyticsSemanticModel = {
+            ...ordersSemanticModel,
+            name: 'analytics_orders',
+            unique_id: 'semantic_model.pkg_a.orders',
+            depends_on: { nodes: ['model.pkg_a.orders'] },
+            measures: [],
+        };
+        const financeSemanticModel = {
+            ...ordersSemanticModel,
+            name: 'finance_orders',
+            unique_id: 'semantic_model.pkg_b.orders',
+            depends_on: { nodes: ['model.pkg_b.orders'] },
+            measures: [],
+        };
+        const result = translateMetricFlowMetrics({
+            semanticModels: {
+                [analyticsSemanticModel.unique_id]: analyticsSemanticModel,
+                [financeSemanticModel.unique_id]: financeSemanticModel,
+            },
+            metrics: {
+                'metric.pkg_a.revenue': {
+                    name: 'revenue',
+                    unique_id: 'metric.pkg_a.revenue',
+                    lightdash_source_name: 'analytics',
+                    type: 'simple',
+                    type_params: {
+                        metric_aggregation_params: {
+                            semantic_model: 'analytics_orders',
+                            agg: MetricFlowAggregation.SUM,
+                            expr: 'amount',
+                        },
+                    },
+                },
+                'metric.pkg_b.revenue': {
+                    name: 'revenue',
+                    unique_id: 'metric.pkg_b.revenue',
+                    lightdash_source_name: 'finance',
+                    type: 'simple',
+                    type_params: {
+                        metric_aggregation_params: {
+                            semantic_model: 'finance_orders',
+                            agg: MetricFlowAggregation.SUM,
+                            expr: 'amount',
+                        },
+                    },
+                },
+            },
+            modelNamesByUniqueId: {
+                'model.pkg_a.orders': 'analytics__orders',
+                'model.pkg_b.orders': 'finance__orders',
+            },
+        });
+
+        expect(Object.keys(result.metricsByModel.analytics__orders)).toEqual([
+            'analytics__revenue',
+        ]);
+        expect(Object.keys(result.metricsByModel.finance__orders)).toEqual([
+            'finance__revenue',
+        ]);
+    });
+
     it('translates a simple metric into a Lightdash model metric', () => {
         const result = translateMetricFlowMetrics({
             semanticModels: {

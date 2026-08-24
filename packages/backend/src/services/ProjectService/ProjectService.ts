@@ -102,7 +102,6 @@ import {
     getMergeSourceTableLabel,
     getMetricOverridesWithPopInheritance,
     getMetrics,
-    getModelsFromManifest,
     getParameterReferences,
     getPreAggregateExploreName,
     getTimezoneLabel,
@@ -456,11 +455,6 @@ const isValidDbtCloudWebhookSignature = (
 };
 
 const WINDOW_CLAUSE_PATTERN = /\bover\s*\(/i;
-
-type CrossSourceModelNameCollision = {
-    modelName: string;
-    sourceNames: string[];
-};
 
 export class ProjectService extends BaseService {
     static CREATE_PROJECT_JOB_ENQUEUE_GRACE_MS = 15 * 60 * 1000;
@@ -4520,10 +4514,8 @@ export class ProjectService extends BaseService {
     }
 
     /**
-     * Formats a `ParameterError` message naming every colliding key so the user
-     * can tell exactly what to rename or remove — capped so a near-duplicate
-     * source pair (which can produce thousands of collisions) doesn't blow up
-     * the error message.
+     * Formats collisions where two sources use the same manifest unique_id,
+     * identifying shared dbt project names when model ids reveal them.
      */
     private static formatManifestCollisionsError(
         collisions: ManifestCollision[],
@@ -4534,33 +4526,61 @@ export class ProjectService extends BaseService {
         const details = shown
             .map(
                 (c) =>
-                    `${c.section} "${c.key}" is defined in both "${c.winningSource}" and "${c.supersededSource}"`,
+                    `${c.section === 'nodes' ? 'Model' : 'Entry'} "${
+                        c.key
+                    }" is defined in both "${c.winningSource}" and "${
+                        c.supersededSource
+                    }"`,
             )
             .join('; ');
+        const packageNames = collisions.map(
+            (collision) => collision.key.match(/^[^.]+\.([^.]+)\./)?.[1],
+        );
+        const sharedPackageNames = [
+            ...new Set(packageNames.filter((name) => name !== undefined)),
+        ].sort();
+        const allCollisionsIdentifyPackages =
+            packageNames.length > 0 &&
+            packageNames.every((name) => name !== undefined);
+
+        if (allCollisionsIdentifyPackages) {
+            const formatQuotedList = (values: string[]) => {
+                const shownValues = values.slice(0, MAX_COLLISIONS_IN_ERROR);
+                const quotedValues = shownValues.map((value) => `"${value}"`);
+                const formattedValues =
+                    quotedValues.length <= 2
+                        ? quotedValues.join(' and ')
+                        : `${quotedValues.slice(0, -1).join(', ')}, and ${
+                              quotedValues.at(-1) ?? ''
+                          }`;
+                const omittedValues = values.length - shownValues.length;
+                return omittedValues > 0
+                    ? `${formattedValues} and ${omittedValues} more`
+                    : formattedValues;
+            };
+            const sourceNames = [
+                ...new Set(
+                    collisions.flatMap((collision) => [
+                        collision.winningSource,
+                        collision.supersededSource,
+                    ]),
+                ),
+            ].sort();
+
+            return (
+                `The dbt sources ${formatQuotedList(
+                    sourceNames,
+                )} use the same dbt project name${
+                    sharedPackageNames.length === 1 ? '' : 's'
+                } ${formatQuotedList(
+                    sharedPackageNames,
+                )}. Change the name: value in one repository's dbt_project.yml and deploy again. ` +
+                `${details}${remainder > 0 ? `; and ${remainder} more` : ''}.`
+            );
+        }
+
         return (
             `Merging dbt sources found ${collisions.length} naming collision${
-                collisions.length === 1 ? '' : 's'
-            }: ${details}${remainder > 0 ? `; and ${remainder} more` : ''}. ` +
-            `Rename or remove the duplicate(s) before deploying.`
-        );
-    }
-
-    private static formatCrossSourceModelNameCollisionsError(
-        collisions: CrossSourceModelNameCollision[],
-    ): string {
-        const MAX_COLLISIONS_IN_ERROR = 10;
-        const shown = collisions.slice(0, MAX_COLLISIONS_IN_ERROR);
-        const remainder = collisions.length - shown.length;
-        const details = shown
-            .map(
-                ({ modelName, sourceNames }) =>
-                    `model "${modelName}" is defined in sources ${sourceNames
-                        .map((sourceName) => `"${sourceName}"`)
-                        .join(' and ')}`,
-            )
-            .join('; ');
-        return (
-            `Merging dbt sources found ${collisions.length} model name collision${
                 collisions.length === 1 ? '' : 's'
             }: ${details}${remainder > 0 ? `; and ${remainder} more` : ''}. ` +
             `Rename or remove the duplicate(s) before deploying.`
@@ -4571,12 +4591,10 @@ export class ProjectService extends BaseService {
      * Merge the primary source's manifest with every additional source's manifest
      * into one combined manifest, then return a MANIFEST adapter over it so a single
      * compile produces the union of all sources' explores with cross-source refs
-     * resolved. Source adapters (git clones) are pushed onto `manifestFetchAdapters`
-     * for the caller to destroy. A name collision fails the whole deploy by name,
-     * matching every other per-source failure above (broken clone, broken
-     * manifest, broken credentials) — silently letting one source's definition
-     * win would otherwise produce a green deploy that is quietly missing a
-     * sibling's model.
+     * resolved. Bare model-name collisions are qualified during compilation.
+     * Identical manifest unique_ids still fail because qualification happens after
+     * merging, when one of those entries has already been dropped. Source adapters
+     * are pushed onto `manifestFetchAdapters` for the caller to destroy.
      */
     private async buildMergedManifestAdapter({
         projectUuid,
@@ -4713,32 +4731,6 @@ export class ProjectService extends BaseService {
             );
             throw new ParameterError(
                 ProjectService.formatManifestCollisionsError(collisions),
-            );
-        }
-
-        const sourceNamesByModelName = new Map<string, string[]>();
-        manifestSources.forEach(({ name: sourceName, manifest }) => {
-            const modelNames = new Set(
-                getModelsFromManifest(manifest).map((model) => model.name),
-            );
-            modelNames.forEach((modelName) => {
-                const sourceNames = sourceNamesByModelName.get(modelName) ?? [];
-                sourceNames.push(sourceName);
-                sourceNamesByModelName.set(modelName, sourceNames);
-            });
-        });
-        const modelNameCollisions = Array.from(sourceNamesByModelName)
-            .filter(([, sourceNames]) => sourceNames.length > 1)
-            .map(([modelName, sourceNames]) => ({ modelName, sourceNames }));
-        if (modelNameCollisions.length > 0) {
-            this.logger.warn(
-                `Merged ${manifestSources.length} dbt sources for project ${projectUuid} with ${modelNameCollisions.length} model name collision(s)`,
-                { projectUuid, modelNameCollisions },
-            );
-            throw new ParameterError(
-                ProjectService.formatCrossSourceModelNameCollisionsError(
-                    modelNameCollisions,
-                ),
             );
         }
 
