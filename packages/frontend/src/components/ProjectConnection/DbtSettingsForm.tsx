@@ -21,6 +21,7 @@ import { useFormContext } from './formContext';
 import FormSection from './Inputs/FormSection';
 import { MultiKeyValuePairsInput } from './Inputs/MultiKeyValuePairsInput';
 import { useProjectFormContext } from './useProjectFormContext';
+import WarehouseLocationInputs from './WarehouseLocationInputs';
 import WarehouseSchemaInput from './WarehouseSchemaInput';
 
 interface DbtSettingsFormProps {
@@ -33,7 +34,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     defaultType,
 }) => {
     const form = useFormContext();
-    const { isDbtSource } = useProjectFormContext();
+    const { isDbtSource, projectUuid } = useProjectFormContext();
     const selectedWarehouse = form.values.warehouse?.type;
 
     const type: DbtProjectType =
@@ -183,11 +184,15 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                                     disabled={disabled}
                                     placeholder="prod"
                                 />
-                                {/* The schema is a warehouse-credential field; an
-                                additional dbt source shares the project's
-                                warehouse, so it's inherited rather than set per
-                                source. Also hidden when org warehouse credentials
-                                provide it. */}
+                                {/* A source shares the project's warehouse but
+                                not necessarily the same location inside it, so
+                                it sets its own here. Hidden on the project form
+                                when org warehouse credentials provide it. */}
+                                {isDbtSource && projectUuid ? (
+                                    <WarehouseLocationInputs
+                                        projectUuid={projectUuid}
+                                    />
+                                ) : null}
                                 {isDbtSource ||
                                 form.values
                                     .organizationWarehouseCredentialsUuid ? null : (

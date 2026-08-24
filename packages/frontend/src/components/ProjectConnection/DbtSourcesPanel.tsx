@@ -2,8 +2,6 @@ import {
     DbtProjectType,
     DefaultSupportedDbtVersion,
     FeatureFlags,
-    getWarehouseLocation,
-    getWarehouseLocationLabels,
     WarehouseTypes,
     type CreateWarehouseCredentials,
     type DbtProjectConfig,
@@ -33,7 +31,6 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-import { useProject } from '../../hooks/useProject';
 import {
     useCreateProjectDbtSourceMutation,
     useDeleteProjectDbtSourceMutation,
@@ -100,49 +97,6 @@ const toApiLocation = (
     database: values?.database.trim() || null,
     schema: values?.schema.trim() || null,
 });
-
-const WarehouseLocationInputs: FC<{
-    form: Form;
-    projectUuid: string;
-}> = ({ form, projectUuid }) => {
-    const { data: project } = useProject(projectUuid);
-    const warehouseConnection = project?.warehouseConnection;
-    if (!warehouseConnection) {
-        return null;
-    }
-    const labels = getWarehouseLocationLabels(warehouseConnection.type);
-    const inherited = getWarehouseLocation(warehouseConnection);
-
-    return (
-        <Stack gap="xs">
-            <Text size="sm" fw={500}>
-                Where this source's models live
-            </Text>
-            <Text size="xs" c="dimmed">
-                Leave blank to use the project's warehouse connection. Set these
-                when this dbt project's own profile targets a different{' '}
-                {labels.database
-                    ? `${labels.database.toLowerCase()} or ${labels.schema.toLowerCase()}`
-                    : labels.schema.toLowerCase()}
-                .
-            </Text>
-            <Group grow align="flex-start">
-                {labels.database && (
-                    <TextInput
-                        label={labels.database}
-                        placeholder={inherited.database ?? undefined}
-                        {...form.getInputProps('warehouseLocation.database')}
-                    />
-                )}
-                <TextInput
-                    label={labels.schema}
-                    placeholder={inherited.schema ?? undefined}
-                    {...form.getInputProps('warehouseLocation.schema')}
-                />
-            </Group>
-        </Stack>
-    );
-};
 
 const DbtSourceRow: FC<{
     source: ProjectDbtSourceSummary;
@@ -214,7 +168,7 @@ const DbtSourceFields: FC<{
     projectUuid: string;
 }> = ({ form, intro, projectUuid }) => (
     <FormProvider form={form}>
-        <ProjectFormProvider isDbtSource>
+        <ProjectFormProvider isDbtSource projectUuid={projectUuid}>
             <Stack gap="md">
                 <Text size="sm" c="dimmed">
                     {intro}
@@ -226,10 +180,6 @@ const DbtSourceFields: FC<{
                     {...form.getInputProps('name')}
                 />
                 <DbtSettingsForm disabled={false} />
-                <WarehouseLocationInputs
-                    form={form}
-                    projectUuid={projectUuid}
-                />
             </Stack>
         </ProjectFormProvider>
     </FormProvider>

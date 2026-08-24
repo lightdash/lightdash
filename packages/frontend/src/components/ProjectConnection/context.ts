@@ -7,6 +7,9 @@ export type ProjectFormContext = {
     // project's primary connection): restricts providers to git and hides
     // fields inherited from the project (dbt version, warehouse schema).
     isDbtSource?: boolean;
+    // Set with isDbtSource: the project the source is being added to, for the
+    // fields that read the project's own warehouse connection.
+    projectUuid?: string;
 };
 
 const Context = createContext<ProjectFormContext | undefined>(undefined);
