@@ -55,7 +55,9 @@ export const getFunnelChartEchartsConfig = (
                 label: {
                     position: 'inside',
                 },
-                sort: 'descending',
+                // Row-based steps keep the query's order; metric-column steps
+                // have no query order, so keep the descending taper
+                sort: dimensions.length === 0 ? 'descending' : 'none',
             },
         ],
     };

@@ -1,19 +1,15 @@
+import { FunnelChartDataInput } from '@lightdash/common';
 import { describe, expect, test } from 'vitest';
-import { FUNNEL_SERIES_DEFAULTS } from './useEchartsFunnelConfig';
+import { getFunnelSeriesSort } from './useEchartsFunnelConfig';
 
-describe('FUNNEL_SERIES_DEFAULTS', () => {
-    test('should keep the step order the query returned', () => {
-        // ECharts defaults a funnel series to `sort: 'descending'`, which
-        // re-orders the steps by value. A funnel's step order is meaningful
-        // and independent of size, so the order has to be preserved.
-        expect(FUNNEL_SERIES_DEFAULTS.sort).toEqual('none');
+describe('getFunnelSeriesSort', () => {
+    test('keeps the step order the query returned when steps come from rows', () => {
+        expect(getFunnelSeriesSort(FunnelChartDataInput.COLUMN)).toBe('none');
     });
 
-    test('should be a funnel series with a gap between steps', () => {
-        expect(FUNNEL_SERIES_DEFAULTS).toEqual({
-            type: 'funnel',
-            gap: 3,
-            sort: 'none',
-        });
+    test('keeps the descending taper when steps are columns, which the query sort cannot order', () => {
+        expect(getFunnelSeriesSort(FunnelChartDataInput.ROW)).toBe(
+            'descending',
+        );
     });
 });

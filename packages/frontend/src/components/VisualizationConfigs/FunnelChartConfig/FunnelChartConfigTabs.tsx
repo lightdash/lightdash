@@ -59,6 +59,13 @@ export const ConfigTabs: FC = memo(() => {
         legendPositionChange,
     } = visualizationConfig.chartConfig;
 
+    // Match the rendered step order: query order when steps come from rows,
+    // descending taper otherwise
+    const orderedSteps =
+        dataInput === FunnelChartDataInput.COLUMN
+            ? data
+            : [...data].sort((a, b) => b.value - a.value);
+
     return (
         <VisualizationConfigTabs
             tabs={[
@@ -237,36 +244,30 @@ export const ConfigTabs: FC = memo(() => {
                             <Config>
                                 <Config.Section>
                                     <Config.Heading>Steps</Config.Heading>
-                                    {data
-                                        .sort((a, b) => b.value - a.value)
-                                        .map((step) => {
-                                            return (
-                                                <StepConfig
-                                                    key={step.id}
-                                                    id={step.id}
-                                                    defaultColor={
-                                                        colorDefaults[step.id]
-                                                    }
-                                                    defaultLabel={step.name}
-                                                    swatches={[]}
-                                                    color={
-                                                        colorOverrides[step.id]
-                                                    }
-                                                    label={
-                                                        labelOverrides[step.id]
-                                                    }
-                                                    granularityFields={
-                                                        granularityFields
-                                                    }
-                                                    onColorChange={
-                                                        onColorOverridesChange
-                                                    }
-                                                    onLabelChange={
-                                                        onLabelOverridesChange
-                                                    }
-                                                />
-                                            );
-                                        })}
+                                    {orderedSteps.map((step) => {
+                                        return (
+                                            <StepConfig
+                                                key={step.id}
+                                                id={step.id}
+                                                defaultColor={
+                                                    colorDefaults[step.id]
+                                                }
+                                                defaultLabel={step.name}
+                                                swatches={[]}
+                                                color={colorOverrides[step.id]}
+                                                label={labelOverrides[step.id]}
+                                                granularityFields={
+                                                    granularityFields
+                                                }
+                                                onColorChange={
+                                                    onColorOverridesChange
+                                                }
+                                                onLabelChange={
+                                                    onLabelOverridesChange
+                                                }
+                                            />
+                                        );
+                                    })}
                                 </Config.Section>
                             </Config>
                         </Stack>

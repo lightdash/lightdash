@@ -1,8 +1,10 @@
 import {
+    assertUnreachable,
     formatColorIndicator,
     formatItemValue,
     formatTooltipRow,
     formatTooltipValue,
+    FunnelChartDataInput,
     FunnelChartLabelPosition,
     FunnelChartLegendPosition,
     getGranularityMapFromItems,
@@ -25,14 +27,26 @@ import { sanitizeEchartsFontFamily } from '../../utils/sanitizeEchartsFontFamily
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 
 /**
- * `sort: 'none'` keeps the step order the query returned. Without it ECharts
- * applies its own default of `sort: 'descending'` and re-orders by value.
+ * When steps come from rows, `sort: 'none'` keeps the step order the query
+ * returned (ECharts defaults to `sort: 'descending'`, re-ordering by value).
+ * When steps are columns, the query's sort cannot order them, so keep the
+ * descending taper.
  */
-export const FUNNEL_SERIES_DEFAULTS = {
-    type: 'funnel',
-    gap: 3,
-    sort: 'none',
-} as const satisfies Partial<FunnelSeriesOption>;
+export const getFunnelSeriesSort = (
+    dataInput: FunnelChartDataInput,
+): NonNullable<FunnelSeriesOption['sort']> => {
+    switch (dataInput) {
+        case FunnelChartDataInput.COLUMN:
+            return 'none';
+        case FunnelChartDataInput.ROW:
+            return 'descending';
+        default:
+            return assertUnreachable(
+                dataInput,
+                `Unknown funnel data input: ${dataInput}`,
+            );
+    }
+};
 
 export type FunnelSeriesDataPoint = NonNullable<
     FunnelSeriesOption['data']
@@ -121,7 +135,9 @@ const useEchartsFunnelConfig = (
         const granularityMap = getGranularityMapFromItems(itemsMap);
 
         return {
-            ...FUNNEL_SERIES_DEFAULTS,
+            type: 'funnel',
+            gap: 3,
+            sort: getFunnelSeriesSort(chartConfig.dataInput),
             data: seriesData.map(({ id, name, value, meta }) => {
                 const labelOverride = labelOverrides?.[id] ?? name;
                 return {
