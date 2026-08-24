@@ -11403,6 +11403,16 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 ? promptArtifactVersions
                 : promptArtifacts,
             toolResults,
+            async (dataAppVizUuid) => {
+                const app = await this.appModel.findVisualizationApp(
+                    dataAppVizUuid,
+                    slackPrompt.projectUuid,
+                );
+                const parsedSchema = dataAppVizSchema.safeParse(
+                    app?.viz_schema,
+                );
+                return parsedSchema.success ? parsedSchema.data.fields : null;
+            },
         );
         const sqlArtifactBlocks = await getSqlArtifactCardBlocks(
             slackPrompt.promptUuid,
