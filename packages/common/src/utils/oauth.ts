@@ -453,6 +453,21 @@ export interface OAuthRedirectParams {
     message: string;
 }
 
+const UNSAFE_REDIRECT_PROTOCOLS = new Set(
+    ['javascript', 'data', 'vbscript', 'file', 'blob'].map(
+        (scheme) => `${scheme}:`,
+    ),
+);
+
+export const isSafeRedirectScheme = (uri: string): boolean => {
+    try {
+        const { protocol } = new URL(uri);
+        return !UNSAFE_REDIRECT_PROTOCOLS.has(protocol.toLowerCase());
+    } catch {
+        return false;
+    }
+};
+
 // Scope descriptions mapping
 const SCOPE_DESCRIPTIONS: Record<string, OAuthScopeDescription> = {
     read: {
@@ -551,12 +566,19 @@ export const generateOAuthErrorResponse = (
  */
 export const generateOAuthRedirectPage = (
     params: OAuthRedirectParams,
-): string =>
-    compiledRedirectTemplate({
+): string => {
+    if (!isSafeRedirectScheme(params.redirectUrl)) {
+        return generateOAuthErrorResponse('Unsupported redirect', [
+            'This application uses an unsupported redirect and cannot continue.',
+        ]);
+    }
+
+    return compiledRedirectTemplate({
         styles: oauthPageStyles,
         logo: LIGHTDASH_LOGO_SVG,
         ...params,
     });
+};
 
 const getUserInitials = (user: OAuthUser): string => {
     const initials =
