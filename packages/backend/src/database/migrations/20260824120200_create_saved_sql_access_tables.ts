@@ -5,49 +5,89 @@ export const classification = {
     reason: 'Creates two empty saved SQL access tables without reading or rewriting existing rows',
 } as const;
 
+const SAVED_SQL_USER_ACCESS_TABLE = 'saved_sql_user_access';
+const SAVED_SQL_GROUP_ACCESS_TABLE = 'saved_sql_group_access';
+const SAVED_SQL_TABLE = 'saved_sql';
+const USERS_TABLE = 'users';
+const GROUPS_TABLE = 'groups';
+const SPACE_ROLES = ['viewer', 'editor', 'admin'];
 const LOCK_TIMEOUT = '5s';
 
 export async function up(knex: Knex): Promise<void> {
     await knex.raw(`SET LOCAL lock_timeout = '${LOCK_TIMEOUT}'`);
-    await knex.raw(`
-        CREATE TABLE saved_sql_user_access (
-            saved_sql_uuid uuid NOT NULL,
-            user_uuid uuid NOT NULL,
-            space_role text NOT NULL,
-            granted_by_user_uuid uuid,
-            created_at timestamp NOT NULL DEFAULT now(),
-            updated_at timestamp NOT NULL DEFAULT now(),
-            CONSTRAINT saved_sql_user_access_pk PRIMARY KEY (saved_sql_uuid, user_uuid),
-            CONSTRAINT saved_sql_user_access_sql_fk FOREIGN KEY (saved_sql_uuid) REFERENCES saved_sql (saved_sql_uuid) ON DELETE CASCADE,
-            CONSTRAINT saved_sql_user_access_user_fk FOREIGN KEY (user_uuid) REFERENCES users (user_uuid) ON DELETE CASCADE,
-            CONSTRAINT saved_sql_user_access_grantor_fk FOREIGN KEY (granted_by_user_uuid) REFERENCES users (user_uuid) ON DELETE SET NULL,
-            CONSTRAINT saved_sql_user_access_role_chk CHECK (space_role IN ('viewer', 'editor', 'admin'))
-        );
-        CREATE INDEX saved_sql_user_access_principal_idx ON saved_sql_user_access (user_uuid, saved_sql_uuid);
-        CREATE INDEX saved_sql_user_access_grantor_idx ON saved_sql_user_access (granted_by_user_uuid);
 
-        CREATE TABLE saved_sql_group_access (
-            saved_sql_uuid uuid NOT NULL,
-            group_uuid uuid NOT NULL,
-            space_role text NOT NULL,
-            granted_by_user_uuid uuid,
-            created_at timestamp NOT NULL DEFAULT now(),
-            updated_at timestamp NOT NULL DEFAULT now(),
-            CONSTRAINT saved_sql_group_access_pk PRIMARY KEY (saved_sql_uuid, group_uuid),
-            CONSTRAINT saved_sql_group_access_sql_fk FOREIGN KEY (saved_sql_uuid) REFERENCES saved_sql (saved_sql_uuid) ON DELETE CASCADE,
-            CONSTRAINT saved_sql_group_access_group_fk FOREIGN KEY (group_uuid) REFERENCES groups (group_uuid) ON DELETE CASCADE,
-            CONSTRAINT saved_sql_group_access_grantor_fk FOREIGN KEY (granted_by_user_uuid) REFERENCES users (user_uuid) ON DELETE SET NULL,
-            CONSTRAINT saved_sql_group_access_role_chk CHECK (space_role IN ('viewer', 'editor', 'admin'))
-        );
-        CREATE INDEX saved_sql_group_access_principal_idx ON saved_sql_group_access (group_uuid, saved_sql_uuid);
-        CREATE INDEX saved_sql_group_access_grantor_idx ON saved_sql_group_access (granted_by_user_uuid);
-    `);
+    await knex.schema.createTable(SAVED_SQL_USER_ACCESS_TABLE, (table) => {
+        table
+            .uuid('saved_sql_uuid')
+            .notNullable()
+            .references('saved_sql_uuid')
+            .inTable(SAVED_SQL_TABLE)
+            .onDelete('CASCADE');
+        table
+            .uuid('user_uuid')
+            .notNullable()
+            .references('user_uuid')
+            .inTable(USERS_TABLE)
+            .onDelete('CASCADE');
+        table.text('space_role').notNullable().checkIn(SPACE_ROLES);
+        table
+            .uuid('granted_by_user_uuid')
+            .nullable()
+            .references('user_uuid')
+            .inTable(USERS_TABLE)
+            .onDelete('SET NULL')
+            .index();
+        table
+            .timestamp('created_at', { useTz: false })
+            .notNullable()
+            .defaultTo(knex.fn.now());
+        table
+            .timestamp('updated_at', { useTz: false })
+            .notNullable()
+            .defaultTo(knex.fn.now());
+
+        table.primary(['saved_sql_uuid', 'user_uuid']);
+        table.index(['user_uuid', 'saved_sql_uuid']);
+    });
+
+    await knex.schema.createTable(SAVED_SQL_GROUP_ACCESS_TABLE, (table) => {
+        table
+            .uuid('saved_sql_uuid')
+            .notNullable()
+            .references('saved_sql_uuid')
+            .inTable(SAVED_SQL_TABLE)
+            .onDelete('CASCADE');
+        table
+            .uuid('group_uuid')
+            .notNullable()
+            .references('group_uuid')
+            .inTable(GROUPS_TABLE)
+            .onDelete('CASCADE');
+        table.text('space_role').notNullable().checkIn(SPACE_ROLES);
+        table
+            .uuid('granted_by_user_uuid')
+            .nullable()
+            .references('user_uuid')
+            .inTable(USERS_TABLE)
+            .onDelete('SET NULL')
+            .index();
+        table
+            .timestamp('created_at', { useTz: false })
+            .notNullable()
+            .defaultTo(knex.fn.now());
+        table
+            .timestamp('updated_at', { useTz: false })
+            .notNullable()
+            .defaultTo(knex.fn.now());
+
+        table.primary(['saved_sql_uuid', 'group_uuid']);
+        table.index(['group_uuid', 'saved_sql_uuid']);
+    });
 }
 
 export async function down(knex: Knex): Promise<void> {
     await knex.raw(`SET LOCAL lock_timeout = '${LOCK_TIMEOUT}'`);
-    await knex.raw(`
-        DROP TABLE saved_sql_group_access;
-        DROP TABLE saved_sql_user_access;
-    `);
+
+    await knex.schema.dropTableIfExists(SAVED_SQL_GROUP_ACCESS_TABLE);
+    await knex.schema.dropTableIfExists(SAVED_SQL_USER_ACCESS_TABLE);
 }
