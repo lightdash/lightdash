@@ -1,3 +1,10 @@
+# [1.246.0](https://github.com/lightdash/lightdash/compare/1.245.0...1.246.0) (2026-08-24)
+
+
+### Features
+
+* **ai:** render custom chart type answers in web threads ([#27872](https://github.com/lightdash/lightdash/issues/27872)) ([9944e5d](https://github.com/lightdash/lightdash/commit/9944e5dd84d8e0cc75b93a7ffb8348656e87d68c))
+
 # [1.245.0](https://github.com/lightdash/lightdash/compare/1.244.0...1.245.0) (2026-08-24)
 
 
