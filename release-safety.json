@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "1.242.4",
-  "previousVersion": "1.242.3",
-  "releaseDate": "2026-08-24T12:34:26.661Z",
+  "version": "1.242.5",
+  "previousVersion": "1.242.4",
+  "releaseDate": "2026-08-24T13:06:39.994Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260824120000_add_dbt_source_warehouse_location.ts",
-        "edition": "core",
-        "tables": [
-          "project_dbt_sources"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

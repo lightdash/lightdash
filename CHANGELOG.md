@@ -1,3 +1,10 @@
+## [1.242.5](https://github.com/lightdash/lightdash/compare/1.242.4...1.242.5) (2026-08-24)
+
+
+### Bug Fixes
+
+* **cli:** lint uploadable code files before deployment ([#27908](https://github.com/lightdash/lightdash/issues/27908)) ([ed04e25](https://github.com/lightdash/lightdash/commit/ed04e259259ed5852b027c2e21992da5bf728f03))
+
 ## [1.242.4](https://github.com/lightdash/lightdash/compare/1.242.3...1.242.4) (2026-08-24)
 
 
