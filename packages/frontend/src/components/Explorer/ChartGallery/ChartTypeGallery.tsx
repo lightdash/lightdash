@@ -9,11 +9,12 @@ import {
     Stack,
     Text,
     TextInput,
+    Tooltip,
     UnstyledButton,
 } from '@mantine/core';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue, useElementSize } from '@mantine/hooks';
 import { IconPlus, IconSearch } from '@tabler/icons-react';
-import { useMemo, useState, type FC, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type FC, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataAppChecker } from '../../../features/apps/hooks/useCanEditDataApp';
@@ -116,6 +117,68 @@ const GalleryItemButton: FC<GalleryItemButtonProps> = ({
     </UnstyledButton>
 );
 
+const GalleryRow: FC<{ item: ChartTypeGalleryRowItem }> = ({ item }) => {
+    // The description is clamped to two lines; surface the full text on hover
+    // only when it is actually cut off.
+    const { ref, width } = useElementSize<HTMLParagraphElement>();
+    const [isClamped, setIsClamped] = useState(false);
+    useEffect(() => {
+        if (!ref.current) return;
+        setIsClamped(ref.current.scrollHeight > ref.current.clientHeight);
+    }, [ref, width, item.description]);
+
+    return (
+        <Box className={classes.rowWrapper}>
+            <Tooltip
+                label={item.description}
+                withinPortal
+                position="top"
+                withArrow
+                openDelay={500}
+                color="dark"
+                disabled={!isClamped}
+                maw={300}
+                multiline
+            >
+                <UnstyledButton
+                    className={classes.row}
+                    data-selected={item.selected}
+                    data-has-edit={item.onEdit !== null}
+                    disabled={item.disabled}
+                    onClick={item.select}
+                >
+                    <Group wrap="nowrap" gap="sm">
+                        <ChartTypeThumbnail
+                            icon={item.icon}
+                            rotatedIcon={item.rotatedIcon}
+                        />
+                        <Stack gap={2} flex={1} miw={0}>
+                            <Text size="sm" fw={500}>
+                                {item.label}
+                            </Text>
+                            <Text ref={ref} fz="xs" c="dimmed" lineClamp={2}>
+                                {item.description}
+                            </Text>
+                        </Stack>
+                    </Group>
+                </UnstyledButton>
+            </Tooltip>
+            {item.onEdit !== null ? (
+                <Anchor
+                    component="button"
+                    type="button"
+                    className={classes.rowEdit}
+                    fz="xs"
+                    fw={500}
+                    onClick={item.onEdit}
+                >
+                    Edit
+                </Anchor>
+            ) : null}
+        </Box>
+    );
+};
+
 const SectionBody: FC<{ section: ChartTypeGallerySection }> = ({ section }) => {
     if (section.layout === 'rows' && section.loading) {
         return (
@@ -180,42 +243,7 @@ const SectionBody: FC<{ section: ChartTypeGallerySection }> = ({ section }) => {
     return (
         <>
             {section.items.map((item) => (
-                <Box key={item.key} className={classes.rowWrapper}>
-                    <UnstyledButton
-                        className={classes.row}
-                        data-selected={item.selected}
-                        data-has-edit={item.onEdit !== null}
-                        disabled={item.disabled}
-                        onClick={item.select}
-                    >
-                        <Group wrap="nowrap" gap="sm">
-                            <ChartTypeThumbnail
-                                icon={item.icon}
-                                rotatedIcon={item.rotatedIcon}
-                            />
-                            <Stack gap={2} flex={1}>
-                                <Text size="sm" fw={500}>
-                                    {item.label}
-                                </Text>
-                                <Text fz="xs" c="dimmed" lineClamp={2}>
-                                    {item.description}
-                                </Text>
-                            </Stack>
-                        </Group>
-                    </UnstyledButton>
-                    {item.onEdit !== null ? (
-                        <Anchor
-                            component="button"
-                            type="button"
-                            className={classes.rowEdit}
-                            fz="xs"
-                            fw={500}
-                            onClick={item.onEdit}
-                        >
-                            Edit
-                        </Anchor>
-                    ) : null}
-                </Box>
+                <GalleryRow key={item.key} item={item} />
             ))}
         </>
     );
