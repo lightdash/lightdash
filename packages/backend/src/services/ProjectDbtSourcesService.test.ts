@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    AlreadyExistsError,
     DbtProjectType,
     EMPTY_WAREHOUSE_LOCATION,
     ForbiddenError,
@@ -16,6 +17,7 @@ import { ProjectDbtSourcesService } from './ProjectDbtSourcesService';
 const projectUuid = '11111111-1111-4111-8111-111111111111';
 const otherProjectUuid = '99999999-9999-4999-8999-999999999999';
 const sourceUuid = '22222222-2222-4222-8222-222222222222';
+const primarySourceUuid = '33333333-3333-4333-8333-333333333333';
 
 const adminSessionUser: SessionUser = {
     ...defaultSessionUser,
@@ -66,6 +68,10 @@ const projectModel = {
         projectUuid: uuid,
         dbtConnection: primaryDbtConnection,
     })),
+    getDbtSourceIdentity: vi.fn(async () => ({
+        dbtSourceUuid: primarySourceUuid,
+        dbtSourceName: 'dbt_project',
+    })),
 };
 
 const projectDbtSourcesModel = {
@@ -96,11 +102,15 @@ describe('ProjectDbtSourcesService', () => {
             projectUuid,
             dbtConnection: primaryDbtConnection,
         } as never);
+        projectModel.getDbtSourceIdentity.mockResolvedValue({
+            dbtSourceUuid: primarySourceUuid,
+            dbtSourceName: 'dbt_project',
+        });
         projectDbtSourcesModel.getSources.mockResolvedValue([]);
     });
 
     describe('getProjectDbtSources', () => {
-        it('synthesises the primary source from the project dbt_connection with precedence 0', async () => {
+        it('synthesises the primary source with its persistent identity and precedence 0', async () => {
             const service = getService();
 
             const sources = await service.getProjectDbtSources(
@@ -109,8 +119,8 @@ describe('ProjectDbtSourcesService', () => {
             );
 
             expect(sources[0]).toMatchObject({
-                projectDbtSourceUuid: projectUuid,
-                name: 'Project dbt connection',
+                projectDbtSourceUuid: primarySourceUuid,
+                name: 'dbt_project',
                 isPrimary: true,
                 precedence: 0,
                 type: DbtProjectType.GITHUB,
@@ -191,6 +201,19 @@ describe('ProjectDbtSourcesService', () => {
     });
 
     describe('createProjectDbtSource', () => {
+        it('rejects the primary source name', async () => {
+            const service = getService();
+
+            await expect(
+                service.createProjectDbtSource(adminAccount, projectUuid, {
+                    name: 'dbt_project',
+                    dbtConnection: githubConnection as never,
+                }),
+            ).rejects.toThrow(AlreadyExistsError);
+
+            expect(projectDbtSourcesModel.createSource).not.toHaveBeenCalled();
+        });
+
         it('rejects unsafe dbt environment variables', async () => {
             const service = getService();
 
@@ -375,6 +398,26 @@ describe('ProjectDbtSourcesService', () => {
     });
 
     describe('updateProjectDbtSource', () => {
+        it('rejects the primary source name', async () => {
+            projectDbtSourcesModel.getSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                projectUuid,
+                dbtConnection: githubConnection,
+            } as never);
+            const service = getService();
+
+            await expect(
+                service.updateProjectDbtSource(
+                    adminAccount,
+                    projectUuid,
+                    sourceUuid,
+                    { name: 'dbt_project' },
+                ),
+            ).rejects.toThrow(AlreadyExistsError);
+
+            expect(projectDbtSourcesModel.updateSource).not.toHaveBeenCalled();
+        });
+
         it('rejects unsafe dbt environment variables', async () => {
             projectDbtSourcesModel.getSource.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,

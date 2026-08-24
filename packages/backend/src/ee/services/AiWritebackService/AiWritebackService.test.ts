@@ -3,6 +3,7 @@ import {
     AnyType,
     DbtProjectType,
     DbtVersionOptionLatest,
+    DEFAULT_PROJECT_DBT_SOURCE_NAME,
     FeatureFlags,
     ForbiddenError,
     getLatestSupportDbtVersion,
@@ -100,6 +101,7 @@ vi.mock('../../../clients/github/Github', () => ({
 }));
 
 const ORG = 'org-1';
+const PRIMARY_SOURCE_UUID = 'primary-source-uuid';
 const PR_3 = 'https://github.com/acme/analytics/pull/3';
 const PR_7 = 'https://github.com/acme/analytics/pull/7';
 const PR_9 = 'https://github.com/acme/analytics/pull/9';
@@ -108,11 +110,19 @@ const PR_9 = 'https://github.com/acme/analytics/pull/9';
 // it so the card can pin CI and show the diff stat; no-change turns return nulls.
 const LANDED = { commitSha: 'sha-7', additions: 5, deletions: 2 };
 
-const buildService = (overrides: Record<string, AnyType> = {}) =>
-    new AiWritebackService({
+const buildService = (overrides: Record<string, AnyType> = {}) => {
+    const { projectModel: projectModelOverride, ...otherOverrides } = overrides;
+    return new AiWritebackService({
         lightdashConfig: { gitlab: {} } as AnyType,
         analytics: { track: vi.fn() } as AnyType,
-        projectModel: { get: vi.fn() } as AnyType,
+        projectModel: {
+            get: vi.fn(),
+            getDbtSourceIdentity: vi.fn().mockResolvedValue({
+                dbtSourceUuid: PRIMARY_SOURCE_UUID,
+                dbtSourceName: DEFAULT_PROJECT_DBT_SOURCE_NAME,
+            }),
+            ...projectModelOverride,
+        } as AnyType,
         // Default: no additional dbt sources, so the single-source (primary)
         // path is taken unless a test overrides this.
         projectDbtSourcesModel: {
@@ -149,8 +159,9 @@ const buildService = (overrides: Record<string, AnyType> = {}) =>
         pullRequestsModel: {} as AnyType,
         ciService: { mergePullRequest: vi.fn() } as AnyType,
         projectService: { scheduleCompileProject: vi.fn() } as AnyType,
-        ...overrides,
+        ...otherOverrides,
     });
+};
 
 // A stand-in GitProvider so applyAgentChanges/run stay provider-agnostic in
 // tests — the host-specific behaviour is covered by the provider unit tests.
@@ -832,7 +843,12 @@ describe('AiWritebackService dbt source targeting', () => {
         });
         expect(result).toMatchObject({
             kind: 'resolved',
-            candidate: { sourceUuid: null, isPrimary: true, optionUuid: 'p1' },
+            candidate: {
+                sourceUuid: null,
+                isPrimary: true,
+                optionUuid: PRIMARY_SOURCE_UUID,
+                name: DEFAULT_PROJECT_DBT_SOURCE_NAME,
+            },
         });
     });
 
@@ -850,9 +866,9 @@ describe('AiWritebackService dbt source targeting', () => {
         });
     });
 
-    it('treats the project uuid as an explicit choice of the primary source', async () => {
+    it('treats the primary source identity uuid as an explicit choice', async () => {
         const result = await resolve(serviceWithSources([marketingSource()]), {
-            dbtSourceUuid: 'p1',
+            dbtSourceUuid: PRIMARY_SOURCE_UUID,
         });
         expect(result).toMatchObject({
             kind: 'resolved',
@@ -940,7 +956,7 @@ describe('AiWritebackService dbt source targeting', () => {
         expect(result.options).toEqual(
             expect.arrayContaining([
                 expect.objectContaining({
-                    projectDbtSourceUuid: 'p1',
+                    projectDbtSourceUuid: PRIMARY_SOURCE_UUID,
                     isPrimary: true,
                 }),
                 expect.objectContaining({
@@ -949,6 +965,14 @@ describe('AiWritebackService dbt source targeting', () => {
                 }),
             ]),
         );
+    });
+
+    it('does not infer the primary from the unrenamed default source name', async () => {
+        const result = await resolve(serviceWithSources([marketingSource()]), {
+            prompt: `update ${DEFAULT_PROJECT_DBT_SOURCE_NAME}`,
+        });
+
+        expect(result).toMatchObject({ kind: 'select' });
     });
 
     it('keeps a resumed thread bound to its original source, ignoring the prompt', async () => {
@@ -968,6 +992,17 @@ describe('AiWritebackService dbt source targeting', () => {
         const result = await resolve(serviceWithSources([marketingSource()]), {
             existingRow: { project_dbt_source_uuid: 'deleted-source' },
         });
+        expect(result).toMatchObject({
+            kind: 'resolved',
+            candidate: { sourceUuid: null, isPrimary: true },
+        });
+    });
+
+    it('keeps a resumed thread with a null source binding on the primary', async () => {
+        const result = await resolve(serviceWithSources([marketingSource()]), {
+            existingRow: { project_dbt_source_uuid: null },
+        });
+
         expect(result).toMatchObject({
             kind: 'resolved',
             candidate: { sourceUuid: null, isPrimary: true },
