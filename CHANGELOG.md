@@ -1,3 +1,10 @@
+## [1.251.4](https://github.com/lightdash/lightdash/compare/1.251.3...1.251.4) (2026-08-24)
+
+
+### Bug Fixes
+
+* warn when synced tables have errors ([#27455](https://github.com/lightdash/lightdash/issues/27455)) ([b6579ef](https://github.com/lightdash/lightdash/commit/b6579efcde86e213b867d586f0ba4e54f78b5922))
+
 ## [1.251.3](https://github.com/lightdash/lightdash/compare/1.251.2...1.251.3) (2026-08-24)
 
 
