@@ -51,6 +51,10 @@
 .row,
 .card {
     border-radius: var(--mantine-radius-md);
+    /* User-defined names can be one long unbroken word; break rather than
+       forcing the gallery to scroll horizontally at min sidebar width. */
+    overflow-wrap: anywhere;
+    min-width: 0;
 }
 
 .row:hover:not(:disabled),
