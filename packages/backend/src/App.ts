@@ -8,6 +8,7 @@ import {
     LightdashMode,
     LightdashVersionHeader,
     MissingConfigError,
+    NotFoundError,
     OauthAuthenticationError,
     UnexpectedServerError,
     UPLOAD_GSHEET_FROM_ROWS_MAX_BYTES,
@@ -932,11 +933,17 @@ export default class App {
                     // This intentionally uses console vs. winston because of problems from some error/JSON payloads.
                     console.error(error);
                 }
-                Logger.error(
-                    `Handled error of type ${errorResponse.name} on [${req.method}] ${req.path}`,
-                    errorResponse,
-                );
-
+                if (error instanceof NotFoundError) {
+                    Logger.info(
+                        `Handled error of type ${errorResponse.name} on [${req.method}] ${req.path}`,
+                        errorResponse,
+                    );
+                } else {
+                    Logger.error(
+                        `Handled error of type ${errorResponse.name} on [${req.method}] ${req.path}`,
+                        errorResponse,
+                    );
+                }
                 if (process.env.NODE_ENV === 'development') {
                     Logger.error(error.stack);
                 }
