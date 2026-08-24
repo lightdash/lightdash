@@ -1,7 +1,10 @@
 import { AnyType, SchedulerJobStatus, SchedulerLog } from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
-import { SchedulerTableName } from '../../database/entities/scheduler';
+import {
+    SchedulerLogTableName,
+    SchedulerTableName,
+} from '../../database/entities/scheduler';
 import { SchedulerModel } from './index';
 
 describe('Scheduler model test', () => {
@@ -204,6 +207,45 @@ describe('Scheduler model test', () => {
             const sql = schedulerSelectSql();
             expect(sql).toContain('"users"."is_active"');
             expect(sql).not.toContain('service_accounts');
+        });
+    });
+
+    describe('getRunsForSchedulers', () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const model = new SchedulerModel({ database });
+        let tracker: Tracker;
+
+        beforeAll(() => {
+            tracker = getTracker();
+        });
+
+        afterEach(() => {
+            tracker.reset();
+        });
+
+        it('scopes the child job counts to the parent jobs in scope', async () => {
+            tracker.on.select(SchedulerLogTableName).response([]);
+
+            await model.getRunsForSchedulers({
+                schedulers: [
+                    {
+                        schedulerUuid: 'scheduler-1',
+                        name: 'My delivery',
+                        targets: [],
+                    } as AnyType,
+                ],
+                latestOnly: true,
+            });
+
+            const sql = tracker.history.select.find((query) =>
+                query.sql.includes('ranked_children'),
+            )?.sql;
+
+            // Without this restriction the child ranking window scans every
+            // child row in scheduler_log
+            expect(sql).toContain(
+                'where job_id != job_group and "job_group" in (select distinct "job_id" from "scheduler_log" where job_id = job_group and "scheduler_uuid" in (',
+            );
         });
     });
 
