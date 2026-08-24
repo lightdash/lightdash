@@ -2,6 +2,7 @@ import {
     type ApiError,
     type LearnAskRequest,
     type LearnAskResults,
+    type LearnBadgesResults,
     type LearnCatalogue,
     type LearnCourse,
     type LearnEventInput,
@@ -49,6 +50,13 @@ const postLearnEvents = async (events: LearnEventInput[]) =>
         body: JSON.stringify(events),
     });
 
+const getLearnBadges = async () =>
+    lightdashApi<LearnBadgesResults>({
+        url: '/learn/badges',
+        method: 'GET',
+        body: undefined,
+    });
+
 const postLearnAsk = async (body: LearnAskRequest) =>
     lightdashApi<LearnAskResults>({
         url: '/learn/ask',
@@ -69,6 +77,15 @@ export const useLearnCourse = (courseId: string | undefined) =>
         queryKey: ['learn-course', courseId],
         queryFn: () => getLearnCourse(courseId!),
         enabled: courseId !== undefined,
+        staleTime: 5 * 60 * 1000,
+        retry: false,
+    });
+
+/** Per-module tiers. `badges` is null when the instance has no service token. */
+export const useLearnBadges = () =>
+    useQuery<LearnBadgesResults, ApiError>({
+        queryKey: ['learn-badges'],
+        queryFn: getLearnBadges,
         staleTime: 5 * 60 * 1000,
         retry: false,
     });
@@ -134,7 +151,14 @@ export const useRecordLearnEvent = () => {
         LearnEventInput[]
     >({
         mutationFn: postLearnEvents,
-        onSettled: () => queryClient.invalidateQueries(['learn-progress']),
+        // Tiers are derived server side at read time, so a finished module
+        // changes the badge as well as the progress the rail reads.
+        onSettled: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries(['learn-progress']),
+                queryClient.invalidateQueries(['learn-badges']),
+            ]);
+        },
     });
     const { mutate } = mutation;
     const record = useCallback(

@@ -1,4 +1,8 @@
-import { OrganizationMemberRole, type LearnAskMatch } from '@lightdash/common';
+import {
+    OrganizationMemberRole,
+    type LearnAskMatch,
+    type LearnBadgesResults,
+} from '@lightdash/common';
 import {
     act,
     fireEvent,
@@ -70,6 +74,19 @@ const askState: { isLoading: boolean; isError: boolean } = {
     isLoading: false,
     isError: false,
 };
+const bronzeEverywhere: LearnBadgesResults = {
+    badges: [
+        { courseId: 'foundation', tier: 'bronze' },
+        { courseId: 'sharing', tier: 'bronze' },
+    ],
+};
+const badgesState: {
+    data: LearnBadgesResults | undefined;
+    isInitialLoading: boolean;
+} = {
+    data: bronzeEverywhere,
+    isInitialLoading: false,
+};
 // Hoisted: the mock factory reads this one eagerly, not from inside a closure.
 const setLessonBookmarkMock = vi.hoisted(() => vi.fn());
 
@@ -113,6 +130,7 @@ vi.mock('../../hooks', () => ({
         },
         isError: false,
     }),
+    useLearnBadges: () => badgesState,
     useLearnAsk: () => ({
         mutate: askMutate,
         reset: () => {
@@ -132,6 +150,8 @@ describe('LearnBoardPanel', () => {
         setLessonBookmarkMock.mockClear();
         askState.isLoading = false;
         askState.isError = false;
+        badgesState.data = bronzeEverywhere;
+        badgesState.isInitialLoading = false;
     });
 
     it('defaults to the org role and lights only the held modules', async () => {
@@ -472,5 +492,54 @@ describe('LearnBoardPanel', () => {
         expect(navigate).toHaveBeenCalledWith(
             '/projects/project-1/learn/courses/foundation',
         );
+    });
+
+    it('renders the role badge card from the badge tiers', async () => {
+        renderWithProviders(<LearnBoardPanel />, {
+            user: { role: OrganizationMemberRole.VIEWER },
+        });
+        expect(await screen.findByText('viewer badge')).toBeInTheDocument();
+        // The rung word also appears in the disclosure, so pin the hero span.
+        expect(
+            screen.getByText('Bronze', { selector: 'span' }),
+        ).toBeInTheDocument();
+    });
+
+    it('switches the badge when the role tab changes', async () => {
+        renderWithProviders(<LearnBoardPanel />, {
+            user: { role: OrganizationMemberRole.VIEWER },
+        });
+        expect(await screen.findByText('viewer badge')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('tab', { name: 'editor' }));
+        expect(await screen.findByText('editor badge')).toBeInTheDocument();
+        // Editor also holds the untiered dashboards module, so the role drops
+        // back to the lowest rung.
+        expect(
+            screen.getByText('Locked', { selector: 'span' }),
+        ).toBeInTheDocument();
+    });
+
+    it('waits for the badges query rather than calling it unavailable', async () => {
+        badgesState.data = undefined;
+        badgesState.isInitialLoading = true;
+        renderWithProviders(<LearnBoardPanel />, {
+            user: { role: OrganizationMemberRole.VIEWER },
+        });
+        expect(await screen.findByText('Loading badges')).toBeInTheDocument();
+        expect(
+            screen.queryByText('Badges unavailable right now'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('says badges are unavailable rather than showing them as locked', async () => {
+        badgesState.data = { badges: null };
+        renderWithProviders(<LearnBoardPanel />, {
+            user: { role: OrganizationMemberRole.VIEWER },
+        });
+        expect(await screen.findByText('Overall')).toBeInTheDocument();
+        expect(screen.getByText('viewer badge')).toBeInTheDocument();
+        expect(
+            screen.getByText('Badges unavailable right now'),
+        ).toBeInTheDocument();
     });
 });

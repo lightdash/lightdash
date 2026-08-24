@@ -4,6 +4,7 @@ import {
     ForbiddenError,
     LearnAskRequestSchema,
     LearnAskResponseSchema,
+    LearnBadgesResponseSchema,
     LearnCatalogueSchema,
     LearnCourseSchema,
     LearnEventInputSchema,
@@ -14,6 +15,7 @@ import {
     type Account,
     type ApiLearnEventsResponse,
     type LearnAskResults,
+    type LearnBadgesResults,
     type LearnCatalogue,
     type LearnCourse,
     type LearnEventInput,
@@ -180,6 +182,30 @@ export class LearnService extends BaseService {
             throw new UnexpectedServerError('Could not load Learn progress');
         }
         return { courses: parsed.data.courses, serverSynced: true };
+    }
+
+    async getBadges(account: Account): Promise<LearnBadgesResults> {
+        await this.assertLearnEnabled(account);
+        if (!this.lightdashConfig.learn.serviceToken) {
+            return { badges: null };
+        }
+        const response = await this.progressRequest(account, '/api/v1/badges');
+        if (!response.ok) {
+            this.logger.warn('Learn badges service returned an error', {
+                statusCode: response.status,
+            });
+            throw new UnexpectedServerError('Could not load Learn badges');
+        }
+        const parsed = LearnBadgesResponseSchema.safeParse(
+            await LearnService.parseJson(response),
+        );
+        if (!parsed.success) {
+            this.logger.warn('Learn badges failed validation', {
+                issueCount: parsed.error.issues.length,
+            });
+            throw new UnexpectedServerError('Could not load Learn badges');
+        }
+        return { badges: parsed.data.badges };
     }
 
     async ask(account: Account, body: unknown): Promise<LearnAskResults> {

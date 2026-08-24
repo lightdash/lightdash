@@ -2,6 +2,7 @@ import {
     assertRegisteredAccount,
     type ApiErrorPayload,
     type ApiLearnAskResponse,
+    type ApiLearnBadgesResponse,
     type ApiLearnCatalogueResponse,
     type ApiLearnCourseResponse,
     type ApiLearnEventsResponse,
@@ -117,6 +118,28 @@ export class LearnController extends BaseController {
             results: await this.services
                 .getLearnService()
                 .recordEvents(req.account, body),
+        };
+    }
+
+    /**
+     * Get the signed-in user's per-module badge tiers. `badges` is null when
+     * the instance has no Learn service token configured.
+     * @summary Get Learn badges
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/badges')
+    @OperationId('getLearnBadges')
+    async getLearnBadges(
+        @Request() req: express.Request,
+    ): Promise<ApiLearnBadgesResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getLearnService()
+                .getBadges(req.account),
         };
     }
 

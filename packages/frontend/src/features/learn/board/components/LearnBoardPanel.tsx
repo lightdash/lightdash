@@ -1,4 +1,8 @@
-import { type LearnAskMatch, type ProjectMemberRole } from '@lightdash/common';
+import {
+    type LearnAskMatch,
+    type LearnBadgeTier,
+    type ProjectMemberRole,
+} from '@lightdash/common';
 import { useReducedMotion } from '@mantine/hooks';
 import { IconSchool } from '@tabler/icons-react';
 import {
@@ -15,6 +19,7 @@ import useApp from '../../../../providers/App/useApp';
 import {
     setLessonBookmark,
     useLearnAsk,
+    useLearnBadges,
     useLearnCatalogue,
     useLearnRollups,
 } from '../../hooks';
@@ -22,6 +27,7 @@ import { suggestionsFor } from '../ask';
 import { boardHighlights, resolveMatches } from '../askView';
 import { BOARD_WIDTH, type Seat } from '../layout';
 import {
+    courseFor,
     defaultRoleFor,
     plural,
     railModel,
@@ -43,6 +49,7 @@ export const LearnBoardPanel: FC = () => {
     const { user } = useApp();
     const catalogue = useLearnCatalogue();
     const { rollups } = useLearnRollups();
+    const badges = useLearnBadges();
     const ask = useLearnAsk();
     const [answer, setAnswer] = useState<AskAnswer | null>(null);
     const reducedMotion = useReducedMotion() ?? false;
@@ -166,6 +173,15 @@ export const LearnBoardPanel: FC = () => {
         () => railModel(entries, held, rollups),
         [entries, held, rollups],
     );
+    const heldEntries = useMemo(
+        () => courseFor(entries, held),
+        [entries, held],
+    );
+    const tiers = useMemo((): Map<string, LearnBadgeTier> | null => {
+        const rows = badges.data?.badges;
+        if (!rows) return null;
+        return new Map(rows.map((badge) => [badge.courseId, badge.tier]));
+    }, [badges.data]);
     const suggestions = useMemo(
         () =>
             catalogue.data
@@ -261,6 +277,10 @@ export const LearnBoardPanel: FC = () => {
                 <BoardRail
                     rail={rail}
                     rollups={rollups}
+                    role={role}
+                    heldEntries={heldEntries}
+                    tiers={tiers}
+                    tiersLoading={badges.isInitialLoading}
                     selectedId={selectedId}
                     onSelect={setSelectedId}
                     onClearSelection={clearSelection}

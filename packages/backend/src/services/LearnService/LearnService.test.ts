@@ -128,6 +128,14 @@ describe('LearnService', () => {
             expect(fetchMock).not.toHaveBeenCalled();
         });
 
+        it('gates the badges proxy on the flag', async () => {
+            const { service } = buildService({ flagEnabled: false });
+            await expect(service.getBadges(buildAccount())).rejects.toThrow(
+                ForbiddenError,
+            );
+            expect(fetchMock).not.toHaveBeenCalled();
+        });
+
         it('gates the ask proxy on the flag', async () => {
             const { service } = buildService({ flagEnabled: false });
             await expect(
@@ -327,6 +335,77 @@ describe('LearnService', () => {
             await expect(
                 service.recordEvents(buildAccount(), [validEvent]),
             ).rejects.toThrow(UnexpectedServerError);
+        });
+    });
+
+    describe('getBadges', () => {
+        it('reports badges: null without a service token and never calls upstream', async () => {
+            const { service } = buildService({ withToken: false });
+            const result = await service.getBadges(buildAccount());
+            expect(result).toEqual({ badges: null });
+            expect(fetchMock).not.toHaveBeenCalled();
+        });
+
+        it('proxies with the server-held token and the session email', async () => {
+            const { service } = buildService();
+            fetchMock.mockResolvedValue(
+                jsonResponse({
+                    badges: [
+                        { courseId: 'viewer-fundamentals', tier: 'silver' },
+                    ],
+                    unacknowledged: [],
+                }),
+            );
+            const result = await service.getBadges(buildAccount());
+            expect(result).toEqual({
+                badges: [{ courseId: 'viewer-fundamentals', tier: 'silver' }],
+            });
+            const [url, init] = fetchMock.mock.calls[0];
+            expect(url).toBe(
+                'https://progress.test/api/v1/badges?email=learner%2Btest%40example.com',
+            );
+            expect((init.headers as Record<string, string>).authorization).toBe(
+                'Bearer service-token-1',
+            );
+        });
+
+        it('maps upstream failures to UnexpectedServerError', async () => {
+            const { service } = buildService();
+            fetchMock.mockResolvedValue(jsonResponse({}, 500));
+            await expect(service.getBadges(buildAccount())).rejects.toThrow(
+                UnexpectedServerError,
+            );
+        });
+
+        it('drops per-badge fields the contract does not name', async () => {
+            const { service } = buildService();
+            fetchMock.mockResolvedValue(
+                jsonResponse({
+                    badges: [
+                        {
+                            courseId: 'viewer-fundamentals',
+                            tier: 'silver',
+                            earnedByEmail: 'learner+test@example.com',
+                        },
+                    ],
+                }),
+            );
+            const result = await service.getBadges(buildAccount());
+            expect(result.badges).toEqual([
+                { courseId: 'viewer-fundamentals', tier: 'silver' },
+            ]);
+        });
+
+        it('maps an unknown tier to UnexpectedServerError', async () => {
+            const { service } = buildService();
+            fetchMock.mockResolvedValue(
+                jsonResponse({
+                    badges: [{ courseId: 'viewer-fundamentals', tier: 'ruby' }],
+                }),
+            );
+            await expect(service.getBadges(buildAccount())).rejects.toThrow(
+                UnexpectedServerError,
+            );
         });
     });
 

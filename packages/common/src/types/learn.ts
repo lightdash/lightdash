@@ -305,6 +305,31 @@ export type ApiLearnEventsResponse = {
     results: { accepted: number };
 };
 
+export type LearnBadgeTier = 'bronze' | 'silver' | 'gold' | 'violet';
+
+export type LearnCourseBadge = {
+    courseId: string;
+    tier: LearnBadgeTier;
+};
+
+export type LearnBadgesResults = {
+    /** Null when the instance has no Learn service token: tiers are server-derived only. */
+    badges: LearnCourseBadge[] | null;
+};
+
+// The envelope passes unknown fields through for forward compatibility; each
+// badge is stripped to the contract, so a new upstream field never reaches a browser.
+export const LearnBadgesResponseSchema = z
+    .object({
+        badges: z.array(
+            z.object({
+                courseId: z.string().min(1),
+                tier: z.enum(['bronze', 'silver', 'gold', 'violet']),
+            }),
+        ),
+    })
+    .passthrough();
+
 export type LearnAskRequest = {
     query: string;
 };
@@ -344,6 +369,11 @@ export const LearnAskResponseSchema = z
         ),
     })
     .passthrough();
+
+export type ApiLearnBadgesResponse = {
+    status: 'ok';
+    results: LearnBadgesResults;
+};
 
 export type ApiLearnAskResponse = {
     status: 'ok';

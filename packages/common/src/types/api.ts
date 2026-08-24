@@ -224,6 +224,7 @@ import type {
 import { type ApiImpersonationOrganizationSettingsResponse } from './impersonationOrganizationSettings';
 import {
     type ApiLearnAskResponse,
+    type ApiLearnBadgesResponse,
     type ApiLearnCatalogueResponse,
     type ApiLearnCourseResponse,
     type ApiLearnEventsResponse,
@@ -1316,6 +1317,7 @@ type ApiResults =
     | ApiLearnCourseResponse['results']
     | ApiLearnProgressResponse['results']
     | ApiLearnEventsResponse['results']
+    | ApiLearnBadgesResponse['results']
     | ApiLearnAskResponse['results']
     | ChartHistory
     | ChartVersion

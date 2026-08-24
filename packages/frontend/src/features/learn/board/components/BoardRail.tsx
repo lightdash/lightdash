@@ -1,13 +1,23 @@
+import {
+    type LearnBadgeTier,
+    type LearnCatalogueEntry,
+    type ProjectMemberRole,
+} from '@lightdash/common';
 import { Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
 import { type Rollup } from '../../model';
 import { GROUP_LABEL, plural, type RailModel } from '../model';
 import styles from './LearnBoard.module.css';
 import { ModulePane } from './ModulePane';
+import { RoleBadgeCard } from './RoleBadgeCard';
 
 type Props = {
     rail: RailModel;
     rollups: Map<string, Rollup>;
+    role: ProjectMemberRole;
+    heldEntries: LearnCatalogueEntry[];
+    tiers: Map<string, LearnBadgeTier> | null;
+    tiersLoading: boolean;
     selectedId: string | null;
     onSelect: (id: string) => void;
     onClearSelection: () => void;
@@ -17,6 +27,10 @@ type Props = {
 export const BoardRail: FC<Props> = ({
     rail,
     rollups,
+    role,
+    heldEntries,
+    tiers,
+    tiersLoading,
     selectedId,
     onSelect,
     onClearSelection,
@@ -47,6 +61,13 @@ export const BoardRail: FC<Props> = ({
                     {plural(rail.overall.modulesComplete, 'module')} complete
                 </Text>
             </Stack>
+
+            <RoleBadgeCard
+                role={role}
+                held={heldEntries}
+                tiers={tiers}
+                isLoading={tiersLoading}
+            />
 
             {selected ? (
                 <ModulePane

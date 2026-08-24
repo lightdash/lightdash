@@ -521,6 +521,60 @@
     cursor: pointer;
 }
 
+.badgeHero {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.badgeEmblem {
+    display: inline-flex;
+    flex: none;
+    line-height: 0;
+}
+
+.badgeRung {
+    font-size: 20px;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    font-weight: 500;
+}
+
+.badgeHowto {
+    font-size: 12px;
+}
+
+.badgeHowtoSummary {
+    cursor: pointer;
+    color: #818898;
+}
+
+.badgeHowtoList {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.badgeHowtoRung {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #818898;
+}
+
+.badgeHowtoEmblem {
+    display: inline-flex;
+    flex: none;
+    line-height: 0;
+}
+
+.badgeHowtoReq {
+    color: #818898;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .nodeNextUp {
         animation: none;
