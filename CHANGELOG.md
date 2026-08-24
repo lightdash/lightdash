@@ -1,3 +1,10 @@
+## [1.243.2](https://github.com/lightdash/lightdash/compare/1.243.1...1.243.2) (2026-08-24)
+
+
+### Bug Fixes
+
+* **ai:** surface production agents first and hide preview projects in admin filters ([#27928](https://github.com/lightdash/lightdash/issues/27928)) ([f435bea](https://github.com/lightdash/lightdash/commit/f435beae06ea161fc723a9a5687b513335dbed8b))
+
 ## [1.243.1](https://github.com/lightdash/lightdash/compare/1.243.0...1.243.1) (2026-08-24)
 
 
