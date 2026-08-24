@@ -1,4 +1,8 @@
-import { FeatureFlags, type DataAppViz } from '@lightdash/common';
+import {
+    assertUnreachable,
+    FeatureFlags,
+    type DataAppViz,
+} from '@lightdash/common';
 import {
     Anchor,
     Box,
@@ -14,14 +18,7 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconPlus, IconSearch } from '@tabler/icons-react';
-import {
-    useCallback,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-    type ReactNode,
-} from 'react';
+import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataAppChecker } from '../../../features/apps/hooks/useCanEditDataApp';
@@ -87,45 +84,28 @@ type ChartTypeGallerySectionBase = {
     emptyMessage: string;
 };
 
-export type ChartTypeGallerySection =
-    /** A static set of built-ins: a compact card grid, no remote-list states. */
-    | (ChartTypeGallerySectionBase & {
-          layout: 'grid';
-          items: ChartTypeGalleryItem[];
-      })
-    /** A remote list of project chart types: richer rows with list states. */
-    | (ChartTypeGallerySectionBase & {
-          layout: 'rows';
-          items: ChartTypeGalleryRowItem[];
-          loading: boolean;
-          errorMessage: string | null;
-          onRetry: (() => void) | null;
-          onLoadMore: (() => void) | null;
-          loadingMore: boolean;
-          /** Opens the chart type builder; null hides the create action. */
-          onCreateNew: (() => void) | null;
-      });
-
-type GalleryItemButtonProps = {
-    item: ChartTypeGalleryItem;
-    className: string;
-    children: ReactNode;
+/** A static set of built-ins: a compact card grid, no remote-list states. */
+type ChartTypeGalleryGridSection = ChartTypeGallerySectionBase & {
+    layout: 'grid';
+    items: ChartTypeGalleryItem[];
 };
 
-const GalleryItemButton: FC<GalleryItemButtonProps> = ({
-    item,
-    className,
-    children,
-}) => (
-    <UnstyledButton
-        className={className}
-        data-selected={item.selected}
-        disabled={item.disabled}
-        onClick={item.select}
-    >
-        {children}
-    </UnstyledButton>
-);
+/** A remote list of project chart types: richer rows with list states. */
+type ChartTypeGalleryRowsSection = ChartTypeGallerySectionBase & {
+    layout: 'rows';
+    items: ChartTypeGalleryRowItem[];
+    loading: boolean;
+    errorMessage: string | null;
+    onRetry: (() => void) | null;
+    onLoadMore: (() => void) | null;
+    loadingMore: boolean;
+    /** Opens the chart type builder; null hides the create action. */
+    onCreateNew: (() => void) | null;
+};
+
+export type ChartTypeGallerySection =
+    | ChartTypeGalleryGridSection
+    | ChartTypeGalleryRowsSection;
 
 // Observes the clamped description and reports whether it is actually cut
 // off; ResizeObserver fires on observe and on any later size change.
@@ -203,75 +183,116 @@ const GalleryRow: FC<{ item: ChartTypeGalleryRowItem }> = ({ item }) => {
     );
 };
 
+const SectionEmpty: FC<{ message: string }> = ({ message }) => (
+    <Text fz="xs" c="dimmed">
+        {message}
+    </Text>
+);
+
 const SectionBody: FC<{ section: ChartTypeGallerySection }> = ({ section }) => {
-    if (section.layout === 'rows' && section.loading) {
-        return (
-            <Group gap="xs">
-                <Loader size="xs" />
-                <Text fz="xs" c="dimmed">
-                    Loading chart types…
-                </Text>
-            </Group>
-        );
-    }
-
-    if (section.layout === 'rows' && section.errorMessage !== null) {
-        return (
-            <Group justify="space-between" wrap="nowrap">
-                <Text fz="xs" c="red">
-                    {section.errorMessage}
-                </Text>
-                {section.onRetry !== null ? (
-                    <Button
-                        variant="subtle"
-                        size="compact-xs"
-                        onClick={section.onRetry}
-                    >
-                        Retry
-                    </Button>
-                ) : null}
-            </Group>
-        );
-    }
-
-    if (section.items.length === 0) {
-        return (
-            <Text fz="xs" c="dimmed">
-                {section.emptyMessage}
-            </Text>
-        );
-    }
-
-    if (section.layout === 'grid') {
-        return (
-            <Box className={classes.grid}>
-                {section.items.map((item) => (
-                    <GalleryItemButton
-                        key={item.key}
-                        item={item}
-                        className={classes.card}
-                    >
-                        <ChartTypeIcon
-                            icon={item.icon}
-                            rotatedIcon={item.rotatedIcon}
-                        />
-                        <Text fz="xs" fw={500} lh={1.2}>
-                            {item.label}
+    switch (section.layout) {
+        case 'grid':
+            if (section.items.length === 0) {
+                return <SectionEmpty message={section.emptyMessage} />;
+            }
+            return (
+                <Box className={classes.grid}>
+                    {section.items.map((item) => (
+                        <UnstyledButton
+                            key={item.key}
+                            className={classes.card}
+                            data-selected={item.selected}
+                            disabled={item.disabled}
+                            onClick={item.select}
+                        >
+                            <ChartTypeIcon
+                                icon={item.icon}
+                                rotatedIcon={item.rotatedIcon}
+                            />
+                            <Text fz="xs" fw={500} lh={1.2}>
+                                {item.label}
+                            </Text>
+                        </UnstyledButton>
+                    ))}
+                </Box>
+            );
+        case 'rows':
+            if (section.loading) {
+                return (
+                    <Group gap="xs">
+                        <Loader size="xs" />
+                        <Text fz="xs" c="dimmed">
+                            Loading chart types…
                         </Text>
-                    </GalleryItemButton>
-                ))}
-            </Box>
-        );
+                    </Group>
+                );
+            }
+            if (section.errorMessage !== null) {
+                return (
+                    <Group justify="space-between" wrap="nowrap">
+                        <Text fz="xs" c="red">
+                            {section.errorMessage}
+                        </Text>
+                        {section.onRetry !== null ? (
+                            <Button
+                                variant="subtle"
+                                size="compact-xs"
+                                onClick={section.onRetry}
+                            >
+                                Retry
+                            </Button>
+                        ) : null}
+                    </Group>
+                );
+            }
+            if (section.items.length === 0) {
+                return <SectionEmpty message={section.emptyMessage} />;
+            }
+            return (
+                <>
+                    {section.items.map((item) => (
+                        <GalleryRow key={item.key} item={item} />
+                    ))}
+                </>
+            );
+        default:
+            return assertUnreachable(
+                section,
+                'Unknown chart type gallery section layout',
+            );
     }
-
-    return (
-        <>
-            {section.items.map((item) => (
-                <GalleryRow key={item.key} item={item} />
-            ))}
-        </>
-    );
 };
+
+const RowsSectionActions: FC<{ section: ChartTypeGalleryRowsSection }> = ({
+    section,
+}) => (
+    <>
+        {section.onLoadMore !== null ? (
+            <Button
+                variant="subtle"
+                size="xs"
+                loading={section.loadingMore}
+                onClick={section.onLoadMore}
+            >
+                Load more
+            </Button>
+        ) : null}
+
+        {/* An action, not a chart type; wanted even when the section is empty. */}
+        {section.onCreateNew !== null ? (
+            <Button
+                variant="subtle"
+                size="xs"
+                px="xs"
+                leftSection={<MantineIcon icon={IconPlus} />}
+                onClick={section.onCreateNew}
+                justify="flex-start"
+            >
+                Create new chart type
+            </Button>
+        ) : null}
+    </>
+);
 
 type GalleryProps = {
     search: string;
@@ -311,32 +332,8 @@ export const ChartTypeGallery: FC<GalleryProps> = ({
 
                         <SectionBody section={section} />
 
-                        {section.layout === 'rows' &&
-                        section.onLoadMore !== null ? (
-                            <Button
-                                variant="subtle"
-                                size="xs"
-                                loading={section.loadingMore}
-                                onClick={section.onLoadMore}
-                            >
-                                Load more
-                            </Button>
-                        ) : null}
-
-                        {/* An action, not a chart type; wanted even when the
-                            section is empty. */}
-                        {section.layout === 'rows' &&
-                        section.onCreateNew !== null ? (
-                            <Button
-                                variant="subtle"
-                                size="xs"
-                                px="xs"
-                                leftSection={<MantineIcon icon={IconPlus} />}
-                                onClick={section.onCreateNew}
-                                justify="flex-start"
-                            >
-                                Create new chart type
-                            </Button>
+                        {section.layout === 'rows' ? (
+                            <RowsSectionActions section={section} />
                         ) : null}
                     </Stack>
                 ))}
