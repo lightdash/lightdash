@@ -1,5 +1,6 @@
 import { FeatureFlags, type DataAppViz } from '@lightdash/common';
 import {
+    Anchor,
     Box,
     Button,
     Group,
@@ -11,10 +12,11 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import { IconChevronRight, IconPlus, IconSearch } from '@tabler/icons-react';
+import { IconPlus, IconSearch } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
+import { useCanEditDataAppChecker } from '../../../features/apps/hooks/useCanEditDataApp';
 import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/useDataAppVisualizations';
 import { chartTypeBuilderPath } from '../../../features/chartTypes/utils/chartTypeBuilderPath';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -33,20 +35,25 @@ import classes from './ChartTypeGallery.module.css';
 export type ChartTypeGalleryItem = Omit<ChartTypeOption, 'id'> & {
     key: string;
     disabled: boolean;
+    /** Opens the chart type builder for this item; null hides the action. */
+    onEdit: (() => void) | null;
 };
 
-type ThumbnailProps = Pick<ChartTypeOption, 'icon' | 'rotatedIcon'>;
+type ThumbnailProps = Pick<ChartTypeOption, 'icon' | 'rotatedIcon'> & {
+    small?: boolean;
+};
 
 export const ChartTypeThumbnail: FC<ThumbnailProps> = ({
     icon,
     rotatedIcon,
+    small,
 }) => (
-    <Box className={classes.thumbnail}>
+    <Box className={classes.thumbnail} data-small={small}>
         <MantineIcon
             className={classes.icon}
             data-rotated={rotatedIcon}
             icon={icon}
-            size="xl"
+            size={small ? 'md' : 'xl'}
             color="blue"
         />
     </Box>
@@ -129,37 +136,49 @@ const ChartTypeGallery: FC<GalleryProps> = ({
                             </Text>
                         ) : (
                             section.items.map((item) => (
-                                <UnstyledButton
+                                <Box
                                     key={item.key}
-                                    className={classes.row}
-                                    data-selected={item.selected}
-                                    disabled={item.disabled}
-                                    onClick={item.select}
+                                    className={classes.rowWrapper}
                                 >
-                                    <Group wrap="nowrap" gap="sm">
-                                        <ChartTypeThumbnail
-                                            icon={item.icon}
-                                            rotatedIcon={item.rotatedIcon}
-                                        />
-                                        <Stack gap={2} flex={1}>
-                                            <Text size="sm" fw={500}>
-                                                {item.label}
-                                            </Text>
-                                            <Text
-                                                fz="xs"
-                                                c="dimmed"
-                                                lineClamp={2}
-                                            >
-                                                {item.description}
-                                            </Text>
-                                        </Stack>
-                                        <MantineIcon
-                                            icon={IconChevronRight}
-                                            color="ldGray"
-                                            size="sm"
-                                        />
-                                    </Group>
-                                </UnstyledButton>
+                                    <UnstyledButton
+                                        className={classes.row}
+                                        data-selected={item.selected}
+                                        data-has-edit={item.onEdit !== null}
+                                        disabled={item.disabled}
+                                        onClick={item.select}
+                                    >
+                                        <Group wrap="nowrap" gap="sm">
+                                            <ChartTypeThumbnail
+                                                icon={item.icon}
+                                                rotatedIcon={item.rotatedIcon}
+                                            />
+                                            <Stack gap={2} flex={1}>
+                                                <Text size="sm" fw={500}>
+                                                    {item.label}
+                                                </Text>
+                                                <Text
+                                                    fz="xs"
+                                                    c="dimmed"
+                                                    lineClamp={2}
+                                                >
+                                                    {item.description}
+                                                </Text>
+                                            </Stack>
+                                        </Group>
+                                    </UnstyledButton>
+                                    {item.onEdit !== null ? (
+                                        <Anchor
+                                            component="button"
+                                            type="button"
+                                            className={classes.rowEdit}
+                                            fz="xs"
+                                            fw={500}
+                                            onClick={item.onEdit}
+                                        >
+                                            Edit
+                                        </Anchor>
+                                    ) : null}
+                                </Box>
                             ))
                         )}
 
@@ -223,6 +242,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
         debouncedSearch,
     );
     const canCreateChartType = useCanCreateDataApp(projectUuid);
+    const canEditChartType = useCanEditDataAppChecker(projectUuid);
     const { visualizationConfig, itemsMap } = useVisualizationContext();
     const selectProjectChartType = useSelectProjectChartType();
     const { disabled, options, vegaOption } = useChartTypeOptions();
@@ -249,6 +269,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                 option.select();
                 onSelected();
             },
+            onEdit: null,
         }));
     const projectItems = projectTypes.map(
         (dataAppViz: DataAppViz): ChartTypeGalleryItem => {
@@ -268,6 +289,16 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                     selectProjectChartType(dataAppViz, itemsMap ?? {});
                     onSelected();
                 },
+                onEdit: canEditChartType(dataAppViz)
+                    ? () =>
+                          void navigate({
+                              pathname: chartTypeBuilderPath(
+                                  projectUuid ?? '',
+                                  dataAppViz.dataAppVizUuid,
+                              ),
+                              search: location.search,
+                          })
+                    : null,
             };
         },
     );

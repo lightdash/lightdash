@@ -13,12 +13,39 @@
     min-width: 0;
 }
 
+.rowWrapper {
+    position: relative;
+}
+
 .row {
     width: 100%;
     padding: var(--mantine-spacing-sm);
     border: 1px solid transparent;
     border-radius: var(--mantine-radius-md);
     text-align: left;
+}
+
+/* Reserve space for the hover-revealed Edit so text never runs under it. */
+.row[data-has-edit='true'] {
+    padding-right: calc(var(--mantine-spacing-sm) * 2 + 24px);
+}
+
+/* Edit fades in on hover/focus so resting rows stay clean. */
+.rowEdit {
+    position: absolute;
+    top: 50%;
+    right: var(--mantine-spacing-sm);
+    translate: 0 -50%;
+    font-family: inherit;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 100ms ease-out;
+}
+
+.rowWrapper:hover .rowEdit,
+.rowWrapper:focus-within .rowEdit {
+    opacity: 1;
+    pointer-events: auto;
 }
 
 .row:hover:not(:disabled) {
@@ -47,6 +74,12 @@
         var(--mantine-color-white),
         var(--mantine-color-ldDark-7)
     );
+}
+
+.thumbnail[data-small='true'] {
+    width: 46px;
+    height: 30px;
+    flex: 0 0 46px;
 }
 
 .icon {

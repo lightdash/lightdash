@@ -75,9 +75,29 @@ describe('ExplorerChartSidebar', () => {
             ChartType.TABLE,
             null,
         );
-        await userEvent.click(screen.getByText('Choose type'));
+        await userEvent.click(screen.getByRole('button', { name: 'Change' }));
         await userEvent.click(
             screen.getByRole('button', { name: 'Select chart' }),
+        );
+
+        expect(screen.getByText('Configure controls')).toBeInTheDocument();
+    });
+
+    it('returns to Configure from Choose without selecting', async () => {
+        renderWithProviders(
+            <MemoryRouter>
+                <ExplorerChartSidebar
+                    chartType={ChartType.TABLE}
+                    onClose={vi.fn()}
+                />
+            </MemoryRouter>,
+        );
+
+        await userEvent.click(screen.getByRole('button', { name: 'Change' }));
+        expect(screen.getByText('Choose chart type')).toBeInTheDocument();
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Back to configuration' }),
         );
 
         expect(screen.getByText('Configure controls')).toBeInTheDocument();
@@ -90,7 +110,7 @@ describe('ExplorerChartSidebar', () => {
             </MemoryRouter>,
         );
 
-        await userEvent.click(screen.getByText('Choose type'));
+        await userEvent.click(screen.getByRole('button', { name: 'Change' }));
         await userEvent.click(
             screen.getByRole('button', {
                 name: 'Close visualization config',
