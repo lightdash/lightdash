@@ -135,7 +135,7 @@ const GalleryRow: FC<{ item: ChartTypeGalleryRowItem }> = ({ item }) => {
             <Tooltip
                 label={item.description}
                 withinPortal
-                position="top"
+                position="left"
                 withArrow
                 openDelay={500}
                 color="dark"
