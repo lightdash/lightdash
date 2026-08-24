@@ -1,3 +1,10 @@
+## [1.248.2](https://github.com/lightdash/lightdash/compare/1.248.1...1.248.2) (2026-08-24)
+
+
+### Bug Fixes
+
+* support data app dashboard filter scoping ([#27945](https://github.com/lightdash/lightdash/issues/27945)) ([a57e1c4](https://github.com/lightdash/lightdash/commit/a57e1c47f2a333d9f78e53b61cd8e7a9b4566e84))
+
 ## [1.248.1](https://github.com/lightdash/lightdash/compare/1.248.0...1.248.1) (2026-08-24)
 
 
