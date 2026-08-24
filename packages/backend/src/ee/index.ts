@@ -484,6 +484,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AiAgentToolsService({
                     builtInSkills: BuiltInSkills,
                     lightdashConfig: context.lightdashConfig,
+                    appModel: models.getAppModel(),
                     projectModel: models.getProjectModel(),
                     projectParametersModel: models.getProjectParametersModel(),
                     projectService: repository.getProjectService(),

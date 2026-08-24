@@ -4,6 +4,7 @@ import {
     Explore,
     WarehouseTypes,
     type AgentSqlScope,
+    type CustomChartTypeLibrary,
 } from '@lightdash/common';
 import { SystemModelMessage } from 'ai';
 import moment from 'moment';
@@ -13,6 +14,7 @@ import {
     AiAgentRequestingUser,
 } from '../types/aiAgent';
 import { escapeXmlText, xmlBuilder } from '../xmlBuilder';
+import { renderAvailableCustomChartTypes } from './availableCustomChartTypes';
 import { renderAvailableExplores } from './availableExplores';
 import { getAiWritebackSection } from './systemV2AiWriteback';
 import { getCodingAgentSection } from './systemV2CodingAgent';
@@ -34,6 +36,7 @@ import { SYSTEM_PROMPT_TEMPLATE } from './systemV2Template';
 
 export const getSystemPromptV2 = (args: {
     availableExplores: Explore[];
+    availableCustomChartTypes?: CustomChartTypeLibrary;
     availableSkills?: AiAgentSkillReference[];
     knowledgeDocuments?: AiAgentDocumentContext[];
     deepResearchRuns?: AiAgentDeepResearchRunContext[];
@@ -307,6 +310,12 @@ export const getSystemPromptV2 = (args: {
         )
         .replace('{{date}}', date)
         .replace('{{available_explores}}', availableExploresContent)
+        .replace(
+            '{{available_custom_chart_types}}',
+            renderAvailableCustomChartTypes(
+                args.availableCustomChartTypes ?? { types: [], totalCount: 0 },
+            ),
+        )
         .replace('{{knowledge_documents}}', knowledgeDocumentsContent)
         .replace('{{project_context}}', projectContextContent);
 

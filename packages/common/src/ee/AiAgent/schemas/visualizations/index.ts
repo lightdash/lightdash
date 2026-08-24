@@ -19,6 +19,7 @@ export const ToolNameSchema = z.enum([
     'findContent',
     'listContent',
     'findExplores',
+    'findCustomChartTypes',
     'findFields',
     'searchSemanticLayer',
     'analyzeFieldImpact',
@@ -76,6 +77,7 @@ export const ToolDisplayMessagesSchema = z.record(ToolNameSchema, z.string());
 
 export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     findExplores: 'Finding relevant explores',
+    findCustomChartTypes: 'Browsing custom chart types',
     findDashboards: 'Finding relevant dashboards',
     findContent: 'Finding relevant content',
     listContent: 'Listing content',
@@ -134,6 +136,7 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
 export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
     ToolDisplayMessagesSchema.parse({
         findExplores: 'Found relevant explores',
+        findCustomChartTypes: 'Browsed custom chart types',
         findDashboards: 'Found relevant dashboards',
         findFields: 'Found relevant fields',
         searchSemanticLayer: 'Searched the semantic layer',

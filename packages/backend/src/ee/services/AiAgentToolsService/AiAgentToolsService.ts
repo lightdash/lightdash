@@ -6,6 +6,7 @@ import {
     CatalogFilter,
     CatalogType,
     ContentType,
+    dataAppVizSchema,
     DimensionType,
     Explore,
     FeatureFlags,
@@ -38,13 +39,17 @@ import {
     type AgentSqlScope,
     type AiAgentDocumentSummary,
     type ChartAsCode,
+    type CustomChartType,
     type DashboardAsCode,
+    type DataAppVizSchema,
     type FieldValueSearchResult,
     type ParameterDefinitions,
     type SchedulerAiAugmentation,
 } from '@lightdash/common';
 import * as JsonPatch from 'fast-json-patch';
+import { type DbApp } from '../../../database/entities/apps';
 import Logger from '../../../logging/logger';
+import { AppModel } from '../../../models/AppModel';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
@@ -90,6 +95,7 @@ import {
     FindContentResult,
     FindContentSpaceBreadcrumb,
     FindContentSpaceMetadata,
+    FindCustomChartTypesFn,
     FindExploresFn,
     FindFieldFn,
     FindFieldsFn,
@@ -99,6 +105,7 @@ import {
     GetSavedChartFn,
     GetVerifiedFieldUsageFn,
     ListContentFn,
+    ListCustomChartTypesFn,
     ListExploresFn,
     ListKnowledgeDocumentsFn,
     ListProjectsFn,
@@ -198,6 +205,8 @@ export type AiAgentToolsRuntime = {
     getProjectParameterDefinitions: () => Promise<ParameterDefinitions>;
     getExplore: GetExploreFn;
     findExplores: FindExploresFn;
+    listCustomChartTypes: ListCustomChartTypesFn;
+    findCustomChartTypes: FindCustomChartTypesFn;
     getVerifiedFieldUsage: GetVerifiedFieldUsageFn;
     findFields: FindFieldsFn;
     findContent: FindContentFn;
@@ -262,6 +271,7 @@ type BuiltInSkillsClient = Pick<
 
 type AiAgentToolsServiceDependencies = {
     builtInSkills: BuiltInSkillsClient;
+    appModel: AppModel;
     projectModel: ProjectModel;
     projectParametersModel: ProjectParametersModel;
     projectService: ProjectService;
@@ -299,6 +309,8 @@ type AiAgentToolsServiceDependencies = {
 };
 
 export class AiAgentToolsService extends BaseService {
+    private readonly appModel: AppModel;
+
     private readonly projectModel: ProjectModel;
 
     private readonly projectParametersModel: ProjectParametersModel;
@@ -390,6 +402,7 @@ export class AiAgentToolsService extends BaseService {
 
     constructor({
         builtInSkills,
+        appModel,
         projectModel,
         projectParametersModel,
         projectService,
@@ -421,6 +434,7 @@ export class AiAgentToolsService extends BaseService {
     }: AiAgentToolsServiceDependencies) {
         super();
         this.builtInSkills = builtInSkills;
+        this.appModel = appModel;
         this.projectModel = projectModel;
         this.projectParametersModel = projectParametersModel;
         this.projectService = projectService;
@@ -562,6 +576,9 @@ export class AiAgentToolsService extends BaseService {
                 this.getProjectParameterDefinitions(context),
             getExplore: (args) => this.getExploreForRuntime(context, args),
             findExplores: (args) => this.findExplores(context, args),
+            listCustomChartTypes: () => this.listCustomChartTypes(context),
+            findCustomChartTypes: (args) =>
+                this.findCustomChartTypes(context, args),
             getVerifiedFieldUsage: () => this.getVerifiedFieldUsage(context),
             findFields: (args) => this.findFields(context, args),
             findContent: (args) => this.findContent(context, args),
@@ -796,6 +813,95 @@ export class AiAgentToolsService extends BaseService {
                     }));
 
                 return { exploreSearchResults, topMatchingFields };
+            },
+        );
+    }
+
+    // Custom chart types (data app vizs) are a project-level library, not
+    // space content — agent spaceAccess deliberately does not filter them.
+
+    // Persisted schemas may predate configOptions/colorPalette; the
+    // permissive parser backfills defaults and rejects malformed rows.
+    private parseCustomChartTypes(
+        rows: (DbApp & { viz_schema: DataAppVizSchema })[],
+    ): CustomChartType[] {
+        const types: CustomChartType[] = [];
+        for (const row of rows) {
+            const parsed = dataAppVizSchema.safeParse(row.viz_schema);
+            if (parsed.success) {
+                types.push({
+                    slug: row.slug,
+                    name: row.name,
+                    description: row.description,
+                    schema: parsed.data,
+                });
+            } else {
+                this.logger.warn(
+                    `Dropping custom chart type "${row.slug}": persisted viz_schema failed validation`,
+                );
+            }
+        }
+        return types;
+    }
+
+    private async customChartTypesEnabled(
+        context: AiAgentToolsRuntimeContext,
+    ): Promise<boolean> {
+        const { enabled } = await this.featureFlagService.get({
+            user: context.user,
+            featureFlagId: FeatureFlags.EnableDataApps,
+        });
+        return enabled;
+    }
+
+    static readonly CUSTOM_CHART_TYPES_INLINE_LIMIT = 10;
+
+    static readonly CUSTOM_CHART_TYPES_SEARCH_LIMIT = 10;
+
+    private async listCustomChartTypes(
+        context: AiAgentToolsRuntimeContext,
+    ): ReturnType<ListCustomChartTypesFn> {
+        if (!(await this.customChartTypesEnabled(context))) {
+            return { types: [], totalCount: 0 };
+        }
+        const { data, pagination } =
+            await this.appModel.listDataAppVisualizations(context.projectUuid, {
+                page: 1,
+                pageSize: AiAgentToolsService.CUSTOM_CHART_TYPES_INLINE_LIMIT,
+            });
+        const types = this.parseCustomChartTypes(data);
+        return { types, totalCount: pagination?.totalResults ?? types.length };
+    }
+
+    private findCustomChartTypes(
+        context: AiAgentToolsRuntimeContext,
+        args: Parameters<FindCustomChartTypesFn>[0],
+    ): ReturnType<FindCustomChartTypesFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.findCustomChartTypes`,
+            args,
+            async () => {
+                if (!(await this.customChartTypesEnabled(context))) {
+                    return [];
+                }
+                if ('slug' in args) {
+                    const row =
+                        await this.appModel.findDataAppVisualizationBySlug(
+                            context.projectUuid,
+                            args.slug,
+                        );
+                    return this.parseCustomChartTypes(row ? [row] : []);
+                }
+                const { data } = await this.appModel.listDataAppVisualizations(
+                    context.projectUuid,
+                    {
+                        page: 1,
+                        pageSize:
+                            AiAgentToolsService.CUSTOM_CHART_TYPES_SEARCH_LIMIT,
+                    },
+                    args.query,
+                );
+                return this.parseCustomChartTypes(data);
             },
         );
     }

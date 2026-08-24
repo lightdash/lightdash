@@ -9831,6 +9831,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             validateContent: toolsRuntime.validateContent,
             getDashboardCharts: toolsRuntime.getDashboardCharts,
             findExplores: toolsRuntime.findExplores,
+            listCustomChartTypes: toolsRuntime.listCustomChartTypes,
+            findCustomChartTypes: toolsRuntime.findCustomChartTypes,
             getVerifiedFieldUsage: toolsRuntime.getVerifiedFieldUsage,
             searchSemanticLayer: toolsRuntime.searchSemanticLayer,
             analyzeFieldImpact: toolsRuntime.analyzeFieldImpact,
@@ -10034,6 +10036,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             validateContent,
             getDashboardCharts,
             findExplores,
+            listCustomChartTypes,
+            findCustomChartTypes,
             getVerifiedFieldUsage,
             searchSemanticLayer,
             analyzeFieldImpact,
@@ -10609,6 +10613,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             validateContent,
             getDashboardCharts,
             findExplores,
+            listCustomChartTypes,
+            findCustomChartTypes,
             getVerifiedFieldUsage,
             searchSemanticLayer,
             analyzeFieldImpact,
@@ -12043,6 +12049,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     return 'Reviewing the project context...';
                 case 'findContent':
                 case 'findCharts':
+                case 'findCustomChartTypes':
                 case 'findDashboards':
                 case 'generateHashes':
                 case 'generateUuids':

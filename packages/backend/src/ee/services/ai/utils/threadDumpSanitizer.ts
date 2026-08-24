@@ -12,6 +12,7 @@ const DUMP_TOOL_RESULT_POLICIES = {
     discoverFields: 'keep',
     getMetadata: 'keep',
     findExplores: 'keep',
+    findCustomChartTypes: 'keep',
     findFields: 'keep',
     searchSemanticLayer: 'keep',
     analyzeFieldImpact: 'keep',
