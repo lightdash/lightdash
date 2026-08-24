@@ -52,10 +52,14 @@ const mocks = vi.hoisted(() => ({
     exploreHook: vi.fn(),
     // Extra keys merged into the useVisualizationContext mock return value.
     vizContextOverrides: { current: {} as Record<string, unknown> },
+    // Simulates useProjectUuid()'s frontend-resolved project uuid — the
+    // project-route provider always resolves any slug URL to this value
+    // before it reaches the component.
+    projectUuid: { current: 'project-uuid' as string | undefined },
 }));
 
-vi.mock('react-router', () => ({
-    useParams: () => ({ projectUuid: 'project-uuid' }),
+vi.mock('../../hooks/useProjectUuid', () => ({
+    useProjectUuid: () => mocks.projectUuid.current,
 }));
 vi.mock('../../ee/providers/Embed/useEmbed', () => ({
     default: () => ({ embedToken: mocks.embedToken.current }),
@@ -169,6 +173,34 @@ describe('DataAppVizRenderer', () => {
         mocks.explore.current = undefined;
         mocks.exploreHook.mockClear();
         mocks.vizContextOverrides.current = {};
+        mocks.projectUuid.current = 'project-uuid';
+    });
+
+    it('sends the resolved project uuid, not a raw slug, to the render metadata and preview token requests', () => {
+        mocks.projectUuid.current = 'resolved-project-uuid';
+
+        renderRenderer();
+
+        expect(mocks.renderMetadataHook).toHaveBeenCalledWith(
+            'resolved-project-uuid',
+            'viz-uuid',
+            { isEmbedded: false, savedChartUuid: 'saved-chart-uuid' },
+        );
+        expect(mocks.previewTokenHook).toHaveBeenCalledWith(
+            'resolved-project-uuid',
+            'viz-uuid',
+            7,
+            { isEmbedded: false, savedChartUuid: 'saved-chart-uuid' },
+        );
+        expect(mocks.iframePreview).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                src: expect.stringContaining(
+                    'projectUuid=resolved-project-uuid',
+                ),
+                projectUuid: 'resolved-project-uuid',
+            }),
+            undefined,
+        );
     });
 
     it('prompts for a visualization when none is selected', () => {
@@ -410,6 +442,7 @@ describe('DataAppVizRenderer underlying-data gating', () => {
         mocks.canViewUnderlyingData.current = true;
         mocks.explore.current = { name: 'orders' };
         mocks.vizContextOverrides.current = { resultsData: happyResultsData() };
+        mocks.projectUuid.current = 'project-uuid';
     });
 
     it('happy path: pushes enabled and installs the rewrite callback', () => {

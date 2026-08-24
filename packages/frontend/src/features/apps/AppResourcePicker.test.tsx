@@ -1,7 +1,18 @@
+import { type Project } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter, Route, Routes } from 'react-router';
 import { vi } from 'vitest';
-import { SelectedQuerySection } from './AppResourcePicker';
+import { ProjectRouteContext } from '../../hooks/useProjectRoute';
+import { AttachButton, SelectedQuerySection } from './AppResourcePicker';
+import { useAttachResourceLink } from './hooks/useAttachResourceLink';
+
+vi.mock('./hooks/useAttachResourceLink', () => ({
+    useAttachResourceLink: vi.fn(() => ({
+        attachFromLink: vi.fn(),
+        isResolvingLink: false,
+    })),
+}));
 
 const baseChart = {
     uuid: 'c1',
@@ -57,4 +68,46 @@ it('hides the sample-data controls when the instance disables sample data', () =
     );
     expect(screen.queryByLabelText('Include sample data')).toBeNull();
     expect(screen.getByLabelText('Link live')).toBeInTheDocument();
+});
+
+it('resolves a project slug URL to the canonical uuid before wiring the attach-link resolver', () => {
+    render(
+        <MantineProvider env="test">
+            <MemoryRouter initialEntries={['/projects/jaffle-shop/generate']}>
+                <Routes>
+                    <Route
+                        path="/projects/:projectUuid/generate"
+                        element={
+                            <ProjectRouteContext.Provider
+                                value={{
+                                    project: {} as Project,
+                                    projectUuid: 'resolved-project-uuid',
+                                    projectUrlIdentifier: 'jaffle-shop',
+                                }}
+                            >
+                                <AttachButton
+                                    selectedCharts={[]}
+                                    onSelectChart={() => {}}
+                                    onDeselectChart={() => {}}
+                                    selectedDashboard={null}
+                                    onSelectDashboard={() => {}}
+                                    onDeselectDashboard={() => {}}
+                                    selectedConnections={[]}
+                                    onSelectConnection={() => {}}
+                                    onDeselectConnection={() => {}}
+                                    onAddFiles={() => {}}
+                                    disabled={false}
+                                    filesDisabled={false}
+                                />
+                            </ProjectRouteContext.Provider>
+                        }
+                    />
+                </Routes>
+            </MemoryRouter>
+        </MantineProvider>,
+    );
+
+    expect(useAttachResourceLink).toHaveBeenCalledWith(
+        expect.objectContaining({ projectUuid: 'resolved-project-uuid' }),
+    );
 });

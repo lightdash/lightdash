@@ -1,4 +1,4 @@
-import { FeatureFlags, type DataAppViz } from '@lightdash/common';
+import { FeatureFlags, type DataAppViz, type Project } from '@lightdash/common';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -6,6 +6,7 @@ import { useAppVersionHistory } from '../features/apps/hooks/useAppVersionHistor
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useDeleteApp } from '../features/apps/hooks/useDeleteApp';
 import { useDataAppVisualizations } from '../features/chartTypes/hooks/useDataAppVisualizations';
+import { ProjectRouteContext } from '../hooks/useProjectRoute';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../testing/testUtils';
 import ChartTypeGallery from './ChartTypeGallery';
@@ -98,6 +99,30 @@ const renderPage = () =>
                 <Route
                     path="/projects/:projectUuid/home"
                     element={<div>home</div>}
+                />
+            </Routes>
+        </MemoryRouter>,
+    );
+
+// Mirrors ProjectRoute: a slug URL resolves through the project-route
+// provider to the canonical project uuid before the page ever sees it.
+const renderPageWithSlugRoute = (resolvedProjectUuid: string) =>
+    renderWithProviders(
+        <MemoryRouter initialEntries={['/projects/jaffle-shop/gallery']}>
+            <Routes>
+                <Route
+                    path="/projects/:projectUuid/gallery"
+                    element={
+                        <ProjectRouteContext.Provider
+                            value={{
+                                project: {} as Project,
+                                projectUuid: resolvedProjectUuid,
+                                projectUrlIdentifier: 'jaffle-shop',
+                            }}
+                        >
+                            <ChartTypeGallery />
+                        </ProjectRouteContext.Provider>
+                    }
                 />
             </Routes>
         </MemoryRouter>,
@@ -287,6 +312,16 @@ describe('ChartTypeGallery', () => {
             expect(
                 screen.getByText(/No chart types match/),
             ).toBeInTheDocument(),
+        );
+    });
+
+    it('resolves a project slug URL to the canonical project uuid before fetching chart types', () => {
+        setData([]);
+        renderPageWithSlugRoute('project-uuid-canonical');
+
+        expect(mockedUseDataAppVisualizations).toHaveBeenCalledWith(
+            'project-uuid-canonical',
+            '',
         );
     });
 
