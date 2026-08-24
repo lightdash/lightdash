@@ -90,7 +90,12 @@ describe('getStepProgressFromChunk', () => {
                 },
                 transient: true,
             }),
-        ).toEqual({ message: 'Cloning project', toolName: 'editDbtProject' });
+        ).toEqual({
+            message: 'Cloning project',
+            toolName: 'editDbtProject',
+            progressId: null,
+            progressStatus: null,
+        });
     });
 
     it('parses progress data chunks without a tool name (toolName null)', () => {
@@ -100,7 +105,12 @@ describe('getStepProgressFromChunk', () => {
                 data: { message: 'Running your query...' },
                 transient: true,
             }),
-        ).toEqual({ message: 'Running your query...', toolName: null });
+        ).toEqual({
+            message: 'Running your query...',
+            toolName: null,
+            progressId: null,
+            progressStatus: null,
+        });
     });
 
     it('ignores unrelated chunks', () => {
