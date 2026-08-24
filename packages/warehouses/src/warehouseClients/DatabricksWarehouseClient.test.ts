@@ -1,4 +1,6 @@
 /* eslint-disable prefer-arrow-callback, func-names */
+import StatusError from '@databricks/sql/dist/errors/StatusError';
+import { TStatusCode } from '@databricks/sql/thrift/TCLIService_types';
 import {
     DatabricksSqlBuilder,
     DatabricksWarehouseClient,
@@ -8,6 +10,8 @@ import { expectedFields } from './WarehouseClient.mock';
 
 const mocks = vi.hoisted(() => ({
     fetchChunk: vi.fn(),
+    openSession: vi.fn(),
+    closeConnection: vi.fn(),
 }));
 
 vi.mock('@databricks/sql', async () => ({
@@ -17,24 +21,44 @@ vi.mock('@databricks/sql', async () => ({
     DBSQLClient: vi.fn(function () {
         return {
             connect: vi.fn(() => ({
-                openSession: vi.fn(() => ({
-                    executeStatement: vi.fn(() => ({
-                        getSchema: vi.fn(async () => schema),
-                        fetchChunk: mocks.fetchChunk.mockImplementation(
-                            async () => rows,
-                        ),
-                        hasMoreRows: vi.fn(async () => false),
-                        close: vi.fn(async () => undefined),
-                    })),
-                    close: vi.fn(async () => undefined),
-                })),
-                close: vi.fn(async () => undefined),
+                openSession: mocks.openSession,
+                close: mocks.closeConnection,
             })),
         };
     }),
 }));
 
 describe('DatabricksWarehouseClient', () => {
+    beforeEach(() => {
+        mocks.fetchChunk.mockReset().mockResolvedValue(rows);
+        mocks.closeConnection.mockReset().mockResolvedValue(undefined);
+        mocks.openSession.mockReset().mockResolvedValue({
+            executeStatement: vi.fn(() => ({
+                getSchema: vi.fn(async () => schema),
+                fetchChunk: mocks.fetchChunk,
+                hasMoreRows: vi.fn(async () => false),
+                close: vi.fn(async () => undefined),
+            })),
+            close: vi.fn(async () => undefined),
+        });
+    });
+
+    it('surfaces Databricks status messages when opening a session fails', async () => {
+        const message =
+            'SQL warehouse xyz is not ready to accept connections (current state: STARTING)';
+        mocks.openSession.mockRejectedValueOnce(
+            new StatusError({
+                statusCode: TStatusCode.ERROR_STATUS,
+                errorMessage: message,
+            }),
+        );
+        const warehouse = new DatabricksWarehouseClient(credentials);
+
+        await expect(warehouse.runQuery('fake sql')).rejects.toMatchObject({
+            message,
+        });
+    });
+
     it('expect query fields and rows', async () => {
         const warehouse = new DatabricksWarehouseClient(credentials);
 
