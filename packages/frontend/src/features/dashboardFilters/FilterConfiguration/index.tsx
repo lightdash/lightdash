@@ -7,6 +7,7 @@ import {
     getFilterTypeFromItem,
     getFilterTypeFromItemType,
     getItemId,
+    isDashboardDataAppTileType,
     isField,
     isFilterableField,
     matchFieldByType,
@@ -264,6 +265,14 @@ const FilterConfiguration: FC<Props> = ({
 
                 switch (action) {
                     case FilterActions.ADD: {
+                        const tile = tiles.find(
+                            ({ uuid }) => uuid === tileUuid,
+                        );
+                        if (tile && isDashboardDataAppTileType(tile)) {
+                            delete draftState.tileTargets[tileUuid];
+                            return draftState;
+                        }
+
                         let target: DashboardFieldTarget | undefined =
                             newTarget;
 
@@ -320,6 +329,7 @@ const FilterConfiguration: FC<Props> = ({
             setDraftFilterRule,
             draftFilterRule,
             sqlChartTilesMetadata,
+            tiles,
         ],
     );
 
@@ -327,27 +337,34 @@ const FilterConfiguration: FC<Props> = ({
         (checked: boolean, targetTileUuids: string[]) => {
             if (!checked) {
                 const newFilterRule = produce(draftFilterRule, (draftState) => {
-                    if (!draftState || !selectedField) return;
+                    if (!draftState) return;
 
-                    Object.entries(availableTileFilters).forEach(
-                        ([tileUuid]) => {
-                            if (
-                                !draftState.tileTargets ||
-                                !targetTileUuids.includes(tileUuid)
-                            )
-                                return;
-                            draftState.tileTargets[tileUuid] = false;
-                        },
-                    );
+                    draftState.tileTargets = draftState.tileTargets ?? {};
+                    targetTileUuids.forEach((tileUuid) => {
+                        if (!draftState.tileTargets) return;
+                        draftState.tileTargets[tileUuid] = false;
+                    });
                     return draftState;
                 });
 
                 setDraftFilterRule(newFilterRule);
             } else {
                 const newFilterRule = produce(draftFilterRule, (draftState) => {
-                    if (!draftState || !selectedField) return;
+                    if (!draftState) return;
+
+                    draftState.tileTargets = draftState.tileTargets ?? {};
                     targetTileUuids.forEach((tileUuid) => {
                         if (!draftState.tileTargets) return;
+
+                        const tile = tiles.find(
+                            ({ uuid }) => uuid === tileUuid,
+                        );
+                        if (tile && isDashboardDataAppTileType(tile)) {
+                            delete draftState.tileTargets[tileUuid];
+                            return;
+                        }
+
+                        if (!selectedField) return;
                         draftState.tileTargets[tileUuid] = {
                             fieldId: getItemId(selectedField),
                             tableName: selectedField.table,
@@ -359,12 +376,7 @@ const FilterConfiguration: FC<Props> = ({
                 setDraftFilterRule(newFilterRule);
             }
         },
-        [
-            selectedField,
-            availableTileFilters,
-            setDraftFilterRule,
-            draftFilterRule,
-        ],
+        [selectedField, setDraftFilterRule, draftFilterRule, tiles],
     );
 
     const handleApply = useCallback(() => {
@@ -428,7 +440,7 @@ const FilterConfiguration: FC<Props> = ({
                         <Tooltip
                             label={
                                 tabs.length > 1
-                                    ? 'Select which tabs and chart tiles this filter applies to'
+                                    ? 'Select which tabs and tiles this filter applies to'
                                     : 'Select tiles to apply filter to and which field to filter by'
                             }
                             position="top-start"
@@ -437,9 +449,7 @@ const FilterConfiguration: FC<Props> = ({
                                 value={FilterTabs.TILES}
                                 disabled={!draftFilterRule}
                             >
-                                {tabs.length > 1
-                                    ? 'Tabs & chart tiles'
-                                    : 'Chart tiles'}
+                                {tabs.length > 1 ? 'Tabs & tiles' : 'Tiles'}
                             </Tabs.Tab>
                         </Tooltip>
                     </Tabs.List>

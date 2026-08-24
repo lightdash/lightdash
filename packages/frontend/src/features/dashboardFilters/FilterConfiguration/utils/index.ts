@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     FilterOperator,
     getItemId,
+    isDashboardDataAppTileType,
     isDashboardFieldTarget,
     type DashboardFieldTarget,
     type DashboardFilterableField,
@@ -99,6 +100,8 @@ export const doesFilterApplyToTile = (
 
     switch (relation) {
         case 'auto':
+            if (isDashboardDataAppTileType(tile)) return true;
+
             // Filter automatically applies to tiles that have the field
             return tileHasFilterField(
                 filterRule,
