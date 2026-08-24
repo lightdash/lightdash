@@ -175,7 +175,7 @@ import {
 import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import type { SandboxRegistryModel } from '../../models/SandboxRegistryModel';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
-import { getModel, resolveKeyManagement } from '../ai/models';
+import { resolveKeyManagement } from '../ai/models';
 import {
     OrgAiCopilotConfigResolver,
     type CopilotConfig,
@@ -5603,13 +5603,12 @@ export class AppGenerateService extends BaseService {
      * LLM errors — the build flow should proceed without clarification
      * rather than fail. Returns an empty array when:
      * - the prompt is already specific enough (model judgment),
-     * - neither Anthropic nor Bedrock is configured,
+     * - no LLM provider is configured,
      * - the LLM call times out or errors.
      *
-     * Routes through Bedrock when `AI_DEFAULT_PROVIDER=bedrock`, otherwise
-     * Anthropic — mirroring the data-apps sandbox provider switch in
-     * `claudeCodeEnv.ts` so the clarifier and code generation use the same
-     * provider.
+     * Uses the org-resolved, BYO-key-aware fast model so clarification follows
+     * the same provider resolution as other lightweight AI tasks such as app
+     * naming.
      *
      * Branches on template: a data app viz gets a component-scoped prompt and
      * no catalog context, because it never runs a query. Everything else shares
@@ -5641,22 +5640,25 @@ export class AppGenerateService extends BaseService {
             await this.orgAiCopilotConfigResolver.getCopilotConfig(
                 organizationUuid,
             );
-        const llmProvider: 'anthropic' | 'bedrock' =
-            copilot.defaultProvider === 'bedrock' ? 'bedrock' : 'anthropic';
 
         let modelOptions;
         try {
-            modelOptions = getModel(copilot, {
-                provider: llmProvider,
-                modelName: 'claude-sonnet-4-5',
-                enableReasoning: false,
-            });
+            modelOptions =
+                await this.orgAiCopilotConfigResolver.resolveFastModel(
+                    copilot,
+                    { enableReasoning: false },
+                );
         } catch (err) {
             this.logger.info(
-                `Skipping app clarification: ${llmProvider} not configured (${getErrorMessage(err)})`,
+                `Skipping app clarification: no LLM provider configured (${getErrorMessage(err)})`,
             );
             return { questions: [] };
         }
+
+        const modelAttribution = getLanguageModelAttribution(
+            modelOptions.model,
+        );
+        const llmProvider = modelAttribution.provider ?? 'unknown';
 
         // A data app viz never runs a query — it renders whatever rows the host
         // explore hands it — so catalog context would only invite questions
@@ -5701,7 +5703,7 @@ export class AppGenerateService extends BaseService {
             organizationUuid,
             projectUuid,
             userUuid: user.userUuid,
-            ...getLanguageModelAttribution(modelOptions.model),
+            ...modelAttribution,
             keyManagement: modelOptions.keyManagement,
             // Which prompt variant ran — the two ask for very different things,
             // so spend and question counts are only comparable within a variant.
