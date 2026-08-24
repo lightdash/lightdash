@@ -2496,20 +2496,25 @@ describe('Formatting', () => {
                 type: CustomFormatType.BYTES_IEC,
                 compact: Compact.KIBIBYTES,
             });
-            expect(kibibyteExpression).toEqual('#,##0.00"KiB"');
+            // No round → up to 3 trailing-dropped decimals, matching the
+            // structured applyCustomFormat path (G4 alignment).
+            expect(kibibyteExpression).toEqual('#,##0.###"KiB"');
             expect(
                 formatValueWithExpression(kibibyteExpression!, 2048),
-            ).toEqual('2.00KiB');
+            ).toEqual('2KiB');
+            expect(
+                formatValueWithExpression(kibibyteExpression!, 1536),
+            ).toEqual('1.5KiB');
 
             // Test MEBIBYTES (should divide by 1048576)
             const mebibyteExpression = convertCustomFormatToFormatExpression({
                 type: CustomFormatType.BYTES_IEC,
                 compact: Compact.MEBIBYTES,
             });
-            expect(mebibyteExpression).toEqual('#,##0.00"MiB"');
+            expect(mebibyteExpression).toEqual('#,##0.###"MiB"');
             expect(
                 formatValueWithExpression(mebibyteExpression!, 2097152),
-            ).toEqual('2.00MiB');
+            ).toEqual('2MiB');
 
             // Test with rounding
             const roundedExpression = convertCustomFormatToFormatExpression({
@@ -2534,7 +2539,7 @@ describe('Formatting', () => {
             // Backend calls convertCustomFormatToFormatExpression
             const formatExpression =
                 convertCustomFormatToFormatExpression(formatOptions);
-            expect(formatExpression).toEqual('#,##0.00"KiB"');
+            expect(formatExpression).toEqual('#,##0.###"KiB"');
 
             // Mock metric with format expression set by backend
             const mockMetric = {
@@ -2552,11 +2557,11 @@ describe('Formatting', () => {
 
             // Frontend uses formatItemValue which should call formatValueWithExpression
             const result = formatItemValue(mockMetric, 2048);
-            expect(result).toEqual('2.00KiB'); // Should be correctly divided by 1024
+            expect(result).toEqual('2KiB'); // Should be correctly divided by 1024
 
             // Test larger values
-            expect(formatItemValue(mockMetric, 1024)).toEqual('1.00KiB');
-            expect(formatItemValue(mockMetric, 3072)).toEqual('3.00KiB');
+            expect(formatItemValue(mockMetric, 1024)).toEqual('1KiB');
+            expect(formatItemValue(mockMetric, 3072)).toEqual('3KiB');
         });
 
         test('formatValueWithExpression ignores the incidental runtime timezone for date expressions (#19759)', () => {
@@ -3932,16 +3937,9 @@ describe('convertCustomFormatToFormatExpression gap fixes', () => {
             const expression =
                 convertCustomFormatToFormatExpression(customFormat);
             expect(
-                formatValueWithExpression(
-                    expression!,
-                    date,
-                    undefined,
-                    'UTC',
-                ),
+                formatValueWithExpression(expression!, date, undefined, 'UTC'),
             ).toBe(expected);
-            expect(applyCustomFormat(date, customFormat, 'UTC')).toBe(
-                expected,
-            );
+            expect(applyCustomFormat(date, customFormat, 'UTC')).toBe(expected);
         });
     });
 
