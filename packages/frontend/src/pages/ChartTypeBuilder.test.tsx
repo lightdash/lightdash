@@ -365,8 +365,12 @@ describe('ChartTypeBuilder', () => {
 
         // No toggle to find: the panel sits beside the preview from the start.
         expect(screen.getByText('Generated options')).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: 'Fields' })).toHaveAttribute(
+            'aria-selected',
+            'true',
+        );
         expect(
-            screen.getByText('This chart type declares no display options.'),
+            screen.getByText('This chart type accepts no data fields.'),
         ).toBeInTheDocument();
     });
 
