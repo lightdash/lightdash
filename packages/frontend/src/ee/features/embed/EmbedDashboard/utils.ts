@@ -10,6 +10,16 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { type SdkFilter } from './types';
 
+export const canUseEmbeddedChartBuilder = ({
+    canWriteDashboard,
+    canCreateSavedChart,
+    canExplore,
+}: {
+    canWriteDashboard: boolean;
+    canCreateSavedChart: boolean;
+    canExplore: boolean;
+}): boolean => canWriteDashboard && canCreateSavedChart && canExplore;
+
 /**
  * Whether SDK filter conversion should be deferred until the data needed to
  * build cross-explore tileTargets is available.

@@ -2551,17 +2551,18 @@ export class EmbedService extends BaseService {
                         embedWriteUserPromise,
                     ]);
 
-                const embedWriteContext = await this.getEmbedWriteContext(
-                    decodedToken,
-                    embedWriteUser,
-                    projectUuid,
-                );
-
                 if (!content) {
                     throw new NotFoundError(
                         'Cannot verify JWT. Content not found',
                     );
                 }
+
+                const embedWriteContext = await this.getEmbedWriteContext(
+                    decodedToken,
+                    embedWriteUser,
+                    projectUuid,
+                    content,
+                );
 
                 // Secure-by-default: a standalone data app embed is honoured
                 // only when the project opted the app in — via the broad
@@ -2630,6 +2631,7 @@ export class EmbedService extends BaseService {
         decodedToken: CreateEmbedJwt,
         embedWriteUser: SessionUser | undefined,
         projectUuid: string,
+        content: EmbedContent,
     ): Promise<AnonymousAccount['embedWriteContext']> {
         const { writeActions } = decodedToken;
         if (!writeActions || !embedWriteUser) {
@@ -2648,6 +2650,7 @@ export class EmbedService extends BaseService {
 
             if (spaceAccessContext.projectUuid !== projectUuid) {
                 return {
+                    canUpdateDashboard: false,
                     canCreateSavedChart: false,
                     canUseAiAgent: false,
                     aiAgentErrorMessage:
@@ -2656,6 +2659,18 @@ export class EmbedService extends BaseService {
             }
 
             const auditedAbility = this.createAuditedAbility(embedWriteUser);
+            const canUpdateDashboard =
+                content.type === 'dashboard' &&
+                content.dashboardUuid !== undefined &&
+                auditedAbility.can(
+                    'update',
+                    subject('Dashboard', {
+                        ...spaceAccessContext,
+                        metadata: {
+                            dashboardUuid: content.dashboardUuid,
+                        },
+                    }),
+                );
             const canCreateSavedChart = auditedAbility.can(
                 'create',
                 subject('SavedChart', {
@@ -2683,6 +2698,7 @@ export class EmbedService extends BaseService {
                 canViewProject;
 
             return {
+                canUpdateDashboard,
                 canCreateSavedChart,
                 canUseAiAgent,
                 aiAgentErrorMessage: canUseAiAgent
@@ -2700,6 +2716,7 @@ export class EmbedService extends BaseService {
                 error instanceof NotFoundError
             ) {
                 return {
+                    canUpdateDashboard: false,
                     canCreateSavedChart: false,
                     canUseAiAgent: false,
                     aiAgentErrorMessage:
