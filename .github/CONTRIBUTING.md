@@ -2,7 +2,7 @@
 
 Lightdash is open source and everyone is welcome to report problems, suggest improvements and participate in the community.
 
-To keep the project sustainable for its maintainers, _we review pull requests only from maintainers and trusted contributors who have agreed on the work with us in advance_. We do not accept unsolicited code contributions.
+To keep the project sustainable for its maintainers, **we review pull requests only from maintainers and trusted contributors who have agreed on the work with us in advance**. We do not accept unsolicited code contributions.
 
 ## Why we work this way
 
@@ -21,7 +21,7 @@ You don't need to be a trusted contributor to participate in the Lightdash commu
 - Upvote, add context, reproduction steps or examples to [existing issues](https://github.com/lightdash/lightdash/issues).
 - Share feedback about how you use Lightdash or help other users in the [Slack Community](http://go.lightdash.com/community).
 
-_Clear bug reports, thoughtful feature requests and real-world context are some of the most valuable contributions you can make_ (often more valuable to us than the implementation itself).
+**Clear bug reports, thoughtful feature requests and real-world context are some of the most valuable contributions you can make** (often more valuable to us than the implementation itself).
 
 For security vulnerabilities, please use GitHub’s private vulnerability-reporting functionality or email security@lightdash.com.
 
