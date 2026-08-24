@@ -770,6 +770,35 @@ function compileSelect(
 
     const ROW_COUNT_METRIC_NAME = 'pgwire_row_count';
 
+    /**
+     * BI tools re-aggregate every measure they chart (`SUM(metric) AS metric`).
+     * Metrics are already aggregated at the query's grain, so an aggregate over a
+     * metric column means "this metric": the outer aggregate is dropped, the way
+     * semantic-layer SQL APIs conventionally treat measures.
+     */
+    const AGGREGATE_PASSTHROUGH_FUNCTIONS = new Set([
+        'sum',
+        'min',
+        'max',
+        'avg',
+    ]);
+
+    const passthroughMetricRef = (expr: Expr): ExprRef | null => {
+        if (
+            expr.type !== 'call' ||
+            !AGGREGATE_PASSTHROUGH_FUNCTIONS.has(
+                expr.function.name.toLowerCase(),
+            ) ||
+            expr.distinct === 'distinct' ||
+            expr.over ||
+            expr.args.length !== 1
+        ) {
+            return null;
+        }
+        const [arg] = expr.args;
+        return arg.type === 'ref' && arg.name !== '*' ? arg : null;
+    };
+
     /** Postgres-style default output name for an unaliased expression, unique within the statement */
     const autoName = (ctx: CompilerContext, expr: Expr): string => {
         const base =
@@ -924,6 +953,20 @@ function compileSelect(
             }
             return;
         }
+        // SUM(metric) and friends: the metric itself, at this query's grain
+        const aggregatedRef = passthroughMetricRef(expr);
+        if (aggregatedRef) {
+            const resolved = resolveRefOrThrow(ctx, aggregatedRef);
+            if (resolved.kind === 'metric') {
+                const outputName = col.alias?.name ?? resolved.source;
+                addField(resolved, outputName);
+                if (col.alias) {
+                    ctx.aliasMap.set(col.alias.name, resolved);
+                }
+                return;
+            }
+            // aggregates over dimensions still point at pre-defined metrics
+        }
         if (expr.type === 'ref') {
             const resolved = resolveRefOrThrow(ctx, expr);
             if (resolved.kind === 'table_calculation') {
@@ -937,6 +980,18 @@ function compileSelect(
                 ctx.aliasMap.set(col.alias.name, resolved);
             }
             return;
+        }
+        // a bare aggregate that did not pass through gets the aggregation
+        // explanation, not a confusing alias-conflict or table-calc error
+        if (
+            expr.type === 'call' &&
+            AGGREGATE_FUNCTIONS.has(expr.function.name.toLowerCase()) &&
+            !expr.over
+        ) {
+            throw new SqlCompileError(
+                `Aggregate function "${expr.function.name.toLowerCase()}" is not supported here`,
+                'Metrics are already aggregated at the query grain. SUM, MIN, MAX and AVG directly over a metric column are treated as the metric itself; other aggregates are not supported.',
+            );
         }
         // any other expression becomes a table calculation; name it like
         // Postgres when no alias is given (function name, else ?column?)
