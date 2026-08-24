@@ -1,3 +1,10 @@
+## [1.243.1](https://github.com/lightdash/lightdash/compare/1.243.0...1.243.1) (2026-08-24)
+
+
+### Bug Fixes
+
+* support pre-aggregate SQL custom dimensions ([#27917](https://github.com/lightdash/lightdash/issues/27917)) ([16e4006](https://github.com/lightdash/lightdash/commit/16e4006dbb70f25054363abba9732c12418470c4)), closes [#27889](https://github.com/lightdash/lightdash/issues/27889)
+
 # [1.243.0](https://github.com/lightdash/lightdash/compare/1.242.7...1.243.0) (2026-08-24)
 
 
