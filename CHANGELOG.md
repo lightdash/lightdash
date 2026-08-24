@@ -1,3 +1,15 @@
+# [1.242.0](https://github.com/lightdash/lightdash/compare/1.241.1...1.242.0) (2026-08-24)
+
+
+### Bug Fixes
+
+* resolve project uuid in chart config components under slug URLs ([#27910](https://github.com/lightdash/lightdash/issues/27910)) ([5649791](https://github.com/lightdash/lightdash/commit/5649791a64390a415becf3fc03a2cdb3c41aaa56))
+
+
+### Features
+
+* **cli:** add content-type counts to upload and download events ([#27907](https://github.com/lightdash/lightdash/issues/27907)) ([40f9053](https://github.com/lightdash/lightdash/commit/40f9053699733e1e8decbb10bd2134e75d7ff8a9))
+
 ## [1.241.1](https://github.com/lightdash/lightdash/compare/1.241.0...1.241.1) (2026-08-24)
 
 
