@@ -851,6 +851,44 @@ describe('direct access read models PostgreSQL integration', () => {
         });
     });
 
+    it('throws NotFoundError when revoking a missing group grant', async () => {
+        const missingGroupUuid = randomUUID();
+        const cases = [
+            {
+                model: new DashboardAccessModel(transaction),
+                resourceUuid: dashboardUuid,
+            },
+            {
+                model: new SavedChartAccessModel(transaction),
+                resourceUuid: savedChartUuid,
+            },
+            {
+                model: new SavedSqlAccessModel(transaction),
+                resourceUuid: savedSqlUuid,
+            },
+            {
+                model: new AppAccessModel(transaction),
+                resourceUuid: appUuid,
+            },
+        ];
+
+        await Promise.all(
+            cases.map(({ model: accessModel, resourceUuid }) =>
+                expect(
+                    accessModel.revokeGroupAccess({
+                        resourceUuid,
+                        groupUuid: missingGroupUuid,
+                        actorRole: SpaceMemberRole.ADMIN,
+                        actorRoleResolver: async () => SpaceMemberRole.ADMIN,
+                    }),
+                ).rejects.toMatchObject({
+                    name: 'NotFoundError',
+                    message: 'Direct access target not found',
+                }),
+            ),
+        );
+    });
+
     it('rolls back a role replacement when grantor attribution is invalid', async () => {
         await expect(
             model.upsertUserAccess({

@@ -259,9 +259,12 @@ export class SavedSqlAccessModel implements DirectAccessModel {
                 })
                 .first<{ space_role: SpaceMemberRole }>('space_role')
                 .forUpdate();
+            if (existing === undefined) {
+                throw new NotFoundError('Direct access target not found');
+            }
             assertCanRevokeDirectAccess({
                 actorRole,
-                existingRole: existing?.space_role,
+                existingRole: existing.space_role,
                 isSelfRevoke: false,
             });
             await trx(SavedSqlGroupAccessTableName)
@@ -272,7 +275,7 @@ export class SavedSqlAccessModel implements DirectAccessModel {
                 .delete();
             return {
                 ...context,
-                beforeRole: existing?.space_role ?? null,
+                beforeRole: existing.space_role,
                 afterRole: null,
             };
         });
