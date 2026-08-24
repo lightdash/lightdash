@@ -14,9 +14,19 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
             // Add new commercial handlers
             [CommercialFeatureFlags.AiCopilot]:
                 this.getAiCopilotFlag.bind(this),
+            [CommercialFeatureFlags.DirectAccess]:
+                this.getDirectAccessFlag.bind(this),
             [CommercialFeatureFlags.HomepageBuilder]:
                 this.getHomepageBuilderFlag.bind(this),
         };
+    }
+
+    private async getDirectAccessFlag(args: FeatureFlagLogicArgs) {
+        if (!args.user) {
+            return { id: args.featureFlagId, enabled: false };
+        }
+        const dbResult = await this.tryGetFromDatabase(args);
+        return dbResult ?? { id: args.featureFlagId, enabled: false };
     }
 
     // Default-off; enabled per-org via DB-backed overrides.

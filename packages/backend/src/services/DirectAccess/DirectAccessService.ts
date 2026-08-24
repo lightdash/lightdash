@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { createActorFromAccount } from '../../logging/caslAuditWrapper';
 import {
+    type DirectAccess,
     type DirectAccessModel,
     type DirectAccessModelActorRoleResolver,
     type DirectAccessMutationContext,
@@ -18,6 +19,11 @@ import {
     auditDirectAccessReset,
     type DirectAccessAuditLogger,
 } from './directAccessAudit';
+import { DirectAccessFeatureGate } from './DirectAccessFeatureGate';
+import {
+    getLogicalAccessBatch,
+    resolveDirectAccessBatch,
+} from './directAccessResolver';
 
 export type DirectAccessResourceType =
     | 'dashboard'
@@ -75,6 +81,7 @@ export class DirectAccessService extends BaseService {
     constructor(
         private readonly models: DirectAccessModels,
         private readonly actorRoleResolver: DirectAccessActorRoleResolver,
+        private readonly featureGate: DirectAccessFeatureGate,
         private readonly auditLogger?: DirectAccessAuditLogger,
     ) {
         super();
@@ -123,6 +130,23 @@ export class DirectAccessService extends BaseService {
         });
     }
 
+    private async prepareMutation(input: DirectAccessMutationInput): Promise<{
+        organizationUuid: UUID;
+        actorRole?: SpaceMemberRole;
+        actorRoleResolver: DirectAccessModelActorRoleResolver;
+    }> {
+        const organizationUuid = DirectAccessService.getOrganizationUuid(
+            input.account,
+        );
+        await this.featureGate.assertEnabled(input.account);
+        const actorRole = await this.resolveActorRole(input);
+        return {
+            organizationUuid,
+            actorRole,
+            actorRoleResolver: this.createActorRoleResolver(input),
+        };
+    }
+
     private getModel(
         resourceType: DirectAccessResourceType,
     ): DirectAccessModel {
@@ -159,14 +183,67 @@ export class DirectAccessService extends BaseService {
         });
     }
 
+    async getUserAccess({
+        account,
+        resourceType,
+        resourceUuids,
+    }: {
+        account: RegisteredAccount;
+        resourceType: DirectAccessResourceType;
+        resourceUuids: UUID[];
+    }): Promise<Record<string, DirectAccess>> {
+        const organizationUuid =
+            DirectAccessService.getOrganizationUuid(account);
+        if (!(await this.featureGate.isEnabled(account))) {
+            return {};
+        }
+        return this.getModel(resourceType).getUserAccess(
+            resourceUuids,
+            account.user.userUuid,
+            { organizationUuid },
+        );
+    }
+
+    async resolveUserAccess({
+        account,
+        resourceType,
+        resourceUuids,
+        logicalRoles,
+        capabilityCeilings,
+    }: {
+        account: RegisteredAccount;
+        resourceType: DirectAccessResourceType;
+        resourceUuids: UUID[];
+        logicalRoles: Record<string, SpaceMemberRole | undefined>;
+        capabilityCeilings: Record<string, SpaceMemberRole | null>;
+    }): Promise<Record<string, SpaceMemberRole | undefined>> {
+        const organizationUuid =
+            DirectAccessService.getOrganizationUuid(account);
+        if (!(await this.featureGate.isEnabled(account))) {
+            return getLogicalAccessBatch(resourceUuids, logicalRoles);
+        }
+        const directAccess = await this.getModel(resourceType).getUserAccess(
+            resourceUuids,
+            account.user.userUuid,
+            { organizationUuid },
+        );
+        return resolveDirectAccessBatch({
+            resourceUuids,
+            directAccess,
+            organizationUuid,
+            logicalRoles,
+            capabilityCeilings,
+        });
+    }
+
     async upsertUserAccess(
         input: DirectAccessMutationInput & {
             userUuid: UUID;
             role: SpaceMemberRole;
         },
     ): Promise<void> {
-        const actorRole = await this.resolveActorRole(input);
-        const actorRoleResolver = this.createActorRoleResolver(input);
+        const { actorRole, actorRoleResolver, organizationUuid } =
+            await this.prepareMutation(input);
         const result = await this.getModel(
             input.resource.type,
         ).upsertUserAccess({
@@ -176,6 +253,7 @@ export class DirectAccessService extends BaseService {
             actorRole,
             actorRoleResolver,
             grantedByUserUuid: input.account.user.userUuid,
+            organizationUuid,
         });
         this.auditMutation(
             input,
@@ -190,8 +268,8 @@ export class DirectAccessService extends BaseService {
             role: SpaceMemberRole;
         },
     ): Promise<void> {
-        const actorRole = await this.resolveActorRole(input);
-        const actorRoleResolver = this.createActorRoleResolver(input);
+        const { actorRole, actorRoleResolver, organizationUuid } =
+            await this.prepareMutation(input);
         const result = await this.getModel(
             input.resource.type,
         ).upsertGroupAccess({
@@ -201,6 +279,7 @@ export class DirectAccessService extends BaseService {
             actorRole,
             actorRoleResolver,
             grantedByUserUuid: input.account.user.userUuid,
+            organizationUuid,
         });
         this.auditMutation(
             input,
@@ -212,8 +291,8 @@ export class DirectAccessService extends BaseService {
     async revokeUserAccess(
         input: DirectAccessMutationInput & { userUuid: UUID },
     ): Promise<void> {
-        const actorRole = await this.resolveActorRole(input);
-        const actorRoleResolver = this.createActorRoleResolver(input);
+        const { actorRole, actorRoleResolver, organizationUuid } =
+            await this.prepareMutation(input);
         const result = await this.getModel(
             input.resource.type,
         ).revokeUserAccess({
@@ -222,6 +301,7 @@ export class DirectAccessService extends BaseService {
             actorRole,
             actorRoleResolver,
             actorUserUuid: input.account.user.userUuid,
+            organizationUuid,
         });
         this.auditMutation(
             input,
@@ -233,8 +313,8 @@ export class DirectAccessService extends BaseService {
     async revokeGroupAccess(
         input: DirectAccessMutationInput & { groupUuid: UUID },
     ): Promise<void> {
-        const actorRole = await this.resolveActorRole(input);
-        const actorRoleResolver = this.createActorRoleResolver(input);
+        const { actorRole, actorRoleResolver, organizationUuid } =
+            await this.prepareMutation(input);
         const result = await this.getModel(
             input.resource.type,
         ).revokeGroupAccess({
@@ -242,6 +322,7 @@ export class DirectAccessService extends BaseService {
             groupUuid: input.groupUuid,
             actorRole,
             actorRoleResolver,
+            organizationUuid,
         });
         this.auditMutation(
             input,
@@ -251,12 +332,13 @@ export class DirectAccessService extends BaseService {
     }
 
     async resetAccess(input: DirectAccessMutationInput): Promise<void> {
-        const actorRole = await this.resolveActorRole(input);
-        const actorRoleResolver = this.createActorRoleResolver(input);
+        const { actorRole, actorRoleResolver, organizationUuid } =
+            await this.prepareMutation(input);
         const result = await this.getModel(input.resource.type).resetAccess({
             resourceUuid: input.resource.uuid,
             actorRole,
             actorRoleResolver,
+            organizationUuid,
         });
         this.auditReset(input, result);
     }

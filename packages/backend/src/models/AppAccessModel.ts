@@ -36,6 +36,7 @@ export class AppAccessModel implements DirectAccessModel {
     private static async getMutationContext(
         trx: Knex,
         resourceUuid: string,
+        expectedOrganizationUuid: string,
     ): Promise<DirectAccessMutationContext> {
         const context = await trx(AppsTableName)
             .innerJoin(
@@ -50,6 +51,10 @@ export class AppAccessModel implements DirectAccessModel {
             )
             .where(`${AppsTableName}.app_id`, resourceUuid)
             .whereNull(`${AppsTableName}.deleted_at`)
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                expectedOrganizationUuid,
+            )
             .select<DirectAccessMutationContext>({
                 organizationId: `${OrganizationTableName}.organization_id`,
                 organizationUuid: `${OrganizationTableName}.organization_uuid`,
@@ -70,6 +75,7 @@ export class AppAccessModel implements DirectAccessModel {
         role: SpaceMemberRole;
         actorRole: SpaceMemberRole | undefined;
         actorRoleResolver: DirectAccessModelActorRoleResolver;
+        organizationUuid: string;
         grantedByUserUuid: string;
     }): Promise<DirectAccessMutationResult> {
         assertCanGrantDirectAccess(input.actorRole, input.role);
@@ -77,6 +83,7 @@ export class AppAccessModel implements DirectAccessModel {
             const context = await AppAccessModel.getMutationContext(
                 trx,
                 input.resourceUuid,
+                input.organizationUuid,
             );
             const actorRole = await input.actorRoleResolver({
                 transaction: trx,
@@ -127,6 +134,7 @@ export class AppAccessModel implements DirectAccessModel {
         role: SpaceMemberRole;
         actorRole: SpaceMemberRole | undefined;
         actorRoleResolver: DirectAccessModelActorRoleResolver;
+        organizationUuid: string;
         grantedByUserUuid: string;
     }): Promise<DirectAccessMutationResult> {
         assertCanGrantDirectAccess(input.actorRole, input.role);
@@ -134,6 +142,7 @@ export class AppAccessModel implements DirectAccessModel {
             const context = await AppAccessModel.getMutationContext(
                 trx,
                 input.resourceUuid,
+                input.organizationUuid,
             );
             const actorRole = await input.actorRoleResolver({
                 transaction: trx,
@@ -187,6 +196,7 @@ export class AppAccessModel implements DirectAccessModel {
         userUuid: string;
         actorRole: SpaceMemberRole | undefined;
         actorRoleResolver: DirectAccessModelActorRoleResolver;
+        organizationUuid: string;
         actorUserUuid: string;
     }): Promise<DirectAccessMutationResult> {
         const isSelfRevoke = input.actorUserUuid === input.userUuid;
@@ -198,6 +208,7 @@ export class AppAccessModel implements DirectAccessModel {
             const context = await AppAccessModel.getMutationContext(
                 trx,
                 input.resourceUuid,
+                input.organizationUuid,
             );
             const actorRole = await input.actorRoleResolver({
                 transaction: trx,
@@ -237,6 +248,7 @@ export class AppAccessModel implements DirectAccessModel {
         groupUuid: string;
         actorRole: SpaceMemberRole | undefined;
         actorRoleResolver: DirectAccessModelActorRoleResolver;
+        organizationUuid: string;
     }): Promise<DirectAccessMutationResult> {
         assertCanRevokeDirectAccess({
             actorRole: input.actorRole,
@@ -246,6 +258,7 @@ export class AppAccessModel implements DirectAccessModel {
             const context = await AppAccessModel.getMutationContext(
                 trx,
                 input.resourceUuid,
+                input.organizationUuid,
             );
             const actorRole = await input.actorRoleResolver({
                 transaction: trx,
@@ -284,12 +297,14 @@ export class AppAccessModel implements DirectAccessModel {
         resourceUuid: string;
         actorRole: SpaceMemberRole | undefined;
         actorRoleResolver: DirectAccessModelActorRoleResolver;
+        organizationUuid: string;
     }): Promise<DirectAccessResetResult> {
         assertCanResetDirectAccess(input.actorRole);
         return this.database.transaction(async (trx) => {
             const context = await AppAccessModel.getMutationContext(
                 trx,
                 input.resourceUuid,
+                input.organizationUuid,
             );
             const actorRole = await input.actorRoleResolver({
                 transaction: trx,
@@ -311,7 +326,13 @@ export class AppAccessModel implements DirectAccessModel {
     async getUserAccess(
         appUuids: string[],
         userUuid: string,
-        { trx = this.database }: { trx?: Knex } = {},
+        {
+            trx = this.database,
+            organizationUuid,
+        }: {
+            trx?: Knex;
+            organizationUuid: string;
+        },
     ): Promise<Record<string, AppDirectAccess>> {
         const uniqueAppUuids = [...new Set(appUuids)];
         if (uniqueAppUuids.length === 0) {
@@ -360,6 +381,10 @@ export class AppAccessModel implements DirectAccessModel {
             )
             .whereIn(`${AppUserAccessTableName}.app_uuid`, uniqueAppUuids)
             .where(`${AppUserAccessTableName}.user_uuid`, userUuid)
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
             .where(getActiveProjectMemberPredicate(trx))
             .whereNull(`${AppsTableName}.deleted_at`)
             .unionAll(
@@ -413,6 +438,10 @@ export class AppAccessModel implements DirectAccessModel {
                         uniqueAppUuids,
                     )
                     .where(`${UserTableName}.user_uuid`, userUuid)
+                    .where(
+                        `${OrganizationTableName}.organization_uuid`,
+                        organizationUuid,
+                    )
                     .where(getActiveProjectMemberPredicate(trx))
                     .where(
                         `${GroupMembershipTableName}.organization_id`,

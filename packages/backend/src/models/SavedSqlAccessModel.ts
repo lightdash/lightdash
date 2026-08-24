@@ -36,6 +36,7 @@ export class SavedSqlAccessModel implements DirectAccessModel {
     private static async getMutationContext(
         trx: Knex,
         resourceUuid: string,
+        expectedOrganizationUuid: string,
     ): Promise<DirectAccessMutationContext> {
         const context = await trx(SavedSqlTableName)
             .innerJoin(
@@ -51,6 +52,10 @@ export class SavedSqlAccessModel implements DirectAccessModel {
             .where(`${SavedSqlTableName}.saved_sql_uuid`, resourceUuid)
             .whereNull(`${SavedSqlTableName}.dashboard_uuid`)
             .whereNull(`${SavedSqlTableName}.deleted_at`)
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                expectedOrganizationUuid,
+            )
             .select<DirectAccessMutationContext>({
                 organizationId: `${OrganizationTableName}.organization_id`,
                 organizationUuid: `${OrganizationTableName}.organization_uuid`,
@@ -71,6 +76,7 @@ export class SavedSqlAccessModel implements DirectAccessModel {
         role: SpaceMemberRole;
         actorRole: SpaceMemberRole | undefined;
         actorRoleResolver: DirectAccessModelActorRoleResolver;
+        organizationUuid: string;
         grantedByUserUuid: string;
     }): Promise<DirectAccessMutationResult> {
         assertCanGrantDirectAccess(input.actorRole, input.role);
@@ -78,6 +84,7 @@ export class SavedSqlAccessModel implements DirectAccessModel {
             const context = await SavedSqlAccessModel.getMutationContext(
                 trx,
                 input.resourceUuid,
+                input.organizationUuid,
             );
             const actorRole = await input.actorRoleResolver({
                 transaction: trx,
@@ -128,6 +135,7 @@ export class SavedSqlAccessModel implements DirectAccessModel {
         role: SpaceMemberRole;
         actorRole: SpaceMemberRole | undefined;
         actorRoleResolver: DirectAccessModelActorRoleResolver;
+        organizationUuid: string;
         grantedByUserUuid: string;
     }): Promise<DirectAccessMutationResult> {
         assertCanGrantDirectAccess(input.actorRole, input.role);
@@ -135,6 +143,7 @@ export class SavedSqlAccessModel implements DirectAccessModel {
             const context = await SavedSqlAccessModel.getMutationContext(
                 trx,
                 input.resourceUuid,
+                input.organizationUuid,
             );
             const actorRole = await input.actorRoleResolver({
                 transaction: trx,
@@ -188,6 +197,7 @@ export class SavedSqlAccessModel implements DirectAccessModel {
         userUuid: string;
         actorRole: SpaceMemberRole | undefined;
         actorRoleResolver: DirectAccessModelActorRoleResolver;
+        organizationUuid: string;
         actorUserUuid: string;
     }): Promise<DirectAccessMutationResult> {
         const isSelfRevoke = input.actorUserUuid === input.userUuid;
@@ -199,6 +209,7 @@ export class SavedSqlAccessModel implements DirectAccessModel {
             const context = await SavedSqlAccessModel.getMutationContext(
                 trx,
                 input.resourceUuid,
+                input.organizationUuid,
             );
             const actorRole = await input.actorRoleResolver({
                 transaction: trx,
@@ -238,6 +249,7 @@ export class SavedSqlAccessModel implements DirectAccessModel {
         groupUuid: string;
         actorRole: SpaceMemberRole | undefined;
         actorRoleResolver: DirectAccessModelActorRoleResolver;
+        organizationUuid: string;
     }): Promise<DirectAccessMutationResult> {
         assertCanRevokeDirectAccess({
             actorRole: input.actorRole,
@@ -247,6 +259,7 @@ export class SavedSqlAccessModel implements DirectAccessModel {
             const context = await SavedSqlAccessModel.getMutationContext(
                 trx,
                 input.resourceUuid,
+                input.organizationUuid,
             );
             const actorRole = await input.actorRoleResolver({
                 transaction: trx,
@@ -285,12 +298,14 @@ export class SavedSqlAccessModel implements DirectAccessModel {
         resourceUuid: string;
         actorRole: SpaceMemberRole | undefined;
         actorRoleResolver: DirectAccessModelActorRoleResolver;
+        organizationUuid: string;
     }): Promise<DirectAccessResetResult> {
         assertCanResetDirectAccess(input.actorRole);
         return this.database.transaction(async (trx) => {
             const context = await SavedSqlAccessModel.getMutationContext(
                 trx,
                 input.resourceUuid,
+                input.organizationUuid,
             );
             const actorRole = await input.actorRoleResolver({
                 transaction: trx,
@@ -312,7 +327,13 @@ export class SavedSqlAccessModel implements DirectAccessModel {
     async getUserAccess(
         savedSqlUuids: string[],
         userUuid: string,
-        { trx = this.database }: { trx?: Knex } = {},
+        {
+            trx = this.database,
+            organizationUuid,
+        }: {
+            trx?: Knex;
+            organizationUuid: string;
+        },
     ): Promise<Record<string, SavedSqlDirectAccess>> {
         const uniqueSavedSqlUuids = [...new Set(savedSqlUuids)];
         if (uniqueSavedSqlUuids.length === 0) {
@@ -364,6 +385,10 @@ export class SavedSqlAccessModel implements DirectAccessModel {
                 uniqueSavedSqlUuids,
             )
             .where(`${SavedSqlUserAccessTableName}.user_uuid`, userUuid)
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
             .where(getActiveProjectMemberPredicate(trx))
             .whereNull(`${SavedSqlTableName}.dashboard_uuid`)
             .whereNull(`${SavedSqlTableName}.deleted_at`)
@@ -418,6 +443,10 @@ export class SavedSqlAccessModel implements DirectAccessModel {
                         uniqueSavedSqlUuids,
                     )
                     .where(`${UserTableName}.user_uuid`, userUuid)
+                    .where(
+                        `${OrganizationTableName}.organization_uuid`,
+                        organizationUuid,
+                    )
                     .where(getActiveProjectMemberPredicate(trx))
                     .where(
                         `${GroupMembershipTableName}.organization_id`,

@@ -29,7 +29,7 @@ type AccessModel = {
     getUserAccess(
         resourceUuids: string[],
         userUuid: string,
-        options?: { trx?: Knex },
+        options: { trx?: Knex; organizationUuid: string },
     ): Promise<AccessResult>;
 };
 
@@ -81,9 +81,11 @@ describe('direct access read models', () => {
     it.each(modelCases)(
         '$name does not query for an empty resource list',
         async ({ model }) => {
-            await expect(model.getUserAccess([], 'user-uuid')).resolves.toEqual(
-                {},
-            );
+            await expect(
+                model.getUserAccess([], 'user-uuid', {
+                    organizationUuid: 'organization-uuid',
+                }),
+            ).resolves.toEqual({});
             expect(tracker.history.select).toHaveLength(0);
         },
     );
@@ -119,6 +121,7 @@ describe('direct access read models', () => {
                 model.getUserAccess(
                     ['resource-a', 'resource-without-grants', 'resource-a'],
                     'user-uuid',
+                    { organizationUuid: 'organization-uuid' },
                 ),
             ).resolves.toEqual({
                 'resource-a': {
