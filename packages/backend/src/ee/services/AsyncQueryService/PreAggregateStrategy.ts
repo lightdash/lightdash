@@ -191,7 +191,12 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
         const resolverArgs = {
             projectUuid,
             queryUuid,
-            metricQuery: resolveArgs.metricQuery,
+            metricQuery: {
+                ...resolveArgs.metricQuery,
+                customDimensions: preAggregateUtils.getActiveCustomDimensions(
+                    resolveArgs.metricQuery,
+                ),
+            },
             timezone: resolveArgs.timezone,
             dateZoom: resolveArgs.dateZoom,
             parameters: resolveArgs.parameters,

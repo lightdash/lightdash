@@ -1,4 +1,5 @@
 import { parseAllReferences } from '../../compiler/exploreCompiler';
+import { getReferencedDimension } from '../../compiler/referenceLookup';
 import type { Explore } from '../../types/explore';
 import {
     convertFieldRefToFieldId,
@@ -6,6 +7,8 @@ import {
     isCustomSqlDimension,
     isSqlTableCalculation,
     MetricType,
+    type CustomDimension,
+    type CustomSqlDimension,
     type FieldId,
 } from '../../types/field';
 import {
@@ -153,6 +156,19 @@ const extractDimensionFilterFieldIds = (
                 typeof target.fieldId === 'string',
         )
         .map((target) => target.fieldId);
+};
+
+export const getActiveCustomDimensions = (
+    metricQuery: MetricQuery,
+): CustomDimension[] => {
+    const activeFieldIds = new Set([
+        ...metricQuery.dimensions,
+        ...extractDimensionFilterFieldIds(metricQuery),
+    ]);
+
+    return (metricQuery.customDimensions || []).filter((customDimension) =>
+        activeFieldIds.has(getItemId(customDimension)),
+    );
 };
 
 // Field ids referenced by the base model's sql_filter. ${TABLE}.col raw
@@ -952,7 +968,7 @@ const isExactDimensionSetMatch = ({
 };
 
 const getGranularityMissForDef = (
-    metricQuery: MetricQuery,
+    dimensionFieldIds: readonly FieldId[],
     explore: Explore,
     preAggregateDef: PreAggregateDef,
     dimensionsByFieldId: Map<
@@ -971,7 +987,7 @@ const getGranularityMissForDef = (
         return null;
     }
 
-    for (const dimensionFieldId of metricQuery.dimensions) {
+    for (const dimensionFieldId of dimensionFieldIds) {
         const dimension = dimensionsByFieldId.get(dimensionFieldId);
         const queryGranularity = dimension
             ? getEffectiveDimensionTimeFrame(dimension)
@@ -1017,6 +1033,66 @@ const getGranularityMissForDef = (
     return null;
 };
 
+const getSqlCustomDimensionMissForDef = ({
+    customDimension,
+    explore,
+    preAggregateDef,
+    defDimensions,
+    dimensionsByFieldId,
+}: {
+    customDimension: CustomSqlDimension;
+    explore: Explore;
+    preAggregateDef: PreAggregateDef;
+    defDimensions: Set<string>;
+    dimensionsByFieldId: Map<
+        FieldId,
+        Explore['tables'][string]['dimensions'][string]
+    >;
+}): PreAggregateMatchMiss | null => {
+    for (const { refTable, refName } of parseAllReferences(
+        customDimension.sql,
+        customDimension.table,
+    )) {
+        if (refName === 'TABLE') {
+            // eslint-disable-next-line no-continue
+            continue;
+        }
+
+        const dimension = getReferencedDimension(
+            refTable,
+            refName,
+            explore.tables,
+        );
+        const fieldId = dimension ? getItemId(dimension) : null;
+        if (
+            !fieldId ||
+            !dimensionFieldIdMatchesDef(
+                fieldId,
+                explore,
+                defDimensions,
+                dimensionsByFieldId,
+            )
+        ) {
+            return {
+                reason: PreAggregateMissReason.DIMENSION_NOT_IN_PRE_AGGREGATE,
+                fieldId: getItemId(customDimension),
+            };
+        }
+
+        const granularityMiss = getGranularityMissForDef(
+            [fieldId],
+            explore,
+            preAggregateDef,
+            dimensionsByFieldId,
+        );
+        if (granularityMiss) {
+            return granularityMiss;
+        }
+    }
+
+    return null;
+};
+
 const getMissForDef = ({
     metricQuery,
     explore,
@@ -1047,8 +1123,10 @@ const getMissForDef = ({
     ) {
         defDimensions.add(preAggregateDef.timeDimension);
     }
-    const customDimensionIds = new Set(
-        (metricQuery.customDimensions || []).map(getItemId),
+    const activeCustomDimensions = getActiveCustomDimensions(metricQuery);
+    const customDimensionIds = new Set(activeCustomDimensions.map(getItemId));
+    const sqlCustomDimensionIds = new Set(
+        activeCustomDimensions.filter(isCustomSqlDimension).map(getItemId),
     );
 
     let exactDimensionSetMatch: boolean | null = null;
@@ -1117,34 +1195,32 @@ const getMissForDef = ({
         }
     }
 
-    const missingCustomDimension = (metricQuery.customDimensions || []).find(
-        (customDimension) => {
-            if (isCustomSqlDimension(customDimension)) {
-                return true;
+    for (const customDimension of activeCustomDimensions) {
+        if (isCustomSqlDimension(customDimension)) {
+            const miss = getSqlCustomDimensionMissForDef({
+                customDimension,
+                explore,
+                preAggregateDef,
+                defDimensions,
+                dimensionsByFieldId,
+            });
+            if (miss) {
+                return miss;
             }
-
-            return (
-                isCustomBinDimension(customDimension) &&
-                !dimensionFieldIdMatchesDef(
-                    customDimension.dimensionId,
-                    explore,
-                    defDimensions,
-                    dimensionsByFieldId,
-                )
-            );
-        },
-    );
-    if (missingCustomDimension) {
-        if (isCustomSqlDimension(missingCustomDimension)) {
+        } else if (
+            isCustomBinDimension(customDimension) &&
+            !dimensionFieldIdMatchesDef(
+                customDimension.dimensionId,
+                explore,
+                defDimensions,
+                dimensionsByFieldId,
+            )
+        ) {
             return {
-                reason: PreAggregateMissReason.CUSTOM_DIMENSION_PRESENT,
+                reason: PreAggregateMissReason.DIMENSION_NOT_IN_PRE_AGGREGATE,
+                fieldId: getItemId(customDimension),
             };
         }
-
-        return {
-            reason: PreAggregateMissReason.DIMENSION_NOT_IN_PRE_AGGREGATE,
-            fieldId: getItemId(missingCustomDimension),
-        };
     }
 
     const missingQueryDimensionFieldId = metricQuery.dimensions.find(
@@ -1170,6 +1246,7 @@ const getMissForDef = ({
     ];
     const missingFilterDimensionFieldId = filterDimensionFieldIds.find(
         (dimensionFieldId) =>
+            !sqlCustomDimensionIds.has(dimensionFieldId) &&
             !filterDimensionFieldIdMatchesDef(
                 dimensionFieldId,
                 explore,
@@ -1239,7 +1316,7 @@ const getMissForDef = ({
     }
 
     const granularityMiss = getGranularityMissForDef(
-        metricQuery,
+        metricQuery.dimensions,
         explore,
         preAggregateDef,
         dimensionsByFieldId,
