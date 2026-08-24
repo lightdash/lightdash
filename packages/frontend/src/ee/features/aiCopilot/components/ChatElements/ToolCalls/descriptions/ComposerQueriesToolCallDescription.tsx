@@ -5,13 +5,73 @@ import {
     type ToolComposerQueryNode,
     WarehouseTypes,
 } from '@lightdash/common';
-import { Badge, Box, Group, Stack, Text } from '@mantine/core';
+import { Badge, Box, Group, Stack, Text, Tooltip } from '@mantine/core';
+import { IconCheck, IconX } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import CodeBlock from '../../../../../../../components/common/CodeBlock/CodeBlock';
+import MantineIcon from '../../../../../../../components/common/MantineIcon';
 import styles from './ComposerQueriesToolCallDescription.module.css';
+
+/**
+ * Live execution status of one pipeline node, derived from the transient
+ * step-progress events the composer tool emits while it runs. Undefined maps
+ * (the persisted, post-run view) render the pipeline without indicators.
+ */
+export type ComposerQueryNodeStatus =
+    | { status: 'pending' }
+    | { status: 'running' }
+    | { status: 'success' }
+    | { status: 'error'; errorMessage: string | null };
 
 type ComposerQueriesToolCallDescriptionProps = {
     queries: ToolComposerQueriesArgs['queries'];
+    nodeStatuses?: Record<string, ComposerQueryNodeStatus>;
+};
+
+const NODE_STATUS_LABELS = {
+    pending: 'Queued',
+    running: 'Running',
+    success: 'Completed',
+    error: 'Failed',
+} as const;
+
+const NodeStatusIndicator: FC<{ nodeStatus: ComposerQueryNodeStatus }> = ({
+    nodeStatus,
+}) => {
+    const label =
+        nodeStatus.status === 'error' && nodeStatus.errorMessage
+            ? `Failed: ${nodeStatus.errorMessage}`
+            : NODE_STATUS_LABELS[nodeStatus.status];
+    return (
+        <Tooltip label={label} position="top" withArrow>
+            <Box
+                className={styles.statusIndicator}
+                data-status={nodeStatus.status}
+                aria-label={label}
+            >
+                {nodeStatus.status === 'success' ? (
+                    <MantineIcon
+                        icon={IconCheck}
+                        size={11}
+                        stroke={2.4}
+                        className={styles.statusIcon}
+                    />
+                ) : nodeStatus.status === 'error' ? (
+                    <MantineIcon
+                        icon={IconX}
+                        size={11}
+                        stroke={2.4}
+                        className={styles.statusIcon}
+                    />
+                ) : (
+                    <Box
+                        className={styles.statusDot}
+                        data-status={nodeStatus.status}
+                    />
+                )}
+            </Box>
+        </Tooltip>
+    );
 };
 
 const referenceAliases = (items: string[] | Record<string, string>) =>
@@ -50,7 +110,10 @@ const getNodePresentation = (node: ToolComposerQueryNode) => {
     }
 };
 
-const ComposerQueryNode: FC<{ node: ToolComposerQueryNode }> = ({ node }) => {
+const ComposerQueryNode: FC<{
+    node: ToolComposerQueryNode;
+    nodeStatus?: ComposerQueryNodeStatus;
+}> = ({ node, nodeStatus }) => {
     const presentation = getNodePresentation(node);
     const formattedSql = useMemo(() => {
         if (!('sql' in node) || !node.sql) return null;
@@ -65,8 +128,11 @@ const ComposerQueryNode: FC<{ node: ToolComposerQueryNode }> = ({ node }) => {
     }, [node]);
 
     return (
-        <Box className={styles.node}>
+        <Box className={styles.node} data-status={nodeStatus?.status}>
             <Group gap={6} wrap="nowrap" className={styles.header}>
+                {nodeStatus ? (
+                    <NodeStatusIndicator nodeStatus={nodeStatus} />
+                ) : null}
                 <Text component="span" className={styles.nodeId}>
                     {node.nodeId}
                 </Text>
@@ -93,10 +159,14 @@ const ComposerQueryNode: FC<{ node: ToolComposerQueryNode }> = ({ node }) => {
 
 export const ComposerQueriesToolCallDescription: FC<
     ComposerQueriesToolCallDescriptionProps
-> = ({ queries }) => (
+> = ({ queries, nodeStatuses }) => (
     <Stack gap={10} align="stretch" w="100%" className={styles.pipeline}>
         {queries.map((node) => (
-            <ComposerQueryNode key={node.nodeId} node={node} />
+            <ComposerQueryNode
+                key={node.nodeId}
+                node={node}
+                nodeStatus={nodeStatuses?.[node.nodeId]}
+            />
         ))}
     </Stack>
 );

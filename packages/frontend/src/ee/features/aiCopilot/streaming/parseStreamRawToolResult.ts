@@ -1,6 +1,7 @@
 import {
     agentToolDefinitionsByName,
     isAiAgentMcpToolName,
+    parsePartialToolComposerQueriesArgs,
     toolDashboardV2ArgsSchemaPersisted,
     toolRunQueryArgsSchemaPersisted,
     type ToolDefinition,
@@ -47,6 +48,12 @@ type BuiltInToolCall = {
         toolArgs: ToolArgs<K>;
         toolResult?: ToolResult<K> | null;
         isPreliminary?: boolean;
+        /**
+         * True while the model is still streaming this call's input: toolArgs
+         * is a lenient reconstruction of the partial JSON, good for live
+         * rendering but not final (e.g. SQL strings may be cut off).
+         */
+        isArgsPartial?: boolean;
     };
 }[ParsedToolName];
 
@@ -64,6 +71,7 @@ type McpToolCall = {
     toolArgs: object;
     toolResult?: unknown;
     isPreliminary?: boolean;
+    isArgsPartial?: boolean;
 };
 
 type McpToolResult = {
@@ -137,6 +145,31 @@ export const parseStreamRawToolCall = (
         toolArgs: toolArgs.data,
         isPreliminary: toolCall.isPreliminary,
     } as AiAgentToolCall;
+};
+
+/**
+ * Parse a tool call whose input is still streaming. Strict parsing usually
+ * fails on partial JSON, so tools with a lenient partial parser (today only
+ * runComposerQueries) fall back to it — letting the pipeline render node by
+ * node while the model writes it. Returns null for tools without partial
+ * support whose partial args don't yet satisfy the strict schema.
+ */
+export const parseStreamRawPartialToolCall = (
+    toolCall: StreamRawToolCall,
+): AiAgentToolCall | null => {
+    if (toolCall.toolName !== 'runComposerQueries') return null;
+
+    const strict = parseStreamRawToolCall(toolCall);
+    if (strict) return { ...strict, isArgsPartial: true };
+
+    const partialArgs = parsePartialToolComposerQueriesArgs(toolCall.toolArgs);
+    if (!partialArgs) return null;
+    return {
+        toolName: 'runComposerQueries',
+        toolArgs: partialArgs,
+        isPreliminary: toolCall.isPreliminary,
+        isArgsPartial: true,
+    };
 };
 
 export const parseStreamRawToolResult = (

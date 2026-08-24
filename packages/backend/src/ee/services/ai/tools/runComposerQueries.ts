@@ -188,6 +188,35 @@ export const getRunComposerQueries = ({
                 const { submissions, terminal } = await runComposerQueries({
                     queries,
                     terminalNodeId: resolvedTerminalNodeId,
+                    // Per-node lifecycle → transient step-progress events the
+                    // web stream renders as live statuses on the pipeline.
+                    // progressId carries `${toolCallId}:${nodeId}` so the
+                    // client can key events to the right call and node.
+                    // Fire-and-forget: status delivery must never block or
+                    // fail the query.
+                    onNodeStatus: ({ nodeId, status, errorMessage }) => {
+                        let message: string;
+                        let progressStatus:
+                            | 'in_progress'
+                            | 'complete'
+                            | 'error';
+                        if (status === 'running') {
+                            message = `Running query "${nodeId}"...`;
+                            progressStatus = 'in_progress';
+                        } else if (status === 'success') {
+                            message = `Query "${nodeId}" complete`;
+                            progressStatus = 'complete';
+                        } else {
+                            message = `Query "${nodeId}" failed${errorMessage ? `: ${errorMessage}` : ''}`;
+                            progressStatus = 'error';
+                        }
+                        void updateProgress(
+                            message,
+                            'runComposerQueries',
+                            `${toolCallId}:${nodeId}`,
+                            progressStatus,
+                        ).catch(() => {});
+                    },
                 });
 
                 const prompt = await getPrompt();

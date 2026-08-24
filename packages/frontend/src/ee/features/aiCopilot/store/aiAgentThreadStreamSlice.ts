@@ -20,6 +20,13 @@ export type StepProgressMessage = {
     // The tool the event belongs to, or null when the emitting tool didn't
     // attribute it. Used to scope the inline progress row to the active tool.
     toolName: string | null;
+    // Correlates repeated events about the same unit of work (composer
+    // pipeline nodes use `${toolCallId}:${nodeId}`), or null for one-off
+    // progress strings.
+    progressId: string | null;
+    // Lifecycle of the unit identified by progressId, or null when the event
+    // is a plain progress string.
+    progressStatus: 'in_progress' | 'complete' | 'error' | null;
 };
 
 export type StreamPart =
@@ -319,9 +326,21 @@ export const aiAgentThreadStreamSlice = createSlice({
                     threadUuid: string;
                     message: string;
                     toolName: string | null;
+                    progressId?: string | null;
+                    progressStatus?:
+                        | 'in_progress'
+                        | 'complete'
+                        | 'error'
+                        | null;
                 }>,
             ) => {
-                const { threadUuid, message, toolName } = action.payload;
+                const {
+                    threadUuid,
+                    message,
+                    toolName,
+                    progressId = null,
+                    progressStatus = null,
+                } = action.payload;
                 const streamingThread = state[threadUuid];
                 if (!streamingThread) return;
                 // Drop adjacent-duplicate step events — `runQuery` fires
@@ -329,7 +348,9 @@ export const aiAgentThreadStreamSlice = createSlice({
                 // don't want a stuttering list. Non-adjacent repeats are
                 // fine (different cycle, different context) so we only
                 // check the most recent entry. A repeat from a different
-                // tool is kept (different toolName → not a true duplicate).
+                // tool is kept (different toolName → not a true duplicate),
+                // as is a repeat about a different unit of work or a status
+                // transition (different progressId/progressStatus).
                 const last =
                     streamingThread.stepProgressMessages[
                         streamingThread.stepProgressMessages.length - 1
@@ -337,18 +358,24 @@ export const aiAgentThreadStreamSlice = createSlice({
                 if (
                     last &&
                     last.message === message &&
-                    last.toolName === toolName
+                    last.toolName === toolName &&
+                    last.progressId === progressId &&
+                    last.progressStatus === progressStatus
                 )
                     return;
                 streamingThread.stepProgressMessages.push({
                     message,
                     toolName,
+                    progressId,
+                    progressStatus,
                 });
             },
             prepare: prepareAutoBatched<{
                 threadUuid: string;
                 message: string;
                 toolName: string | null;
+                progressId?: string | null;
+                progressStatus?: 'in_progress' | 'complete' | 'error' | null;
             }>(),
         },
     },

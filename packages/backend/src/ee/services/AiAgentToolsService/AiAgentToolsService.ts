@@ -87,6 +87,7 @@ import { ProjectContextModel } from '../../models/ProjectContextModel';
 import type { BuiltInSkills } from '../ai/skills/builtInSkills';
 import {
     AnalyzeFieldImpactFn,
+    ComposerNodeStatusUpdate,
     CreateContentFn,
     CreateScheduledDeliveryFn,
     DescribeWarehouseTableFn,
@@ -2318,7 +2319,11 @@ export class AiAgentToolsService extends BaseService {
 
     private runComposerQueries(
         context: AiAgentToolsRuntimeContext,
-        { queries, terminalNodeId }: Parameters<RunComposerQueriesFn>[0],
+        {
+            queries,
+            terminalNodeId,
+            onNodeStatus,
+        }: Parameters<RunComposerQueriesFn>[0],
     ): ReturnType<RunComposerQueriesFn> {
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.runComposerQueries`,
@@ -2336,6 +2341,81 @@ export class AiAgentToolsService extends BaseService {
                         queries,
                         context: context.defaultQueryExecutionContext,
                     });
+
+                // Per-node status emission is best-effort UI telemetry: only
+                // transitions are emitted, and a listener error never breaks
+                // execution.
+                const emittedNodeStatuses = new Map<
+                    string,
+                    ComposerNodeStatusUpdate['status']
+                >();
+                const emitNodeStatus = (update: ComposerNodeStatusUpdate) => {
+                    if (
+                        emittedNodeStatuses.get(update.nodeId) === update.status
+                    )
+                        return;
+                    emittedNodeStatuses.set(update.nodeId, update.status);
+                    try {
+                        onNodeStatus?.(update);
+                    } catch {
+                        // never let a status listener break the query
+                    }
+                };
+                submissions.forEach((submission) =>
+                    emitNodeStatus({
+                        nodeId: submission.nodeId,
+                        queryUuid: submission.queryUuid,
+                        status: 'running',
+                        errorMessage: null,
+                    }),
+                );
+                const pollNodeStatuses = async () => {
+                    if (!onNodeStatus) return;
+                    const pending = submissions.filter((submission) => {
+                        const emitted = emittedNodeStatuses.get(
+                            submission.nodeId,
+                        );
+                        return emitted !== 'success' && emitted !== 'error';
+                    });
+                    if (pending.length === 0) return;
+                    try {
+                        const { statuses } =
+                            await this.querySourceService.getSourceQueryStatuses(
+                                context.account,
+                                context.projectUuid,
+                                pending.map(
+                                    (submission) => submission.queryUuid,
+                                ),
+                            );
+                        statuses.forEach((status) => {
+                            const submission = pending.find(
+                                (candidate) =>
+                                    candidate.queryUuid === status.queryUuid,
+                            );
+                            if (!submission) return;
+                            if (status.status === QueryHistoryStatus.READY) {
+                                emitNodeStatus({
+                                    nodeId: submission.nodeId,
+                                    queryUuid: submission.queryUuid,
+                                    status: 'success',
+                                    errorMessage: null,
+                                });
+                            } else if (
+                                status.status === QueryHistoryStatus.ERROR ||
+                                status.status === QueryHistoryStatus.CANCELLED
+                            ) {
+                                emitNodeStatus({
+                                    nodeId: submission.nodeId,
+                                    queryUuid: submission.queryUuid,
+                                    status: 'error',
+                                    errorMessage: status.error ?? null,
+                                });
+                            }
+                        });
+                    } catch {
+                        // status polling is best-effort; keep executing
+                    }
+                };
 
                 const terminalSubmission = submissions.find(
                     (submission) => submission.nodeId === terminalNodeId,
@@ -2381,6 +2461,15 @@ export class AiAgentToolsService extends BaseService {
                         });
 
                     if (queryResults.status === QueryHistoryStatus.READY) {
+                        // Terminal ready implies every upstream node finished.
+                        submissions.forEach((submission) =>
+                            emitNodeStatus({
+                                nodeId: submission.nodeId,
+                                queryUuid: submission.queryUuid,
+                                status: 'success',
+                                errorMessage: null,
+                            }),
+                        );
                         const wrappedRows = (queryResults.rows ?? []) as Record<
                             string,
                             AnyType
@@ -2410,6 +2499,24 @@ export class AiAgentToolsService extends BaseService {
                             context,
                             submissions,
                         );
+                        failedNodes.forEach(({ nodeId, error }) => {
+                            const submission = submissions.find(
+                                (candidate) => candidate.nodeId === nodeId,
+                            );
+                            if (!submission) return;
+                            emitNodeStatus({
+                                nodeId,
+                                queryUuid: submission.queryUuid,
+                                status: 'error',
+                                errorMessage: error,
+                            });
+                        });
+                        emitNodeStatus({
+                            nodeId: terminalSubmission.nodeId,
+                            queryUuid: terminalSubmission.queryUuid,
+                            status: 'error',
+                            errorMessage: queryResults.error ?? null,
+                        });
                         throw new WarehouseQueryError(
                             `Composer query failed${
                                 failedNodes.length > 0
@@ -2425,10 +2532,22 @@ export class AiAgentToolsService extends BaseService {
                     }
 
                     if (queryResults.status === QueryHistoryStatus.CANCELLED) {
+                        emitNodeStatus({
+                            nodeId: terminalSubmission.nodeId,
+                            queryUuid: terminalSubmission.queryUuid,
+                            status: 'error',
+                            errorMessage: 'Query was cancelled',
+                        });
                         throw new WarehouseQueryError(
                             'Composer query was cancelled',
                         );
                     }
+
+                    // Terminal still running: surface upstream nodes that have
+                    // already finished so the pipeline shows live per-node
+                    // progress.
+                    // eslint-disable-next-line no-await-in-loop
+                    await pollNodeStatuses();
 
                     const localDelay = delayMs;
                     // eslint-disable-next-line no-await-in-loop
