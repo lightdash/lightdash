@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "1.251.0",
-  "previousVersion": "1.250.0",
-  "releaseDate": "2026-08-24T16:56:39.606Z",
+  "version": "1.251.1",
+  "previousVersion": "1.251.0",
+  "releaseDate": "2026-08-24T17:11:21.368Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -20,8 +20,24 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [],
-      "advisoryCount": 0
+      "advisories": [
+        "GET /api/v1/projects/{projectUuid}/validate — added the new `explore split` enum value to the `results/items/anyOf[#/components/schemas/ValidationErrorChartResponse]/allOf[#/components/schemas/ValidationResponseBase]/errorType` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/validate — added the new `explore split` enum value to the `results/items/anyOf[#/components/schemas/ValidationErrorDashboardResponse]/allOf[#/components/schemas/ValidationResponseBase]/errorType` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/validate — added the new `explore split` enum value to the `results/items/anyOf[#/components/schemas/ValidationErrorDataAppResponse]/allOf[#/components/schemas/ValidationResponseBase]/errorType` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/validate — added the new `explore split` enum value to the `results/items/anyOf[#/components/schemas/ValidationErrorTableResponse]/allOf[#/components/schemas/Omit_ValidationResponseBase.name_]/errorType` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/validate/chart/{chartUuid} — added the new `explore split` enum value to the `results/errors/items/errorType` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/validate/dashboard/{dashboardUuid} — added the new `explore split` enum value to the `results/errors/items/errorType` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/validate — added the new `explore split` enum value to the `results/data/items/anyOf[#/components/schemas/ValidationErrorChartResponse]/allOf[#/components/schemas/ValidationResponseBase]/errorType` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/validate — added the new `explore split` enum value to the `results/data/items/anyOf[#/components/schemas/ValidationErrorDashboardResponse]/allOf[#/components/schemas/ValidationResponseBase]/errorType` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/validate — added the new `explore split` enum value to the `results/data/items/anyOf[#/components/schemas/ValidationErrorDataAppResponse]/allOf[#/components/schemas/ValidationResponseBase]/errorType` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/validate — added the new `explore split` enum value to the `results/data/items/anyOf[#/components/schemas/ValidationErrorTableResponse]/allOf[#/components/schemas/Omit_ValidationResponseBase.name_]/errorType` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/validate/summary — added the new `explore split` enum value to the `results/groups/items/errorType` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/validate/{validationIdOrUuid} — added the new `explore split` enum value to the `results/anyOf[#/components/schemas/ValidationErrorChartResponse]/allOf[#/components/schemas/ValidationResponseBase]/errorType` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/validate/{validationIdOrUuid} — added the new `explore split` enum value to the `results/anyOf[#/components/schemas/ValidationErrorDashboardResponse]/allOf[#/components/schemas/ValidationResponseBase]/errorType` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/validate/{validationIdOrUuid} — added the new `explore split` enum value to the `results/anyOf[#/components/schemas/ValidationErrorDataAppResponse]/allOf[#/components/schemas/ValidationResponseBase]/errorType` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/validate/{validationIdOrUuid} — added the new `explore split` enum value to the `results/anyOf[#/components/schemas/ValidationErrorTableResponse]/allOf[#/components/schemas/Omit_ValidationResponseBase.name_]/errorType` response property for the response status `200`"
+      ],
+      "advisoryCount": 15
     },
     "mcp": {
       "checked": true,

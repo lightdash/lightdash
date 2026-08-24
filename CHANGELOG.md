@@ -1,3 +1,11 @@
+## [1.251.1](https://github.com/lightdash/lightdash/compare/1.251.0...1.251.1) (2026-08-24)
+
+
+### Bug Fixes
+
+* close add source modal after creation ([#27452](https://github.com/lightdash/lightdash/issues/27452)) ([7ed55ee](https://github.com/lightdash/lightdash/commit/7ed55eef3a7470a0ff03ec8aad626b1671a995a9))
+* show the candidate explores when a saved chart points at a split name ([#27448](https://github.com/lightdash/lightdash/issues/27448)) ([c42f4e8](https://github.com/lightdash/lightdash/commit/c42f4e85c5ddd1c2d31de7390c90167b2337d67e)), closes [#27444](https://github.com/lightdash/lightdash/issues/27444)
+
 # [1.251.0](https://github.com/lightdash/lightdash/compare/1.250.0...1.251.0) (2026-08-24)
 
 
