@@ -100,6 +100,10 @@ import {
     withBuildLimitRetry,
 } from './apps/uploadRetry';
 import {
+    getContentFileType,
+    isLooseContentFilePath,
+} from './contentAsCode/fileDiscovery';
+import {
     AI_AGENT_CODE_RESOURCE,
     ALERT_CODE_RESOURCE,
     EXTERNAL_CONNECTION_CODE_RESOURCE,
@@ -435,21 +439,19 @@ const hasUnsortedKeys = (obj: unknown): boolean => {
     return Object.values(obj).some(hasUnsortedKeys);
 };
 
-const isLightdashContentFile = (folder: string, entry: Dirent) =>
+const isLightdashContentFile = (
+    folder: 'charts' | 'dashboards',
+    entry: Dirent,
+) =>
     entry.isFile() &&
     entry.parentPath &&
-    entry.parentPath.endsWith(path.sep + folder) &&
-    entry.name.endsWith('.yml') &&
-    !entry.name.endsWith('.space.yml') &&
-    !entry.name.endsWith('.language.map.yml');
+    getContentFileType(path.join(entry.parentPath, entry.name)) ===
+        (folder === 'charts' ? 'chart' : 'dashboard');
 
 const isLooseContentFile = (entry: Dirent) =>
     entry.isFile() &&
     entry.parentPath &&
-    !entry.parentPath.endsWith(`${path.sep}charts`) &&
-    !entry.parentPath.endsWith(`${path.sep}dashboards`) &&
-    entry.name.endsWith('.yml') &&
-    !entry.name.endsWith('.language.map.yml');
+    isLooseContentFilePath(path.join(entry.parentPath, entry.name));
 
 const processYamlItem = <
     T extends ChartAsCode | DashboardAsCode | SqlChartAsCode,

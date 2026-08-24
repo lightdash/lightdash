@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     chartAsCodeSchema,
     dashboardAsCodeSchema,
     getErrorMessage,
@@ -12,6 +13,10 @@ import { v4 as uuidv4 } from 'uuid';
 import * as YAML from 'yaml';
 import { ajv } from '../ajv';
 import { categorizeError, LightdashAnalytics } from '../analytics/analytics';
+import {
+    getContentFileType,
+    isLooseContentFilePath,
+} from './contentAsCode/fileDiscovery';
 import { createSarifReport } from './lint/ajvToSarif';
 import { formatSarifForCli, getSarifSummary } from './lint/sarifFormatter';
 
@@ -23,13 +28,15 @@ type LintOptions = {
 
 type LocationMap = Map<string, { line: number; column: number }>;
 
+type LightdashCodeType = 'chart' | 'dashboard' | 'model';
+
 type FileValidationResult = {
     filePath: string;
     valid: boolean;
     errors?: ErrorObject[];
     fileContent?: string;
     locationMap?: LocationMap;
-    type?: 'chart' | 'dashboard' | 'model';
+    type?: LightdashCodeType;
 };
 
 const validateChartSchema = ajv.compile(chartAsCodeSchema);
@@ -120,6 +127,9 @@ function buildLocationMap(
 
     // Parse YAML with the 'yaml' package to access the Abstract Syntax Tree (AST)
     const doc = YAML.parseDocument(fileContent);
+    if (doc.errors.length > 0) {
+        throw doc.errors[0];
+    }
 
     function traverse(node: YAML.Node | null, jsonPath: string) {
         if (!node) return;
@@ -158,93 +168,178 @@ function buildLocationMap(
     return { data, locationMap };
 }
 
+function validateAsCodeSchema({
+    data,
+    fileContent,
+    filePath,
+    locationMap,
+    type,
+}: {
+    data: unknown;
+    fileContent: string;
+    filePath: string;
+    locationMap: LocationMap;
+    type: LightdashCodeType;
+}): FileValidationResult {
+    let validate;
+    switch (type) {
+        case 'chart':
+            validate = validateChartSchema;
+            break;
+        case 'dashboard':
+            validate = validateDashboardSchema;
+            break;
+        case 'model':
+            validate = validateModelSchema;
+            break;
+        default:
+            return assertUnreachable(
+                type,
+                `Unknown Lightdash Code type: ${type}`,
+            );
+    }
+    const valid = validate(data);
+
+    if (!valid && validate.errors) {
+        return {
+            filePath,
+            valid: false,
+            errors: validate.errors,
+            fileContent,
+            locationMap,
+            type,
+        };
+    }
+    return { filePath, valid: true, type };
+}
+
 /**
  * Validate a single YAML or JSON file
  */
 function validateFile(filePath: string): FileValidationResult {
+    const uploadType = getContentFileType(filePath);
+    let fileContent: string | undefined;
+
     try {
-        // Read and parse file
-        const fileContent = fs.readFileSync(filePath, 'utf8');
+        fileContent = fs.readFileSync(filePath, 'utf8');
         const isJson = filePath.endsWith('.json');
         const { data, locationMap } = buildLocationMap(fileContent, isJson);
 
         if (!data || typeof data !== 'object') {
-            return {
-                filePath,
-                valid: false,
-                // Skip non-object files as they're not lightdash code
-            };
+            return uploadType
+                ? {
+                      filePath,
+                      valid: false,
+                      errors: [
+                          {
+                              keyword: 'type',
+                              instancePath: '',
+                              schemaPath: '#/type',
+                              params: { type: 'object' },
+                              message: 'must be object',
+                          },
+                      ],
+                      fileContent,
+                      locationMap,
+                      type: uploadType,
+                  }
+                : { filePath, valid: true };
         }
 
         const dataObj = data as {
-            version?: number;
             type?: string;
+            contentType?: string;
+            version?: number;
             metricQuery?: unknown;
             tiles?: unknown;
         };
+        const isLooseFile = isLooseContentFilePath(filePath);
 
-        // Check if this is a model (has type: "model", "model/v1beta", or "model/v1")
+        if (
+            dataObj.contentType === 'sqlChart' &&
+            (uploadType === 'chart' || isLooseFile)
+        ) {
+            return { filePath, valid: true };
+        }
+
+        if (uploadType) {
+            return validateAsCodeSchema({
+                data,
+                fileContent,
+                filePath,
+                locationMap,
+                type: uploadType,
+            });
+        }
+
+        let looseContentType: 'chart' | 'dashboard' | undefined;
+        if (isLooseFile && dataObj.contentType === 'chart') {
+            looseContentType = 'chart';
+        } else if (isLooseFile && dataObj.contentType === 'dashboard') {
+            looseContentType = 'dashboard';
+        }
+        if (looseContentType) {
+            return validateAsCodeSchema({
+                data,
+                fileContent,
+                filePath,
+                locationMap,
+                type: looseContentType,
+            });
+        }
+
         if (
             dataObj.type === 'model' ||
             dataObj.type === 'model/v1beta' ||
             dataObj.type === 'model/v1'
         ) {
-            const valid = validateModelSchema(data);
-            if (!valid && validateModelSchema.errors) {
-                return {
-                    filePath,
-                    valid: false,
-                    errors: validateModelSchema.errors,
-                    fileContent,
-                    locationMap,
-                    type: 'model',
-                };
-            }
-            return { filePath, valid: true, type: 'model' };
+            return validateAsCodeSchema({
+                data,
+                fileContent,
+                filePath,
+                locationMap,
+                type: 'model',
+            });
         }
 
-        // Check if this is a chart (has version and metricQuery)
         if (dataObj.version === 1 && dataObj.metricQuery && !dataObj.tiles) {
-            const valid = validateChartSchema(data);
-            if (!valid && validateChartSchema.errors) {
-                return {
-                    filePath,
-                    valid: false,
-                    errors: validateChartSchema.errors,
-                    fileContent,
-                    locationMap,
-                    type: 'chart',
-                };
-            }
-            return { filePath, valid: true, type: 'chart' };
+            return validateAsCodeSchema({
+                data,
+                fileContent,
+                filePath,
+                locationMap,
+                type: 'chart',
+            });
         }
 
-        // Check if this is a dashboard (has version and tiles)
         if (dataObj.version === 1 && dataObj.tiles) {
-            const valid = validateDashboardSchema(data);
-            if (!valid && validateDashboardSchema.errors) {
-                return {
-                    filePath,
-                    valid: false,
-                    errors: validateDashboardSchema.errors,
-                    fileContent,
-                    locationMap,
-                    type: 'dashboard',
-                };
-            }
-            return { filePath, valid: true, type: 'dashboard' };
+            return validateAsCodeSchema({
+                data,
+                fileContent,
+                filePath,
+                locationMap,
+                type: 'dashboard',
+            });
         }
 
-        // Not a lightdash code file
-        return {
-            filePath,
-            valid: true, // Don't report non-lightdash files as errors
-        };
+        return { filePath, valid: true };
     } catch (error) {
-        // Parsing error - skip this file
+        if (!uploadType) return { filePath, valid: true };
+
         return {
             filePath,
             valid: false,
+            errors: [
+                {
+                    keyword: 'parse',
+                    instancePath: '',
+                    schemaPath: '',
+                    params: {},
+                    message: getErrorMessage(error),
+                },
+            ],
+            fileContent: fileContent ?? '',
+            type: uploadType,
         };
     }
 }
@@ -304,7 +399,7 @@ export async function lintHandler(options: LintOptions): Promise<void> {
                     console.log(chalk.yellow('No Lightdash Code files found.'));
                     console.log(
                         chalk.dim(
-                            'Models must have type: model (or model/v1, model/v1beta), charts must have version: 1 + metricQuery, dashboards must have version: 1 + tiles',
+                            'Models must have type: model (or model/v1, model/v1beta). Charts and dashboards must be in their matching folder or declare contentType.',
                         ),
                     );
                 }
@@ -313,7 +408,7 @@ export async function lintHandler(options: LintOptions): Promise<void> {
                 const sarifResults = results
                     .filter(
                         (r) =>
-                            r.fileContent &&
+                            r.fileContent !== undefined &&
                             r.type &&
                             r.errors &&
                             r.errors.length > 0,
