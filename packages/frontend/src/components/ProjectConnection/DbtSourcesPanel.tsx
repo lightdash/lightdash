@@ -81,10 +81,7 @@ const sourceIdentity = (source: ProjectDbtSourceSummary): string => {
     return source.type ?? 'no connection';
 };
 
-/**
- * The location fields as the form holds them: an empty string means "inherit
- * the project's warehouse location", which the API expresses as null.
- */
+/** An empty string means inherit, which the API expresses as null. */
 type WarehouseLocationFormValues = {
     database: string;
     schema: string;
@@ -104,11 +101,6 @@ const toApiLocation = (
     schema: values.schema.trim() || null,
 });
 
-/**
- * Where this source's models live in the project's warehouse. A source shares
- * the project's warehouse connection, but its own dbt profile can target a
- * different database and schema — left blank, the project's are used.
- */
 const WarehouseLocationInputs: FC<{
     projectUuid: string;
     value: WarehouseLocationFormValues;

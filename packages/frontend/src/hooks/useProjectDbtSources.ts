@@ -111,10 +111,19 @@ export const useUpdateProjectDbtSourceMutation = (projectUuid: string) => {
             updateProjectDbtSource(projectUuid, projectDbtSourceUuid, data),
         {
             mutationKey: ['update_project_dbt_source', projectUuid],
-            onSuccess: async () => {
-                await queryClient.invalidateQueries([
-                    'project_dbt_sources',
-                    projectUuid,
+            onSuccess: async (_result, { projectDbtSourceUuid }) => {
+                await Promise.all([
+                    queryClient.invalidateQueries([
+                        'project_dbt_sources',
+                        projectUuid,
+                    ]),
+                    // The edit form reads the single-source query, so a stale
+                    // entry would refill it with the pre-edit values.
+                    queryClient.invalidateQueries([
+                        'project_dbt_source',
+                        projectUuid,
+                        projectDbtSourceUuid,
+                    ]),
                 ]);
                 showToastSuccess({ title: 'dbt source updated' });
             },

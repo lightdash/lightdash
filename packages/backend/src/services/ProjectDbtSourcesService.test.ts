@@ -310,6 +310,31 @@ describe('ProjectDbtSourcesService', () => {
             );
         });
 
+        it('stores a blank location as inherit rather than as an override', async () => {
+            projectDbtSourcesModel.createSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                name: 'jaffle-2',
+                isPrimary: false,
+                precedence: 1,
+                dbtConnection: githubConnection,
+                warehouseLocation: EMPTY_WAREHOUSE_LOCATION,
+            } as never);
+            const service = getService();
+
+            await service.createProjectDbtSource(adminAccount, projectUuid, {
+                name: 'jaffle-2',
+                dbtConnection: githubConnection as never,
+                warehouseLocation: { database: '', schema: '  ' },
+            });
+
+            expect(projectDbtSourcesModel.createSource).toHaveBeenCalledWith(
+                projectUuid,
+                expect.objectContaining({
+                    warehouseLocation: EMPTY_WAREHOUSE_LOCATION,
+                }),
+            );
+        });
+
         it('rejects a database on a warehouse whose tables have none', async () => {
             projectModel.get.mockResolvedValue({
                 projectUuid,

@@ -17,9 +17,20 @@ export const hasWarehouseLocation = (location: WarehouseLocation): boolean =>
     location.database !== null || location.schema !== null;
 
 /**
- * What each warehouse calls the two levels of a table reference, for labelling
- * inputs and error messages. A null database means the warehouse has no level
- * above the schema, so a database override is not accepted for it.
+ * A blank field means the source inherits the project's location. Callers reach
+ * this from an API body as well as the form, so normalise before storing: an
+ * empty string stored as an override compiles to `""."table"` and fails.
+ */
+export const normalizeWarehouseLocation = (
+    location: WarehouseLocation,
+): WarehouseLocation => ({
+    database: location.database?.trim() || null,
+    schema: location.schema?.trim() || null,
+});
+
+/**
+ * A null database means the warehouse has no level above the schema, so a
+ * database override is not accepted for it.
  */
 export const getWarehouseLocationLabels = (
     warehouseType: WarehouseTypes,
@@ -46,10 +57,7 @@ export const getWarehouseLocationLabels = (
     }
 };
 
-/**
- * The location a warehouse connection already points at — what a dbt source
- * inherits when it sets no location of its own.
- */
+/** The location a warehouse connection already points at. */
 export const getWarehouseLocation = (
     credentials: CreateWarehouseCredentials | WarehouseCredentials,
 ): WarehouseLocation => {
@@ -118,10 +126,9 @@ const unsupportedDatabaseOverride = (warehouseType: WarehouseTypes): Error =>
     );
 
 /**
- * Copy the project's warehouse credentials with the source's own database and
- * schema, so the dbt profile Lightdash generates for this source compiles its
- * models against the location they really live in. Only the location changes —
- * the connection itself, and the client that runs queries, stay the project's.
+ * The project's warehouse credentials with the source's own database and schema,
+ * for generating that source's dbt profile. Only the location changes: the
+ * connection, and the client that runs queries, stay the project's.
  */
 export const applyWarehouseLocation = (
     credentials: CreateWarehouseCredentials,
@@ -202,17 +209,30 @@ export const applyWarehouseLocation = (
 };
 
 /**
- * Reject a location a warehouse cannot express, at the point the user saves it,
- * rather than when a deploy compiles with it hours later.
+ * Reject a location a warehouse cannot express when the user saves it, not when
+ * a deploy compiles with it hours later. Takes the connection rather than the
+ * type because two DuckDB connections differ: embedded cannot compile dbt at
+ * all, MotherDuck can.
  */
 export const validateWarehouseLocation = (
-    warehouseType: WarehouseTypes,
+    credentials: CreateWarehouseCredentials | WarehouseCredentials,
     location: WarehouseLocation,
 ): void => {
+    if (!hasWarehouseLocation(location)) {
+        return;
+    }
+    if (
+        credentials.type === WarehouseTypes.DUCKDB &&
+        credentials.connectionType === DuckdbConnectionType.EMBEDDED
+    ) {
+        throw new ParameterError(
+            'Embedded DuckDB credentials cannot be used for dbt compilation, so a dbt source cannot set a location for them',
+        );
+    }
     if (
         location.database !== null &&
-        getWarehouseLocationLabels(warehouseType).database === null
+        getWarehouseLocationLabels(credentials.type).database === null
     ) {
-        throw unsupportedDatabaseOverride(warehouseType);
+        throw unsupportedDatabaseOverride(credentials.type);
     }
 };

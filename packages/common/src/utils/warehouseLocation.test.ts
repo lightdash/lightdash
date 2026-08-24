@@ -8,6 +8,7 @@ import {
     applyWarehouseLocation,
     EMPTY_WAREHOUSE_LOCATION,
     getWarehouseLocation,
+    normalizeWarehouseLocation,
     validateWarehouseLocation,
 } from './warehouseLocation';
 
@@ -171,7 +172,7 @@ describe('getWarehouseLocation', () => {
 describe('validateWarehouseLocation', () => {
     it('accepts a database the warehouse has', () => {
         expect(() =>
-            validateWarehouseLocation(WarehouseTypes.BIGQUERY, {
+            validateWarehouseLocation(bigqueryCredentials, {
                 database: 'source-gcp-project',
                 schema: null,
             }),
@@ -180,10 +181,49 @@ describe('validateWarehouseLocation', () => {
 
     it('rejects a database the warehouse does not have', () => {
         expect(() =>
-            validateWarehouseLocation(WarehouseTypes.CLICKHOUSE, {
+            validateWarehouseLocation(clickhouseCredentials, {
                 database: 'source_database',
                 schema: null,
             }),
         ).toThrowError(/not qualified by a database/);
+    });
+
+    it('rejects any location on embedded DuckDB, which cannot compile dbt at all', () => {
+        expect(() =>
+            validateWarehouseLocation(
+                {
+                    type: WarehouseTypes.DUCKDB,
+                    connectionType: DuckdbConnectionType.EMBEDDED,
+                    dataset: 'primary_dataset',
+                },
+                { database: null, schema: 'source_schema' },
+            ),
+        ).toThrowError(/Embedded DuckDB/);
+    });
+
+    it('accepts a location on MotherDuck, which can', () => {
+        expect(() =>
+            validateWarehouseLocation(motherduckCredentials, {
+                database: null,
+                schema: 'source_schema',
+            }),
+        ).not.toThrow();
+    });
+});
+
+describe('normalizeWarehouseLocation', () => {
+    it('reads a blank field as inherit, so it never becomes an override', () => {
+        expect(
+            normalizeWarehouseLocation({ database: '', schema: '   ' }),
+        ).toEqual(EMPTY_WAREHOUSE_LOCATION);
+    });
+
+    it('trims a field the caller padded', () => {
+        expect(
+            normalizeWarehouseLocation({
+                database: ' source-gcp-project ',
+                schema: null,
+            }),
+        ).toEqual({ database: 'source-gcp-project', schema: null });
     });
 });

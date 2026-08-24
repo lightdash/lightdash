@@ -5,9 +5,7 @@ const tableName = 'project_dbt_sources';
 export async function up(knex: Knex): Promise<void> {
     await knex.raw("SET LOCAL lock_timeout = '5s'");
     await knex.schema.alterTable(tableName, (tableBuilder) => {
-        // Where this source's models live in the project's warehouse. Null on
-        // both columns means the source inherits the project's location, which
-        // is the behaviour every existing row had.
+        // Null on both columns means the source inherits the project's location.
         tableBuilder.text('warehouse_database').nullable();
         tableBuilder.text('warehouse_schema').nullable();
     });

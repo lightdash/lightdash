@@ -8,6 +8,7 @@ import {
     ForbiddenError,
     getDbtEnvironmentVariableKeyError,
     getWarehouseLocation,
+    normalizeWarehouseLocation,
     ParameterError,
     ProjectDbtSource,
     ProjectDbtSourceSummary,
@@ -129,24 +130,22 @@ export class ProjectDbtSourcesService extends BaseService {
     }
 
     /**
-     * Reject a location the project's warehouse cannot express (e.g. a database
-     * on a warehouse whose tables are only schema-qualified) while the user is
+     * Reject a location the project's warehouse cannot express while the user is
      * still looking at the form, rather than at the next deploy.
      */
-    private async validateWarehouseLocationForProject(
+    private async resolveWarehouseLocation(
         projectUuid: string,
         warehouseLocation: WarehouseLocation | undefined,
-    ): Promise<void> {
+    ): Promise<WarehouseLocation | undefined> {
         if (!warehouseLocation) {
-            return;
+            return undefined;
         }
+        const location = normalizeWarehouseLocation(warehouseLocation);
         const project = await this.projectModel.get(projectUuid);
         if (project.warehouseConnection) {
-            validateWarehouseLocation(
-                project.warehouseConnection.type,
-                warehouseLocation,
-            );
+            validateWarehouseLocation(project.warehouseConnection, location);
         }
+        return location;
     }
 
     private async checkProjectAccess(
@@ -188,8 +187,6 @@ export class ProjectDbtSourcesService extends BaseService {
             isPrimary: true,
             precedence: 0,
             type: project.dbtConnection.type,
-            // The primary source always compiles against the project's own
-            // warehouse connection, so its location is that connection's.
             warehouseLocation: project.warehouseConnection
                 ? getWarehouseLocation(project.warehouseConnection)
                 : EMPTY_WAREHOUSE_LOCATION,
@@ -219,7 +216,7 @@ export class ProjectDbtSourcesService extends BaseService {
         ProjectDbtSourcesService.validateDbtEnvironmentVariables(
             data.dbtConnection,
         );
-        await this.validateWarehouseLocationForProject(
+        const warehouseLocation = await this.resolveWarehouseLocation(
             projectUuid,
             data.warehouseLocation,
         );
@@ -239,7 +236,7 @@ export class ProjectDbtSourcesService extends BaseService {
                 precedence,
                 dbtConnection: data.dbtConnection,
                 warehouseLocation:
-                    data.warehouseLocation ?? EMPTY_WAREHOUSE_LOCATION,
+                    warehouseLocation ?? EMPTY_WAREHOUSE_LOCATION,
             },
         );
         this.analytics.track({
@@ -324,7 +321,7 @@ export class ProjectDbtSourcesService extends BaseService {
                 data.dbtConnection,
             );
         }
-        await this.validateWarehouseLocationForProject(
+        const warehouseLocation = await this.resolveWarehouseLocation(
             projectUuid,
             data.warehouseLocation,
         );
@@ -342,7 +339,7 @@ export class ProjectDbtSourcesService extends BaseService {
             {
                 name: data.name,
                 dbtConnection,
-                warehouseLocation: data.warehouseLocation,
+                warehouseLocation,
             },
         );
         return ProjectDbtSourcesService.toSummary(updated);
