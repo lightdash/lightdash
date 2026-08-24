@@ -1112,13 +1112,26 @@ export type DataAppVizUnderlyingDataIntent = {
     limit?: number | null;
 };
 
+// Bridge-only virtual route: the viz posts a drill click intent here and the
+// host resolves it and opens its drill dialog. Never forwarded to the API —
+// `useAppSdkBridge` answers it before allowlist matching.
+export const APP_SDK_VIZ_DRILL_DOWN_PATH = '/__sdk/viz/drill-down';
+
+// Drill click intent a viz sends to the virtual route: the untransformed
+// source row (as pushed in the viz context) and the declared field NAME bound
+// to the clicked metric slot. The host resolves everything else.
+export type DataAppVizDrillDownIntent = {
+    row: ResultRow;
+    metric: string;
+};
+
 // Host-owned render context pushed into a data app viz: field name → bound query
 // field id, the host-fetched result rows the renderer reads, the effective
 // config option values (stored value ?? declared default), and the palette
 // resolved for this chart (org → project → space → dashboard → chart, dark-mode
 // corrected). `colorPalette` is pushed whether or not the viz declared one, so a
-// viz that colours series never has to check first. `underlyingData.enabled` is
-// required so every push site decides availability explicitly.
+// viz that colours series never has to check first. `underlyingData.enabled` and
+// `drillDown.enabled` are required so every push site decides availability explicitly.
 export type DataAppVizContext = {
     fieldMapping: Record<string, string>;
     rows: ResultRow[];
@@ -1126,4 +1139,5 @@ export type DataAppVizContext = {
     colorPalette: string[];
     pivotDetails: ReadyQueryResultsPage['pivotDetails'];
     underlyingData: { enabled: boolean };
+    drillDown: { enabled: boolean };
 };

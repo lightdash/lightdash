@@ -6,6 +6,7 @@ import {
 import { describe, expect, it, vi } from 'vitest';
 import type { Transport } from './types';
 import {
+    buildVizDrillDown,
     buildVizUnderlyingData,
     getFormatted,
     getRaw,
@@ -203,6 +204,7 @@ describe('toVizContextState', () => {
             colorPalette: [],
             pivotDetails: null,
             underlyingDataEnabled: false,
+            drillDownEnabled: false,
         });
     });
 
@@ -362,5 +364,74 @@ describe('buildVizUnderlyingData', () => {
                 metric: 'value',
             }),
         ).rejects.toThrow(/rebuild the app/i);
+    });
+});
+
+const drillMessage = (
+    drillDown?: Record<string, unknown>,
+): DataAppVizContextMessage =>
+    ({
+        type: 'lightdash:sdk:data-app-viz-context',
+        fieldMapping: {},
+        rows: [],
+        ...(drillDown !== undefined ? { drillDown } : {}),
+    }) as DataAppVizContextMessage;
+
+describe('toVizContextState drill-down flag', () => {
+    it('reads drillDown.enabled strictly', () => {
+        expect(
+            toVizContextState(drillMessage({ enabled: true })).drillDownEnabled,
+        ).toBe(true);
+        expect(toVizContextState(drillMessage()).drillDownEnabled).toBe(false);
+        expect(
+            toVizContextState(drillMessage({ enabled: 'yes' }))
+                .drillDownEnabled,
+        ).toBe(false);
+    });
+});
+
+describe('buildVizDrillDown', () => {
+    const transportWith = (open?: Transport['openVizDrillDown']) =>
+        ({ openVizDrillDown: open }) as unknown as Transport;
+
+    it('is enabled only when the host flag and transport method are both present', () => {
+        const open = vi.fn().mockResolvedValue(undefined);
+        expect(buildVizDrillDown(true, transportWith(open)).enabled).toBe(true);
+        expect(buildVizDrillDown(false, transportWith(open)).enabled).toBe(
+            false,
+        );
+        expect(buildVizDrillDown(true, transportWith(undefined)).enabled).toBe(
+            false,
+        );
+        expect(buildVizDrillDown(true, null).enabled).toBe(false);
+    });
+
+    it('open() forwards the intent through the transport', async () => {
+        const open = vi.fn().mockResolvedValue(undefined);
+        const row = { m: { value: { raw: 1, formatted: '1' } } };
+        await buildVizDrillDown(true, transportWith(open)).open({
+            row,
+            metric: 'value',
+        });
+        expect(open).toHaveBeenCalledWith({ row, metric: 'value' });
+    });
+
+    it('open() rejects with clear messages when disabled or unsupported', async () => {
+        await expect(
+            buildVizDrillDown(false, transportWith(vi.fn())).open({
+                row: {},
+                metric: 'value',
+            }),
+        ).rejects.toThrow(
+            'Drill-down is not enabled for this visualization.',
+        );
+        await expect(
+            buildVizDrillDown(true, transportWith(undefined)).open({
+                row: {},
+                metric: 'value',
+            }),
+        ).rejects.toThrow(
+            'This SDK build predates drill-down. Rebuild the app on the current template.',
+        );
     });
 });

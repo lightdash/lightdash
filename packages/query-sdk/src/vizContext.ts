@@ -105,6 +105,8 @@ export type DataAppVizContextMessage = {
     pivotDetails?: VizContextPivotDetails | null;
     /** Absent when the installed host predates underlying-data delivery. */
     underlyingData?: { enabled?: boolean };
+    /** Absent when the installed host predates drill-down delivery. */
+    drillDown?: { enabled?: boolean };
 };
 
 /** Posted by the iframe on mount so the host pushes the current context. */
@@ -172,6 +174,8 @@ export type VizContext = {
     ready: boolean;
     /** Fetch/export the raw rows behind a clicked data point via the host. */
     underlyingData: VizUnderlyingData;
+    /** Fire a drill-down on a clicked data point; the host opens its drill dialog. */
+    drillDown: VizDrillDown;
 };
 
 type VizContextValue = {
@@ -181,6 +185,7 @@ type VizContextValue = {
     colorPalette: string[];
     pivotDetails: VizContextPivotDetails | null;
     underlyingDataEnabled: boolean;
+    drillDownEnabled: boolean;
 };
 
 type VizContextState = VizContextValue | null;
@@ -229,6 +234,7 @@ export function toVizContextState(
         pivotDetails: message.pivotDetails ?? null,
         // Strict boolean check — non-boolean payloads read as disabled.
         underlyingDataEnabled: message.underlyingData?.enabled === true,
+        drillDownEnabled: message.drillDown?.enabled === true,
     };
 }
 
@@ -276,6 +282,42 @@ export function buildVizUnderlyingData(
                 { row, metric },
                 options,
             );
+        },
+    };
+}
+
+/**
+ * Host-mediated drill-down for a clicked data point. `enabled` is false when
+ * the host predates the capability, the viewer lacks permission, results are
+ * pivoted, or no transport is mounted — render no menu item in that case
+ * (never a disabled one). `open` fires the intent; the HOST shows the drill
+ * dialog, nothing renders in the viz.
+ */
+export type VizDrillDown = {
+    enabled: boolean;
+    open: (opts: { row: VizContextRow; metric: string }) => Promise<void>;
+};
+
+/** Builds the `drillDown` surface. Exported for tests. */
+export function buildVizDrillDown(
+    hostEnabled: boolean,
+    transport: Transport | null,
+): VizDrillDown {
+    const supported = typeof transport?.openVizDrillDown === 'function';
+    return {
+        enabled: hostEnabled && supported,
+        open: async ({ row, metric }) => {
+            if (!hostEnabled) {
+                throw new Error(
+                    'Drill-down is not enabled for this visualization.',
+                );
+            }
+            if (!transport?.openVizDrillDown) {
+                throw new Error(
+                    'This SDK build predates drill-down. Rebuild the app on the current template.',
+                );
+            }
+            return transport.openVizDrillDown({ row, metric });
         },
     };
 }
@@ -365,6 +407,12 @@ export function useVizContext(): VizContext {
         [hostEnabled, transport],
     );
 
+    const drillHostEnabled = context?.drillDownEnabled === true;
+    const drillDown = useMemo<VizDrillDown>(
+        () => buildVizDrillDown(drillHostEnabled, transport),
+        [drillHostEnabled, transport],
+    );
+
     return {
         fieldMapping: context?.fieldMapping ?? {},
         rows: context?.rows ?? [],
@@ -373,5 +421,6 @@ export function useVizContext(): VizContext {
         pivotDetails: context?.pivotDetails ?? null,
         ready: context !== null,
         underlyingData,
+        drillDown,
     };
 }
