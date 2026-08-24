@@ -3,6 +3,7 @@ import {
     Button,
     Divider,
     Group,
+    Switch,
     Text,
     useMantineTheme,
     type GroupProps,
@@ -33,6 +34,8 @@ type AiAgentAdminTopToolbarProps = GroupProps &
         | 'setSelectedUserUuids'
         | 'setSelectedSource'
         | 'setSelectedFeedback'
+        | 'hidePreviewProjects'
+        | 'setHidePreviewProjects'
     > & {
         totalResults: number;
         isFetching: boolean;
@@ -56,6 +59,8 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
         setSelectedSource,
         selectedFeedback,
         setSelectedFeedback,
+        hidePreviewProjects,
+        setHidePreviewProjects,
         totalResults,
         isFetching,
         hasNextPage,
@@ -99,6 +104,7 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                         <ProjectsFilter
                             selectedProjectUuids={selectedProjectUuids}
                             setSelectedProjectUuids={setSelectedProjectUuids}
+                            hidePreviewProjects={hidePreviewProjects}
                         />
 
                         <Divider
@@ -113,6 +119,7 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                             selectedAgentUuids={selectedAgentUuids}
                             setSelectedAgentUuids={setSelectedAgentUuids}
                             selectedProjectUuids={selectedProjectUuids}
+                            hidePreviewProjects={hidePreviewProjects}
                         />
                         <Divider
                             orientation="vertical"
@@ -150,6 +157,25 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                         <SourceFilter
                             selectedSource={selectedSource}
                             setSelectedSource={setSelectedSource}
+                        />
+
+                        <Divider
+                            orientation="vertical"
+                            w={1}
+                            h={20}
+                            style={{
+                                alignSelf: 'center',
+                            }}
+                        />
+                        <Switch
+                            size="xs"
+                            label="Hide preview projects"
+                            checked={hidePreviewProjects}
+                            onChange={(event) =>
+                                setHidePreviewProjects(
+                                    event.currentTarget.checked,
+                                )
+                            }
                         />
 
                         {hasActiveFilters && onClearFilters && (

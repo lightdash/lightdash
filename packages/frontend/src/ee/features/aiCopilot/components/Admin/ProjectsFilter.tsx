@@ -6,6 +6,7 @@ import FilterFacet, {
 import { useProjects } from '../../../../../hooks/useProjects';
 import { useAiAgentAdminAgents } from '../../hooks/useAiAgentAdmin';
 import { type useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
+import { sortAndFilterVisibleProjects } from './projectFilterOrdering';
 
 type ProjectsFilterProps = Pick<
     ReturnType<typeof useAiAgentAdminFilters>,
@@ -15,6 +16,7 @@ type ProjectsFilterProps = Pick<
     // 'with-agents' hides projects that have no agent; 'all' lists every
     // project, which audit surfaces need since content outlives its agent
     projectScope?: 'with-agents' | 'all';
+    hidePreviewProjects?: boolean;
 };
 
 const ProjectsFilter: FC<ProjectsFilterProps> = ({
@@ -22,6 +24,7 @@ const ProjectsFilter: FC<ProjectsFilterProps> = ({
     setSelectedProjectUuids,
     tooltipLabel = 'Filter threads by project',
     projectScope = 'with-agents',
+    hidePreviewProjects = false,
 }) => {
     const [searchValue, setSearchValue] = useState('');
     const { data: projects, isLoading } = useProjects();
@@ -37,8 +40,15 @@ const ProjectsFilter: FC<ProjectsFilterProps> = ({
             label: project.name,
         });
 
+        const toVisibleSortedOptions = (scopedProjects: typeof projects) =>
+            sortAndFilterVisibleProjects({
+                projects: scopedProjects,
+                hidePreviewProjects,
+                selectedProjectUuids,
+            }).map(toOption);
+
         if (projectScope === 'all') {
-            return projects.map(toOption);
+            return toVisibleSortedOptions(projects);
         }
 
         if (!organizationAiAgents.data) return [];
@@ -47,12 +57,18 @@ const ProjectsFilter: FC<ProjectsFilterProps> = ({
             organizationAiAgents.data.map((agent) => agent.projectUuid),
         );
 
-        return projects
-            .filter((project) =>
+        return toVisibleSortedOptions(
+            projects.filter((project) =>
                 projectUuidsWithAgents.has(project.projectUuid),
-            )
-            .map(toOption);
-    }, [projects, organizationAiAgents.data, projectScope]);
+            ),
+        );
+    }, [
+        projects,
+        organizationAiAgents.data,
+        projectScope,
+        hidePreviewProjects,
+        selectedProjectUuids,
+    ]);
 
     const filteredOptions = useMemo<FilterFacetOption[]>(() => {
         const search = searchValue.trim().toLowerCase();
