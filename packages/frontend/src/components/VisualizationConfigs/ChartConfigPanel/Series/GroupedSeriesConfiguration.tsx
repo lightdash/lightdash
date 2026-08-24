@@ -28,6 +28,7 @@ import { Config } from '../../common/Config';
 import { GrabIcon } from '../../common/GrabIcon';
 import compactStyles from '../../mantineTheme.module.css';
 import { ChartTypeSelect } from './ChartTypeSelect';
+import { LineStyleSelect } from './LineStyleSelect';
 import {
     SeriesDepthControl,
     type SeriesDrawOrderControl,
@@ -118,6 +119,12 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
 
     const isChartTypeTheSameForAllSeries: boolean =
         !isSeriesWithMixedChartTypes(seriesGroup);
+
+    const lineStyles = seriesGroup.map(
+        (seriesItem) => seriesItem.lineStyle ?? 'solid',
+    );
+    const groupedLineStyle =
+        new Set(lineStyles).size === 1 ? lineStyles[0] : 'mixed';
 
     const chartType =
         seriesGroup[0].type === CartesianSeriesType.LINE &&
@@ -286,7 +293,18 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                     </Group>
                     {(chartValue === CartesianSeriesType.LINE ||
                         chartValue === CartesianSeriesType.AREA) && (
-                        <Group gap="xs">
+                        <Group gap="xs" align="end">
+                            {chartValue === CartesianSeriesType.LINE && (
+                                <LineStyleSelect
+                                    label="Line style"
+                                    value={groupedLineStyle}
+                                    onChange={(lineStyle) => {
+                                        updateAllGroupedSeries(fieldKey, {
+                                            lineStyle,
+                                        });
+                                    }}
+                                />
+                            )}
                             <Checkbox
                                 size="xs"
                                 classNames={{

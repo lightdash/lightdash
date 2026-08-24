@@ -241,6 +241,7 @@ const computeDashboardChartSeries = (
         const expectedSeriesMap = getExpectedSeriesMap({
             defaultSmooth: firstSerie?.smooth,
             defaultShowSymbol: firstSerie?.showSymbol,
+            defaultLineStyle: firstSerie?.lineStyle,
             defaultAreaStyle: firstSerie?.areaStyle,
             defaultCartesianType: CartesianSeriesType.BAR,
             isStacked: false,

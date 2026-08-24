@@ -532,6 +532,8 @@ export type MarkLine = {
         formatter?: string;
     };
 };
+export type SeriesLineStyle = 'solid' | 'dashed' | 'dotted';
+
 export type Series = {
     /** Field references for this series */
     encode: {
@@ -582,6 +584,8 @@ export type Series = {
     showSymbol?: boolean;
     /** Use smooth curves for line/area charts */
     smooth?: boolean;
+    /** Stroke style for line charts */
+    lineStyle?: SeriesLineStyle;
     /** Reference line configuration */
     markLine?: MarkLine;
     /** Whether this series is currently filtered out */

@@ -233,6 +233,17 @@ describe('getExpectedSeriesMap', () => {
         });
     });
 
+    test('should propagate defaultLineStyle to every pivoted series', () => {
+        const result = getExpectedSeriesMap({
+            ...pivotSeriesMapArgs,
+            defaultLineStyle: 'dashed',
+        });
+
+        expect(
+            Object.values(result).every((s) => s.lineStyle === 'dashed'),
+        ).toBe(true);
+    });
+
     // When a pivot value appears in the data that is NOT in the saved
     // eChartsConfig.series, getExpectedSeriesMap synthesises a fresh series
     // for it. That auto-generated series must inherit stack-label config
@@ -534,6 +545,39 @@ describe('mergeExistingAndExpectedSeries', () => {
             (s) => s.encode.yRef.pivotValues?.[0]?.value === 'UK',
         );
         expect(staleInResult).toHaveLength(0);
+    });
+
+    test('should inherit line style when adding a pivot to an existing series group', () => {
+        const expectedSeriesMap = Object.fromEntries(
+            Object.entries(expectedPivotedSeriesMap).map(([id, series]) => [
+                id,
+                { ...series, lineStyle: 'solid' as const },
+            ]),
+        );
+        const existingSeries = Object.values(expectedPivotedSeriesMap)
+            .filter(
+                (series) => series.encode.yRef.pivotValues?.[0]?.value === 'a',
+            )
+            .map((series) => ({
+                ...series,
+                lineStyle:
+                    series.encode.yRef.field === 'my_second_metric'
+                        ? ('dotted' as const)
+                        : ('solid' as const),
+            }));
+
+        const result = mergeExistingAndExpectedSeries({
+            expectedSeriesMap,
+            existingSeries,
+            sortedByPivot: false,
+        });
+        const newSeriesInSecondMetricGroup = result.find(
+            (series) =>
+                series.encode.yRef.field === 'my_second_metric' &&
+                series.encode.yRef.pivotValues?.[0]?.value === 'b',
+        );
+
+        expect(newSeriesInSecondMetricGroup?.lineStyle).toBe('dotted');
     });
 
     test('should insert new pivot category in sorted position, not at end', () => {

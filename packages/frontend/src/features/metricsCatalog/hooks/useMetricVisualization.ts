@@ -504,6 +504,7 @@ export function useMetricVisualization({
         const expectedSeriesMap = getExpectedSeriesMap({
             defaultSmooth: firstSerie?.smooth,
             defaultShowSymbol: firstSerie?.showSymbol,
+            defaultLineStyle: firstSerie?.lineStyle,
             defaultAreaStyle: firstSerie?.areaStyle,
             defaultCartesianType: CartesianSeriesType.LINE,
             isStacked: false,

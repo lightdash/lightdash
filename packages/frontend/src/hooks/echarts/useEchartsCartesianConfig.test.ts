@@ -34,6 +34,7 @@ import {
     getMinAndMaxValues,
     getNiceTickBound,
     getPinnedDayTickFormatter,
+    getSeriesLineStyle,
     getStackTotalSeries,
     getTimeAxisPinnedTickValues,
     mergeLegendSettings,
@@ -48,6 +49,44 @@ dayjs.extend(utcPlugin);
 dayjs.extend(timezonePlugin);
 
 vi.mock('./../../providers/TrackingProvider');
+
+const makeCartesianSeries = (overrides: Partial<Series> = {}): Series => ({
+    type: CartesianSeriesType.LINE,
+    encode: {
+        xRef: { field: 'orders_created_date' },
+        yRef: { field: 'orders_total_revenue' },
+    },
+    ...overrides,
+});
+
+describe('getSeriesLineStyle', () => {
+    test.each(['solid', 'dashed', 'dotted'] as const)(
+        'maps the %s style to an ECharts line series',
+        (lineStyle) => {
+            expect(
+                getSeriesLineStyle(makeCartesianSeries({ lineStyle })),
+            ).toEqual({ type: lineStyle });
+        },
+    );
+
+    test('defaults line series to solid', () => {
+        expect(getSeriesLineStyle(makeCartesianSeries())).toEqual({
+            type: 'solid',
+        });
+    });
+
+    test.each([
+        { type: CartesianSeriesType.BAR },
+        { type: CartesianSeriesType.SCATTER },
+        { type: CartesianSeriesType.LINE, areaStyle: {} },
+    ] as const)('ignores the setting for non-line series', (overrides) => {
+        expect(
+            getSeriesLineStyle(
+                makeCartesianSeries({ ...overrides, lineStyle: 'dashed' }),
+            ),
+        ).toBeUndefined();
+    });
+});
 
 describe('getCartesianLabelLayout', () => {
     const rect = (width: number, height: number) => ({
