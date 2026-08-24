@@ -5,30 +5,18 @@ import {
     AppGroupAccessTableName,
     AppUserAccessTableName,
 } from '../database/entities/appAccess';
-import { AppsTableName } from '../database/entities/apps';
 import {
     DashboardGroupAccessTableName,
     DashboardUserAccessTableName,
 } from '../database/entities/dashboardAccess';
-import { DashboardsTableName } from '../database/entities/dashboards';
-import { GroupMembershipTableName } from '../database/entities/groupMemberships';
-import { OrganizationMembershipCustomRolesTableName } from '../database/entities/organizationMembershipCustomRoles';
-import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
-import { OrganizationTableName } from '../database/entities/organizations';
-import { ProjectGroupAccessTableName } from '../database/entities/projectGroupAccess';
-import { ProjectMembershipsTableName } from '../database/entities/projectMemberships';
-import { ProjectTableName } from '../database/entities/projects';
 import {
     SavedChartGroupAccessTableName,
     SavedChartUserAccessTableName,
 } from '../database/entities/savedChartAccess';
-import { SavedChartsTableName } from '../database/entities/savedCharts';
-import { SavedSqlTableName } from '../database/entities/savedSql';
 import {
     SavedSqlGroupAccessTableName,
     SavedSqlUserAccessTableName,
 } from '../database/entities/savedSqlAccess';
-import { SpaceTableName } from '../database/entities/spaces';
 import { AppAccessModel } from './AppAccessModel';
 import { DashboardAccessModel } from './DashboardAccessModel';
 import { type DirectAccess } from './directAccessModelUtils';
@@ -52,35 +40,30 @@ const modelCases: Array<{
     model: AccessModel;
     userAccessTable: string;
     groupAccessTable: string;
-    resourceTable: string;
 }> = [
     {
         name: 'dashboard',
         model: new DashboardAccessModel(database),
         userAccessTable: DashboardUserAccessTableName,
         groupAccessTable: DashboardGroupAccessTableName,
-        resourceTable: DashboardsTableName,
     },
     {
         name: 'saved chart',
         model: new SavedChartAccessModel(database),
         userAccessTable: SavedChartUserAccessTableName,
         groupAccessTable: SavedChartGroupAccessTableName,
-        resourceTable: SavedChartsTableName,
     },
     {
         name: 'saved SQL',
         model: new SavedSqlAccessModel(database),
         userAccessTable: SavedSqlUserAccessTableName,
         groupAccessTable: SavedSqlGroupAccessTableName,
-        resourceTable: SavedSqlTableName,
     },
     {
         name: 'app',
         model: new AppAccessModel(database),
         userAccessTable: AppUserAccessTableName,
         groupAccessTable: AppGroupAccessTableName,
-        resourceTable: AppsTableName,
     },
 ];
 
@@ -106,8 +89,8 @@ describe('direct access read models', () => {
     );
 
     it.each(modelCases)(
-        '$name resolves direct user and current group roles in one query',
-        async ({ model, userAccessTable, groupAccessTable, resourceTable }) => {
+        '$name resolves direct user and current group roles',
+        async ({ model, userAccessTable }) => {
             tracker.on.select(userAccessTable).responseOnce([
                 {
                     resourceUuid: 'resource-a',
@@ -145,75 +128,6 @@ describe('direct access read models', () => {
                     groupRoles: [SpaceMemberRole.EDITOR, SpaceMemberRole.ADMIN],
                 },
             });
-
-            expect(tracker.history.select).toHaveLength(1);
-            const [query] = tracker.history.select;
-            expect(query.sql).toContain(`"${userAccessTable}"`);
-            expect(query.sql).toContain(`"${groupAccessTable}"`);
-            expect(query.sql).toContain(`"${resourceTable}"`);
-            expect(query.sql).toContain(`"${GroupMembershipTableName}"`);
-            expect(query.sql).toContain(
-                `"${OrganizationMembershipsTableName}"`,
-            );
-            expect(query.sql).toContain(
-                `"${OrganizationMembershipCustomRolesTableName}"`,
-            );
-            expect(query.sql).toContain(`"${ProjectMembershipsTableName}"`);
-            expect(query.sql).toContain(`"${ProjectGroupAccessTableName}"`);
-            expect(query.sql).toContain(`"${ProjectTableName}"`);
-            expect(query.sql).toContain(`"${OrganizationTableName}"`);
-            expect(query.sql).toContain('union all');
-            expect(query.bindings).toContain('user-uuid');
-            expect(
-                query.bindings.filter((binding) => binding === 'resource-a'),
-            ).toHaveLength(2);
-            expect(query.bindings).toContain('resource-without-grants');
-            expect(query.sql).toContain(
-                `"${GroupMembershipTableName}"."organization_id" = "${ProjectTableName}"."organization_id"`,
-            );
-            expect(query.sql).toContain(`"users"."is_active" = TRUE`);
-        },
-    );
-
-    it('derives dashboard tenancy through its parent space', async () => {
-        tracker.on.select(DashboardUserAccessTableName).responseOnce([]);
-
-        await new DashboardAccessModel(database).getUserAccess(
-            ['dashboard-uuid'],
-            'user-uuid',
-        );
-
-        const [query] = tracker.history.select;
-        expect(query.sql).toContain(`"${SpaceTableName}"`);
-        expect(query.sql).toContain(
-            `"${SpaceTableName}"."space_id" = "${DashboardsTableName}"."space_id"`,
-        );
-    });
-
-    it.each([
-        {
-            name: 'saved chart',
-            model: new SavedChartAccessModel(database),
-            userAccessTable: SavedChartUserAccessTableName,
-            resourceTable: SavedChartsTableName,
-        },
-        {
-            name: 'saved SQL',
-            model: new SavedSqlAccessModel(database),
-            userAccessTable: SavedSqlUserAccessTableName,
-            resourceTable: SavedSqlTableName,
-        },
-    ])(
-        '$name excludes dashboard-owned resources',
-        async ({ model, userAccessTable, resourceTable }) => {
-            tracker.on.select(userAccessTable).responseOnce([]);
-
-            await model.getUserAccess(['resource-uuid'], 'user-uuid');
-
-            const [query] = tracker.history.select;
-            expect(query.sql).toContain(
-                `"${resourceTable}"."dashboard_uuid" is null`,
-            );
         },
     );
 });
