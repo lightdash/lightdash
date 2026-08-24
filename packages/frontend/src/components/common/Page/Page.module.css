@@ -71,6 +71,9 @@
 
 .content[data-with-sidebar='true'] {
     min-width: var(--page-min-content-width);
+    /* Absorb the row's negative free space down to the min-width above before
+       the (shrinkable) sidebars start giving up their width. */
+    flex-shrink: 1000;
 }
 
 .content[data-with-footer='true'] {
