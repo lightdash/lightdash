@@ -42,7 +42,6 @@ import { useVisualizationContext } from '../../LightdashVisualization/useVisuali
 export type ChartTypeOption = {
     id: ChartKind;
     label: string;
-    description: string;
     icon: TablerIcon;
     rotatedIcon: boolean;
     selected: boolean;
@@ -116,7 +115,6 @@ export const useChartTypeOptions = () => {
         {
             id: ChartKind.VERTICAL_BAR,
             label: 'Bar chart',
-            description: 'Compare categories',
             icon: IconChartBar,
             rotatedIcon: false,
             selected:
@@ -135,7 +133,6 @@ export const useChartTypeOptions = () => {
         {
             id: ChartKind.HORIZONTAL_BAR,
             label: 'Horizontal bar chart',
-            description: 'Compare ranked categories',
             icon: IconChartBar,
             rotatedIcon: true,
             selected:
@@ -155,7 +152,6 @@ export const useChartTypeOptions = () => {
         {
             id: ChartKind.LINE,
             label: 'Line chart',
-            description: 'Show a trend',
             icon: IconChartLine,
             rotatedIcon: false,
             selected:
@@ -174,7 +170,6 @@ export const useChartTypeOptions = () => {
         {
             id: ChartKind.AREA,
             label: 'Area chart',
-            description: 'Compare magnitude over time',
             icon: IconChartArea,
             rotatedIcon: false,
             selected:
@@ -193,7 +188,6 @@ export const useChartTypeOptions = () => {
         {
             id: ChartKind.SCATTER,
             label: 'Scatter chart',
-            description: 'Find relationships and outliers',
             icon: IconChartDots,
             rotatedIcon: false,
             selected:
@@ -212,7 +206,6 @@ export const useChartTypeOptions = () => {
         {
             id: ChartKind.PIE,
             label: 'Pie chart',
-            description: 'Show part-to-whole',
             icon: IconChartPie,
             rotatedIcon: false,
             selected: isPieVisualizationConfig(visualizationConfig),
@@ -221,7 +214,6 @@ export const useChartTypeOptions = () => {
         {
             id: ChartKind.FUNNEL,
             label: 'Funnel chart',
-            description: 'Show stage conversion',
             icon: IconFilter,
             rotatedIcon: false,
             selected: isFunnelVisualizationConfig(visualizationConfig),
@@ -230,7 +222,6 @@ export const useChartTypeOptions = () => {
         {
             id: ChartKind.TREEMAP,
             label: 'Treemap',
-            description: 'Show hierarchical proportions',
             icon: IconChartTreemap,
             rotatedIcon: false,
             selected: isTreemapVisualizationConfig(visualizationConfig),
@@ -239,7 +230,6 @@ export const useChartTypeOptions = () => {
         {
             id: ChartKind.GAUGE,
             label: 'Gauge',
-            description: 'Track progress toward a target',
             icon: IconGauge,
             rotatedIcon: false,
             selected: isGaugeVisualizationConfig(visualizationConfig),
@@ -248,7 +238,6 @@ export const useChartTypeOptions = () => {
         {
             id: ChartKind.SANKEY,
             label: 'Sankey',
-            description: 'Show flow between categories',
             icon: IconGitMerge,
             rotatedIcon: false,
             selected: isSankeyVisualizationConfig(visualizationConfig),
@@ -257,7 +246,6 @@ export const useChartTypeOptions = () => {
         {
             id: ChartKind.MAP,
             label: 'Map',
-            description: 'Plot geographic values',
             icon: IconMap,
             rotatedIcon: false,
             selected: isMapVisualizationConfig(visualizationConfig),
@@ -266,7 +254,6 @@ export const useChartTypeOptions = () => {
         {
             id: ChartKind.TABLE,
             label: 'Table',
-            description: 'Show every result row',
             icon: IconTable,
             rotatedIcon: false,
             selected: isTableVisualizationConfig(visualizationConfig),
@@ -275,7 +262,6 @@ export const useChartTypeOptions = () => {
         {
             id: ChartKind.BIG_NUMBER,
             label: 'Big value',
-            description: 'Highlight a single metric',
             icon: IconSquareNumber1,
             rotatedIcon: false,
             selected: isBigNumberVisualizationConfig(visualizationConfig),
@@ -286,7 +272,6 @@ export const useChartTypeOptions = () => {
     const vegaOption: ChartTypeOption = {
         id: ChartKind.CUSTOM,
         label: 'Vega (JSON editor)',
-        description: 'Write Vega-Lite JSON by hand',
         icon: IconCode,
         rotatedIcon: false,
         selected: isCustomVisualizationConfig(visualizationConfig),

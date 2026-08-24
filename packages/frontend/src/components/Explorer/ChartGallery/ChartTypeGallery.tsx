@@ -37,6 +37,8 @@ export type ChartTypeGalleryItem = Omit<ChartTypeOption, 'id'> & {
     disabled: boolean;
     /** Opens the chart type builder for this item; null hides the action. */
     onEdit: (() => void) | null;
+    /** Shown in the rows layout; grid cards are icon + label only. */
+    description: string | null;
 };
 
 type ThumbnailProps = Pick<ChartTypeOption, 'icon' | 'rotatedIcon'> & {
@@ -181,13 +183,15 @@ export const ChartTypeGallery: FC<GalleryProps> = ({
                                                 <Text size="sm" fw={500}>
                                                     {item.label}
                                                 </Text>
-                                                <Text
-                                                    fz="xs"
-                                                    c="dimmed"
-                                                    lineClamp={2}
-                                                >
-                                                    {item.description}
-                                                </Text>
+                                                {item.description !== null ? (
+                                                    <Text
+                                                        fz="xs"
+                                                        c="dimmed"
+                                                        lineClamp={2}
+                                                    >
+                                                        {item.description}
+                                                    </Text>
+                                                ) : null}
                                             </Stack>
                                         </Group>
                                     </UnstyledButton>
@@ -289,6 +293,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
         .map(({ id, ...option }) => ({
             ...option,
             key: id,
+            description: null,
             disabled,
             select: () => {
                 option.select();

@@ -49,7 +49,7 @@ const buildBuiltIns = (
     builtInDefinitions.map(([label, icon, rotatedIcon]) => ({
         key: label,
         label,
-        description: '',
+        description: null,
         icon,
         rotatedIcon,
         selected: label === selectedKey,
