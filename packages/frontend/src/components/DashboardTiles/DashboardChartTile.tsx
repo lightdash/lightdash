@@ -187,6 +187,8 @@ const ExportGoogleSheet: FC<ExportGoogleSheetProps> = ({
     savedChart,
     disabled,
 }) => {
+    const parameterValues = useDashboardContext((c) => c.parameterValues);
+
     const getGsheetLink = async () => {
         return uploadGsheet({
             projectUuid: savedChart.projectUuid,
@@ -201,6 +203,7 @@ const ExportGoogleSheet: FC<ExportGoogleSheetProps> = ({
             ),
             hiddenFields: getHiddenTableFields(savedChart.chartConfig),
             pivotConfig: getPivotConfig(savedChart),
+            parameters: parameterValues,
         });
     };
 

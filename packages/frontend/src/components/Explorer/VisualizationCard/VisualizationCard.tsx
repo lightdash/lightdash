@@ -403,6 +403,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
                     unsavedChartVersion.chartConfig,
                 ),
                 pivotConfig: getPivotConfig(unsavedChartVersion),
+                parameters: unsavedChartVersion.parameters,
             });
             return gsheetResponse;
         }
