@@ -158,6 +158,7 @@ const GalleryRow: FC<{ item: ChartTypeGalleryRowItem }> = ({ item }) => {
                 withArrow
                 openDelay={500}
                 color="dark"
+                events={{ hover: true, focus: true, touch: false }}
                 disabled={!isClamped}
                 maw={300}
                 multiline
@@ -190,6 +191,7 @@ const GalleryRow: FC<{ item: ChartTypeGalleryRowItem }> = ({ item }) => {
                     component="button"
                     type="button"
                     className={classes.rowEdit}
+                    aria-label={`Edit ${item.label}`}
                     fz="xs"
                     fw={500}
                     onClick={item.onEdit}

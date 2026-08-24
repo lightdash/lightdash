@@ -104,7 +104,13 @@ describe('ChartTypeGallery', () => {
                         label: 'Project',
                         layout: 'rows',
                         items: [
-                            galleryItem('Event pulse', 'Reusable ranked bars'),
+                            {
+                                ...galleryItem(
+                                    'Event pulse',
+                                    'Reusable ranked bars',
+                                ),
+                                onEdit: vi.fn(),
+                            },
                         ],
                         emptyMessage: 'Nothing here',
                         loading: false,
@@ -127,9 +133,13 @@ describe('ChartTypeGallery', () => {
         ).not.toBeInTheDocument();
 
         expect(
-            screen.getByRole('button', { name: /Event pulse/ }),
+            screen.getByRole('button', { name: /^Event pulse/ }),
         ).toBeInTheDocument();
         expect(screen.getByText('Reusable ranked bars')).toBeInTheDocument();
+        // Edit names its row so repeated Edit links stay distinguishable.
+        expect(
+            screen.getByRole('button', { name: 'Edit Event pulse' }),
+        ).toBeInTheDocument();
     });
 });
 
