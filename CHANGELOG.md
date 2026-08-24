@@ -1,3 +1,11 @@
+## [1.251.6](https://github.com/lightdash/lightdash/compare/1.251.5...1.251.6) (2026-08-24)
+
+
+### Bug Fixes
+
+* **frontend:** close the update mutation call in the dbt sources panel ([#27963](https://github.com/lightdash/lightdash/issues/27963)) ([9f9a029](https://github.com/lightdash/lightdash/commit/9f9a029cef906970acde3b618ed0b16ecdb462f9))
+* **frontend:** update step progress test expectations ([#27951](https://github.com/lightdash/lightdash/issues/27951)) ([86face9](https://github.com/lightdash/lightdash/commit/86face9ffae6a082a4b2776805c79ec407fba3f2))
+
 ## [1.251.5](https://github.com/lightdash/lightdash/compare/1.251.4...1.251.5) (2026-08-24)
 
 
