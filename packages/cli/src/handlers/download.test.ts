@@ -17,6 +17,7 @@ import { promises as fs } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { vi } from 'vitest';
+import { LightdashAnalytics } from '../analytics/analytics';
 import GlobalState from '../globalState';
 import {
     getDataAppUploadFilter,
@@ -78,6 +79,7 @@ const {
     isAiAgentsUnavailableError,
     isExternalConnectionsUnavailableError,
     isVirtualViewsUnavailableError,
+    countChangeDelta,
     downloadAiAgents,
     isFilteredWithNoDashboards,
     readAiAgentFiles,
@@ -1228,6 +1230,110 @@ describe('AI agent downloads', () => {
     });
 });
 
+describe('countChangeDelta', () => {
+    it('sums positive deltas across change keys', () => {
+        expect(
+            countChangeDelta(
+                { 'AI agents created': 1, 'charts skipped': 2 },
+                {
+                    'AI agents created': 3,
+                    'AI agents updated': 1,
+                    'charts skipped': 2,
+                },
+            ),
+        ).toBe(3);
+    });
+
+    it('returns 0 when nothing changed', () => {
+        expect(
+            countChangeDelta({ 'charts created': 1 }, { 'charts created': 1 }),
+        ).toBe(0);
+    });
+});
+
+describe('downloadHandler analytics', () => {
+    beforeEach(() => {
+        vi.mocked(LightdashAnalytics.track).mockClear();
+        vi.mocked(lightdashApi).mockReset();
+    });
+
+    it('records per-type counts on download.completed, including agents', async () => {
+        const tmpDir = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'agents-download-analytics-'),
+        );
+        vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
+            if (url.startsWith('/api/v1/health')) {
+                return { version: '0.0.0' } as never;
+            }
+            if (url === '/api/v1/projects/project-uuid') {
+                return { name: 'Test project' } as never;
+            }
+            if (url.includes('/code/aiAgents')) {
+                return {
+                    agents: [
+                        {
+                            contentType: ContentAsCodeType.AI_AGENT,
+                            version: 1,
+                            agentVersion: 2,
+                            slug: 'sales-agent',
+                            name: 'Sales agent',
+                            description: null,
+                            imageUrl: null,
+                            instruction: null,
+                            tags: null,
+                            enableDataAccess: true,
+                            enableSelfImprovement: false,
+                            enableContentTools: false,
+                            enableUserContext: false,
+                            modelConfig: null,
+                        },
+                    ],
+                    missingIds: [],
+                    offset: 1,
+                    total: 1,
+                } as never;
+            }
+            throw new Error(`Unexpected request: ${url}`);
+        });
+
+        try {
+            await downloadHandler(
+                makeDownloadHandlerOptions({
+                    includeAgents: true,
+                    skipAlerts: true,
+                    skipGoogleSheets: true,
+                    skipScheduledDeliveries: true,
+                    skipVirtualViews: true,
+                    skipExternalConnections: true,
+                    path: tmpDir,
+                    project: 'project-uuid',
+                }),
+            );
+
+            expect(LightdashAnalytics.track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'download.completed',
+                    properties: expect.objectContaining({
+                        projectId: 'project-uuid',
+                        agentsNum: 1,
+                    }),
+                }),
+            );
+            expect(LightdashAnalytics.track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'download.completed',
+                    properties: expect.not.objectContaining({
+                        chartsNum: expect.anything(),
+                        dashboardsNum: expect.anything(),
+                    }),
+                }),
+            );
+        } finally {
+            await fs.rm(tmpDir, { recursive: true, force: true });
+        }
+    });
+});
+
 describe('downloadHandler failures', () => {
     const unavailableError = new LightdashError({
         message:
@@ -1294,6 +1400,20 @@ describe('downloadHandler failures', () => {
             expect(vi.mocked(lightdashApi)).toHaveBeenCalledWith(
                 expect.objectContaining({
                     url: expect.stringContaining('/code/scheduledDeliveries'),
+                }),
+            );
+            expect(LightdashAnalytics.track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'download.completed',
+                    properties: expect.objectContaining({
+                        agentsNum: 0,
+                        alertsNum: 0,
+                        scheduledDeliveriesNum: 0,
+                        googleSheetsNum: 0,
+                        virtualViewsNum: 0,
+                        externalConnectionsNum: 0,
+                        appsNum: 0,
+                    }),
                 }),
             );
         } finally {

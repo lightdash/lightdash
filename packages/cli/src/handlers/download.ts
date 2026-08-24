@@ -57,7 +57,10 @@ import groupBy from 'lodash/groupBy';
 import pLimit from 'p-limit';
 import * as path from 'path';
 import { validate as isUuid } from 'uuid';
-import { LightdashAnalytics } from '../analytics/analytics';
+import {
+    LightdashAnalytics,
+    type ProjectContentAsCodeCounts,
+} from '../analytics/analytics';
 import { getConfig, setAnswer } from '../config';
 import { CLI_VERSION } from '../env';
 import GlobalState from '../globalState';
@@ -1853,9 +1856,7 @@ export const downloadHandler = async (
     });
     const projectName = generateSlug(project.name);
 
-    // For analytics
-    let chartTotal: number | undefined;
-    let dashboardTotal: number | undefined;
+    const counts: ProjectContentAsCodeCounts = {};
     const start = Date.now();
 
     await LightdashAnalytics.track({
@@ -1894,6 +1895,7 @@ export const downloadHandler = async (
                     options.nested,
                     options.rootSpaces,
                 );
+                counts.spacesNum = spaceTotal;
                 output.completeItem(`${spaceTotal} downloaded`);
             } catch (error) {
                 if (
@@ -1926,12 +1928,15 @@ export const downloadHandler = async (
         ) {
             await output.runItem({
                 label: 'Virtual views',
-                action: () =>
-                    downloadVirtualViews(
+                action: async () => {
+                    const total = await downloadVirtualViews(
                         projectId,
                         options.virtualViews,
                         options.path,
-                    ),
+                    );
+                    counts.virtualViewsNum = total;
+                    return total;
+                },
                 detail: (total) => `${total} downloaded`,
             });
         }
@@ -1990,7 +1995,7 @@ export const downloadHandler = async (
                     });
                 allMetadataEntries = [...allMetadataEntries, ...sqlChartMeta];
 
-                chartTotal = regularChartTotal + sqlChartTotal;
+                counts.chartsNum = regularChartTotal + sqlChartTotal;
             }
         }
 
@@ -2006,7 +2011,7 @@ export const downloadHandler = async (
 
                 let dashMeta: MetadataEntry[];
                 ({
-                    total: dashboardTotal,
+                    total: counts.dashboardsNum,
                     chartSlugs,
                     appSlugs,
                     metadataEntries: dashMeta,
@@ -2104,6 +2109,9 @@ export const downloadHandler = async (
                                 'warning',
                             );
                         } else {
+                            counts.virtualViewsNum =
+                                (counts.virtualViewsNum ?? 0) +
+                                linkedVirtualViews;
                             output.completeItem(
                                 `${linkedVirtualViews} downloaded`,
                             );
@@ -2123,13 +2131,16 @@ export const downloadHandler = async (
                 options.agents.length === 0;
             await output.runItem({
                 label: 'AI agents',
-                action: () =>
-                    downloadAiAgents(
+                action: async () => {
+                    const total = await downloadAiAgents(
                         projectId,
                         options.agents,
                         implicit,
                         options.path,
-                    ),
+                    );
+                    counts.agentsNum = total;
+                    return total;
+                },
                 detail: (total) => `${total} downloaded`,
             });
         }
@@ -2141,13 +2152,16 @@ export const downloadHandler = async (
         ) {
             await output.runItem({
                 label: 'Alerts',
-                action: () =>
-                    downloadScheduledContent(
+                action: async () => {
+                    const total = await downloadScheduledContent(
                         projectId,
                         options.alerts,
                         ContentAsCodeTypeEnum.ALERT,
                         options.path,
-                    ),
+                    );
+                    counts.alertsNum = total;
+                    return total;
+                },
                 detail: (total) => `${total} downloaded`,
             });
         }
@@ -2159,13 +2173,16 @@ export const downloadHandler = async (
         ) {
             await output.runItem({
                 label: 'Scheduled deliveries',
-                action: () =>
-                    downloadScheduledContent(
+                action: async () => {
+                    const total = await downloadScheduledContent(
                         projectId,
                         options.scheduledDeliveries,
                         ContentAsCodeTypeEnum.SCHEDULED_DELIVERY,
                         options.path,
-                    ),
+                    );
+                    counts.scheduledDeliveriesNum = total;
+                    return total;
+                },
                 detail: (total) => `${total} downloaded`,
             });
         }
@@ -2177,13 +2194,16 @@ export const downloadHandler = async (
         ) {
             await output.runItem({
                 label: 'Google Sheets syncs',
-                action: () =>
-                    downloadScheduledContent(
+                action: async () => {
+                    const total = await downloadScheduledContent(
                         projectId,
                         options.googleSheets,
                         ContentAsCodeTypeEnum.GOOGLE_SHEETS_SYNC,
                         options.path,
-                    ),
+                    );
+                    counts.googleSheetsNum = total;
+                    return total;
+                },
                 detail: (total) => `${total} downloaded`,
             });
         }
@@ -2201,13 +2221,16 @@ export const downloadHandler = async (
                 options.externalConnections.length === 0;
             await output.runItem({
                 label: 'External connections',
-                action: () =>
-                    downloadExternalConnections(
+                action: async () => {
+                    const total = await downloadExternalConnections(
                         projectId,
                         options.externalConnections,
                         implicit,
                         options.path,
-                    ),
+                    );
+                    counts.externalConnectionsNum = total;
+                    return total;
+                },
                 detail: (total) => `${total} downloaded`,
             });
         }
@@ -2288,6 +2311,7 @@ export const downloadHandler = async (
             }
 
             if (appRefsToDownload.length === 0) {
+                counts.appsNum = 0;
                 if (appListingError === null) {
                     output.completeItem('0 found');
                 } else {
@@ -2331,6 +2355,7 @@ export const downloadHandler = async (
                     appsDir,
                     skippedNotBuiltCount,
                 );
+                counts.appsNum = successCount;
                 output.completeItem(
                     `${successCount} downloaded${
                         skippedNotBuiltCount > 0
@@ -2384,6 +2409,7 @@ export const downloadHandler = async (
                 appsDir,
                 outcome.skippedNotBuiltCount,
             );
+            counts.appsNum = (counts.appsNum ?? 0) + outcome.successCount;
             output.completeItem(
                 `${outcome.successCount} downloaded${
                     outcome.skippedNotBuiltCount > 0
@@ -2444,8 +2470,7 @@ export const downloadHandler = async (
                 userId: config.user?.userUuid,
                 organizationId: config.user?.organizationUuid,
                 projectId,
-                chartsNum: chartTotal,
-                dashboardsNum: dashboardTotal,
+                ...counts,
                 timeToCompleted: (end - start) / 1000,
             },
         });
@@ -2511,6 +2536,15 @@ const UPLOAD_CHANGE_SUFFIXES = [
     'failed',
 ] as const;
 
+const countChangeDelta = (
+    before: Record<string, number>,
+    after: Record<string, number>,
+): number =>
+    Object.entries(after).reduce((total, [key, value]) => {
+        const difference = value - (before[key] ?? 0);
+        return difference > 0 ? total + difference : total;
+    }, 0);
+
 const summarizeUploadChanges = (
     before: Record<string, number>,
     after: Record<string, number>,
@@ -2541,17 +2575,20 @@ const runUploadChangesPhase = async ({
     label,
     changes,
     action,
+    onCount,
 }: {
     output: ContentAsCodeOutput;
     label: string;
     changes: Record<string, number>;
     action: () => Promise<Record<string, number>>;
+    onCount?: (count: number) => void;
 }): Promise<Record<string, number>> => {
     const before = { ...changes };
     output.startItem(label);
     const updatedChanges = await action();
     const summary = summarizeUploadChanges(before, updatedChanges);
     output.completeItem(summary.detail, summary.variant);
+    onCount?.(countChangeDelta(before, updatedChanges));
     return updatedChanges;
 };
 
@@ -3095,9 +3132,7 @@ export const uploadHandler = async (
     logSelectedProject(projectSelection, config, 'Uploading to');
 
     let changes: Record<string, number> = {};
-    // For analytics
-    let chartTotal: number | undefined;
-    let dashboardTotal: number | undefined;
+    const counts: ProjectContentAsCodeCounts = {};
     const start = Date.now();
 
     await LightdashAnalytics.track({
@@ -3151,6 +3186,9 @@ export const uploadHandler = async (
                         options.public,
                         options.skipSpaceAccess,
                     ),
+                onCount: (count) => {
+                    counts.spacesNum = count;
+                },
             });
         } else if (hasFilters) {
             GlobalState.debug(
@@ -3165,6 +3203,7 @@ export const uploadHandler = async (
                     userId: config.user?.userUuid,
                     organizationId: config.user?.organizationUuid,
                     projectId,
+                    ...counts,
                     timeToCompleted: (Date.now() - start) / 1000,
                 },
             });
@@ -3270,6 +3309,9 @@ export const uploadHandler = async (
                             options.path,
                             virtualViewCandidates,
                         ),
+                    onCount: (count) => {
+                        counts.virtualViewsNum = count;
+                    },
                 });
             }
         }
@@ -3297,6 +3339,9 @@ export const uploadHandler = async (
                             uploadPermissions.externalConnections,
                             options.path,
                         ),
+                    onCount: (count) => {
+                        counts.externalConnectionsNum = count;
+                    },
                 });
             }
         }
@@ -3329,6 +3374,7 @@ export const uploadHandler = async (
         const changesBeforeApps = { ...changes };
 
         if (shouldUploadApps && !uploadPermissions.dataApps) {
+            counts.appsNum = 0;
             output.startItem('Data apps');
             GlobalState.log(
                 styles.warning(
@@ -3724,6 +3770,12 @@ export const uploadHandler = async (
                 changes['data apps unchanged'] = appsUnchanged;
             if (appsFailed > 0) changes['data apps failed'] = appsFailed;
             if (appsSkipped > 0) changes['data apps skipped'] = appsSkipped;
+            counts.appsNum =
+                appsCreated +
+                appsUpdated +
+                appsUnchanged +
+                appsFailed +
+                appsSkipped;
             const appSummary = summarizeUploadChanges(
                 changesBeforeApps,
                 changes,
@@ -3784,7 +3836,7 @@ export const uploadHandler = async (
                     looseFiles.charts,
                     spaceNames,
                 );
-                chartTotal = result.total;
+                counts.chartsNum = result.total;
                 return result.changes;
             },
         });
@@ -3817,7 +3869,7 @@ export const uploadHandler = async (
                     looseFiles.dashboards,
                     spaceNames,
                 );
-                dashboardTotal = result.total;
+                counts.dashboardsNum = result.total;
                 return result.changes;
             },
         });
@@ -3842,6 +3894,9 @@ export const uploadHandler = async (
                                 options.path,
                                 options.agents.length === 0,
                             ),
+                        onCount: (count) => {
+                            counts.agentsNum = count;
+                        },
                     });
                 } catch (error) {
                     throw new AiAgentAsCodeUploadError(error);
@@ -3869,6 +3924,9 @@ export const uploadHandler = async (
                             uploadPermissions.alerts,
                             options.path,
                         ),
+                    onCount: (count) => {
+                        counts.alertsNum = count;
+                    },
                 });
             }
         }
@@ -3895,6 +3953,9 @@ export const uploadHandler = async (
                             uploadPermissions.scheduledDeliveries,
                             options.path,
                         ),
+                    onCount: (count) => {
+                        counts.scheduledDeliveriesNum = count;
+                    },
                 });
             }
         }
@@ -3921,6 +3982,9 @@ export const uploadHandler = async (
                             uploadPermissions.googleSheets,
                             options.path,
                         ),
+                    onCount: (count) => {
+                        counts.googleSheetsNum = count;
+                    },
                 });
             }
         }
@@ -3933,8 +3997,7 @@ export const uploadHandler = async (
                 userId: config.user?.userUuid,
                 organizationId: config.user?.organizationUuid,
                 projectId,
-                chartsNum: chartTotal,
-                dashboardsNum: dashboardTotal,
+                ...counts,
                 timeToCompleted: (end - start) / 1000, // in seconds
             },
         });
@@ -3959,6 +4022,7 @@ export const uploadHandler = async (
 
 export const testHelpers = {
     assertUniqueSpacePaths,
+    countChangeDelta,
     downloadLinkedVirtualViews,
     downloadSpaces,
     extractAppSlugsFromDashboards,
