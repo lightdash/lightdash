@@ -145,6 +145,8 @@ const AiAgentAdminThreadsTable = ({
         setSelectedSource,
         setSelectedFeedback,
         setSorting,
+        hidePreviewProjects,
+        setHidePreviewProjects,
         hasActiveFilters,
         resetFilters,
     } = useAiAgentAdminFilters();
@@ -731,6 +733,8 @@ const AiAgentAdminThreadsTable = ({
                 setSelectedSource={setSelectedSource}
                 selectedFeedback={selectedFeedback}
                 setSelectedFeedback={setSelectedFeedback}
+                hidePreviewProjects={hidePreviewProjects}
+                setHidePreviewProjects={setHidePreviewProjects}
                 totalResults={totalResults}
                 isFetching={isFetching}
                 hasNextPage={hasNextPage ?? false}

@@ -10,6 +10,7 @@ import {
     Divider,
     Group,
     Stack,
+    Switch,
     Text,
     Tooltip,
     useMantineTheme,
@@ -63,6 +64,8 @@ const AiAgentAdminEvalsTable = ({
         setSelectedProjectUuids,
         setSelectedAgentUuids,
         setSorting,
+        hidePreviewProjects,
+        setHidePreviewProjects,
         hasActiveFilters,
         resetFilters,
     } = useAiAgentAdminFilters();
@@ -370,6 +373,7 @@ const AiAgentAdminEvalsTable = ({
                         <ProjectsFilter
                             selectedProjectUuids={selectedProjectUuids}
                             setSelectedProjectUuids={setSelectedProjectUuids}
+                            hidePreviewProjects={hidePreviewProjects}
                         />
                         <Divider
                             orientation="vertical"
@@ -381,6 +385,23 @@ const AiAgentAdminEvalsTable = ({
                             selectedAgentUuids={selectedAgentUuids}
                             setSelectedAgentUuids={setSelectedAgentUuids}
                             selectedProjectUuids={selectedProjectUuids}
+                            hidePreviewProjects={hidePreviewProjects}
+                        />
+                        <Divider
+                            orientation="vertical"
+                            w={1}
+                            h={20}
+                            style={{ alignSelf: 'center' }}
+                        />
+                        <Switch
+                            size="xs"
+                            label="Hide preview projects"
+                            checked={hidePreviewProjects}
+                            onChange={(event) =>
+                                setHidePreviewProjects(
+                                    event.currentTarget.checked,
+                                )
+                            }
                         />
                         {hasActiveFilters && (
                             <>
