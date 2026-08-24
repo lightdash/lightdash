@@ -33,6 +33,9 @@ import {
 } from '../VisualizationCardOptions/useChartTypeOptions';
 import classes from './ChartTypeGallery.module.css';
 
+/** Rows shown before "Load more", keeping built-ins visible at first glance. */
+const INITIAL_PROJECT_TYPES_SHOWN = 5;
+
 export type ChartTypeGalleryItem = Omit<ChartTypeOption, 'id'> & {
     key: string;
     disabled: boolean;
@@ -333,6 +336,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
     const navigate = useNavigate();
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
+    const [showAllProjectTypes, setShowAllProjectTypes] = useState(false);
     const dataAppsEnabled =
         useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
         true;
@@ -409,13 +413,25 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
         },
     );
 
+    // Cap the initial list so built-ins stay in view; searching shows every
+    // match, and a selection deeper in the list is never hidden.
+    const selectedProjectIdx = projectItems.findIndex((item) => item.selected);
+    const collapseProjectTypes =
+        !showAllProjectTypes &&
+        debouncedSearch === '' &&
+        projectItems.length > INITIAL_PROJECT_TYPES_SHOWN &&
+        selectedProjectIdx < INITIAL_PROJECT_TYPES_SHOWN;
+    const visibleProjectItems = collapseProjectTypes
+        ? projectItems.slice(0, INITIAL_PROJECT_TYPES_SHOWN)
+        : projectItems;
+
     const sections: ChartTypeGallerySection[] = [
         ...(dataAppsEnabled
             ? [
                   {
                       label: 'Project',
                       layout: 'rows' as const,
-                      items: projectItems,
+                      items: visibleProjectItems,
                       loading: isInitialLoading,
                       errorMessage: error
                           ? 'Failed to load project chart types'
@@ -424,9 +440,11 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                           ? 'No project chart types match your search'
                           : 'No project chart types yet',
                       onRetry: error ? () => void refetch() : null,
-                      onLoadMore: hasNextPage
-                          ? () => void fetchNextPage()
-                          : null,
+                      onLoadMore: collapseProjectTypes
+                          ? () => setShowAllProjectTypes(true)
+                          : hasNextPage
+                            ? () => void fetchNextPage()
+                            : null,
                       loadingMore: isFetchingNextPage,
                       onCreateNew: canCreateChartType
                           ? () =>

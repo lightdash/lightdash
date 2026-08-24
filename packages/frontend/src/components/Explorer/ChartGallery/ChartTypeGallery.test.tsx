@@ -256,6 +256,53 @@ describe('ExplorerChartTypeGallery', () => {
         ).toBeInTheDocument();
     });
 
+    it('caps the initial project list and reveals the rest on Load more', async () => {
+        const many = Array.from({ length: 8 }, (_, i) => ({
+            ...projectChartType,
+            dataAppVizUuid: `project-chart-type-${i}`,
+            name: `Event pulse ${i}`,
+        }));
+        mockedUseDataAppVisualizations.mockReturnValue({
+            data: {
+                pages: [
+                    {
+                        data: many,
+                        pagination: {
+                            page: 1,
+                            pageSize: 25,
+                            totalPageCount: 1,
+                            totalResults: 8,
+                        },
+                    },
+                ],
+                pageParams: [1],
+            },
+            isInitialLoading: false,
+            error: null,
+            refetch: mocks.refetch,
+            hasNextPage: false,
+            fetchNextPage: mocks.fetchNextPage,
+            isFetchingNextPage: false,
+        } as unknown as ReturnType<typeof useDataAppVisualizations>);
+        renderGallery();
+
+        expect(
+            screen.getByRole('button', { name: /Event pulse 4/ }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: /Event pulse 5/ }),
+        ).not.toBeInTheDocument();
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Load more' }),
+        );
+
+        expect(
+            screen.getByRole('button', { name: /Event pulse 7/ }),
+        ).toBeInTheDocument();
+        expect(mocks.fetchNextPage).not.toHaveBeenCalled();
+    });
+
     it('keeps built-in choices usable when project types fail to load', async () => {
         setProjectQuery(new Error('unavailable'));
         renderGallery();
