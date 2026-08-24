@@ -13,6 +13,11 @@
     min-width: 0;
 }
 
+/* Matches the scroll area's offset scrollbar so the search lines up with the cards. */
+.search {
+    margin-right: 8px;
+}
+
 .rowWrapper {
     position: relative;
 }

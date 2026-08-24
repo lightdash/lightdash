@@ -308,6 +308,7 @@ export const ChartTypeGallery: FC<GalleryProps> = ({
 }) => (
     <Stack className={classes.root} gap="md">
         <TextInput
+            className={classes.search}
             size="xs"
             value={search}
             onChange={(event) => onSearchChange(event.currentTarget.value)}

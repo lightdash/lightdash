@@ -92,7 +92,11 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                         </>
                     ) : (
                         <Stack className={classes.configure} gap="md">
-                            <Group wrap="nowrap" gap="sm">
+                            <Group
+                                className={classes.selectedType}
+                                wrap="nowrap"
+                                gap="sm"
+                            >
                                 <ChartTypeThumbnail
                                     small
                                     icon={selectedItem.icon}
