@@ -1,11 +1,16 @@
 import { ChartType, type DataAppViz, type ItemsMap } from '@lightdash/common';
+import { IconChartBar } from '@tabler/icons-react';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type * as ReactRouter from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/useDataAppVisualizations';
 import { renderWithProviders } from '../../../testing/testUtils';
-import ExplorerChartTypeGallery from './ChartTypeGallery';
+import ExplorerChartTypeGallery, {
+    ChartTypeGallery,
+    type ChartTypeGalleryItem,
+    type ChartTypeGallerySection,
+} from './ChartTypeGallery';
 
 const { mocks } = vi.hoisted(() => ({
     mocks: {
@@ -68,6 +73,69 @@ vi.mock('react-router', async (importOriginal) => ({
     useNavigate: () => mocks.navigate,
 }));
 
+const galleryItem = (
+    label: string,
+    description: string,
+): ChartTypeGalleryItem => ({
+    key: label,
+    label,
+    description,
+    icon: IconChartBar,
+    rotatedIcon: false,
+    selected: false,
+    disabled: false,
+    select: vi.fn(),
+});
+
+const gallerySection = (
+    label: string,
+    layout: ChartTypeGallerySection['layout'],
+    items: ChartTypeGalleryItem[],
+): ChartTypeGallerySection => ({
+    label,
+    layout,
+    items,
+    loading: false,
+    errorMessage: null,
+    emptyMessage: 'Nothing here',
+    onRetry: null,
+    onLoadMore: null,
+    loadingMore: false,
+    onCreateNew: null,
+});
+
+describe('ChartTypeGallery', () => {
+    it('renders grid sections as icon+label cards and rows sections with descriptions', () => {
+        renderWithProviders(
+            <ChartTypeGallery
+                search=""
+                onSearchChange={vi.fn()}
+                sections={[
+                    gallerySection('Built in', 'grid', [
+                        galleryItem('Bar chart', 'Compare categories'),
+                    ]),
+                    gallerySection('Project', 'rows', [
+                        galleryItem('Event pulse', 'Reusable ranked bars'),
+                    ]),
+                ]}
+            />,
+        );
+
+        // Grid cards keep the label as the accessible name, drop the description.
+        expect(
+            screen.getByRole('button', { name: 'Bar chart' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByText('Compare categories'),
+        ).not.toBeInTheDocument();
+
+        expect(
+            screen.getByRole('button', { name: /Event pulse/ }),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Reusable ranked bars')).toBeInTheDocument();
+    });
+});
+
 const mockedUseDataAppVisualizations = vi.mocked(useDataAppVisualizations);
 
 const setProjectQuery = (error: Error | null = null) => {
@@ -121,6 +189,21 @@ describe('ExplorerChartTypeGallery', () => {
         expect(mocks.setCartesianType).toHaveBeenCalledWith(undefined);
         expect(mocks.setChartType).toHaveBeenCalledWith(ChartType.PIE);
         expect(onSelected).toHaveBeenCalledTimes(1);
+    });
+
+    it('renders built-ins as compact cards while project types keep descriptions', () => {
+        renderGallery();
+
+        // Built-in cards are icon + label only; the row description is gone.
+        expect(
+            screen.getByRole('button', { name: 'Pie chart' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByText('Show part-to-whole'),
+        ).not.toBeInTheDocument();
+
+        // Project chart types keep their richer row layout.
+        expect(screen.getByText('Reusable ranked bars')).toBeInTheDocument();
     });
 
     it('filters built-in choices using the gallery search', async () => {

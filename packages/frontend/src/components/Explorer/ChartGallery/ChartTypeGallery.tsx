@@ -61,6 +61,8 @@ export const ChartTypeThumbnail: FC<ThumbnailProps> = ({
 
 export type ChartTypeGallerySection = {
     label: string;
+    /** Built-ins render as a compact card grid; project types as rows. */
+    layout: 'grid' | 'rows';
     items: ChartTypeGalleryItem[];
     loading: boolean;
     errorMessage: string | null;
@@ -78,7 +80,7 @@ type GalleryProps = {
     sections: ChartTypeGallerySection[];
 };
 
-const ChartTypeGallery: FC<GalleryProps> = ({
+export const ChartTypeGallery: FC<GalleryProps> = ({
     search,
     onSearchChange,
     sections,
@@ -134,6 +136,29 @@ const ChartTypeGallery: FC<GalleryProps> = ({
                             <Text fz="xs" c="dimmed">
                                 {section.emptyMessage}
                             </Text>
+                        ) : section.layout === 'grid' ? (
+                            <Box className={classes.grid}>
+                                {section.items.map((item) => (
+                                    <UnstyledButton
+                                        key={item.key}
+                                        className={classes.card}
+                                        data-selected={item.selected}
+                                        disabled={item.disabled}
+                                        onClick={item.select}
+                                    >
+                                        <MantineIcon
+                                            className={classes.icon}
+                                            data-rotated={item.rotatedIcon}
+                                            icon={item.icon}
+                                            size="xl"
+                                            color="blue"
+                                        />
+                                        <Text fz="xs" fw={500} lh={1.2}>
+                                            {item.label}
+                                        </Text>
+                                    </UnstyledButton>
+                                ))}
+                            </Box>
                         ) : (
                             section.items.map((item) => (
                                 <Box
@@ -308,6 +333,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
             ? [
                   {
                       label: 'Project',
+                      layout: 'rows' as const,
                       items: projectItems,
                       loading: isInitialLoading,
                       errorMessage: error
@@ -335,6 +361,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
             : []),
         {
             label: 'Built in',
+            layout: 'grid',
             items: builtInItems,
             loading: false,
             errorMessage: null,
