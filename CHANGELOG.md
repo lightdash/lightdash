@@ -1,3 +1,10 @@
+## [1.242.7](https://github.com/lightdash/lightdash/compare/1.242.6...1.242.7) (2026-08-24)
+
+
+### Bug Fixes
+
+* **warehouses:** avoid premature Postgres query timeout ([#27931](https://github.com/lightdash/lightdash/issues/27931)) ([43b72f0](https://github.com/lightdash/lightdash/commit/43b72f0f6a041a1954ad1f8ba43c3d56bad3ced0))
+
 ## [1.242.6](https://github.com/lightdash/lightdash/compare/1.242.5...1.242.6) (2026-08-24)
 
 
