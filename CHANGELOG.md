@@ -1,3 +1,10 @@
+# [1.248.0](https://github.com/lightdash/lightdash/compare/1.247.0...1.248.0) (2026-08-24)
+
+
+### Features
+
+* **ai:** harden custom chart type validation — slot pools, options, mergeConfig rejection ([#27882](https://github.com/lightdash/lightdash/issues/27882)) ([67bd84e](https://github.com/lightdash/lightdash/commit/67bd84ef0d9a64471b931c768e31a0c42ed5406a))
+
 # [1.247.0](https://github.com/lightdash/lightdash/compare/1.246.0...1.247.0) (2026-08-24)
 
 
